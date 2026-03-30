@@ -14,7 +14,6 @@ import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.coverage.TestReport;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import org.junit.jupiter.api.Test;
 
 class FileCoverageStoreTest {
@@ -26,8 +25,7 @@ class FileCoverageStoreTest {
   private static final class ResolvableClassC {}
 
   @Test
-  void duplicateKeyClassReturnsAllCandidatePathsInCoverageReport()
-      throws SourceResolutionException {
+  void duplicateKeyClassReturnsAllCandidatePathsInCoverageReport() {
     CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
     SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
     when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
@@ -54,7 +52,7 @@ class FileCoverageStoreTest {
   }
 
   @Test
-  void coverageReportSucceedsForNonDuplicateClasses() throws SourceResolutionException {
+  void coverageReportSucceedsForNonDuplicateClasses() {
     CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
     SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
     when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))
@@ -75,7 +73,7 @@ class FileCoverageStoreTest {
   }
 
   @Test
-  void emptySourcePathsForOneClassDoesNotKillCoverageReport() throws SourceResolutionException {
+  void emptySourcePathsForOneClassDoesNotKillCoverageReport() {
     CiVisibilityMetricCollector metrics = mock(CiVisibilityMetricCollector.class);
     SourcePathResolver sourcePathResolver = mock(SourcePathResolver.class);
     when(sourcePathResolver.getSourcePaths(ResolvableClassA.class))

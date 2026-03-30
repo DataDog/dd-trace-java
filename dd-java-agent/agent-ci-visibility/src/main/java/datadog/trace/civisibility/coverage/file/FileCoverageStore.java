@@ -11,7 +11,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.civisibility.coverage.ConcurrentCoverageStore;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -47,61 +46,54 @@ public class FileCoverageStore extends ConcurrentCoverageStore<FileProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes)
-      throws SourceResolutionException {
-    try {
-      Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
-      Collection<String> combinedNonCodeResources = new HashSet<>();
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<FileProbes> probes) {
+    Set<Class<?>> combinedClasses = Collections.newSetFromMap(new IdentityHashMap<>());
+    Collection<String> combinedNonCodeResources = new HashSet<>();
 
-      for (FileProbes probe : probes) {
-        combinedClasses.addAll(probe.getCoveredClasses());
-        combinedNonCodeResources.addAll(probe.getNonCodeResources());
-      }
-
-      if (combinedClasses.isEmpty() && combinedNonCodeResources.isEmpty()) {
-        return null;
-      }
-
-      Set<String> coveredPaths = set(combinedClasses.size() + combinedNonCodeResources.size());
-      for (Class<?> clazz : combinedClasses) {
-        Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
-        if (sourcePaths.isEmpty()) {
-          log.debug(
-              "Skipping coverage reporting for {} because source path could not be determined",
-              clazz);
-          metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
-        }
-        coveredPaths.addAll(sourcePaths);
-      }
-
-      for (String nonCodeResource : combinedNonCodeResources) {
-        String resourcePath = sourcePathResolver.getResourcePath(nonCodeResource);
-        if (resourcePath == null) {
-          log.debug(
-              "Skipping coverage reporting for {} because resource path could not be determined",
-              nonCodeResource);
-          metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
-        }
-        coveredPaths.add(resourcePath);
-      }
-
-      List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
-      for (String path : coveredPaths) {
-        fileEntries.add(new TestReportFileEntry(path, null));
-      }
-
-      TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
-      metrics.add(
-          CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
-          report.getTestReportFileEntries().size());
-      return report;
-
-    } catch (Exception e) {
-      metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
-      throw e;
+    for (FileProbes probe : probes) {
+      combinedClasses.addAll(probe.getCoveredClasses());
+      combinedNonCodeResources.addAll(probe.getNonCodeResources());
     }
+
+    if (combinedClasses.isEmpty() && combinedNonCodeResources.isEmpty()) {
+      return null;
+    }
+
+    Set<String> coveredPaths = set(combinedClasses.size() + combinedNonCodeResources.size());
+    for (Class<?> clazz : combinedClasses) {
+      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
+      if (sourcePaths.isEmpty()) {
+        log.debug(
+            "Skipping coverage reporting for {} because source path could not be determined",
+            clazz);
+        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+        continue;
+      }
+      coveredPaths.addAll(sourcePaths);
+    }
+
+    for (String nonCodeResource : combinedNonCodeResources) {
+      Collection<String> resourcePaths = sourcePathResolver.getResourcePaths(nonCodeResource);
+      if (resourcePaths.isEmpty()) {
+        log.debug(
+            "Skipping coverage reporting for {} because resource path could not be determined",
+            nonCodeResource);
+        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+        continue;
+      }
+      coveredPaths.addAll(resourcePaths);
+    }
+
+    List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredPaths.size());
+    for (String path : coveredPaths) {
+      fileEntries.add(new TestReportFileEntry(path, null));
+    }
+
+    TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
+    metrics.add(
+        CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
+        report.getTestReportFileEntries().size());
+    return report;
   }
 
   private static <T> Set<T> set(int size) {

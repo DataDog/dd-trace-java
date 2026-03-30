@@ -9,21 +9,13 @@ public class NoOpSourcePathResolver implements SourcePathResolver {
 
   public static final SourcePathResolver INSTANCE = new NoOpSourcePathResolver();
 
-  @Nullable
-  @Override
-  public String getSourcePath(@Nonnull Class<?> c) {
-    return null;
-  }
-
-  @Nonnull
   @Override
   public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
     return Collections.emptyList();
   }
 
-  @Nullable
   @Override
-  public String getResourcePath(@Nullable String relativePath) {
-    return null;
+  public Collection<String> getResourcePaths(@Nullable String relativePath) {
+    return Collections.emptyList();
   }
 }

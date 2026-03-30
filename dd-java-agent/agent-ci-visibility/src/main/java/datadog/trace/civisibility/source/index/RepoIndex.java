@@ -4,7 +4,6 @@ import datadog.instrument.utils.ClassNameTrie;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.domain.Language;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.Utils;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
@@ -54,45 +53,45 @@ public class RepoIndex {
     return rootPackages;
   }
 
-  @Nullable
-  public String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
+  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
     String topLevelClassName = Utils.stripNestedClassNames(c.getName());
-    String sourcePath = doGetSourcePath(topLevelClassName);
-    if (sourcePath != null) {
-      return sourcePath;
-    }
-    String fallbackKey = getFallbackTrieKey(c);
-    return fallbackKey != null ? doGetSourcePath(fallbackKey) : null;
+    Collection<String> sourcePaths = doGetAllSourcePaths(topLevelClassName);
+    return !sourcePaths.isEmpty() ? sourcePaths : getFallbackSourcePaths(c);
   }
 
-  @Nullable
-  public String getSourcePath(@Nullable String pathRelativeToSourceRoot)
-      throws SourceResolutionException {
+  /**
+   * Used as a fallback for non-Java classes or Java classes that are not public: in this case class
+   * name does not necessarily correspond to the source file name, so source file name needs to be
+   * retrieved from the bytecode.
+   */
+  private Collection<String> getFallbackSourcePaths(@Nonnull Class<?> c) {
+    try {
+      String fileName = Utils.getFileName(c);
+      if (fileName == null) {
+        log.debug("Could not retrieve file name for class {}", c.getName());
+        return Collections.emptyList();
+      }
+
+      String fileNameWithoutExtension = Utils.stripExtension(fileName);
+      Package classPackage = c.getPackage();
+      String packageName = classPackage != null ? classPackage.getName() : "";
+      String key = packageName + '.' + fileNameWithoutExtension;
+      return doGetAllSourcePaths(key);
+
+    } catch (IOException e) {
+      log.error("Error while trying to retrieve file name for class {}", c.getName(), e);
+      return Collections.emptyList();
+    }
+  }
+
+  public Collection<String> getSourcePaths(@Nullable String pathRelativeToSourceRoot) {
     if (pathRelativeToSourceRoot == null) {
-      return null;
+      return Collections.emptyList();
     }
     String key = Utils.toTrieKey(pathRelativeToSourceRoot);
-    return doGetSourcePath(key);
+    return doGetAllSourcePaths(key);
   }
 
-  @Nullable
-  private String doGetSourcePath(String key) throws SourceResolutionException {
-    if (Config.get().isCiVisibilityRepoIndexDuplicateKeyCheckEnabled()) {
-      if (!duplicateTrieKeys.isEmpty() && duplicateTrieKeys.containsKey(key)) {
-        throw new SourceResolutionException("There are multiple repo index entries for " + key);
-      }
-    }
-
-    int sourceRootIdx = trie.apply(key);
-    if (sourceRootIdx < 0) {
-      log.debug("Could not find source root for {}", key);
-      return null;
-    }
-    SourceRoot sourceRoot = sourceRoots.get(sourceRootIdx);
-    return sourceRoot.resolveSourcePath(key);
-  }
-
-  @Nonnull
   private Collection<String> doGetAllSourcePaths(String key) {
     if (Config.get().isCiVisibilityRepoIndexDuplicateKeyCheckEnabled()
         && !duplicateTrieKeys.isEmpty()
@@ -110,42 +109,6 @@ public class RepoIndex {
     }
     SourceRoot sourceRoot = sourceRoots.get(sourceRootIdx);
     return Collections.singletonList(sourceRoot.resolveSourcePath(key));
-  }
-
-  @Nonnull
-  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-    String topLevelClassName = Utils.stripNestedClassNames(c.getName());
-    Collection<String> sourcePaths = doGetAllSourcePaths(topLevelClassName);
-    if (!sourcePaths.isEmpty()) {
-      return sourcePaths;
-    }
-    String fallbackKey = getFallbackTrieKey(c);
-    return fallbackKey != null ? doGetAllSourcePaths(fallbackKey) : Collections.emptyList();
-  }
-
-  /**
-   * Computes the fallback trie key for non-Java classes or Java classes that are not public: in
-   * this case class name does not necessarily correspond to the source file name, so source file
-   * name needs to be retrieved from the bytecode.
-   */
-  @Nullable
-  private String getFallbackTrieKey(@Nonnull Class<?> c) {
-    try {
-      String fileName = Utils.getFileName(c);
-      if (fileName == null) {
-        log.debug("Could not retrieve file name for class {}", c.getName());
-        return null;
-      }
-
-      String fileNameWithoutExtension = Utils.stripExtension(fileName);
-      Package classPackage = c.getPackage();
-      String packageName = classPackage != null ? classPackage.getName() : "";
-      return packageName + '.' + fileNameWithoutExtension;
-
-    } catch (IOException e) {
-      log.error("Error while trying to retrieve file name for class {}", c.getName(), e);
-      return null;
-    }
   }
 
   public ByteBuffer serialize() {

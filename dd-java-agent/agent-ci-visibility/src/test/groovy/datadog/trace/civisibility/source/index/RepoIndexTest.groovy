@@ -2,7 +2,6 @@ package datadog.trace.civisibility.source.index
 
 import datadog.instrument.utils.ClassNameTrie
 import datadog.trace.api.civisibility.domain.Language
-import datadog.trace.civisibility.source.SourceResolutionException
 import spock.lang.Specification
 
 class RepoIndexTest extends Specification {
@@ -28,8 +27,10 @@ class RepoIndexTest extends Specification {
     def deserialized = RepoIndex.deserialize(serialized)
 
     then:
-    deserialized.getSourcePath(RepoIndexTest) == "myClassSourceRoot/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
-    deserialized.getSourcePath(RepoIndexSourcePathResolverTest) == "myOtherClassSourceRoot/" + myOtherClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
+    deserialized.getSourcePaths(RepoIndexTest).size() == 1
+    deserialized.getSourcePaths(RepoIndexTest) .contains("myClassSourceRoot/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension)
+    deserialized.getSourcePaths(RepoIndexSourcePathResolverTest).size() == 1
+    deserialized.getSourcePaths(RepoIndexSourcePathResolverTest).contains("myOtherClassSourceRoot/" + myOtherClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension)
   }
 
   def "test serialization and deserialization with duplicate keys"() {
@@ -62,18 +63,6 @@ class RepoIndexTest extends Specification {
       "sourceRoot1/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension,
       "sourceRoot2/" + myClassName.replace('.' as char, File.separatorChar) + Language.GROOVY.extension
     ])
-  }
-
-  def "test trying to resolve a duplicate key throws exception"() {
-    given:
-    def duplicateKeys = [(RepoIndexTest.name): ["path1.groovy", "path2.groovy"]]
-    def repoIndex = new RepoIndex(new ClassNameTrie.Builder().buildTrie(), duplicateKeys, Collections.emptyList(), Collections.emptyList())
-
-    when:
-    repoIndex.getSourcePath(RepoIndexTest)
-
-    then:
-    thrown SourceResolutionException
   }
 
   def "test getSourcePaths returns all paths for duplicate key"() {

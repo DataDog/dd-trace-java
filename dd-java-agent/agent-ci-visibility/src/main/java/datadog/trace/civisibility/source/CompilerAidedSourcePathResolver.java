@@ -15,27 +15,19 @@ public class CompilerAidedSourcePathResolver implements SourcePathResolver {
     this.repoRoot = repoRoot.endsWith(File.separator) ? repoRoot : repoRoot + File.separator;
   }
 
-  @Nullable
-  @Override
-  public String getSourcePath(@Nonnull Class<?> c) {
-    String absoluteSourcePath = CompilerUtils.getSourcePath(c);
-    if (absoluteSourcePath != null && absoluteSourcePath.startsWith(repoRoot)) {
-      return absoluteSourcePath.substring(repoRoot.length());
-    } else {
-      return null;
-    }
-  }
-
   @Nonnull
   @Override
   public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
-    String path = getSourcePath(c);
-    return path != null ? Collections.singletonList(path) : Collections.emptyList();
+    String absoluteSourcePath = CompilerUtils.getSourcePath(c);
+    if (absoluteSourcePath != null && absoluteSourcePath.startsWith(repoRoot)) {
+      return Collections.singletonList(absoluteSourcePath.substring(repoRoot.length()));
+    } else {
+      return Collections.emptyList();
+    }
   }
 
-  @Nullable
   @Override
-  public String getResourcePath(String relativePath) {
-    return null;
+  public @Nullable Collection<String> getResourcePaths(String relativePath) {
+    return Collections.emptyList();
   }
 }

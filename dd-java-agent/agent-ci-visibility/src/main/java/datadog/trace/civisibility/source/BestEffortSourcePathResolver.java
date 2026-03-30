@@ -13,21 +13,8 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
     this.delegates = delegates;
   }
 
-  @Nullable
   @Override
-  public String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException {
-    for (SourcePathResolver delegate : delegates) {
-      String sourcePath = delegate.getSourcePath(c);
-      if (sourcePath != null) {
-        return sourcePath;
-      }
-    }
-    return null;
-  }
-
-  @Nonnull
-  @Override
-  public Collection<String> getSourcePaths(@Nonnull Class<?> c) throws SourceResolutionException {
+  public Collection<String> getSourcePaths(@Nonnull Class<?> c) {
     for (SourcePathResolver delegate : delegates) {
       Collection<String> sourcePaths = delegate.getSourcePaths(c);
       if (!sourcePaths.isEmpty()) {
@@ -37,12 +24,11 @@ public class BestEffortSourcePathResolver implements SourcePathResolver {
     return Collections.emptyList();
   }
 
-  @Nullable
   @Override
-  public String getResourcePath(@Nullable String relativePath) throws SourceResolutionException {
+  public Collection<String> getResourcePaths(@Nullable String relativePath) {
     for (SourcePathResolver delegate : delegates) {
-      String resourcePath = delegate.getResourcePath(relativePath);
-      if (resourcePath != null) {
+      Collection<String> resourcePath = delegate.getResourcePaths(relativePath);
+      if (!resourcePath.isEmpty()) {
         return resourcePath;
       }
     }
