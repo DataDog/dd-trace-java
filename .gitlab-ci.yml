@@ -29,6 +29,8 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+  ARM64_BUILDER_IMAGE_REPO: "ghcr.io/datadog/dd-trace-java-docker-build"
+  ARM64_BUILDER_IMAGE_TAG_PREFIX: "alexeyk_arm64-test-arm64-"
   WINDOWS_JDK8_VERSION: "8u482-b08" # keep pinned to Temurin GA patch releases and bump periodically
   WINDOWS_JDK11_VERSION: "11.0.30+7"
   WINDOWS_JDK17_VERSION: "17.0.18+8"
@@ -810,6 +812,71 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
+.test_job_arm64_poc:
+  image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG_PREFIX}$testJvm
+  tags: [ "docker-in-docker:arm64" ]
+  stage: tests
+  needs: []
+  cache:
+    - key: dependency-arm64-base
+      paths:
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+        - .mvn/caches
+      policy: pull
+      unprotect: true
+  variables:
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 4G
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
+    JETTY_AVAILABLE_PROCESSORS: 4
+  before_script:
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+    - |
+      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
+      cat >> gradle.properties <<EOF
+      org.gradle.java.installations.auto-detect=false
+      org.gradle.java.installations.auto-download=false
+      org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      EOF
+    - mkdir -p .gradle .mvn/caches
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
+    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    - *normalize_node_index
+    - *prepare_test_env
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - ./gradlew --version
+  script:
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
+  artifacts:
+    when: always
+    paths:
+      - workspace/**/build/test-results/**
+      - workspace/**/build/reports/tests/**
+      - buildSrc/build/test-results/**
+      - buildSrc/build/reports/tests/**
+      - .gradle/daemon/*/*.out.log
+    reports:
+      junit:
+        - workspace/**/build/test-results/**/*.xml
+        - buildSrc/build/test-results/**/*.xml
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
+
 .test_job_with_test_agent:
   extends: .test_job
   variables:
@@ -878,6 +945,14 @@ test_base_windows21:
       junit:
         - workspace/**/build/test-results/**/*.xml
         - buildSrc/build/test-results/**/*.xml
+
+test_base_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":baseTest"
 
 test_inst:
   extends: .test_job_with_test_agent
