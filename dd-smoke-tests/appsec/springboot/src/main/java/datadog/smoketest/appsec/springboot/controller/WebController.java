@@ -20,9 +20,15 @@ import java.net.URL;
 import java.nio.file.Paths;
 import java.sql.Connection;
 import java.sql.DriverManager;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
+import org.apache.commons.fileupload.FileItem;
+import org.apache.commons.fileupload.FileUploadException;
+import org.apache.commons.fileupload.disk.DiskFileItemFactory;
+import org.apache.commons.fileupload.servlet.ServletFileUpload;
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.HttpMethod;
 import org.apache.commons.httpclient.methods.GetMethod;
@@ -270,6 +276,25 @@ public class WebController {
     }
     headers.add("content-language", "en-US");
     return new ResponseEntity<>("Custom headers added", headers, HttpStatus.OK);
+  }
+
+  @PostMapping(value = "/upload", consumes = "multipart/form-data")
+  public ResponseEntity<String> upload(HttpServletRequest request) {
+    if (!ServletFileUpload.isMultipartContent(request)) {
+      return ResponseEntity.badRequest().body("Not a multipart request");
+    }
+    try {
+      List<FileItem> items = new ServletFileUpload(new DiskFileItemFactory()).parseRequest(request);
+      List<String> names = new ArrayList<>();
+      for (FileItem item : items) {
+        if (!item.isFormField()) {
+          names.add(item.getName());
+        }
+      }
+      return ResponseEntity.ok("Uploaded: " + names);
+    } catch (FileUploadException e) {
+      return ResponseEntity.status(500).body("Upload error: " + e.getMessage());
+    }
   }
 
   @PostMapping("/waf-event-with-body")

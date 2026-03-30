@@ -111,9 +111,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
 
     setTag(Tags.TEST_COMMAND, startCommand);
 
-    if (executionSettings.isConfigurationError()) {
-      setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
-    }
+    executionSettings.getConfigurationErrors().applyTags(span);
   }
 
   @ParametersAreNonnullByDefault

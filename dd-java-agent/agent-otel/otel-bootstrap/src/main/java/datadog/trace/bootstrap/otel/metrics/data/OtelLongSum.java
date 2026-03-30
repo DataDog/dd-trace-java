@@ -11,7 +11,7 @@ final class OtelLongSum extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelLongPoint(reset ? total.sumThenReset() : total.sum());
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpLongPoint(reset ? total.sumThenReset() : total.sum());
   }
 }
