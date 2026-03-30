@@ -70,11 +70,7 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI32(StreamingBuffer buf, int value) {
-    buf.putInt( // convert to little-endian
-        (value & 0xff000000) >>> 24
-            | (value & 0x00ff0000) >>> 8
-            | (value & 0x0000ff00) << 8
-            | (value & 0x000000ff) << 24);
+    buf.putInt(Integer.reverseBytes(value)); // convert to little-endian
   }
 
   public static void writeI32(StreamingBuffer buf, float value) {
@@ -82,15 +78,7 @@ public final class OtlpCommonProto {
   }
 
   public static void writeI64(StreamingBuffer buf, long value) {
-    buf.putLong( // convert to little-endian
-        (value & 0xff00000000000000L) >>> 56
-            | (value & 0x00ff000000000000L) >>> 40
-            | (value & 0x0000ff0000000000L) >>> 24
-            | (value & 0x000000ff00000000L) >>> 8
-            | (value & 0x00000000ff000000L) << 8
-            | (value & 0x0000000000ff0000L) << 24
-            | (value & 0x000000000000ff00L) << 40
-            | (value & 0x00000000000000ffL) << 56);
+    buf.putLong(Long.reverseBytes(value)); // convert to little-endian
   }
 
   public static void writeI64(StreamingBuffer buf, double value) {
@@ -119,12 +107,18 @@ public final class OtlpCommonProto {
   }
 
   public static byte[] recordMessage(GrowableBuffer buf, int fieldNum) {
+    return recordMessage(buf, fieldNum, 0);
+  }
+
+  public static byte[] recordMessage(GrowableBuffer buf, int fieldNum, int remainingBytes) {
     try {
       ByteBuffer data = buf.flip();
       int dataSize = data.remaining();
-      ByteBuffer message = ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(dataSize) + dataSize);
+      int expectedSize = dataSize + remainingBytes;
+      ByteBuffer message =
+          ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(expectedSize) + dataSize);
       writeTag(message, fieldNum, LEN_WIRE_TYPE);
-      writeVarInt(message, dataSize);
+      writeVarInt(message, expectedSize);
       message.put(data);
       return message.array();
     } finally {
@@ -134,19 +128,19 @@ public final class OtlpCommonProto {
 
   public static void writeInstrumentationScope(
       StreamingBuffer buf, OtelInstrumentationScope scope) {
-    byte[] scopeNameUtf8 = scope.getName().getUtf8Bytes();
-    int scopeSize = 1 + sizeVarInt(scopeNameUtf8.length) + scopeNameUtf8.length;
-    byte[] scopeVersionUtf8 = null;
+    byte[] nameUtf8 = scope.getName().getUtf8Bytes();
+    int scopeSize = 1 + sizeVarInt(nameUtf8.length) + nameUtf8.length;
+    byte[] versionUtf8 = null;
     if (scope.getVersion() != null) {
-      scopeVersionUtf8 = scope.getVersion().getUtf8Bytes();
-      scopeSize += 1 + sizeVarInt(scopeVersionUtf8.length) + scopeVersionUtf8.length;
+      versionUtf8 = scope.getVersion().getUtf8Bytes();
+      scopeSize += 1 + sizeVarInt(versionUtf8.length) + versionUtf8.length;
     }
     writeVarInt(buf, scopeSize);
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeString(buf, scopeNameUtf8);
-    if (scopeVersionUtf8 != null) {
+    writeString(buf, nameUtf8);
+    if (versionUtf8 != null) {
       writeTag(buf, 2, LEN_WIRE_TYPE);
-      writeString(buf, scopeVersionUtf8);
+      writeString(buf, versionUtf8);
     }
   }
 
@@ -167,9 +161,7 @@ public final class OtlpCommonProto {
         writeDoubleAttribute(buf, keyUtf8, (double) value);
         break;
       case OtlpAttributeVisitor.STRING_ARRAY:
-        byte[][] valueUtf8s =
-            ((List<String>) value).stream().map(OtlpCommonProto::valueUtf8).toArray(byte[][]::new);
-        writeStringArrayAttribute(buf, keyUtf8, valueUtf8s);
+        writeStringArrayAttribute(buf, keyUtf8, (List<String>) value);
         break;
       case OtlpAttributeVisitor.BOOLEAN_ARRAY:
         writeBooleanArrayAttribute(buf, keyUtf8, (List<Boolean>) value);
@@ -247,13 +239,14 @@ public final class OtlpCommonProto {
   }
 
   private static void writeStringArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, byte[][] valueUtf8s) {
-    int[] elementSizes = new int[valueUtf8s.length];
+      StreamingBuffer buf, byte[] keyUtf8, List<String> strings) {
+    byte[][] valueUtf8s = new byte[strings.size()][];
     for (int i = 0; i < valueUtf8s.length; i++) {
-      elementSizes[i] = 1 + sizeVarInt(valueUtf8s[i].length) + valueUtf8s[i].length;
+      valueUtf8s[i] = valueUtf8(strings.get(i));
     }
     int arraySize = 0;
-    for (int elementSize : elementSizes) {
+    for (byte[] valueUtf8 : valueUtf8s) {
+      int elementSize = 1 + sizeVarInt(valueUtf8.length) + valueUtf8.length;
       arraySize += 1 + sizeVarInt(elementSize) + elementSize;
     }
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
@@ -267,12 +260,13 @@ public final class OtlpCommonProto {
     writeVarInt(buf, valueSize);
     writeTag(buf, 5, LEN_WIRE_TYPE);
     writeVarInt(buf, arraySize);
-    for (int i = 0; i < elementSizes.length; i++) {
+    for (byte[] valueUtf8 : valueUtf8s) {
+      int elementSize = 1 + sizeVarInt(valueUtf8.length) + valueUtf8.length;
       writeTag(buf, 1, LEN_WIRE_TYPE);
-      writeVarInt(buf, elementSizes[i]);
+      writeVarInt(buf, elementSize);
       writeTag(buf, 1, LEN_WIRE_TYPE);
-      writeVarInt(buf, valueUtf8s[i].length);
-      buf.put(valueUtf8s[i]);
+      writeVarInt(buf, valueUtf8.length);
+      buf.put(valueUtf8);
     }
   }
 
@@ -300,12 +294,13 @@ public final class OtlpCommonProto {
 
   private static void writeLongArrayAttribute(
       StreamingBuffer buf, byte[] keyUtf8, List<Long> values) {
-    int[] elementSizes = new int[values.size()];
-    for (int i = 0; i < values.size(); i++) {
-      elementSizes[i] = 1 + sizeVarInt(values.get(i));
+    long[] longValues = new long[values.size()];
+    for (int i = 0; i < longValues.length; i++) {
+      longValues[i] = values.get(i); // avoid repeated unboxing later
     }
     int arraySize = 0;
-    for (int elementSize : elementSizes) {
+    for (long longValue : longValues) {
+      int elementSize = 1 + sizeVarInt(longValue);
       arraySize += 1 + sizeVarInt(elementSize) + elementSize;
     }
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
@@ -319,11 +314,12 @@ public final class OtlpCommonProto {
     writeVarInt(buf, valueSize);
     writeTag(buf, 5, LEN_WIRE_TYPE);
     writeVarInt(buf, arraySize);
-    for (int i = 0; i < elementSizes.length; i++) {
+    for (long longValue : longValues) {
+      int elementSize = 1 + sizeVarInt(longValue);
       writeTag(buf, 1, LEN_WIRE_TYPE);
-      writeVarInt(buf, elementSizes[i]);
+      writeVarInt(buf, elementSize);
       writeTag(buf, 3, VARINT_WIRE_TYPE);
-      writeVarInt(buf, values.get(i));
+      writeVarInt(buf, longValue);
     }
   }
 

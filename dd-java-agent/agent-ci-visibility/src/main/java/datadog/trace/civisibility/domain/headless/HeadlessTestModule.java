@@ -124,9 +124,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   @Override
   public void end(@Nullable Long endTime) {
     ExecutionSettings executionSettings = executionStrategy.getExecutionSettings();
-    if (executionSettings.isConfigurationError()) {
-      setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
-    }
+    executionSettings.getConfigurationErrors().applyTags(span);
 
     if (executionSettings.isCodeCoverageEnabled()) {
       setTag(Tags.TEST_CODE_COVERAGE_ENABLED, true);
@@ -189,7 +187,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         linesResolver,
         coverageStoreFactory,
         executionResults,
-        executionStrategy.getExecutionSettings().isConfigurationError(),
+        executionStrategy.getExecutionSettings().getConfigurationErrors(),
         capabilities,
         tagsPropagator::propagateCiVisibilityTags);
   }
