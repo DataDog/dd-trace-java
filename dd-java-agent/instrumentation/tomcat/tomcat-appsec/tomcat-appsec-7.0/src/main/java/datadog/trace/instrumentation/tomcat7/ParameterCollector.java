@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -14,6 +15,10 @@ public interface ParameterCollector {
   void put(String key, String[] values);
 
   Map<String, List<String>> getMap();
+
+  void addPart(Object part);
+
+  List<String> getFilenames();
 
   class ParameterCollectorNoop implements ParameterCollector {
     public static final ParameterCollector INSTANCE = new ParameterCollectorNoop();
@@ -33,10 +38,19 @@ public interface ParameterCollector {
     public Map<String, List<String>> getMap() {
       return Collections.emptyMap();
     }
+
+    @Override
+    public void addPart(Object part) {}
+
+    @Override
+    public List<String> getFilenames() {
+      return Collections.emptyList();
+    }
   }
 
   class ParameterCollectorImpl implements ParameterCollector {
     private Map<String, List<String>> map;
+    private List<String> filenames;
 
     public boolean isEmpty() {
       return map == null;
@@ -71,6 +85,41 @@ public interface ParameterCollector {
     @Override
     public Map<String, List<String>> getMap() {
       return map;
+    }
+
+    @Override
+    public void addPart(Object part) {
+      try {
+        String filename = getFilename(part);
+        if (filename != null && !filename.isEmpty()) {
+          if (filenames == null) {
+            filenames = new ArrayList<>();
+          }
+          filenames.add(filename);
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
+    @Override
+    public List<String> getFilenames() {
+      return filenames != null ? filenames : Collections.<String>emptyList();
+    }
+
+    private static String getFilename(Object part) {
+      // Try getSubmittedFileName() first — Servlet 3.1+ / Tomcat 8+ (both javax and jakarta)
+      try {
+        Method m = part.getClass().getMethod("getSubmittedFileName");
+        return (String) m.invoke(part);
+      } catch (Exception ignored) {
+      }
+      // Fall back to getFilename() — Tomcat 7 ApplicationPart specific
+      try {
+        Method m = part.getClass().getMethod("getFilename");
+        return (String) m.invoke(part);
+      } catch (Exception ignored) {
+      }
+      return null;
     }
   }
 }
