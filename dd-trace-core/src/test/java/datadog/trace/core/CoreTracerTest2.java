@@ -7,13 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.util.Collection;
-import java.util.Collections;
-import java.util.List;
-import java.util.SortedSet;
-
-import org.junit.jupiter.api.Test;
-
 import datadog.trace.api.Config;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
@@ -22,6 +15,9 @@ import datadog.trace.core.CoreTracer.CoreSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilder;
 import datadog.trace.core.CoreTracer.ReusableSingleSpanBuilderThreadLocalCache;
 import datadog.trace.core.CoreTracer.TraceInterceptors;
+import java.util.Collection;
+import java.util.List;
+import org.junit.jupiter.api.Test;
 
 // named CoreTracerTest2 to avoid collision with Groovy which appears to have messed up test
 // coverage
@@ -189,22 +185,20 @@ public final class CoreTracerTest2 {
     assertThrows(AssertionError.class, () -> builder.start());
   }
 
-
   @Test
   public void interceptNoInterceptors() {
     // No interceptors should return the original list to avoid allocation
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
 
     SpanList list = SpanList.of(span);
-    List<DDSpan> interceptedList =
-        CoreTracer.interceptCompleteTrace(new TraceInterceptors(), list);
+    List<DDSpan> interceptedList = CoreTracer.interceptCompleteTrace(new TraceInterceptors(), list);
     assertSame(list, interceptedList);
   }
 
   @Test
   public void interceptEmptyList() {
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
-   TraceInterceptors interceptors = interceptors((list) -> SpanList.of(span));
+    TraceInterceptors interceptors = interceptors((list) -> SpanList.of(span));
 
     SpanList list = new SpanList(0); // not using EMPTY deliberately
     List<DDSpan> interceptedList = CoreTracer.interceptCompleteTrace(interceptors, list);
@@ -225,8 +219,7 @@ public final class CoreTracerTest2 {
   public void interceptNewList() {
     DDSpan substituteSpan = (DDSpan) TRACER.startSpan("sub", "sub");
     SpanList substituteList = SpanList.of(substituteSpan);
-    TraceInterceptors interceptors =
-        interceptors((list) -> list, (list) -> substituteList);
+    TraceInterceptors interceptors = interceptors((list) -> list, (list) -> substituteList);
 
     DDSpan span = (DDSpan) TRACER.startSpan("foo", "foo");
     SpanList list = SpanList.of(span);

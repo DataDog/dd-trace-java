@@ -112,7 +112,6 @@ import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -120,8 +119,6 @@ import java.util.Objects;
 import java.util.Properties;
 import java.util.ServiceConfigurationError;
 import java.util.ServiceLoader;
-import java.util.SortedSet;
-import java.util.concurrent.ConcurrentSkipListSet;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeoutException;
@@ -1261,7 +1258,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   static final List<DDSpan> interceptCompleteTrace(
-    TraceInterceptors interceptors, SpanList originalTrace) {
+      TraceInterceptors interceptors, SpanList originalTrace) {
     if (interceptors.isEmpty()) {
       return originalTrace;
     }
@@ -1346,13 +1343,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-	TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
-	if ( conflictingInterceptor == null ) {
-	  return true;
-	} else {
+    TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
+    if (conflictingInterceptor == null) {
+      return true;
+    } else {
       log.warn(
-         "Interceptor {} will NOT be registered with the tracer, "
-          + "as already registered interceptor {} is considered its duplicate",
+          "Interceptor {} will NOT be registered with the tracer, "
+              + "as already registered interceptor {} is considered its duplicate",
           interceptor,
           conflictingInterceptor);
       return false;
@@ -2305,63 +2302,70 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
     return result.freeze();
   }
-  
+
   /**
-   * Implements a copy on write array list where interceptors are added to the list 
-   * ordered by TraceInterceptor priority
+   * Implements a copy on write array list where interceptors are added to the list ordered by
+   * TraceInterceptor priority
    */
   static final class TraceInterceptors {
-	private volatile TraceInterceptor[] interceptors = {};
-	
-	public boolean isEmpty() {
-	  return (this.interceptors.length == 0);
-	}
-	
-	public TraceInterceptor[] interceptors() {
-	  return this.interceptors;
-	}
-	
-	/**
-	 * Adds the interceptor to the list
-	 * Returns any colliding interceptor with the same priority
-	 * - returns null - if there is no collision and the interceptor was added
-	 * - returns the colliding interceptor - if not added
-	 */
-	public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
-	  // Interceptors is always kept in sorted order
-		
-	  // This method performs an insertion sort by scanning for the appropriate in interceptors 
-	  // and finding the correct insertion position
-		
-	  // Since interceptors isn't expected to be large, not using a binary search
-	  // Linear search should provide better cache utilization		
-	  TraceInterceptor[] interceptors = this.interceptors;
-	  
-	  int newPriority = newInterceptor.priority();
-	  
-	  int insertionIndex = interceptors.length;
-	  for ( int i = 0; i < interceptors.length; ++i ) {
-		TraceInterceptor curInterceptor = interceptors[i];
-		int curPriority = curInterceptor.priority();
-		
-		if ( curPriority > newPriority ) {
-		  insertionIndex = i;
-		  break;
-		} else if ( curPriority == newPriority ) {
-		  return curInterceptor;
-		}
-	  }
-	  
-	  TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
-	  if ( insertionIndex != 0 ) {
-		System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
-	  }
-	  newInterceptors[insertionIndex] = newInterceptor;
-	  if ( insertionIndex != interceptors.length ) {
-		System.arraycopy(interceptors, insertionIndex, newInterceptors, insertionIndex + 1, interceptors.length - insertionIndex);
-	  }
-	  this.interceptors = newInterceptors;
-	  return null;
-	}
+    private volatile TraceInterceptor[] interceptors = {};
+
+    public boolean isEmpty() {
+      return (this.interceptors.length == 0);
+    }
+
+    public TraceInterceptor[] interceptors() {
+      return this.interceptors;
+    }
+
+    /**
+     * Adds the interceptor to the list Returns any colliding interceptor with the same priority -
+     * returns null - if there is no collision and the interceptor was added - returns the colliding
+     * interceptor - if not added
+     */
+    public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
+      // Interceptors is always kept in sorted order
+
+      // This method performs an insertion sort by scanning for the appropriate in interceptors
+      // and finding the correct insertion position
+
+      // Since interceptors isn't expected to be large, not using a binary search
+      // Linear search should provide better cache utilization
+      TraceInterceptor[] interceptors = this.interceptors;
+
+      int newPriority = newInterceptor.priority();
+
+      int insertionIndex = interceptors.length;
+      for (int i = 0; i < interceptors.length; ++i) {
+        TraceInterceptor curInterceptor = interceptors[i];
+        int curPriority = curInterceptor.priority();
+
+        if (curPriority > newPriority) {
+          insertionIndex = i;
+          break;
+        } else if (curPriority == newPriority) {
+          return curInterceptor;
+        }
+      }
+
+      // While not immediately obvious, this code does handle when interceptors was previously empty
+      // In that case, the insertionIndex will be 0 and length will 0, so neither if / arraycopy
+      // blocks are run
+      TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
+      if (insertionIndex != 0) {
+        System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
+      }
+      newInterceptors[insertionIndex] = newInterceptor;
+      if (insertionIndex != interceptors.length) {
+        System.arraycopy(
+            interceptors,
+            insertionIndex,
+            newInterceptors,
+            insertionIndex + 1,
+            interceptors.length - insertionIndex);
+      }
+      this.interceptors = newInterceptors;
+      return null;
+    }
   }
 }

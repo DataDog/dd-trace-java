@@ -49,7 +49,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
           return priority
         }
       })
-      
+
     when:
     def interceptors = tracer.interceptors.interceptors()
 
@@ -109,7 +109,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
     } else {
       latch.await(5, TimeUnit.SECONDS)
     }
-    
+
     when:
     def interceptors = tracer.interceptors.interceptors()
 
