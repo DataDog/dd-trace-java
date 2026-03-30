@@ -9,6 +9,7 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Timeout
 
+import java.util.Arrays
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicBoolean
@@ -30,14 +31,13 @@ class TraceInterceptorTest extends DDCoreSpecification {
 
   def "interceptor is registered as a service"() {
     expect:
-    tracer.interceptors.iterator().hasNext()
-    tracer.interceptors.iterator().next() instanceof TestInterceptor
+    tracer.interceptors.interceptors()[0] instanceof TestInterceptor
   }
 
   def "interceptors with the same priority replaced"() {
     setup:
     int priority = 999
-    ((TestInterceptor) tracer.interceptors.iterator().next()).priority = priority
+    ((TestInterceptor) tracer.interceptors.interceptors()[0]).priority = priority
     tracer.interceptors.add(new TraceInterceptor() {
         @Override
         Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
@@ -49,16 +49,19 @@ class TraceInterceptorTest extends DDCoreSpecification {
           return priority
         }
       })
+      
+    when:
+    def interceptors = tracer.interceptors.interceptors()
 
-    expect:
-    tracer.interceptors.size() == 1
-    tracer.interceptors.iterator().next() instanceof TestInterceptor
+    then:
+    interceptors.length == 1
+    interceptors[0] instanceof TestInterceptor
   }
 
   def "interceptors with different priority sorted"() {
     setup:
     def priority = score
-    def existingInterceptor = tracer.interceptors.iterator().next()
+    def existingInterceptor = tracer.interceptors.interceptors()[0]
     def newInterceptor = new TraceInterceptor() {
         @Override
         Collection<? extends MutableSpan> onTraceComplete(Collection<? extends MutableSpan> trace) {
@@ -73,7 +76,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
     tracer.interceptors.add(newInterceptor)
 
     expect:
-    tracer.interceptors == reverse ? [newInterceptor, existingInterceptor]: [existingInterceptor, newInterceptor]
+    Arrays.asList(tracer.interceptors.interceptors()) == reverse ? [newInterceptor, existingInterceptor]: [existingInterceptor, newInterceptor]
 
     where:
     score | reverse
@@ -106,9 +109,12 @@ class TraceInterceptorTest extends DDCoreSpecification {
     } else {
       latch.await(5, TimeUnit.SECONDS)
     }
+    
+    when:
+    def interceptors = tracer.interceptors.interceptors()
 
-    expect:
-    tracer.interceptors.size() == expectedSize
+    then:
+    interceptors.length == expectedSize
     (called.get()) == (score != TestInterceptor.priority)
     (writer == []) == (score != TestInterceptor.priority)
 
@@ -211,6 +217,6 @@ class TraceInterceptorTest extends DDCoreSpecification {
 
     expect:
     GlobalTracer.get().addTraceInterceptor(interceptor)
-    tracer.interceptors.contains(interceptor)
+    Arrays.asList(tracer.interceptors.interceptors()).contains(interceptor)
   }
 }

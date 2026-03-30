@@ -226,8 +226,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
    */
   private final TagInterceptor tagInterceptor;
 
-  private final SortedSet<TraceInterceptor> interceptors =
-      new ConcurrentSkipListSet<>(Comparator.comparingInt(TraceInterceptor::priority));
+  private final TraceInterceptors interceptors = new TraceInterceptors();
 
   private final boolean logs128bTraceIdEnabled;
 
@@ -1262,7 +1261,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   static final List<DDSpan> interceptCompleteTrace(
-      SortedSet<TraceInterceptor> interceptors, SpanList originalTrace) {
+    TraceInterceptors interceptors, SpanList originalTrace) {
     if (interceptors.isEmpty()) {
       return originalTrace;
     }
@@ -1284,7 +1283,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     Collection<? extends MutableSpan> interceptedTrace = originalTrace;
     int originalModCount = originalTrace.modCount();
 
-    for (final TraceInterceptor interceptor : interceptors) {
+    for (final TraceInterceptor interceptor : interceptors.interceptors()) {
       try {
         // If one TraceInterceptor throws an exception, then continue with the next one
         interceptedTrace = interceptor.onTraceComplete(interceptedTrace);
@@ -1347,22 +1346,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
-    if (interceptors.add(interceptor)) {
-      return true;
-    } else {
-      Comparator<? super TraceInterceptor> interceptorComparator = interceptors.comparator();
-      if (interceptorComparator != null) {
-        TraceInterceptor anotherInterceptor =
-            interceptors.stream()
-                .filter(i -> interceptorComparator.compare(i, interceptor) == 0)
-                .findFirst()
-                .orElse(null);
-        log.warn(
-            "Interceptor {} will NOT be registered with the tracer, "
-                + "as already registered interceptor {} is considered its duplicate",
-            interceptor,
-            anotherInterceptor);
-      }
+	TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
+	if ( conflictingInterceptor == null ) {
+	  return true;
+	} else {
+      log.warn(
+         "Interceptor {} will NOT be registered with the tracer, "
+          + "as already registered interceptor {} is considered its duplicate",
+          interceptor,
+          conflictingInterceptor);
       return false;
     }
   }
@@ -2312,5 +2304,64 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       }
     }
     return result.freeze();
+  }
+  
+  /**
+   * Implements a copy on write array list where interceptors are added to the list 
+   * ordered by TraceInterceptor priority
+   */
+  static final class TraceInterceptors {
+	private volatile TraceInterceptor[] interceptors = {};
+	
+	public boolean isEmpty() {
+	  return (this.interceptors.length == 0);
+	}
+	
+	public TraceInterceptor[] interceptors() {
+	  return this.interceptors;
+	}
+	
+	/**
+	 * Adds the interceptor to the list
+	 * Returns any colliding interceptor with the same priority
+	 * - returns null - if there is no collision and the interceptor was added
+	 * - returns the colliding interceptor - if not added
+	 */
+	public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
+	  // Interceptors is always kept in sorted order
+		
+	  // This method performs an insertion sort by scanning for the appropriate in interceptors 
+	  // and finding the correct insertion position
+		
+	  // Since interceptors isn't expected to be large, not using a binary search
+	  // Linear search should provide better cache utilization		
+	  TraceInterceptor[] interceptors = this.interceptors;
+	  
+	  int newPriority = newInterceptor.priority();
+	  
+	  int insertionIndex = interceptors.length;
+	  for ( int i = 0; i < interceptors.length; ++i ) {
+		TraceInterceptor curInterceptor = interceptors[i];
+		int curPriority = curInterceptor.priority();
+		
+		if ( curPriority > newPriority ) {
+		  insertionIndex = i;
+		  break;
+		} else if ( curPriority == newPriority ) {
+		  return curInterceptor;
+		}
+	  }
+	  
+	  TraceInterceptor[] newInterceptors = new TraceInterceptor[interceptors.length + 1];
+	  if ( insertionIndex != 0 ) {
+		System.arraycopy(interceptors, 0, newInterceptors, 0, insertionIndex);
+	  }
+	  newInterceptors[insertionIndex] = newInterceptor;
+	  if ( insertionIndex != interceptors.length ) {
+		System.arraycopy(interceptors, insertionIndex, newInterceptors, insertionIndex + 1, interceptors.length - insertionIndex);
+	  }
+	  this.interceptors = newInterceptors;
+	  return null;
+	}
   }
 }
