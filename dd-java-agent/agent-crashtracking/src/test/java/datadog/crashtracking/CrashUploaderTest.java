@@ -176,7 +176,9 @@ public class CrashUploaderTest {
     assertTrue(tags.contains("runtime_version:"));
     assertTrue(tags.contains("runtime_vendor:"));
     assertTrue(tags.contains("runtime_name:"));
-    assertEquals(expected, event.get("payload").get(0).get("message").asText());
+    assertEquals(
+        mapper.readTree(expected),
+        mapper.readTree(event.get("payload").get(0).get("message").asText()));
     assertCommonPayload(event);
   }
 
