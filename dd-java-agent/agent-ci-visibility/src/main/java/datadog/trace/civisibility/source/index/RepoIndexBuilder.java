@@ -97,7 +97,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
     private final PackageResolver packageResolver;
     private final ResourceResolver resourceResolver;
     private final ClassNameTrie.Builder trieBuilder;
-    private final Map<String, String> trieKeyToPath;
     private final Map<String, Integer> trieKeyToSourceRootIdx;
     private final Map<String, List<Integer>> duplicateSourceRootIndices;
     private final Map<RepoIndex.SourceRoot, Integer> sourceRoots;
@@ -116,7 +115,6 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       this.resourceResolver = resourceResolver;
       this.repoRoot = repoRoot;
       trieBuilder = new ClassNameTrie.Builder();
-      trieKeyToPath = new HashMap<>();
       trieKeyToSourceRootIdx = new HashMap<>();
       duplicateSourceRootIndices = new HashMap<>();
       sourceRoots = new HashMap<>();
@@ -179,10 +177,9 @@ public class RepoIndexBuilder implements RepoIndexProvider {
             String key = Utils.toTrieKey(relativePath);
             trieBuilder.put(key, sourceRootIdx);
 
-            String existingPath = trieKeyToPath.put(key, file.toString());
             Integer existingSourceRootIdx = trieKeyToSourceRootIdx.put(key, sourceRootIdx);
-            if (existingPath != null) {
-              log.debug("Duplicate repo index key: {} - {}", existingPath, file);
+            if (existingSourceRootIdx != null) {
+              log.debug("Duplicate repo index key: {}", key);
               duplicateSourceRootIndices
                   .computeIfAbsent(
                       key,
