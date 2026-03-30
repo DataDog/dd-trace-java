@@ -2248,11 +2248,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
       // Interceptors is always kept in sorted order
 
-      // This method performs an insertion sort by scanning for the appropriate in interceptors
+      // This method performs an insertion sort by scanning interceptors
       // and finding the correct insertion position
 
       // Since interceptors isn't expected to be large, not using a binary search
-      // Linear search should provide better cache utilization
+      // Simple search should provide better cache utilization
       TraceInterceptor[] interceptors = this.interceptors;
 
       int newPriority = newInterceptor.priority();
