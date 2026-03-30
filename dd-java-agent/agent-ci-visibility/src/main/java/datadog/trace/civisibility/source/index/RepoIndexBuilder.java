@@ -124,6 +124,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       followSymlinks = config.isCiVisibilityRepoIndexFollowSymlinks();
     }
 
+    @Nonnull
     @Override
     public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
       if (Files.isSymbolicLink(dir)) {
@@ -151,6 +152,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       }
     }
 
+    @Nonnull
     @Override
     public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) {
       indexingStats.filesVisited++;
@@ -228,6 +230,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return resourceResolver.getResourceRoot(file);
     }
 
+    @Nonnull
     @Override
     public FileVisitResult visitFileFailed(Path file, IOException exc) {
       if (exc != null) {
@@ -236,6 +239,7 @@ public class RepoIndexBuilder implements RepoIndexProvider {
       return FileVisitResult.CONTINUE;
     }
 
+    @Nonnull
     @Override
     public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
       if (exc != null) {
