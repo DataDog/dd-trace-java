@@ -390,11 +390,14 @@ public final class J9JavacoreParser {
     // Extract source file and line: method(File.java:123)
     int parenStart = function.lastIndexOf('(');
     int parenEnd = function.lastIndexOf(')');
+    String frameType = "java";
     if (parenStart > 0 && parenEnd > parenStart) {
       String sourceInfo = function.substring(parenStart + 1, parenEnd);
       function = function.substring(0, parenStart);
 
-      if (!"Native Method".equals(sourceInfo)) {
+      if ("Native Method".equals(sourceInfo)) {
+        frameType = "native";
+      } else {
         int colonIdx = sourceInfo.lastIndexOf(':');
         if (colonIdx > 0) {
           file = sourceInfo.substring(0, colonIdx);
@@ -409,7 +412,8 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function, null, null, null, null, null, null, null);
+    return new StackFrame(
+        file, line, function, frameType, null, null, null, null, null, null);
   }
 
   /**
