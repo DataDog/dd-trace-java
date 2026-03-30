@@ -96,7 +96,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
       (V1_0): new TraceMapperV1(),
       (V0_5): new TraceMapperV0_5(),
     ].get(protocol, new TraceMapperV0_4())
-    traceEndpoint = protocol.traceEndpoints().get(0)
+    traceEndpoint = protocol.endpoint()
   }
 
   def "Sending empty traces succeeds (test #test)"() {

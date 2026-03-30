@@ -173,7 +173,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       // don't want to rewire the traces pipeline
       if (null == newState.traceEndpoint) {
-        newState.traceEndpoint = probeTracesEndpoint(newState, protocolVersion.traceEndpoints());
+        newState.traceEndpoint = probeTracesEndpoint(newState, protocolVersion.endpointsToProbe());
       } else if (newState.state == null || newState.state.isEmpty()) {
         // Still need to probe so that state is correctly assigned
         probeTracesEndpoint(newState, singletonList(newState.traceEndpoint));
@@ -253,7 +253,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       // This is done outside of the loop to set metricsEndpoint to null if not found
       newState.metricsEndpoint = foundMetricsEndpoint;
 
-      for (String endpoint : protocolVersion.traceEndpoints()) {
+      for (String endpoint : protocolVersion.endpointsToProbe()) {
         if (containsEndpoint(endpoints, endpoint)) {
           newState.traceEndpoint = endpoint;
           break;
