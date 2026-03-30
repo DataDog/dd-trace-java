@@ -6,6 +6,7 @@ import datadog.common.version.VersionInfo;
 import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
+import datadog.crashtracking.dto.DynamicLibs;
 import datadog.crashtracking.dto.ErrorData;
 import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
@@ -341,6 +342,8 @@ public final class HotspotCrashLogParser {
     boolean incomplete = false;
     String oomMessage = null;
     Map<String, String> registers = null;
+    List<String> dynamicLibraryLines = null;
+    String dynamicLibraryKey = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -449,15 +452,21 @@ public final class HotspotCrashLogParser {
         case DYNAMIC_LIBRARIES:
           if (line.isEmpty()) {
             state = State.SEEK_DYNAMIC_LIBRARIES;
-          }
-          final Matcher matcher = DYNAMIC_LIBS_PATH_PARSER.matcher(line);
-          if (matcher.matches()) {
-            final String pathString = matcher.group(1);
-            if (pathString != null && !pathString.isEmpty()) {
-              try {
-                final Path path = Paths.get(pathString);
-                buildIdCollector.resolveBuildId(path);
-              } catch (InvalidPathException ignored) {
+          } else {
+            if (dynamicLibraryKey == null) {
+              dynamicLibraryKey = detectDynamicLibrariesKey(line);
+              dynamicLibraryLines = new ArrayList<>();
+            }
+            final Matcher matcher = DYNAMIC_LIBS_PATH_PARSER.matcher(line);
+            if (matcher.matches()) {
+              final String pathString = matcher.group(1);
+              if (pathString != null && !pathString.isEmpty()) {
+                dynamicLibraryLines.add(line);
+                try {
+                  final Path path = Paths.get(pathString);
+                  buildIdCollector.resolveBuildId(path);
+                } catch (InvalidPathException ignored) {
+                }
               }
             }
           }
@@ -545,6 +554,10 @@ public final class HotspotCrashLogParser {
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     Experimental experimental =
         (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
+    DynamicLibs files =
+        (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
+            ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
+            : null;
     return new CrashLog(
         uuid,
         incomplete,
@@ -555,7 +568,8 @@ public final class HotspotCrashLogParser {
         procInfo,
         sigInfo,
         "1.0",
-        experimental);
+        experimental,
+        files);
   }
 
   static String dateTimeToISO(String datetime) {
@@ -570,6 +584,40 @@ public final class HotspotCrashLogParser {
         return null;
       }
     }
+  }
+
+  /**
+   * Detects whether the Dynamic libraries section comes from Linux {@code /proc/self/maps} (address
+   * range format {@code addr-addr perms ...}) or from the BSD/macOS dyld callback (format {@code
+   * 0xaddr\tpath}). Returns the appropriate map key.
+   */
+  // The "Dynamic libraries:" section is written by os::print_dll_info(), whose implementation
+  // differs by platform:
+  //
+  // Linux
+  // -----
+  // This reads `/proc/{tid}/maps` verbatim via _print_ascii_file(), producing the usual
+  // `/proc/self/maps` format:
+  //
+  //   "addr-addr perms offset dev:inode [path]"
+  //
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/783f8f1adc4ea3ef7fd4c5ca5473aad76dfc7ed1/src/hotspot/os/linux/os_linux.cpp#L2086-L2099
+  //
+  // BSD/macOS
+  // ---------
+  // This relies on `_dyld_image_count()`/`_dyld_get_image_name()` (on macOS) or
+  // `dlinfo(RTLD_DI_LINKMAP)` (on FreeBSD/OpenBSD) via a callback, producing a simpler format:
+  //
+  //   "0xaddr\tpath"
+  //
+  // which lacks much of the information found in Linux's `/proc/self/maps`.
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/783f8f1adc4ea3ef7fd4c5ca5473aad76dfc7ed1/src/hotspot/os/bsd/os_bsd.cpp#L1382-L1387
+  static String detectDynamicLibrariesKey(String firstLine) {
+    int dash = firstLine.indexOf('-');
+    int space = firstLine.indexOf(' ');
+    return (dash > 0 && space > 0 && dash < space) ? "/proc/self/maps" : "dynamic_libraries";
   }
 
   static Integer safelyParseInt(String value) {
