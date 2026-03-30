@@ -250,10 +250,10 @@ public class RepoIndexBuilder implements RepoIndexProvider {
         roots[e.getValue()] = e.getKey();
       }
 
-      Map<String, List<String>> duplicateTrieKeyPaths = new HashMap<>();
+      Map<String, List<String>> duplicateTrieKeyPaths = new HashMap<>(duplicateSourceRootIndices.size() * 4 / 3);
       for (Map.Entry<String, List<Integer>> entry : duplicateSourceRootIndices.entrySet()) {
         String key = entry.getKey();
-        List<String> paths = new ArrayList<>();
+        List<String> paths = new ArrayList<>(entry.getValue().size());
         for (int idx : entry.getValue()) {
           RepoIndex.SourceRoot sr = roots[idx];
           paths.add(sr.resolveSourcePath(key));
