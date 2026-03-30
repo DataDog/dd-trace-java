@@ -140,7 +140,7 @@ public class CrashUploaderTest {
   @Test
   public void testTelemetryCrashPing() throws Exception {
     // Given
-    final String expected = readFileAsString("golden/telemetry/sample-ping-for-telemetry.txt");
+    final String expected = readFileAsString("golden/telemetry/sample-ping-for-telemetry.json");
     ConfigManager.StoredConfig crashConfig =
         new ConfigManager.StoredConfig.Builder(config)
             .reportUUID(SAMPLE_UUID)
@@ -187,7 +187,7 @@ public class CrashUploaderTest {
     // Given
     final ObjectMapper mapper = new ObjectMapper();
     final Map<String, ?> expected =
-        mapper.readValue(readFileAsString("golden/errortracking/sample-ping.txt"), Map.class);
+        mapper.readValue(readFileAsString("golden/errortracking/sample-ping.json"), Map.class);
     // remove ddtags and osinfo if present from the expected (they will be checked apart)
     expected.remove("ddtags");
     expected.remove("os_info");
@@ -253,14 +253,15 @@ public class CrashUploaderTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "sample-crash-for-telemetry.txt",
-        "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt",
-        "sample_oom.txt"
+        "sample-crash-for-telemetry.json",
+        "sample-crash-for-telemetry-2.json",
+        "sample-crash-for-telemetry-3.json",
+        "sample_oom.json"
       })
   public void testTelemetryHappyPath(String log) throws Exception {
     // Given
     CrashLog expected = CrashLog.fromJson(readFileAsString("golden/telemetry/" + log));
+    final String inputLog = log.replace(".json", ".txt");
     ConfigManager.StoredConfig crashConfig =
         new ConfigManager.StoredConfig.Builder(config)
             .reportUUID(SAMPLE_UUID)
@@ -270,7 +271,7 @@ public class CrashUploaderTest {
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.upload(getResourcePath(log));
+    uploader.upload(getResourcePath(inputLog));
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
@@ -301,10 +302,10 @@ public class CrashUploaderTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
-        "sample-crash-for-telemetry.txt",
-        "sample-crash-for-telemetry-2.txt",
-        "sample-crash-for-telemetry-3.txt",
-        "sample_oom.txt"
+        "sample-crash-for-telemetry.json",
+        "sample-crash-for-telemetry-2.json",
+        "sample-crash-for-telemetry-3.json",
+        "sample_oom.json"
       })
   public void testErrorTrackingHappyPath(String log) throws Exception {
     // Given
@@ -314,6 +315,7 @@ public class CrashUploaderTest {
     // remove ddtags and osinfo if present from the expected (they will be checked apart)
     expected.remove("ddtags");
     expected.remove("os_info");
+    final String inputLog = log.replace(".json", ".txt");
     ConfigManager.StoredConfig crashConfig =
         new ConfigManager.StoredConfig.Builder(config)
             .reportUUID(SAMPLE_UUID)
@@ -324,7 +326,7 @@ public class CrashUploaderTest {
     // When
     uploader = new CrashUploader(config, crashConfig);
     server.enqueue(new MockResponse().setResponseCode(200));
-    uploader.remoteUpload(readFileAsString(log), false, true);
+    uploader.remoteUpload(readFileAsString(inputLog), false, true);
 
     final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
 
