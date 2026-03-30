@@ -412,8 +412,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(
-        file, line, function, frameType, null, null, null, null, null, null);
+    return new StackFrame(file, line, function, frameType, null, null, null, null, null, null);
   }
 
   /**
