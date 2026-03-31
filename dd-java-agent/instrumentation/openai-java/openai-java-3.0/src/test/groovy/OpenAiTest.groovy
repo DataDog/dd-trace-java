@@ -259,6 +259,31 @@ He hopes to pursue a career in software engineering after graduating.""")
     .build()
   }
 
+  ChatCompletionCreateParams chatCompletionCreateParamsWithRawTools() {
+    def functionMap = [
+      name: "extract_student_info_raw",
+      description: "Extract student information from the input text",
+      parameters: [
+        type: "object",
+        properties: [
+          name: [type: "string", description: "Name of the student"],
+          major: [type: "string", description: "Major subject"],
+        ],
+        required: ["name"],
+      ]
+    ]
+
+    ChatCompletionCreateParams.builder()
+    .model("gpt-4o-mini")
+    .addUserMessage("""Extract the student's name and major.
+Alice Johnson majors in mathematics at UCLA.""")
+    .addTool(ChatCompletionFunctionTool.builder()
+    .type(JsonValue.from("function"))
+    .function(JsonValue.from(functionMap))
+    .build())
+    .build()
+  }
+
   ResponseCreateParams responseCreateParamsWithToolInput(boolean json) {
     if (json) {
       def rawInputJson = [

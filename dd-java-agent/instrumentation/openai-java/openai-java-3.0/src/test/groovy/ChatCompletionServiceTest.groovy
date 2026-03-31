@@ -176,6 +176,24 @@ class ChatCompletionServiceTest extends OpenAiTest {
     ]
   }
 
+  def "create chat/completion test with raw tool definition"() {
+    runUnderTrace("parent") {
+      openAiClient.chat().completions().create(chatCompletionCreateParamsWithRawTools())
+    }
+
+    expect:
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, null, [:], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info_raw"
+    toolDefinitions[0].description == "Extract student information from the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    toolDefinitions[0].schema.required == ["name"]
+  }
+
   def "create streaming chat/completion test with tool calls"() {
     runnableUnderTrace("parent") {
       StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParamsWithTools())
