@@ -2241,9 +2241,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     /**
-     * Adds the interceptor to the list Returns any colliding interceptor with the same priority -
-     * returns null - if there is no collision and the interceptor was added - returns the colliding
-     * interceptor - if not added
+     * Adds the interceptor to the list; returns any colliding interceptor with the same priority
+     *
+     * <ul>
+     *   <li>returns null - if there is no collision and the interceptor was added
+     *   <li>returns the colliding interceptor - if not added
+     * </ul>
      */
     public synchronized TraceInterceptor add(TraceInterceptor newInterceptor) {
       // Interceptors is always kept in sorted order
