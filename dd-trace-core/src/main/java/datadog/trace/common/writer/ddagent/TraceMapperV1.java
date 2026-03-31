@@ -88,18 +88,18 @@ public final class TraceMapperV1 implements TraceMapper {
     // encoded fields: 1..7, but skipping #5, as not required by tracers and set by the agent.
     writable.startMap(6);
 
-    // priority = 1, the sampling priority of the trace
-    encodeField(writable, 1, firstSpanMeta.samplingPriority());
+    // priority = 1, the sampling priority of the trace, int32
+    encodeInt(writable, 1, firstSpanMeta.samplingPriority());
     // origin = 2, the optional string origin ("lambda", "rum", etc.) of the trace chunk
-    encodeField(writable, 2, firstSpan.getOrigin());
+    encodeString(writable, 2, firstSpan.getOrigin());
     // attributes = 3, a collection of key to value pairs common in all `spans`
     encodeAttributes(writable, 3, buildChunkAttributes(trace));
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace, firstSpanMeta);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
-    encodeField(writable, 6, firstSpan.getTraceId().to128BitBytes());
-    // samplingMechanism = 7
-    encodeField(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
+    encodeBytes(writable, 6, firstSpan.getTraceId().to128BitBytes());
+    // samplingMechanism = 7, uint32
+    encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
   }
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
@@ -141,39 +141,39 @@ public final class TraceMapperV1 implements TraceMapper {
       writable.startMap(16);
 
       // service = 1, the string name of the service that this span is associated with
-      encodeField(writable, 1, span.getServiceName());
+      encodeString(writable, 1, span.getServiceName());
       // name = 2, the string operation name of this span
-      encodeField(writable, 2, span.getOperationName());
+      encodeString(writable, 2, span.getOperationName());
       // resource = 3, the string resource name of this span,
       // sometimes called endpoint for web spans
-      encodeField(writable, 3, span.getResourceName());
+      encodeString(writable, 3, span.getResourceName());
       // spanID = 4, the ID of this span
-      encodeUnsignedField(writable, 4, span.getSpanId());
+      encodeLongUnsigned(writable, 4, span.getSpanId());
       // parentID = 5, the ID of this span's parent, or zero if there is no parent
-      encodeUnsignedField(writable, 5, span.getParentId());
+      encodeLongUnsigned(writable, 5, span.getParentId());
       // start = 6, the number of nanoseconds from the Unix epoch to the start of this span
-      encodeField(writable, 6, span.getStartTime());
+      encodeLong(writable, 6, span.getStartTime());
       // duration = 7, the time length of this span in nanoseconds
-      encodeField(writable, 7, PendingTrace.getDurationNano(span));
+      encodeLong(writable, 7, PendingTrace.getDurationNano(span));
       // error = 8, if there is an error associated with this span
-      encodeField(writable, 8, span.getError() != 0);
+      encodeBoolean(writable, 8, span.getError() != 0);
       // attributes = 9, a collection of string key to value pairs on the span
       encodeSpanAttributes(writable, 9, meta, metaStruct);
       // type = 10, the string type of the service with which this span is associated
       // (example values: web, db, lambda)
-      encodeField(writable, 10, span.getType());
+      encodeString(writable, 10, span.getType());
       // links = 11, a collection of links to other spans
       encodeSpanLinks(writable, 11, meta.getSpanLinks());
       // events = 12, a collection of events that occurred during this span
       encodeSpanEvents(writable, 12, tags.getObject(DDTags.SPAN_EVENTS));
       // env = 13, the optional string environment of this span
-      encodeField(writable, 13, tags.getString(Tags.ENV));
+      encodeString(writable, 13, tags.getString(Tags.ENV));
       // version = 14, the optional string version of this span
-      encodeField(writable, 14, tags.getString(Tags.VERSION));
+      encodeString(writable, 14, tags.getString(Tags.VERSION));
       // component = 15, the string component name of this span
-      encodeField(writable, 15, tags.getString(Tags.COMPONENT));
-      // kind = 16, the SpanKind of this span as defined in the OTEL Specification
-      encodeField(writable, 16, getSpanKindValue(tags.getString(Tags.SPAN_KIND)));
+      encodeString(writable, 15, tags.getString(Tags.COMPONENT));
+      // kind = 16, the SpanKind of this span as defined in the OTEL Specification, uint32
+      encodeInt(writable, 16, getSpanKindValue(tags.getString(Tags.SPAN_KIND)));
     }
   }
 
@@ -187,11 +187,16 @@ public final class TraceMapperV1 implements TraceMapper {
     writable.startArray(links.size());
     for (AgentSpanLink link : links) {
       writable.startMap(5);
-      encodeField(writable, 1, link.traceId().to128BitBytes());
-      encodeUnsignedField(writable, 2, link.spanId());
+      // 1: the ID of the trace that this link targets
+      encodeBytes(writable, 1, link.traceId().to128BitBytes());
+      // 2: the ID of the span that this link targets, fixed64
+      encodeLongUnsigned(writable, 2, link.spanId());
+      // 3: a collection of attribute string key to value pairs on the link, map<uint32, AnyValue>
       encodeAttributes(writable, 3, link.attributes().asMap());
-      encodeField(writable, 4, link.traceState());
-      encodeField(writable, 5, link.traceFlags() & 0xFF);
+      // 4: optional W3C trace state string
+      encodeString(writable, 4, link.traceState());
+      // 5: optional W3C trace flags (if set, the high bit, bit 31, must be set), uint32
+      encodeInt(writable, 5, link.traceFlags() & 0xFF);
     }
   }
 
@@ -225,8 +230,8 @@ public final class TraceMapperV1 implements TraceMapper {
           eventMap.get("attributes") instanceof Map ? (Map<?, ?>) eventMap.get("attributes") : null;
 
       writable.startMap(3);
-      encodeField(writable, 1, timeUnixNano);
-      encodeField(writable, 2, String.valueOf(nameObject));
+      encodeLong(writable, 1, timeUnixNano);
+      encodeString(writable, 2, String.valueOf(nameObject));
       encodeEventAttributes(writable, 3, attributes);
     }
   }
@@ -469,27 +474,32 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeField(Writable writable, int fieldId, boolean value) {
+  private void encodeBoolean(Writable writable, int fieldId, boolean value) {
     writable.writeInt(fieldId);
     writable.writeBoolean(value);
   }
 
-  private void encodeField(Writable writable, int fieldId, long value) {
+  private void encodeInt(Writable writable, int fieldId, int value) {
+    writable.writeInt(fieldId);
+    writable.writeInt(value);
+  }
+
+  private void encodeLong(Writable writable, int fieldId, long value) {
     writable.writeInt(fieldId);
     writable.writeLong(value);
   }
 
-  private void encodeUnsignedField(Writable writable, int fieldId, long value) {
+  private void encodeLongUnsigned(Writable writable, int fieldId, long value) {
     writable.writeInt(fieldId);
     writable.writeUnsignedLong(value);
   }
 
-  private void encodeField(Writable writable, int fieldId, CharSequence value) {
+  private void encodeString(Writable writable, int fieldId, CharSequence value) {
     writable.writeInt(fieldId);
     writeStreamingString(writable, value);
   }
 
-  private void encodeField(Writable writable, int fieldId, byte[] value) {
+  private void encodeBytes(Writable writable, int fieldId, byte[] value) {
     writable.writeInt(fieldId);
     writable.writeBinary(value);
   }
@@ -574,28 +584,28 @@ public final class TraceMapperV1 implements TraceMapper {
     Config cfg = Config.get();
 
     // containerID = 2, the string ID of the container where the tracer is running
-    encodeField(headerWriter, 2, ContainerInfo.get().getContainerId());
+    encodeString(headerWriter, 2, ContainerInfo.get().getContainerId());
 
     // languageName = 3, the string language name of the tracer
-    encodeField(headerWriter, 3, "java");
+    encodeString(headerWriter, 3, "java");
 
     // languageVersion = 4, the string language version of the tracer
-    encodeField(headerWriter, 4, JavaVirtualMachine.getLangVersion());
+    encodeString(headerWriter, 4, JavaVirtualMachine.getLangVersion());
 
     // tracerVersion = 5, the string version of the tracer
-    encodeField(headerWriter, 5, TracerVersion.TRACER_VERSION);
+    encodeString(headerWriter, 5, TracerVersion.TRACER_VERSION);
 
     // runtimeID = 6, the V4 string UUID representation of a tracer session
-    encodeField(headerWriter, 6, cfg.getRuntimeId());
+    encodeString(headerWriter, 6, cfg.getRuntimeId());
 
     // env=7, the optional `env` string tag that set with the tracer
-    encodeField(headerWriter, 7, cfg.getEnv());
+    encodeString(headerWriter, 7, cfg.getEnv());
 
     // hostname = 8, the optional string hostname of where the tracer is running
-    encodeField(headerWriter, 8, cfg.getHostName());
+    encodeString(headerWriter, 8, cfg.getHostName());
 
     // appVersion = 9, the optional string `version` tag for the application set in the tracer
-    encodeField(headerWriter, 9, cfg.getVersion());
+    encodeString(headerWriter, 9, cfg.getVersion());
 
     // attributes = 10, a collection of key to value pairs common in all `chunks`
     CharSequence processTags = ProcessTags.getTagsForSerialization();
