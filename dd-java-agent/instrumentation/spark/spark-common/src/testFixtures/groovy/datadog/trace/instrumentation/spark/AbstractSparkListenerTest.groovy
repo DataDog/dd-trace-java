@@ -522,6 +522,75 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     }
   }
 
+  def "test SQL analysis failure marks application span as error"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    // Simulate a SQL failure during Catalyst analysis (before any Spark job is submitted)
+    def analysisException = new RuntimeException("[TABLE_OR_VIEW_NOT_FOUND] The table or view `missing_table` cannot be found.")
+    listener.onSqlFailure(analysisException)
+
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark SQL Failed"
+          assert span.tags["error.message"] == "[TABLE_OR_VIEW_NOT_FOUND] The table or view `missing_table` cannot be found."
+          assert span.tags["error.stack"] != null
+        }
+      }
+    }
+  }
+
+  def "test SQL analysis failure does not override job failure"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+    listener.onApplicationStart(applicationStartEvent(1000L))
+
+    // SQL failure happens first
+    listener.onSqlFailure(new RuntimeException("SQL error"))
+
+    // Then a job runs and fails — job failure should take precedence
+    listener.onJobStart(jobStartEvent(1, 1500L, [1]))
+    listener.onStageSubmitted(stageSubmittedEvent(1, 1500L))
+    listener.onStageCompleted(stageCompletedEvent(1, 1800L))
+    listener.onJobEnd(jobFailedEvent(1, 2000L, "Job aborted due to NullPointerException"))
+
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(3000L))
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          // Job failure should take precedence over SQL failure
+          assert span.tags["error.type"] == "Spark Application Failed"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          errored true
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(1))
+        }
+      }
+    }
+  }
+
   def "test setupOpenLineage gets service name"(boolean serviceNameSetByUser, String serviceName, String sparkAppName) {
     setup:
     SparkConf sparkConf = new SparkConf()
