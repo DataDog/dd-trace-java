@@ -1139,7 +1139,7 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
-              links));
+              restrictedSpan.getLinks()));
     }
   }
 
