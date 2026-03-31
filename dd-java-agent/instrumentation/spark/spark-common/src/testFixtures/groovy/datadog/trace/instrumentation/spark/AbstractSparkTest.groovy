@@ -221,7 +221,6 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
         }
       }
     }
-
   }
 
   def "capture SparkSubmit.runMain() errors"() {
