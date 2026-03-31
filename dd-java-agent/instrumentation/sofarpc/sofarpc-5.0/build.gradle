@@ -1,0 +1,20 @@
+muzzle {
+  pass {
+    group = "com.alipay.sofa"
+    module = "sofa-rpc-all"
+    versions = "[5.0.0,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: "com.alipay.sofa", name: "sofa-rpc-all", version: "5.6.0"
+
+  testImplementation group: "com.alipay.sofa", name: "sofa-rpc-all", version: "5.6.0"
+
+  latestDepTestImplementation group: "com.alipay.sofa", name: "sofa-rpc-all", version: "+"
+}
