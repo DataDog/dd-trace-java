@@ -1,8 +1,14 @@
 package datadog.opentelemetry.shim.metrics;
 
-import datadog.opentelemetry.shim.OtelInstrumentationScope;
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
-import datadog.opentelemetry.shim.metrics.export.OtelMeterVisitor;
+import static java.util.Collections.singletonList;
+import static java.util.stream.Collectors.toList;
+import static java.util.stream.Stream.concat;
+
+import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.metrics.BatchCallback;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
 import io.opentelemetry.api.metrics.DoubleHistogramBuilder;
@@ -11,10 +17,11 @@ import io.opentelemetry.api.metrics.LongUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.MeterProvider;
 import io.opentelemetry.api.metrics.ObservableMeasurement;
-import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.List;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.regex.Pattern;
+import java.util.stream.Stream;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.slf4j.Logger;
@@ -31,9 +38,6 @@ final class OtelMeter implements Meter {
   static final String NOOP_INSTRUMENT_NAME = "noop";
 
   private final OtelInstrumentationScope instrumentationScope;
-
-  private final Map<OtelInstrumentDescriptor, OtelMetricStorage> storage =
-      new ConcurrentHashMap<>();
 
   OtelMeter(OtelInstrumentationScope instrumentationScope) {
     this.instrumentationScope = instrumentationScope;
@@ -76,8 +80,12 @@ final class OtelMeter implements Meter {
       Runnable callback,
       ObservableMeasurement observableMeasurement,
       ObservableMeasurement... additionalMeasurements) {
-    // FIXME: implement callback
-    return NOOP_METER.batchCallback(callback, observableMeasurement, additionalMeasurements);
+    return registerObservableCallback(
+        callback,
+        concat(Stream.of(observableMeasurement), Stream.of(additionalMeasurements))
+            .filter(OtelObservableMeasurement.class::isInstance)
+            .map(OtelObservableMeasurement.class::cast)
+            .collect(toList()));
   }
 
   @Override
@@ -86,13 +94,34 @@ final class OtelMeter implements Meter {
   }
 
   OtelMetricStorage registerStorage(
-      OtelInstrumentDescriptor descriptor,
+      OtelInstrumentBuilder builder,
       Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
-    return storage.computeIfAbsent(descriptor, storageFactory);
+    return OtelMetricRegistry.INSTANCE.registerStorage(
+        instrumentationScope, builder.descriptor(), storageFactory);
   }
 
-  void collect(OtelMeterVisitor visitor) {
-    storage.forEach((descriptor, storage) -> storage.collect(visitor.visitInstrument(descriptor)));
+  OtelObservableMeasurement registerObservableStorage(
+      OtelInstrumentBuilder builder,
+      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory) {
+    return new OtelObservableMeasurement(
+        OtelMetricRegistry.INSTANCE.registerStorage(
+            instrumentationScope, builder.observableDescriptor(), storageFactory));
+  }
+
+  <M> OtelObservableCallback registerObservableCallback(Consumer<M> callback, M measurement) {
+    return registerObservableCallback(
+        () -> callback.accept(measurement), singletonList((OtelObservableMeasurement) measurement));
+  }
+
+  OtelObservableCallback registerObservableCallback(
+      Runnable callback, List<OtelObservableMeasurement> measurements) {
+    OtelObservableCallback observable = new OtelObservableCallback(this, callback, measurements);
+    OtelMetricRegistry.INSTANCE.registerObservable(instrumentationScope, observable);
+    return observable;
+  }
+
+  boolean unregisterObservableCallback(OtelObservableCallback observable) {
+    return OtelMetricRegistry.INSTANCE.unregisterObservable(instrumentationScope, observable);
   }
 
   private static boolean validInstrumentName(@Nullable String instrumentName) {

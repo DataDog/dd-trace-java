@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
@@ -21,6 +22,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
@@ -39,6 +41,7 @@ import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
@@ -57,7 +60,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
@@ -79,7 +84,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
@@ -199,7 +204,9 @@ public class InstrumenterConfig {
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> traceNativeMethods;
   private final Map<String, Set<String>> measureMethods;
+  private final Map<String, Set<String>> measureNativeMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -212,6 +219,7 @@ public class InstrumenterConfig {
   private final boolean apiSecurityEndpointCollectionEnabled;
 
   private final boolean appLogsCollectionEnabled;
+  private final boolean legacyContextManagerEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -341,9 +349,15 @@ public class InstrumenterConfig {
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    traceNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
+    measureNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     this.additionalJaxRsAnnotations =
@@ -363,6 +377,8 @@ public class InstrumenterConfig {
 
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+
+    legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
   }
 
   public boolean isCodeOriginEnabled() {
@@ -643,6 +659,18 @@ public class InstrumenterConfig {
     return traceMethods;
   }
 
+  public Map<String, Set<String>> getTraceNativeMethods() {
+    return traceNativeMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureMethods() {
+    return measureMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureNativeMethods() {
+    return measureNativeMethods;
+  }
+
   public boolean isMethodMeasured(Method method) {
     if (this.measureMethods.isEmpty()) {
       return false;
@@ -680,6 +708,10 @@ public class InstrumenterConfig {
 
   public boolean isAppLogsCollectionEnabled() {
     return appLogsCollectionEnabled;
+  }
+
+  public boolean isLegacyContextManagerEnabled() {
+    return legacyContextManagerEnabled;
   }
 
   // This has to be placed after all other static fields to give them a chance to initialize
@@ -784,8 +816,14 @@ public class InstrumenterConfig {
         + ", traceMethods='"
         + traceMethods
         + '\''
+        + ", traceNativeMethods='"
+        + traceNativeMethods
+        + '\''
         + ", measureMethods= '"
         + measureMethods
+        + '\''
+        + ", measureNativeMethods= '"
+        + measureNativeMethods
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
@@ -801,6 +839,8 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
+        + ", legacyContextManagerEnabled="
+        + legacyContextManagerEnabled
         + '}';
   }
 }

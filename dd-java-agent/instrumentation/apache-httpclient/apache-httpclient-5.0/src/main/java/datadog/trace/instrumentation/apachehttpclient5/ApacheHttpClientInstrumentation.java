@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.apachehttpclient5;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -9,6 +10,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import java.util.Collections;
@@ -81,39 +83,43 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
+        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
+        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
 
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.hc.core5.http.ClassicHttpRequest")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.protocol.HttpContext"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice");
+        ApacheHttpClientInstrumentation.class.getName() + "$RequestAdvice",
+        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg0");
 
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(3))
             .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
             .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice");
+        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
+        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
 
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(2))
             .and(takesArgument(0, named("org.apache.hc.core5.http.HttpHost")))
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice");
+        ApacheHttpClientInstrumentation.class.getName() + "$HostRequestAdvice",
+        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
 
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("execute"))
             .and(takesArguments(4))
@@ -121,7 +127,8 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
             .and(takesArgument(1, named("org.apache.hc.core5.http.ClassicHttpRequest")))
             .and(takesArgument(2, named("org.apache.hc.core5.http.protocol.HttpContext")))
             .and(takesArgument(3, named("org.apache.hc.core5.http.io.HttpClientResponseHandler"))),
-        ApacheHttpClientInstrumentation.class.getName() + "$ResponseHandlerAdvice");
+        ApacheHttpClientInstrumentation.class.getName() + "$ResponseHandlerAdvice",
+        ApacheHttpClientInstrumentation.class.getName() + "$ContextPropagationAdviceArg1");
   }
 
   public static class RequestAdvice {
@@ -192,6 +199,22 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
       HelperMethods.doMethodExit(scope, result, throwable);
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdviceArg0 {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(0) final ClassicHttpRequest request) {
+      HelperMethods.doInjectContext(request);
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdviceArg1 {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(1) final ClassicHttpRequest request) {
+      HelperMethods.doInjectContext(request);
     }
   }
 }

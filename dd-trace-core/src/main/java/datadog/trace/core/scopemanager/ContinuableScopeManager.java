@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
@@ -14,6 +15,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.context.Context;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
@@ -25,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Iterator;
 import java.util.List;
@@ -248,6 +249,13 @@ public final class ContinuableScopeManager implements ContextManager {
       if (finishSpan && span != null) {
         span.finishWithEndToEnd();
       }
+    } else if (top != null) {
+      log.debug(
+          SEND_TELEMETRY,
+          "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
+          top.source(),
+          ITERATION,
+          top.span());
     }
   }
 

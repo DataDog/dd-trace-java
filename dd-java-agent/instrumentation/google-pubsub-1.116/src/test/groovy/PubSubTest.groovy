@@ -27,6 +27,7 @@ import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.core.datastreams.StatsGroup
@@ -80,6 +81,10 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   abstract String operationForConsumer()
 
   abstract String operationForProducer()
+
+  protected boolean expectsServiceNameSource() {
+    false
+  }
 
   Object createMessageReceiver(final CountDownLatch latch) {
     return new MessageReceiver() {
@@ -174,6 +179,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         o1[0].localRootSpan.getTag(Tags.SPAN_KIND) <=> o2[0].localRootSpan.getTag(Tags.SPAN_KIND)
       },
     ] as Comparator) {
+      final boolean expectsServiceNameSource = expectsServiceNameSource()
       trace(shadowGrpcSpans() ? 2 : 3) {
         sortSpansByStart()
         basicSpan(it, "parent")
@@ -190,6 +196,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
+            }
+            if (expectsServiceNameSource) {
+              serviceNameSource "java-google-pubsub"
             }
             defaultTagsNoPeerService()
           }
@@ -222,6 +231,9 @@ abstract class PubSubTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
+            }
+            if (expectsServiceNameSource) {
+              serviceNameSource "java-google-pubsub"
             }
             defaultTags(true)
           }
@@ -273,6 +285,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
         "$Tags.RPC_SERVICE" { String }
         "status.code" { String }
         "grpc.status.code" { String }
+        "$InstrumentationTags.GRPC_STATUS_CODE" { Integer }
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
@@ -313,6 +326,11 @@ class PubSubNamingV0NoLegacyTracingForkedTest extends PubSubNamingV0Test {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig("dd.google-pubsub.legacy.tracing.enabled", "false")
+  }
+
+  @Override
+  protected boolean expectsServiceNameSource() {
+    true
   }
 
   @Override

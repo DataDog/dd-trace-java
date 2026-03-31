@@ -1,11 +1,11 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongGauge;
 import io.opentelemetry.api.metrics.LongGaugeBuilder;
@@ -60,19 +60,17 @@ final class OtelLongGauge extends OtelInstrument implements LongGauge {
     @Override
     public LongGauge build() {
       return new OtelLongGauge(
-          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongValueStorage));
-    }
-
-    @Override
-    public ObservableLongGauge buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).ofLongs().buildWithCallback(callback);
+          meter.registerStorage(builder, OtelMetricStorage::newLongValueStorage));
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).ofLongs().buildObserver();
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongValueStorage);
+    }
+
+    @Override
+    public ObservableLongGauge buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

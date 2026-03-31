@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
@@ -103,25 +104,42 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      if (collector.isEmpty()) {
-        return;
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+
+      if (!collector.isEmpty()) {
+        BiFunction<RequestContext, Object, Flow<Void>> callback =
+            cbp.getCallback(EVENTS.requestBodyProcessed());
+        if (callback != null) {
+          Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+            if (blockResponseFunction != null) {
+              blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (t == null) {
+                t = new BlockingException("Blocked request (for Request/parseParts)");
+              }
+            }
+          }
+        }
       }
 
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (for Request/parseParts)");
+      List<String> filenames = collector.getFilenames();
+      if (!filenames.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+            cbp.getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCb != null) {
+          Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
+          Flow.Action filenamesAction = filenamesFlow.getAction();
+          if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) filenamesAction;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            }
+            t = new BlockingException("Blocked request (multipart file upload)");
           }
         }
       }
@@ -162,7 +180,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
-      if ("parseParts".equals(name) && "()V".equals(descriptor) || "(Z)V".equals(descriptor)) {
+      if ("parseParts".equals(name) && ("()V".equals(descriptor) || "(Z)V".equals(descriptor))) {
         return new ParsePartsMethodVisitor(api, superMv, "(Z)V".equals(descriptor) ? 2 : 1);
       } else {
         return superMv;
@@ -214,6 +232,24 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             "put",
             "(Ljava/lang/String;[Ljava/lang/String;)V",
             true);
+      } else if (opcode == Opcodes.INVOKEINTERFACE
+          && name.equals("add")
+          && descriptor.equals("(Ljava/lang/Object;)Z")) {
+        // Intercept Collection.add(part) to capture uploaded file names.
+        // Stack before: ..., collection_ref, part_ref
+        super.visitInsn(Opcodes.DUP);
+        // Stack: ..., collection_ref, part_ref, part_ref
+        super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
+        // Stack: ..., collection_ref, part_ref, part_ref, collector
+        super.visitInsn(Opcodes.SWAP);
+        // Stack: ..., collection_ref, part_ref, collector, part_ref
+        super.visitMethodInsn(
+            Opcodes.INVOKEINTERFACE,
+            Type.getInternalName(ParameterCollector.class),
+            "addPart",
+            "(Ljava/lang/Object;)V",
+            true);
+        // Stack: ..., collection_ref, part_ref
       }
       super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }

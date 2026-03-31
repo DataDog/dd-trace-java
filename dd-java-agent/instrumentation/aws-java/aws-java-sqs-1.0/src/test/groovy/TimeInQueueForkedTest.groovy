@@ -283,6 +283,7 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "aws.operation" "SendMessageBatchRequest"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        serviceNameSource("java-aws-sdk")
         defaultTags()
       }
     }
@@ -305,6 +306,9 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "aws.operation" "ReceiveMessageRequest"
         "aws.agent" "java-aws-sdk"
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        // the receive instrumentation always do setInstrumentationServiceName
+        // even when == to DD_SERVICE
+        serviceNameSource("java-aws-sdk")
         defaultTags(parent.resourceName as String == "SQS.SendMessageBatch")
       }
     }
@@ -323,6 +327,7 @@ class TimeInQueueForkedTest extends InstrumentationSpecification {
         "$Tags.COMPONENT" "java-aws-sdk"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_BROKER
         "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+        serviceNameSource("java-aws-sdk")
         defaultTags(true)
       }
     }

@@ -11,9 +11,9 @@ public final class OSInfo {
   @Json(name = "os_type")
   public final String osType;
 
-  public final SemanticVersion version;
+  public final String version;
 
-  public OSInfo(String architecture, String bitness, String osType, SemanticVersion version) {
+  public OSInfo(String architecture, String bitness, String osType, String version) {
     this.architecture = architecture;
     this.bitness = bitness;
     this.osType = osType;
@@ -41,10 +41,13 @@ public final class OSInfo {
   }
 
   public static OSInfo current() {
+    String rawBitness = SystemProperties.get("sun.arch.data.model");
+    String bitness = rawBitness != null ? rawBitness + "-bit" : null;
+    String osName = SystemProperties.get("os.name");
+    if (osName != null && osName.startsWith("Mac OS")) {
+      osName = "Mac OS";
+    }
     return new OSInfo(
-        SystemProperties.get("os.arch"),
-        SystemProperties.get("sun.arch.data.model"),
-        SystemProperties.get("os.name"),
-        SemanticVersion.of(SystemProperties.get("os.version")));
+        SystemProperties.get("os.arch"), bitness, osName, SystemProperties.get("os.version"));
   }
 }

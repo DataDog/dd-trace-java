@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -23,7 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -40,11 +41,13 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import java.util.function.Function;
+import javax.annotation.Nonnull;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -95,6 +98,7 @@ public class DDSpanContext
 
   private volatile short httpStatusCode;
   private CharSequence integrationName;
+  private CharSequence serviceNameSource;
 
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
@@ -156,7 +160,6 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private volatile CharSequence lastParentId;
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -190,6 +193,7 @@ public class DDSpanContext
         spanId,
         parentId,
         parentServiceName,
+        null,
         serviceName,
         operationName,
         resourceName,
@@ -237,6 +241,7 @@ public class DDSpanContext
         spanId,
         parentId,
         parentServiceName,
+        null,
         serviceName,
         operationName,
         resourceName,
@@ -263,53 +268,7 @@ public class DDSpanContext
       final long spanId,
       final long parentId,
       final CharSequence parentServiceName,
-      final String serviceName,
-      final CharSequence operationName,
-      final CharSequence resourceName,
-      final int samplingPriority,
-      final CharSequence origin,
-      final Map<String, String> baggageItems,
-      final boolean errorFlag,
-      final CharSequence spanType,
-      final int tagsSize,
-      final TraceCollector traceCollector,
-      final Object requestContextDataAppSec,
-      final Object requestContextDataIast,
-      final PathwayContext pathwayContext,
-      final boolean disableSamplingMechanismValidation,
-      final PropagationTags propagationTags,
-      final ProfilingContextIntegration profilingContextIntegration) {
-    this(
-        traceId,
-        spanId,
-        parentId,
-        parentServiceName,
-        serviceName,
-        operationName,
-        resourceName,
-        samplingPriority,
-        origin,
-        baggageItems,
-        null,
-        errorFlag,
-        spanType,
-        tagsSize,
-        traceCollector,
-        requestContextDataAppSec,
-        requestContextDataIast,
-        null,
-        pathwayContext,
-        disableSamplingMechanismValidation,
-        propagationTags,
-        profilingContextIntegration,
-        true);
-  }
-
-  public DDSpanContext(
-      final DDTraceId traceId,
-      final long spanId,
-      final long parentId,
-      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
       final String serviceName,
       final CharSequence operationName,
       final CharSequence resourceName,
@@ -366,7 +325,8 @@ public class DDSpanContext
     // to get away with doing this just once per span
     this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
 
-    setServiceName(serviceName);
+    internalSetServiceName(serviceName);
+    this.serviceNameSource = serviceNameSource;
     this.operationName = operationName;
     setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
     this.errorFlag = errorFlag;
@@ -426,9 +386,26 @@ public class DDSpanContext
     return serviceName;
   }
 
-  public void setServiceName(final String serviceName) {
+  private void internalSetServiceName(String serviceName) {
     this.serviceName = traceCollector.mapServiceName(serviceName);
     this.topLevel = isTopLevel(parentServiceName, this.serviceName);
+  }
+
+  public void setServiceName(final String serviceName) {
+    setServiceName(serviceName, MANUAL);
+  }
+
+  public void setServiceName(String serviceName, @Nonnull CharSequence source) {
+    internalSetServiceName(serviceName);
+    setServiceNameSource(Objects.requireNonNull(source));
+  }
+
+  public CharSequence getServiceNameSource() {
+    return serviceNameSource;
+  }
+
+  public void setServiceNameSource(final CharSequence serviceNameSource) {
+    this.serviceNameSource = serviceNameSource;
   }
 
   // TODO this logic is inconsistent with hasResourceName
@@ -748,6 +725,30 @@ public class DDSpanContext
   public void setMetric(final CharSequence key, final Number value) {
     synchronized (unsafeTags) {
       unsafeSetTag(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final int value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final long value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final float value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
+    }
+  }
+
+  public void setMetric(final CharSequence key, final double value) {
+    synchronized (unsafeTags) {
+      unsafeTags.set(key.toString(), value);
     }
   }
 
@@ -1086,19 +1087,24 @@ public class DDSpanContext
     }
   }
 
-  public void earlyProcessTags(List<AgentSpanLink> links) {
+  void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
     }
   }
 
-  public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+  void processTagsAndBaggage(
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
+    // links
+    // This is a compromise to avoid...
+    // - creating an extra wrapper object that would create significant allocation
+    // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
       // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
-      String linksTag = DDSpanLink.toTag(links);
+      String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
       if (linksTag != null) {
         unsafeTags.put(SPAN_LINKS, linksTag);
       }

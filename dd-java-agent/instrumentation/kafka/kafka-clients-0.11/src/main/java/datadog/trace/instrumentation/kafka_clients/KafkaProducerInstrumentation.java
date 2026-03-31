@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
@@ -28,6 +29,7 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -97,13 +99,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(isPublic())
             .and(named("send"))
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
-        KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
+        KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice",
+        KafkaProducerInstrumentation.class.getName() + "$ContextPropagationAdvice");
 
     transformer.applyAdvice(
         isMethod()
@@ -118,7 +121,6 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.FieldValue("sender") Sender sender,
         @Advice.FieldValue("metadata") Metadata metadata,
@@ -156,6 +158,32 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
 
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      // Clear cluster ID from Schema Registry instrumentation
+      ClusterIdHolder.clear();
+
+      PRODUCER_DECORATE.onError(scope, throwable);
+      PRODUCER_DECORATE.beforeFinish(scope);
+      scope.close();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
       TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
@@ -205,26 +233,13 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (TIME_IN_QUEUE_ENABLED) {
         setter.injectTimeInQueue(record.headers());
       }
-
       AgentTracer.get()
           .getDataStreamsMonitoring()
           .trackTransaction(
               span,
               DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
-              record,
+              record.headers(),
               DSM_TRANSACTION_SOURCE_READER);
-      return activateSpan(span);
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      // Clear cluster ID from Schema Registry instrumentation
-      ClusterIdHolder.clear();
-
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
-      scope.close();
     }
   }
 

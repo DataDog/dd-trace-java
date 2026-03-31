@@ -16,8 +16,10 @@
 package datadog.trace.api.profiling;
 
 import java.io.IOException;
+import java.nio.file.Path;
 import java.time.Instant;
 import javax.annotation.Nonnull;
+import javax.annotation.Nullable;
 
 /** Platform-agnostic API for operations required when retrieving data using the ProfilingSystem. */
 public abstract class RecordingData implements ProfilingSnapshot {
@@ -87,6 +89,17 @@ public abstract class RecordingData implements ProfilingSnapshot {
   @Nonnull
   public final Kind getKind() {
     return kind;
+  }
+
+  /**
+   * Returns the file path backing this recording data, if available. Implementations that store
+   * recording data on disk can override this to avoid unnecessary stream materialization.
+   *
+   * @return the file path, or {@code null} if the data is not file-backed
+   */
+  @Nullable
+  public Path getPath() {
+    return null;
   }
 
   @Override

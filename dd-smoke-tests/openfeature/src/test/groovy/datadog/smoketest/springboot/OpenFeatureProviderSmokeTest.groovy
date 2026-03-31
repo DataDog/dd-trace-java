@@ -13,6 +13,7 @@ import okhttp3.Request
 import okhttp3.RequestBody
 import spock.lang.Shared
 import spock.lang.Stepwise
+import spock.lang.Unroll
 import spock.util.concurrent.PollingConditions
 
 /** Due to the exposure cache it's important to run the tests in the specified order */
@@ -97,6 +98,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
+  @Unroll("test open feature evaluation - #testCase.fileName[#testCase.index] - flag=#testCase.flag")
   void 'test open feature evaluation'() {
     setup:
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)

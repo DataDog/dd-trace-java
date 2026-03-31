@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.GrowableBuffer;
@@ -7,8 +8,13 @@ import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.git.GitInfo;
+import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
+import java.util.function.Function;
 
 public final class SerializingMetricWriter implements MetricWriter {
 
@@ -37,33 +43,59 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
+  private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
+  private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
+  private static final byte[] GIT_COMMIT_SHA = "GitCommitSha".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;
   public static final int TRISTATE_FALSE = TriState.FALSE.serialValue;
 
+  private static final Function<GitInfo, UTF8BytesString> SHA_COMMIT_GETTER =
+      gitInfo ->
+          gitInfo.getCommit() != null && gitInfo.getCommit().getSha() != null
+              ? UTF8BytesString.create(gitInfo.getCommit().getSha())
+              : EMPTY;
+
   private final WellKnownTags wellKnownTags;
   private final WritableFormatter writer;
   private final Sink sink;
   private final GrowableBuffer buffer;
+  private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
+      DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
+  private final GitInfoProvider gitInfoProvider;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
   }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
+    this(wellKnownTags, sink, initialCapacity, GitInfoProvider.INSTANCE);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      Sink sink,
+      int initialCapacity,
+      final GitInfoProvider gitInfoProvider) {
     this.wellKnownTags = wellKnownTags;
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
+    this.gitInfoProvider = new GitInfoProvider();
   }
 
   @Override
   public void startBucket(int metricCount, long start, long duration) {
     final UTF8BytesString processTags = ProcessTags.getTagsForSerialization();
     final boolean writeProcessTags = processTags != null;
-    writer.startMap(7 + (writeProcessTags ? 1 : 0));
+    // the gitinfo can be rebuild in time and initialized after this class is created. So that a
+    // cacheable is needed
+    final UTF8BytesString gitSha =
+        gitInfoCache.computeIfAbsent(gitInfoProvider.getGitInfo(), SHA_COMMIT_GETTER);
+    final boolean writeGitCommitSha = gitSha != EMPTY;
+    writer.startMap(7 + (writeProcessTags ? 1 : 0) + (writeGitCommitSha ? 1 : 0));
 
     writer.writeUTF8(RUNTIME_ID);
     writer.writeUTF8(wellKnownTags.getRuntimeId());
@@ -88,6 +120,11 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(processTags);
     }
 
+    if (writeGitCommitSha) {
+      writer.writeUTF8(GIT_COMMIT_SHA);
+      writer.writeUTF8(gitSha);
+    }
+
     writer.writeUTF8(STATS);
 
     writer.startArray(1);
@@ -109,7 +146,14 @@ public final class SerializingMetricWriter implements MetricWriter {
     // Calculate dynamic map size based on optional fields
     final boolean hasHttpMethod = key.getHttpMethod() != null;
     final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
-    final int mapSize = 15 + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0);
+    final boolean hasServiceSource = key.getServiceSource() != null;
+    final boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null;
+    final int mapSize =
+        15
+            + (hasServiceSource ? 1 : 0)
+            + (hasHttpMethod ? 1 : 0)
+            + (hasHttpEndpoint ? 1 : 0)
+            + (hasGrpcStatusCode ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -145,6 +189,10 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(peerTag);
     }
 
+    if (hasServiceSource) {
+      writer.writeUTF8(SERVICE_SOURCE);
+      writer.writeUTF8(key.getServiceSource());
+    }
     // Only include HTTPMethod if present
     if (hasHttpMethod) {
       writer.writeUTF8(HTTP_METHOD);
@@ -155,6 +203,12 @@ public final class SerializingMetricWriter implements MetricWriter {
     if (hasHttpEndpoint) {
       writer.writeUTF8(HTTP_ENDPOINT);
       writer.writeUTF8(key.getHttpEndpoint());
+    }
+
+    // Only include GRPCStatusCode if present (rpc-type spans)
+    if (hasGrpcStatusCode) {
+      writer.writeUTF8(GRPC_STATUS_CODE);
+      writer.writeUTF8(key.getGrpcStatusCode());
     }
 
     writer.writeUTF8(HITS);

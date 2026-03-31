@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 public final class TagsPostProcessorFactory {
-  private static boolean addBaseService = true;
+  private static boolean addInternalTags = true;
   private static boolean addRemoteHostname = true;
 
   private static class Lazy {
@@ -15,8 +15,9 @@ public final class TagsPostProcessorFactory {
     private static TagsPostProcessor createEagerChain() {
       final List<TagsPostProcessor> processors = new ArrayList<>(3);
       processors.add(new PeerServiceCalculator());
-      if (addBaseService) {
-        processors.add(new BaseServiceAdder(Config.get().getServiceName()));
+      if (addInternalTags) {
+        processors.add(
+            new InternalTagsAdder(Config.get().getServiceName(), Config.get().getVersion()));
       }
       // Add HTTP endpoint post processor for resource renaming
       // This must run BEFORE metrics aggregation so the correct resource name is used in metrics
@@ -27,7 +28,7 @@ public final class TagsPostProcessorFactory {
     }
 
     private static TagsPostProcessor createLazyChain() {
-      final List<TagsPostProcessor> processors = new ArrayList<>(7);
+      final List<TagsPostProcessor> processors = new ArrayList<>(8);
 
       processors.add(new QueryObfuscator(Config.get().getObfuscationQueryRegexp()));
       if (addRemoteHostname) {
@@ -47,6 +48,7 @@ public final class TagsPostProcessorFactory {
         processors.add(new SpanPointersProcessor());
       }
       processors.add(new IntegrationAdder());
+      processors.add(new ServiceNameSourceAdder());
       return new PostProcessorChain(
           processors.toArray(processors.toArray(new TagsPostProcessor[0])));
     }
@@ -63,10 +65,10 @@ public final class TagsPostProcessorFactory {
   /**
    * Mostly used for test purposes.
    *
-   * @param enabled if false, {@link BaseServiceAdder} is not put in the chain.
+   * @param enabled if false, {@link InternalTagsAdder} is not put in the chain.
    */
-  public static void withAddBaseService(boolean enabled) {
-    addBaseService = enabled;
+  public static void withAddInternalTags(boolean enabled) {
+    addInternalTags = enabled;
     Lazy.eagerProcessor = Lazy.createEagerChain();
   }
 
@@ -82,7 +84,7 @@ public final class TagsPostProcessorFactory {
 
   /** Used for testing purposes. It reset the singleton and restore default options */
   public static void reset() {
-    withAddBaseService(true);
+    withAddInternalTags(true);
     withAddRemoteHostname(true);
   }
 }

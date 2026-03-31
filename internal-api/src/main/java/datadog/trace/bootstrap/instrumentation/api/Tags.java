@@ -98,6 +98,7 @@ public class Tags {
   public static final String TEST_IS_NEW = "test.is_new";
   public static final String TEST_IS_RETRY = "test.is_retry";
   public static final String TEST_RETRY_REASON = "test.retry_reason";
+  public static final String TEST_JUNIT_IS_DYNAMIC = "test.junit5.is_dynamic";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
   public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
@@ -163,9 +164,13 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+  public static final String VERSION = "version";
 
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";
+
+  /** AI Guard force tracer to keep the trace */
+  public static final String AI_GUARD_KEEP = "ai_guard.keep";
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";

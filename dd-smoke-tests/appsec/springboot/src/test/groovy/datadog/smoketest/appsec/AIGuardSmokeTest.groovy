@@ -69,9 +69,15 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     ?.find {
       it.resource == 'ai_guard'
     } as DecodedSpan
+    final rootSpan = traces*.spans
+    ?.flatten()
+    ?.find {
+      it.traceId == span.traceId && it.parentId == 0
+    } as DecodedSpan
     assert span.meta.get('ai_guard.action') == action
     assert span.meta.get('ai_guard.reason') == reason
     assert span.meta.get('ai_guard.target') == 'prompt'
+    assert rootSpan.metrics.get('_sampling_priority_v1') == 2
     final messages = span.metaStruct.get('ai_guard').messages as List<Map<String, Object>>
     assert messages.size() == 2
     with(messages[0]) {
@@ -101,6 +107,31 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
         a + b
       }
     }
+  }
+
+  void 'test default options honors remote blocking'() {
+    given:
+    def request = new Request.Builder()
+    .url("http://localhost:${httpPort}/aiguard/deny-default-options")
+    .get()
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    assert response.code() == 403
+    assert response.body().string().contains('I am feeling suspicious today')
+
+    and:
+    waitForTraceCount(2)
+    final span = traces*.spans
+    ?.flatten()
+    ?.find {
+      it.resource == 'ai_guard'
+    } as DecodedSpan
+    assert span.meta.get('ai_guard.action') == 'DENY'
+    assert span.meta.get('ai_guard.blocked') == 'true'
   }
 
   void 'test multimodal content parts evaluation'() {

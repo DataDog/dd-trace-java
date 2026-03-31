@@ -3,6 +3,7 @@ package datadog.crashtracking.parsers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.crashtracking.dto.CrashLog;
@@ -16,6 +17,7 @@ import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class J9JavacoreParserTest {
 
@@ -47,6 +49,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("SIGSEGV", crashLog.error.kind);
     assertEquals("Process terminated by signal SIGSEGV", crashLog.error.message);
+    assertEquals("main", crashLog.error.threadName);
 
     // Stack trace
     assertNotNull(crashLog.error.stack);
@@ -55,14 +58,39 @@ public class J9JavacoreParserTest {
 
     // Check first Java frame
     assertEquals("com/example/NativeLibrary.crash", crashLog.error.stack.frames[0].function);
+    assertNull(crashLog.error.stack.frames[0].path);
+    assertEquals("native", crashLog.error.stack.frames[0].frameType);
 
     // Check second Java frame with source info
     assertEquals("com/example/CrashingApp.triggerCrash", crashLog.error.stack.frames[1].function);
     assertEquals("CrashingApp.java", crashLog.error.stack.frames[1].path);
+    assertEquals("java", crashLog.error.stack.frames[1].frameType);
     assertEquals(Integer.valueOf(42), crashLog.error.stack.frames[1].line);
 
     // Check native frames are present
     assertTrue(crashLog.error.stack.frames.length >= 4); // 3 java + native frames
+
+    assertNotNull(crashLog.osInfo);
+  }
+
+  @TableTest({
+    "scenario            | resource                          | pcRegister | spRegister",
+    "IBM J9 8 (amd64)    | sample-ibmj9-8-javacore-gpf.txt   | RIP        | RSP       ",
+    "OpenJ9 11 (aarch64) | sample-openj9-11-javacore-gpf.txt | PC         | SP        "
+  })
+  public void testParseRealGpfCrash(String resource, String pcRegister, String spRegister)
+      throws Exception {
+    final CrashLog crashLog =
+        new J9JavacoreParser().parse(UUID.randomUUID().toString(), readFileAsString(resource));
+
+    assertFalse(crashLog.incomplete);
+    assertEquals("SIGSEGV", crashLog.sigInfo.name);
+    assertEquals(11, crashLog.sigInfo.number);
+
+    assertNotNull(crashLog.experimental);
+    assertFalse(crashLog.experimental.ucontext.isEmpty());
+    assertTrue(crashLog.experimental.ucontext.containsKey(pcRegister));
+    assertTrue(crashLog.experimental.ucontext.containsKey(spRegister));
   }
 
   @Test
@@ -83,6 +111,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("OutOfMemory", crashLog.error.kind);
     assertTrue(crashLog.error.message.contains("OutOfMemory"));
+    assertEquals("worker-thread-1", crashLog.error.threadName);
 
     // Process info
     assertNotNull(crashLog.procInfo);
@@ -102,6 +131,8 @@ public class J9JavacoreParserTest {
       }
     }
     assertTrue(foundGrow, "Expected ArrayList.grow in stack trace");
+
+    assertNotNull(crashLog.osInfo);
   }
 
   @Test
@@ -158,6 +189,7 @@ public class J9JavacoreParserTest {
     assertEquals("SIGABRT", crashLog.sigInfo.name);
     assertEquals(6, crashLog.sigInfo.number);
     assertEquals(99999, crashLog.procInfo.pid);
+    assertEquals("abort-thread", crashLog.error.threadName);
   }
 
   @Test

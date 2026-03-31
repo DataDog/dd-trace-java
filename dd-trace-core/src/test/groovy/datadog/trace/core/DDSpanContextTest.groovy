@@ -5,6 +5,7 @@ import datadog.trace.api.DDTraceId
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -58,10 +59,10 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     where:
     name                 | tags
-    DDTags.SERVICE_NAME  | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.RESOURCE_NAME | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    DDTags.SPAN_TYPE     | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
-    "some.tag"           | [(DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id]
+    DDTags.SERVICE_NAME  | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id, (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL]
+    DDTags.RESOURCE_NAME | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id, (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL]
+    DDTags.SPAN_TYPE     | ["some.tag": "asdf", (DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id, (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL]
+    "some.tag"           | [(DDTags.THREAD_NAME): Thread.currentThread().name, (DDTags.THREAD_ID): Thread.currentThread().id, (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL]
   }
 
   def "special tags set certain values"() {
@@ -80,7 +81,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     then:
     def thread = Thread.currentThread()
-    assertTagmap(context.getTags(), [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id])
+    assertTagmap(context.getTags(), [(DDTags.THREAD_NAME): thread.name, (DDTags.THREAD_ID): thread.id, (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL])
     context."$method" == value
 
     where:
@@ -109,7 +110,8 @@ class DDSpanContextTest extends DDCoreSpecification {
     assertTagmap(context.getTags(), [
       (name)               : value,
       (DDTags.THREAD_NAME) : thread.name,
-      (DDTags.THREAD_ID)   : thread.id
+      (DDTags.THREAD_ID)   : thread.id,
+      (DDTags.DD_SVC_SRC): ServiceNameSources.MANUAL
     ])
 
     where:
@@ -130,7 +132,7 @@ class DDSpanContextTest extends DDCoreSpecification {
     def context = span.context()
 
     when:
-    context.setMetric("test", value)
+    context.setMetric("test", (Number)value)
 
     then:
     type.isInstance(context.getTag("test"))
@@ -310,6 +312,26 @@ class DDSpanContextTest extends DDCoreSpecification {
     // even though span ID and parent ID are setup as negative numbers, they should be printed as their unsigned value
     // asserting there is no negative sign after ids is the best I can do.
     context.toString().contains("id=-") == false
+  }
+
+  def "service name source is propagated from parent to child span"() {
+    setup:
+    def parent = tracer.buildSpan("parentOperation")
+      .withServiceName("fakeService")
+      .start()
+
+    when:
+    def child = tracer.buildSpan("childOperation")
+      .asChildOf(parent.context())
+      .start()
+    def childContext = child.context() as DDSpanContext
+
+    then:
+    childContext.getServiceNameSource() == ServiceNameSources.MANUAL
+
+    cleanup:
+    child.finish()
+    parent.finish()
   }
 
   static void assertTagmap(Map source, Map comparison, boolean removeThread = false) {

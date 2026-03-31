@@ -284,13 +284,21 @@ class OpenTracing31Test extends InstrumentationSpecification {
       "-${DDSpanId.toHexStringPadded(context.delegate.spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
     def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(context.delegate.spanId)}"
-    def expectedDatadogTags = null
+    def datadogTags = []
     if (propagatedPriority > 0) {
       def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
-      expectedDatadogTags = "_dd.p.dm=-" + effectiveSamplingMechanism
-      expectedTracestate+= ";t.dm:-" + effectiveSamplingMechanism
+      datadogTags << "_dd.p.dm=-" + effectiveSamplingMechanism
+      expectedTracestate += ";t.dm:-" + effectiveSamplingMechanism
     }
-
+    def traceId = context.delegate.traceId as DDTraceId
+    if (traceId.toHighOrderLong() != 0) {
+      expectedTracestate += ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
+      datadogTags << "_dd.p.tid=" + traceId.toHexStringPadded(32).substring(0, 16)
+    }
+    if (contextPriority == UNSET) {
+      expectedTracestate += ";t.ksr:1"
+      datadogTags << "_dd.p.ksr=1"
+    }
     def expectedTextMap = [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
       "x-datadog-parent-id"        : "$context.delegate.spanId",
@@ -298,8 +306,8 @@ class OpenTracing31Test extends InstrumentationSpecification {
       "traceparent"                : expectedTraceparent,
       "tracestate"                 : expectedTracestate,
     ]
-    if (expectedDatadogTags != null) {
-      expectedTextMap.put("x-datadog-tags", expectedDatadogTags)
+    if (!datadogTags.empty) {
+      expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
     }
     textMap == expectedTextMap
 

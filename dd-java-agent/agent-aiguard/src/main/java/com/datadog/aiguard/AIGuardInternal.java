@@ -28,6 +28,7 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -71,6 +72,7 @@ public class AIGuardInternal implements Evaluator {
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
+  static final String META_STRUCT_SDS = "sds";
 
   public static void install() {
     final Config config = Config.get();
@@ -203,6 +205,9 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+    if (isBlockingEnabled == null) {
+      return false;
+    }
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
@@ -218,6 +223,10 @@ public class AIGuardInternal implements Evaluator {
       builder.asChildOf(parent.context());
     }
     final AgentSpan span = builder.start();
+    final AgentSpan localRootSpan = span.getLocalRootSpan();
+    if (localRootSpan != null) {
+      localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+    }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
@@ -247,6 +256,8 @@ public class AIGuardInternal implements Evaluator {
         final String reason = (String) result.get("reason");
         @SuppressWarnings("unchecked")
         final List<String> tags = (List<String>) result.get("tags");
+        @SuppressWarnings("unchecked")
+        final List<?> sdsFindings = (List<?>) result.get("sds_findings");
         span.setTag(ACTION_TAG, action);
         if (reason != null) {
           span.setTag(REASON_TAG, reason);
@@ -254,14 +265,17 @@ public class AIGuardInternal implements Evaluator {
         if (tags != null && !tags.isEmpty()) {
           metaStruct.put(META_STRUCT_CATEGORIES, tags);
         }
+        if (sdsFindings != null && !sdsFindings.isEmpty()) {
+          metaStruct.put(META_STRUCT_SDS, sdsFindings);
+        }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags);
+          throw new AIGuardAbortError(action, reason, tags, sdsFindings);
         }
-        return new Evaluation(action, reason, tags);
+        return new Evaluation(action, reason, tags, sdsFindings);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);

@@ -1,11 +1,11 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofDoubles;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.GAUGE;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.DoubleGaugeBuilder;
@@ -66,19 +66,17 @@ final class OtelDoubleGauge extends OtelInstrument implements DoubleGauge {
     @Override
     public DoubleGauge build() {
       return new OtelDoubleGauge(
-          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newDoubleValueStorage));
-    }
-
-    @Override
-    public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
+          meter.registerStorage(builder, OtelMetricStorage::newDoubleValueStorage));
     }
 
     @Override
     public ObservableDoubleMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.gaugeBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleValueStorage);
+    }
+
+    @Override
+    public ObservableDoubleGauge buildWithCallback(Consumer<ObservableDoubleMeasurement> callback) {
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

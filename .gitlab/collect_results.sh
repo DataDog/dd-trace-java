@@ -12,7 +12,13 @@ WORKSPACE_DIR=workspace
 mkdir -p $TEST_RESULTS_DIR
 mkdir -p $WORKSPACE_DIR
 
-mapfile -t TEST_RESULT_DIRS < <(find $WORKSPACE_DIR -name test-results -type d)
+# Main project modules redirect their build directory to workspace/<project-path>/build/ in CI
+# (see build.gradle.kts layout.buildDirectory override). buildSrc is a separate Gradle build
+# that runs before the main build is configured, so this redirect never applies to it;
+# its test results always land in buildSrc/**/build/test-results/, not under workspace/.
+SEARCH_DIRS=($WORKSPACE_DIR buildSrc)
+
+mapfile -t TEST_RESULT_DIRS < <(find "${SEARCH_DIRS[@]}" -name test-results -type d)
 
 if [[ ${#TEST_RESULT_DIRS[@]} -eq 0 ]]; then
   echo "No test results found"
@@ -67,17 +73,27 @@ do
   # E.g. for the example path: tomcat-5.5_forkedTest_TEST-TomcatServletV1ForkedTest.xml
   AGGREGATED_FILE_NAME=$(echo "$RESULT_XML_FILE" | rev | cut -d "/" -f 1,2,5 | rev | tr "/" "_")
   echo -n " as $AGGREGATED_FILE_NAME"
-  cp "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  TARGET_DIR="$TEST_RESULTS_DIR"
+  mkdir -p "$TARGET_DIR"
+  cp "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Insert file attribute to testcase XML nodes
   get_source_file
-  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i "/<testcase/ s|\(time=\"[^\"]*\"\)|\1 file=\"$file_path\"|g" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace Java Object hashCode by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
+  sed -i '/<testcase/ s/@[0-9a-f]\{5,\}/@HASHCODE/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
   # Replace random port numbers by marker in testcase XML nodes to get stable test names
-  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"
-  if cmp -s "$RESULT_XML_FILE" "$TEST_RESULTS_DIR/$AGGREGATED_FILE_NAME"; then
+  sed -i '/<testcase/ s/localhost:[0-9]\{2,5\}/localhost:PORT/g' "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+
+  if cmp -s "$RESULT_XML_FILE" "$TARGET_DIR/$AGGREGATED_FILE_NAME"; then
     echo ""
   else
-    echo -n " (non-stable test names detected)"
+    echo " (non-stable test names detected)"
   fi
+
+  echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
+  xsl_file="$(dirname "$0")/add_final_status.xsl"
+  tmp_file="$(mktemp)"
+  xsltproc --huge --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  mv "$tmp_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+
 done <   <(find "${TEST_RESULT_DIRS[@]}" -name \*.xml -print0)

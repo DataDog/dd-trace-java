@@ -5,22 +5,15 @@ import datadog.trace.api.civisibility.CIConstants
 import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
-import okhttp3.OkHttpClient
-import okhttp3.Request
-import okhttp3.Response
 import org.apache.maven.wrapper.MavenWrapperMain
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
-import org.w3c.dom.Document
-import org.w3c.dom.NodeList
 import spock.lang.AutoCleanup
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 import spock.util.environment.Jvm
 
-import javax.xml.parsers.DocumentBuilder
-import javax.xml.parsers.DocumentBuilderFactory
 import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.Path
@@ -32,9 +25,6 @@ import java.util.concurrent.TimeoutException
 
 import static org.junit.jupiter.api.Assumptions.assumeTrue
 
-@IgnoreIf(reason = "TODO: Fix for Java 26. Maven compiler fails to compile the tests for Java 26-ea.", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(26)
-})
 @IgnoreIf(reason = "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts", value = {
   JavaVirtualMachine.isIbm8()
 })
@@ -140,7 +130,7 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     def exitCode = whenRunningMavenBuild([:], [], [:])
     assert exitCode == 0
 
-    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(15), mockBackend.waitForCoverages(6))
+    verifyEventsAndCoverages(projectName, "maven", mavenVersion, mockBackend.waitForEvents(11), mockBackend.waitForCoverages(3))
 
     where:
     projectName                                 | mavenVersion
@@ -442,70 +432,26 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     }
   }
 
-  private static String getLatestMavenVersion() {
-    OkHttpClient client = new OkHttpClient()
-    Request request = new Request.Builder().url("https://repo.maven.apache.org/maven2/org/apache/maven/apache-maven/maven-metadata.xml").build()
-    try (Response response = client.newCall(request).execute()) {
-      if (response.successful) {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance()
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder()
-        Document doc = dBuilder.parse(response.body().byteStream())
-        doc.getDocumentElement().normalize()
-
-        NodeList versionList = doc.getElementsByTagName("latest")
-        if (versionList.getLength() > 0) {
-          def version = versionList.item(0).getTextContent()
-          if (!version.contains('alpha') && !version.contains('beta') && !version.contains('rc')) {
-            LOGGER.info("Will run the 'latest' tests with version ${version}")
-            return version
-          }
-        }
-      } else {
-        LOGGER.warn("Could not get latest maven version, response from repo.maven.apache.org is ${response.code()}: ${response.body().string()}")
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Could not get latest maven version", e)
+  private static Properties loadLatestToolVersions() {
+    def properties = new Properties()
+    def stream = MavenSmokeTest.classLoader.getResourceAsStream("latest-tool-versions.properties")
+    if (stream == null) {
+      throw new IllegalStateException("Could not find latest-tool-versions.properties on classpath")
     }
-    def hardcodedLatestVersion = "4.0.0-beta-3" // latest version that is known to work
-    LOGGER.info("Will run the 'latest' tests with hard-coded version ${hardcodedLatestVersion}")
-    return hardcodedLatestVersion
+    stream.withCloseable { properties.load(it) }
+    return properties
+  }
+
+  private static String getLatestMavenVersion() {
+    def version = loadLatestToolVersions().getProperty("maven.version")
+    LOGGER.info("Will run the 'latest' tests with Maven version ${version}")
+    return version
   }
 
   private static String getLatestMavenSurefireVersion() {
-    OkHttpClient client = new OkHttpClient()
-    Request request =
-    new Request.Builder()
-    .url(
-    "https://repo.maven.apache.org/maven2/org/apache/maven/plugins/maven-surefire-plugin/maven-metadata.xml")
-    .build()
-    try (Response response = client.newCall(request).execute()) {
-      if (response.isSuccessful()) {
-        DocumentBuilderFactory dbFactory = DocumentBuilderFactory.newInstance()
-        DocumentBuilder dBuilder = dbFactory.newDocumentBuilder()
-        Document doc = dBuilder.parse(response.body().byteStream())
-        doc.getDocumentElement().normalize()
-
-        NodeList versionList = doc.getElementsByTagName("latest")
-        if (versionList.getLength() > 0) {
-          String version = versionList.item(0).getTextContent()
-          if (!version.contains("alpha") && !version.contains("beta")) {
-            LOGGER.info("Will run the 'latest' tests with version " + version)
-            return version
-          }
-        }
-      } else {
-        LOGGER.warn(
-        "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
-        + response.code()
-        + ":"
-        + response.body().string())
-      }
-    } catch (Exception e) {
-      LOGGER.warn("Could not get latest Maven Surefire version", e)
-    }
-    String hardcodedLatestVersion = "3.5.0" // latest version that is known to work
-    LOGGER.info("Will run the 'latest' tests with hard-coded version " + hardcodedLatestVersion)
-    return hardcodedLatestVersion
+    def version = loadLatestToolVersions().getProperty("maven-surefire.version")
+    LOGGER.info("Will run the 'latest' tests with Maven Surefire version ${version}")
+    return version
   }
 
   private static BitSet bits(int ... indices) {

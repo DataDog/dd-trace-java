@@ -1,12 +1,12 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.COUNTER;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
-import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.logging.RatelimitedLogger;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleCounterBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
@@ -80,19 +80,17 @@ final class OtelLongCounter extends OtelInstrument implements LongCounter {
     @Override
     public LongCounter build() {
       return new OtelLongCounter(
-          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongSumStorage));
-    }
-
-    @Override
-    public ObservableLongCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
+          meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
     }
 
     @Override
     public ObservableLongMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.counterBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongSumStorage);
+    }
+
+    @Override
+    public ObservableLongCounter buildWithCallback(Consumer<ObservableLongMeasurement> callback) {
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

@@ -15,7 +15,7 @@ import org.slf4j.LoggerFactory;
 
 public class TibcoDecorator extends BaseDecorator {
   private static final Logger LOGGER = LoggerFactory.getLogger(TibcoDecorator.class);
-  private static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
+  static final CharSequence TIBCO_BW = UTF8BytesString.create("tibco_bw");
   private static final CharSequence APPNODE_NAME =
       UTF8BytesString.create(SystemProperties.get("bw.appnode"));
   private static final CharSequence BW_VERSION = bwVersion();

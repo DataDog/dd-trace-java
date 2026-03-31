@@ -1,11 +1,11 @@
 package datadog.opentelemetry.shim.metrics;
 
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentBuilder.ofLongs;
-import static datadog.opentelemetry.shim.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_INSTRUMENT_NAME;
-import static datadog.opentelemetry.shim.metrics.OtelMeter.NOOP_METER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofLongs;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
 
-import datadog.opentelemetry.shim.metrics.data.OtelMetricStorage;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.DoubleUpDownCounterBuilder;
 import io.opentelemetry.api.metrics.LongUpDownCounter;
@@ -66,20 +66,18 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
     @Override
     public LongUpDownCounter build() {
       return new OtelLongUpDownCounter(
-          meter.registerStorage(builder.descriptor(), OtelMetricStorage::newLongSumStorage));
+          meter.registerStorage(builder, OtelMetricStorage::newLongSumStorage));
+    }
+
+    @Override
+    public ObservableLongMeasurement buildObserver() {
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongSumStorage);
     }
 
     @Override
     public ObservableLongUpDownCounter buildWithCallback(
         Consumer<ObservableLongMeasurement> callback) {
-      // FIXME: implement callback
-      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME).buildWithCallback(callback);
-    }
-
-    @Override
-    public ObservableLongMeasurement buildObserver() {
-      // FIXME: implement observer
-      return NOOP_METER.upDownCounterBuilder(NOOP_INSTRUMENT_NAME).buildObserver();
+      return meter.registerObservableCallback(callback, buildObserver());
     }
   }
 }

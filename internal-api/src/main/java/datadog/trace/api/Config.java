@@ -112,12 +112,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRIC_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
@@ -446,14 +447,20 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
-import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_PROTOCOL;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TEMPORALITY_PREFERENCE;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_TRACES_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_EXPORTER;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_API_KEY_FILE_OLD;
@@ -785,6 +792,12 @@ public class Config {
    */
   static class RuntimeIdHolder {
     static final String runtimeId = RandomUtils.randomUUID().toString();
+    static final String rootSessionId = initRootSessionId();
+
+    private static String initRootSessionId() {
+      String inherited = ConfigHelper.env("_DD_ROOT_JAVA_SESSION_ID");
+      return inherited != null ? inherited : runtimeId;
+    }
   }
 
   static class HostNameHolder {
@@ -912,15 +925,22 @@ public class Config {
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
-  private final boolean metricsOtelEnabled;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
+  private final OtlpConfig.Compression otlpMetricsCompression;
   private final int otlpMetricsTimeout;
   private final OtlpConfig.Temporality otlpMetricsTemporalityPreference;
+
+  private final String traceOtelExporter;
+  private final String otlpTracesEndpoint;
+  private final Map<String, String> otlpTracesHeaders;
+  private final OtlpConfig.Protocol otlpTracesProtocol;
+  private final OtlpConfig.Compression otlpTracesCompression;
+  private final int otlpTracesTimeout;
 
   // These values are default-ed to those of jmx fetch values as needed
   private final boolean healthMetricsEnabled;
@@ -1887,9 +1907,6 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
-    metricsOtelEnabled =
-        configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
-
     int cardinalityLimit =
         configProvider.getInteger(
             METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
@@ -1917,11 +1934,11 @@ public class Config {
     metricsOtelTimeout = otelTimeout;
 
     // keep OTLP default timeout below the overall export timeout
-    int defaultOtlpTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
-    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpTimeout);
+    int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
+    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP metrics timeout: {}. The value must be positive", otlpTimeout);
-      otlpTimeout = defaultOtlpTimeout;
+      otlpTimeout = defaultOtlpMetricsTimeout;
     }
     otlpMetricsTimeout = otlpTimeout;
 
@@ -1929,6 +1946,9 @@ public class Config {
     otlpMetricsProtocol =
         configProvider.getEnum(
             OTLP_METRICS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpMetricsCompression =
+        configProvider.getEnum(
+            OTLP_METRICS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
 
     String otlpMetricsEndpointFromEnvironment = configProvider.getString(OTLP_METRICS_ENDPOINT);
     if (otlpMetricsEndpointFromEnvironment == null) {
@@ -1941,7 +1961,7 @@ public class Config {
                 + ':'
                 + DEFAULT_OTLP_HTTP_PORT
                 + '/'
-                + DEFAULT_OTLP_HTTP_METRIC_ENDPOINT;
+                + DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
       }
     }
     otlpMetricsEndpoint = otlpMetricsEndpointFromEnvironment;
@@ -1951,6 +1971,39 @@ public class Config {
             OTLP_METRICS_TEMPORALITY_PREFERENCE,
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
+
+    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+
+    otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
+    if (otlpTimeout < 0) {
+      log.warn("Invalid OTLP traces timeout: {}. The value must be positive", otlpTimeout);
+      otlpTimeout = DEFAULT_OTLP_TRACES_TIMEOUT;
+    }
+    otlpTracesTimeout = otlpTimeout;
+
+    otlpTracesHeaders = configProvider.getMergedMap(OTLP_TRACES_HEADERS, '=');
+    otlpTracesProtocol =
+        configProvider.getEnum(
+            OTLP_TRACES_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpTracesCompression =
+        configProvider.getEnum(
+            OTLP_TRACES_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+
+    String otlpTracesEndpointFromEnvironment = configProvider.getString(OTLP_TRACES_ENDPOINT);
+    if (otlpTracesEndpointFromEnvironment == null) {
+      if (otlpMetricsProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpTracesEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+      } else {
+        otlpTracesEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+      }
+    }
+    otlpTracesEndpoint = otlpTracesEndpointFromEnvironment;
 
     // Runtime metrics are disabled if Otel metrics are enabled and the metrics exporter is none
     runtimeMetricsEnabled = configProvider.getBoolean(RUNTIME_METRICS_ENABLED, true);
@@ -3074,6 +3127,10 @@ public class Config {
 
   public String getRuntimeId() {
     return runtimeIdEnabled ? RuntimeIdHolder.runtimeId : "";
+  }
+
+  public String getRootSessionId() {
+    return runtimeIdEnabled ? RuntimeIdHolder.rootSessionId : "";
   }
 
   public Long getProcessId() {
@@ -5200,7 +5257,7 @@ public class Config {
   }
 
   public boolean isMetricsOtelEnabled() {
-    return metricsOtelEnabled;
+    return instrumenterConfig.isMetricsOtelEnabled();
   }
 
   public int getMetricsOtelCardinalityLimit() {
@@ -5227,12 +5284,44 @@ public class Config {
     return otlpMetricsProtocol;
   }
 
+  public OtlpConfig.Compression getOtlpMetricsCompression() {
+    return otlpMetricsCompression;
+  }
+
   public int getOtlpMetricsTimeout() {
     return otlpMetricsTimeout;
   }
 
   public OtlpConfig.Temporality getOtlpMetricsTemporalityPreference() {
     return otlpMetricsTemporalityPreference;
+  }
+
+  public boolean isTraceOtelEnabled() {
+    return instrumenterConfig.isTraceOtelEnabled();
+  }
+
+  public boolean isTraceOtlpExporterEnabled() {
+    return "otlp".equalsIgnoreCase(traceOtelExporter);
+  }
+
+  public String getOtlpTracesEndpoint() {
+    return otlpTracesEndpoint;
+  }
+
+  public Map<String, String> getOtlpTracesHeaders() {
+    return otlpTracesHeaders;
+  }
+
+  public OtlpConfig.Protocol getOtlpTracesProtocol() {
+    return otlpTracesProtocol;
+  }
+
+  public OtlpConfig.Compression getOtlpTracesCompression() {
+    return otlpTracesCompression;
+  }
+
+  public int getOtlpTracesTimeout() {
+    return otlpTracesTimeout;
   }
 
   public boolean isRuleEnabled(final String name) {
@@ -5784,6 +5873,9 @@ public class Config {
         + ", runtimeId='"
         + getRuntimeId()
         + '\''
+        + ", rootSessionId='"
+        + getRootSessionId()
+        + '\''
         + ", runtimeVersion='"
         + runtimeVersion
         + ", apiKey="
@@ -6192,6 +6284,8 @@ public class Config {
         + injectBaggageAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
+        + ", appLogsCollectionEnabled="
+        + appLogsCollectionEnabled
         + ", sparkTaskHistogramEnabled="
         + sparkTaskHistogramEnabled
         + ", sparkAppNameAsService="
@@ -6244,8 +6338,6 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
-        + ", metricsOtelEnabled="
-        + metricsOtelEnabled
         + ", metricsOtelInterval="
         + metricsOtelInterval
         + ", metricsOtelTimeout="
@@ -6258,10 +6350,24 @@ public class Config {
         + otlpMetricsHeaders
         + ", otlpMetricsProtocol="
         + otlpMetricsProtocol
+        + ", otlpMetricsCompression="
+        + otlpMetricsCompression
         + ", otlpMetricsTimeout="
         + otlpMetricsTimeout
         + ", otlpMetricsTemporalityPreference="
         + otlpMetricsTemporalityPreference
+        + ", traceOtelExporter="
+        + traceOtelExporter
+        + ", otlpTracesEndpoint="
+        + otlpTracesEndpoint
+        + ", otlpTracesHeaders="
+        + otlpTracesHeaders
+        + ", otlpTracesProtocol="
+        + otlpTracesProtocol
+        + ", otlpTracesCompression="
+        + otlpTracesCompression
+        + ", otlpTracesTimeout="
+        + otlpTracesTimeout
         + ", serviceDiscoveryEnabled="
         + serviceDiscoveryEnabled
         + ", sfnInjectDatadogAttributeEnabled="

@@ -15,7 +15,7 @@ import java.nio.file.Path
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName
 
 abstract class CiVisibilitySmokeTest extends Specification {
-  static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']"]
+  static final List<String> SMOKE_IGNORED_TAGS = ["content.meta.['_dd.integration']", "content.meta.['_dd.svc_src']"]
 
   protected static final String AGENT_JAR = System.getProperty("datadog.smoketest.agent.shadowJar.path")
   protected static final String TEST_ENVIRONMENT_NAME = "integration-test"

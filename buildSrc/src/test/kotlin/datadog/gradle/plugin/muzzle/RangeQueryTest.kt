@@ -3,7 +3,7 @@ package datadog.gradle.plugin.muzzle
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.resolution.VersionRangeRequest
-import org.gradle.internal.impldep.org.junit.Assert.assertTrue
+import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class RangeQueryTest {
@@ -22,6 +22,6 @@ class RangeQueryTest {
     // This call makes an actual network request, which may fail if network access is limited.
     val rangeResult = system.resolveVersionRange(session, rangeRequest)
 
-    assertTrue(rangeResult.versions.size >= 8)
+    assertThat(rangeResult.versions.size).isGreaterThanOrEqualTo(8)
   }
 }

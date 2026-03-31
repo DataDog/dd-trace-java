@@ -2233,6 +2233,14 @@
         "aliases": []
       }
     ],
+    "DD_MEASURE_NATIVE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_MESSAGE_BROKER_SPLIT_BY_DESTINATION": [
       {
         "version": "A",
@@ -2313,6 +2321,14 @@
         "aliases": []
       }
     ],
+    "DD_OTLP_METRICS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "NONE",
+        "aliases": []
+      }
+    ],
     "DD_OTLP_METRICS_TIMEOUT": [
       {
         "version": "A",
@@ -2326,6 +2342,46 @@
         "version": "A",
         "type": "string",
         "default": "DELTA",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "HTTP_PROTOBUF",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "NONE",
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_TRACES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
         "aliases": []
       }
     ],
@@ -3062,6 +3118,30 @@
         "version": "A",
         "type": "int",
         "default": "50",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_SCRUB_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_SCRUB_EXCLUDE_EVENTS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROFILING_SCRUB_FAIL_OPEN": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -7577,6 +7657,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_NATIVE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_MICRONAUT_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -8142,6 +8230,14 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -11057,6 +11153,14 @@
         "aliases": []
       }
     ],
+    "OTEL_EXPORTER_OTLP_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "OTEL_EXPORTER_OTLP_TIMEOUT": [
       {
         "version": "A",
@@ -11089,6 +11193,14 @@
         "aliases": []
       }
     ],
+    "OTEL_EXPORTER_OTLP_METRICS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "OTEL_EXPORTER_OTLP_METRICS_TIMEOUT": [
       {
         "version": "B",
@@ -11110,6 +11222,54 @@
         "version": "A",
         "type": "int",
         "default": "2000",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_HEADERS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_TRACES_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
+        "aliases": []
+      }
+    ],
+    "DD_LEGACY_CONTEXT_MANAGER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
         "aliases": []
       }
     ]
