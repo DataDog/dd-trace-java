@@ -263,6 +263,31 @@ class ResponseServiceTest extends OpenAiTest {
     params << [responseCreateParamsWithCustomToolCall(false), responseCreateParamsWithCustomToolCall(true)]
   }
 
+  def "create response with function tool definition"() {
+    Response resp = runUnderTrace("parent") {
+      openAiClient.responses().create(params)
+    }
+
+    expect:
+    resp != null
+    and:
+    List<Map<String, Object>> toolDefinitions = []
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-4.1", String, null, null, null, metadata, false, toolDefinitions)
+    and:
+    metadata.stream == false
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Extract student information from the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    toolDefinitions[0].schema.required == ["name"]
+
+    where:
+    params << [responseCreateParamsWithFunctionTool(false), responseCreateParamsWithFunctionTool(true)]
+  }
+
   def "create response error sets model_name and placeholder output"() {
     setup:
     def errorBackend = TestHttpServer.httpServer {
@@ -337,7 +362,8 @@ class ResponseServiceTest extends OpenAiTest {
   Object inputTagsOut,
   List outputTagsOut,
   Map<String, Object> metadataOut,
-  boolean expectPromptTag = false) {
+  boolean expectPromptTag = false,
+  List<Map<String, Object>> toolDefinitionsOut = null) {
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -381,6 +407,13 @@ class ResponseServiceTest extends OpenAiTest {
             def outputTags = tag("_ml_obs_tag.output")
             if (outputTagsOut != null && outputTags != null) {
               outputTagsOut.addAll(outputTags)
+            }
+            if (toolDefinitionsOut != null) {
+              "$CommonTags.TOOL_DEFINITIONS" List
+              def toolDefinitions = tag("$CommonTags.TOOL_DEFINITIONS")
+              if (toolDefinitions != null) {
+                toolDefinitionsOut.addAll(toolDefinitions)
+              }
             }
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.output_tokens" Long

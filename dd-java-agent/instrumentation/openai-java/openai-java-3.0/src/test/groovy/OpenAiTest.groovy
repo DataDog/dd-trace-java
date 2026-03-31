@@ -22,6 +22,7 @@ import com.openai.models.responses.ResponseFunctionToolCall
 import com.openai.models.responses.ResponseIncludable
 import com.openai.models.responses.ResponseInputItem
 import com.openai.models.responses.ResponsePrompt
+import com.openai.models.responses.FunctionTool
 import com.openai.models.responses.CustomTool
 import com.openai.models.responses.ToolChoiceCustom
 import datadog.trace.agent.test.InstrumentationSpecification
@@ -399,6 +400,36 @@ Alice Johnson majors in mathematics at UCLA.""")
       .input("Use the custom_weather tool to answer: What's the weather in Boston?")
       .addTool(customTool)
       .toolChoice(toolChoice)
+      .build()
+    }
+  }
+
+  ResponseCreateParams responseCreateParamsWithFunctionTool(boolean json) {
+    def functionTool = FunctionTool.builder()
+    .name("extract_student_info")
+    .description("Extract student information from the input text")
+    .strict(false)
+    .parameters(FunctionTool.Parameters.builder()
+    .putAdditionalProperty("type", JsonValue.from("object"))
+    .putAdditionalProperty("properties", JsonValue.from([
+      name: [type: "string", description: "Name of the student"],
+      major: [type: "string", description: "Major subject"],
+    ]))
+    .putAdditionalProperty("required", JsonValue.from(["name"]))
+    .build())
+    .build()
+
+    if (json) {
+      ResponseCreateParams.builder()
+      .model("gpt-4.1")
+      .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+      .addTool(functionTool)
+      .build()
+    } else {
+      ResponseCreateParams.builder()
+      .model(ChatModel.GPT_4_1)
+      .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+      .addTool(functionTool)
       .build()
     }
   }
