@@ -1,0 +1,497 @@
+# TRACER FLARE DATA - CURRENT STATE
+# Extracted: 2024-12-04T14:30:00Z
+# Service: checkout-service
+# Environment: production
+
+================================================================================
+METADATA
+================================================================================
+tracer_version=1.41.0
+service_name=checkout-service
+environment=production
+hostname=checkout-prod-03
+runtime_id=a7f3c9d2-4e8a-11ef-b123-0242ac140003
+capture_timestamp=2024-12-04T14:30:00.000Z
+capture_duration_seconds=45
+
+================================================================================
+RUNTIME
+================================================================================
+jvm_args=-Xmx4g -Xms2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -Ddd.service=checkout-service -Ddd.env=production -Ddd.version=2.5.1
+
+classpath=/app/checkout-service.jar:/app/lib/spring-boot-3.0.1.jar:/app/lib/spring-webmvc-6.0.2.jar:/app/lib/hibernate-core-6.1.5.Final.jar:/app/lib/postgresql-42.3.1.jar:/app/lib/jedis-4.3.1.jar:/app/lib/HikariCP-5.0.1.jar:/app/lib/kafka-clients-3.3.1.jar:/app/lib/okhttp-4.10.0.jar:/app/lib/jackson-databind-2.14.1.jar:/app/lib/logback-classic-1.4.5.jar
+
+================================================================================
+INSTRUMENTATION STATE
+================================================================================
+classloader=org.springframework.boot.loader.LaunchedURLClassLoader
+
+spring-webmvc=APPLIED
+jdbc=APPLIED
+hibernate=APPLIED
+lettuce=APPLIED
+kafka-clients=APPLIED
+okhttp3=APPLIED
+grpc=BLOCKED
+
+================================================================================
+HEALTH METRICS
+================================================================================
+tracer_uptime_seconds=28800
+created_traces_total=2567890
+finished_spans_total=10271560
+enqueued_spans_total=10271560
+flushed_traces_total=2567200
+dropped_traces_total=690
+errors_total=45234
+queue_current_size=156
+queue_max_capacity=4096
+sampling_priority_user_keep=1234567
+sampling_priority_sampler_keep=1333323
+sampling_priority_sampler_drop=0
+
+================================================================================
+PENDING TRACES
+================================================================================
+trace_count=50
+
+trace_id=9876543210123456789
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698400000000000
+duration_ns=1250000000
+error=false
+span_count=8
+
+trace_id=1234567890987654321
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698401000000000
+duration_ns=125000000
+error=false
+span_count=4
+
+trace_id=5555666677778888999
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698405000000000
+duration_ns=8500000000
+error=false
+span_count=15
+
+trace_id=1111222233334444555
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698410000000000
+duration_ns=3200000000
+error=false
+span_count=12
+
+trace_id=9999888877776666555
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698415000000000
+duration_ns=450000000
+error=false
+span_count=6
+
+trace_id=2222333344445555666
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698420000000000
+duration_ns=680000000
+error=false
+span_count=9
+
+trace_id=7777888899990000111
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698425000000000
+duration_ns=1800000000
+error=false
+span_count=11
+
+trace_id=3333444455556666777
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698430000000000
+duration_ns=110000000
+error=false
+span_count=3
+
+trace_id=8888999900001111222
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698435000000000
+duration_ns=520000000
+error=false
+span_count=7
+
+trace_id=4444555566667777888
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698440000000000
+duration_ns=2100000000
+error=false
+span_count=10
+
+trace_id=6666777788889999000
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698445000000000
+duration_ns=1450000000
+error=false
+span_count=8
+
+trace_id=1010202030304040505
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698450000000000
+duration_ns=98000000
+error=false
+span_count=4
+
+trace_id=2020303040405050606
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698455000000000
+duration_ns=1350000000
+error=false
+span_count=9
+
+trace_id=3030404050506060707
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698460000000000
+duration_ns=380000000
+error=false
+span_count=5
+
+trace_id=4040505060607070808
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698465000000000
+duration_ns=590000000
+error=false
+span_count=7
+
+trace_id=5050606070708080909
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698470000000000
+duration_ns=1950000000
+error=false
+span_count=12
+
+trace_id=6060707080809091010
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698475000000000
+duration_ns=145000000
+error=false
+span_count=5
+
+trace_id=7070808090901011111
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698480000000000
+duration_ns=1120000000
+error=false
+span_count=9
+
+trace_id=8080909010111121212
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698485000000000
+duration_ns=430000000
+error=false
+span_count=6
+
+trace_id=9091010111112131313
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698490000000000
+duration_ns=2450000000
+error=false
+span_count=13
+
+trace_id=1011121213131414141
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698495000000000
+duration_ns=132000000
+error=false
+span_count=4
+
+trace_id=1112131314141515151
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698500000000000
+duration_ns=725000000
+error=false
+span_count=8
+
+trace_id=1213141415151616161
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698505000000000
+duration_ns=1675000000
+error=false
+span_count=10
+
+trace_id=1314151516161717171
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698510000000000
+duration_ns=495000000
+error=false
+span_count=7
+
+trace_id=1415161617171818181
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698515000000000
+duration_ns=890000000
+error=false
+span_count=8
+
+trace_id=1516171718181919191
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698520000000000
+duration_ns=105000000
+error=false
+span_count=3
+
+trace_id=1617181819192020202
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698525000000000
+duration_ns=1280000000
+error=false
+span_count=9
+
+trace_id=1718192020212121212
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698530000000000
+duration_ns=410000000
+error=false
+span_count=6
+
+trace_id=1819202021212222222
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698535000000000
+duration_ns=615000000
+error=false
+span_count=7
+
+trace_id=1920212122222323232
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698540000000000
+duration_ns=3100000000
+error=false
+span_count=14
+
+trace_id=2021222223232424242
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698545000000000
+duration_ns=118000000
+error=false
+span_count=4
+
+trace_id=2122232324242525252
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698550000000000
+duration_ns=1050000000
+error=false
+span_count=9
+
+trace_id=2223242425252626262
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698555000000000
+duration_ns=540000000
+error=false
+span_count=8
+
+trace_id=2324252526262727272
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698560000000000
+duration_ns=1425000000
+error=false
+span_count=10
+
+trace_id=2425262627272828282
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698565000000000
+duration_ns=95000000
+error=false
+span_count=3
+
+trace_id=2526272728282929292
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698570000000000
+duration_ns=780000000
+error=false
+span_count=9
+
+trace_id=2627282829293030303
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698575000000000
+duration_ns=2250000000
+error=false
+span_count=12
+
+trace_id=2728293030313131313
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698580000000000
+duration_ns=465000000
+error=false
+span_count=7
+
+trace_id=2829303031313232323
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698585000000000
+duration_ns=1320000000
+error=false
+span_count=10
+
+trace_id=2930313132323333333
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698590000000000
+duration_ns=128000000
+error=false
+span_count=4
+
+trace_id=3031323233333434343
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698595000000000
+duration_ns=1890000000
+error=false
+span_count=11
+
+trace_id=3132333334343535353
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698600000000000
+duration_ns=395000000
+error=false
+span_count=5
+
+trace_id=3233343435353636363
+service=checkout-service
+resource=POST /api/v1/order/create
+operation=servlet.request
+start_time=1701698605000000000
+duration_ns=650000000
+error=false
+span_count=8
+
+trace_id=3334353536363737373
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698610000000000
+duration_ns=2780000000
+error=false
+span_count=13
+
+trace_id=3435363637373838383
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698615000000000
+duration_ns=142000000
+error=false
+span_count=5
+
+trace_id=3536373738383939393
+service=checkout-service
+resource=POST /api/v1/payment/process
+operation=servlet.request
+start_time=1701698620000000000
+duration_ns=975000000
+error=false
+span_count=8
+
+trace_id=3637383839394040404
+service=checkout-service
+resource=GET /api/v1/inventory/check
+operation=servlet.request
+start_time=1701698625000000000
+duration_ns=512000000
+error=false
+span_count=7
+
+trace_id=3738394040414141414
+service=checkout-service
+resource=POST /api/v1/checkout
+operation=servlet.request
+start_time=1701698630000000000
+duration_ns=1560000000
+error=false
+span_count=10
+
+trace_id=3839404041414242424
+service=checkout-service
+resource=GET /api/v1/cart/{id}
+operation=servlet.request
+start_time=1701698635000000000
+duration_ns=115000000
+error=false
+span_count=4

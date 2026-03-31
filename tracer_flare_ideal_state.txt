@@ -1,0 +1,380 @@
+# TRACER FLARE DATA - IDEAL STATE
+# Extracted: 2024-12-04T14:30:00Z
+# Service: checkout-service
+# Environment: production
+
+================================================================================
+METADATA
+================================================================================
+tracer_version=1.41.0
+service_name=checkout-service
+environment=production
+hostname=checkout-prod-03
+runtime_id=a7f3c9d2-4e8a-11ef-b123-0242ac140003
+capture_timestamp=2024-12-04T14:30:00.000Z
+capture_duration_seconds=45
+data_collection_window_seconds=600
+
+================================================================================
+RUNTIME
+================================================================================
+jvm_version=OpenJDK 17.0.8
+jvm_vendor=Eclipse Adoptium
+os_name=Linux
+os_version=5.15.0-76-generic
+os_arch=amd64
+cpu_cores=8
+memory_total_gb=16
+heap_max_mb=4096
+heap_init_mb=2048
+
+jvm_args=-Xmx4g -Xms2g -XX:+UseG1GC -XX:MaxGCPauseMillis=200 -XX:+HeapDumpOnOutOfMemoryError -Ddd.service=checkout-service -Ddd.env=production -Ddd.version=2.5.1
+
+================================================================================
+DEPENDENCIES
+================================================================================
+extraction_method=maven_pom
+
+org.springframework.boot:spring-boot-starter-web=3.0.1
+org.springframework:spring-core=6.0.2
+org.springframework:spring-webmvc=6.0.2
+org.springframework:spring-context=6.0.2
+org.springframework:spring-beans=6.0.2
+org.springframework.boot:spring-boot-starter-data-jpa=3.0.1
+org.hibernate:hibernate-core=6.1.5.Final
+org.hibernate:hibernate-validator=8.0.0.Final
+com.zaxxer:HikariCP=5.0.1
+org.postgresql:postgresql=42.3.1
+redis.clients:jedis=4.3.1
+org.springframework.boot:spring-boot-starter-data-redis=3.0.1
+com.squareup.okhttp3:okhttp=4.10.0
+org.apache.kafka:kafka-clients=3.3.1
+com.fasterxml.jackson.core:jackson-databind=2.14.1
+com.fasterxml.jackson.core:jackson-core=2.14.1
+ch.qos.logback:logback-classic=1.4.5
+org.slf4j:slf4j-api=2.0.6
+
+================================================================================
+INSTRUMENTATION STATE
+================================================================================
+classloader=org.springframework.boot.loader.LaunchedURLClassLoader
+
+spring-webmvc=APPLIED,framework=Spring Boot 3.0.1,webmvc_version=6.0.2
+jdbc=APPLIED,driver=PostgreSQL 42.3.1,pool=HikariCP 5.0.1,pool_size=10,pool_utilization=95
+hibernate=APPLIED,version=6.1.5.Final,database=PostgreSQL 14.5
+lettuce=APPLIED,version=Jedis 4.3.1,redis_version=7.0.5
+kafka-clients=APPLIED,version=3.3.1,brokers=3
+okhttp3=APPLIED,version=4.10.0
+grpc=BLOCKED,reason=no_grpc_library
+
+================================================================================
+HEALTH METRICS
+================================================================================
+tracer_uptime_seconds=28800
+created_traces_total=2567890
+finished_spans_total=10271560
+enqueued_spans_total=10271560
+flushed_traces_total=2567200
+dropped_traces_total=690
+errors_total=45234
+queue_current_size=156
+queue_max_capacity=4096
+sampling_priority_user_keep=1234567
+sampling_priority_sampler_keep=1333323
+sampling_priority_sampler_drop=0
+
+================================================================================
+LOAD PROFILE
+================================================================================
+concurrent_requests=45
+active_spans=180
+pending_traces_buffer_size=156
+queue_utilization_percent=3.8
+
+traces_per_second_1min=523.4
+spans_per_second_1min=2093.6
+
+traces_per_second_5min=456.8
+spans_per_second_5min=1827.2
+
+traces_per_second_10min=389.2
+spans_per_second_10min=1556.8
+
+peak_traces_per_second=687.5
+peak_timestamp=2024-12-04T14:27:30.000Z
+peak_concurrent_requests=58
+peak_timestamp=2024-12-04T14:27:35.000Z
+
+traffic_pattern=INCREASING
+baseline_rps=150
+problem_start_time=2024-12-04T14:25:00.000Z
+
+rate_sample_timestamp=2024-12-04T14:28:00.000Z,rps=412,concurrent=38
+rate_sample_timestamp=2024-12-04T14:28:05.000Z,rps=428,concurrent=41
+rate_sample_timestamp=2024-12-04T14:28:10.000Z,rps=445,concurrent=43
+rate_sample_timestamp=2024-12-04T14:28:15.000Z,rps=458,concurrent=44
+rate_sample_timestamp=2024-12-04T14:28:20.000Z,rps=471,concurrent=46
+rate_sample_timestamp=2024-12-04T14:28:25.000Z,rps=489,concurrent=48
+rate_sample_timestamp=2024-12-04T14:28:30.000Z,rps=502,concurrent=50
+rate_sample_timestamp=2024-12-04T14:28:35.000Z,rps=518,concurrent=52
+rate_sample_timestamp=2024-12-04T14:28:40.000Z,rps=534,concurrent=54
+rate_sample_timestamp=2024-12-04T14:28:45.000Z,rps=547,concurrent=56
+rate_sample_timestamp=2024-12-04T14:28:50.000Z,rps=559,concurrent=58
+rate_sample_timestamp=2024-12-04T14:28:55.000Z,rps=542,concurrent=55
+rate_sample_timestamp=2024-12-04T14:29:00.000Z,rps=528,concurrent=51
+rate_sample_timestamp=2024-12-04T14:29:05.000Z,rps=515,concurrent=49
+rate_sample_timestamp=2024-12-04T14:29:10.000Z,rps=507,concurrent=47
+rate_sample_timestamp=2024-12-04T14:29:15.000Z,rps=498,concurrent=46
+rate_sample_timestamp=2024-12-04T14:29:20.000Z,rps=489,concurrent=44
+rate_sample_timestamp=2024-12-04T14:29:25.000Z,rps=482,concurrent=43
+rate_sample_timestamp=2024-12-04T14:29:30.000Z,rps=476,concurrent=42
+rate_sample_timestamp=2024-12-04T14:29:35.000Z,rps=471,concurrent=41
+rate_sample_timestamp=2024-12-04T14:29:40.000Z,rps=468,concurrent=40
+rate_sample_timestamp=2024-12-04T14:29:45.000Z,rps=465,concurrent=39
+rate_sample_timestamp=2024-12-04T14:29:50.000Z,rps=463,concurrent=38
+rate_sample_timestamp=2024-12-04T14:29:55.000Z,rps=461,concurrent=37
+
+================================================================================
+TRACE STATISTICS
+================================================================================
+collection_window_seconds=600
+total_endpoints=12
+total_traces=234567
+total_errors=4123
+overall_error_rate=0.0176
+
+endpoint=checkout-service::POST /api/v1/checkout
+trace_count=45678
+error_count=823
+error_rate=0.018
+min_ms=450
+avg_ms=1250
+p50_ms=1100
+p75_ms=1450
+p90_ms=1850
+p95_ms=2300
+p99_ms=3500
+p99_9_ms=8500
+max_ms=15200
+slow_trace_count=10
+
+endpoint=checkout-service::POST /api/v1/payment/process
+trace_count=23456
+error_count=456
+error_rate=0.0194
+min_ms=230
+avg_ms=890
+p50_ms=750
+p75_ms=980
+p90_ms=1200
+p95_ms=1480
+p99_ms=2100
+max_ms=5600
+slow_trace_count=8
+
+endpoint=checkout-service::GET /api/v1/cart/{id}
+trace_count=89234
+error_count=178
+error_rate=0.002
+min_ms=45
+avg_ms=125
+p50_ms=110
+p75_ms=145
+p90_ms=180
+p95_ms=220
+p99_ms=350
+max_ms=890
+slow_trace_count=5
+
+endpoint=checkout-service::GET /api/v1/inventory/check
+trace_count=34567
+error_count=891
+error_rate=0.0258
+min_ms=120
+avg_ms=450
+p50_ms=380
+p75_ms=520
+p90_ms=680
+p95_ms=850
+p99_ms=1200
+max_ms=3400
+slow_trace_count=7
+
+endpoint=checkout-service::POST /api/v1/order/create
+trace_count=18234
+error_count=367
+error_rate=0.0201
+min_ms=180
+avg_ms=680
+p50_ms=590
+p75_ms=750
+p90_ms=920
+p95_ms=1100
+p99_ms=1650
+max_ms=4200
+slow_trace_count=6
+
+================================================================================
+SLOW TRACES
+================================================================================
+
+trace_id=5555666677778888999
+endpoint=POST /api/v1/checkout
+duration_ms=8542
+error=false
+span_count=5
+percentile=p99.9
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=8542
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending' AND u.region='US-WEST',duration_ms=7234,db.system=postgresql,rows_returned=15234
+span_id=3,parent_id=1,operation=jdbc.query,resource=UPDATE orders SET status='completed' WHERE id=?,duration_ms=458,db.system=postgresql
+span_id=4,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=687,http.status_code=200
+span_id=5,parent_id=1,operation=redis.command,resource=DEL cart:usr_849201,duration_ms=89
+
+trace_id=1111222233334444555
+endpoint=POST /api/v1/checkout
+duration_ms=3521
+error=false
+span_count=4
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=3521
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending' AND u.region='US-EAST',duration_ms=2891,db.system=postgresql,rows_returned=8456
+span_id=3,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=456,http.status_code=200
+span_id=4,parent_id=1,operation=redis.command,resource=DEL cart:usr_923847,duration_ms=67
+
+trace_id=7777888899990000111
+endpoint=POST /api/v1/payment/process
+duration_ms=3234
+error=false
+span_count=3
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/payment/process,duration_ms=3234
+span_id=2,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=2987,http.status_code=200,timeout=5000
+span_id=3,parent_id=1,operation=jdbc.query,resource=INSERT INTO payments (order_id, amount, status) VALUES (?, ?, ?),duration_ms=123
+
+trace_id=2222444466668888000
+endpoint=POST /api/v1/checkout
+duration_ms=2985
+error=false
+span_count=5
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=2985
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending',duration_ms=2456,rows_returned=12345
+span_id=3,parent_id=1,operation=jdbc.query,resource=UPDATE orders SET status='completed' WHERE id=?,duration_ms=234
+span_id=4,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=198
+span_id=5,parent_id=1,operation=redis.command,resource=DEL cart:usr_555123,duration_ms=45
+
+trace_id=3333555577779999111
+endpoint=POST /api/v1/checkout
+duration_ms=2756
+error=false
+span_count=4
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=2756
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending',duration_ms=2234,rows_returned=9876
+span_id=3,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=387
+span_id=4,parent_id=1,operation=redis.command,resource=DEL cart:usr_777234,duration_ms=78
+
+trace_id=4444666688880000222
+endpoint=POST /api/v1/payment/process
+duration_ms=2543
+error=false
+span_count=3
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/payment/process,duration_ms=2543
+span_id=2,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=2345,http.status_code=200
+span_id=3,parent_id=1,operation=jdbc.query,resource=INSERT INTO payments (order_id, amount, status) VALUES (?, ?, ?),duration_ms=89
+
+trace_id=5555777799991111333
+endpoint=POST /api/v1/checkout
+duration_ms=2398
+error=false
+span_count=5
+percentile=p95
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=2398
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending',duration_ms=1923,rows_returned=7654
+span_id=3,parent_id=1,operation=jdbc.query,resource=UPDATE orders SET status='completed' WHERE id=?,duration_ms=189
+span_id=4,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=223
+span_id=5,parent_id=1,operation=redis.command,resource=DEL cart:usr_888345,duration_ms=43
+
+trace_id=6666888800002222444
+endpoint=POST /api/v1/checkout
+duration_ms=2287
+error=false
+span_count=4
+percentile=p95
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=2287
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending',duration_ms=1834,rows_returned=6543
+span_id=3,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=356
+span_id=4,parent_id=1,operation=redis.command,resource=DEL cart:usr_999456,duration_ms=56
+
+trace_id=7777999911113333555
+endpoint=POST /api/v1/payment/process
+duration_ms=2156
+error=false
+span_count=3
+percentile=p99
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/payment/process,duration_ms=2156
+span_id=2,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=1987,http.status_code=200
+span_id=3,parent_id=1,operation=jdbc.query,resource=INSERT INTO payments (order_id, amount, status) VALUES (?, ?, ?),duration_ms=97
+
+trace_id=8888000022224444666
+endpoint=POST /api/v1/checkout
+duration_ms=2045
+error=false
+span_count=5
+percentile=p95
+
+span_id=1,parent_id=0,operation=servlet.request,resource=POST /api/v1/checkout,duration_ms=2045
+span_id=2,parent_id=1,operation=jdbc.query,resource=SELECT o.*, u.*, p.* FROM orders o JOIN users u ON o.user_id=u.id JOIN payments p ON o.payment_id=p.id WHERE o.status='pending',duration_ms=1598,rows_returned=5432
+span_id=3,parent_id=1,operation=jdbc.query,resource=UPDATE orders SET status='completed' WHERE id=?,duration_ms=178
+span_id=4,parent_id=1,operation=http.request,resource=POST https://api.stripe.com/v1/charges,duration_ms=198
+span_id=5,parent_id=1,operation=redis.command,resource=DEL cart:usr_111567,duration_ms=38
+
+================================================================================
+BENCHMARK INPUTS
+================================================================================
+endpoint_weight=POST /api/v1/checkout,40
+endpoint_weight=GET /api/v1/cart/{id},25
+endpoint_weight=GET /api/v1/inventory/check,20
+endpoint_weight=POST /api/v1/order/create,15
+
+load_baseline_rps=150
+load_peak_rps=550
+load_ramp_duration_seconds=120
+load_peak_duration_seconds=480
+load_concurrent_users=45
+load_test_duration_seconds=600
+
+performance_target_checkout_p50_ms=1100
+performance_target_checkout_p95_ms=2300
+performance_target_checkout_p99_ms=3500
+performance_target_checkout_error_rate_max=0.02
+
+performance_target_cart_p50_ms=110
+performance_target_cart_p95_ms=220
+performance_target_cart_p99_ms=350
+performance_target_cart_error_rate_max=0.005
+
+performance_target_inventory_p50_ms=380
+performance_target_inventory_p95_ms=850
+performance_target_inventory_p99_ms=1200
+performance_target_inventory_error_rate_max=0.03
+
+performance_target_order_p50_ms=590
+performance_target_order_p95_ms=1100
+performance_target_order_p99_ms=1650
+performance_target_order_error_rate_max=0.02
+
+infra_postgresql_version=14.5
+infra_redis_version=7.0.5
+infra_jvm_heap_gb=4
+infra_connection_pool_size=10
