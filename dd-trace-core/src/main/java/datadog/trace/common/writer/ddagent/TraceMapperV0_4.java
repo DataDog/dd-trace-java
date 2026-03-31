@@ -3,7 +3,9 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Codec;
+import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;

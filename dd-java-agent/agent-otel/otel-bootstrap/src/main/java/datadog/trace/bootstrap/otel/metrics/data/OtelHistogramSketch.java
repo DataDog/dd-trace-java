@@ -1,21 +1,20 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.metrics.api.Histogram;
+import datadog.metrics.api.HistogramWithSum;
 import java.util.List;
 
 final class OtelHistogramSketch extends OtelAggregator {
-  private final Histogram histogram;
-  private volatile double totalSum;
+  private final HistogramWithSum histogram;
 
   OtelHistogramSketch(List<Double> bucketBoundaries) {
-    this.histogram = Histogram.newHistogram(bucketBoundaries);
+    this.histogram = Histogram.newHistogramWithSum(bucketBoundaries);
   }
 
   @Override
   void doRecordDouble(double value) {
     synchronized (histogram) {
       histogram.accept(value);
-      totalSum += value;
     }
   }
 
@@ -25,7 +24,7 @@ final class OtelHistogramSketch extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
+  OtlpDataPoint doCollect(boolean reset) {
     double count;
     List<Double> binBoundaries;
     List<Double> binCounts;
@@ -34,13 +33,12 @@ final class OtelHistogramSketch extends OtelAggregator {
       count = histogram.getCount();
       binBoundaries = histogram.getBinBoundaries();
       binCounts = histogram.getBinCounts();
-      sum = totalSum;
+      sum = histogram.getSum();
       if (reset) {
         histogram.clear();
-        totalSum = 0;
       }
     }
-    return new OtelHistogramPoint(count, binBoundaries, binCounts, sum);
+    return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum);
   }
 
   /** Truncate IEEE-754 floating-point value to 10 bits precision. */

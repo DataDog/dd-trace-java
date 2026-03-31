@@ -8,10 +8,10 @@ import org.tabletest.junit.TableTest;
 class HexStringUtilsTest {
 
   @TableTest({
-    "scenario      | highOrderBits       | lowOrderBits        | size",
-    "zero          | 0                   | 0                   | {10, 16, 20, 32, 40}",
-    "one-two       | 1                   | 2                   | {10, 16, 20, 32, 40}",
-    "large         | 6536977903480360123 | 3270264562721133536 | {10, 16, 20, 32, 40}"
+    "scenario | highOrderBits       | lowOrderBits        | size                ",
+    "zero     | 0                   | 0                   | {10, 16, 20, 32, 40}",
+    "one-two  | 1                   | 2                   | {10, 16, 20, 32, 40}",
+    "large    | 6536977903480360123 | 3270264562721133536 | {10, 16, 20, 32, 40}"
   })
   @ParameterizedTest(name = "test hexadecimal String representations high={0} low={1} size={2}")
   void testHexadecimalStringRepresentations(long highOrderBits, long lowOrderBits, int size) {

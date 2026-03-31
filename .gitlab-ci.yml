@@ -222,6 +222,9 @@ maven-central-pre-release-check:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
   rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      allow_failure: false
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
       allow_failure: false
@@ -229,11 +232,14 @@ maven-central-pre-release-check:
     - |
       MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
       MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-      # See https://central.sonatype.org/publish/publish-portal-api/
-      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if [ $? -ne 0 ]; then
-        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
+      # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+      # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
+      AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
+      if ! curl --silent --show-error --fail \
+        "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
+        --header "$AUTHORIZATION_HEADER" \
+        > /dev/null; then
+        echo "Failed to authenticate tokens against maven central staging API. Check credentials and see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
         exit 1
       fi
 
@@ -641,7 +647,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.1
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -803,7 +809,12 @@ aggregate_test_counts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *set_datadog_api_keys
     - .gitlab/aggregate_test_counts.sh
@@ -1034,6 +1045,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
+    SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:

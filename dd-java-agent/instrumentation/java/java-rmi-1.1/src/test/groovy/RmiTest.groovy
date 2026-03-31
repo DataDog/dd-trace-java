@@ -14,8 +14,6 @@ import static datadog.trace.agent.test.asserts.ListWriterAssert.assertTraces
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
-import spock.lang.Ignore
-
 abstract class RmiTest extends VersionedNamingTestBase {
   def registryPort = PortUtils.randomOpenPort()
   def serverRegistry = LocateRegistry.createRegistry(registryPort)
@@ -231,7 +229,6 @@ abstract class RmiTest extends VersionedNamingTestBase {
   }
 }
 
-@Ignore
 class RmiV0Test extends RmiTest {
 
   @Override
@@ -250,7 +247,6 @@ class RmiV0Test extends RmiTest {
   }
 }
 
-@Ignore
 class RmiV1ForkedTest extends RmiTest {
 
   @Override

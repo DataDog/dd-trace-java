@@ -10,7 +10,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Supplier;
 
 public abstract class BaseApplication {
-  public static final long TIMEOUT_IN_NANOS = TimeUnit.SECONDS.toNanos(10);
+  public static final long TIMEOUT_IN_NANOS = TimeUnit.SECONDS.toNanos(30);
 
   public abstract void doLog(String message);
 

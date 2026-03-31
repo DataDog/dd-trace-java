@@ -285,7 +285,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     for (Class<?> changedClass : changedClasses) {
       boolean addClass = true;
       try {
-        if (changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
+        if (changedClass.getSuperclass() != null
+            && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
             && Modifier.isFinal(changedClass.getModifiers())) {
           if (hasTypeAnnotationOnRecordComponent(changedClass)) {
             LOGGER.debug(

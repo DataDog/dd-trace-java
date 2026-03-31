@@ -1,6 +1,6 @@
 package datadog.communication.http;
 
-import static datadog.common.socket.SocketUtils.discoverApmSocket;
+import static datadog.communication.http.SocketUtils.discoverApmSocket;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -68,6 +68,7 @@ public final class OkHttpUtils {
       final long timeoutMillis) {
     return buildHttpClient(
         unixDomainSocketPath,
+        Config.get().isJdkSocketEnabled(),
         namedPipe,
         null,
         isHttp,
@@ -77,7 +78,8 @@ public final class OkHttpUtils {
         null,
         null,
         null,
-        timeoutMillis);
+        timeoutMillis,
+        Config.get().isAgentConfiguredUsingDefault());
   }
 
   public static OkHttpClient buildHttpClient(
@@ -93,6 +95,7 @@ public final class OkHttpUtils {
       final long timeoutMillis) {
     return buildHttpClient(
         discoverApmSocket(config),
+        config.isJdkSocketEnabled(),
         config.getAgentNamedPipe(),
         dispatcher,
         isPlainHttp(url),
@@ -102,13 +105,15 @@ public final class OkHttpUtils {
         proxyPort,
         proxyUsername,
         proxyPassword,
-        timeoutMillis);
+        timeoutMillis,
+        config.isAgentConfiguredUsingDefault());
   }
 
   public abstract static class CustomListener extends EventListener {}
 
   private static OkHttpClient buildHttpClient(
       final String unixDomainSocketPath,
+      final boolean useJdkUnixDomainSocket,
       final String namedPipe,
       final Dispatcher dispatcher,
       final boolean isHttp,
@@ -118,7 +123,8 @@ public final class OkHttpUtils {
       final Integer proxyPort,
       final String proxyUsername,
       final String proxyPassword,
-      final long timeoutMillis) {
+      final long timeoutMillis,
+      final boolean agentConfiguredUsingDefault) {
     final OkHttpClient.Builder builder = new OkHttpClient.Builder();
 
     try {
@@ -144,7 +150,9 @@ public final class OkHttpUtils {
             dispatcher != null ? dispatcher : new Dispatcher(RejectingExecutorService.INSTANCE));
 
     if (unixDomainSocketPath != null) {
-      builder.socketFactory(new UnixDomainSocketFactory(new File(unixDomainSocketPath)));
+      builder.socketFactory(
+          new UnixDomainSocketFactory(
+              new File(unixDomainSocketPath), useJdkUnixDomainSocket, agentConfiguredUsingDefault));
       log.debug("Using UnixDomainSocket as http transport");
     } else if (namedPipe != null) {
       builder.socketFactory(new NamedPipeSocketFactory(namedPipe));
