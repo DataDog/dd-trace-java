@@ -434,6 +434,38 @@ Alice Johnson majors in mathematics at UCLA.""")
     }
   }
 
+  ResponseCreateParams responseCreateParamsWithRawFunctionTool() {
+    def rawTools = ObjectMappers.jsonMapper().readValue(
+    """[
+        {
+          "type": "function",
+          "name": "extract_student_info_raw",
+          "description": "Extract student information from the input text",
+          "parameters": {
+            "type": "object",
+            "properties": {
+              "name": {"type": "string", "description": "Name of the student"},
+              "major": {"type": "string", "description": "Major subject"}
+            },
+            "required": ["name"]
+          }
+        }
+      ]""",
+    com.openai.core.JsonField
+    )
+
+    ResponseCreateParams params = ResponseCreateParams.builder()
+    .model(ChatModel.GPT_4_1)
+    .input("Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.")
+    .build()
+
+    def toolsField = params._body().class.getDeclaredField("tools")
+    toolsField.accessible = true
+    toolsField.set(params._body(), rawTools)
+
+    params
+  }
+
   ChatCompletionCreateParams chatCompletionCreateParamsMultiChoice(boolean json) {
     if (json) {
       ChatCompletionCreateParams.builder()

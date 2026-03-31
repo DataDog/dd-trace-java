@@ -7,6 +7,7 @@ import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.credential.BearerTokenCredential
 import com.openai.models.responses.Response
+import com.openai.models.responses.ResponseCreateParams
 import com.openai.models.responses.ResponseStreamEvent
 import datadog.trace.agent.test.server.http.TestHttpServer
 import datadog.trace.api.DDSpanTypes
@@ -286,6 +287,35 @@ class ResponseServiceTest extends OpenAiTest {
 
     where:
     params << [responseCreateParamsWithFunctionTool(false), responseCreateParamsWithFunctionTool(true)]
+  }
+
+  def "create response with raw function tool definition"() {
+    ResponseCreateParams params = responseCreateParamsWithRawFunctionTool()
+
+    expect:
+    params._tools().asKnown().empty
+    params._tools().asUnknown().present
+
+    when:
+    Response resp = runUnderTrace("parent") {
+      openAiClient.responses().create(params)
+    }
+
+    then:
+    resp != null
+    and:
+    List<Map<String, Object>> toolDefinitions = []
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-4.1", String, null, null, null, metadata, false, toolDefinitions)
+    and:
+    metadata.stream == false
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info_raw"
+    toolDefinitions[0].description == "Extract student information from the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    toolDefinitions[0].schema.required == ["name"]
   }
 
   def "create response error sets model_name and placeholder output"() {

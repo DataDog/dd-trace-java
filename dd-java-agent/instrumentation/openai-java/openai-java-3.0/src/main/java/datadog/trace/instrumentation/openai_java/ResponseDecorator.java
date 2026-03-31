@@ -742,17 +742,6 @@ public class ResponseDecorator {
       if (!normalized.isEmpty()) {
         promptMap.put("variables", normalized);
       }
-    } else {
-      Optional<JsonValue> rawVariablesOpt = prompt._variables().asUnknown();
-      if (rawVariablesOpt.isPresent()) {
-        Optional<Map<String, JsonValue>> rawVariablesObjOpt = rawVariablesOpt.get().asObject();
-        if (rawVariablesObjOpt.isPresent()) {
-          Map<String, Object> normalized = normalizePromptVariables(rawVariablesObjOpt.get());
-          if (!normalized.isEmpty()) {
-            promptMap.put("variables", normalized);
-          }
-        }
-      }
     }
 
     return promptMap.isEmpty() ? Optional.empty() : Optional.of(promptMap);
