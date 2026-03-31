@@ -15,6 +15,9 @@ import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.messaging.support.GenericMessage
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
 
+import java.util.concurrent.TimeUnit
+
+
 class SpringListenerSQSTest extends InstrumentationSpecification {
 
   @Override
@@ -128,7 +131,62 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     }
   }
 
-  static sendMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan) {
+  def "async handler keeps spring.consume span active during CompletableFuture execution"() {
+    setup:
+    def context = new AnnotationConfigApplicationContext(Config)
+    def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
+    def template = SqsTemplate.newTemplate(context.getBean(SqsAsyncClient))
+    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace("parent") {
+      template.sendAsync("SpringListenerSQSAsync", "an async message").get()
+    }
+
+    then:
+    def sendingSpan
+    assertTraces(4, SORT_TRACES_BY_START) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "parent")
+        getQueueUrl(it, address, span(0), "SpringListenerSQSAsync")
+        sendMessage(it, address, span(0), "SpringListenerSQSAsync")
+        sendingSpan = span(2)
+      }
+      trace(1) {
+        receiveMessage(it, address, sendingSpan, "SpringListenerSQSAsync")
+      }
+      trace(2) {
+        span {
+          serviceName "my-service"
+          operationName "spring.consume"
+          resourceName "TestListener.observeAsync"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendingSpan)
+          // The span duration should be at least 500ms since the async handler sleeps 500ms
+          assert span(0).durationNano > TimeUnit.MILLISECONDS.toNanos(500)
+          tags {
+            "$Tags.COMPONENT" "spring-messaging"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
+          }
+        }
+        // Child span created inside the CompletableFuture proves spring.consume was active
+        span {
+          operationName "async.child"
+          childOf(span(0))
+        }
+      }
+      trace(1) {
+        deleteMessageBatch(it, address, "SpringListenerSQSAsync")
+      }
+    }
+  }
+
+  static sendMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan, String queueName = "SpringListenerSQS") {
     traceAssert.span {
       serviceName "sqs"
       operationName "aws.http"
@@ -148,7 +206,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws_service" "Sqs"
         "aws.operation" "SendMessage"
         "aws.agent" "java-aws-sdk"
-        "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
+        "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
         defaultTags()
@@ -156,7 +214,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     }
   }
 
-  static getQueueUrl(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan) {
+  static getQueueUrl(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan, String queueName = "SpringListenerSQS") {
     traceAssert.span {
       serviceName "java-aws-sdk"
       operationName "aws.http"
@@ -176,16 +234,16 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws_service" "Sqs"
         "aws.operation" "GetQueueUrl"
         "aws.agent" "java-aws-sdk"
-        "aws.queue.name" "SpringListenerSQS"
+        "aws.queue.name" queueName
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
-        "queuename" "SpringListenerSQS"
+        "queuename" queueName
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("GetQueueUrl"))
         defaultTags()
       }
     }
   }
 
-  static receiveMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan) {
+  static receiveMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan, String queueName = "SpringListenerSQS") {
     traceAssert.span {
       serviceName "sqs"
       operationName "aws.http"
@@ -201,7 +259,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws_service" "Sqs"
         "aws.operation" "ReceiveMessage"
         "aws.agent" "java-aws-sdk"
-        "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
+        "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
         defaultTags(true)
       }
@@ -225,7 +283,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     }
   }
 
-  static deleteMessageBatch(TraceAssert traceAssert, InetSocketAddress address) {
+  static deleteMessageBatch(TraceAssert traceAssert, InetSocketAddress address, String queueName = "SpringListenerSQS") {
     traceAssert.span {
       serviceName "sqs"
       operationName "aws.http"
@@ -245,7 +303,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "aws_service" "Sqs"
         "aws.operation" "DeleteMessageBatch"
         "aws.agent" "java-aws-sdk"
-        "aws.queue.url" "http://localhost:${address.port}/000000000000/SpringListenerSQS"
+        "aws.queue.url" "http://localhost:${address.port}/000000000000/${queueName}"
         "aws.requestId" "00000000-0000-0000-0000-000000000000"
         urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessageBatch"))
         defaultTags()
