@@ -24,7 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -1087,23 +1087,28 @@ public class DDSpanContext
     }
   }
 
-  public void earlyProcessTags(List<AgentSpanLink> links) {
+  void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
     }
   }
 
-  public void processTagsAndBaggage(
+  void processTagsAndBaggage(
       final MetadataConsumer consumer,
       int longRunningVersion,
-      List<AgentSpanLink> links,
+      DDSpan restrictedSpan,
       boolean spanLinksAsTag) {
+    // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
+    // links
+    // This is a compromise to avoid...
+    // - creating an extra wrapper object that would create significant allocation
+    // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
       // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
       if (spanLinksAsTag) {
-        String linksTag = DDSpanLink.toTag(links);
+        String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.put(SPAN_LINKS, linksTag);
         }
