@@ -14,6 +14,7 @@ import com.openai.models.Reasoning
 import com.openai.models.ReasoningEffort
 import com.openai.models.chat.completions.ChatCompletionCreateParams
 import com.openai.models.chat.completions.ChatCompletionFunctionTool
+import com.openai.models.chat.completions.ChatCompletionNamedToolChoice
 import com.openai.models.chat.completions.ChatCompletionStreamOptions
 import com.openai.models.completions.CompletionCreateParams
 import com.openai.models.embeddings.EmbeddingCreateParams
@@ -257,6 +258,17 @@ He hopes to pursue a career in software engineering after graduating.""")
       ]
     ]))
     .build())
+    .build())
+    .build())
+    .build()
+  }
+
+  ChatCompletionCreateParams chatCompletionCreateParamsWithToolChoice() {
+    chatCompletionCreateParamsWithTools().toBuilder()
+    .toolChoice(ChatCompletionNamedToolChoice.builder()
+    .type(JsonValue.from("function"))
+    .function(ChatCompletionNamedToolChoice.Function.builder()
+    .name("extract_student_info")
     .build())
     .build())
     .build()

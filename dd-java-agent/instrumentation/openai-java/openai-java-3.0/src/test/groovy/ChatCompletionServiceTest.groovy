@@ -194,6 +194,36 @@ class ChatCompletionServiceTest extends OpenAiTest {
     toolDefinitions[0].schema.required == ["name"]
   }
 
+  def "create chat/completion test with tool choice"() {
+    runUnderTrace("parent") {
+      openAiClient.chat().completions().create(chatCompletionCreateParamsWithToolChoice())
+    }
+
+    expect:
+    List<LLMObs.LLMMessage> outputTag = []
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, outputTag, [tool_choice: "function"], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
+    and:
+    outputTag.size() == 1
+    LLMObs.LLMMessage outputMsg = outputTag.get(0)
+    outputMsg.toolCalls.size() == 1
+    def toolcall = outputMsg.toolCalls.get(0)
+    toolcall.name == "extract_student_info"
+    toolcall.toolId instanceof String
+    toolcall.type == "function"
+    toolcall.arguments == [
+      name: 'David Nguyen',
+      major: 'computer science',
+      school: 'Stanford University',
+      grades: 3.8,
+      clubs: ['Chess Club', 'South Asian Student Association']
+    ]
+  }
+
   def "create streaming chat/completion test with tool calls"() {
     runnableUnderTrace("parent") {
       StreamResponse<ChatCompletionChunk> streamCompletion = openAiClient.chat().completions().createStreaming(chatCompletionCreateParamsWithTools())
