@@ -346,6 +346,7 @@ import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_QU
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL;
 import static datadog.trace.api.config.GeneralConfig.API_KEY;
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE;
+import static datadog.trace.api.config.GeneralConfig.APM_ADDITIONAL_METRIC_TAGS;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY;
 import static datadog.trace.api.config.GeneralConfig.APPLICATION_KEY_FILE;
 import static datadog.trace.api.config.GeneralConfig.APP_KEY;
@@ -952,6 +953,7 @@ public class Config {
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
+  private final Set<String> additionalMetricTags;
 
   private final boolean reportHostName;
 
@@ -2053,6 +2055,7 @@ public class Config {
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
     tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+    additionalMetricTags = tryMakeImmutableSet(configProvider.getList(APM_ADDITIONAL_METRIC_TAGS));
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -3598,6 +3601,10 @@ public class Config {
 
   public int getTracerMetricsMaxPending() {
     return tracerMetricsMaxPending;
+  }
+
+  public Set<String> getAdditionalMetricTags() {
+    return additionalMetricTags;
   }
 
   public boolean isLogsInjectionEnabled() {

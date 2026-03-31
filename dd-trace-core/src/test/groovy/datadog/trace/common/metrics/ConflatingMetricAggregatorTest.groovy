@@ -380,8 +380,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    features.additionalMetricTags() >> (["region", "priority"] as Set)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      ["region", "priority"] as Set,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -450,8 +450,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    features.additionalMetricTags() >> new LinkedHashSet(["priority", "region"])
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      new LinkedHashSet(["priority", "region"]),
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 

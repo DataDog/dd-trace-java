@@ -70,6 +70,7 @@ public final class GeneralConfig {
       "trace.tracer.metrics.buffering.enabled";
   public static final String TRACER_METRICS_MAX_AGGREGATES = "trace.tracer.metrics.max.aggregates";
   public static final String TRACER_METRICS_MAX_PENDING = "trace.tracer.metrics.max.pending";
+  public static final String APM_ADDITIONAL_METRIC_TAGS = "apm.additional.metric.tags";
   public static final String TRACER_METRICS_IGNORED_RESOURCES =
       "trace.tracer.metrics.ignored.resources";
 
