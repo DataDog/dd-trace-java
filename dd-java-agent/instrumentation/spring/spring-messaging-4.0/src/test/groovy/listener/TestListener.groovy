@@ -1,5 +1,8 @@
 package listener
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+
 import io.awspring.cloud.sqs.annotation.SqsListener
 import org.springframework.stereotype.Component
 
@@ -16,6 +19,11 @@ class TestListener {
   CompletableFuture<Void> observeAsync(String message) {
     return CompletableFuture.runAsync {
       Thread.sleep(500)
+      // Asserting spring.consume root span is active during async execution
+      def childSpan = startSpan("async.child")
+      def childScope = activateSpan(childSpan)
+      childScope.close()
+      childSpan.finish()
       println "Async received $message"
     }
   }

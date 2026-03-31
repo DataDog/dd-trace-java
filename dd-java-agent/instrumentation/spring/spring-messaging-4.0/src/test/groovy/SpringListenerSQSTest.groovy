@@ -131,7 +131,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     }
   }
 
-  def "async handler span duration reflects CompletableFuture completion"() {
+  def "async handler keeps spring.consume span active during CompletableFuture execution"() {
     setup:
     def context = new AnnotationConfigApplicationContext(Config)
     def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
@@ -157,7 +157,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
       trace(1) {
         receiveMessage(it, address, sendingSpan, "SpringListenerSQSAsync")
       }
-      trace(1) {
+      trace(2) {
         span {
           serviceName "my-service"
           operationName "spring.consume"
@@ -173,6 +173,11 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
             defaultTags(true)
           }
+        }
+        // Child span created inside the CompletableFuture proves spring.consume was active
+        span {
+          operationName "async.child"
+          childOf(span(0))
         }
       }
       trace(1) {
