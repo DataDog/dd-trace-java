@@ -831,6 +831,9 @@ muzzle-dep-report:
     GRADLE_WORKERS: 6
     GRADLE_MEMORY_MIN: 1G
     GRADLE_MEMORY_MAX: 4G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
@@ -955,6 +958,9 @@ test_base_arm64:
   variables:
     testJvm: "21"
     GRADLE_TARGET: ":baseTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_inst:
   extends: .test_job_with_test_agent
