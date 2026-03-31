@@ -9,13 +9,9 @@ import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 /** A store that keeps track of coverage probes allocated for multiple threads. */
 public abstract class ConcurrentCoverageStore<T extends CoverageProbes> implements CoverageStore {
-
-  private static final Logger log = LoggerFactory.getLogger(ConcurrentCoverageStore.class);
 
   private final Thread testThread;
   private final Function<Boolean, T> probesFactory;
