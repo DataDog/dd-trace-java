@@ -9,6 +9,12 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
+import javax.xml.parsers.DocumentBuilderFactory
+import javax.xml.transform.OutputKeys
+import javax.xml.transform.TransformerFactory
+import javax.xml.transform.dom.DOMSource
+import javax.xml.transform.stream.StreamResult
+import org.w3c.dom.Element
 
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
@@ -113,4 +119,55 @@ tasks.withType<Test>().configureEach {
       }
     }
   }
+}
+
+tasks.withType<Test>().configureEach {
+  
+  // Gradle generates synthetic test cases in JUnit reports for setup methods. When a setup is retried
+  // and eventually succeeds, multiple test cases are created, with only the last one passing. Since the
+  // retry succeeds, this does not fail the CI.
+  //
+  // However, all intermediate attempts are reported as failures in TestOptimization, which is misleading.
+  //
+  // Ideally, we would expose a final_status field:
+  // - "skip" for intermediate retries
+  // - "fail"/"pass" for the final attempt
+  //
+  // Unfortunately, the test framework provides very limited control over this, and no built-in solution was found.
+  //
+  // As a workaround, this post-processor removes those synthetic test cases. Given that these errors are arguably
+  // not actionable for test owners (TBD), this is considered an acceptable trade-off.
+  //
+  // Charles de Beauchesne, March 2025
+
+  val reportsLocation = reports.junitXml.outputLocation
+  val removeInitErrors = tasks.register("${name}RemoveInitializationErrors") {
+    doLast {
+      val dir = reportsLocation.get().asFile
+      if (!dir.exists()) return@doLast
+      dir.walkTopDown()
+        .filter { it.isFile && it.extension == "xml" }
+        .forEach { xmlFile ->
+          try {
+            removeInitializationErrors(xmlFile)
+          } catch (e: Exception) {
+            logger.warn("Failed to remove initializationError testcases from {}: {}", xmlFile.name, e.message)
+          }
+        }
+    }
+  }
+  finalizedBy(removeInitErrors)
+}
+
+fun removeInitializationErrors(xmlFile: File) {
+  val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile)
+  val testcases = doc.getElementsByTagName("testcase")
+  val toRemove = (0 until testcases.length)
+    .map { testcases.item(it) as Element }
+    .filter { it.getAttribute("name") == "initializationError" }
+  if (toRemove.isEmpty()) return
+  toRemove.forEach { it.parentNode.removeChild(it) }
+  val transformer = TransformerFactory.newInstance().newTransformer()
+  transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
+  transformer.transform(DOMSource(doc), StreamResult(xmlFile))
 }
