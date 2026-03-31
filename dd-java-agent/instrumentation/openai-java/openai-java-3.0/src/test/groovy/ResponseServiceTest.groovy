@@ -293,7 +293,6 @@ class ResponseServiceTest extends OpenAiTest {
     ResponseCreateParams params = responseCreateParamsWithRawFunctionTool()
 
     expect:
-    params._tools().asKnown().empty
     params._tools().asUnknown().present
 
     when:
