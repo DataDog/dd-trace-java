@@ -129,44 +129,42 @@ tasks.withType<Test>().configureEach {
   //
   // However, all intermediate attempts are reported as failures in TestOptimization, which is misleading.
   //
-  // Ideally, we would expose a final_status field:
+  // To tackle this, we'll expose a final_status field:
   // - "skip" for intermediate retries
-  // - "fail"/"pass" for the final attempt
-  //
-  // Unfortunately, the test framework provides very limited control over this, and no built-in solution was found.
-  //
-  // As a workaround, this post-processor removes those synthetic test cases. Given that these errors are arguably
-  // not actionable for test owners (TBD), this is considered an acceptable trade-off.
+  // - nothing on last attempt, using the defaulting made by Test Optimization
   //
   // Charles de Beauchesne, March 2025
 
-  val reportsLocation = reports.junitXml.outputLocation
-  val removeInitErrors = tasks.register("${name}RemoveInitializationErrors") {
-    doLast {
-      val dir = reportsLocation.get().asFile
-      if (!dir.exists()) return@doLast
-      dir.walkTopDown()
-        .filter { it.isFile && it.extension == "xml" }
-        .forEach { xmlFile ->
-          try {
-            removeInitializationErrors(xmlFile)
-          } catch (e: Exception) {
-            logger.warn("Failed to remove initializationError testcases from {}: {}", xmlFile.name, e.message)
-          }
+  doLast("post-process-junit-xml-report") {
+    val dir = reports.junitXml.outputLocation.get().asFile
+    if (!dir.exists()) return@doLast
+    dir.walkTopDown()
+      .filter { it.isFile && it.extension == "xml" }
+      .forEach { xmlFile ->
+        try {
+          tagInitializationErrors(xmlFile)
+        } catch (e: Exception) {
+          logger.warn("Failed to remove initializationError testcases from {}: {}", xmlFile.name, e.message)
         }
-    }
+      }
   }
-  finalizedBy(removeInitErrors)
 }
 
-fun removeInitializationErrors(xmlFile: File) {
+fun tagInitializationErrors(xmlFile: File) {
   val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile)
   val testcases = doc.getElementsByTagName("testcase")
-  val toRemove = (0 until testcases.length)
+  val initErrorCases = (0 until testcases.length)
     .map { testcases.item(it) as Element }
     .filter { it.getAttribute("name") == "initializationError" }
-  if (toRemove.isEmpty()) return
-  toRemove.forEach { it.parentNode.removeChild(it) }
+  if (initErrorCases.size <= 1) return
+  initErrorCases.dropLast(1).forEach { testcase ->
+    val properties = doc.createElement("properties")
+    val property = doc.createElement("property")
+    property.setAttribute("name", "dd_tags[test.final_status]")
+    property.setAttribute("value", "skip")
+    properties.appendChild(property)
+    testcase.appendChild(properties)
+  }
   val transformer = TransformerFactory.newInstance().newTransformer()
   transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
   transformer.transform(DOMSource(doc), StreamResult(xmlFile))
