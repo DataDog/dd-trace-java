@@ -525,6 +525,9 @@ public final class CrashUploader {
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
+          if (payload.error.threadName != null) {
+            writer.name("thread_name").value(payload.error.threadName);
+          }
           writer.name("source_type").value("Crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
