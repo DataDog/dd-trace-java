@@ -1,6 +1,7 @@
 package datadog.communication.serialization.msgpack;
 
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -19,7 +20,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -33,6 +33,9 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 public class MsgPackWriterTest {
+  private static final String NON_ASCII_STRING = "foobár";
+  private static final byte[] NON_ASCII_BYTES = NON_ASCII_STRING.getBytes(UTF_8);
+  private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 4;
 
   @Test
   public void testOverflow() {
@@ -141,13 +144,12 @@ public class MsgPackWriterTest {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
                     assertEquals(unpacker.unpackBinaryHeader(), 6);
-                    assertArrayEquals(
-                        unpacker.readPayload(6), "foobar".getBytes(StandardCharsets.UTF_8));
+                    assertArrayEquals(unpacker.readPayload(6), "foobar".getBytes(UTF_8));
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
                 }));
-    writer.writeBinary("foobar".getBytes(StandardCharsets.UTF_8));
+    writer.writeBinary("foobar".getBytes(UTF_8));
   }
 
   @Test
@@ -628,16 +630,17 @@ public class MsgPackWriterTest {
 
   @Test
   public void testWriteStringUTF8BytesString() {
-    UTF8BytesString value = UTF8BytesString.create("foobár");
+    UTF8BytesString value = UTF8BytesString.create(NON_ASCII_STRING);
+    int encodedLength = value.encodedLength();
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                20,
+                (encodedLength + 4) * 2,
                 (messageCount, buffer) -> {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
-                    assertEquals(unpacker.unpackString(), "foobár");
-                    assertEquals(unpacker.unpackString(), "foobár");
+                    assertEquals(unpacker.unpackString(), NON_ASCII_STRING);
+                    assertEquals(unpacker.unpackString(), NON_ASCII_STRING);
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
@@ -671,7 +674,7 @@ public class MsgPackWriterTest {
         new Object() {
           @Override
           public String toString() {
-            return "foobár";
+            return NON_ASCII_STRING;
           }
         };
     MsgPackWriter writer =
@@ -681,14 +684,14 @@ public class MsgPackWriterTest {
                 (messageCount, buffer) -> {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
-                    assertEquals(unpacker.unpackString(), "foobár");
+                    assertEquals(unpacker.unpackString(), NON_ASCII_STRING);
                     assertEquals(unpacker.unpackString(), "foobàr");
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
                 }));
     writer.writeObjectString(value, null);
-    writer.writeObjectString(value, s -> "foobàr".getBytes(StandardCharsets.UTF_8));
+    writer.writeObjectString(value, s -> "foobàr".getBytes(UTF_8));
   }
 
   @Test
@@ -696,16 +699,16 @@ public class MsgPackWriterTest {
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                10,
+                NON_ASCII_BUFFER_CAPACITY,
                 (messageCount, buffer) -> {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
-                    assertEquals(unpacker.unpackString(), "foobár");
+                    assertEquals(unpacker.unpackString(), NON_ASCII_STRING);
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
                 }));
-    CharBuffer charSeq = CharBuffer.wrap("foobár");
+    CharBuffer charSeq = CharBuffer.wrap(NON_ASCII_STRING);
     writer.writeString(charSeq, null);
   }
 
@@ -714,16 +717,16 @@ public class MsgPackWriterTest {
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                10,
+                NON_ASCII_BUFFER_CAPACITY,
                 (messageCount, buffer) -> {
                   MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
                   try {
-                    assertEquals(unpacker.unpackString(), "foobár");
+                    assertEquals(unpacker.unpackString(), NON_ASCII_STRING);
                   } catch (IOException e) {
                     Assertions.fail(e.getMessage());
                   }
                 }));
-    writer.writeString("", s -> "foobár".getBytes(StandardCharsets.UTF_8));
+    writer.writeString("", s -> NON_ASCII_BYTES);
   }
 
   @Test
