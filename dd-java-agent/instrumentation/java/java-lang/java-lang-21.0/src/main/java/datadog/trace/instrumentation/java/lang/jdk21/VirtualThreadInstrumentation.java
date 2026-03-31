@@ -6,19 +6,25 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState.activateAndContinueContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState.captureContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState.closeScope;
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.AGENT_SCOPE_CLASS_NAME;
 import static datadog.trace.bootstrap.instrumentation.java.lang.VirtualThreadHelper.VIRTUAL_THREAD_CLASS_NAME;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
+import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -63,7 +69,10 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
 public final class VirtualThreadInstrumentation extends InstrumenterModule.ContextTracking
-    implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForBootstrap,
+        Instrumenter.ForSingleType,
+        Instrumenter.HasMethodAdvice,
+        ExcludeFilterProvider {
 
   public VirtualThreadInstrumentation() {
     super("java-lang", "java-lang-21", "virtual-thread");
@@ -77,6 +86,12 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public boolean isEnabled() {
     return JavaVirtualMachine.isJavaVersionAtLeast(21) && super.isEnabled();
+  }
+
+  @Override
+  public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
+    // VirtualThread context is activated on mount/unmount, not on Runnable.run().
+    return singletonMap(RUNNABLE, singletonList(VIRTUAL_THREAD_CLASS_NAME));
   }
 
   @Override
