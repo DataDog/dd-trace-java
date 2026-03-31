@@ -139,6 +139,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
+  private boolean lastSqlFailed = false;
+  private String lastSqlFailedMessage;
+  private String lastSqlFailedStackTrace;
   private int jobCount = 0;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
@@ -310,6 +313,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
   }
 
+  /**
+   * Called by SparkSqlFailureAdvice when a SQL call (e.g. SparkSession.sql()) throws an exception
+   * during Catalyst analysis, before any Spark job is submitted. This ensures finishApplication()
+   * has an error signal even when no job/stage/task events fire.
+   */
+  public synchronized void onSqlFailure(Throwable throwable) {
+    if (applicationEnded) {
+      return;
+    }
+    lastSqlFailed = true;
+    lastSqlFailedMessage = throwable.getMessage();
+
+    StringWriter sw = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(sw));
+    lastSqlFailedStackTrace = sw.toString();
+  }
+
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
     log.info(
@@ -356,6 +376,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
+    } else if (lastSqlFailed) {
+      applicationSpan.setError(true);
+      applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark SQL Failed");
+      applicationSpan.setTag(DDTags.ERROR_MSG, lastSqlFailedMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, lastSqlFailedStackTrace);
     }
 
     applicationMetrics.setSpanMetrics(applicationSpan);
@@ -544,6 +569,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     } else {
       lastJobFailed = false;
+      lastSqlFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
