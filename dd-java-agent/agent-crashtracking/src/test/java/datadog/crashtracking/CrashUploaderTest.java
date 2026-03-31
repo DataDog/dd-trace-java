@@ -3,6 +3,7 @@ package datadog.crashtracking;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_EVP_SUBDOMAIN;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_TELEMETRY_API_VERSION;
 import static datadog.crashtracking.CrashUploader.TELEMETRY_API_VERSION;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -292,9 +293,9 @@ public class CrashUploaderTest {
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);
 
-    assertTrue(
-        expected.equalsForTest(extracted),
-        () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
+    assertThatJson(extracted.toJson())
+        .whenIgnoringPaths("os_info", "metadata")
+        .isEqualTo(expected.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
   }
@@ -356,19 +357,8 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("runtime_name:"));
 
     // assert platform independent equality
-    assertEquals(
-        expected,
-        extracted,
-        () -> {
-          try {
-            return "Expected: "
-                + mapper.writeValueAsString(expected)
-                + "\nbut got: "
-                + mapper.writeValueAsString(extracted);
-          } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    assertThatJson(mapper.writeValueAsString(extracted))
+        .isEqualTo(mapper.writeValueAsString(expected));
   }
 
   private void assertCommonHeader(JsonNode event) {
