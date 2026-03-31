@@ -20,6 +20,8 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
+import java.util.concurrent.CompletionStage;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -84,17 +86,24 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable error) {
+    public static void onExit(
+        @Advice.Enter AgentScope scope,
+        @Advice.Return(readOnly = false) Object result,
+        @Advice.Thrown Throwable error) {
       if (null == scope) {
         return;
       }
       AgentSpan span = scope.span();
-      if (null != error) {
-        DECORATE.onError(span, error);
-      }
       scope.close();
-      DECORATE.beforeFinish(span);
-      span.finish();
+      if (result instanceof CompletionStage) {
+        result = ((CompletionStage<?>) result).whenComplete(AsyncResultExtensions.finishSpan(span));
+      } else {
+        if (null != error) {
+          DECORATE.onError(span, error);
+        }
+        DECORATE.beforeFinish(span);
+        span.finish();
+      }
     }
   }
 }
