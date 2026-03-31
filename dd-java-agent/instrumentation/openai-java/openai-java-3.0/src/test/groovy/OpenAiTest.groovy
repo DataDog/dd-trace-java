@@ -4,6 +4,7 @@ import com.openai.client.OpenAIClient
 import com.openai.client.okhttp.OkHttpClient
 import com.openai.client.okhttp.OpenAIOkHttpClient
 import com.openai.core.ClientOptions
+import com.openai.core.ObjectMappers
 import com.openai.credential.BearerTokenCredential
 import com.openai.core.JsonValue
 import com.openai.models.ChatModel
@@ -24,6 +25,7 @@ import com.openai.models.responses.ResponseInputItem
 import com.openai.models.responses.ResponsePrompt
 import com.openai.models.responses.FunctionTool
 import com.openai.models.responses.CustomTool
+import com.openai.models.responses.Tool
 import com.openai.models.responses.ToolChoiceCustom
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.server.http.TestHttpServer
@@ -464,6 +466,21 @@ Alice Johnson majors in mathematics at UCLA.""")
     toolsField.set(params._body(), rawTools)
 
     params
+  }
+
+  ResponseCreateParams responseCreateParamsWithMcpToolCall() {
+    def mcpTool = Tool.Mcp.builder()
+    .serverLabel("openai_docs")
+    .serverDescription("OpenAI documentation MCP server.")
+    .serverUrl("https://developers.openai.com/mcp")
+    .requireApproval(Tool.Mcp.RequireApproval.McpToolApprovalSetting.NEVER)
+    .build()
+
+    ResponseCreateParams.builder()
+    .model(ChatModel.GPT_5)
+    .input("Use the OpenAI docs MCP server to find the Responses API MCP tool documentation and summarize the require_approval option.")
+    .addTool(mcpTool)
+    .build()
   }
 
   ChatCompletionCreateParams chatCompletionCreateParamsMultiChoice(boolean json) {

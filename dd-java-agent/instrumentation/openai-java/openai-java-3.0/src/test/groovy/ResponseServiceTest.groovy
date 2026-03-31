@@ -318,6 +318,31 @@ class ResponseServiceTest extends OpenAiTest {
     toolDefinitions[0].schema.required == ["name"]
   }
 
+  def "create response with mcp tool call"() {
+    Response resp = runUnderTrace("parent") {
+      openAiClient.responses().create(responseCreateParamsWithMcpToolCall())
+    }
+
+    expect:
+    resp != null
+    and:
+    List<LLMObs.LLMMessage> outputTags = []
+    Map<String, Object> metadata = [:]
+    assertResponseTrace(false, "gpt-5", String, null, null, outputTags, metadata)
+    and:
+    metadata.stream == false
+    outputTags.any {
+      it.toolCalls?.any { toolCall ->
+        toolCall.type == "mcp_call" && toolCall.name
+      }
+    }
+    outputTags.any {
+      it.toolResults?.any { toolResult ->
+        toolResult.type == "mcp_tool_result" && toolResult.name
+      }
+    }
+  }
+
   def "create response error sets model_name and placeholder output"() {
     setup:
     def errorBackend = TestHttpServer.httpServer {
