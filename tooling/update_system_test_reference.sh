@@ -14,8 +14,8 @@ fi
 GITHUB_TARGET=".github/workflows/run-system-tests.yaml"
 GITLAB_TARGET=".gitlab-ci.yml"
 GITHUB_PATTERN_1='(\s*system-tests\.yml@)(\S+)(\s+# system tests.*)' # pattern to update the "system-tests.yml@" reference
-GITHUB_PATTERN_2='(\s*ref: )(\S+)(\s+# system tests.*)' # pattern to update the "ref:" reference
-GITLAB_PATTERN='(\s*SYSTEM_TESTS_REF:\s*)(\S+)(\s+# system tests.*)' # pattern to update the GitLab SYSTEM_TESTS_REF variable
+GITHUB_PATTERN_2='(\s*ref: ")([^"]+)("\s+# system tests.*)' # pattern to update the quoted "ref:" reference
+GITLAB_PATTERN='(\s*SYSTEM_TESTS_REF: ")([^"]+)("\s+# system tests.*)' # pattern to update the quoted GitLab SYSTEM_TESTS_REF variable
 
 echo "Fetching latest commit SHA for system-tests branch: $BRANCH"
 REF=$(git ls-remote https://github.com/DataDog/system-tests "refs/heads/$BRANCH" | cut -f 1)

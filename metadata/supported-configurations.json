@@ -2241,6 +2241,14 @@
         "aliases": []
       }
     ],
+    "DD_MEASURE_NATIVE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "",
+        "aliases": []
+      }
+    ],
     "DD_MESSAGE_BROKER_SPLIT_BY_DESTINATION": [
       {
         "version": "A",
@@ -7650,6 +7658,14 @@
       }
     ],
     "DD_TRACE_METHODS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_NATIVE_METHODS": [
       {
         "version": "A",
         "type": "string",
