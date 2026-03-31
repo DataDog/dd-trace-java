@@ -1639,6 +1639,38 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     return plan
   }
 
+  def "failed spark.sql call creates an error span"() {
+    def sqlText = "SELECT * FROM non_existing_table"
+    def sparkSession = SparkSession.builder()
+    .config("spark.master", "local[2]")
+    .getOrCreate()
+
+    try {
+      sparkSession.sql(sqlText).show()
+    } catch (Exception e) {
+      // expected
+    }
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(2) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          errored false
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          resourceName sqlText
+          childOf(span(0))
+          errored true
+        }
+      }
+    }
+  }
+
   private static Object normalizeColumnRefs(Object plan) {
     if (plan instanceof String) {
       return plan.replaceAll(/#\d+L?/, '#N').replaceAll(/plan_id=\d+/, 'plan_id=N')

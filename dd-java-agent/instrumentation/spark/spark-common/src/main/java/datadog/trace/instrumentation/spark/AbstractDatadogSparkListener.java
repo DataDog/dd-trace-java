@@ -145,6 +145,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private long availableExecutorTime = 0;
 
   private volatile boolean applicationEnded = false;
+  private java.lang.ref.WeakReference<Throwable> lastSqlFailure =
+      new java.lang.ref.WeakReference<>(null);
 
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
@@ -1050,6 +1052,33 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       batchSpan.finish();
     }
+  }
+
+  public synchronized void onSqlFailure(String sqlText, Throwable throwable) {
+    if (isRunningOnDatabricks) return;
+    if (applicationEnded) return;
+    if (throwable == lastSqlFailure.get()) return;
+    lastSqlFailure = new java.lang.ref.WeakReference<>(throwable);
+
+    initApplicationSpanIfNotInitialized();
+
+    AgentSpan sqlSpan =
+        buildSparkSpan("spark.sql", null)
+            .withTag(DDTags.RESOURCE_NAME, sqlText)
+            .withTag("description", sqlText)
+            .asChildOf(applicationSpan.context())
+            .start();
+
+    sqlSpan.setError(true);
+    sqlSpan.setTag(DDTags.ERROR_TYPE, throwable.getClass().getName());
+    sqlSpan.setTag(DDTags.ERROR_MSG, throwable.getMessage());
+
+    java.io.StringWriter sw = new java.io.StringWriter();
+    throwable.printStackTrace(new java.io.PrintWriter(sw));
+    sqlSpan.setTag(DDTags.ERROR_STACK, sw.toString());
+
+    setDataJobsSamplingPriority(sqlSpan);
+    sqlSpan.finish();
   }
 
   private void setDataJobsSamplingPriority(AgentSpan span) {
