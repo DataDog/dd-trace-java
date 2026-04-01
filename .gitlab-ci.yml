@@ -855,10 +855,9 @@ muzzle-dep-report:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
-    - chown -R non-root-user:non-root-group "$CI_PROJECT_DIR"
-    - su -m non-root-user -c "./gradlew --version"
+    - ./gradlew --version
   script:
-    - su -m non-root-user -c "./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue"
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   artifacts:
     when: always
     paths:
