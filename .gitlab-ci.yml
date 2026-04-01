@@ -883,6 +883,25 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
+.test_job_arm64_with_test_agent:
+  extends: .test_job_arm64_poc
+  variables:
+    CI_USE_TEST_AGENT: "true"
+    CI_AGENT_HOST: local-agent
+  services:
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
+      alias: local-agent
+      variables:
+        LOG_LEVEL: "DEBUG"
+        TRACE_LANGUAGE: "java"
+        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
+        DD_POOL_TRACE_CHECK_FAILURES: "true"
+        DD_DISABLE_ERROR_RESPONSES: "true"
+        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
+  script:
+    - !reference [.test_job_arm64_poc, script]
+    - .gitlab/check_test_agent_results.sh
+
 .test_job_with_test_agent:
   extends: .test_job
   variables:
@@ -970,6 +989,17 @@ test_inst:
     CACHE_TYPE: "inst"
   parallel:
     matrix: *test_matrix_8
+
+test_inst_arm64:
+  extends: .test_job_arm64_with_test_agent
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":instrumentationTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8" ]
 
 test_inst_latest:
   extends: .test_job_with_test_agent
