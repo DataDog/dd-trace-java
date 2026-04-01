@@ -394,8 +394,7 @@ public class CrashUploaderTest {
   }
 
   @Test
-  public void testErrorTrackingSerializesRegisterToMemoryMapping()
-      throws Exception {
+  public void testErrorTrackingSerializesRegisterToMemoryMapping() throws Exception {
     ConfigManager.StoredConfig crashConfig =
         new ConfigManager.StoredConfig.Builder(config)
             .reportUUID(SAMPLE_UUID)
@@ -415,8 +414,7 @@ public class CrashUploaderTest {
     final JsonNode mapping = event.at("/experimental/register_to_memory_mapping");
     assertThat(mapping.isObject()).isTrue();
     assertThat(mapping.get("RSP").asText())
-        .isEqualTo(
-            "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
+        .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
     assertThat(mapping.get("RDI").asText()).isEqualTo("0x0 is NULL");
   }
 

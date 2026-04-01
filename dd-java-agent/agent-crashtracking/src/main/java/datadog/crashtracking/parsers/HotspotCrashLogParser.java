@@ -104,8 +104,7 @@ public final class HotspotCrashLogParser {
   // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
-  private static final Pattern SUBSECTION_TITLE =
-      Pattern.compile("^\\s*[A-Za-z][\\w ]*:.+$");
+  private static final Pattern SUBSECTION_TITLE = Pattern.compile("^\\s*[A-Za-z][\\w ]*:.+$");
   private static final Pattern COMPILED_JAVA_ADDRESS_PARSER =
       Pattern.compile("@\\s+(0x[0-9a-fA-F]+)\\s+\\[(0x[0-9a-fA-F]+)\\+(0x[0-9a-fA-F]+)\\]");
 
@@ -599,6 +598,7 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
     Experimental experimental =
         !registers.isEmpty()
                 || !registerToMemoryMapping.isEmpty()
@@ -650,9 +650,7 @@ public final class HotspotCrashLogParser {
     if (line.contains("P R O C E S S")) {
       return State.PROCESS;
     }
-    if (previousLineBlank
-        && !line.contains("=")
-        && SUBSECTION_TITLE.matcher(line).matches()) {
+    if (previousLineBlank && !line.contains("=") && SUBSECTION_TITLE.matcher(line).matches()) {
       return State.STACKTRACE;
     }
     return null;

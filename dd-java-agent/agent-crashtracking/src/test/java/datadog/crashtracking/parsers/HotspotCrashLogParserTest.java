@@ -109,7 +109,11 @@ public class HotspotCrashLogParserTest {
         .containsEntry("RDI", "0x0 is NULL")
         .containsEntry(
             "R11",
-            "{method} {0x00007f3744198b70} 'resize' '()[Ljava/util/HashMap$Node;' in 'java/util/HashMap'");
+            "{method} {0x00007f3744198b70} 'resize' '()[Ljava/util/HashMap$Node;' in 'java/util/HashMap'")
+        // unknown packages are redacted; known class names (last segment) are preserved
+        .containsEntry(
+            "RSI",
+            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/redacted/redacted/redacted/REDACT_THIS;ILjava/lang/String;)V' in 'redacted/redacted/redacted/redacted/REDACT_THIS'");
   }
 
   @Test
@@ -120,9 +124,7 @@ public class HotspotCrashLogParserTest {
                 UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
 
     assertThat(crashLog.experimental).isNotNull();
-    assertThat(crashLog.experimental.registerToMemoryMapping)
-        .isNotNull()
-        .containsKey("R10");
+    assertThat(crashLog.experimental.registerToMemoryMapping).isNotNull().containsKey("R10");
     assertThat(crashLog.experimental.registerToMemoryMapping)
         .extractingByKey("R10", STRING)
         .startsWith("0x00000007ffe85850 is an oop: java.lang.Class ")
