@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
+import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.Metadata;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.ProviderEvent;
@@ -14,6 +15,8 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
@@ -25,6 +28,8 @@ public class Provider extends EventProvider implements Metadata {
   private volatile Evaluator evaluator;
   private final Options options;
   private final AtomicBoolean initialized = new AtomicBoolean(false);
+  private final FlagEvalMetrics flagEvalMetrics;
+  private final FlagEvalHook flagEvalHook;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -37,6 +42,8 @@ public class Provider extends EventProvider implements Metadata {
   Provider(final Options options, final Evaluator evaluator) {
     this.options = options;
     this.evaluator = evaluator;
+    this.flagEvalMetrics = new FlagEvalMetrics();
+    this.flagEvalHook = new FlagEvalHook(flagEvalMetrics);
   }
 
   @Override
@@ -78,7 +85,13 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   @Override
+  public List<Hook> getProviderHooks() {
+    return Collections.singletonList(flagEvalHook);
+  }
+
+  @Override
   public void shutdown() {
+    flagEvalMetrics.shutdown();
     if (evaluator != null) {
       evaluator.shutdown();
     }
