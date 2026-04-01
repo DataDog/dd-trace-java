@@ -839,6 +839,7 @@ muzzle-dep-report:
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     JETTY_AVAILABLE_PROCESSORS: 4
   before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
     - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
     - |
