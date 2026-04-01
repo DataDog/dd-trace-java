@@ -72,24 +72,55 @@ public final class RedactUtils {
   public static String redactRegisterToMemoryMapping(String value) {
     if (value == null || value.isEmpty()) return value;
     String[] lines = value.split("\n", -1);
+    // java.lang.Class oop dumps: String fields hold class names, not arbitrary data.
+    // All other oop types: String fields are application data and must be fully redacted.
+    boolean isClassOop = isJavaLangClassOop(lines[0]);
     StringBuilder sb = new StringBuilder();
     for (int i = 0; i < lines.length; i++) {
       if (i > 0) sb.append('\n');
-      sb.append(redactLine(lines[i]));
+      sb.append(redactLine(lines[i], isClassOop));
     }
     return sb.toString();
   }
 
-  private static String redactLine(String line) {
+  /**
+   * Returns true if the first line of a register-to-memory mapping value indicates a {@code
+   * java.lang.Class} oop (not a subclass or other type).
+   */
+  private static boolean isJavaLangClassOop(String firstLine) {
+    int idx = firstLine.indexOf("is an oop: java.lang.Class");
+    if (idx < 0) return false;
+    // Ensure the class name ends here — not a prefix of e.g. java.lang.ClassLoader
+    int end = idx + "is an oop: java.lang.Class".length();
+    return end >= firstLine.length() || firstLine.charAt(end) == ' ';
+  }
+
+  private static String redactLine(String line, boolean isClassOop) {
     line = redactStringTypeValue(line);
     line = redactTypeDescriptors(line);
     line = redactKlassReference(line);
     line = redactMethodClass(line);
     line = redactLibraryPath(line);
-    line = redactDottedClassOopRef(line);
+    line = redactStringOopRef(line, isClassOop);
     line = redactOopClassName(line);
     line = redactReadableMemoryHexDump(line);
     return line;
+  }
+
+  /**
+   * Redacts {@code "value"\{0x...\}} OOP references in oop dump field lines. When {@code
+   * isClassOop} is true (inside a {@code java.lang.Class} oop dump) the value is treated as a class
+   * name and its package is redacted. Otherwise — any other oop type — the value is always fully
+   * redacted to {@code "REDACTED"} since it may be arbitrary application data.
+   */
+  private static String redactStringOopRef(String line, boolean isClassOop) {
+    return replaceAll(
+        DOTTED_CLASS_OOP_REF,
+        line,
+        m ->
+            isClassOop
+                ? "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2)
+                : "\"" + REDACTED_STRING + "\"" + m.group(2));
   }
 
   /**
@@ -127,8 +158,8 @@ public final class RedactUtils {
   }
 
   /**
-   * Redacts all but the parent directory and filename from a library path. Handles both
-   * <code>&lt;offset 0x...&gt; in /path/to/dir/lib.so</code> and <code>symbol+0 in
+   * Redacts all but the parent directory and filename from a library path. Handles both <code>
+   * &lt;offset 0x...&gt; in /path/to/dir/lib.so</code> and <code>symbol+0 in
    * /path/to/dir/lib.so</code> to <code>... in /redacted/redacted/dir/lib.so</code>
    */
   static String redactLibraryPath(String line) {
@@ -136,14 +167,14 @@ public final class RedactUtils {
   }
 
   /**
-   * Redacts dotted class names that appear as inline field values followed by an OOP reference:
-   * <code>"com.company.SomeType"{0x...}</code> to <code>"redacted.redacted.SomeType"{0x...}</code>
+   * Redacts any {@code "value"\{0x...\}} OOP reference to {@code "REDACTED"\{0x...\}}. This is the
+   * safe default for lines that are not part of a {@code java.lang.Class} oop dump, where the
+   * String value may be arbitrary application data. For class-name-aware redaction (inside a {@code
+   * java.lang.Class} oop) use {@link #redactRegisterToMemoryMapping} which detects the oop type
+   * automatically.
    */
   static String redactDottedClassOopRef(String line) {
-    return replaceAll(
-        DOTTED_CLASS_OOP_REF,
-        line,
-        m -> "\"" + redactDottedClassName(m.group(1)) + "\"" + m.group(2));
+    return redactStringOopRef(line, false);
   }
 
   /**

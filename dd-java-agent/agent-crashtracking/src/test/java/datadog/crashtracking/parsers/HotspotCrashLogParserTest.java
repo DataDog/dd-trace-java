@@ -84,9 +84,9 @@ public class HotspotCrashLogParserTest {
   }
 
   /**
-   * Verifies the register-to-memory mapping section for the macOS aarch64 sample:
-   * representative values, library path redaction, and that "Top of Stack:" / "Instructions:"
-   * subsections are not absorbed into register values.
+   * Verifies the register-to-memory mapping section for the macOS aarch64 sample: representative
+   * values, library path redaction, and that "Top of Stack:" / "Instructions:" subsections are not
+   * absorbed into register values.
    */
   @Test
   public void testRegisterToMemoryMappingMacosAarch64() throws Exception {
@@ -109,7 +109,8 @@ public class HotspotCrashLogParserTest {
         .extractingByKey("x16", STRING)
         .isEqualTo(
             "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
-    // /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib → 9 redacted + "server/libjvm.dylib"
+    // /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib → 9 redacted +
+    // "server/libjvm.dylib"
     assertThat(mapping)
         .extractingByKey("x21", STRING)
         .isEqualTo(
@@ -124,8 +125,7 @@ public class HotspotCrashLogParserTest {
     // "Top of Stack: (sp=0x...)" and "Instructions: (pc=0x...)" must not leak into register values
     assertThat(mapping).doesNotContainKey("Top of Stack");
     assertThat(mapping)
-        .allSatisfy(
-            (k, v) -> assertThat(v).doesNotContain("Top of Stack:", "Instructions:"));
+        .allSatisfy((k, v) -> assertThat(v).doesNotContain("Top of Stack:", "Instructions:"));
 
     // sp is the last register before "Top of Stack:" — its value must be clean
     assertThat(mapping)

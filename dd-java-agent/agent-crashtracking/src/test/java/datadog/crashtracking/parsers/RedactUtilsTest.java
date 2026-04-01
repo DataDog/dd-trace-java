@@ -168,21 +168,26 @@ public class RedactUtilsTest {
   }
 
   @Test
-  void testRedactDottedClassOopRef_redactsUnknownPackage() {
+  void testRedactDottedClassOopRef_redactsAnyStringOopRef() {
+    // Without oop-type context, all "value"{0x...} OOP refs are treated as arbitrary application
+    // data and fully redacted — even if the value looks like a class name
     assertThat(
             RedactUtils.redactDottedClassOopRef(
                 " - private transient 'name' 'Ljava/lang/String;' @44  \"com.company.SomeType\"{0x00000007142f7200} (0xe285ee40)"))
         .isEqualTo(
-            " - private transient 'name' 'Ljava/lang/String;' @44  \"redacted.redacted.SomeType\"{0x00000007142f7200} (0xe285ee40)");
-  }
-
-  @Test
-  void testRedactDottedClassOopRef_keepsKnownPackage() {
+            " - private transient 'name' 'Ljava/lang/String;' @44  \"REDACTED\"{0x00000007142f7200} (0xe285ee40)");
+    // Dotted names with known packages are also fully redacted — any string can be a secret
     assertThat(
             RedactUtils.redactDottedClassOopRef(
                 " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)"))
         .isEqualTo(
-            " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)");
+            " - private transient 'name' 'Ljava/lang/String;' @44  \"REDACTED\"{0x00000007142f7200} (0xe285ee40)");
+    // Plain single-word strings (no dots) are also redacted
+    assertThat(
+            RedactUtils.redactDottedClassOopRef(
+                " - final 'value' 'Ljava/lang/String;' @40  \"SourceFile\"{0x00000007ffe7a6a0} (0xfffcf4d4)"))
+        .isEqualTo(
+            " - final 'value' 'Ljava/lang/String;' @40  \"REDACTED\"{0x00000007ffe7a6a0} (0xfffcf4d4)");
   }
 
   @Test
@@ -209,23 +214,46 @@ public class RedactUtilsTest {
 
   @Test
   void testRedactRegisterToMemoryMapping_multilineOopDump() {
-    // Mirrors the java.lang.Class oop dump format: the 'name' field holds a dotted class name
-    // as an inline string value followed by an OOP ref, and 'loader' holds a typed object ref.
+    // Non-java.lang.Class oop: ALL "value"{0x...} OOP refs are fully redacted to "REDACTED"
+    // regardless of their shape — any string value may be a secret.
     String value =
-        "0x00000007ffe85850 is an oop: com.company.Config \n"
-            + "{0x00000007ffe85850} - klass: 'com/company/Config'\n"
-            + " - ---- fields (total size 3 words):\n"
-            + " - private transient 'name' 'Ljava/lang/String;' @12  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
-            + " - private 'owner' 'Lcom/company/User;' @16  null (0x00000000)\n"
+        "0x00000007142f8848 is an oop: com.company.SymbolEntry \n"
+            + "{0x00000007142f8848} - klass: 'com/company/SymbolEntry'\n"
+            + " - ---- fields (total size 9 words):\n"
+            + " - final 'tag' 'Ljava/lang/String;' @12  \"SourceFile\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
+            + " - final 'value' 'Ljava/lang/String;' @16  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+            + " - final 'hint' 'Ljava/lang/String;' @20  \"java.vendor.url.bug\"{0x00000007aabbccee} (0x12345679)\n"
+            + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
             + " - string: \"some sensitive value\"";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
         .isEqualTo(
-            "0x00000007ffe85850 is an oop: redacted.redacted.Config \n"
-                + "{0x00000007ffe85850} - klass: 'redacted/redacted/Config'\n"
-                + " - ---- fields (total size 3 words):\n"
-                + " - private transient 'name' 'Ljava/lang/String;' @12  \"redacted.redacted.Config\"{0x00000007aabbccdd} (0x12345678)\n"
-                + " - private 'owner' 'Lredacted/redacted/User;' @16  null (0x00000000)\n"
+            "0x00000007142f8848 is an oop: redacted.redacted.SymbolEntry \n"
+                + "{0x00000007142f8848} - klass: 'redacted/redacted/SymbolEntry'\n"
+                + " - ---- fields (total size 9 words):\n"
+                + " - final 'tag' 'Ljava/lang/String;' @12  \"REDACTED\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
+                + " - final 'value' 'Ljava/lang/String;' @16  \"REDACTED\"{0x00000007aabbccdd} (0x12345678)\n"
+                + " - final 'hint' 'Ljava/lang/String;' @20  \"REDACTED\"{0x00000007aabbccee} (0x12345679)\n"
+                + " - final 'owner' 'Ljava/lang/String;' @24  null (0x00000000)\n"
                 + " - string: \"REDACTED\"");
+  }
+
+  @Test
+  void testRedactRegisterToMemoryMapping_javaLangClassOopPreservesClassName() {
+    // java.lang.Class oop: String OOP refs in field values are treated as class names and
+    // get package redaction (not full redaction), since that is what java.lang.Class stores.
+    String value =
+        "0x00000007ffe85850 is an oop: java.lang.Class \n"
+            + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
+            + " - ---- fields (total size 25 words):\n"
+            + " - private transient 'name' 'Ljava/lang/String;' @44  \"com.company.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+            + " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)";
+    assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
+        .isEqualTo(
+            "0x00000007ffe85850 is an oop: java.lang.Class \n"
+                + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
+                + " - ---- fields (total size 25 words):\n"
+                + " - private transient 'name' 'Ljava/lang/String;' @44  \"redacted.redacted.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+                + " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)");
   }
 
   @Test
