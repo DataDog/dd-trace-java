@@ -249,7 +249,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       settings.disabledTests,
       settings.attemptToFixTests,
       settings.diff,
-      false)
+      ConfigurationErrors.NONE)
     }
   }
 

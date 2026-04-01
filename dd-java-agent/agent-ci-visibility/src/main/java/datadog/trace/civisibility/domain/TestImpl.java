@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.DDTest;
@@ -41,6 +40,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -90,7 +90,7 @@ public class TestImpl implements DDTest {
       Codeowners codeowners,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
-      boolean configurationError,
+      @Nonnull ConfigurationErrors configurationErrors,
       @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.instrumentation = instrumentation;
@@ -158,9 +158,7 @@ public class TestImpl implements DDTest {
 
     testDecorator.afterStart(span);
 
-    if (configurationError) {
-      span.setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
-    }
+    configurationErrors.applyTags(span);
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, instrumentation, EventType.TEST);
 
