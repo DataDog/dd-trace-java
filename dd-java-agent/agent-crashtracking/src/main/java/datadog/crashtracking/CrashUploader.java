@@ -525,6 +525,9 @@ public final class CrashUploader {
           }
           writer.name("type").value(payload.error.kind);
           writer.name("message").value(payload.error.message);
+          if (payload.error.threadName != null) {
+            writer.name("thread_name").value(payload.error.threadName);
+          }
           writer.name("source_type").value("Crashtracking");
           if (payload.error.stack != null) {
             writer.name("stack");
@@ -572,15 +575,39 @@ public final class CrashUploader {
           writer.endObject();
         }
         // experimental
-        if (payload.experimental != null && payload.experimental.ucontext != null) {
+        if (payload.experimental != null
+            && (payload.experimental.ucontext != null
+                || payload.experimental.runtimeArgs != null)) {
           writer.name("experimental");
           writer.beginObject();
-          writer.name("ucontext");
-          writer.beginObject();
-          for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
-            writer.name(entry.getKey()).value(entry.getValue());
+          if (payload.experimental.ucontext != null) {
+            writer.name("ucontext");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
+          }
+          if (payload.experimental.runtimeArgs != null) {
+            writer.name("runtime_args");
+            writer.beginArray();
+            for (String arg : payload.experimental.runtimeArgs) {
+              writer.value(arg);
+            }
+            writer.endArray();
           }
           writer.endObject();
+        }
+        // files (e.g. /proc/self/maps or dynamic_libraries)
+        if (payload.files != null) {
+          writer.name("files");
+          writer.beginObject();
+          writer.name(payload.files.name);
+          writer.beginArray();
+          for (String fileLine : payload.files.lines) {
+            writer.value(fileLine);
+          }
+          writer.endArray();
           writer.endObject();
         }
         writer.endObject();

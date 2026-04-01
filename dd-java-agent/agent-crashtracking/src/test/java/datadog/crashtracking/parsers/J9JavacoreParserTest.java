@@ -3,6 +3,7 @@ package datadog.crashtracking.parsers;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.crashtracking.dto.CrashLog;
@@ -48,6 +49,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("SIGSEGV", crashLog.error.kind);
     assertEquals("Process terminated by signal SIGSEGV", crashLog.error.message);
+    assertEquals("main", crashLog.error.threadName);
 
     // Stack trace
     assertNotNull(crashLog.error.stack);
@@ -56,10 +58,13 @@ public class J9JavacoreParserTest {
 
     // Check first Java frame
     assertEquals("com/example/NativeLibrary.crash", crashLog.error.stack.frames[0].function);
+    assertNull(crashLog.error.stack.frames[0].path);
+    assertEquals("native", crashLog.error.stack.frames[0].frameType);
 
     // Check second Java frame with source info
     assertEquals("com/example/CrashingApp.triggerCrash", crashLog.error.stack.frames[1].function);
     assertEquals("CrashingApp.java", crashLog.error.stack.frames[1].path);
+    assertEquals("java", crashLog.error.stack.frames[1].frameType);
     assertEquals(Integer.valueOf(42), crashLog.error.stack.frames[1].line);
 
     // Check native frames are present
@@ -86,6 +91,9 @@ public class J9JavacoreParserTest {
     assertFalse(crashLog.experimental.ucontext.isEmpty());
     assertTrue(crashLog.experimental.ucontext.containsKey(pcRegister));
     assertTrue(crashLog.experimental.ucontext.containsKey(spRegister));
+    assertNotNull(crashLog.experimental.runtimeArgs);
+    assertTrue(
+        crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("-Xdump:java:")));
   }
 
   @Test
@@ -106,6 +114,7 @@ public class J9JavacoreParserTest {
     assertNotNull(crashLog.error);
     assertEquals("OutOfMemory", crashLog.error.kind);
     assertTrue(crashLog.error.message.contains("OutOfMemory"));
+    assertEquals("worker-thread-1", crashLog.error.threadName);
 
     // Process info
     assertNotNull(crashLog.procInfo);
@@ -183,6 +192,7 @@ public class J9JavacoreParserTest {
     assertEquals("SIGABRT", crashLog.sigInfo.name);
     assertEquals(6, crashLog.sigInfo.number);
     assertEquals(99999, crashLog.procInfo.pid);
+    assertEquals("abort-thread", crashLog.error.threadName);
   }
 
   @Test

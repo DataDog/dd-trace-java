@@ -6,6 +6,7 @@ import datadog.common.version.VersionInfo;
 import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
+import datadog.crashtracking.dto.DynamicLibs;
 import datadog.crashtracking.dto.ErrorData;
 import datadog.crashtracking.dto.Experimental;
 import datadog.crashtracking.dto.Metadata;
@@ -42,6 +43,7 @@ import java.util.regex.Pattern;
  * resulting {@link datadog.crashtracking.dto.CrashLog} will be marked {@code incomplete}.
  */
 public final class HotspotCrashLogParser {
+  private static final String HOTSPOT_JVM_ARGS_PREFIX = "jvm_args:";
   private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
@@ -61,7 +63,8 @@ public final class HotspotCrashLogParser {
     THREAD,
     STACKTRACE,
     REGISTERS,
-    SEEK_DYNAMIC_LIBRARIES,
+    PROCESS,
+    VM_ARGUMENTS,
     DYNAMIC_LIBRARIES,
     SYSTEM,
     DONE
@@ -98,6 +101,39 @@ public final class HotspotCrashLogParser {
   // find(), which would otherwise match the lowercase "sp"/"pc" tokens embedded in those lines.
   private static final Pattern REGISTER_LINE_START =
       Pattern.compile("^\\s*[A-Za-z][A-Za-z0-9]*\\s*=\\s*0x");
+  private static final Pattern COMPILED_JAVA_ADDRESS_PARSER =
+      Pattern.compile("@\\s+(0x[0-9a-fA-F]+)\\s+\\[(0x[0-9a-fA-F]+)\\+(0x[0-9a-fA-F]+)\\]");
+
+  // HotSpot crash logs encode the execution kind in the first column of each frame line.
+  // Source references:
+  // JDK 8:
+  // https://github.com/openjdk/jdk8u/blob/73c9c6bcd062196cbebc4d9f22b13d2e20a14f98/hotspot/src/share/vm/runtime/frame.cpp#L710-L724
+  // JDK 11:
+  // https://github.com/openjdk/jdk11u/blob/970d6cf491a55fd6ab98ec3f449c13a58633078a/src/hotspot/share/runtime/frame.cpp#L647-L662
+  // JDK 25:
+  // https://github.com/openjdk/jdk25u/blob/2fe611a2a3386d097f636c15bd4d396a82dc695e/src/hotspot/share/runtime/frame.cpp#L652-L666
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/53c864a881d2183d3664a6a5a56480bd99fffe45/src/hotspot/share/runtime/frame.cpp#L647-L661
+  // Note: the marker set changes across JDK lines. In particular, "A" appears in some HotSpot
+  // versions but not all, so this mapping is best-effort rather than a stable cross-version enum.
+  private static String hotspotFrameType(char marker) {
+    switch (marker) {
+      case 'J':
+        return "compiled";
+      case 'A': // exists in JDK 11
+        return "aot_compiled";
+      case 'j':
+        return "interpreted";
+      case 'V':
+        return "vm";
+      case 'v':
+        return "stub";
+      case 'C':
+        return "native";
+      default:
+        return null;
+    }
+  }
 
   private StackFrame parseLine(String line) {
     if (line == null || line.isEmpty()) {
@@ -107,8 +143,11 @@ public final class HotspotCrashLogParser {
     String functionName = null;
     Integer functionLine = null;
     String filename = null;
+    String ip = null;
     String relAddress = null;
+    String symbolAddress = null;
     char firstChar = line.charAt(0);
+    String frameType = hotspotFrameType(firstChar);
     if (line.length() > 1 && !Character.isSpaceChar(line.charAt(1))) {
       // We can find entries like this in between the frames
       // Java frames: (J=compiled Java code, j=interpreted, Vv=VM code)
@@ -116,14 +155,39 @@ public final class HotspotCrashLogParser {
     }
     switch (firstChar) {
       case 'J':
+      case 'A':
         {
           // spotless:off
           // J 36572 c2 datadog.trace.util.AgentTaskScheduler$PeriodicTask.run()V (25 bytes) @ 0x00007f2fd0198488 [0x00007f2fd0198420+0x0000000000000068]
           // J 3896 c2 java.nio.ByteBuffer.allocate(I)Ljava/nio/ByteBuffer; java.base@21.0.1 (20 bytes) @ 0x0000000112ad51e8 [0x0000000112ad4fc0+0x0000000000000228]
+          // J 302  java.util.zip.ZipFile.getEntry(J[BZ)J (0 bytes) @ 0x00007fa287303dce [0x00007fa287303d00+0xce]
           // spotless:on
           String[] parts = SPACE_SPLITTER.split(line);
-          if (parts.length > 3) {
+          int bytesToken = -1;
+          for (int i = 0; i < parts.length - 1; i++) {
+            if (parts[i].startsWith("(") && "bytes)".equals(parts[i + 1])) {
+              bytesToken = i;
+              break;
+            }
+          }
+          if (bytesToken > 1) {
+            String candidate = parts[bytesToken - 1];
+            // Newer JVMs insert a module token before "(NN bytes)".
+            if (candidate.contains("@")) {
+              candidate = parts[bytesToken - 2];
+            }
+            if (!candidate.startsWith("(")) {
+              functionName = candidate;
+            }
+          } else if (parts.length > 3 && !parts[3].startsWith("(")) {
             functionName = parts[3];
+          }
+
+          Matcher matcher = COMPILED_JAVA_ADDRESS_PARSER.matcher(line);
+          if (matcher.find()) {
+            ip = matcher.group(1);
+            symbolAddress = matcher.group(2);
+            relAddress = matcher.group(3);
           }
           break;
         }
@@ -200,9 +264,12 @@ public final class HotspotCrashLogParser {
           filename,
           functionLine,
           stripCompilerAnnotations(functionName),
+          frameType,
           null,
           null,
           null,
+          ip,
+          symbolAddress,
           relAddress);
     }
     return null;
@@ -247,15 +314,46 @@ public final class HotspotCrashLogParser {
     return filename.substring(0, prefixLen) + filename.substring(end);
   }
 
+  static String parseCurrentThreadName(String line) {
+    if (line == null || !line.startsWith("Current thread ")) {
+      return null;
+    }
+    final int separator = line.indexOf(':');
+    if (separator < 0) {
+      return null;
+    }
+
+    String threadDescriptor = line.substring(separator + 1).trim();
+    final int metadataStart = threadDescriptor.indexOf('[');
+    if (metadataStart >= 0) {
+      threadDescriptor = threadDescriptor.substring(0, metadataStart).trim();
+    }
+    if (threadDescriptor.isEmpty()) {
+      return null;
+    }
+    return threadDescriptor;
+  }
+
+  private static List<String> parseHotspotJvmArgs(String line) {
+    if (line == null || !line.startsWith(HOTSPOT_JVM_ARGS_PREFIX)) {
+      return null;
+    }
+    return RuntimeArgs.parseVmArgs(line.substring(HOTSPOT_JVM_ARGS_PREFIX.length()));
+  }
+
   public CrashLog parse(String uuid, String crashLog) {
     SigInfo sigInfo = null;
     String pid = null;
+    String threadName = null;
     List<StackFrame> frames = new ArrayList<>();
     String datetime = null;
     String datetimeRaw = null;
     boolean incomplete = false;
     String oomMessage = null;
     Map<String, String> registers = null;
+    List<String> runtimeArgs = null;
+    List<String> dynamicLibraryLines = null;
+    String dynamicLibraryKey = null;
 
     String[] lines = NEWLINE_SPLITTER.split(crashLog);
     outer:
@@ -303,6 +401,9 @@ public final class HotspotCrashLogParser {
           }
           break;
         case THREAD:
+          if (threadName == null) {
+            threadName = parseCurrentThreadName(line);
+          }
           // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
           if (line.startsWith("Native frames: ")) {
             state = State.STACKTRACE;
@@ -329,7 +430,7 @@ public final class HotspotCrashLogParser {
             registers = new LinkedHashMap<>();
             state = State.REGISTERS;
           } else if (line.contains("P R O C E S S")) {
-            state = State.SEEK_DYNAMIC_LIBRARIES;
+            state = State.PROCESS;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
             final StackFrame frame = parseLine(line);
@@ -349,8 +450,10 @@ public final class HotspotCrashLogParser {
             }
           }
           break;
-        case SEEK_DYNAMIC_LIBRARIES:
-          if (line.startsWith("Dynamic libraries:")) {
+        case PROCESS:
+          if (runtimeArgs == null && line.startsWith("VM Arguments:")) {
+            state = State.VM_ARGUMENTS;
+          } else if (line.startsWith("Dynamic libraries:")) {
             state = State.DYNAMIC_LIBRARIES;
           } else if (line.contains("S Y S T E M")) {
             state = State.SYSTEM;
@@ -358,18 +461,31 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           }
           break;
+        case VM_ARGUMENTS:
+          if (line.isEmpty()) {
+            state = State.PROCESS;
+          } else if (runtimeArgs == null && line.startsWith(HOTSPOT_JVM_ARGS_PREFIX)) {
+            runtimeArgs = parseHotspotJvmArgs(line);
+          }
+          break;
         case DYNAMIC_LIBRARIES:
           if (line.isEmpty()) {
-            state = State.SEEK_DYNAMIC_LIBRARIES;
-          }
-          final Matcher matcher = DYNAMIC_LIBS_PATH_PARSER.matcher(line);
-          if (matcher.matches()) {
-            final String pathString = matcher.group(1);
-            if (pathString != null && !pathString.isEmpty()) {
-              try {
-                final Path path = Paths.get(pathString);
-                buildIdCollector.resolveBuildId(path);
-              } catch (InvalidPathException ignored) {
+            state = State.PROCESS;
+          } else {
+            if (dynamicLibraryKey == null) {
+              dynamicLibraryKey = detectDynamicLibrariesKey(line);
+              dynamicLibraryLines = new ArrayList<>();
+            }
+            final Matcher matcher = DYNAMIC_LIBS_PATH_PARSER.matcher(line);
+            if (matcher.matches()) {
+              final String pathString = matcher.group(1);
+              if (pathString != null && !pathString.isEmpty()) {
+                dynamicLibraryLines.add(line);
+                try {
+                  final Path path = Paths.get(pathString);
+                  buildIdCollector.resolveBuildId(path);
+                } catch (InvalidPathException ignored) {
+                }
               }
             }
           }
@@ -394,8 +510,8 @@ public final class HotspotCrashLogParser {
       }
     }
 
-    // SEEK_DYNAMIC_LIBRARIES and SYSTEM sections are late enough that all critical data is captured
-    if (state != State.DONE && state != State.SEEK_DYNAMIC_LIBRARIES && state != State.SYSTEM) {
+    // PROCESS and SYSTEM sections are late enough that all critical data is captured
+    if (state != State.DONE && state != State.PROCESS && state != State.SYSTEM) {
       // incomplete crash log
       incomplete = true;
     }
@@ -424,9 +540,12 @@ public final class HotspotCrashLogParser {
                 normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
+                frame.frameType,
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       } else {
         enrichedFrames.add(
@@ -434,22 +553,33 @@ public final class HotspotCrashLogParser {
                 normalizeFilename(frame.path),
                 frame.line,
                 frame.function,
+                frame.frameType,
                 null,
                 null,
                 null,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       }
     }
 
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+        new ErrorData(
+            kind, message, threadName, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     // We can not really extract the full metadata and os info from the crash log
     // This code assumes the parser is run on the same machine as the crash happened
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     Experimental experimental =
-        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
+        (registers != null && !registers.isEmpty())
+                || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            ? new Experimental(registers, runtimeArgs)
+            : null;
+    DynamicLibs files =
+        (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
+            ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)
+            : null;
     return new CrashLog(
         uuid,
         incomplete,
@@ -460,7 +590,8 @@ public final class HotspotCrashLogParser {
         procInfo,
         sigInfo,
         "1.0",
-        experimental);
+        experimental,
+        files);
   }
 
   static String dateTimeToISO(String datetime) {
@@ -475,6 +606,40 @@ public final class HotspotCrashLogParser {
         return null;
       }
     }
+  }
+
+  /**
+   * Detects whether the Dynamic libraries section comes from Linux {@code /proc/self/maps} (address
+   * range format {@code addr-addr perms ...}) or from the BSD/macOS dyld callback (format {@code
+   * 0xaddr\tpath}). Returns the appropriate map key.
+   */
+  // The "Dynamic libraries:" section is written by os::print_dll_info(), whose implementation
+  // differs by platform:
+  //
+  // Linux
+  // -----
+  // This reads `/proc/{tid}/maps` verbatim via _print_ascii_file(), producing the usual
+  // `/proc/self/maps` format:
+  //
+  //   "addr-addr perms offset dev:inode [path]"
+  //
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/783f8f1adc4ea3ef7fd4c5ca5473aad76dfc7ed1/src/hotspot/os/linux/os_linux.cpp#L2086-L2099
+  //
+  // BSD/macOS
+  // ---------
+  // This relies on `_dyld_image_count()`/`_dyld_get_image_name()` (on macOS) or
+  // `dlinfo(RTLD_DI_LINKMAP)` (on FreeBSD/OpenBSD) via a callback, producing a simpler format:
+  //
+  //   "0xaddr\tpath"
+  //
+  // which lacks much of the information found in Linux's `/proc/self/maps`.
+  // Mainline:
+  // https://github.com/openjdk/jdk/blob/783f8f1adc4ea3ef7fd4c5ca5473aad76dfc7ed1/src/hotspot/os/bsd/os_bsd.cpp#L1382-L1387
+  static String detectDynamicLibrariesKey(String firstLine) {
+    int dash = firstLine.indexOf('-');
+    int space = firstLine.indexOf(' ');
+    return (dash > 0 && space > 0 && dash < space) ? "/proc/self/maps" : "dynamic_libraries";
   }
 
   static Integer safelyParseInt(String value) {

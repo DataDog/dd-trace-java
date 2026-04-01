@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -95,8 +97,11 @@ public class OpenAiDecorator extends ClientDecorator {
       span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
       span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
       span.setTag(CommonTags.VERSION, wellKnownTags.getVersion());
+      span.setTag(CommonTags.DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
       span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
+      span.setTag(CommonTags.SOURCE, "integration");
+      span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
@@ -111,6 +116,9 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
     if (llmObsEnabled) {
+      span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
+      span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
+
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();
