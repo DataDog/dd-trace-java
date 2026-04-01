@@ -28,8 +28,7 @@ public final class RemoteHostnameAdder extends TagsPostProcessor {
     }
 
     TagMap.Entry cachedHostEntry = this.cachedHostEntry;
-
-    if (cachedHostEntry != null && cachedHostEntry.objectValue().equals(hostname)) {
+    if (cachedHostEntry != null && hostname.equals(cachedHostEntry.objectValue())) {
       unsafeTags.set(cachedHostEntry);
       return;
     }
