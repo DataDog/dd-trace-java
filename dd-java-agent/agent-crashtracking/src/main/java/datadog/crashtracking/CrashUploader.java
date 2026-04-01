@@ -577,6 +577,7 @@ public final class CrashUploader {
         // experimental
         if (payload.experimental != null
             && (payload.experimental.ucontext != null
+                || payload.experimental.registerToMemoryMapping != null
                 || payload.experimental.runtimeArgs != null)) {
           writer.name("experimental");
           writer.beginObject();
@@ -584,6 +585,15 @@ public final class CrashUploader {
             writer.name("ucontext");
             writer.beginObject();
             for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
+          }
+          if (payload.experimental.registerToMemoryMapping != null) {
+            writer.name("register_to_memory_mapping");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry :
+                payload.experimental.registerToMemoryMapping.entrySet()) {
               writer.name(entry.getKey()).value(entry.getValue());
             }
             writer.endObject();

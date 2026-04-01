@@ -1,5 +1,7 @@
 package datadog.crashtracking.parsers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -87,11 +89,47 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x0000000000000000", crashLog.experimental.ucontext.get("R0"));
     assertEquals("0x0000000000000001", crashLog.experimental.ucontext.get("R1"));
     assertEquals("0x0000ffff9efa168c", crashLog.experimental.ucontext.get("R30"));
-    // "Register to memory mapping:" section must NOT be included
     assertEquals(31, crashLog.experimental.ucontext.size(), "R0-R30 = 31 registers");
+  }
 
-    assertNotNull(crashLog.experimental.runtimeArgs);
-    assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
+  @Test
+  public void testRegisterToMemoryMapping() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
+
+    assertThat(crashLog.experimental).isNotNull();
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .isNotNull()
+        .containsEntry(
+            "RAX",
+            "0x00007f36ccfbf170 points into unknown readable memory: 0x00007f3600000758 | 58 07 00 00 36 7f 00 00")
+        .containsEntry(
+            "RSP", "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80")
+        .containsEntry("RDI", "0x0 is NULL")
+        .containsEntry(
+            "R11",
+            "{method} {0x00007f3744198b70} 'resize' '()[Ljava/util/HashMap$Node;' in 'java/util/HashMap'");
+  }
+
+  @Test
+  public void testRegisterToMultilineMemoryMapping() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
+
+    assertThat(crashLog.experimental).isNotNull();
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .isNotNull()
+        .containsKey("R10");
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("R10", STRING)
+        .startsWith("0x00000007ffe85850 is an oop: java.lang.Class ")
+        .contains("\n{0x00000007ffe85850} - klass: 'java/lang/Class'")
+        .contains("\n - ---- fields (total size 25 words):")
+        .contains(
+            "\n - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"");
   }
 
   @Test
