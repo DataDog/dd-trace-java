@@ -117,6 +117,10 @@ public final class OtlpMetricsProto {
       writeI64(buf, (long) histogram.count);
       writeTag(buf, 5, I64_WIRE_TYPE);
       writeI64(buf, histogram.sum);
+      writeTag(buf, 11, I64_WIRE_TYPE);
+      writeI64(buf, histogram.min);
+      writeTag(buf, 12, I64_WIRE_TYPE);
+      writeI64(buf, histogram.max);
       for (double bucketCount : histogram.bucketCounts) {
         writeTag(buf, 6, I64_WIRE_TYPE);
         writeI64(buf, (long) bucketCount);
