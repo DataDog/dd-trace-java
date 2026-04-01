@@ -183,6 +183,7 @@ final class RuntimeArgs {
     }
     List<String> joinedArgs = new ArrayList<>();
     boolean canContinuePreviousArg = false;
+    StringBuilder argBuilder = new StringBuilder();
     for (int i = 0; i < tokens.size(); i++) {
       String token = tokens.get(i);
       if (token.isEmpty()) {
@@ -194,22 +195,26 @@ final class RuntimeArgs {
             && isContinuationToken(token)
             && acceptsContinuation(joinedArgs.get(joinedArgs.size() - 1))) {
           int last = joinedArgs.size() - 1;
-          joinedArgs.set(last, joinedArgs.get(last) + " " + token);
+          argBuilder.setLength(0);
+          argBuilder.append(joinedArgs.get(last)).append(' ').append(token);
+          joinedArgs.set(last, argBuilder.toString());
           continue;
         }
         canContinuePreviousArg = false;
         continue;
       }
 
-      String arg = token;
+      argBuilder.setLength(0);
+      argBuilder.append(token);
       if (requiresSeparateValue(token) && i + 1 < tokens.size()) {
-        arg = token + " " + tokens.get(++i);
+        argBuilder.append(' ').append(tokens.get(++i));
       }
       while (i + 1 < tokens.size()
           && isContinuationToken(tokens.get(i + 1))
-          && acceptsContinuation(arg)) {
-        arg = arg + " " + tokens.get(++i);
+          && acceptsContinuation(argBuilder.toString())) {
+        argBuilder.append(' ').append(tokens.get(++i));
       }
+      String arg = argBuilder.toString();
       joinedArgs.add(arg);
       canContinuePreviousArg = acceptsContinuation(arg);
     }
