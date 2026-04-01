@@ -3,6 +3,7 @@ package datadog.crashtracking;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_EVP_SUBDOMAIN;
 import static datadog.crashtracking.CrashUploader.HEADER_DD_TELEMETRY_API_VERSION;
 import static datadog.crashtracking.CrashUploader.TELEMETRY_API_VERSION;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -292,9 +293,9 @@ public class CrashUploaderTest {
     String message = event.get("payload").get(0).get("message").asText();
     CrashLog extracted = CrashLog.fromJson(message);
 
-    assertTrue(
-        expected.equalsForTest(extracted),
-        () -> "Expected: " + expected.toJson() + "\nbut got: " + extracted.toJson());
+    assertThatJson(extracted.toJson())
+        .whenIgnoringPaths("os_info", "metadata", "experimental")
+        .isEqualTo(expected.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
   }
@@ -356,19 +357,39 @@ public class CrashUploaderTest {
     assertTrue(ddtags.contains("runtime_name:"));
 
     // assert platform independent equality
-    assertEquals(
-        expected,
-        extracted,
-        () -> {
-          try {
-            return "Expected: "
-                + mapper.writeValueAsString(expected)
-                + "\nbut got: "
-                + mapper.writeValueAsString(extracted);
-          } catch (JsonProcessingException e) {
-            throw new RuntimeException(e);
-          }
-        });
+    assertThatJson(mapper.writeValueAsString(extracted))
+        .whenIgnoringPaths("experimental")
+        .isEqualTo(mapper.writeValueAsString(expected));
+  }
+
+  @Test
+  public void testErrorTrackingSerializesRuntimeArgs() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .build();
+
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-macos-aarch64.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    final JsonNode runtimeArgs = event.at("/experimental/runtime_args");
+    assertTrue(runtimeArgs.isArray());
+    boolean found = false;
+    for (JsonNode runtimeArg : runtimeArgs) {
+      if ("--enable-native-access=ALL-UNNAMED".equals(runtimeArg.asText())) {
+        found = true;
+        break;
+      }
+    }
+    assertTrue(found);
   }
 
   private void assertCommonHeader(JsonNode event) {

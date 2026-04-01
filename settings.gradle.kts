@@ -60,7 +60,7 @@ include(
   ":dd-trace-core",
   ":dd-java-agent",
   ":dd-java-agent:agent-bootstrap",
-  ":dd-java-agent:agent-builder",
+  ":dd-java-agent:agent-installer",
   ":dd-java-agent:agent-tooling",
   ":dd-java-agent:agent-jmxfetch",
   ":dd-java-agent:agent-logging",
