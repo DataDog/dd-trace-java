@@ -1,5 +1,9 @@
 package datadog.trace.instrumentation.aerospike4
 
+import static datadog.environment.OperatingSystem.arm64
+import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
+import static java.util.concurrent.TimeUnit.SECONDS
+import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
@@ -9,11 +13,9 @@ import datadog.trace.core.DDSpan
 import org.testcontainers.containers.GenericContainer
 import spock.lang.Shared
 
-import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
-import static java.util.concurrent.TimeUnit.SECONDS
-import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
-
 abstract class AerospikeBaseTest extends VersionedNamingTestBase {
+  // arm64 supported only since `ce-6.2.0.2`:
+  private static final String AEROSPIKE_IMAGE = isArm64() ? 'aerospike:ce-6.2.0.2' : 'aerospike:5.5.0.9'
 
   @Shared
   def aerospike
@@ -25,7 +27,7 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
   int aerospikePort = 3000
 
   def setup() throws Exception {
-    aerospike = new GenericContainer('aerospike:5.5.0.9')
+    aerospike = new GenericContainer(AEROSPIKE_IMAGE)
       .withExposedPorts(3000)
       .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
 
