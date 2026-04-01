@@ -9,12 +9,6 @@ import org.gradle.kotlin.dsl.withType
 import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
-import javax.xml.parsers.DocumentBuilderFactory
-import javax.xml.transform.OutputKeys
-import javax.xml.transform.TransformerFactory
-import javax.xml.transform.dom.DOMSource
-import javax.xml.transform.stream.StreamResult
-import org.w3c.dom.Element
 
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
@@ -119,53 +113,4 @@ tasks.withType<Test>().configureEach {
       }
     }
   }
-}
-
-tasks.withType<Test>().configureEach {
-  
-  // Gradle generates synthetic test cases in JUnit reports for setup methods. When a setup is retried
-  // and eventually succeeds, multiple test cases are created, with only the last one passing. Since the
-  // retry succeeds, this does not fail the CI.
-  //
-  // However, all intermediate attempts are reported as failures in TestOptimization, which is misleading.
-  //
-  // To tackle this, we'll expose a final_status field:
-  // - "skip" for intermediate retries
-  // - nothing on last attempt, using the defaulting made by Test Optimization
-  //
-  // Charles de Beauchesne, March 2025
-
-  doLast("post-process-junit-xml-report") {
-    val dir = reports.junitXml.outputLocation.get().asFile
-    if (!dir.exists()) return@doLast
-    dir.walkTopDown()
-      .filter { it.isFile && it.extension == "xml" }
-      .forEach { xmlFile ->
-        try {
-          tagInitializationErrors(xmlFile)
-        } catch (e: Exception) {
-          logger.warn("Failed to remove initializationError testcases from {}: {}", xmlFile.name, e.message)
-        }
-      }
-  }
-}
-
-fun tagInitializationErrors(xmlFile: File) {
-  val doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile)
-  val testcases = doc.getElementsByTagName("testcase")
-  val initErrorCases = (0 until testcases.length)
-    .map { testcases.item(it) as Element }
-    .filter { it.getAttribute("name") == "initializationError" }
-  if (initErrorCases.size <= 1) return
-  initErrorCases.dropLast(1).forEach { testcase ->
-    val properties = doc.createElement("properties")
-    val property = doc.createElement("property")
-    property.setAttribute("name", "dd_tags[test.final_status]")
-    property.setAttribute("value", "skip")
-    properties.appendChild(property)
-    testcase.appendChild(properties)
-  }
-  val transformer = TransformerFactory.newInstance().newTransformer()
-  transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8")
-  transformer.transform(DOMSource(doc), StreamResult(xmlFile))
 }
