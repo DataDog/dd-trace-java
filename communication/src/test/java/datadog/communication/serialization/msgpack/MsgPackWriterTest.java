@@ -666,7 +666,7 @@ public class MsgPackWriterTest {
                   }
                 }));
     writer.writeObjectString(value, null);
-    writer.writeObjectString(value, s -> "foobàr".getBytes(UTF_8));
+    writer.writeObjectString(value, s -> NON_ASCII_BYTES);
   }
 
   @Test
