@@ -16,7 +16,7 @@ public class MetadataUpdateBefore22Advice {
       String clusterId = newCluster.clusterResource().clusterId();
       MetadataState state =
           InstrumentationContext.get(Metadata.class, MetadataState.class)
-              .putIfAbsent(metadata, new MetadataState());
+              .putIfAbsent(metadata, MetadataState::new);
       state.clusterId = clusterId;
       KafkaConfigHelper.reportPendingConfig(state, clusterId);
     }

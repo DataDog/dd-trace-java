@@ -90,7 +90,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         String clusterId = newCluster.clusterResource().clusterId();
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, new MetadataState());
+                .putIfAbsent(metadata, MetadataState::new);
         state.clusterId = clusterId;
         KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }
@@ -111,7 +111,7 @@ public class MetadataInstrumentation extends InstrumenterModule.Tracing
         String clusterId = response.clusterId();
         MetadataState state =
             InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, new MetadataState());
+                .putIfAbsent(metadata, MetadataState::new);
         state.clusterId = clusterId;
         KafkaConfigHelper.reportPendingConfig(state, clusterId);
       }
