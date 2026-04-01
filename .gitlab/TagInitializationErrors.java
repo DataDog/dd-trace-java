@@ -6,7 +6,9 @@ import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Tags intermediate initializationError retries with dd_tags[test.final_status]=skip.
@@ -30,23 +32,31 @@ class TagInitializationErrors {
     }
     var doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile);
     var testcases = doc.getElementsByTagName("testcase");
-    List<Element> initErrorCases = new ArrayList<>();
+    Map<String, List<Element>> byClassname = new LinkedHashMap<>();
     for (int i = 0; i < testcases.getLength(); i++) {
       var e = (Element) testcases.item(i);
       if ("initializationError".equals(e.getAttribute("name"))) {
-        initErrorCases.add(e);
+        byClassname.computeIfAbsent(e.getAttribute("classname"), k -> new ArrayList<>()).add(e);
       }
     }
-    if (initErrorCases.size() <= 1) return;
-    for (int i = 0; i < initErrorCases.size() - 1; i++) {
-      var testcase = initErrorCases.get(i);
-      var properties = doc.createElement("properties");
-      var property = doc.createElement("property");
-      property.setAttribute("name", "dd_tags[test.final_status]");
-      property.setAttribute("value", "skip");
-      properties.appendChild(property);
-      testcase.appendChild(properties);
+    boolean modified = false;
+    for (var group : byClassname.values()) {
+      if (group.size() <= 1) continue;
+      for (int i = 0; i < group.size() - 1; i++) {
+        var testcase = group.get(i);
+        var existingProperties = testcase.getElementsByTagName("properties");
+        var properties = existingProperties.getLength() > 0
+            ? (Element) existingProperties.item(0)
+            : doc.createElement("properties");
+        var property = doc.createElement("property");
+        property.setAttribute("name", "dd_tags[test.final_status]");
+        property.setAttribute("value", "skip");
+        properties.appendChild(property);
+        if (existingProperties.getLength() == 0) testcase.appendChild(properties);
+        modified = true;
+      }
     }
+    if (!modified) return;
     var transformer = TransformerFactory.newInstance().newTransformer();
     transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
     transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
