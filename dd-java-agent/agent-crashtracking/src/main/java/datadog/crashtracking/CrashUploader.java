@@ -586,6 +586,18 @@ public final class CrashUploader {
           writer.endObject();
           writer.endObject();
         }
+        // files (e.g. /proc/self/maps or dynamic_libraries)
+        if (payload.files != null) {
+          writer.name("files");
+          writer.beginObject();
+          writer.name(payload.files.name);
+          writer.beginArray();
+          for (String fileLine : payload.files.lines) {
+            writer.value(fileLine);
+          }
+          writer.endArray();
+          writer.endObject();
+        }
         writer.endObject();
       }
       return RequestBody.create(APPLICATION_JSON, buf.readByteString());

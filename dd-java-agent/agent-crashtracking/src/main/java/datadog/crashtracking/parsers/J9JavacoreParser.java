@@ -303,7 +303,8 @@ public final class J9JavacoreParser {
         procInfo,
         sigInfo,
         "1.0",
-        experimental);
+        experimental,
+        null);
   }
 
   private static Integer safelyParseInt(String value) {
