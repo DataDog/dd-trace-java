@@ -15,7 +15,7 @@ public class ConfigHelper {
 
   /** Config Inversion strictness policy for enforcement of undocumented environment variables */
   public enum StrictnessPolicy {
-    STRICT,
+    STRICT_TEST,
     WARNING,
     TEST;
 
@@ -142,8 +142,12 @@ public class ConfigHelper {
         ConfigInversionMetricCollectorProvider.get().setUndocumentedEnvVarMetric(name);
       }
 
-      if (configInversionStrict == StrictnessPolicy.STRICT) {
-        return null; // If strict mode is enabled, return null for unsupported configs
+      if (configInversionStrict == StrictnessPolicy.STRICT_TEST) {
+        throw new IllegalArgumentException(
+            "Unsupported configuration: "
+                + name
+                + " is not in GeneratedSupportedConfigurations. "
+                + "Add it to metadata/supported-configurations.json or remove the usage.");
       }
     }
 
