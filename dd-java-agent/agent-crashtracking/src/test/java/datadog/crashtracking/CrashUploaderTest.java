@@ -294,7 +294,7 @@ public class CrashUploaderTest {
     CrashLog extracted = CrashLog.fromJson(message);
 
     assertThatJson(extracted.toJson())
-        .whenIgnoringPaths("os_info", "metadata")
+        .whenIgnoringPaths("os_info", "metadata", "experimental")
         .isEqualTo(expected.toJson());
     assertEquals("severity:crash", event.get("payload").get(0).get("tags").asText());
     assertCommonPayload(event);
@@ -358,7 +358,38 @@ public class CrashUploaderTest {
 
     // assert platform independent equality
     assertThatJson(mapper.writeValueAsString(extracted))
+        .whenIgnoringPaths("experimental")
         .isEqualTo(mapper.writeValueAsString(expected));
+  }
+
+  @Test
+  public void testErrorTrackingSerializesRuntimeArgs() throws Exception {
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .build();
+
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-macos-aarch64.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    final JsonNode runtimeArgs = event.at("/experimental/runtime_args");
+    assertTrue(runtimeArgs.isArray());
+    boolean found = false;
+    for (JsonNode runtimeArg : runtimeArgs) {
+      if ("--enable-native-access=ALL-UNNAMED".equals(runtimeArg.asText())) {
+        found = true;
+        break;
+      }
+    }
+    assertTrue(found);
   }
 
   private void assertCommonHeader(JsonNode event) {

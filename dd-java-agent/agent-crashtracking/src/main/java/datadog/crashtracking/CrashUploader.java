@@ -575,15 +575,27 @@ public final class CrashUploader {
           writer.endObject();
         }
         // experimental
-        if (payload.experimental != null && payload.experimental.ucontext != null) {
+        if (payload.experimental != null
+            && (payload.experimental.ucontext != null
+                || payload.experimental.runtimeArgs != null)) {
           writer.name("experimental");
           writer.beginObject();
-          writer.name("ucontext");
-          writer.beginObject();
-          for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
-            writer.name(entry.getKey()).value(entry.getValue());
+          if (payload.experimental.ucontext != null) {
+            writer.name("ucontext");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
           }
-          writer.endObject();
+          if (payload.experimental.runtimeArgs != null) {
+            writer.name("runtime_args");
+            writer.beginArray();
+            for (String arg : payload.experimental.runtimeArgs) {
+              writer.value(arg);
+            }
+            writer.endArray();
+          }
           writer.endObject();
         }
         // files (e.g. /proc/self/maps or dynamic_libraries)
