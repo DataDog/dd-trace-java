@@ -162,12 +162,12 @@ fi
 echo "✅ All issues and PRs in milestone '$MILESTONE_TITLE' are closed."
 
 # Check that all closed PRs in the milestone carry the required labels.
-# Required: (comp:* or inst:*) AND (type:*), OR 'tag: no release note'.
+# Required: (comp:* or inst:*) AND (type:*), OR 'tag: no release notes'.
 if ! NONCOMPLIANT=$(gh api --paginate \
     "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=closed&per_page=100" \
     --jq '[.[] | select(.pull_request != null) |
           select(
-            ((.labels | map(.name) | map(. == "tag: no release note") | any) | not) and
+            ((.labels | map(.name) | map(. == "tag: no release notes") | any) | not) and
             (
               ((.labels | map(.name) | map(startswith("comp:") or startswith("inst:")) | any) | not) or
               ((.labels | map(.name) | map(startswith("type:")) | any) | not)
@@ -179,7 +179,7 @@ fi
 if [ -n "$NONCOMPLIANT" ]; then
     echo "⚠️  The following PRs in milestone '$MILESTONE_TITLE' are missing required labels:"
     echo "$NONCOMPLIANT"
-    echo "   Each PR needs (a 'comp:' or 'inst:' label) AND (a 'type:' label), or 'tag: no release note'."
+    echo "   Each PR needs (a 'comp:' or 'inst:' label) AND (a 'type:' label), or 'tag: no release notes'."
     confirmOrAbort "Continue despite missing labels? (y/N): "
 else
     echo "✅ All PRs in milestone '$MILESTONE_TITLE' have required labels."
