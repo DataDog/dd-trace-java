@@ -137,9 +137,8 @@ public class BuildIdExtractorIntegrationTest {
   @ParameterizedTest(name = "ELF: {1}")
   @MethodSource("elfBinaries")
   void testElfBuildIdExtraction(String containerPath, String description) throws Exception {
-    assumeFalse(
-        OperatingSystem.architecture() == ARM64,
-        "ELF test uses x86_64 container library paths and is not portable to arm64");
+    // TODO: check if arm64 can be supported too.
+    assumeFalse(OperatingSystem.architecture() == ARM64, "Skipping for arm64");
     Path localBinary = copyFromContainer(linuxContainer, containerPath);
 
     ElfBuildIdExtractor extractor = new ElfBuildIdExtractor();
