@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.common.export;
+package datadog.trace.core.otlp.common;
 
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -8,6 +8,7 @@ import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import java.nio.ByteBuffer;
 import java.util.List;
 

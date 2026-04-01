@@ -1,10 +1,10 @@
-package datadog.trace.bootstrap.otel.common.export;
+package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.recordMessage;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeAttribute;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeTag;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.StreamingBuffer;

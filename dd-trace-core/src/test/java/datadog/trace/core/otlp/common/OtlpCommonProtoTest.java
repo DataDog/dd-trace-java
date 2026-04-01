@@ -1,13 +1,13 @@
-package datadog.trace.bootstrap.otel.common.export;
+package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.BOOLEAN_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.DOUBLE_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.LONG_ARRAY;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
