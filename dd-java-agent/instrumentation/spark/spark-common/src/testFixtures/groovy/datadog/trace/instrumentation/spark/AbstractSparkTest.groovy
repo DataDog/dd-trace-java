@@ -223,6 +223,38 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     }
   }
 
+  def "DataFrame analysis failure on unresolved column marks application span as error"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Triggers AnalysisException via Dataset.select() -> QueryExecution.assertAnalyzed(),
+      // NOT through SparkSession.sql(). This exercises the QueryExecutionFailureAdvice.
+      sparkSession.range(1).toDF("id").select("nonexistent_column")
+    } catch (Exception ignored) {
+      // Expected: AnalysisException thrown by Catalyst analysis
+    }
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark SQL Failed"
+          assert span.tags["error.message"] =~ /(?i).*nonexistent_column.*/
+          assert span.tags["error.stack"] =~ /(?s).*AnalysisException.*/
+        }
+      }
+    }
+  }
+
   def "capture SparkSubmit.runMain() errors"() {
     setup:
     def sparkSession = SparkSession.builder()

@@ -14,6 +14,13 @@ class SparkExitAdvice {
               .getContextClassLoader()
               .loadClass("datadog.trace.instrumentation.spark.AbstractDatadogSparkListener");
       Object datadogListener = klass.getDeclaredField("listener").get(null);
+      System.err.println(
+          "[DD-SPARK-DEBUG] SparkExitAdvice.enter: exitCode="
+              + exitCode
+              + ", listenerNull="
+              + (datadogListener == null)
+              + ", thread="
+              + Thread.currentThread().getName());
       if (datadogListener != null) {
         Method method =
             datadogListener
