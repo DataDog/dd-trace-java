@@ -1,5 +1,6 @@
 package datadog.crashtracking.parsers;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -69,6 +70,7 @@ public final class RedactUtils {
    * Main entry point: redact sensitive data from a register-to-memory mapping value (possibly
    * multiline).
    */
+  @SuppressForbidden // split on single-character uses a fast path without regex
   public static String redactRegisterToMemoryMapping(String value) {
     if (value == null || value.isEmpty()) return value;
     String[] lines = value.split("\n", -1);
@@ -241,6 +243,7 @@ public final class RedactUtils {
    * Redacts all path segments except the parent directory and filename. <code>/path/to/dir/lib.so
    * </code> to <code>/redacted/redacted/dir/lib.so</code>
    */
+  @SuppressForbidden // split on single-character uses a fast path without regex
   static String redactPath(String path) {
     String[] parts = path.split("/", -1);
     // parts[0] is always "" (before the leading slash)
