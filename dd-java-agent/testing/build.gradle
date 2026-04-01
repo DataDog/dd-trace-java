@@ -52,6 +52,7 @@ dependencies {
 
   api project(':dd-java-agent:agent-tooling')
   api project(':dd-java-agent:agent-builder')
+  api project(':dd-trace-core')
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 
