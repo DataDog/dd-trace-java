@@ -54,6 +54,15 @@ public final class RedactUtils {
   private static final Pattern IS_AN_OOP =
       Pattern.compile("(is an oop: )([A-Za-z][A-Za-z0-9$]*(?:\\.[A-Za-z][A-Za-z0-9$]*)*)");
 
+  // Hex-dump bytes in "points into unknown readable memory:" lines.
+  // Two formats produced by os::print_location():
+  //   "memory: 0x<addr> | ff ff ff ff ..."  (Linux/macOS amd64 — address + pipe + bytes)
+  //   "memory: ff ff ff ff ..."              (Linux aarch64    — bytes only)
+  // The address (when present) is kept; only the raw bytes are redacted.
+  private static final Pattern READABLE_MEMORY_HEX_DUMP =
+      Pattern.compile(
+          "(points into unknown readable memory: (?:0x[0-9a-fA-F]+ \\| )?)([0-9a-fA-F]{2}(?: [0-9a-fA-F]{2})*)");
+
   private RedactUtils() {}
 
   /**
@@ -79,6 +88,7 @@ public final class RedactUtils {
     line = redactLibraryPath(line);
     line = redactDottedClassOopRef(line);
     line = redactOopClassName(line);
+    line = redactReadableMemoryHexDump(line);
     return line;
   }
 
@@ -142,6 +152,20 @@ public final class RedactUtils {
    */
   static String redactOopClassName(String line) {
     return replaceAll(IS_AN_OOP, line, m -> m.group(1) + redactDottedClassName(m.group(2)));
+  }
+
+  /**
+   * Redacts hex-dump bytes in <code>points into unknown readable memory:</code> lines, keeping the
+   * optional leading address. Handles two formats:
+   *
+   * <ul>
+   *   <li><code>memory: 0x&lt;addr&gt; | ff ff ff ff</code> to <code>memory: 0x&lt;addr&gt; |
+   *       REDACTED</code>
+   *   <li><code>memory: ff ff ff ff</code> to <code>memory: REDACTED</code>
+   * </ul>
+   */
+  static String redactReadableMemoryHexDump(String line) {
+    return replaceAll(READABLE_MEMORY_HEX_DUMP, line, m -> m.group(1) + REDACTED_STRING);
   }
 
   /**

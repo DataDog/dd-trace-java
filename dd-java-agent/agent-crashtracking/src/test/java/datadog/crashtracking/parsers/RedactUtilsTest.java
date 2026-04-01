@@ -247,4 +247,29 @@ public class RedactUtilsTest {
     assertThat(RedactUtils.redactRegisterToMemoryMapping("0x000000008fd66048 is an unknown value"))
         .isEqualTo("0x000000008fd66048 is an unknown value");
   }
+
+  @Test
+  void testRedactReadableMemoryHexDump_withAddressAndPipe() {
+    // Linux/macOS amd64: address + " | " + bytes — keep address, redact bytes
+    assertThat(
+            RedactUtils.redactReadableMemoryHexDump(
+                "0x0000000100a17cb0 points into unknown readable memory: 0x00000000ffffffff | ff ff ff ff 00 00 00 00"))
+        .isEqualTo(
+            "0x0000000100a17cb0 points into unknown readable memory: 0x00000000ffffffff | REDACTED");
+  }
+
+  @Test
+  void testRedactReadableMemoryHexDump_withoutAddress() {
+    // Linux aarch64: bytes only — redact everything after the colon
+    assertThat(
+            RedactUtils.redactReadableMemoryHexDump(
+                "0x0000ffff9f686ca4 points into unknown readable memory: 06 00 00 00"))
+        .isEqualTo("0x0000ffff9f686ca4 points into unknown readable memory: REDACTED");
+  }
+
+  @Test
+  void testRedactReadableMemoryHexDump_leavesUnrelatedLinesUnchanged() {
+    assertThat(RedactUtils.redactReadableMemoryHexDump("0x00007f37a16e2590 is an unknown value"))
+        .isEqualTo("0x00007f37a16e2590 is an unknown value");
+  }
 }

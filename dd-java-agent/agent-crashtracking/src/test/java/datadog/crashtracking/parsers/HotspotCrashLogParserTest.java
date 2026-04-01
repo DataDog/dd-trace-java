@@ -115,6 +115,12 @@ public class HotspotCrashLogParserTest {
         .isEqualTo(
             "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/server/libjvm.dylib at 0x0000000105efc000");
 
+    // macOS aarch64 uses address+pipe format — address kept, bytes redacted
+    assertThat(mapping)
+        .extractingByKey("x17", STRING)
+        .isEqualTo(
+            "0x0000000100a17cb0 points into unknown readable memory: 0x00000000ffffffff | REDACTED");
+
     // "Top of Stack: (sp=0x...)" and "Instructions: (pc=0x...)" must not leak into register values
     assertThat(mapping).doesNotContainKey("Top of Stack");
     assertThat(mapping)
@@ -154,7 +160,7 @@ public class HotspotCrashLogParserTest {
         .isNotNull()
         .containsEntry(
             "RAX",
-            "0x00007f36ccfbf170 points into unknown readable memory: 0x00007f3600000758 | 58 07 00 00 36 7f 00 00")
+            "0x00007f36ccfbf170 points into unknown readable memory: 0x00007f3600000758 | REDACTED")
         .containsEntry(
             "RSP", "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80")
         .containsEntry("RDI", "0x0 is NULL")
@@ -183,6 +189,11 @@ public class HotspotCrashLogParserTest {
         .contains("\n - ---- fields (total size 25 words):")
         .contains(
             "\n - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"");
+
+    // Linux aarch64 uses bytes-only format (no address prefix before hex dump)
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("R9", STRING)
+        .isEqualTo("0x0000ffff9f686ca4 points into unknown readable memory: REDACTED");
   }
 
   @Test
