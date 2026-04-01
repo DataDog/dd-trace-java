@@ -4,33 +4,55 @@ apply plugin: "idea"
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
+sourceSets {
+  "main_java11" {
+    java.srcDirs "${project.projectDir}/src/main/java11"
+  }
+  "main_java25" {
+    java.srcDirs "${project.projectDir}/src/main/java25"
+  }
+}
+
 dependencies {
   api project(':dd-java-agent:agent-tooling')
 
   implementation project(':dd-java-agent:agent-otel:otel-tooling')
 
+  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
+  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
+
+  compileOnly project(':dd-trace-core')
+  compileOnly project(':dd-java-agent:agent-crashtracking')
+  compileOnly project(':dd-java-agent:agent-jmxfetch')
+  compileOnly project(':dd-java-agent:agent-profiling')
+  compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
+  compileOnly project(':products:metrics:metrics-lib')
+
   testImplementation project(':dd-java-agent:testing')
 }
 
-// Use Java 11 to build a delegating ClassFileTransformer that understands Java modules
-sourceSets {
-  "main_java11" {
-    java.srcDirs "${project.projectDir}/src/main/java11"
-  }
+tasks.named("compileMain_java11Java", JavaCompile) {
+  configureCompiler(it, 11, JavaVersion.VERSION_1_8,
+    "Java 11 sourceset for JPMS-aware ClassFileTransformer, compiled with Java 11 but targeting Java 8 bytecode.")
 }
 
-tasks.named("compileMain_java11Java", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_1_8)
+tasks.named("compileMain_java25Java", JavaCompile) {
+  configureCompiler(it, 25, JavaVersion.VERSION_1_8,
+    "Java 25 sourceset for Foreign Function & Memory API, compiled with Java 25 but targeting Java 8 bytecode.")
 }
 
 dependencies {
   main_java11CompileOnly project(':dd-java-agent:agent-tooling')
   main_java11CompileOnly sourceSets.main.output
+  main_java25CompileOnly project(':dd-trace-core')
+  main_java25CompileOnly sourceSets.main.output
   runtimeOnly sourceSets.main_java11.output
+  runtimeOnly sourceSets.main_java25.output
 }
 
 tasks.named("jar", Jar) {
   from sourceSets.main_java11.output
+  from sourceSets.main_java25.output
 }
 
 idea {
