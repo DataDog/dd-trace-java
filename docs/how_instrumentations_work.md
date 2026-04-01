@@ -244,7 +244,7 @@ After the type is selected, the type’s target members(e.g., methods) must next
 class’s `adviceTransformations()` method.
 ByteBuddy’s [`ElementMatchers`](https://javadoc.io/doc/net.bytebuddy/byte-buddy/1.4.17/net/bytebuddy/matcher/ElementMatchers.html)
 are used to describe the target members to be instrumented.
-Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-builder/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
+Datadog’s [`DDElementMatchers`](../dd-java-agent/agent-installer/src/main/java/datadog/trace/agent/tooling/bytebuddy/matcher/DDElementMatchers.java)
 class also provides these 10 additional matchers:
 
 * implementsInterface
