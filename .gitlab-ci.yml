@@ -30,7 +30,7 @@ variables:
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   ARM64_BUILDER_IMAGE_REPO: "ghcr.io/datadog/dd-trace-java-docker-build"
-  ARM64_BUILDER_IMAGE_TAG_PREFIX: "alexeyk_arm64-test-arm64-"
+  ARM64_BUILDER_IMAGE_TAG: "alexeyk_arm64-test-arm64-base"
   WINDOWS_JDK8_VERSION: "8u482-b08" # keep pinned to Temurin GA patch releases and bump periodically
   WINDOWS_JDK11_VERSION: "11.0.30+7"
   WINDOWS_JDK17_VERSION: "17.0.18+8"
@@ -813,7 +813,7 @@ muzzle-dep-report:
       - data_integrity_failure
 
 .test_job_arm64_poc:
-  image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG_PREFIX}$testJvm
+  image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG}
   tags: [ "docker-in-docker:arm64" ]
   stage: tests
   needs: []
@@ -839,9 +839,6 @@ muzzle-dep-report:
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     JETTY_AVAILABLE_PROCESSORS: 4
   before_script:
-    - source .gitlab/gitlab-utils.sh
-    - apt-get update
-    - apt-get install -y --no-install-recommends git
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
     - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
     - |
@@ -855,18 +852,13 @@ muzzle-dep-report:
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - *normalize_node_index
-    - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
-    - cp -r .gradle .gradle-copy
-    - rm -rf .gradle
-    - mv .gradle-copy .gradle
-    - ls -la
-    - gitlab_section_end "gradle-dance"
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
-    - ./gradlew --version
+    - chown -R non-root-user:non-root-group "$CI_PROJECT_DIR"
+    - su -m non-root-user -c "./gradlew --version"
   script:
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
+    - su -m non-root-user -c "./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue"
   artifacts:
     when: always
     paths:
