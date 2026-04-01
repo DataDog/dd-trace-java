@@ -1,20 +1,19 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
+import java.util.concurrent.TimeUnit
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse
 import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager
+import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.http.HttpRequest
-import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicHeader
 import org.apache.hc.core5.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
-
-import java.util.concurrent.TimeUnit
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
@@ -44,7 +43,7 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
       return response.code
     }
     finally {
-      response?.close()
+      response?.entity?.content?.close() // Make sure the connection is closed.
     }
   }
 
@@ -271,11 +270,12 @@ class ApacheClientNestedExecuteTest extends ApacheHttpClientTest<ClassicHttpRequ
       trace(size(2)) {
         sortSpansByStart()
         // Token request runs first (inside interceptor), then main request
-        clientSpan(it, null, "GET", false, false, tokenUri)
-        clientSpan(it, span(0), "GET", false, false, mainUri)
+        // but the main span starts first because the token request is sent in an interceptor
+        clientSpan(it, null, "GET", false, false, mainUri)
+        clientSpan(it, span(0), "GET", false, false, tokenUri)
       }
-      server.distributedRequestTrace(it, trace(0)[0])
       server.distributedRequestTrace(it, trace(0)[1])
+      server.distributedRequestTrace(it, trace(0)[0])
     }
 
     cleanup:
