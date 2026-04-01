@@ -10,6 +10,7 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
@@ -144,7 +145,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(TRACE_EXTENSIONS_PATH, extensions);
 
     String exporter = getOtelProperty("otel.traces.exporter");
-    if ("otlp".equalsIgnoreCase(exporter)) {
+    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
       capture(TRACE_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_TRACES_HEADERS,
@@ -179,7 +180,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
+      capture(METRICS_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_METRICS_HEADERS,
           getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
