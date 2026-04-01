@@ -5,6 +5,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class TestStringConcatFactorySuite {
+  // Explicit escape for non-ASCII symbol to make test independent of container settings.
+  private static final String UTF_CONSTANT = "\uD840\uDDA2"; // 𠆢
 
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringConcatFactorySuite.class);
 
@@ -33,7 +35,8 @@ public abstract class TestStringConcatFactorySuite {
 
   public static String plusWithUtfConstants(final String left, final String right) {
     LOGGER.debug("Before string plus {} {}", left, right);
-    final String result = "𠆢" + left + "𠆢\u0001𠆢" + right + ".";
+    final String result =
+        UTF_CONSTANT + left + UTF_CONSTANT + "\u0001" + UTF_CONSTANT + right + ".";
     LOGGER.debug("After string plus {}", result);
     return result;
   }
@@ -50,7 +53,8 @@ public abstract class TestStringConcatFactorySuite {
     LOGGER.debug("Before string plus {}", Arrays.toString(target));
     String result = "";
     for (final Object item : target) {
-      result += item;
+      //noinspection StringConcatenationInLoop
+      result += item; // intentional `+` in loop for test.
     }
     LOGGER.debug("After string plus {}", result);
     return result;

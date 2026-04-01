@@ -7,6 +7,8 @@ import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestURLEncoderCallSiteSuite
 
 class URLEncoderCallSiteTest extends InstrumentationSpecification {
+  // Explicit escape for non-ASCII `ståle` to make test independent of container settings.
+  private static final String NON_ASCII_QUERY = 'my test.asp?name=st\u00E5le&car=saab'
 
   @Override
   protected void configurePreAgent() {
@@ -27,9 +29,9 @@ class URLEncoderCallSiteTest extends InstrumentationSpecification {
     0 * _
 
     where:
-    args                                         | expected
-    ['my test.asp?name=ståle&car=saab']          | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
-    ['my test.asp?name=ståle&car=saab', 'UTF-8'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
+    args                       | expected
+    [NON_ASCII_QUERY]          | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
+    [NON_ASCII_QUERY, 'UTF-8'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
   }
 
   void 'test encode with null args'() {
