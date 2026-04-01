@@ -38,9 +38,11 @@ public final class RedactUtils {
   // 'in 'class'' clause in {method} descriptor entries
   private static final Pattern METHOD_IN_CLASS = Pattern.compile("( in ')([^']+)(')");
 
-  // Library path after <offset 0x...> in /path/to/lib.so
+  // Library path in two formats produced by os::print_location():
+  //   <offset 0x...> in /path/to/lib.so at 0x...       (no dladdr symbol)
+  //   symbol+offset in /path/to/lib.so at 0x...         (dladdr resolved a symbol name)
   private static final Pattern LIBRARY_PATH =
-      Pattern.compile("(<offset 0x[0-9a-fA-F]+> in )(/\\S+)");
+      Pattern.compile("((?:<[^>]+>|\\S+\\+\\S+)\\s+in\\s+)(/\\S+)");
 
   // Dotted class name followed by an OOP reference: "com.company.Type"{0x...}
   // This specifically identifies the inline string value of a java.lang.Class 'name' field
@@ -115,9 +117,9 @@ public final class RedactUtils {
   }
 
   /**
-   * Redacts all but the parent directory and filename from a library path in the line: <code>
-   * &lt;offset 0x...&gt; in /path/to/dir/lib.so</code> to <code>
-   * &lt;offset 0x...&gt; in /redacted/redacted/dir/lib.so</code>
+   * Redacts all but the parent directory and filename from a library path. Handles both
+   * <code>&lt;offset 0x...&gt; in /path/to/dir/lib.so</code> and <code>symbol+0 in
+   * /path/to/dir/lib.so</code> to <code>... in /redacted/redacted/dir/lib.so</code>
    */
   static String redactLibraryPath(String line) {
     return replaceAll(LIBRARY_PATH, line, m -> m.group(1) + redactPath(m.group(2)));

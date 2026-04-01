@@ -650,7 +650,7 @@ public final class HotspotCrashLogParser {
     if (line.contains("P R O C E S S")) {
       return State.PROCESS;
     }
-    if (previousLineBlank && !line.contains("=") && SUBSECTION_TITLE.matcher(line).matches()) {
+    if (previousLineBlank && SUBSECTION_TITLE.matcher(line).matches()) {
       return State.STACKTRACE;
     }
     return null;

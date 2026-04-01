@@ -13,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -68,12 +69,62 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x000000010f8ac794", crashLog.experimental.ucontext.get("pc"));
     assertEquals("0x0000000060001000", crashLog.experimental.ucontext.get("cpsr"));
 
+    // "Top of Stack: (sp=0x...)" contains "=" — verify the parser stops at it and doesn't
+    // absorb its hex-dump content into the last register mapping entry (sp).
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("sp", STRING)
+        .doesNotContain("Top of Stack:");
+
     assertNotNull(crashLog.experimental.runtimeArgs);
     assertTrue(crashLog.experimental.runtimeArgs.contains("--enable-native-access=ALL-UNNAMED"));
     assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
     assertFalse(
         crashLog.experimental.runtimeArgs.stream()
             .anyMatch(arg -> arg.contains("SourceLauncher") || arg.endsWith("CrashTest.java")));
+  }
+
+  /**
+   * Verifies the register-to-memory mapping section for the macOS aarch64 sample:
+   * representative values, library path redaction, and that "Top of Stack:" / "Instructions:"
+   * subsections are not absorbed into register values.
+   */
+  @Test
+  public void testRegisterToMemoryMappingMacosAarch64() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
+
+    Map<String, String> mapping = crashLog.experimental.registerToMemoryMapping;
+
+    // Representative single-line entries
+    assertThat(mapping)
+        .containsEntry("x0", "0x0000000000000c55 is an unknown value")
+        .containsEntry("x2", "0x0 is null")
+        .containsEntry("x28", "0x0000000100a153f0 is a thread");
+
+    // Library path (symbol+offset format) — path must be redacted, keeping only last 2 segments
+    // /usr/lib/system/libsystem_pthread.dylib → 2 redacted ("usr","lib") + "system/lib..."
+    assertThat(mapping)
+        .extractingByKey("x16", STRING)
+        .isEqualTo(
+            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
+    // /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib → 9 redacted + "server/libjvm.dylib"
+    assertThat(mapping)
+        .extractingByKey("x21", STRING)
+        .isEqualTo(
+            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/server/libjvm.dylib at 0x0000000105efc000");
+
+    // "Top of Stack: (sp=0x...)" and "Instructions: (pc=0x...)" must not leak into register values
+    assertThat(mapping).doesNotContainKey("Top of Stack");
+    assertThat(mapping)
+        .allSatisfy(
+            (k, v) -> assertThat(v).doesNotContain("Top of Stack:", "Instructions:"));
+
+    // sp is the last register before "Top of Stack:" — its value must be clean
+    assertThat(mapping)
+        .extractingByKey("sp", STRING)
+        .isEqualTo("0x000000016feee0f0 is pointing into the stack for thread: 0x0000000100a153f0");
   }
 
   /** Linux aarch64 uses uppercase register names: R0-R30 */

@@ -124,12 +124,41 @@ public class RedactUtilsTest {
   }
 
   @Test
-  void testRedactLibraryPath_redactsIntermediateSegments() {
+  void testRedactLibraryPath_offsetFormat() {
     assertThat(
             RedactUtils.redactLibraryPath(
                 "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /opt/company/lib/server/app.so at 0x0000ffff9e1a0000"))
         .isEqualTo(
             "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /redacted/redacted/redacted/server/app.so at 0x0000ffff9e1a0000");
+  }
+
+  @Test
+  void testRedactLibraryPath_symbolOffsetFormat() {
+    // macOS/Linux: dladdr resolved a C++ mangled symbol — "symbol+offset in /path at 0x..."
+    assertThat(
+            RedactUtils.redactLibraryPath(
+                "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib at 0x0000000105efc000"))
+        .isEqualTo(
+            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/server/libjvm.dylib at 0x0000000105efc000");
+  }
+
+  @Test
+  void testRedactLibraryPath_cSymbolFormat() {
+    // macOS: C symbol "symbol+0 in /usr/lib/system/lib.dylib at 0x..."
+    assertThat(
+            RedactUtils.redactLibraryPath(
+                "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /usr/lib/system/libsystem_pthread.dylib at 0x0000000182d69000"))
+        .isEqualTo(
+            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
+  }
+
+  @Test
+  void testRedactLibraryPath_doesNotMatchInterpreterCodelet() {
+    // "code_begin+1776 in an Interpreter codelet" — "an" doesn't start with "/" so no match
+    assertThat(
+            RedactUtils.redactLibraryPath(
+                "0x0000000116d0c970 is at code_begin+1776 in an Interpreter codelet"))
+        .isEqualTo("0x0000000116d0c970 is at code_begin+1776 in an Interpreter codelet");
   }
 
   @Test
