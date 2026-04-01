@@ -28,11 +28,11 @@ tracerJava {
 
 dependencies {
   compileOnly project(':dd-java-agent:agent-logging')
-  compileOnly project(':dd-java-agent:agent-builder')
+  compileOnly project(':dd-java-agent:agent-installer')
 
   main_java11CompileOnly group: 'org.graalvm.nativeimage', name: 'svm', version: '20.0.0'
 
-  muzzleBootstrap project(path: ':dd-java-agent:agent-builder') // to see TracerActivation
+  muzzleBootstrap project(path: ':dd-java-agent:agent-installer') // to see TracerActivation
 }
 
 tasks.named("forbiddenApisMain_java11") {
