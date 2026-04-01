@@ -158,11 +158,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
       if (Config.get().isDataStreamsEnabled()) {
         MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-        if (state == null) {
-          state = new MetadataState();
-          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
-        }
+            InstrumentationContext.get(Metadata.class, MetadataState.class)
+                .putIfAbsent(metadata, new MetadataState());
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,
@@ -214,11 +211,8 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
 
       if (Config.get().isDataStreamsEnabled()) {
         MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-        if (state == null) {
-          state = new MetadataState();
-          InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
-        }
+            InstrumentationContext.get(Metadata.class, MetadataState.class)
+                .putIfAbsent(metadata, new MetadataState());
         KafkaConfigHelper.storePendingConsumerConfig(
             state,
             normalizedConsumerGroup,

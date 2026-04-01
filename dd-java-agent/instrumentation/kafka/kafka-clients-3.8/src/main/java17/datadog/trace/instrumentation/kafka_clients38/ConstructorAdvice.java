@@ -14,7 +14,6 @@ import org.apache.kafka.clients.consumer.internals.ConsumerDelegate;
 import org.apache.kafka.clients.consumer.internals.OffsetCommitCallbackInvoker;
 
 public class ConstructorAdvice {
-
   // new - capturing OffsetCommitCallbackInvoker instead of the old ConsumerCoordinator
   @Advice.OnMethodExit(suppress = Throwable.class)
   public static void captureGroup(
@@ -59,11 +58,8 @@ public class ConstructorAdvice {
 
     if (Config.get().isDataStreamsEnabled()) {
       MetadataState state =
-          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
-      if (state == null) {
-        state = new MetadataState();
-        InstrumentationContext.get(Metadata.class, MetadataState.class).put(metadata, state);
-      }
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .putIfAbsent(metadata, new MetadataState());
       KafkaConfigHelper.storePendingConsumerConfig(
           state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
