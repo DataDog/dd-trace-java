@@ -33,7 +33,7 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 public class MsgPackWriterTest {
-  // Explicit escapes for non-ASCII test data so it is independent of container settings.
+  // Explicit escapes for non-ASCII chars to make test independent of container settings.
   private static final String NON_ASCII_STRING = "foob\u00E1r_\u263a"; // foobár_☺
   private static final byte[] NON_ASCII_BYTES = NON_ASCII_STRING.getBytes(UTF_8);
   private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 1;
@@ -666,7 +666,7 @@ public class MsgPackWriterTest {
                   }
                 }));
     writer.writeObjectString(value, null);
-    writer.writeObjectString(value, s -> "foobàr".getBytes(UTF_8));
+    writer.writeObjectString(value, s -> NON_ASCII_BYTES);
   }
 
   @Test
