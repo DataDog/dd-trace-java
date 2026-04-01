@@ -135,7 +135,7 @@ if [ -z "$MILESTONE_NUMBERS" ]; then
 fi
 MILESTONE_COUNT=$(printf '%s\n' "$MILESTONE_NUMBERS" | wc -l | tr -d ' ')
 if [ "$MILESTONE_COUNT" -gt 1 ]; then
-    echo "❌ Multiple open milestones found for version '$MILESTONE_TITLE' (numbers: $(printf '%s ' $MILESTONE_NUMBERS))."
+    echo "❌ Multiple open milestones found for version '$MILESTONE_TITLE' (numbers: $(printf '%s ' "$MILESTONE_NUMBERS"))."
     echo "   Please resolve the duplicate milestones before performing a release."
     exit 1
 fi
@@ -180,7 +180,7 @@ if [ -n "$NONCOMPLIANT" ]; then
     echo "⚠️  The following PRs in milestone '$MILESTONE_TITLE' are missing required labels:"
     echo "$NONCOMPLIANT"
     echo "   Each PR needs (a 'comp:' or 'inst:' label) AND (a 'type:' label), or 'tag: no release note'."
-    confirmOrAbort "Fix labels and continue anyway? (y/N): "
+    confirmOrAbort "Continue despite missing labels? (y/N): "
 else
     echo "✅ All PRs in milestone '$MILESTONE_TITLE' have required labels."
 fi
