@@ -33,9 +33,10 @@ import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 public class MsgPackWriterTest {
-  private static final String NON_ASCII_STRING = "foobár";
+  // Explicit escapes for non-ASCII chars to make test independent of container settings.
+  private static final String NON_ASCII_STRING = "foob\u00E1r_\u263a"; // foobár_☺
   private static final byte[] NON_ASCII_BYTES = NON_ASCII_STRING.getBytes(UTF_8);
-  private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 4;
+  private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 1;
 
   @Test
   public void testOverflow() {
@@ -659,7 +660,7 @@ public class MsgPackWriterTest {
                 (messageCount, buffer) -> {
                   try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
                     assertEquals(NON_ASCII_STRING, unpacker.unpackString());
-                    assertEquals("foobàr", unpacker.unpackString());
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
                   } catch (IOException e) {
                     fail(e.getMessage());
                   }
