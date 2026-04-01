@@ -50,7 +50,7 @@ if ! git diff-index --quiet HEAD; then
 fi
 
 # Check if clone is up to date
-if ! git fetch "$REMOTE" --quiet ; then
+if ! git fetch "$REMOTE" --tags --quiet ; then
     echo "❌ Unable to fetch the latest changes from $REMOTE. Please check your network connection."
     exit 1
 fi
@@ -72,17 +72,31 @@ if ! gh auth status &>/dev/null; then
     exit 1
 fi
 
-# Check push permission on this repository
-if ! HAS_PUSH=$(gh api "repos/{owner}/{repo}" --jq ".permissions.push"); then
-    echo "❌ Failed to query repository permissions. Check your network connection and token scopes."
+# Check that the current user is a member of the release owner team
+CURRENT_USER=$(gh api user --jq '.login' 2>/dev/null || true)
+if [ -z "$CURRENT_USER" ]; then
+    echo "❌ Failed to determine GitHub username. Check your network connection and token scopes."
     exit 1
 fi
-if [ "$HAS_PUSH" != "true" ]; then
-    echo "❌ Your GitHub account does not have push (write) permission on this repository."
-    echo "   Only release owners are allowed to push release tags."
+MEMBERSHIP_ERR=$(mktemp)
+trap 'rm -f "$MEMBERSHIP_ERR"' EXIT
+if ! MEMBERSHIP_STATE=$(gh api "orgs/DataDog/teams/dd-trace-java-releasers/memberships/$CURRENT_USER" \
+    --jq '.state' 2>"$MEMBERSHIP_ERR"); then
+    if grep -qi "404\|not found" "$MEMBERSHIP_ERR" 2>/dev/null; then
+        echo "❌ You ($CURRENT_USER) are not a member of the dd-trace-java-releasers release owner team."
+        echo "   Only release owners are allowed to perform a release."
+    else
+        echo "❌ Failed to verify team membership for $CURRENT_USER: $(cat "$MEMBERSHIP_ERR")"
+        echo "   Check your network connection and token scopes (requires 'read:org')."
+    fi
     exit 1
 fi
-echo "✅ GitHub CLI authenticated with push permission."
+if [ "$MEMBERSHIP_STATE" != "active" ]; then
+    echo "❌ Your membership in the dd-trace-java-releasers team is not active (state: $MEMBERSHIP_STATE)."
+    echo "   Only active release owners are allowed to perform a release."
+    exit 1
+fi
+echo "✅ GitHub CLI authenticated as release owner $CURRENT_USER."
 
 # Check the git log history
 LAST_RELEASE_TAG=$(git describe --tags --abbrev=0 --match='v[0-9]*.[0-9]*.[0-9]*')
@@ -110,13 +124,12 @@ else
 fi
 echo "ℹ️ Next release version: $NEXT_RELEASE_VERSION"
 
-# Check the release tag does not already exist locally or remotely
+# Check the release tag does not already exist locally or remotely.
+# The tag can exist if it was created on a branch not reachable from HEAD (e.g. a failed release on a different branch)
+# or if a prior release attempt was interrupted before pushing. After `git fetch --tags` above, remote tags are
+# included in this check.
 if git rev-parse "refs/tags/$NEXT_RELEASE_VERSION" &>/dev/null; then
-    echo "❌ Tag '$NEXT_RELEASE_VERSION' already exists locally. Has this release already been tagged?"
-    exit 1
-fi
-if git ls-remote --tags "$REMOTE" "refs/tags/$NEXT_RELEASE_VERSION" | grep -q .; then
-    echo "❌ Tag '$NEXT_RELEASE_VERSION' already exists on remote '$REMOTE'. Has this release already been tagged?"
+    echo "❌ Tag '$NEXT_RELEASE_VERSION' already exists. Has this release already been tagged?"
     exit 1
 fi
 echo "✅ Release tag '$NEXT_RELEASE_VERSION' does not yet exist."
@@ -142,35 +155,39 @@ fi
 MILESTONE_NUMBER="$MILESTONE_NUMBERS"
 echo "✅ GitHub milestone '$MILESTONE_TITLE' found (milestone #$MILESTONE_NUMBER)."
 
-# Check that the milestone has no open issues or PRs
-if ! OPEN_ISSUES=$(gh api "repos/{owner}/{repo}/milestones/$MILESTONE_NUMBER" \
-    --jq ".open_issues"); then
+# Check that the milestone has no open PRs (open issues are expected and allowed).
+# Use `jq -s 'add | length'` to sum counts across all pages returned by --paginate.
+if ! OPEN_PRS=$(gh api --paginate \
+    "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=open&per_page=100" \
+    --jq '[.[] | select(.pull_request != null)]' | jq -s 'add | length'); then
     echo "❌ Failed to query milestone '$MILESTONE_TITLE'. Check your network connection."
     exit 1
 fi
-if [ -z "$OPEN_ISSUES" ] || ! [[ "$OPEN_ISSUES" =~ ^[0-9]+$ ]]; then
-    echo "❌ Unexpected response when querying open issue count for milestone '$MILESTONE_TITLE': '$OPEN_ISSUES'."
+if [ -z "$OPEN_PRS" ] || ! [[ "$OPEN_PRS" =~ ^[0-9]+$ ]]; then
+    echo "❌ Unexpected response when querying open PR count for milestone '$MILESTONE_TITLE': '$OPEN_PRS'."
     exit 1
 fi
-if [ "$OPEN_ISSUES" -gt 0 ]; then
-    echo "❌ Milestone '$MILESTONE_TITLE' still has $OPEN_ISSUES open issue(s) or PR(s):"
-    gh api "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=open&per_page=100" \
-        --jq '.[] | "   #\(.number) \(.title)"' || true
+if [ "$OPEN_PRS" -gt 0 ]; then
+    echo "❌ Milestone '$MILESTONE_TITLE' still has $OPEN_PRS open PR(s):"
+    gh api --paginate "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=open&per_page=100" \
+        --jq '.[] | select(.pull_request != null) | "   #\(.number) \(.title)"' || true
     echo "   All PRs must be merged before tagging a release."
     exit 1
 fi
-echo "✅ All issues and PRs in milestone '$MILESTONE_TITLE' are closed."
+echo "✅ All PRs in milestone '$MILESTONE_TITLE' are merged."
 
 # Check that all closed PRs in the milestone carry the required labels.
+# This is a release-time defense-in-depth check: even if CI enforces labels at PR submission,
+# PRs merged before that enforcement (or via merge queues with bypassed checks) may be missing them.
 # Required: (comp:* or inst:*) AND (type:*), OR 'tag: no release notes'.
 if ! NONCOMPLIANT=$(gh api --paginate \
     "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=closed&per_page=100" \
     --jq '[.[] | select(.pull_request != null) |
           select(
-            ((.labels | map(.name) | map(. == "tag: no release notes") | any) | not) and
+            (((.labels // []) | map(.name) | map(. == "tag: no release notes") | any) | not) and
             (
-              ((.labels | map(.name) | map(startswith("comp:") or startswith("inst:")) | any) | not) or
-              ((.labels | map(.name) | map(startswith("type:")) | any) | not)
+              (((.labels // []) | map(.name) | map(startswith("comp:") or startswith("inst:")) | any) | not) or
+              (((.labels // []) | map(.name) | map(startswith("type:")) | any) | not)
             )
           ) | "   #\(.number) \(.title)"] | .[]'); then
     echo "❌ Failed to query milestone PRs. Check your network connection."
@@ -185,23 +202,23 @@ else
     echo "✅ All PRs in milestone '$MILESTONE_TITLE' have required labels."
 fi
 
-# Check GPG signing key is configured and available (release tags are signed with -s)
+# Check GPG signing key is configured and usable for signing (release tags are signed with -s).
+# Use a test-sign to catch expired or revoked keys before the point of no return.
 SIGNING_KEY=$(git config --get user.signingkey 2>/dev/null || true)
-if [ -n "$SIGNING_KEY" ]; then
-    if ! gpg --list-secret-keys "$SIGNING_KEY" &>/dev/null; then
-        echo "❌ GPG signing key '$SIGNING_KEY' is not available in the keyring (expired, revoked, or deleted)."
-        echo "   Please reconfigure your signing key with: git config user.signingkey <KEY_ID>"
-        exit 1
-    fi
-else
-    GIT_EMAIL=$(git config --get user.email 2>/dev/null || true)
-    if [ -z "$GIT_EMAIL" ] || ! gpg --list-secret-keys "$GIT_EMAIL" &>/dev/null; then
-        echo "❌ No GPG signing key configured. Release tags must be signed."
-        echo "   Configure one with: git config user.signingkey <KEY_ID>"
-        exit 1
-    fi
+if [ -z "$SIGNING_KEY" ]; then
+    SIGNING_KEY=$(git config --get user.email 2>/dev/null || true)
 fi
-echo "✅ GPG signing key is configured."
+if [ -z "$SIGNING_KEY" ]; then
+    echo "❌ No GPG signing key configured. Release tags must be signed."
+    echo "   Configure one with: git config user.signingkey <KEY_ID>"
+    exit 1
+fi
+if ! echo "test" | gpg --no-tty --sign --local-user "$SIGNING_KEY" --output /dev/null 2>/dev/null; then
+    echo "❌ GPG signing key '$SIGNING_KEY' cannot be used for signing (missing, expired, revoked, or passphrase required non-interactively)."
+    echo "   Please verify the key is available and valid: gpg --list-secret-keys '$SIGNING_KEY'"
+    exit 1
+fi
+echo "✅ GPG signing key is configured and usable."
 
 # For minor releases: require explicit acknowledgment of manual pre-cut verification steps
 if [ "$MINOR_RELEASE" = true ]; then
@@ -216,5 +233,9 @@ fi
 echo "ℹ️ The release tag will be created and pushed. No abort is possible after this point."
 confirmOrAbort
 git tag -a -s -m "Release $NEXT_RELEASE_VERSION" "$NEXT_RELEASE_VERSION"
-git push "$REMOTE" "$NEXT_RELEASE_VERSION" --no-verify
+if ! git push "$REMOTE" "$NEXT_RELEASE_VERSION" --no-verify; then
+    echo "❌ Push failed. Deleting the local tag to allow a clean retry."
+    git tag -d "$NEXT_RELEASE_VERSION"
+    exit 1
+fi
 echo "✅ Release tag $NEXT_RELEASE_VERSION created and pushed to $REMOTE."
