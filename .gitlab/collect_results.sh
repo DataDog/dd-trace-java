@@ -91,7 +91,7 @@ do
   fi
 
   echo "Add dd_tags[test.final_status] property on retried synthetics testcase initializationErrors"
-  java "$(dirname "$0")/TagInitializationErrors.java" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
+  $JAVA_25_HOME/bin/java "$(dirname "$0")/TagInitializationErrors.java" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
 
   echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
   xsl_file="$(dirname "$0")/add_final_status.xsl"
