@@ -8,56 +8,56 @@ import org.tabletest.junit.TableTest;
 public class RedactUtilsTest {
 
   @TableTest({
-    "scenario             | input                            | expected                           ",
-    "unknown package      | com/company/SomeType             | redacted/redacted/SomeType         ",
-    "three-level package  | com/company/pkg/SomeType         | redacted/redacted/redacted/SomeType",
-    "java prefix          | java/lang/String                 | java/lang/String                   ",
-    "jdk prefix           | jdk/internal/misc/Unsafe         | jdk/internal/misc/Unsafe           ",
-    "sun prefix           | sun/reflect/Reflection           | sun/reflect/Reflection             ",
-    "javax prefix         | javax/net/ssl/SSLSocket          | javax/net/ssl/SSLSocket            ",
-    "jakarta prefix       | jakarta/servlet/http/HttpServlet | jakarta/servlet/http/HttpServlet   ",
-    "com/sun prefix       | com/sun/proxy/ProxyBuilder       | com/sun/proxy/ProxyBuilder         ",
-    "com/oracle prefix    | com/oracle/jrockit/SomeClass     | com/oracle/jrockit/SomeClass       ",
-    "datadog prefix       | datadog/trace/api/Tracer         | datadog/trace/api/Tracer           ",
-    "com/datadog prefix   | com/datadog/agent/SomeClass      | com/datadog/agent/SomeClass        ",
-    "com/datadoghq prefix | com/datadoghq/profiler/Profiler  | com/datadoghq/profiler/Profiler    ",
-    "org/datadog prefix   | org/datadog/jmxfetch/App         | org/datadog/jmxfetch/App           ",
-    "com/dd prefix        | com/dd/logs/LogService           | com/dd/logs/LogService             ",
-    "no package           | SomeType                         | SomeType                           ",
-    "inner class          | com/company/Outer$Inner          | redacted/redacted/Outer$Inner      "
+    "scenario             | input                            | expected                         ",
+    "unknown package      | com/company/SomeType             | redacted/Redacted                ",
+    "three-level package  | com/company/pkg/SomeType         | redacted/Redacted                ",
+    "java prefix          | java/lang/String                 | java/lang/String                 ",
+    "jdk prefix           | jdk/internal/misc/Unsafe         | jdk/internal/misc/Unsafe         ",
+    "sun prefix           | sun/reflect/Reflection           | sun/reflect/Reflection           ",
+    "javax prefix         | javax/net/ssl/SSLSocket          | javax/net/ssl/SSLSocket          ",
+    "jakarta prefix       | jakarta/servlet/http/HttpServlet | jakarta/servlet/http/HttpServlet ",
+    "com/sun prefix       | com/sun/proxy/ProxyBuilder       | com/sun/proxy/ProxyBuilder       ",
+    "com/oracle prefix    | com/oracle/jrockit/SomeClass     | com/oracle/jrockit/SomeClass     ",
+    "datadog prefix       | datadog/trace/api/Tracer         | datadog/trace/api/Tracer         ",
+    "com/datadog prefix   | com/datadog/agent/SomeClass      | com/datadog/agent/SomeClass      ",
+    "com/datadoghq prefix | com/datadoghq/profiler/Profiler  | com/datadoghq/profiler/Profiler  ",
+    "org/datadog prefix   | org/datadog/jmxfetch/App         | org/datadog/jmxfetch/App         ",
+    "com/dd prefix        | com/dd/logs/LogService           | com/dd/logs/LogService           ",
+    "no package           | SomeType                         | SomeType                         ",
+    "inner class          | com/company/Outer$Inner          | redacted/Redacted                "
   })
   void testRedactJvmClassName(String input, String expected) {
     assertThat(RedactUtils.redactJvmClassName(input)).isEqualTo(expected);
   }
 
   @TableTest({
-    "scenario             | input                            | expected                           ",
-    "unknown package      | com.company.SomeType             | redacted.redacted.SomeType         ",
-    "three-level package  | com.company.pkg.SomeType         | redacted.redacted.redacted.SomeType",
-    "java prefix          | java.lang.String                 | java.lang.String                   ",
-    "jdk prefix           | jdk.internal.misc.Unsafe         | jdk.internal.misc.Unsafe           ",
-    "sun prefix           | sun.reflect.Reflection           | sun.reflect.Reflection             ",
-    "jakarta prefix       | jakarta.servlet.http.HttpServlet | jakarta.servlet.http.HttpServlet   ",
-    "com.oracle prefix    | com.oracle.jrockit.SomeClass     | com.oracle.jrockit.SomeClass       ",
-    "datadog prefix       | datadog.trace.api.Tracer         | datadog.trace.api.Tracer           ",
-    "com.datadog prefix   | com.datadog.agent.SomeClass      | com.datadog.agent.SomeClass        ",
-    "com.datadoghq prefix | com.datadoghq.profiler.Profiler  | com.datadoghq.profiler.Profiler    ",
-    "org.datadog prefix   | org.datadog.jmxfetch.App         | org.datadog.jmxfetch.App           ",
-    "com.dd prefix        | com.dd.logs.LogService           | com.dd.logs.LogService             ",
-    "no package           | SomeType                         | SomeType                           ",
-    "inner class          | com.company.Outer$Inner          | redacted.redacted.Outer$Inner      "
+    "scenario             | input                            | expected                         ",
+    "unknown package      | com.company.SomeType             | redacted.Redacted                ",
+    "three-level package  | com.company.pkg.SomeType         | redacted.Redacted                ",
+    "java prefix          | java.lang.String                 | java.lang.String                 ",
+    "jdk prefix           | jdk.internal.misc.Unsafe         | jdk.internal.misc.Unsafe         ",
+    "sun prefix           | sun.reflect.Reflection           | sun.reflect.Reflection           ",
+    "jakarta prefix       | jakarta.servlet.http.HttpServlet | jakarta.servlet.http.HttpServlet ",
+    "com.oracle prefix    | com.oracle.jrockit.SomeClass     | com.oracle.jrockit.SomeClass     ",
+    "datadog prefix       | datadog.trace.api.Tracer         | datadog.trace.api.Tracer         ",
+    "com.datadog prefix   | com.datadog.agent.SomeClass      | com.datadog.agent.SomeClass      ",
+    "com.datadoghq prefix | com.datadoghq.profiler.Profiler  | com.datadoghq.profiler.Profiler  ",
+    "org.datadog prefix   | org.datadog.jmxfetch.App         | org.datadog.jmxfetch.App         ",
+    "com.dd prefix        | com.dd.logs.LogService           | com.dd.logs.LogService           ",
+    "no package           | SomeType                         | SomeType                         ",
+    "inner class          | com.company.Outer$Inner          | redacted.Redacted                "
   })
   void testRedactDottedClassName(String input, String expected) {
     assertThat(RedactUtils.redactDottedClassName(input)).isEqualTo(expected);
   }
 
   @TableTest({
-    "scenario       | input                                     | expected                                             ",
-    "four segments  | /path/to/dir/lib.so                       | /redacted/redacted/dir/lib.so                        ",
-    "two segments   | /dir/lib.so                               | /dir/lib.so                                          ",
-    "three segments | /one/dir/lib.so                           | /redacted/dir/lib.so                                 ",
-    "five segments  | /usr/lib/jvm/corretto-21/libjvm.so        | /redacted/redacted/redacted/corretto-21/libjvm.so    ",
-    "six segments   | /usr/lib/jvm/corretto-21/server/libjvm.so | /redacted/redacted/redacted/redacted/server/libjvm.so"
+    "scenario       | input                                     | expected                              ",
+    "four segments  | /path/to/dir/lib.so                       | /redacted/dir/lib.so                  ",
+    "two segments   | /dir/lib.so                               | /dir/lib.so                           ",
+    "three segments | /one/dir/lib.so                           | /redacted/dir/lib.so                  ",
+    "five segments  | /usr/lib/jvm/corretto-21/libjvm.so        | /redacted/corretto-21/libjvm.so       ",
+    "six segments   | /usr/lib/jvm/corretto-21/server/libjvm.so | /redacted/server/libjvm.so            "
   })
   void testRedactPath(String input, String expected) {
     assertThat(RedactUtils.redactPath(input)).isEqualTo(expected);
@@ -86,7 +86,7 @@ public class RedactUtilsTest {
   @Test
   void testRedactTypeDescriptors_redactsUnknownPackage() {
     assertThat(RedactUtils.redactTypeDescriptors("'(Lcom/company/Type;ILjava/lang/String;)V'"))
-        .isEqualTo("'(Lredacted/redacted/Type;ILjava/lang/String;)V'");
+        .isEqualTo("'(Lredacted/Redacted;ILjava/lang/String;)V'");
   }
 
   @Test
@@ -98,7 +98,7 @@ public class RedactUtilsTest {
   @Test
   void testRedactKlassReference_redactsUnknownPackage() {
     assertThat(RedactUtils.redactKlassReference("{0x...} - klass: 'com/company/MyClass'"))
-        .isEqualTo("{0x...} - klass: 'redacted/redacted/MyClass'");
+        .isEqualTo("{0x...} - klass: 'redacted/Redacted'");
   }
 
   @Test
@@ -112,7 +112,7 @@ public class RedactUtilsTest {
     assertThat(
             RedactUtils.redactMethodClass(
                 "{method} {0x...} 'doWork' '(I)V' in 'com/company/Worker'"))
-        .isEqualTo("{method} {0x...} 'doWork' '(I)V' in 'redacted/redacted/Worker'");
+        .isEqualTo("{method} {0x...} 'doWork' '(I)V' in 'redacted/Redacted'");
   }
 
   @Test
@@ -129,7 +129,7 @@ public class RedactUtilsTest {
             RedactUtils.redactLibraryPath(
                 "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /opt/company/lib/server/app.so at 0x0000ffff9e1a0000"))
         .isEqualTo(
-            "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /redacted/redacted/redacted/server/app.so at 0x0000ffff9e1a0000");
+            "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /redacted/server/app.so at 0x0000ffff9e1a0000");
   }
 
   @Test
@@ -139,7 +139,7 @@ public class RedactUtilsTest {
             RedactUtils.redactLibraryPath(
                 "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib at 0x0000000105efc000"))
         .isEqualTo(
-            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/server/libjvm.dylib at 0x0000000105efc000");
+            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/server/libjvm.dylib at 0x0000000105efc000");
   }
 
   @Test
@@ -149,7 +149,7 @@ public class RedactUtilsTest {
             RedactUtils.redactLibraryPath(
                 "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /usr/lib/system/libsystem_pthread.dylib at 0x0000000182d69000"))
         .isEqualTo(
-            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
+            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
   }
 
   @Test
@@ -194,7 +194,7 @@ public class RedactUtilsTest {
   void testRedactOopClassName_redactsUnknownPackage() {
     assertThat(
             RedactUtils.redactOopClassName("0x00000007ffe85850 is an oop: com.company.UserData "))
-        .isEqualTo("0x00000007ffe85850 is an oop: redacted.redacted.UserData ");
+        .isEqualTo("0x00000007ffe85850 is an oop: redacted.Redacted ");
   }
 
   @Test
@@ -209,7 +209,7 @@ public class RedactUtilsTest {
         "{method} {0x00007f3639c2ff00} 'saveJob' '(Lcom/company/Job;ILjava/lang/String;)V' in 'com/company/JobService'";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
         .isEqualTo(
-            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/redacted/Job;ILjava/lang/String;)V' in 'redacted/redacted/JobService'");
+            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/Redacted;ILjava/lang/String;)V' in 'redacted/Redacted'");
   }
 
   @Test
@@ -227,8 +227,8 @@ public class RedactUtilsTest {
             + " - string: \"some sensitive value\"";
     assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
         .isEqualTo(
-            "0x00000007142f8848 is an oop: redacted.redacted.SymbolEntry \n"
-                + "{0x00000007142f8848} - klass: 'redacted/redacted/SymbolEntry'\n"
+            "0x00000007142f8848 is an oop: redacted.Redacted \n"
+                + "{0x00000007142f8848} - klass: 'redacted/Redacted'\n"
                 + " - ---- fields (total size 9 words):\n"
                 + " - final 'tag' 'Ljava/lang/String;' @12  \"REDACTED\"{0x00000007ffe7a6a0} (0xfffcf4d4)\n"
                 + " - final 'value' 'Ljava/lang/String;' @16  \"REDACTED\"{0x00000007aabbccdd} (0x12345678)\n"
@@ -238,9 +238,9 @@ public class RedactUtilsTest {
   }
 
   @Test
-  void testRedactRegisterToMemoryMapping_javaLangClassOopPreservesClassName() {
-    // java.lang.Class oop: String OOP refs in field values are treated as class names and
-    // get package redaction (not full redaction), since that is what java.lang.Class stores.
+  void testRedactRegisterToMemoryMapping_javaLangClassOopRedactsUnknownClasses() {
+    // java.lang.Class oop: String OOP refs in field values are treated as class names.
+    // Unknown-package classes are redacted to redacted.Redacted; known packages are preserved.
     String value =
         "0x00000007ffe85850 is an oop: java.lang.Class \n"
             + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
@@ -252,7 +252,7 @@ public class RedactUtilsTest {
             "0x00000007ffe85850 is an oop: java.lang.Class \n"
                 + "{0x00000007ffe85850} - klass: 'java/lang/Class'\n"
                 + " - ---- fields (total size 25 words):\n"
-                + " - private transient 'name' 'Ljava/lang/String;' @44  \"redacted.redacted.Config\"{0x00000007aabbccdd} (0x12345678)\n"
+                + " - private transient 'name' 'Ljava/lang/String;' @44  \"redacted.Redacted\"{0x00000007aabbccdd} (0x12345678)\n"
                 + " - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"{0x00000007142f7200} (0xe285ee40)");
   }
 
@@ -262,7 +262,7 @@ public class RedactUtilsTest {
             RedactUtils.redactRegisterToMemoryMapping(
                 "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /usr/lib/jvm/corretto-21/server/libjvm.so at 0x0000ffff9e1a0000"))
         .isEqualTo(
-            "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /redacted/redacted/redacted/redacted/server/libjvm.so at 0x0000ffff9e1a0000");
+            "0x0000ffff9efa1650: <offset 0x0000000000e01650> in /redacted/server/libjvm.so at 0x0000ffff9e1a0000");
   }
 
   @Test

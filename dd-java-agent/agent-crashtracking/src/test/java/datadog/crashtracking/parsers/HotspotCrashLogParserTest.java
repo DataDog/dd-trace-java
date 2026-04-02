@@ -103,18 +103,15 @@ public class HotspotCrashLogParserTest {
         .containsEntry("x2", "0x0 is null")
         .containsEntry("x28", "0x0000000100a153f0 is a thread");
 
-    // Library path (symbol+offset format) — path must be redacted, keeping only last 2 segments
-    // /usr/lib/system/libsystem_pthread.dylib → 2 redacted ("usr","lib") + "system/lib..."
+    // Library path (symbol+offset format) — intermediate segments collapsed to a single /redacted
     assertThat(mapping)
         .extractingByKey("x16", STRING)
         .isEqualTo(
-            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
-    // /Users/USER/.local/share/mise/installs/java/25.0.2/lib/server/libjvm.dylib → 9 redacted +
-    // "server/libjvm.dylib"
+            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
     assertThat(mapping)
         .extractingByKey("x21", STRING)
         .isEqualTo(
-            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/redacted/server/libjvm.dylib at 0x0000000105efc000");
+            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/server/libjvm.dylib at 0x0000000105efc000");
 
     // macOS aarch64 uses address+pipe format — address kept, bytes redacted
     assertThat(mapping)
@@ -167,10 +164,10 @@ public class HotspotCrashLogParserTest {
         .containsEntry(
             "R11",
             "{method} {0x00007f3744198b70} 'resize' '()[Ljava/util/HashMap$Node;' in 'java/util/HashMap'")
-        // unknown packages are redacted; known class names (last segment) are preserved
+        // unknown packages are fully redacted to redacted/Redacted
         .containsEntry(
             "RSI",
-            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/redacted/redacted/redacted/REDACT_THIS;ILjava/lang/String;)V' in 'redacted/redacted/redacted/redacted/REDACT_THIS'");
+            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/Redacted;ILjava/lang/String;)V' in 'redacted/Redacted'");
   }
 
   @Test

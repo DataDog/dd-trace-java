@@ -12,6 +12,7 @@ import java.util.regex.Pattern;
 public final class RedactUtils {
 
   static final String REDACTED = "redacted";
+  static final String REDACTED_CLASS = "Redacted";
   private static final String REDACTED_STRING = "REDACTED";
 
   private static final String[] KNOWN_PACKAGES_PREFIXES = {
@@ -25,6 +26,9 @@ public final class RedactUtils {
     // Oracle/Sun vendor packages
     "com/sun/",
     "com/oracle/",
+    // Datadog top-level and internal shorthand
+    "datadog/",
+    "com/dd/",
   };
 
   // " - string: "value"" in String oop dumps
@@ -112,8 +116,9 @@ public final class RedactUtils {
   /**
    * Redacts {@code "value"\{0x...\}} OOP references in oop dump field lines. When {@code
    * isClassOop} is true (inside a {@code java.lang.Class} oop dump) the value is treated as a class
-   * name and its package is redacted. Otherwise — any other oop type — the value is always fully
-   * redacted to {@code "REDACTED"} since it may be arbitrary application data.
+   * name and redacted to {@code "redacted.Redacted"} unless it belongs to a known package.
+   * Otherwise — any other oop type — the value is always fully redacted to {@code "REDACTED"} since
+   * it may be arbitrary application data.
    */
   private static String redactStringOopRef(String line, boolean isClassOop) {
     return replaceAll(
@@ -202,8 +207,8 @@ public final class RedactUtils {
   }
 
   /**
-   * Redacts the package of a slash-separated JVM class name, unless it belongs to a known package.
-   * <code>com/company/SomeType</code> to <code>redacted/redacted/SomeType</code>; <code>
+   * Redacts a slash-separated JVM class name, unless it belongs to a known package. Unknown classes
+   * are fully redacted: <code>com/company/SomeType</code> to <code>redacted/Redacted</code>; <code>
    * java/lang/String</code> unchanged.
    */
   static String redactJvmClassName(String className) {
@@ -214,9 +219,9 @@ public final class RedactUtils {
   }
 
   /**
-   * Redacts the package of a dot-separated class name, unless it belongs to a known package. <code>
-   * com.company.SomeType</code> to <code>redacted.redacted.SomeType</code>; <code>java.lang.String
-   * </code> unchanged.
+   * Redacts a dot-separated class name, unless it belongs to a known package. Unknown classes are
+   * fully redacted: <code>com.company.SomeType</code> to <code>redacted.Redacted</code>; <code>
+   * java.lang.String</code> unchanged.
    */
   static String redactDottedClassName(String className) {
     if (isKnownJvmPackage(className.replace('.', '/'))) {
@@ -227,38 +232,22 @@ public final class RedactUtils {
 
   private static String redactClassName(char sep, String className) {
     int lastSep = className.lastIndexOf(sep);
-    if (lastSep < 0) return className;
-    StringBuilder sb = new StringBuilder();
-    int pos = 0;
-    while (pos <= lastSep) {
-      int next = className.indexOf(sep, pos);
-      if (sb.length() > 0) sb.append(sep);
-      sb.append(REDACTED);
-      pos = next + 1;
-    }
-    return sb.append(sep).append(className, lastSep + 1, className.length()).toString();
+    if (lastSep < 0) return className; // no package — nothing to redact
+    return REDACTED + sep + REDACTED_CLASS;
   }
 
   /**
-   * Redacts all path segments except the parent directory and filename. <code>/path/to/dir/lib.so
-   * </code> to <code>/redacted/redacted/dir/lib.so</code>
+   * Redacts all but the parent directory and filename from a library path, collapsing all
+   * intermediate segments to a single {@code redacted}. <code>/path/to/dir/lib.so</code> to <code>
+   * /redacted/dir/lib.so</code>
    */
-  @SuppressForbidden // split on single-character uses a fast path without regex
   static String redactPath(String path) {
-    String[] parts = path.split("/", -1);
-    // parts[0] is always "" (before the leading slash)
-    if (parts.length <= 3) {
-      return path; // /dir/file or shorter: nothing to redact
-    }
-    StringBuilder sb = new StringBuilder();
-    for (int i = 1; i < parts.length - 2; i++) {
-      sb.append('/').append(REDACTED);
-    }
-    return sb.append('/')
-        .append(parts[parts.length - 2])
-        .append('/')
-        .append(parts[parts.length - 1])
-        .toString();
+    int last = path.lastIndexOf('/');
+    if (last <= 0) return path; // /file or empty — nothing to redact
+    int secondLast = path.lastIndexOf('/', last - 1);
+    if (secondLast <= 0) return path; // /dir/file — nothing to redact
+    // Collapse everything before the second-last slash to a single /redacted
+    return "/" + REDACTED + path.substring(secondLast);
   }
 
   private static boolean isKnownJvmPackage(String slashClassName) {
@@ -267,7 +256,10 @@ public final class RedactUtils {
         return true;
       }
     }
-    return slashClassName.contains("datadog") || slashClassName.startsWith("com/dd/");
+    // Match *.datadog* — packages whose second segment starts with "datadog"
+    // e.g. com/datadog/..., org/datadog/..., com/datadoghq/...
+    int slash = slashClassName.indexOf('/');
+    return slash > 0 && slashClassName.startsWith("datadog", slash + 1);
   }
 
   private static String replaceAll(
