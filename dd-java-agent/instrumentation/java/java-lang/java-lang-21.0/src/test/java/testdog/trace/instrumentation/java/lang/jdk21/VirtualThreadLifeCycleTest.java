@@ -1,8 +1,10 @@
 package testdog.trace.instrumentation.java.lang.jdk21;
 
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.CorrelationIdentifier;
@@ -158,6 +160,63 @@ public class VirtualThreadLifeCycleTest extends AbstractInstrumentationTest {
     assertEquals(
         "0", spanIdBeforeUnmount.get(), "there should be no active context before unmount");
     assertEquals("0", spanIdAfterRemount.get(), "there should be no active context after remount");
+  }
+
+  @DisplayName("test context ordering with child span across unmount/remount")
+  @Test
+  void testContextOrderingWithChildSpanAcrossRemount() throws InterruptedException {
+    String[] parentSpanId = new String[1];
+    String[] beforeChild = new String[1];
+    String[] insideChildBeforeUnmount = new String[1];
+    String[] insideChildAfterRemount = new String[1];
+    String[] afterChild = new String[1];
+
+    new Runnable() {
+      @Override
+      @Trace(operationName = "parent")
+      public void run() {
+        parentSpanId[0] = GlobalTracer.get().getSpanId();
+
+        Thread thread =
+            Thread.startVirtualThread(
+                () -> {
+                  beforeChild[0] = GlobalTracer.get().getSpanId();
+                  childWork(insideChildBeforeUnmount, insideChildAfterRemount);
+                  afterChild[0] = GlobalTracer.get().getSpanId();
+                });
+        try {
+          thread.join();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        blockUntilChildSpansFinished(1);
+      }
+    }.run();
+
+    // Verify context ordering at each checkpoint
+    assertEquals(parentSpanId[0], beforeChild[0], "parent should be active before child span");
+    assertNotEquals("0", insideChildBeforeUnmount[0], "child should be active before unmount");
+    assertNotEquals(
+        parentSpanId[0], insideChildBeforeUnmount[0], "active span should be child, not parent");
+    assertEquals(
+        insideChildBeforeUnmount[0],
+        insideChildAfterRemount[0],
+        "child should still be active after remount (no out-of-order scope close)");
+    assertEquals(parentSpanId[0], afterChild[0], "parent should be active after child span closes");
+
+    // Verify trace structure
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span().childOfPrevious().operationName("child")));
+  }
+
+  @Trace(operationName = "child")
+  private static void childWork(String[] beforeUnmount, String[] afterRemount) {
+    beforeUnmount[0] = GlobalTracer.get().getSpanId();
+    tryUnmount();
+    afterRemount[0] = GlobalTracer.get().getSpanId();
   }
 
   private static void tryUnmount() {
