@@ -730,7 +730,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
-            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
                 Value.toCapturedSnapshot(
                     captureExpression.getName(),
@@ -740,8 +739,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
-            context.addCaptureExpression(
-                Value.toCapturedSnapshot(captureExpression.getName(), result));
+            // inherit from probe capture field because no specific capture
+            if (capture != null) {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(
+                      captureExpression.getName(),
+                      result,
+                      capture.maxReferenceDepth,
+                      capture.maxCollectionSize,
+                      capture.maxLength,
+                      capture.maxFieldCount));
+            } else {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(captureExpression.getName(), result));
+            }
           }
         }
       } catch (EvaluationException ex) {

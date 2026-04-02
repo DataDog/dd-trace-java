@@ -109,6 +109,31 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     }
   }
 
+  void 'test default options honors remote blocking'() {
+    given:
+    def request = new Request.Builder()
+    .url("http://localhost:${httpPort}/aiguard/deny-default-options")
+    .get()
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    assert response.code() == 403
+    assert response.body().string().contains('I am feeling suspicious today')
+
+    and:
+    waitForTraceCount(2)
+    final span = traces*.spans
+    ?.flatten()
+    ?.find {
+      it.resource == 'ai_guard'
+    } as DecodedSpan
+    assert span.meta.get('ai_guard.action') == 'DENY'
+    assert span.meta.get('ai_guard.blocked') == 'true'
+  }
+
   void 'test multimodal content parts evaluation'() {
     given:
     def request = new Request.Builder()

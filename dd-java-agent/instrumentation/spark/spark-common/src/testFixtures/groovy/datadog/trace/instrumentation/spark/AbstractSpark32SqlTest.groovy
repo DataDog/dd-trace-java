@@ -34,7 +34,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     def firstStagePlan = """
       {
         "node": "Exchange",
-        "nodeId": "nodeId_4",
+        "nodeId": "nodeId_1",
         "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
         "meta": {
           "_dd.unparsed" : "any",
@@ -49,29 +49,34 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "metrics": [
           {
             "data size": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle bytes written": "any",
+            "sum": "any",
             "type": "size"
           },
           {
-            "shuffle records written": 3,
+            "shuffle records written": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+            "sum": 3,
             "type": "sum"
           },
           {
             "shuffle write time": "any",
+            "sum": "any",
             "type": "nsTiming"
           }
         ],
         "children": [
           {
             "node": "WholeStageCodegen (1)",
-            "nodeId": "nodeId_1",
+            "nodeId": "nodeId_2",
             "meta": {"_dd.unparsed": "any"},
             "metrics": [
               {
                 "duration": "any",
+                "sum": "any",
                 "type": "timing"
               }
             ],
@@ -93,22 +98,40 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 },
                 "metrics": [
                   {
-                    "number of output rows": 3,
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "avg hash probe bucket list iters": "any",
+                    "sum": "any",
+                    "type": "average"
+                  },
+                  {
+                    "time in aggregation build": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "number of output rows": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+                    "sum": 3,
                     "type": "sum"
                   },
                   {
                     "peak memory": "any",
+                    "sum": "any",
                     "type": "size"
-                  },
-                  {
-                    "time in aggregation build": "any",
-                    "type": "timing"
                   }
                 ],
                 "children": [
                   {
                     "node": "LocalTableScan",
-                    "nodeId": "nodeId_2",
+                    "nodeId": "nodeId_4",
                     "nodeDetailString": "[string_col#0, double_col#1]",
                     "meta": {
                       "output" : [ "string_col#0", "double_col#1" ],
@@ -116,7 +139,8 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     },
                     "metrics": [
                       {
-                        "number of output rows": 3,
+                        "number of output rows": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+                        "sum": 3,
                         "type": "sum"
                       }
                     ]
@@ -131,18 +155,19 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     def secondStagePlan = """
       {
         "node": "WholeStageCodegen (2)",
-        "nodeId": "nodeId_8",
+        "nodeId": "nodeId_5",
         "meta": {"_dd.unparsed": "any"},
         "metrics": [
           {
             "duration": "any",
+            "sum": "any",
             "type": "timing"
           }
         ],
         "children": [
           {
             "node": "HashAggregate",
-            "nodeId": "nodeId_9",
+            "nodeId": "nodeId_6",
             "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
             "meta": {
               "_dd.unparsed" : "any",
@@ -157,20 +182,34 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             },
             "metrics": [
               {
+                "number of sort fallback tasks": "any",
+                "sum": "any",
+                "type": "sum"
+              },
+              {
                 "avg hash probe bucket list iters": "any",
+                "sum": "any",
                 "type": "average"
               },
               {
-                "number of output rows": 2,
+                "time in aggregation build": "any",
+                "sum": "any",
+                "type": "timing"
+              },
+              {
+                "spill size": "any",
+                "sum": "any",
+                "type": "size"
+              },
+              {
+                "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+                "sum": 2.0,
                 "type": "sum"
               },
               {
                 "peak memory": "any",
+                "sum": "any",
                 "type": "size"
-              },
-              {
-                "time in aggregation build": "any",
-                "type": "timing"
               }
             ],
             "children": [
@@ -181,7 +220,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "children": [
                   {
                     "node": "AQEShuffleRead",
-                    "nodeId": "nodeId_5",
+                    "nodeId": "nodeId_8",
                     "nodeDetailString": "coalesced",
                     "meta": {
                       "_dd.unparsed" : "any",
@@ -191,7 +230,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "children": [
                       {
                         "node": "ShuffleQueryStage",
-                        "nodeId": "nodeId_6",
+                        "nodeId": "nodeId_9",
                         "nodeDetailString": "0",
                         "meta": {
                           "_dd.unparsed": "any", 
@@ -200,7 +239,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         "children": [
                           {
                             "node": "Exchange",
-                            "nodeId": "nodeId_4",
+                            "nodeId": "nodeId_1",
                             "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
                             "meta": {
                               "_dd.unparsed" : "any",
@@ -214,36 +253,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                             },
                             "metrics": [
                               {
-                                "data size": "any",
+                                "records read": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YIhoA",
+                                "sum": 3.0,
+                                "type": "sum"
+                              },
+                              {
+                                "remote bytes read to disk": "any",
+                                "sum": "any",
                                 "type": "size"
                               },
                               {
                                 "fetch wait time": "any",
+                                "sum": "any",
                                 "type": "timing"
                               },
                               {
-                                "local blocks read": "any",
-                                "type": "sum"
+                                "shuffle bytes written": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "data size": "any",
+                                "sum": "any",
+                                "type": "size"
                               },
                               {
                                 "local bytes read": "any",
+                                "sum": "any",
                                 "type": "size"
-                              },
-                              {
-                                "records read": 3,
-                                "type": "sum"
-                              },
-                              {
-                                "shuffle bytes written": "any",
-                                "type": "size"
-                              },
-                              {
-                                "shuffle records written": 3,
-                                "type": "sum"
                               },
                               {
                                 "shuffle write time": "any",
+                                "sum": "any",
                                 "type": "nsTiming"
+                              },
+                              {
+                                "remote bytes read": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "local blocks read": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "remote blocks read": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "shuffle records written": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "number of partitions": "any",
+                                "sum": "any",
+                                "type": "sum"
                               }
                             ]
                           }
@@ -276,36 +343,41 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "metrics": [
           {
             "data size": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle bytes written": "any",
+            "sum": "any",
             "type": "size"
           },
           {
-            "shuffle records written": 2,
+            "shuffle records written": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+            "sum": 2.0,
             "type": "sum"
           },
           {
             "shuffle write time": "any",
+            "sum": "any",
             "type": "nsTiming"
           }
         ],
         "children": [
           {
             "node": "WholeStageCodegen (2)",
-            "nodeId": "nodeId_8",
+            "nodeId": "nodeId_5",
             "meta": {"_dd.unparsed": "any"},
             "metrics": [
               {
                 "duration": "any",
+                "sum": "any",
                 "type": "timing"
               }
             ],
             "children": [
               {
                 "node": "HashAggregate",
-                "nodeId": "nodeId_9",
+                "nodeId": "nodeId_6",
                 "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
                 "meta": {
                   "_dd.unparsed" : "any",
@@ -320,20 +392,34 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 },
                 "metrics": [
                   {
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
                     "avg hash probe bucket list iters": "any",
+                    "sum": "any",
                     "type": "average"
                   },
                   {
+                    "time in aggregation build": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
                     "number of output rows": "any",
+                    "sum": "any",
                     "type": "sum"
                   },
                   {
                     "peak memory": "any",
+                    "sum": "any",
                     "type": "size"
-                  },
-                  {
-                    "time in aggregation build": "any",
-                    "type": "timing"
                   }
                 ],
                 "children": [
@@ -344,7 +430,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "children": [
                       {
                         "node": "AQEShuffleRead",
-                        "nodeId": "nodeId_5",
+                        "nodeId": "nodeId_8",
                         "nodeDetailString": "coalesced",
                         "meta": {
                           "_dd.unparsed" : "any",
@@ -354,7 +440,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         "children": [
                           {
                             "node": "ShuffleQueryStage",
-                            "nodeId": "nodeId_6",
+                            "nodeId": "nodeId_9",
                             "nodeDetailString": "0",
                             "meta": {
                               "_dd.unparsed": "any", 
@@ -363,7 +449,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                             "children": [
                               {
                                 "node": "Exchange",
-                                "nodeId": "nodeId_4",
+                                "nodeId": "nodeId_1",
                                 "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
                                 "meta": {
                                   "_dd.unparsed" : "any",
@@ -377,36 +463,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                 },
                                 "metrics": [
                                   {
-                                    "data size": "any",
+                                    "records read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote bytes read to disk": "any",
+                                    "sum": "any",
                                     "type": "size"
                                   },
                                   {
                                     "fetch wait time": "any",
+                                    "sum": "any",
                                     "type": "timing"
                                   },
                                   {
-                                    "local blocks read": "any",
-                                    "type": "sum"
+                                    "shuffle bytes written": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "data size": "any",
+                                    "sum": "any",
+                                    "type": "size"
                                   },
                                   {
                                     "local bytes read": "any",
+                                    "sum": "any",
                                     "type": "size"
-                                  },
-                                  {
-                                    "records read": "any",
-                                    "type": "sum"
-                                  },
-                                  {
-                                    "shuffle bytes written": "any",
-                                    "type": "size"
-                                  },
-                                  {
-                                    "shuffle records written": "any",
-                                    "type": "sum"
                                   },
                                   {
                                     "shuffle write time": "any",
+                                    "sum": "any",
                                     "type": "nsTiming"
+                                  },
+                                  {
+                                    "remote bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "shuffle records written": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "number of partitions": "any",
+                                    "sum": "any",
+                                    "type": "sum"
                                   }
                                 ]
                               }
@@ -426,18 +540,19 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     def fourthStagePlan = """
       {
         "node": "WholeStageCodegen (3)",
-        "nodeId": "nodeId_12",
+        "nodeId": "nodeId_11",
         "meta": {"_dd.unparsed": "any"},
         "metrics": [
           {
             "duration": "any",
+            "sum": "any",
             "type": "timing"
           }
         ],
         "children": [
           {
             "node": "Project",
-            "nodeId": "nodeId_11",
+            "nodeId": "nodeId_12",
             "nodeDetailString": "[string_col#0, cast(avg(double_col)#5 as string) AS avg(double_col)#12]",
             "meta": {
               "_dd.unparsed" : "any",
@@ -457,14 +572,17 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 "metrics": [
                   {
                     "peak memory": "any",
+                    "sum": "any",
                     "type": "size"
                   },
                   {
                     "sort time": "any",
+                    "sum": "any",
                     "type": "timing"
                   },
                   {
                     "spill size": "any",
+                    "sum": "any",
                     "type": "size"
                   }
                 ],
@@ -476,7 +594,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "children": [
                       {
                         "node": "AQEShuffleRead",
-                        "nodeId": "nodeId_5",
+                        "nodeId": "nodeId_8",
                         "nodeDetailString": "coalesced",
                         "meta": {
                           "_dd.unparsed" : "any",
@@ -509,36 +627,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                 },
                                 "metrics": [
                                   {
-                                    "data size": "any",
+                                    "records read": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+                                    "sum": 2.0,
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote bytes read to disk": "any",
+                                    "sum": "any",
                                     "type": "size"
                                   },
                                   {
                                     "fetch wait time": "any",
+                                    "sum": "any",
                                     "type": "timing"
                                   },
                                   {
-                                    "local blocks read": "any",
-                                    "type": "sum"
+                                    "shuffle bytes written": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "data size": "any",
+                                    "sum": "any",
+                                    "type": "size"
                                   },
                                   {
                                     "local bytes read": "any",
+                                    "sum": "any",
                                     "type": "size"
-                                  },
-                                  {
-                                    "records read": 2,
-                                    "type": "sum"
-                                  },
-                                  {
-                                    "shuffle bytes written": "any",
-                                    "type": "size"
-                                  },
-                                  {
-                                    "shuffle records written": 2,
-                                    "type": "sum"
                                   },
                                   {
                                     "shuffle write time": "any",
+                                    "sum": "any",
                                     "type": "nsTiming"
+                                  },
+                                  {
+                                    "remote bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "shuffle records written": "CgkJCCGEEEII8T8SABoAIQAAAAAAAPA/",
+                                    "sum": 0.0,
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "number of partitions": "any",
+                                    "sum": "any",
+                                    "type": "sum"
                                   }
                                 ]
                               }
@@ -668,18 +814,22 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "metrics": [
           {
             "data size": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle bytes written": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle records written": "any",
+            "sum": "any",
             "type": "sum"
           },
           {
             "shuffle write time": "any",
+            "sum": "any",
             "type": "nsTiming"
           }
         ],
@@ -695,6 +845,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "metrics": [
               {
                 "number of output rows": "any",
+                "sum": "any",
                 "type": "sum"
               }
             ]
@@ -720,18 +871,22 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "metrics": [
           {
             "data size": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle bytes written": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle records written": "any",
+            "sum": "any",
             "type": "sum"
           },
           {
             "shuffle write time": "any",
+            "sum": "any",
             "type": "nsTiming"
           }
         ],
@@ -747,6 +902,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             "metrics": [
               {
                 "number of output rows": "any",
+                "sum": "any",
                 "type": "sum"
               }
             ]
@@ -757,7 +913,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     def thirdStagePlan = """
       {
         "node": "Exchange",
-        "nodeId": "nodeId_7",
+        "nodeId": "nodeId_5",
         "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
         "meta": {
           "_dd.unparsed" : "any",
@@ -767,36 +923,41 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
         "metrics": [
           {
             "data size": "any",
+            "sum": "any",
             "type": "size"
           },
           {
             "shuffle bytes written": "any",
+            "sum": "any",
             "type": "size"
           },
           {
-            "shuffle records written": 1,
+            "shuffle records written": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YABoA",
+            "sum": 1,
             "type": "sum"
           },
           {
             "shuffle write time": "any",
+            "sum": "any",
             "type": "nsTiming"
           }
         ],
         "children": [
           {
             "node": "WholeStageCodegen (3)",
-            "nodeId": "nodeId_9",
+            "nodeId": "nodeId_6",
             "meta": {"_dd.unparsed": "any"},
             "metrics": [
               {
                 "duration": "any",
+                "sum": "any",
                 "type": "timing"
               }
             ],
             "children": [
               {
                 "node": "HashAggregate",
-                "nodeId": "nodeId_16",
+                "nodeId": "nodeId_7",
                 "nodeDetailString": "(keys\\u003d[], functions\\u003d[partial_count(1)])",
                 "meta": {
                   "_dd.unparsed" : "any",
@@ -811,18 +972,40 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                 },
                 "metrics": [
                   {
-                    "number of output rows": 1,
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
                     "type": "sum"
                   },
                   {
+                    "avg hash probe bucket list iters": "any",
+                    "sum": "any",
+                    "type": "average"
+                  },
+                  {
                     "time in aggregation build": "any",
+                    "sum": "any",
                     "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YABoA",
+                    "sum": 1,
+                    "type": "sum"
+                  },
+                  {
+                    "peak memory": "any",
+                    "sum": "any",
+                    "type": "size"
                   }
                 ],
                 "children": [
                   {
                     "node": "Project",
-                    "nodeId": "nodeId_13",
+                    "nodeId": "nodeId_8",
                     "meta": {
                       "_dd.unparsed" : "any",
                       "projectList" : [ ]
@@ -830,7 +1013,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "children": [
                       {
                         "node": "SortMergeJoin",
-                        "nodeId": "nodeId_15",
+                        "nodeId": "nodeId_9",
                         "nodeDetailString": "[string_col#28], [string_col#32], Inner",
                         "meta": {
                           "_dd.unparsed" : "any",
@@ -843,29 +1026,31 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         "metrics": [
                           {
                             "number of output rows": "any",
+                            "sum": "any",
                             "type": "sum"
                           }
                         ],
                         "children": [
                           {
                             "node": "InputAdapter",
-                            "nodeId": "nodeId_6",
+                            "nodeId": "nodeId_10",
                             "meta": {"_dd.unparsed": "any"},
                             "children": [
                               {
                                 "node": "WholeStageCodegen (1)",
-                                "nodeId": "nodeId_8",
+                                "nodeId": "nodeId_11",
                                 "meta": {"_dd.unparsed": "any"},
                                 "metrics": [
                                   {
                                     "duration": "any",
+                                    "sum": "any",
                                     "type": "timing"
                                   }
                                 ],
                                 "children": [
                                   {
                                     "node": "Sort",
-                                    "nodeId": "nodeId_11",
+                                    "nodeId": "nodeId_12",
                                     "nodeDetailString": "[string_col#28 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unparsed" : "any",
@@ -876,26 +1061,29 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "metrics": [
                                       {
                                         "peak memory": "any",
+                                        "sum": "any",
                                         "type": "size"
                                       },
                                       {
                                         "sort time": "any",
+                                        "sum": "any",
                                         "type": "timing"
                                       },
                                       {
                                         "spill size": "any",
+                                        "sum": "any",
                                         "type": "size"
                                       }
                                     ],
                                     "children": [
                                       {
                                         "node": "InputAdapter",
-                                        "nodeId": "nodeId_6",
+                                        "nodeId": "nodeId_10",
                                         "meta": {"_dd.unparsed": "any"},
                                         "children": [
                                           {
                                             "node": "AQEShuffleRead",
-                                            "nodeId": "nodeId_5",
+                                            "nodeId": "nodeId_13",
                                             "nodeDetailString": "coalesced",
                                             "meta": {
                                               "_dd.unparsed" : "any",
@@ -914,7 +1102,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                 "children": [
                                                   {
                                                     "node": "Exchange",
-                                                    "nodeId": "nodeId_2",
+                                                    "nodeId": "nodeId_1",
                                                     "nodeDetailString": "hashpartitioning(string_col#28, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d119]",
                                                     "meta": {
                                                       "_dd.unparsed" : "any",
@@ -928,36 +1116,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                     },
                                                     "metrics": [
                                                       {
-                                                        "data size": "any",
+                                                        "records read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote bytes read to disk": "any",
+                                                        "sum": "any",
                                                         "type": "size"
                                                       },
                                                       {
                                                         "fetch wait time": "any",
+                                                        "sum": "any",
                                                         "type": "timing"
                                                       },
                                                       {
-                                                        "local blocks read": "any",
-                                                        "type": "sum"
+                                                        "shuffle bytes written": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "data size": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
                                                       },
                                                       {
                                                         "local bytes read": "any",
+                                                        "sum": "any",
                                                         "type": "size"
-                                                      },
-                                                      {
-                                                        "records read": "any",
-                                                        "type": "sum"
-                                                      },
-                                                      {
-                                                        "shuffle bytes written": "any",
-                                                        "type": "size"
-                                                      },
-                                                      {
-                                                        "shuffle records written": "any",
-                                                        "type": "sum"
                                                       },
                                                       {
                                                         "shuffle write time": "any",
+                                                        "sum": "any",
                                                         "type": "nsTiming"
+                                                      },
+                                                      {
+                                                        "remote bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "shuffle records written": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "number of partitions": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
                                                       }
                                                     ]
                                                   }
@@ -975,23 +1191,24 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                           },
                           {
                             "node": "InputAdapter",
-                            "nodeId": "nodeId_6",
+                            "nodeId": "nodeId_10",
                             "meta": {"_dd.unparsed": "any"},
                             "children": [
                               {
                                 "node": "WholeStageCodegen (2)",
-                                "nodeId": "nodeId_12",
+                                "nodeId": "nodeId_15",
                                 "meta": {"_dd.unparsed": "any"},
                                 "metrics": [
                                   {
                                     "duration": "any",
+                                    "sum": "any",
                                     "type": "timing"
                                   }
                                 ],
                                 "children": [
                                   {
                                     "node": "Sort",
-                                    "nodeId": "nodeId_17",
+                                    "nodeId": "nodeId_16",
                                     "nodeDetailString": "[string_col#32 ASC NULLS FIRST], false, 0",
                                     "meta": {
                                       "_dd.unparsed" : "any",
@@ -1002,26 +1219,29 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                     "metrics": [
                                       {
                                         "peak memory": "any",
+                                        "sum": "any",
                                         "type": "size"
                                       },
                                       {
                                         "sort time": "any",
+                                        "sum": "any",
                                         "type": "timing"
                                       },
                                       {
                                         "spill size": "any",
+                                        "sum": "any",
                                         "type": "size"
                                       }
                                     ],
                                     "children": [
                                       {
                                         "node": "InputAdapter",
-                                        "nodeId": "nodeId_6",
+                                        "nodeId": "nodeId_10",
                                         "meta": {"_dd.unparsed": "any"},
                                         "children": [
                                           {
                                             "node": "AQEShuffleRead",
-                                            "nodeId": "nodeId_5",
+                                            "nodeId": "nodeId_13",
                                             "nodeDetailString": "coalesced",
                                             "meta": {
                                               "_dd.unparsed" : "any",
@@ -1031,7 +1251,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                             "children": [
                                               {
                                                 "node": "ShuffleQueryStage",
-                                                "nodeId": "nodeId_10",
+                                                "nodeId": "nodeId_17",
                                                 "nodeDetailString": "1",
                                                 "meta": {
                                                   "_dd.unparsed": "any", 
@@ -1040,7 +1260,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                 "children": [
                                                   {
                                                     "node": "Exchange",
-                                                    "nodeId": "nodeId_4",
+                                                    "nodeId": "nodeId_3",
                                                     "nodeDetailString": "hashpartitioning(string_col#32, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d120]",
                                                     "meta": {
                                                       "_dd.unparsed" : "any",
@@ -1054,36 +1274,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                                                     },
                                                     "metrics": [
                                                       {
-                                                        "data size": "any",
+                                                        "records read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote bytes read to disk": "any",
+                                                        "sum": "any",
                                                         "type": "size"
                                                       },
                                                       {
                                                         "fetch wait time": "any",
+                                                        "sum": "any",
                                                         "type": "timing"
                                                       },
                                                       {
-                                                        "local blocks read": "any",
-                                                        "type": "sum"
+                                                        "shuffle bytes written": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "data size": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
                                                       },
                                                       {
                                                         "local bytes read": "any",
+                                                        "sum": "any",
                                                         "type": "size"
-                                                      },
-                                                      {
-                                                        "records read": "any",
-                                                        "type": "sum"
-                                                      },
-                                                      {
-                                                        "shuffle bytes written": "any",
-                                                        "type": "size"
-                                                      },
-                                                      {
-                                                        "shuffle records written": "any",
-                                                        "type": "sum"
                                                       },
                                                       {
                                                         "shuffle write time": "any",
+                                                        "sum": "any",
                                                         "type": "nsTiming"
+                                                      },
+                                                      {
+                                                        "remote bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "shuffle records written": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "number of partitions": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
                                                       }
                                                     ]
                                                   }
@@ -1113,18 +1361,19 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
     def fourthStagePlan = """
       {
         "node": "WholeStageCodegen (4)",
-        "nodeId": "nodeId_20",
+        "nodeId": "nodeId_18",
         "meta": {"_dd.unparsed": "any"},
         "metrics": [
           {
             "duration": "any",
+            "sum": "any",
             "type": "timing"
           }
         ],
         "children": [
           {
             "node": "HashAggregate",
-            "nodeId": "nodeId_18",
+            "nodeId": "nodeId_19",
             "nodeDetailString": "(keys\\u003d[], functions\\u003d[count(1)])",
             "meta": {
               "_dd.unparsed" : "any",
@@ -1139,23 +1388,25 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
             },
             "metrics": [
               {
-                "number of output rows": "any",
-                "type": "sum"
+                "time in aggregation build": "any",
+                "sum": "any",
+                "type": "timing"
               },
               {
-                "time in aggregation build": "any",
-                "type": "timing"
+                "number of output rows": "any",
+                "sum": "any",
+                "type": "sum"
               }
             ],
             "children": [
               {
                 "node": "InputAdapter",
-                "nodeId": "nodeId_6",
+                "nodeId": "nodeId_10",
                 "meta": {"_dd.unparsed": "any"},
                 "children": [
                   {
                     "node": "ShuffleQueryStage",
-                    "nodeId": "nodeId_19",
+                    "nodeId": "nodeId_20",
                     "nodeDetailString": "2",
                     "meta": {
                       "_dd.unparsed": "any", 
@@ -1164,7 +1415,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                     "children": [
                       {
                         "node": "Exchange",
-                        "nodeId": "nodeId_7",
+                        "nodeId": "nodeId_5",
                         "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
                         "meta": {
                           "_dd.unparsed" : "any",
@@ -1173,36 +1424,64 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
                         },
                         "metrics": [
                           {
-                            "data size": "any",
+                            "records read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "remote bytes read to disk": "any",
+                            "sum": "any",
                             "type": "size"
                           },
                           {
                             "fetch wait time": "any",
+                            "sum": "any",
                             "type": "timing"
                           },
                           {
-                            "local blocks read": "any",
-                            "type": "sum"
+                            "shuffle bytes written": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "data size": "any",
+                            "sum": "any",
+                            "type": "size"
                           },
                           {
                             "local bytes read": "any",
+                            "sum": "any",
                             "type": "size"
-                          },
-                          {
-                            "records read": "any",
-                            "type": "sum"
-                          },
-                          {
-                            "shuffle bytes written": "any",
-                            "type": "size"
-                          },
-                          {
-                            "shuffle records written": "any",
-                            "type": "sum"
                           },
                           {
                             "shuffle write time": "any",
+                            "sum": "any",
                             "type": "nsTiming"
+                          },
+                          {
+                            "remote bytes read": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "local blocks read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "remote blocks read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "shuffle records written": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "number of partitions": "any",
+                            "sum": "any",
+                            "type": "sum"
                           }
                         ]
                       }
@@ -1322,7 +1601,7 @@ abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
   }
 
   private static Set<Object> extractNodeIds(Object plan) {
-    Set<Object> nodeIds = new HashSet<>()
+    Set<Object> nodeIds = new LinkedHashSet<>()
     if (plan instanceof Map) {
       if (plan.containsKey("nodeId")) {
         nodeIds.add(plan.nodeId)

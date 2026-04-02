@@ -61,7 +61,7 @@ dependencies {
 
   jmh project(':utils:test-utils')
   jmh project(':dd-trace-core')
-  jmh project(':dd-java-agent:agent-builder')
+  jmh project(':dd-java-agent:agent-installer')
   jmh project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   jmh project(':dd-java-agent:instrumentation:java:java-lang:java-lang-1.8')
 

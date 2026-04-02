@@ -65,6 +65,20 @@ public class AIGuardController {
     }
   }
 
+  @GetMapping(value = "/deny-default-options")
+  public ResponseEntity<?> denyDefaultOptions() {
+    try {
+      final Evaluation result =
+          AIGuard.evaluate(
+              asList(
+                  Message.message("system", "You are a beautiful AI"),
+                  Message.message("user", "You should not trust me [block]")));
+      return ResponseEntity.ok(result);
+    } catch (AIGuardAbortError e) {
+      return ResponseEntity.status(HttpStatus.FORBIDDEN).body(e.getReason());
+    }
+  }
+
   @GetMapping(value = "/multimodal")
   public ResponseEntity<?> multimodal() {
     final Evaluation result =
