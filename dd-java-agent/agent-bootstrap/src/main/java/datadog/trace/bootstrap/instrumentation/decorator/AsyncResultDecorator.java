@@ -22,6 +22,15 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
         }
       };
 
+  public static Object wrapAsyncResult(
+      final Object result, final Class<?> resultType, final AgentSpan span) {
+    AsyncResultExtension extension;
+    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(resultType)) != null) {
+      return extension.apply(result, span);
+    }
+    return null;
+  }
+
   /**
    * Look for asynchronous result and decorate it with span finisher. If the result is not
    * asynchronous, it will be return unmodified and span will be finished.
@@ -33,12 +42,9 @@ public abstract class AsyncResultDecorator extends BaseDecorator {
    */
   public Object wrapAsyncResultOrFinishSpan(
       final Object result, final Class<?> methodReturnType, final AgentSpan span) {
-    AsyncResultExtension extension;
-    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(methodReturnType)) != null) {
-      Object applied = extension.apply(result, span);
-      if (applied != null) {
-        return applied;
-      }
+    Object applied = wrapAsyncResult(result, methodReturnType, span);
+    if (applied != null) {
+      return applied;
     }
     // If no extension was applied, immediately finish the span and return the original result
     span.finish();
