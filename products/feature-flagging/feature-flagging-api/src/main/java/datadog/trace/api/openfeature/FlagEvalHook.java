@@ -17,7 +17,7 @@ class FlagEvalHook implements Hook<Object> {
   @Override
   public void finallyAfter(
       HookContext<Object> ctx, FlagEvaluationDetails<Object> details, Map<String, Object> hints) {
-    if (metrics == null) {
+    if (metrics == null || details == null) {
       return;
     }
     try {

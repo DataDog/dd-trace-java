@@ -21,7 +21,10 @@ class FlagEvalMetrics implements Closeable {
   private static final Duration EXPORT_INTERVAL = Duration.ofSeconds(10);
 
   private static final String DEFAULT_ENDPOINT = "http://localhost:4318/v1/metrics";
+  // Signal-specific env var (used as-is, must include /v1/metrics path)
   private static final String ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
+  // Generic env var fallback (base URL, /v1/metrics is appended)
+  private static final String ENDPOINT_GENERIC_ENV = "OTEL_EXPORTER_OTLP_ENDPOINT";
 
   private static final AttributeKey<String> ATTR_FLAG_KEY =
       AttributeKey.stringKey("feature_flag.key");
@@ -40,7 +43,12 @@ class FlagEvalMetrics implements Closeable {
     try {
       String endpoint = System.getenv(ENDPOINT_ENV);
       if (endpoint == null || endpoint.isEmpty()) {
-        endpoint = DEFAULT_ENDPOINT;
+        String base = System.getenv(ENDPOINT_GENERIC_ENV);
+        if (base != null && !base.isEmpty()) {
+          endpoint = base.endsWith("/") ? base + "v1/metrics" : base + "/v1/metrics";
+        } else {
+          endpoint = DEFAULT_ENDPOINT;
+        }
       }
 
       OtlpHttpMetricExporter exporter =
