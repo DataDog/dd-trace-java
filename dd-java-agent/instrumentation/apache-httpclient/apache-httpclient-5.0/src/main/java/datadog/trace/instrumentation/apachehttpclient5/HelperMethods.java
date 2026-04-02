@@ -36,8 +36,10 @@ public class HelperMethods {
     return activateHttpSpan(new HostAndRequestAsHttpUriRequest(host, request));
   }
 
-  // checks current value in context store,
-  // and ensures it's set to true when this method exists
+  // Checks current value in context store,
+  // and ensures it's set to true when this method exists.
+  // We are using a contextStore rather than a CallDepthMap because "sub-requests" can be triggered
+  // by interceptors (see ApacheClientNestedExecuteTest).
   private static boolean testAndSet(
       final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
       final ClassicHttpRequest request) {
@@ -71,7 +73,11 @@ public class HelperMethods {
   }
 
   public static void doMethodExit(
-      final AgentScope scope, final Object result, final Throwable throwable) {
+      final ContextStore<ClassicHttpRequest, Boolean> instrumentationMarker,
+      final ClassicHttpRequest request,
+      final AgentScope scope,
+      final Object result,
+      final Throwable throwable) {
     if (scope == null) {
       return;
     }
@@ -87,6 +93,7 @@ public class HelperMethods {
       AgentSpan span = scope.span();
       scope.close();
       span.finish();
+      instrumentationMarker.remove(request);
     }
   }
 }

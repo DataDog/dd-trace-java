@@ -51,6 +51,32 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
 
   abstract CloseableHttpResponse executeRequest(T request, URI uri)
 
+  def "same request instance reused across execute calls is instrumented each time"() {
+    setup:
+    def uri = server.address.resolve("/success")
+    def request = createRequest("GET", uri)
+    // prevent server-side spans from being created
+    request.addHeader(new BasicHeader("is-dd-server", "false"))
+
+    when:
+    def first = executeRequest(request, uri)
+    first?.entity?.content?.close()
+    def second = executeRequest(request, uri)
+    second?.entity?.content?.close()
+
+    then:
+    first != null
+    second != null
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, "GET", false, false, uri)
+      }
+      trace(size(1)) {
+        clientSpan(it, null, "GET", false, false, uri)
+      }
+    }
+  }
+
   static String fullPathFromURI(URI uri) {
     StringBuilder builder = new StringBuilder()
     if (uri.getPath() != null) {

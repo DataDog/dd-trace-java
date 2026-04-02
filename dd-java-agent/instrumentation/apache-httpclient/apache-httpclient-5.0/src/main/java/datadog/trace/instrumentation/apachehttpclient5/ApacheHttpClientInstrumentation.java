@@ -144,7 +144,12 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          request,
+          scope,
+          result,
+          throwable);
     }
   }
 
@@ -163,7 +168,12 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          request,
+          scope,
+          result,
+          throwable);
     }
   }
 
@@ -198,7 +208,12 @@ public class ApacheHttpClientInstrumentation extends InstrumenterModule.Tracing
         @Advice.Enter final AgentScope scope,
         @Advice.Return final Object result,
         @Advice.Thrown final Throwable throwable) {
-      HelperMethods.doMethodExit(scope, result, throwable);
+      HelperMethods.doMethodExit(
+          InstrumentationContext.get(ClassicHttpRequest.class, Boolean.class),
+          request,
+          scope,
+          result,
+          throwable);
     }
   }
 
