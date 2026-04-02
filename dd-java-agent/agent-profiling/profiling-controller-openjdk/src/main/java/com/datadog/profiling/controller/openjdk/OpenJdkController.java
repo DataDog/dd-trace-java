@@ -192,10 +192,28 @@ public final class OpenJdkController implements Controller {
 
     // Toggle settings from config
 
-    if (configProvider.getBoolean(
-        ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT)) {
-      log.debug("Enabling OldObjectSample JFR event with the config.");
-      recordingSettings.put("jdk.OldObjectSample#enabled", "true");
+    // Unified live heap (profiling.heap.enabled): when explicitly disabled, turn off
+    // OldObjectSample. When enabled (or default), if ddprof is likely handling live heap,
+    // proactively disable OldObjectSample to avoid double collection.
+    // disableOverriddenEvents() at recording start is the definitive safety net,
+    // but we disable here too so the settings map is consistent from the start.
+    if (!configProvider.getBoolean(
+        ProfilingConfig.PROFILING_HEAP_ENABLED, isLiveHeapProfilingSafe())) {
+      disableEvent(recordingSettings, "jdk.OldObjectSample", "live heap profiling is disabled");
+    } else {
+      // ddprof live heap requires Java 11+ (JVMTI Allocation Sampler)
+      boolean ddprofLikelyActive =
+          isJavaVersionAtLeast(11)
+              && configProvider.getBoolean(
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, true)
+              && configProvider.getBoolean(
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, true);
+      if (ddprofLikelyActive) {
+        disableEvent(
+            recordingSettings,
+            "jdk.OldObjectSample",
+            "ddprof live heap profiling is expected to handle live heap data");
+      }
     }
 
     if (configProvider.getBoolean(
@@ -240,9 +258,8 @@ public final class OpenJdkController implements Controller {
 
     // Warn users for expensive events
 
-    if (!isOldObjectSampleAvailable()
-        && isEventEnabled(recordingSettings, "jdk.OldObjectSample#enabled")) {
-      log.warn("Inexpensive heap profiling is not supported for this JDK but is enabled.");
+    if (!isOldObjectSampleAvailable() && isEventEnabled(recordingSettings, "jdk.OldObjectSample")) {
+      log.warn("JFR based live heap profiling is not supported for this JDK but is enabled.");
     }
 
     if (isEventEnabled(recordingSettings, "jdk.ObjectAllocationInNewTLAB")
