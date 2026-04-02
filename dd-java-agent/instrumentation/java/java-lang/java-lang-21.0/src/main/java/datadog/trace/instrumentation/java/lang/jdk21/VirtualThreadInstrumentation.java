@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.java.lang.jdk21;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState.activateAndContinueContinuation;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ConcurrentState.captureContinuation;
@@ -13,6 +12,7 @@ import static java.util.Collections.singletonList;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
@@ -44,8 +44,7 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  *       carrier thread.
  *   <li>{@code unmount()}: closes the scope. The continuation survives as still hold.
  *   <li>Steps 2-3 repeat on each park/unpark cycle, potentially on different carrier threads.
- *   <li>{@code afterTerminate()} (for early versions of JDK 21 and 22 before GA), {@code afterDone}
- *       (for JDK 21 GA above): cancels the held continuation to let the context scope to be closed.
+ *   <li>{@code afterDone}: cancels the held continuation to let the context scope to be closed.
  * </ol>
  *
  * <p>The instrumentation uses two context stores. The first from {@link Runnable} (as {@code
@@ -105,16 +104,16 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Construct");
-    transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Activate");
-    transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Close");
+    transformer.applyAdvice(isMethod().and(named("mount")), getClass().getName() + "$Mount");
+    transformer.applyAdvice(isMethod().and(named("unmount")), getClass().getName() + "$Unmount");
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("afterTerminate", "afterDone")),
-        getClass().getName() + "$Terminate");
+        isMethod().and(named("afterDone")).and(takesArguments(boolean.class)),
+        getClass().getName() + "$AfterDone");
   }
 
   public static final class Construct {
     @OnMethodExit(suppress = Throwable.class)
-    public static void captureScope(@Advice.This Object virtualThread) {
+    public static void capture(@Advice.This Object virtualThread) {
       captureContinuation(
           InstrumentationContext.get(Runnable.class, ConcurrentState.class),
           (Runnable) virtualThread,
@@ -122,7 +121,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     }
   }
 
-  public static final class Activate {
+  public static final class Mount {
     @OnMethodExit(suppress = Throwable.class)
     public static void activate(@Advice.This Object virtualThread) {
       AgentScope scope =
@@ -135,7 +134,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     }
   }
 
-  public static final class Close {
+  public static final class Unmount {
     @OnMethodEnter(suppress = Throwable.class)
     public static void close(@Advice.This Object virtualThread) {
       ContextStore<Object, AgentScope> scopeStore =
@@ -149,9 +148,9 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     }
   }
 
-  public static final class Terminate {
+  public static final class AfterDone {
     @OnMethodEnter(suppress = Throwable.class)
-    public static void terminate(@Advice.This Object virtualThread) {
+    public static void clear(@Advice.This Object virtualThread) {
       ConcurrentState.cancelAndClearContinuation(
           InstrumentationContext.get(Runnable.class, ConcurrentState.class),
           (Runnable) virtualThread);
