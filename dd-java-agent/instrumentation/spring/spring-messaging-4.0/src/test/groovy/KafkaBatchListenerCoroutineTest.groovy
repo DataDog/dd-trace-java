@@ -48,7 +48,7 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
 
     and: "child.work is a child of spring.consume"
     DDSpan produce1Span, produce2Span, springConsumeParent
-    assertTraces(10, SORT_TRACES_BY_ID) {
+    assertTraces(9, SORT_TRACES_BY_ID) {
       trace(1) {
         produceSpan(it)
         produce1Span = span(0)
@@ -63,13 +63,13 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
       trace(1) { kafkaConsumeSpan(it, produce1Span, 0) }
       trace(1) { kafkaConsumeSpan(it, produce2Span, 1) }
 
-      trace(1) {
+      trace(2) {
         // consume messages in one batch
         springConsumeSpan(it)
         springConsumeParent = span(0)
+        // child work span connected to the spring consume span
+        childWorkSpan(it, springConsumeParent)
       }
-      // child work span connected to the spring consume span
-      trace(1) { childWorkSpan(it, springConsumeParent) }
 
       trace(1) { kafkaConsumeSpan(it, produce1Span, 0) }
       trace(1) { kafkaConsumeSpan(it, produce2Span, 1) }

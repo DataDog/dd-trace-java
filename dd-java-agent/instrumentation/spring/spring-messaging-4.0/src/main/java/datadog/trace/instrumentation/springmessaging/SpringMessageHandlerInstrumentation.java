@@ -14,15 +14,18 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
+import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
-import java.util.concurrent.CompletionStage;
+import java.util.Collections;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import org.reactivestreams.Publisher;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
 
@@ -51,11 +54,23 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   }
 
   @Override
+  public Map<String, String> contextStore() {
+    return Collections.singletonMap("org.reactivestreams.Publisher", Context.class.getName());
+  }
+
+  @Override
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1"
+      packageName + ".SpringMessageExtractAdapter$1",
+      packageName + ".SpringMessageAsyncHelper",
+      packageName + ".SpringMessageAsyncHelper$ReactorCallbacksClassValue",
+      packageName + ".SpringMessageAsyncHelper$ReactorCallbackMethods",
+      packageName + ".SpringMessageAsyncHelper$SpanFinisher",
+      packageName + ".SpringMessageAsyncHelper$CompletionStageFinishCallback",
+      packageName + ".SpringMessageAsyncHelper$ErrorCallback",
+      packageName + ".SpringMessageAsyncHelper$FinishCallback",
     };
   }
 
@@ -95,8 +110,20 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
       }
       AgentSpan span = scope.span();
       scope.close();
-      if (result instanceof CompletionStage) {
-        result = ((CompletionStage<?>) result).whenComplete(AsyncResultExtensions.finishSpan(span));
+      Object asyncResult = SpringMessageAsyncHelper.wrapAsyncResult(result, span);
+      if (asyncResult != null) {
+        if (result != asyncResult
+            && result instanceof Publisher<?>
+            && asyncResult instanceof Publisher<?>) {
+          Context publisherContext =
+              InstrumentationContext.get(Publisher.class, Context.class)
+                  .remove((Publisher<?>) result);
+          if (publisherContext != null) {
+            InstrumentationContext.get(Publisher.class, Context.class)
+                .put((Publisher<?>) asyncResult, publisherContext);
+          }
+        }
+        result = asyncResult;
       } else {
         if (null != error) {
           DECORATE.onError(span, error);
