@@ -1,19 +1,27 @@
 package datadog.trace.api.openfeature;
 
 import dev.openfeature.sdk.ErrorCode;
-import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import java.io.Closeable;
+import java.time.Duration;
 
-class FlagEvalMetrics {
+class FlagEvalMetrics implements Closeable {
 
   private static final String METER_NAME = "ddtrace.openfeature";
   private static final String METRIC_NAME = "feature_flag.evaluations";
   private static final String METRIC_UNIT = "{evaluation}";
   private static final String METRIC_DESC = "Number of feature flag evaluations";
+  private static final Duration EXPORT_INTERVAL = Duration.ofSeconds(10);
+
+  private static final String DEFAULT_ENDPOINT = "http://localhost:4318/v1/metrics";
+  private static final String ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
 
   private static final AttributeKey<String> ATTR_FLAG_KEY =
       AttributeKey.stringKey("feature_flag.key");
@@ -26,10 +34,24 @@ class FlagEvalMetrics {
       AttributeKey.stringKey("feature_flag.result.allocation_key");
 
   private volatile LongCounter counter;
+  private volatile SdkMeterProvider meterProvider;
 
   FlagEvalMetrics() {
     try {
-      Meter meter = GlobalOpenTelemetry.getMeterProvider().meterBuilder(METER_NAME).build();
+      String endpoint = System.getenv(ENDPOINT_ENV);
+      if (endpoint == null || endpoint.isEmpty()) {
+        endpoint = DEFAULT_ENDPOINT;
+      }
+
+      OtlpHttpMetricExporter exporter =
+          OtlpHttpMetricExporter.builder().setEndpoint(endpoint).build();
+
+      PeriodicMetricReader reader =
+          PeriodicMetricReader.builder(exporter).setInterval(EXPORT_INTERVAL).build();
+
+      meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+
+      Meter meter = meterProvider.meterBuilder(METER_NAME).build();
       counter =
           meter
               .counterBuilder(METRIC_NAME)
@@ -37,14 +59,16 @@ class FlagEvalMetrics {
               .setDescription(METRIC_DESC)
               .build();
     } catch (NoClassDefFoundError | Exception e) {
-      // OTel API not on classpath or initialization failed — counter stays null (no-op)
+      // OTel SDK not on classpath or initialization failed — counter stays null (no-op)
       counter = null;
+      meterProvider = null;
     }
   }
 
   /** Package-private constructor for testing with a mock counter. */
   FlagEvalMetrics(LongCounter counter) {
     this.counter = counter;
+    this.meterProvider = null;
   }
 
   void record(
@@ -74,7 +98,21 @@ class FlagEvalMetrics {
     }
   }
 
+  @Override
+  public void close() {
+    shutdown();
+  }
+
   void shutdown() {
     counter = null;
+    SdkMeterProvider mp = meterProvider;
+    if (mp != null) {
+      meterProvider = null;
+      try {
+        mp.close();
+      } catch (Exception e) {
+        // Ignore shutdown errors
+      }
+    }
   }
 }

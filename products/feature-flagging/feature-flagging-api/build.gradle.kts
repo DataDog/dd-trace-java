@@ -45,9 +45,13 @@ dependencies {
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
+  compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.47.0")
+  compileOnly("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
 
   testImplementation(project(":products:feature-flagging:feature-flagging-bootstrap"))
   testImplementation("io.opentelemetry:opentelemetry-api:1.47.0")
+  testImplementation("io.opentelemetry:opentelemetry-sdk-metrics:1.47.0")
+  testImplementation("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
