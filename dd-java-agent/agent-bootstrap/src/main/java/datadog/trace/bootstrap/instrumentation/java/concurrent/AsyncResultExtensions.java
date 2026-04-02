@@ -16,6 +16,32 @@ public final class AsyncResultExtensions {
   private static final List<AsyncResultExtension> EXTENSIONS =
       new CopyOnWriteArrayList<>(singletonList(new CompletableAsyncResultExtension()));
 
+  private static final ClassValue<AsyncResultExtension> EXTENSION_CLASS_VALUE =
+      new ClassValue<AsyncResultExtension>() {
+        @Override
+        protected AsyncResultExtension computeValue(Class<?> type) {
+          return AsyncResultExtensions.registered().stream()
+              .filter(extension -> extension.supports(type))
+              .findFirst()
+              .orElse(null);
+        }
+      };
+
+  /**
+   * Wraps a supported async result so the span is finished when the async computation completes.
+   *
+   * @return the wrapped async result, or {@code null} if the result type is unsupported or no
+   *     wrapping is applied
+   */
+  public static Object wrapAsyncResult(
+      final Object result, final Class<?> resultType, final AgentSpan span) {
+    AsyncResultExtension extension;
+    if (result != null && (extension = EXTENSION_CLASS_VALUE.get(resultType)) != null) {
+      return extension.apply(result, span);
+    }
+    return null;
+  }
+
   /**
    * Registers an extension to add supported async types.
    *

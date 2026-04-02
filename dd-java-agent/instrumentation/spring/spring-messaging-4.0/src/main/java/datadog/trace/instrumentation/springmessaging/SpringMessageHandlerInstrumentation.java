@@ -20,7 +20,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.decorator.AsyncResultDecorator;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -99,7 +99,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
       }
       if (result != null) {
         Object wrappedResult =
-            AsyncResultDecorator.wrapAsyncResult(result, result.getClass(), span);
+            AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
         if (wrappedResult != null) {
           result = wrappedResult;
           // span will be finished by the wrapper
