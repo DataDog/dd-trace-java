@@ -46,7 +46,7 @@ public class HelperMethods {
       return true;
     }
     Boolean instrumented = instrumentationMarker.get(request);
-    if (instrumented == Boolean.TRUE) {
+    if (Boolean.TRUE.equals(instrumented)) {
       return true;
     }
     instrumentationMarker.put(request, Boolean.TRUE);
