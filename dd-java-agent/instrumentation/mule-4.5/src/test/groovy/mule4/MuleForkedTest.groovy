@@ -8,6 +8,7 @@ import static org.mule.runtime.api.util.MuleTestUtil.muleSpan
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.trace.agent.test.base.WithHttpServer
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
@@ -20,6 +21,11 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
+  // Opt out of strict config validation because this test loads HttpServerTestHandlerInstrumentation
+  // which uses the fake instrumentation name "mule4-http-server-test-handler"
+  void setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
   @Override

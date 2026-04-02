@@ -1,5 +1,6 @@
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.WithHttpServer
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.api.DDSpanTypes
@@ -17,6 +18,12 @@ import test.TestServlet
   JavaVirtualMachine.isJavaVersionAtLeast(22)
 })
 class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements TestingGenericHttpNamingConventions.ServerV0 {
+  // Opt out of strict config validation because this test loads ModulePatchInstrumentation
+  // which uses the fake instrumentation name "jboss-module-patch"
+  void setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
+
   @Override
   EmbeddedWildfly startServer(int port) {
     // create the archive

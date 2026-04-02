@@ -4785,6 +4785,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_CICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_CICS_ENABLED", "DD_INTEGRATION_CICS_ENABLED"]
+      }
+    ],
     "DD_TRACE_CI_VISIBILITY_ENABLED": [
       {
         "version": "A",
@@ -7785,6 +7793,14 @@
         "aliases": ["DD_INTEGRATION_MONGO_3_6_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_6_ENABLED"]
       }
     ],
+    "DD_TRACE_MONGO_3_8_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_MONGO_3_8_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_8_ENABLED"]
+      }
+    ],
     "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
       {
         "version": "B",
@@ -8145,6 +8161,14 @@
         "aliases": ["DD_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED", "DD_TRACE_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENTELEMETRY_1_47_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_1_47_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_1_47_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENTELEMETRY_1_ENABLED": [
       {
         "version": "A",
@@ -8462,7 +8486,7 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
-        "aliases": []
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_SCHEDULER_ENABLED", "DD_INTEGRATION_PEKKO_SCHEDULER_ENABLED"]
       }
     ],
     "DD_TRACE_PERF_METRICS_ENABLED": [
@@ -8935,6 +8959,22 @@
         "type": "boolean",
         "default": "true",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_RESILIENCE4J_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_RESILIENCE4J_ANALYTICS_SAMPLE_RATE"]
       }
     ],
     "DD_TRACE_RESILIENCE4J_ENABLED": [
