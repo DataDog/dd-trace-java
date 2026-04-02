@@ -5921,6 +5921,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_INTEGRATION_GRPC_SERVER_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_GRPC_SERVER_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_GSON_ENABLED": [
       {
         "version": "A",
@@ -6353,6 +6361,14 @@
         "aliases": ["DD_INTEGRATION_HIBERNATE_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
+    "DD_TRACE_INTEGRATION_HIBERNATE_CORE_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_HIBERNATE_CORE_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_INTEGRATION_HTTPASYNCCLIENT5_MATCHING_SHORTCUT_ENABLED": [
       {
         "version": "A",
@@ -6399,6 +6415,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_INTEGRATION_APACHE_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_INTEGRATION_APACHE_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
     "DD_TRACE_INTERNAL_EXIT_ON_FAILURE": [
@@ -7753,6 +7777,14 @@
         "aliases": ["DD_INTEGRATION_MONGO_3_4_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_4_ENABLED"]
       }
     ],
+    "DD_TRACE_MONGO_3_6_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_MONGO_3_6_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_6_ENABLED"]
+      }
+    ],
     "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
       {
         "version": "B",
@@ -8191,6 +8223,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENTELEMETRY_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTRACING_ENABLED": [
@@ -8847,6 +8887,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED", "DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED"]
+      }
+    ],
+    "DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
     "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED": [
@@ -9687,6 +9735,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_SPARK_ENABLED", "DD_INTEGRATION_SPARK_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SPARK_LAUNCHER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_SPARK_LAUNCHER_ENABLED", "DD_INTEGRATION_SPARK_LAUNCHER_ENABLED"]
       }
     ],
     "DD_TRACE_SPARK_EXECUTOR_ANALYTICS_ENABLED": [
