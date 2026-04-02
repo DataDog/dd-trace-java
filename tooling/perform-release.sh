@@ -60,9 +60,13 @@ if ! git diff-index --quiet "$REMOTE/$CURRENT_BRANCH"; then
 fi
 echo "✅ Working copy is clean and up-to-date."
 
-# Check if gh CLI is available
+# Check if gh CLI and jq are available
 if ! command -v gh &>/dev/null; then
     echo "❌ GitHub CLI (gh) is not installed or not in PATH. Please install it to proceed."
+    exit 1
+fi
+if ! command -v jq &>/dev/null; then
+    echo "❌ jq is not installed or not in PATH. Please install it to proceed."
     exit 1
 fi
 
@@ -78,17 +82,10 @@ if [ -z "$CURRENT_USER" ]; then
     echo "❌ Failed to determine GitHub username. Check your network connection and token scopes."
     exit 1
 fi
-MEMBERSHIP_ERR=$(mktemp)
-trap 'rm -f "$MEMBERSHIP_ERR"' EXIT
 if ! MEMBERSHIP_STATE=$(gh api "orgs/DataDog/teams/dd-trace-java-releasers/memberships/$CURRENT_USER" \
-    --jq '.state' 2>"$MEMBERSHIP_ERR"); then
-    if grep -qi "404\|not found" "$MEMBERSHIP_ERR" 2>/dev/null; then
-        echo "❌ You ($CURRENT_USER) are not a member of the dd-trace-java-releasers release owner team."
-        echo "   Only release owners are allowed to perform a release."
-    else
-        echo "❌ Failed to verify team membership for $CURRENT_USER: $(cat "$MEMBERSHIP_ERR")"
-        echo "   Check your network connection and token scopes (requires 'read:org')."
-    fi
+    --jq '.state'); then
+    echo "❌ You ($CURRENT_USER) are not an active member of the dd-trace-java-releasers release owner team."
+    echo "   Only release owners are allowed to perform a release."
     exit 1
 fi
 if [ "$MEMBERSHIP_STATE" != "active" ]; then
@@ -112,15 +109,16 @@ else
 fi
 
 # Get the next release version
-VERSION=$(echo "$LAST_RELEASE_TAG" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' || true)
-if [ -z "$VERSION" ]; then
+VERSION="${LAST_RELEASE_TAG#v}"
+if [ -z "$VERSION" ] || ! [[ "$VERSION" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
     echo "❌ Unable to determine the next release version from the last release tag: $LAST_RELEASE_TAG"
     exit 1
 fi
+IFS=. read -r _major _minor _patch <<< "$VERSION"
 if [ "$MINOR_RELEASE" = true ]; then
-    NEXT_RELEASE_VERSION=$(echo "$VERSION" | awk -F. '{printf "v%d.%d.0", $1, $2 + 1}')
+    NEXT_RELEASE_VERSION="v${_major}.$(( _minor + 1 )).0"
 else
-    NEXT_RELEASE_VERSION=$(echo "$VERSION" | awk -F. '{printf "v%d.%d.%d", $1, $2, $3 + 1}')
+    NEXT_RELEASE_VERSION="v${_major}.${_minor}.$(( _patch + 1 ))"
 fi
 echo "ℹ️ Next release version: $NEXT_RELEASE_VERSION"
 
@@ -146,7 +144,7 @@ if [ -z "$MILESTONE_NUMBERS" ]; then
     echo "   Please create the milestone and assign PRs to it before performing a release."
     exit 1
 fi
-MILESTONE_COUNT=$(printf '%s\n' "$MILESTONE_NUMBERS" | wc -l | tr -d ' ')
+MILESTONE_COUNT=$(printf '%s\n' "$MILESTONE_NUMBERS" | grep -c .)
 if [ "$MILESTONE_COUNT" -gt 1 ]; then
     echo "❌ Multiple open milestones found for version '$MILESTONE_TITLE' (numbers: $(printf '%s ' "$MILESTONE_NUMBERS"))."
     echo "   Please resolve the duplicate milestones before performing a release."
@@ -161,10 +159,6 @@ if ! OPEN_PRS=$(gh api --paginate \
     "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=open&per_page=100" \
     --jq '[.[] | select(.pull_request != null)]' | jq -s 'add | length'); then
     echo "❌ Failed to query milestone '$MILESTONE_TITLE'. Check your network connection."
-    exit 1
-fi
-if [ -z "$OPEN_PRS" ] || ! [[ "$OPEN_PRS" =~ ^[0-9]+$ ]]; then
-    echo "❌ Unexpected response when querying open PR count for milestone '$MILESTONE_TITLE': '$OPEN_PRS'."
     exit 1
 fi
 if [ "$OPEN_PRS" -gt 0 ]; then
@@ -183,11 +177,12 @@ echo "✅ All PRs in milestone '$MILESTONE_TITLE' are merged."
 if ! NONCOMPLIANT=$(gh api --paginate \
     "repos/{owner}/{repo}/issues?milestone=$MILESTONE_NUMBER&state=closed&per_page=100" \
     --jq '[.[] | select(.pull_request != null) |
+          (.labels // [] | map(.name)) as $l |
           select(
-            (((.labels // []) | map(.name) | map(. == "tag: no release notes") | any) | not) and
+            ($l | any(. == "tag: no release notes") | not) and
             (
-              (((.labels // []) | map(.name) | map(startswith("comp:") or startswith("inst:")) | any) | not) or
-              (((.labels // []) | map(.name) | map(startswith("type:")) | any) | not)
+              ($l | any(startswith("comp:") or startswith("inst:")) | not) or
+              ($l | any(startswith("type:")) | not)
             )
           ) | "   #\(.number) \(.title)"] | .[]'); then
     echo "❌ Failed to query milestone PRs. Check your network connection."
@@ -204,10 +199,7 @@ fi
 
 # Check GPG signing key is configured and usable for signing (release tags are signed with -s).
 # Use a test-sign to catch expired or revoked keys before the point of no return.
-SIGNING_KEY=$(git config --get user.signingkey 2>/dev/null || true)
-if [ -z "$SIGNING_KEY" ]; then
-    SIGNING_KEY=$(git config --get user.email 2>/dev/null || true)
-fi
+SIGNING_KEY=$(git config --get user.signingkey 2>/dev/null || git config --get user.email 2>/dev/null || true)
 if [ -z "$SIGNING_KEY" ]; then
     echo "❌ No GPG signing key configured. Release tags must be signed."
     echo "   Configure one with: git config user.signingkey <KEY_ID>"
