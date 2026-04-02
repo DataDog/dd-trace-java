@@ -29,16 +29,20 @@ final class OtelHistogramSketch extends OtelAggregator {
     List<Double> binBoundaries;
     List<Double> binCounts;
     double sum;
+    double min;
+    double max;
     synchronized (histogram) {
       count = histogram.getCount();
       binBoundaries = histogram.getBinBoundaries();
       binCounts = histogram.getBinCounts();
       sum = histogram.getSum();
+      min = histogram.getMinValue();
+      max = histogram.getMaxValue();
       if (reset) {
         histogram.clear();
       }
     }
-    return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum);
+    return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum, min, max);
   }
 
   /** Truncate IEEE-754 floating-point value to 10 bits precision. */
