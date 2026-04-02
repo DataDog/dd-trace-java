@@ -30,10 +30,14 @@ abstract class Elasticsearch2SpringRepositoryTest extends VersionedNamingTestBas
     TEST_WRITER.waitUntilReported(cleanupSpan)
   }
 
-  def setupSpec() {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
     // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
+  def setupSpec() {
     // force putting the mapping here to avoid flakiness
     repo.index(new Doc())
     cleanup()

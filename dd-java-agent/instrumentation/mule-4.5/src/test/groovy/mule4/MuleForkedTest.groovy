@@ -21,11 +21,6 @@ import spock.lang.AutoCleanup
 import spock.lang.Shared
 
 class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
-  // Opt out of strict config validation because this test loads HttpServerTestHandlerInstrumentation
-  // which uses the fake instrumentation name "mule4-http-server-test-handler"
-  void setupSpec() {
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
-  }
 
   // TODO since mule uses reactor core, things sometime propagate to places where they're not closed
   @Override
@@ -36,6 +31,9 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation because this test loads HttpServerTestHandlerInstrumentation
+    // which uses the fake instrumentation name "mule4-http-server-test-handler"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     injectSysConfig("integration.mule.enabled", "true")
   }
 

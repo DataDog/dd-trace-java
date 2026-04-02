@@ -35,10 +35,14 @@ abstract class Elasticsearch2TransportClientTest extends VersionedNamingTestBase
   @Shared
   TransportClient client
 
-  def setupSpec() {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
     // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
+  def setupSpec() {
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
     println "ES work dir: $esWorkingDir"

@@ -18,11 +18,6 @@ import test.TestServlet
   JavaVirtualMachine.isJavaVersionAtLeast(22)
 })
 class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements TestingGenericHttpNamingConventions.ServerV0 {
-  // Opt out of strict config validation because this test loads ModulePatchInstrumentation
-  // which uses the fake instrumentation name "jboss-module-patch"
-  void setupSpec() {
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
-  }
 
   @Override
   EmbeddedWildfly startServer(int port) {
@@ -46,6 +41,9 @@ class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements Testi
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation because this test loads ModulePatchInstrumentation
+    // which uses the fake instrumentation name "jboss-module-patch"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
     // otherwise there are differences in setting the resource name across wildfly versions
     injectSysConfig("undertow.legacy.tracing.enabled", "false")
   }
