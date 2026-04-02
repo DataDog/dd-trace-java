@@ -20,7 +20,7 @@ public final class AsyncResultExtensions {
       new ClassValue<AsyncResultExtension>() {
         @Override
         protected AsyncResultExtension computeValue(Class<?> type) {
-          return AsyncResultExtensions.registered().stream()
+          return EXTENSIONS.stream()
               .filter(extension -> extension.supports(type))
               .findFirst()
               .orElse(null);
@@ -60,11 +60,6 @@ public final class AsyncResultExtensions {
       }
       EXTENSIONS.add(extension);
     }
-  }
-
-  /** Returns the list of currently registered extensions. */
-  public static List<AsyncResultExtension> registered() {
-    return EXTENSIONS;
   }
 
   static final class CompletableAsyncResultExtension implements AsyncResultExtension {
