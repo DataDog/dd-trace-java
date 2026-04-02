@@ -447,6 +447,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
@@ -925,6 +926,7 @@ public class Config {
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
+  private final String metricsOtelExporter;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
@@ -1906,6 +1908,8 @@ public class Config {
     statsDClientQueueSize = configProvider.getInteger(STATSD_CLIENT_QUEUE_SIZE);
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
+
+    metricsOtelExporter = configProvider.getString(METRICS_OTEL_EXPORTER);
 
     int cardinalityLimit =
         configProvider.getInteger(
@@ -5260,6 +5264,10 @@ public class Config {
     return instrumenterConfig.isMetricsOtelEnabled();
   }
 
+  public boolean isMetricsOtlpExporterEnabled() {
+    return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -6338,6 +6346,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", metricsOtelExporter="
+        + metricsOtelExporter
         + ", metricsOtelInterval="
         + metricsOtelInterval
         + ", metricsOtelTimeout="
