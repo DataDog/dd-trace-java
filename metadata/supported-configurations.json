@@ -4793,6 +4793,30 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_CICS_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_CICS_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_CICS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_CICS_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_CICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_CICS_ENABLED", "DD_INTEGRATION_CICS_ENABLED"]
+      }
+    ],
     "DD_TRACE_CI_VISIBILITY_ENABLED": [
       {
         "version": "A",
@@ -5929,6 +5953,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_INTEGRATION_GRPC_SERVER_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_GRPC_SERVER_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_GSON_ENABLED": [
       {
         "version": "A",
@@ -6361,6 +6393,14 @@
         "aliases": ["DD_INTEGRATION_HIBERNATE_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
+    "DD_TRACE_INTEGRATION_HIBERNATE_CORE_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_HIBERNATE_CORE_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_INTEGRATION_HTTPASYNCCLIENT5_MATCHING_SHORTCUT_ENABLED": [
       {
         "version": "A",
@@ -6407,6 +6447,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_INTEGRATION_APACHE_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_INTEGRATION_APACHE_HTTPASYNCCLIENT_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
     "DD_TRACE_INTERNAL_EXIT_ON_FAILURE": [
@@ -6663,6 +6711,38 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_TRACE_FFM_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_FFM_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_TRACE_FFM_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_TRACE_FFM_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_FFM_NATIVE_TRACING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_FFM_NATIVE_TRACING_ENABLED", "DD_INTEGRATION_FFM_NATIVE_TRACING_ENABLED"]
+      }
+    ],
+    "DD_TRACE_JAVA_LANG_22_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_LANG_22_ENABLED", "DD_INTEGRATION_JAVA_LANG_22_ENABLED"]
       }
     ],
     "DD_TRACE_JAVA_LANG_APPSEC_ENABLED": [
@@ -7761,6 +7841,22 @@
         "aliases": ["DD_INTEGRATION_MONGO_3_4_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_4_ENABLED"]
       }
     ],
+    "DD_TRACE_MONGO_3_6_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_MONGO_3_6_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_6_ENABLED"]
+      }
+    ],
+    "DD_TRACE_MONGO_3_8_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_MONGO_3_8_ENABLED", "DD_TRACE_INTEGRATION_MONGO_3_8_ENABLED"]
+      }
+    ],
     "DD_TRACE_MONGO_ANALYTICS_ENABLED": [
       {
         "version": "B",
@@ -8081,6 +8177,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_ENABLED", "DD_INTEGRATION_OKHTTP_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENAI_JAVA_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_OPENAI_JAVA_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENAI_JAVA_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_OPENAI_JAVA_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_OPENAI_JAVA_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENAI_JAVA_ENABLED", "DD_INTEGRATION_OPENAI_JAVA_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
         "version": "A",
@@ -8119,6 +8239,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED", "DD_TRACE_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENTELEMETRY_1_47_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_1_47_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_1_47_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTELEMETRY_1_ENABLED": [
@@ -8199,6 +8327,22 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENTELEMETRY_METRICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_INTEGRATION_OPENTELEMETRY_METRICS_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_METRICS_MATCHING_SHORTCUT_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTRACING_ENABLED": [
@@ -8430,7 +8574,7 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
-        "aliases": []
+        "aliases": ["DD_TRACE_INTEGRATION_PEKKO_SCHEDULER_ENABLED", "DD_INTEGRATION_PEKKO_SCHEDULER_ENABLED"]
       }
     ],
     "DD_TRACE_PERF_METRICS_ENABLED": [
@@ -8857,6 +9001,14 @@
         "aliases": ["DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED", "DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_ENABLED"]
       }
     ],
+    "DD_TRACE_INTEGRATION_REJECTED_EXECUTION_HANDLER_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_REJECTED_EXECUTION_HANDLER_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED": [
       {
         "version": "A",
@@ -8897,12 +9049,44 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_RESILIENCE4J_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_RESILIENCE4J_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_RESILIENCE4J_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
     "DD_TRACE_RESILIENCE4J_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RESILIENCE4J_ENABLED", "DD_INTEGRATION_RESILIENCE4J_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_RETRY_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_RESILIENCE4J_RETRY_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_RETRY_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_RESILIENCE4J_RETRY_ANALYTICS_SAMPLE_RATE"]
       }
     ],
     "DD_TRACE_RESILIENCE4J_REACTOR_ENABLED": [
@@ -9695,6 +9879,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_SPARK_ENABLED", "DD_INTEGRATION_SPARK_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SPARK_LAUNCHER_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_INTEGRATION_SPARK_LAUNCHER_ENABLED", "DD_INTEGRATION_SPARK_LAUNCHER_ENABLED"]
       }
     ],
     "DD_TRACE_SPARK_EXECUTOR_ANALYTICS_ENABLED": [
