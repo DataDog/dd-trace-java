@@ -6705,6 +6705,22 @@
         "aliases": ["DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
       }
     ],
+    "DD_TRACE_TRACE_FFM_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_TRACE_FFM_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_TRACE_FFM_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_TRACE_FFM_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
     "DD_TRACE_FFM_NATIVE_TRACING_ENABLED": [
       {
         "version": "A",
