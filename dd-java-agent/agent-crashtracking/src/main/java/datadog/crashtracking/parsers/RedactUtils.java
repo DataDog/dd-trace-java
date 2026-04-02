@@ -37,11 +37,21 @@ public final class RedactUtils {
   // Type descriptors like Lcom/company/Type;
   private static final Pattern TYPE_DESCRIPTOR = Pattern.compile("L([A-Za-z$_][A-Za-z0-9$_/]*);");
 
-  // klass/interface references: - klass: 'com/company/Class'
-  private static final Pattern KLASS_REF = Pattern.compile("((?:klass|interface): ')([^']+)(')");
+  // klass references: - klass: 'com/company/Class'
+  private static final Pattern KLASS_REF = Pattern.compile("(klass: ')([^']+)'");
 
   // 'in 'class'' clause in {method} descriptor entries
-  private static final Pattern METHOD_IN_CLASS = Pattern.compile("( in ')([^']+)(')");
+  private static final Pattern METHOD_IN_CLASS = Pattern.compile("( in ')([^']+)'");
+
+  // Object-reference field values in oop dumps: a 'com/company/Class'{0x...}
+  private static final Pattern OBJ_FIELD_REF =
+      Pattern.compile("(a ')([A-Za-z$_][A-Za-z0-9$_/]*)'");
+
+  // Class name in nmethod compiled-method output (JDK 11+):
+  //   "Compiled method (c2) ... com.company.Foo::methodName (N bytes)"   (PRODUCT — dots)
+  //   "Compiled method (c2) ... com/company/Foo::methodName (N bytes)"   (debug  — slashes)
+  private static final Pattern NMETHOD_CLASS =
+      Pattern.compile("([A-Za-z][A-Za-z0-9$]*(?:[./][A-Za-z][A-Za-z0-9$]*)+)::");
 
   // Library path in two formats produced by os::print_location():
   //   <offset 0x...> in /path/to/lib.so at 0x...       (no dladdr symbol)
@@ -106,6 +116,8 @@ public final class RedactUtils {
     line = redactTypeDescriptors(line);
     line = redactKlassReference(line);
     line = redactMethodClass(line);
+    line = redactObjFieldRef(line);
+    line = redactNmethodClass(line);
     line = redactLibraryPath(line);
     line = redactStringOopRef(line, isClassOop);
     line = redactOopClassName(line);
@@ -140,37 +152,63 @@ public final class RedactUtils {
 
   /**
    * Redacts the package of type descriptors in a line: <code>Lcom/company/Type;</code> to <code>
-   * Lredacted/redacted/Type;</code>
+   * Lredacted/Redacted;</code>
    */
   static String redactTypeDescriptors(String line) {
     return replaceAll(TYPE_DESCRIPTOR, line, m -> "L" + redactJvmClassName(m.group(1)) + ";");
   }
 
   /**
-   * Redacts klass/interface references in a line: <code>klass: 'com/company/Class'</code> to <code>
-   * klass: 'redacted/redacted/Class'</code>
+   * Redacts klass references in a line: <code>klass: 'com/company/Class'</code> to <code>
+   * klass: 'redacted/Redacted'</code>
    */
   static String redactKlassReference(String line) {
     return replaceAll(
-        KLASS_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + m.group(3));
+        KLASS_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
   }
 
   /**
    * Redacts the class in a method descriptor's {@code in 'class'} clause: <code>
-   * in 'com/company/Class'</code> to <code>in 'redacted/redacted/Class'</code>
+   * in 'com/company/Class'</code> to <code>in 'redacted/Redacted'</code>
    */
   static String redactMethodClass(String line) {
     return replaceAll(
-        METHOD_IN_CLASS, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + m.group(3));
+        METHOD_IN_CLASS, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
   }
 
   /**
    * Redacts all but the parent directory and filename from a library path. Handles both <code>
    * &lt;offset 0x...&gt; in /path/to/dir/lib.so</code> and <code>symbol+0 in
-   * /path/to/dir/lib.so</code> to <code>... in /redacted/redacted/dir/lib.so</code>
+   * /path/to/dir/lib.so</code> to <code>... in /redacted/dir/lib.so</code>
    */
   static String redactLibraryPath(String line) {
     return replaceAll(LIBRARY_PATH, line, m -> m.group(1) + redactPath(m.group(2)));
+  }
+
+  /**
+   * Redacts the class name in oop dump object-reference field values: <code>a
+   * 'com/company/Class'</code> to <code>a 'redacted/Redacted'</code>.
+   */
+  static String redactObjFieldRef(String line) {
+    return replaceAll(
+        OBJ_FIELD_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
+  }
+
+  /**
+   * Redacts the class name in nmethod {@code Compiled method} output (JDK 11+): <code>
+   * com.company.Foo::methodName</code> to <code>redacted.Redacted::methodName</code>. Handles both
+   * dot-separated (PRODUCT build) and slash-separated (debug build) class names.
+   */
+  static String redactNmethodClass(String line) {
+    return replaceAll(
+        NMETHOD_CLASS,
+        line,
+        m -> {
+          String cls = m.group(1);
+          String redacted =
+              cls.indexOf('/') >= 0 ? redactJvmClassName(cls) : redactDottedClassName(cls);
+          return redacted + "::";
+        });
   }
 
   /**
@@ -186,7 +224,7 @@ public final class RedactUtils {
 
   /**
    * Redacts the class name in {@code is an oop: ClassName}: <code>is an oop: com.company.Class
-   * </code> to <code>is an oop: redacted.redacted.Class</code>
+   * </code> to <code>is an oop: redacted.Redacted</code>
    */
   static String redactOopClassName(String line) {
     return replaceAll(IS_AN_OOP, line, m -> m.group(1) + redactDottedClassName(m.group(2)));

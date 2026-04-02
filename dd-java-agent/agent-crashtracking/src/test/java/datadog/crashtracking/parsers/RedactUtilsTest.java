@@ -300,4 +300,91 @@ public class RedactUtilsTest {
     assertThat(RedactUtils.redactReadableMemoryHexDump("0x00007f37a16e2590 is an unknown value"))
         .isEqualTo("0x00007f37a16e2590 is an unknown value");
   }
+
+  @Test
+  void testRedactObjFieldRef_redactsUnknownPackage() {
+    assertThat(
+            RedactUtils.redactObjFieldRef(
+                " - 'owner' 'Lcom/company/Owner;' @12  a 'com/company/Owner'{0x00007f3700001234} (0x12345678)"))
+        .isEqualTo(
+            " - 'owner' 'Lcom/company/Owner;' @12  a 'redacted/Redacted'{0x00007f3700001234} (0x12345678)");
+  }
+
+  @Test
+  void testRedactObjFieldRef_keepsKnownPackage() {
+    assertThat(
+            RedactUtils.redactObjFieldRef(
+                " - 'loader' 'Ljava/lang/ClassLoader;' @12  a 'java/lang/ClassLoader'{0x00007f3700001234} (0x12345678)"))
+        .isEqualTo(
+            " - 'loader' 'Ljava/lang/ClassLoader;' @12  a 'java/lang/ClassLoader'{0x00007f3700001234} (0x12345678)");
+  }
+
+  @Test
+  void testRedactObjFieldRef_leavesUnrelatedLinesUnchanged() {
+    assertThat(RedactUtils.redactObjFieldRef("0x00007f37a16e2590 is an unknown value"))
+        .isEqualTo("0x00007f37a16e2590 is an unknown value");
+  }
+
+  @Test
+  void testRedactNmethodClass_dottedUnknownPackage() {
+    assertThat(
+            RedactUtils.redactNmethodClass(
+                "Compiled method (c2) 3068 4       com.company.Foo::methodName (456 bytes)"))
+        .isEqualTo("Compiled method (c2) 3068 4       redacted.Redacted::methodName (456 bytes)");
+  }
+
+  @Test
+  void testRedactNmethodClass_dottedKnownPackage() {
+    assertThat(
+            RedactUtils.redactNmethodClass(
+                "Compiled method (c2) 3068 4       java.util.HashMap::resize (456 bytes)"))
+        .isEqualTo(
+            "Compiled method (c2) 3068 4       java.util.HashMap::resize (456 bytes)");
+  }
+
+  @Test
+  void testRedactNmethodClass_slashUnknownPackage() {
+    assertThat(RedactUtils.redactNmethodClass("com/company/Foo::methodName"))
+        .isEqualTo("redacted/Redacted::methodName");
+  }
+
+  @Test
+  void testRedactNmethodClass_slashKnownPackage() {
+    assertThat(RedactUtils.redactNmethodClass("java/util/HashMap::resize"))
+        .isEqualTo("java/util/HashMap::resize");
+  }
+
+  @Test
+  void testRedactNmethodClass_leavesUnrelatedLinesUnchanged() {
+    assertThat(RedactUtils.redactNmethodClass("0x00007f37a16e2590 is an unknown value"))
+        .isEqualTo("0x00007f37a16e2590 is an unknown value");
+  }
+
+  @Test
+  void testRedactRegisterToMemoryMapping_objFieldRef() {
+    // Non-java.lang.Class oop with object-reference field: a 'ClassName' is redacted
+    String value =
+        "0x00000007142f8848 is an oop: com.company.Holder \n"
+            + "{0x00000007142f8848} - klass: 'com/company/Holder'\n"
+            + " - ---- fields (total size 3 words):\n"
+            + " - 'ref' 'Ljava/lang/Object;' @12  a 'com/company/Inner'{0x00007f1200003456} (0xabcdef01)";
+    assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
+        .isEqualTo(
+            "0x00000007142f8848 is an oop: redacted.Redacted \n"
+                + "{0x00000007142f8848} - klass: 'redacted/Redacted'\n"
+                + " - ---- fields (total size 3 words):\n"
+                + " - 'ref' 'Ljava/lang/Object;' @12  a 'redacted/Redacted'{0x00007f1200003456} (0xabcdef01)");
+  }
+
+  @Test
+  void testRedactRegisterToMemoryMapping_nmethodCompiledMethod() {
+    // nmethod entry (JDK 11+): "Compiled method" line class name is redacted
+    String value =
+        "0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
+            + "Compiled method (c2) 3068 4       com.company.Foo::processRequest (456 bytes)";
+    assertThat(RedactUtils.redactRegisterToMemoryMapping(value))
+        .isEqualTo(
+            "0x00007f36cd2b1600 is at entry_point+13512 in (nmethod*) 0x00007f36cd2b1510\n"
+                + "Compiled method (c2) 3068 4       redacted.Redacted::processRequest (456 bytes)");
+  }
 }
