@@ -64,8 +64,21 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
       trace(1) { kafkaConsumeSpan(it, produce2Span, 1) }
 
       trace(2) {
-        // consume messages in one batch
-        springConsumeSpan(it)
+        // consume messages in one batch, and keep spring.consume active across suspend work
+        span {
+          operationName "spring.consume"
+          resourceName "KafkaBatchCoroutineListener.consume"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          parent()
+          assert span(0).durationNano > TimeUnit.MILLISECONDS.toNanos(500)
+          tags {
+            "$Tags.COMPONENT" "spring-messaging"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            defaultTags(true)
+          }
+        }
         springConsumeParent = span(0)
         childWorkSpan(it, springConsumeParent)
       }
@@ -116,22 +129,6 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
         "$InstrumentationTags.PARTITION" { Integer }
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { Long }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { Long }
-        defaultTags(true)
-      }
-    }
-  }
-
-  private static void springConsumeSpan(TraceAssert trace) {
-    trace.span {
-      operationName "spring.consume"
-      resourceName "KafkaBatchCoroutineListener.consume"
-      spanType DDSpanTypes.MESSAGE_CONSUMER
-      errored false
-      measured true
-      parent()
-      tags {
-        "$Tags.COMPONENT" "spring-messaging"
-        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         defaultTags(true)
       }
     }

@@ -1,6 +1,7 @@
 package listener
 
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan
+import kotlinx.coroutines.delay
 import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.common.serialization.StringDeserializer
@@ -77,6 +78,7 @@ class KafkaBatchCoroutineListener {
     containerFactory = "batchListenerContainerFactory"
   )
   suspend fun consume(records: List<ConsumerRecord<String, String>>) {
+    delay(500)
     // Create a child span inside the coroutine body.
     // It should be linked to spring.consume, which should be linked to kafka.consume.
     val childSpan = startSpan("child.work")
