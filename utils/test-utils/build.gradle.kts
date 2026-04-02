@@ -9,7 +9,7 @@ dependencies {
   api(libs.bytebuddyagent)
 
   api(project(":components:environment"))
-  compileOnly(project(":utils:config-utils"))
+  api(project(":utils:config-utils"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
   compileOnly(libs.junit.jupiter)
