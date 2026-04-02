@@ -147,9 +147,8 @@ class StringConcatFactoryCallSiteTest extends InstrumentationSpecification {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    // Explicit escape for non-ASCII symbol to make test independent of container settings.
-    final utfConstant = '\uD840\uDDA2' // 𠆢
-    final expected = "${utfConstant}Hello${utfConstant}\u0001${utfConstant}World!."
+    // 𠆢Hello...
+    final expected = '\uD840\uDDA2Hello\uD840\uDDA2\u0001\uD840\uDDA2World!.'
 
     when:
     final result = TestStringConcatFactorySuite.plusWithUtfConstants('Hello', 'World!')
@@ -159,8 +158,8 @@ class StringConcatFactoryCallSiteTest extends InstrumentationSpecification {
     1 * iastModule.onStringConcatFactory(
       expected,
       ['Hello', 'World!'] as String[],
-      "${utfConstant}\u0001\u0002\u0001.",
-      ["${utfConstant}\u0001${utfConstant}"] as Object[],
+      '\uD840\uDDA2\u0001\u0002\u0001.',
+      ['\uD840\uDDA2\u0001\uD840\uDDA2'] as Object[],
       [-2, 0, -5, 1, -1] as int[])
     0 * _
   }
