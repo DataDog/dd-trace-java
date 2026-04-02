@@ -1,11 +1,12 @@
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+
 import com.ibm.connector2.cics.ECIInteraction
 import com.ibm.ctg.client.JavaGateway
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.CallDepthThreadLocalMap
 import datadog.trace.bootstrap.instrumentation.api.Tags
-
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import datadog.trace.test.util.Flaky
 
 class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecification {
 
@@ -53,6 +54,7 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
     serverThread?.join(1000)
   }
 
+  @Flaky("Flaky on GitLab CI: assert span.isError() == errored")
   def "flow without parent creates new span"() {
     when:
     try {
@@ -83,6 +85,7 @@ class JavaGatewayInterfaceInstrumentationTest extends InstrumentationSpecificati
     }
   }
 
+  @Flaky("Flaky on GitLab CI: Caused by: java.lang.AssertionError: Tag peer.port: null != 40409")
   def "flow with parent span merges into parent"() {
     when:
     try {

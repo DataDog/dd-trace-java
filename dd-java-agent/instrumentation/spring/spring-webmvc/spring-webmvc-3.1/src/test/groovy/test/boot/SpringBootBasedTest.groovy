@@ -523,6 +523,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.HTTP_ROUTE" "/success"
             "stage" "test"
             "_dd.inferred_span" 1
+            "$Tags.HTTP_STATUS" SUCCESS.status
+            "$Tags.HTTP_USER_AGENT" String
             // Standard tags that are automatically added
             "_dd.agent_psr" Number
             "_dd.base_service" String
@@ -541,10 +543,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           }
         }
         // Server span should be a child of the inferred proxy span
-        // When there's an inferred proxy span parent, the server span inherits the parent's service name
         span {
-          // Service name is inherited from the inferred proxy span parent
-          serviceName "api.example.com"
+          serviceName expectedServiceName()
           operationName operation()
           resourceName expectedResourceName(SUCCESS, "GET", address)
           spanType DDSpanTypes.HTTP_SERVER
@@ -568,9 +568,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
           }
         }
         if (hasHandlerSpan()) {
-          // Handler span inherits service name from inferred proxy span parent
           it.span {
-            serviceName "api.example.com"
+            serviceName expectedServiceName()
             operationName "spring.handler"
             resourceName "TestController.success"
             spanType DDSpanTypes.HTTP_SERVER
@@ -583,9 +582,8 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             }
           }
         }
-        // Controller span also inherits service name
         it.span {
-          serviceName "api.example.com"
+          serviceName expectedServiceName()
           operationName "controller"
           resourceName "controller"
           errored false

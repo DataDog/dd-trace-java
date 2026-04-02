@@ -7,7 +7,7 @@ forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.38.0"
+ddprof = "1.40.1"
 dogstatsd = "4.4.3"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
@@ -70,6 +70,8 @@ junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
+json-unit = "2.40.1"
+tabletest = "1.2.1"
 testcontainers = "1.21.4"
 
 [libraries]
@@ -150,6 +152,7 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
@@ -161,6 +164,7 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
+tabletest = { module = "org.tabletest:tabletest-junit", version.ref = "tabletest" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 

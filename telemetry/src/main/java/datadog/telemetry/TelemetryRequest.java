@@ -80,6 +80,16 @@ public class TelemetryRequest {
       builder.addHeader("DD-Telemetry-Debug-Enabled", "true");
     }
 
+    Config config = Config.get();
+    String sessionId = config.getRuntimeId();
+    if (sessionId != null && !sessionId.isEmpty()) {
+      builder.addHeader("DD-Session-ID", sessionId);
+    }
+    String rootSessionId = config.getRootSessionId();
+    if (rootSessionId != null && !rootSessionId.equals(sessionId)) {
+      builder.addHeader("DD-Root-Session-ID", rootSessionId);
+    }
+
     return builder;
   }
 
