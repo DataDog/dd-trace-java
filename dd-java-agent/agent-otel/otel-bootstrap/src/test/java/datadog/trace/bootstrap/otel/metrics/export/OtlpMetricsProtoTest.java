@@ -57,7 +57,8 @@ import org.junit.jupiter.params.provider.MethodSource;
  *                        double as_double = 4; sfixed64 as_int = 6; KeyValue attributes = 7; }
  *   HistogramDataPoint { fixed64 start_time_unix_nano = 2; fixed64 time_unix_nano = 3;
  *                        fixed64 count = 4; double sum = 5; fixed64 bucket_counts = 6;
- *                        double explicit_bounds = 7; KeyValue attributes = 9; }
+ *                        double explicit_bounds = 7; KeyValue attributes = 9;
+ *                        double min = 11; double max = 12; }
  * </pre>
  */
 class OtlpMetricsProtoTest {
@@ -242,6 +243,8 @@ class OtlpMetricsProtoTest {
       List<Double> bounds,
       List<Double> counts,
       double sum,
+      double min,
+      double max,
       AttrSpec... attrs) {
     return new MetricSpec(
         name,
@@ -249,7 +252,7 @@ class OtlpMetricsProtoTest {
         null,
         OtelInstrumentType.HISTOGRAM,
         false,
-        histogramPoint(count, bounds, counts, sum),
+        histogramPoint(count, bounds, counts, sum, min, max),
         asList(attrs));
   }
 
@@ -358,12 +361,17 @@ class OtlpMetricsProtoTest {
         Arguments.of(
             "histogram no buckets",
             asList(
-                scope("io.hist", histogram("response.time", 1.0, emptyList(), asList(1.0), 0.5)))),
+                scope(
+                    "io.hist",
+                    histogram("response.time", 1.0, emptyList(), asList(1.0), 0.5, 0.5, 0.5)))),
 
         // ── histogram — zero count and sum ────────────────────────────────────
         Arguments.of(
             "histogram zero count and sum",
-            asList(scope("io.hist", histogram("idle.time", 0.0, emptyList(), asList(0.0), 0.0)))),
+            asList(
+                scope(
+                    "io.hist",
+                    histogram("idle.time", 0.0, emptyList(), asList(0.0), 0.0, 0.0, 0.0)))),
 
         // ── histogram — single explicit bound ─────────────────────────────────
         Arguments.of(
@@ -371,7 +379,14 @@ class OtlpMetricsProtoTest {
             asList(
                 scope(
                     "io.hist",
-                    histogram("request.size", 5.0, asList(100.0), asList(4.0, 1.0), 280.0)))),
+                    histogram(
+                        "request.size",
+                        5.0,
+                        asList(100.0),
+                        asList(4.0, 1.0),
+                        280.0,
+                        20.0,
+                        200.0)))),
 
         // ── histogram — with explicit bounds and attrs ────────────────────────
         Arguments.of(
@@ -385,6 +400,8 @@ class OtlpMetricsProtoTest {
                         asList(1.0, 5.0, 10.0),
                         asList(2.0, 3.0, 4.0, 1.0),
                         45.5,
+                        0.5,
+                        12.0,
                         strAttr("region", "us-east"))))),
 
         // ── histogram — many buckets with multiple attrs ───────────────────────
@@ -399,6 +416,8 @@ class OtlpMetricsProtoTest {
                         asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0),
                         asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
                         4321.0,
+                        0.5,
+                        150.0,
                         longAttr("shard", 3L),
                         boolAttr("cached", false))))),
 
@@ -886,12 +905,13 @@ class OtlpMetricsProtoTest {
   }
 
   /**
-   * Parses a {@code HistogramDataPoint} message body and asserts timestamps, count, sum, bucket
-   * counts, explicit bounds, and attributes.
+   * Parses a {@code HistogramDataPoint} message body and asserts timestamps, count, sum, min, max,
+   * bucket counts, explicit bounds, and attributes.
    *
    * <pre>
    *   HistogramDataPoint { start_time_unix_nano=2, time_unix_nano=3, count=4,
-   *                        sum=5, bucket_counts=6, explicit_bounds=7, attributes=9 }
+   *                        sum=5, bucket_counts=6, explicit_bounds=7, attributes=9,
+   *                        min=11, max=12 }
    * </pre>
    */
   private static void verifyHistogramDataPoint(CodedInputStream dp, MetricSpec expected)
@@ -901,6 +921,8 @@ class OtlpMetricsProtoTest {
     boolean foundEndTime = false;
     boolean foundCount = false;
     boolean foundSum = false;
+    boolean foundMin = false;
+    boolean foundMax = false;
     List<Long> parsedBucketCounts = new ArrayList<>();
     List<Double> parsedBounds = new ArrayList<>();
     List<String> parsedAttrKeys = new ArrayList<>();
@@ -937,6 +959,20 @@ class OtlpMetricsProtoTest {
         case 9: // attributes (repeated KeyValue)
           parsedAttrKeys.add(readKeyValueKey(dp.readBytes().newCodedInput()));
           break;
+        case 11: // min (double via fixed64)
+          assertEquals(
+              Double.doubleToRawLongBits(hp.min),
+              Double.doubleToRawLongBits(dp.readDouble()),
+              "histogram min");
+          foundMin = true;
+          break;
+        case 12: // max (double via fixed64)
+          assertEquals(
+              Double.doubleToRawLongBits(hp.max),
+              Double.doubleToRawLongBits(dp.readDouble()),
+              "histogram max");
+          foundMax = true;
+          break;
         default:
           dp.skipField(tag);
       }
@@ -946,6 +982,8 @@ class OtlpMetricsProtoTest {
     assertTrue(foundEndTime, "time_unix_nano required for histogram " + expected.name);
     assertTrue(foundCount, "count required for histogram " + expected.name);
     assertTrue(foundSum, "sum required for histogram " + expected.name);
+    assertTrue(foundMin, "min required for histogram " + expected.name);
+    assertTrue(foundMax, "max required for histogram " + expected.name);
 
     assertEquals(
         hp.bucketCounts.size(),
