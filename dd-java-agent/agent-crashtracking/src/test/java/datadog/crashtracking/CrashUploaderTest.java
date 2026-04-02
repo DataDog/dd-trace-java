@@ -401,6 +401,7 @@ public class CrashUploaderTest {
             .processTags("a:b")
             .runtimeId("1234")
             .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .registerMappingEnabled(true)
             .build();
 
     uploader = new CrashUploader(config, crashConfig);
@@ -416,6 +417,28 @@ public class CrashUploaderTest {
     assertThat(mapping.get("RSP").asText())
         .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
     assertThat(mapping.get("RDI").asText()).isEqualTo("0x0 is NULL");
+  }
+
+  @Test
+  public void testErrorTrackingOmitsRegisterToMemoryMappingByDefault() throws Exception {
+    // registerMappingEnabled defaults to false — the mapping must not appear in the payload
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .processTags("a:b")
+            .runtimeId("1234")
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .build();
+
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode()).isTrue();
   }
 
   private void assertCommonHeader(JsonNode event) {

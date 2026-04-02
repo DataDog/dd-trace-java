@@ -953,6 +953,14 @@
         "aliases": []
       }
     ],
+    "DD_CRASHTRACKING_EXPERIMENTAL_REGISTER_MAPPING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CRASHTRACKING_PROXY_HOST": [
       {
         "version": "A",

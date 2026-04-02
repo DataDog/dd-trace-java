@@ -44,8 +44,7 @@ public final class RedactUtils {
   private static final Pattern METHOD_IN_CLASS = Pattern.compile("( in ')([^']+)'");
 
   // Object-reference field values in oop dumps: a 'com/company/Class'{0x...}
-  private static final Pattern OBJ_FIELD_REF =
-      Pattern.compile("(a ')([A-Za-z$_][A-Za-z0-9$_/]*)'");
+  private static final Pattern OBJ_FIELD_REF = Pattern.compile("(a ')([A-Za-z$_][A-Za-z0-9$_/]*)'");
 
   // Class name in nmethod compiled-method output (JDK 11+):
   //   "Compiled method (c2) ... com.company.Foo::methodName (N bytes)"   (PRODUCT — dots)
@@ -163,8 +162,7 @@ public final class RedactUtils {
    * klass: 'redacted/Redacted'</code>
    */
   static String redactKlassReference(String line) {
-    return replaceAll(
-        KLASS_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
+    return replaceAll(KLASS_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
   }
 
   /**
@@ -190,8 +188,7 @@ public final class RedactUtils {
    * 'com/company/Class'</code> to <code>a 'redacted/Redacted'</code>.
    */
   static String redactObjFieldRef(String line) {
-    return replaceAll(
-        OBJ_FIELD_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
+    return replaceAll(OBJ_FIELD_REF, line, m -> m.group(1) + redactJvmClassName(m.group(2)) + "'");
   }
 
   /**

@@ -35,6 +35,7 @@ public class ConfigManager {
     final String reportUUID;
     final boolean agentless;
     final boolean sendToErrorTracking;
+    final boolean registerMappingEnabled;
 
     StoredConfig(
         String reportUUID,
@@ -45,7 +46,8 @@ public class ConfigManager {
         String processTags,
         String runtimeId,
         boolean agentless,
-        boolean sendToErrorTracking) {
+        boolean sendToErrorTracking,
+        boolean registerMappingEnabled) {
       this.service = service;
       this.env = env;
       this.version = version;
@@ -55,6 +57,11 @@ public class ConfigManager {
       this.reportUUID = reportUUID;
       this.agentless = agentless;
       this.sendToErrorTracking = sendToErrorTracking;
+      this.registerMappingEnabled = registerMappingEnabled;
+    }
+
+    public CrashUploaderSettings toCrashUploaderSettings() {
+      return new CrashUploaderSettings(registerMappingEnabled);
     }
 
     public static class Builder {
@@ -67,6 +74,7 @@ public class ConfigManager {
       String reportUUID;
       boolean agentless;
       boolean sendToErrorTracking;
+      boolean registerMappingEnabled;
 
       public Builder(Config config) {
         // get sane defaults
@@ -77,6 +85,7 @@ public class ConfigManager {
         this.reportUUID = RandomUtils.randomUUID().toString();
         this.agentless = config.isCrashTrackingAgentless();
         this.sendToErrorTracking = config.isCrashTrackingErrorsIntakeEnabled();
+        this.registerMappingEnabled = config.isCrashTrackingExperimentalRegisterMappingEnabled();
       }
 
       public Builder service(String service) {
@@ -119,6 +128,11 @@ public class ConfigManager {
         return this;
       }
 
+      public Builder registerMappingEnabled(boolean registerMappingEnabled) {
+        this.registerMappingEnabled = registerMappingEnabled;
+        return this;
+      }
+
       // @VisibleForTesting
       Builder reportUUID(String reportUUID) {
         this.reportUUID = reportUUID;
@@ -135,7 +149,8 @@ public class ConfigManager {
             processTags,
             runtimeId,
             agentless,
-            sendToErrorTracking);
+            sendToErrorTracking,
+            registerMappingEnabled);
       }
     }
   }
@@ -194,6 +209,10 @@ public class ConfigManager {
       writeEntry(bw, "java_home", SystemProperties.get("java.home"));
       writeEntry(bw, "agentless", Boolean.toString(config.isCrashTrackingAgentless()));
       writeEntry(bw, "upload_to_et", Boolean.toString(config.isCrashTrackingErrorsIntakeEnabled()));
+      writeEntry(
+          bw,
+          "register_mapping",
+          Boolean.toString(config.isCrashTrackingExperimentalRegisterMappingEnabled()));
 
       Runtime.getRuntime()
           .addShutdownHook(
@@ -256,6 +275,9 @@ public class ConfigManager {
             break;
           case "upload_to_et":
             cfgBuilder.sendToErrorTracking(Boolean.parseBoolean(value));
+            break;
+          case "register_mapping":
+            cfgBuilder.registerMappingEnabled(Boolean.parseBoolean(value));
             break;
           default:
             // ignore

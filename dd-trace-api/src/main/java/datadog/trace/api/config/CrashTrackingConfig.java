@@ -35,5 +35,9 @@ public final class CrashTrackingConfig {
       "crashtracking.debug.autoconfig.enable";
   public static final boolean CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT = false;
 
+  public static final String CRASH_TRACKING_EXPERIMENTAL_REGISTER_MAPPING_ENABLED =
+      "crashtracking.experimental.register-mapping.enabled";
+  public static final boolean CRASH_TRACKING_EXPERIMENTAL_REGISTER_MAPPING_ENABLED_DEFAULT = false;
+
   private CrashTrackingConfig() {}
 }

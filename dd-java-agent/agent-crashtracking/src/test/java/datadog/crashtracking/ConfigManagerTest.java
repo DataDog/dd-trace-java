@@ -24,6 +24,7 @@ public class ConfigManagerTest {
         .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
+    when(config.isCrashTrackingExperimentalRegisterMappingEnabled()).thenReturn(true);
     when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
     File tmpFile = File.createTempFile("ConfigManagerTest", null);
     tmpFile.deleteOnExit();
@@ -41,6 +42,7 @@ public class ConfigManagerTest {
         deserialized.processTags);
     assertFalse(deserialized.agentless);
     assertTrue(deserialized.sendToErrorTracking);
+    assertTrue(deserialized.registerMappingEnabled);
   }
 
   @Test
@@ -56,5 +58,6 @@ public class ConfigManagerTest {
     assertEquals("env", storedConfig.env);
     assertFalse(storedConfig.agentless);
     assertFalse(storedConfig.sendToErrorTracking);
+    assertFalse(storedConfig.registerMappingEnabled);
   }
 }

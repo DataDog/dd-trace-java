@@ -3,6 +3,7 @@ package datadog.crashtracking.parsers;
 import static java.time.format.DateTimeFormatter.ISO_OFFSET_DATE_TIME;
 
 import datadog.common.version.VersionInfo;
+import datadog.crashtracking.CrashUploaderSettings;
 import datadog.crashtracking.buildid.BuildIdCollector;
 import datadog.crashtracking.buildid.BuildInfo;
 import datadog.crashtracking.dto.CrashLog;
@@ -72,9 +73,15 @@ public final class HotspotCrashLogParser {
   }
 
   private State state = State.NEW;
+  private final CrashUploaderSettings settings;
 
   public HotspotCrashLogParser() {
+    this(new CrashUploaderSettings(true));
+  }
+
+  public HotspotCrashLogParser(CrashUploaderSettings settings) {
     this.buildIdCollector = new BuildIdCollector();
+    this.settings = settings;
   }
 
   private static final Pattern PLUS_SPLITTER = Pattern.compile("\\+");
@@ -598,12 +605,16 @@ public final class HotspotCrashLogParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
-    registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
+    Map<String, String> resolvedMapping = null;
+    if (settings.isRegisterMappingEnabled() && !registerToMemoryMapping.isEmpty()) {
+      registerToMemoryMapping.replaceAll((k, v) -> RedactUtils.redactRegisterToMemoryMapping(v));
+      resolvedMapping = registerToMemoryMapping;
+    }
     Experimental experimental =
         !registers.isEmpty()
-                || !registerToMemoryMapping.isEmpty()
+                || resolvedMapping != null
                 || (runtimeArgs != null && !runtimeArgs.isEmpty())
-            ? new Experimental(registers, registerToMemoryMapping, runtimeArgs)
+            ? new Experimental(registers, resolvedMapping, runtimeArgs)
             : null;
     DynamicLibs files =
         (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())

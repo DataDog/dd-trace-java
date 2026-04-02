@@ -33,10 +33,18 @@ public final class CrashLogParser {
    * </ul>
    */
   public static CrashLog parse(String uuid, String content) {
+    return parse(uuid, content, new CrashUploaderSettings(true));
+  }
+
+  /**
+   * Auto-detect crash log format and parse accordingly, using the provided settings to control
+   * which sections are included in the result.
+   */
+  public static CrashLog parse(String uuid, String content, CrashUploaderSettings settings) {
     if (isJ9Javacore(content)) {
       return fromJ9Javacore(uuid, content);
     }
-    return fromHotspotCrashLog(uuid, content);
+    return new HotspotCrashLogParser(settings).parse(uuid, content);
   }
 
   /** Check if the content appears to be a J9 javacore file. */
