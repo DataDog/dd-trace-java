@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.metrics.data;
+package datadog.trace.bootstrap.otlp.metrics;
 
 import java.util.List;
 
@@ -10,7 +10,7 @@ public final class OtlpHistogramPoint extends OtlpDataPoint {
   public final double min;
   public final double max;
 
-  OtlpHistogramPoint(
+  public OtlpHistogramPoint(
       double count,
       List<Double> bucketBoundaries,
       List<Double> bucketCounts,

@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.metrics.export;
+package datadog.trace.core.otlp.metrics;
 
 import java.util.ArrayDeque;
 import java.util.Deque;

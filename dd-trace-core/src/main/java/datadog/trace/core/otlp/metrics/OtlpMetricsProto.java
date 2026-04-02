@@ -1,24 +1,24 @@
-package datadog.trace.bootstrap.otel.metrics.export;
+package datadog.trace.core.otlp.metrics;
 
 import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.I64_WIRE_TYPE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.VARINT_WIRE_TYPE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.recordMessage;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeI64;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeInstrumentationScope;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeString;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeTag;
-import static datadog.trace.bootstrap.otel.common.export.OtlpCommonProto.writeVarInt;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentationScope;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDoublePoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpHistogramPoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpLongPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 
 /** Provides optimized writers for OpenTelemetry's "metrics.proto" wire protocol. */
 public final class OtlpMetricsProto {

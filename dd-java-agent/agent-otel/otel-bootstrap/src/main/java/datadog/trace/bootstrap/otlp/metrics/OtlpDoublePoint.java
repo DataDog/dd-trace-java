@@ -1,9 +1,9 @@
-package datadog.trace.bootstrap.otel.metrics.data;
+package datadog.trace.bootstrap.otlp.metrics;
 
 public final class OtlpDoublePoint extends OtlpDataPoint {
   public final double value;
 
-  OtlpDoublePoint(double value) {
+  public OtlpDoublePoint(double value) {
     this.value = value;
   }
 }
