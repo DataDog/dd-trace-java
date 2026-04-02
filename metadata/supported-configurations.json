@@ -6705,6 +6705,22 @@
         "aliases": ["DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
       }
     ],
+    "DD_TRACE_FFM_NATIVE_TRACING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_FFM_NATIVE_TRACING_ENABLED", "DD_INTEGRATION_FFM_NATIVE_TRACING_ENABLED"]
+      }
+    ],
+    "DD_TRACE_JAVA_LANG_22_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_LANG_22_ENABLED", "DD_INTEGRATION_JAVA_LANG_22_ENABLED"]
+      }
+    ],
     "DD_TRACE_JAVA_LANG_APPSEC_ENABLED": [
       {
         "version": "A",
