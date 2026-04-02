@@ -15,7 +15,12 @@ public final class OtlpTestPoints {
   }
 
   public static OtlpHistogramPoint histogramPoint(
-      double count, List<Double> bucketBoundaries, List<Double> bucketCounts, double sum) {
-    return new OtlpHistogramPoint(count, bucketBoundaries, bucketCounts, sum);
+      double count,
+      List<Double> bucketBoundaries,
+      List<Double> bucketCounts,
+      double sum,
+      double min,
+      double max) {
+    return new OtlpHistogramPoint(count, bucketBoundaries, bucketCounts, sum, min, max);
   }
 }
