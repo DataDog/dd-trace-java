@@ -4785,6 +4785,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_CICS_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_CICS_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_CICS_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_CICS_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
     "DD_TRACE_CICS_ENABLED": [
       {
         "version": "A",
@@ -8257,6 +8273,14 @@
         "aliases": ["DD_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED", "DD_TRACE_INTEGRATION_OPENTELEMETRY_METRICS_ENABLED"]
       }
     ],
+    "DD_TRACE_INTEGRATION_OPENTELEMETRY_METRICS_MATCHING_SHORTCUT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_INTEGRATION_OPENTELEMETRY_METRICS_MATCHING_SHORTCUT_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENTRACING_ENABLED": [
       {
         "version": "A",
@@ -8983,6 +9007,22 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_RESILIENCE4J_ENABLED", "DD_INTEGRATION_RESILIENCE4J_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_RETRY_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_RESILIENCE4J_RETRY_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_RESILIENCE4J_RETRY_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_RESILIENCE4J_RETRY_ANALYTICS_SAMPLE_RATE"]
       }
     ],
     "DD_TRACE_RESILIENCE4J_REACTOR_ENABLED": [

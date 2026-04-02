@@ -1,9 +1,15 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 
 import java.util.concurrent.Callable
 
 class MeasuredConfigTest extends InstrumentationSpecification {
+  // Opt out of strict config validation because dd.trace.methods uses class names
+  // which generate dynamic config keys like DD_TRACE_TRACE_CONFIG_PACKAGE_CLASSNAME_ENABLED
+  void setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Override
   void configurePreAgent() {
