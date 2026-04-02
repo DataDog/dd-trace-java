@@ -37,28 +37,29 @@ class JvmOtlpRuntimeMetricsTest extends InstrumentationSpecification {
     then:
     // OtelInstrumentDescriptor.name is UTF8BytesString, convert to String for comparison
     def names = collector.metricNames.collect { it.toString() }
-    // Memory
+    // Memory (5 metrics, all UpDownCounter per spec)
     "jvm.memory.used" in names
     "jvm.memory.committed" in names
     "jvm.memory.limit" in names
     "jvm.memory.init" in names
-    // Buffers
+    "jvm.memory.used_after_last_gc" in names
+    // Buffers (3 metrics, UpDownCounter per spec)
     "jvm.buffer.memory.used" in names
     "jvm.buffer.memory.limit" in names
     "jvm.buffer.count" in names
-    // GC
-    "jvm.gc.duration" in names
-    "jvm.gc.count" in names
-    // Threads
+    // Threads (1 metric, UpDownCounter per spec)
     "jvm.thread.count" in names
-    // Classes
+    // Classes (3 metrics: loaded/unloaded are Counter, count is UpDownCounter per spec)
     "jvm.class.loaded" in names
     "jvm.class.count" in names
     "jvm.class.unloaded" in names
-    // CPU
+    // CPU (4 metrics per spec)
+    "jvm.cpu.time" in names
     "jvm.cpu.count" in names
     "jvm.cpu.recent_utilization" in names
     "jvm.system.cpu.utilization" in names
+    // NOT included: jvm.gc.duration (spec requires Histogram, JMX can't produce it)
+    // NOT included: jvm.gc.count (not in OTel spec)
   }
 
   def "jvm.memory.used has heap and non_heap type attributes"() {

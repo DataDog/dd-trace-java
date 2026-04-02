@@ -7,6 +7,7 @@ import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.opentelemetry.shim.metrics.JvmOtlpRuntimeMetrics;
 import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -100,6 +101,12 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) MeterProvider result) {
       result = OtelMeterProvider.INSTANCE;
+      // Start JVM runtime metrics when both DD_METRICS_OTEL_ENABLED and
+      // DD_RUNTIME_METRICS_ENABLED are true, matching the .NET/Go/NodeJS pattern.
+      // JvmOtlpRuntimeMetrics.start() is idempotent (checks a started flag internally).
+      if (datadog.trace.api.Config.get().isRuntimeMetricsEnabled()) {
+        JvmOtlpRuntimeMetrics.start();
+      }
     }
   }
 }
