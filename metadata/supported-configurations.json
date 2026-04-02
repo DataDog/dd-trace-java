@@ -2257,6 +2257,14 @@
         "aliases": []
       }
     ],
+    "DD_METRICS_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_METRICS_OTEL_INTERVAL": [
       {
         "version": "A",
