@@ -45,14 +45,29 @@ class TagInitializationErrors {
       for (int i = 0; i < group.size() - 1; i++) {
         var testcase = group.get(i);
         var existingProperties = testcase.getElementsByTagName("properties");
-        var properties = existingProperties.getLength() > 0
-            ? (Element) existingProperties.item(0)
-            : doc.createElement("properties");
-        var property = doc.createElement("property");
-        property.setAttribute("name", "dd_tags[test.final_status]");
-        property.setAttribute("value", "skip");
-        properties.appendChild(property);
-        if (existingProperties.getLength() == 0) testcase.appendChild(properties);
+        if (existingProperties.getLength() > 0) {
+          var props = (Element) existingProperties.item(0);
+          var existingProps = props.getElementsByTagName("property");
+          boolean alreadyTagged = false;
+          for (int j = 0; j < existingProps.getLength(); j++) {
+            if ("dd_tags[test.final_status]".equals(((Element) existingProps.item(j)).getAttribute("name"))) {
+              alreadyTagged = true;
+              break;
+            }
+          }
+          if (alreadyTagged) continue;
+          var property = doc.createElement("property");
+          property.setAttribute("name", "dd_tags[test.final_status]");
+          property.setAttribute("value", "skip");
+          props.appendChild(property);
+        } else {
+          var properties = doc.createElement("properties");
+          var property = doc.createElement("property");
+          property.setAttribute("name", "dd_tags[test.final_status]");
+          property.setAttribute("value", "skip");
+          properties.appendChild(property);
+          testcase.appendChild(properties);
+        }
         modified = true;
       }
     }
