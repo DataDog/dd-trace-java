@@ -25,6 +25,7 @@ public class SpringCodeOriginIntegrationTest extends SpringBasedIntegrationTest 
     List<String> commandParams = getDebuggerCommandParams();
     commandParams.add("-Ddd.trace.enabled=true"); // explicitly enable tracer
     commandParams.add("-Ddd.code.origin.for.spans.enabled=true");
+    commandParams.add("-Ddd.code.origin.for.spans.interface.support=true");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
   }

@@ -17,13 +17,10 @@ import net.bytebuddy.description.NamedElement;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import net.bytebuddy.matcher.ElementMatchers;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 public abstract class CodeOriginInstrumentation extends Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
-  private static final Logger log = LoggerFactory.getLogger(CodeOriginInstrumentation.class);
   private final OneOf<NamedElement> matcher;
 
   @SuppressForbidden
@@ -46,10 +43,16 @@ public abstract class CodeOriginInstrumentation extends Tracing
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(matcher))
-        .or(
-            HierarchyMatchers.implementsInterface(
-                HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(matcher))));
+    ElementMatcher.Junction<TypeDescription> matcher =
+        HierarchyMatchers.declaresMethod(HierarchyMatchers.isAnnotatedWith(this.matcher));
+    if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
+      matcher =
+          matcher.or(
+              HierarchyMatchers.implementsInterface(
+                  HierarchyMatchers.declaresMethod(
+                      HierarchyMatchers.isAnnotatedWith(this.matcher))));
+    }
+    return matcher;
   }
 
   @Override
@@ -57,9 +60,11 @@ public abstract class CodeOriginInstrumentation extends Tracing
     transformer.applyAdvice(
         HierarchyMatchers.isAnnotatedWith(matcher),
         "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
-    transformer.applyAdvice(
-        ElementMatchers.isDeclaredBy(
-            hasSuperType(isInterface().and(declaresMethod(isAnnotatedWith(matcher))))),
-        "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    if (InstrumenterConfig.get().isCodeOriginInterfaceSupport()) {
+      transformer.applyAdvice(
+          ElementMatchers.isDeclaredBy(
+              hasSuperType(isInterface().and(declaresMethod(isAnnotatedWith(matcher))))),
+          "datadog.trace.instrumentation.codeorigin.EntrySpanOriginAdvice");
+    }
   }
 }
