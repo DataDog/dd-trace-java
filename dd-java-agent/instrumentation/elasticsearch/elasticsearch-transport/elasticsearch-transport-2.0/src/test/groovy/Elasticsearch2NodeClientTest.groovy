@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
@@ -27,6 +28,8 @@ abstract class Elasticsearch2NodeClientTest extends VersionedNamingTestBase {
   def client = testNode.client()
 
   def setupSpec() {
+    // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()

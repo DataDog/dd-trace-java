@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.admin.cluster.health.ClusterHealthRequest
@@ -37,6 +38,8 @@ class Elasticsearch5TransportClientTest extends InstrumentationSpecification {
   TransportClient client
 
   def setupSpec() {
+    // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()

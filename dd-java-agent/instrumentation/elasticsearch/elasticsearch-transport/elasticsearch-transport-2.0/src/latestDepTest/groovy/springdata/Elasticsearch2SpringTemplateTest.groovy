@@ -3,6 +3,7 @@ package springdata
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import org.elasticsearch.action.search.SearchResponse
@@ -37,6 +38,8 @@ class Elasticsearch2SpringTemplateTest extends InstrumentationSpecification {
   ElasticsearchTemplate template
 
   def setupSpec() {
+    // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     esWorkingDir = File.createTempDir("test-es-working-dir-", "")
     esWorkingDir.deleteOnExit()
