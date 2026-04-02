@@ -42,6 +42,13 @@ import org.opentest4j.AssertionFailedError;
  */
 @ExtendWith(TestClassShadowingExtension.class)
 public abstract class AbstractInstrumentationTest {
+  static {
+    // Allow re-registration of ContextManagers so each test can use a fresh tracer.
+    // This mirrors DDSpecification.allowContextTesting() for the JUnit 5 test framework.
+    datadog.context.ContextManager.allowTesting();
+    datadog.context.ContextBinder.allowTesting();
+  }
+
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);

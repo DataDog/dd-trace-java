@@ -3,16 +3,53 @@ package testdog.trace.instrumentation.java.lang.jdk21;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 
+import datadog.context.Context;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.api.Trace;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeoutException;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 /** Test the {@code VirtualThread} and {@code Thread.Builder} API. */
 public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentationTest {
+
+  @BeforeEach
+  @AfterEach
+  void checkContext() {
+    assertEquals(Context.root(), Context.current());
+  }
+
+  @Test
+  void customTest() throws InterruptedException {
+    parentCustomTest();
+
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span().root().operationName("parent"),
+            span().childOfPrevious().operationName("child")));
+  }
+
+  @Trace(operationName = "parent")
+  private static void parentCustomTest() throws InterruptedException {
+    Thread thread = Thread.startVirtualThread(new CustomTest());
+    thread.join();
+  }
+
+  private static class CustomTest implements Runnable {
+    @Trace(operationName = "child")
+    @Override
+    public void run() {
+      System.out.println("Doing stuff");
+      tryUnmount();
+      System.out.println("Doing stuff 2");
+    }
+  }
 
   @DisplayName("test Thread.Builder.OfVirtual.start()")
   @Test
@@ -144,5 +181,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
         trace(
             span().root().operationName("parent"),
             span().childOfPrevious().operationName("asyncChild")));
+  }
+
+  private static void tryUnmount() {
+    try {
+      // Multiple sleeps to attempt triggering repeated park/unpark cycles.
+      // This is not guaranteed to work, but there is no API to force mount/unmount.
+      for (int i = 0; i < 5; i++) {
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
