@@ -169,6 +169,12 @@ abstract class DDSpecification extends Specification {
   }
 
   void cleanup() {
+    // Assert no unsupported configs were encountered during the test
+    def unsupported = ConfigHelper.get().drainUnsupportedConfigs()
+    assert unsupported.isEmpty(): "Unsupported configurations found during test. " +
+    "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  " +
+    unsupported.join("\n  ")
+
     environmentVariables.clear()
 
     restoreProperties()

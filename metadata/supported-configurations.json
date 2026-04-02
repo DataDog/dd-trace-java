@@ -8137,6 +8137,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_OKHTTP_ENABLED", "DD_INTEGRATION_OKHTTP_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENAI_JAVA_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_OPENAI_JAVA_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENAI_JAVA_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_OPENAI_JAVA_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_OPENAI_JAVA_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OPENAI_JAVA_ENABLED", "DD_INTEGRATION_OPENAI_JAVA_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENSEARCH_ANALYTICS_ENABLED": [
       {
         "version": "A",
