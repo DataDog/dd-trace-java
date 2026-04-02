@@ -23,6 +23,10 @@ public final class ConfigStrings {
    */
   @Nonnull
   public static String propertyNameToEnvironmentVariableName(final String setting) {
+    // OTel configurations should not be normalized with DD_
+    if (setting.startsWith("otel.") || setting.startsWith("OTEL_")) {
+      return toEnvVar(setting);
+    }
     return "DD_" + toEnvVar(setting);
   }
 
