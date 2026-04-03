@@ -59,14 +59,16 @@ public class RuntimeArgsTest {
   }
 
   @TableTest({
-    "scenario                    | raw                               | isIncluded | vmArg                            ",
-    "java password excluded      | -Djava.net.password=hunter2       | false      | -Djava.net.password=hunter2      ",
-    "sun token excluded          | -Dsun.auth.token=abc123           | false      | -Dsun.auth.token=abc123          ",
-    "dd api key excluded         | -Ddd.api-key=deadbeef             | false      | -Ddd.api-key=deadbeef            ",
-    "dd app key excluded         | -Ddd.app-key=deadbeef             | false      | -Ddd.app-key=deadbeef            ",
-    "dd application key excluded | -Ddd.application-key=deadbeef     | false      | -Ddd.application-key=deadbeef    ",
-    "java logging kept           | -Djava.util.logging.config.file=x | true       | -Djava.util.logging.config.file=x",
-    "osgi install kept           | -Dosgi.install.area=/opt/app      | true       | -Dosgi.install.area=/opt/app     "
+    "scenario                     | raw                                                | isIncluded | vmArg                                             ",
+    "jaas login config excluded   | -Djava.security.auth.login.config=/etc/jaas.conf   | false      | -Djava.security.auth.login.config=/etc/jaas.conf  ",
+    "java socks password excluded | -Djava.net.socks.password=hunter2                  | false      | -Djava.net.socks.password=hunter2                 ",
+    "dd pwd excluded              | -Ddd.db.pwd=hunter2                                | false      | -Ddd.db.pwd=hunter2                               ",
+    "dd passphrase excluded       | -Ddd.ssl.passphrase=topsecret                      | false      | -Ddd.ssl.passphrase=topsecret                     ",
+    "dd api key excluded          | -Ddd.api-key=deadbeef                              | false      | -Ddd.api-key=deadbeef                             ",
+    "dd app key excluded          | -Ddd.app-key=deadbeef                              | false      | -Ddd.app-key=deadbeef                             ",
+    "dd application key excluded  | -Ddd.application-key=deadbeef                      | false      | -Ddd.application-key=deadbeef                     ",
+    "java logging kept            | -Djava.util.logging.config.file=/opt/logging.props | true       | -Djava.util.logging.config.file=/opt/logging.props",
+    "osgi install kept            | -Dosgi.install.area=/opt/app                       | true       | -Dosgi.install.area=/opt/app                      "
   })
   public void testParseVmArgsExcludesSecretLikeSystemProperties(
       String raw, boolean isIncluded, String vmArg) {

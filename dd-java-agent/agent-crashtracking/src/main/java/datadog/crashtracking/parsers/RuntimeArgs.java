@@ -19,8 +19,9 @@ import java.util.List;
  * module/native-access options.
  */
 final class RuntimeArgs {
+  // Aligned with JDK JEP-8372760 (JFR In-Process Data Redaction) default filter list.
   private static final String[] SECRET_PROPERTY_KEYWORDS = {
-    "password", "passwd", "secret", "token", "key", "credential"
+    "auth", "password", "passwd", "pwd", "passphrase", "secret", "token", "key", "credential"
   };
   private static final String[] MODULE_OPTIONS = {
     "--add-modules",
