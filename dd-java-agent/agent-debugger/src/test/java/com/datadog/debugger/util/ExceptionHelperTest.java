@@ -75,7 +75,7 @@ public class ExceptionHelperTest {
     String strStackTrace = ExceptionHelper.foldExceptionStackTrace(new Exception());
     assertTrue(
         strStackTrace.startsWith(
-            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:74) at "),
+            "java.lang.Exception at com.datadog.debugger.util.ExceptionHelperTest.foldExceptionStackTrace(ExceptionHelperTest.java:75) at "),
         strStackTrace);
     assertFalse(strStackTrace.contains("\n"));
     assertFalse(strStackTrace.contains("\t"));
