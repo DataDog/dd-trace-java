@@ -20,13 +20,14 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
   private static final String TOPIC = "batch-coroutine-topic"
   private static final String CONSUMER_GROUP = "batch-coroutine-group"
 
-  def "batch @KafkaListener suspend fun - spans must be in the same trace as kafka.consume"() {
+  def "batch @KafkaListener suspend fun - keeps spring.consume span active during async execution"() {
     setup:
     def appContext = new AnnotationConfigApplicationContext(KafkaBatchCoroutineConfig)
     def listener = appContext.getBean(KafkaBatchCoroutineListener)
     def template = appContext.getBean(KafkaTemplate)
     def broker = appContext.getBean(EmbeddedKafkaBroker)
     def registry = appContext.getBean(KafkaListenerEndpointRegistry)
+    listener.prepareAsyncObservation()
 
     // Wait until listener container has been assigned partitions before sending.
     registry.listenerContainers.each { container ->
@@ -41,6 +42,15 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
     template.send(new ProducerRecord(TOPIC, "key", "hello-batch"))
     template.flush()
     registry.listenerContainers.each { it.start() }
+    listener.awaitAsyncStarted()
+
+    then: "spring.consume is still open while coroutine work is blocked"
+    TEST_WRITER.waitForTraces(2)
+    assert TEST_WRITER.flatten().every { it.operationName != "spring.consume" }
+    assert listener.activeParentFinished == false
+
+    when:
+    listener.releaseAsyncObservation()
 
     then: "the listener processes the batch within 15 s"
     listener.latch.await(15, TimeUnit.SECONDS)
@@ -72,7 +82,6 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
           errored false
           measured true
           parent()
-          assert span(0).durationNano > TimeUnit.MILLISECONDS.toNanos(500)
           tags {
             "$Tags.COMPONENT" "spring-messaging"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -88,6 +97,7 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
     }
 
     cleanup:
+    listener?.releaseAsyncObservation()
     appContext.close()
   }
 
