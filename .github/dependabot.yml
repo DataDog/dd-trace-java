@@ -1,38 +1,38 @@
 # https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
-- package-ecosystem: github-actions
-  directory: /
-  schedule:
-    interval: weekly
-  labels:
-  - 'comp: tooling'
-  - 'tag: dependencies'
-  - 'tag: no release notes'
-  commit-message:
-    prefix: 'chore(ci): '
-  groups:
-    gh-actions-packages:
-      patterns:
-      - '*'
-  cooldown:
-    default-days: 2
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: weekly
+    labels:
+      - 'comp: tooling'
+      - 'tag: dependencies'
+      - 'tag: no release notes'
+    commit-message:
+      prefix: 'chore(ci): '
+    groups:
+      gh-actions-packages:
+        patterns:
+          - '*'
+    cooldown:
+      default-days: 2
 
-- package-ecosystem: gradle
-  directory: /
-  schedule:
-    interval: weekly
-  allow:
-  - dependency-name: gradle
-  ignore:
-  - dependency-name: gradle
-    update-types:
-    - version-update:semver-major
-  labels:
-  - 'comp: tooling'
-  - 'tag: dependencies'
-  - 'tag: no release notes'
-  commit-message:
-    prefix: 'chore(build): '
-  cooldown:
-    default-days: 2
+  - package-ecosystem: gradle
+    directory: /
+    schedule:
+      interval: weekly
+    allow:
+      - dependency-name: gradle
+    ignore:
+      - dependency-name: gradle
+        update-types:
+          - version-update:semver-major
+    labels:
+      - 'comp: tooling'
+      - 'tag: dependencies'
+      - 'tag: no release notes'
+    commit-message:
+      prefix: 'chore(build): '
+    cooldown:
+      default-days: 2
