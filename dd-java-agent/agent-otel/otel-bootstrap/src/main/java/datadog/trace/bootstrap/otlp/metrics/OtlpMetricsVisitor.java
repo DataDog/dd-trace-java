@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.metrics.export;
+package datadog.trace.bootstrap.otlp.metrics;
 
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 

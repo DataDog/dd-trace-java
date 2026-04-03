@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.common.export;
+package datadog.trace.bootstrap.otlp.common;
 
 /** A visitor to visit OpenTelemetry attributes. */
 public interface OtlpAttributeVisitor {

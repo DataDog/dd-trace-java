@@ -1,4 +1,4 @@
-package datadog.trace.bootstrap.otel.common.export;
+package datadog.trace.core.otlp.common;
 
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;

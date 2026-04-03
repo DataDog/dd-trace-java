@@ -1,13 +1,9 @@
-package datadog.trace.bootstrap.otel.metrics.export;
+package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otel.metrics.OtlpTestDescriptors.descriptor;
-import static datadog.trace.bootstrap.otel.metrics.data.OtlpTestPoints.doublePoint;
-import static datadog.trace.bootstrap.otel.metrics.data.OtlpTestPoints.histogramPoint;
-import static datadog.trace.bootstrap.otel.metrics.data.OtlpTestPoints.longPoint;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
@@ -19,11 +15,14 @@ import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDoublePoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpHistogramPoint;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpLongPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -1034,5 +1033,28 @@ class OtlpMetricsProtoTest {
       }
     }
     return key;
+  }
+
+  static OtelInstrumentDescriptor descriptor(
+      String name, OtelInstrumentType type, boolean longValues, String description, String unit) {
+    return new OtelInstrumentDescriptor(name, type, longValues, description, unit);
+  }
+
+  static OtlpLongPoint longPoint(long value) {
+    return new OtlpLongPoint(value);
+  }
+
+  static OtlpDoublePoint doublePoint(double value) {
+    return new OtlpDoublePoint(value);
+  }
+
+  static OtlpHistogramPoint histogramPoint(
+      double count,
+      List<Double> bucketBoundaries,
+      List<Double> bucketCounts,
+      double sum,
+      double min,
+      double max) {
+    return new OtlpHistogramPoint(count, bucketBoundaries, bucketCounts, sum, min, max);
   }
 }

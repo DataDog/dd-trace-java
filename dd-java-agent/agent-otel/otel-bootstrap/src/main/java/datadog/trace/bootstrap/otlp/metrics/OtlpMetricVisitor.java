@@ -1,7 +1,6 @@
-package datadog.trace.bootstrap.otel.metrics.export;
+package datadog.trace.bootstrap.otlp.metrics;
 
-import datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor;
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 
 /**
  * A visitor to visit a metric in an instrumentation scope.

@@ -2,6 +2,8 @@ package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.metrics.api.Histogram;
 import datadog.metrics.api.HistogramWithSum;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import java.util.List;
 
 final class OtelHistogramSketch extends OtelAggregator {
