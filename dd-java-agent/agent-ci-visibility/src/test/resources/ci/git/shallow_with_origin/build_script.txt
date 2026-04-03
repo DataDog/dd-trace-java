@@ -1,0 +1,79 @@
+#!/bin/bash
+set -e
+
+# IMPORTANT: always use relative paths, as tests move the folders to temp dirs
+base_path="/tmp/shallow_with_origin/"
+origin_path="origin"
+repo_path="repo"
+
+rm -rf $base_path
+mkdir -p $base_path
+cd $base_path
+
+# create bare origin
+mkdir -p $origin_path
+cd $origin_path && git init --bare --initial-branch=master
+cd ..
+
+# create working copy to populate origin with commits
+mkdir -p work && cd work
+git init --initial-branch=master
+git remote add origin "../$origin_path"
+git config user.email "test-author@example.com"
+git config user.name "Test Author"
+
+# create 10 commits
+for i in $(seq 0 9); do
+  echo "content $i" >> "file${i}.txt"
+  git add .
+  git commit -m "Commit message ${i}"
+done
+
+git push origin master
+cd ..
+
+# create shallow clone from origin (use file:// URL so --depth works, fix config after)
+git clone --depth 1 "file://$base_path/$origin_path" $repo_path
+
+# print commit SHAs for reference
+echo "=== COMMIT SHAs ==="
+cd work
+git log --format="%H %s" --reverse
+first_commit=$(git log --format="%H" --reverse | head -1)
+echo "=== FIRST COMMIT (not in shallow clone): $first_commit ==="
+cd ..
+
+echo "=== SHALLOW CLONE HEAD ==="
+cd $repo_path
+git log --format="%H %s"
+echo "=== IS SHALLOW ==="
+git rev-parse --is-shallow-repository
+cd ..
+
+# cleanup origin (remove unnecessary files)
+(cd $origin_path && rm -rf hooks info logs COMMIT_EDITMSG description)
+
+# cleanup working repo (shallow clone) - rename .git to git
+(cd $repo_path && rm -rf .git/hooks .git/info .git/logs .git/COMMIT_EDITMSG .git/description .git/index && mv .git git)
+
+# update the repo config to use relative path (git clone uses absolute)
+cd $repo_path/git
+# Replace the absolute URL with relative path
+python3 -c "
+import re
+with open('config', 'r') as f:
+    content = f.read()
+content = re.sub(r'url = .*/origin', 'url = ../origin', content)
+with open('config', 'w') as f:
+    f.write(content)
+"
+cd ../..
+
+echo "=== ORIGIN CONFIG ==="
+cat $origin_path/config
+echo ""
+echo "=== REPO CONFIG ==="
+cat $repo_path/git/config
+echo ""
+echo "=== DONE ==="
+echo "Resources at: $base_path"

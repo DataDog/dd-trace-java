@@ -4,6 +4,7 @@ import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
@@ -23,7 +24,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -324,7 +325,7 @@ public class DDSpanContext
     // to get away with doing this just once per span
     this.encodedOperationName = profilingContextIntegration.encodeOperationName(operationName);
 
-    setServiceName(serviceName);
+    internalSetServiceName(serviceName);
     this.serviceNameSource = serviceNameSource;
     this.operationName = operationName;
     setResourceName(resourceName, ResourceNamePriorities.DEFAULT);
@@ -391,13 +392,12 @@ public class DDSpanContext
   }
 
   public void setServiceName(final String serviceName) {
-    internalSetServiceName(serviceName);
-    setServiceNameSource(null);
+    setServiceName(serviceName, MANUAL);
   }
 
-  public void setServiceName(String serviceName, @Nonnull CharSequence integrationName) {
+  public void setServiceName(String serviceName, @Nonnull CharSequence source) {
     internalSetServiceName(serviceName);
-    setServiceNameSource(Objects.requireNonNull(integrationName));
+    setServiceNameSource(Objects.requireNonNull(source));
   }
 
   public CharSequence getServiceNameSource() {
@@ -1087,19 +1087,24 @@ public class DDSpanContext
     }
   }
 
-  public void earlyProcessTags(List<AgentSpanLink> links) {
+  void earlyProcessTags(AppendableSpanLinks links) {
     synchronized (unsafeTags) {
       TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
     }
   }
 
-  public void processTagsAndBaggage(
-      final MetadataConsumer consumer, int longRunningVersion, List<AgentSpanLink> links) {
+  void processTagsAndBaggage(
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
+    // links
+    // This is a compromise to avoid...
+    // - creating an extra wrapper object that would create significant allocation
+    // - implementing an interface to read the spans that require making the read method public
     synchronized (unsafeTags) {
       // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, links);
+      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
-      String linksTag = DDSpanLink.toTag(links);
+      String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
       if (linksTag != null) {
         unsafeTags.put(SPAN_LINKS, linksTag);
       }

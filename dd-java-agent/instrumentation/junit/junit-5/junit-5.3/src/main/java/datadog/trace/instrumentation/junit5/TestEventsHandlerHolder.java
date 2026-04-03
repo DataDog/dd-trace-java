@@ -4,7 +4,7 @@ import datadog.trace.api.civisibility.DDTest;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.InstrumentationBridge;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.util.ConcurrentEnumMap;
@@ -19,26 +19,26 @@ public abstract class TestEventsHandlerHolder {
           TestFrameworkInstrumentation, TestEventsHandler<TestDescriptor, TestDescriptor>>
       HANDLERS = new ConcurrentEnumMap<>(TestFrameworkInstrumentation.class);
 
-  private static volatile ContextStore<TestDescriptor, TestExecutionHistory>
-      EXECUTION_HISTORY_STORE;
+  private static volatile ContextStore<TestDescriptor, TestExecutionTracker>
+      EXECUTION_TRACKER_STORE;
 
-  public static synchronized void setExecutionHistoryStore(
-      ContextStore<TestDescriptor, TestExecutionHistory> executionHistoryStore) {
-    if (EXECUTION_HISTORY_STORE == null) {
-      EXECUTION_HISTORY_STORE = executionHistoryStore;
+  public static synchronized void setExecutionTrackerStore(
+      ContextStore<TestDescriptor, TestExecutionTracker> executionTrackerStore) {
+    if (EXECUTION_TRACKER_STORE == null) {
+      EXECUTION_TRACKER_STORE = executionTrackerStore;
     }
   }
 
-  public static void setExecutionHistory(
-      TestDescriptor testDescriptor, TestExecutionHistory history) {
-    if (EXECUTION_HISTORY_STORE != null) {
-      EXECUTION_HISTORY_STORE.put(testDescriptor, history);
+  public static void setExecutionTracker(
+      TestDescriptor testDescriptor, TestExecutionTracker tracker) {
+    if (EXECUTION_TRACKER_STORE != null) {
+      EXECUTION_TRACKER_STORE.put(testDescriptor, tracker);
     }
   }
 
-  public static TestExecutionHistory getExecutionHistory(TestDescriptor testDescriptor) {
-    if (EXECUTION_HISTORY_STORE != null) {
-      return EXECUTION_HISTORY_STORE.get(testDescriptor);
+  public static TestExecutionTracker getExecutionTracker(TestDescriptor testDescriptor) {
+    if (EXECUTION_TRACKER_STORE != null) {
+      return EXECUTION_TRACKER_STORE.get(testDescriptor);
     } else {
       return null;
     }

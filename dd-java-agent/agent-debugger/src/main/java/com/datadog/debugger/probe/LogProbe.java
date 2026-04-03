@@ -325,6 +325,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
   protected transient Map<DDTraceId, AtomicInteger> budget =
       Collections.synchronizedMap(new WeakIdentityHashMap<>());
   protected transient Sampler sampler;
+  protected transient Sampler errorSampler;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -461,6 +462,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
+    errorSampler = ProbeRateLimiter.createSampler(1.0); // errors are always sampled at 1/s rate
   }
 
   public List<CaptureExpression> getCaptureExpressions() {
@@ -565,9 +567,13 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     if (!MethodLocation.isSame(methodLocation, evaluateAt)) {
       return;
     }
+    // if condition has error and no capture Snapshot, the error is reported using errorSampler
+    // at 1/s rate instead of the log template one
+    Sampler localSampler =
+        logStatus.hasConditionErrors && !isCaptureSnapshot() ? errorSampler : sampler;
     boolean sampled =
         !logStatus.getDebugSessionStatus().isDisabled()
-            && ProbeRateLimiter.tryProbe(sampler, isCaptureSnapshot());
+            && ProbeRateLimiter.tryProbe(localSampler, isCaptureSnapshot());
     logStatus.setSampled(sampled);
     if (!sampled) {
       DebuggerAgent.getSink()
@@ -724,7 +730,6 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                   captureExpression.getName(), Object.class.getTypeName(), null));
         } else {
           if (captureExpression.capture != null) {
-            Value.toCapturedSnapshot(captureExpression.getName(), result);
             context.addCaptureExpression(
                 Value.toCapturedSnapshot(
                     captureExpression.getName(),
@@ -734,8 +739,20 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
                     captureExpression.capture.maxLength,
                     captureExpression.capture.maxFieldCount));
           } else {
-            context.addCaptureExpression(
-                Value.toCapturedSnapshot(captureExpression.getName(), result));
+            // inherit from probe capture field because no specific capture
+            if (capture != null) {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(
+                      captureExpression.getName(),
+                      result,
+                      capture.maxReferenceDepth,
+                      capture.maxCollectionSize,
+                      capture.maxLength,
+                      capture.maxFieldCount));
+            } else {
+              context.addCaptureExpression(
+                  Value.toCapturedSnapshot(captureExpression.getName(), result));
+            }
           }
         }
       } catch (EvaluationException ex) {

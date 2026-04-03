@@ -53,7 +53,7 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Upload artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f
         with:
           name: binaries
           path: workspace/dd-java-agent/build/libs/
@@ -62,9 +62,7 @@ jobs:
     needs:
     - build
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned for releases only
-    secrets:
-      TEST_OPTIMIZATION_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned on release branches only
     permissions:
       contents: read
       id-token: write
@@ -72,13 +70,13 @@ jobs:
     with:
       library: java
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-      ref: main # system tests are pinned for releases only
+      ref: "main" # system tests are pinned on release branches only
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: true
-      push_to_test_optimization: true
+      push_to_test_optimization: false # disabled to avoid pushing to Test Optimization while API key is transitioning to system-tests
 
   # Ensure the main job is run to completion
   check:

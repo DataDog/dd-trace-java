@@ -4,8 +4,8 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.PROFILER_HTTP_DI
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
+import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
-import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import java.io.ByteArrayOutputStream;
 import java.io.File;

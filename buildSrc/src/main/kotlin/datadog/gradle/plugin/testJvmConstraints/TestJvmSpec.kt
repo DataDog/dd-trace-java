@@ -46,16 +46,15 @@ class TestJvmSpec(val project: Project) {
   val testJvmProperty: Provider<String> = project.providers.gradleProperty(TEST_JVM)
 
   /**
-   * Normalized `stable` string to the highest JAVA_X_HOME found in environment variables.
+   * Normalized `tip` string that's set to the highest JAVA_X_HOME version found in environment variables.
    */
   val normalizedTestJvm: Provider<String> = testJvmProperty.map { testJvm ->
     if (testJvm.isBlank()) {
       throw GradleException("testJvm property is blank")
     }
 
-    // "stable" is calculated as the largest Java version found via toolchains or JAVA_X_HOME
     when (testJvm) {
-      "stable" -> {
+      "tip" -> {
         val javaVersions = discoverJavaVersionsViaToolchains()
           ?: discoverJavaVersionsViaEnvVars()
 

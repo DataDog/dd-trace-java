@@ -6,18 +6,16 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.config.TestSetting;
+import datadog.trace.civisibility.execution.AttemptToFix;
+import datadog.trace.civisibility.execution.AutoTestRetry;
+import datadog.trace.civisibility.execution.EarlyFlakeDetection;
+import datadog.trace.civisibility.execution.Quarantine;
 import datadog.trace.civisibility.execution.Regular;
-import datadog.trace.civisibility.execution.RetryUntilSuccessful;
-import datadog.trace.civisibility.execution.RunNTimes;
-import datadog.trace.civisibility.execution.RunOnceIgnoreOutcome;
-import datadog.trace.civisibility.execution.exit.ExitOnFailure;
-import datadog.trace.civisibility.execution.exit.ExitOnFlake;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import java.lang.reflect.Method;
@@ -128,33 +126,29 @@ public class ExecutionStrategy {
     }
 
     if (isAttemptToFix(test)) {
-      return new RunNTimes(
-          executionSettings.getTestManagementSettings().getAttemptToFixExecutions(),
-          isQuarantined(test) || isDisabled(test),
-          RetryReason.attemptToFix,
-          ExitOnFailure.INSTANCE);
+      return new AttemptToFix(
+          executionSettings.getTestManagementSettings().getAttemptToFixRetries(),
+          isQuarantined(test) || isDisabled(test));
     }
 
     if (isEFDApplicable(test, testSource, testTags)) {
       // check-then-act with "earlyFlakeDetectionsUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
       earlyFlakeDetectionsUsed.incrementAndGet();
-      return new RunNTimes(
+      return new EarlyFlakeDetection(
           executionSettings.getEarlyFlakeDetectionSettings().getExecutionsByDuration(),
-          isQuarantined(test),
-          RetryReason.efd,
-          ExitOnFlake.INSTANCE);
+          isQuarantined(test));
     }
 
     if (isAutoRetryApplicable(test)) {
       // check-then-act with "autoRetriesUsed" is not atomic here,
       // but we don't care if we go "a bit" over the limit, it does not have to be precise
-      return new RetryUntilSuccessful(
+      return new AutoTestRetry(
           config.getCiVisibilityFlakyRetryCount(), isQuarantined(test), autoRetriesUsed);
     }
 
     if (isQuarantined(test)) {
-      return new RunOnceIgnoreOutcome();
+      return new Quarantine();
     }
 
     return Regular.INSTANCE;

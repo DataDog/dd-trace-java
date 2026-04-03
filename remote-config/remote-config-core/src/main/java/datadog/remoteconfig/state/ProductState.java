@@ -1,12 +1,12 @@
 package datadog.remoteconfig.state;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.Product;
 import datadog.remoteconfig.ReportableException;
 import datadog.remoteconfig.tuf.MissingContentException;
 import datadog.remoteconfig.tuf.RemoteConfigRequest;
 import datadog.remoteconfig.tuf.RemoteConfigResponse;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.InterruptedIOException;
 import java.util.ArrayList;
 import java.util.Collection;

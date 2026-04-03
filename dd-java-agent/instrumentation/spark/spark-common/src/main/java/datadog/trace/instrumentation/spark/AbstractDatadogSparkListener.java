@@ -40,6 +40,7 @@ import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
 import org.apache.spark.SparkConf;
 import org.apache.spark.TaskFailedReason;
+import org.apache.spark.executor.TaskMetrics;
 import org.apache.spark.scheduler.AccumulableInfo;
 import org.apache.spark.scheduler.JobFailed;
 import org.apache.spark.scheduler.SparkListener;
@@ -64,6 +65,7 @@ import org.apache.spark.sql.streaming.SourceProgress;
 import org.apache.spark.sql.streaming.StateOperatorProgress;
 import org.apache.spark.sql.streaming.StreamingQueryListener;
 import org.apache.spark.sql.streaming.StreamingQueryProgress;
+import org.apache.spark.util.AccumulatorV2;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import scala.Tuple2;
@@ -126,11 +128,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
 
-  // There is no easy way to know if an accumulator is not useful anymore (meaning it is not part of
-  // an active SQL query)
-  // so capping the size of the collection storing them
-  private final Map<Long, SparkSQLUtils.AccumulatorWithStage> accumulators =
-      new RemoveEldestHashMap<>(MAX_ACCUMULATOR_SIZE);
+  private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
 
   private volatile boolean isStreamingJob = false;
   private final boolean isRunningOnDatabricks;
@@ -141,6 +139,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private boolean lastJobFailed = false;
   private String lastJobFailedMessage;
   private String lastJobFailedStackTrace;
+  private boolean lastSqlFailed = false;
+  private String lastSqlFailedMessage;
+  private String lastSqlFailedStackTrace;
   private int jobCount = 0;
   private int currentExecutorCount = 0;
   private int maxExecutorCount = 0;
@@ -229,6 +230,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   /** Parent Ids of a Stage. Provide an implementation based on a specific scala version */
   protected abstract int[] getStageParentIds(StageInfo info);
 
+  /**
+   * All External Accumulators associated with a given task. Provide an implementation based on a
+   * specific scala version
+   */
+  protected abstract List<AccumulatorV2> getExternalAccumulators(TaskMetrics metrics);
+
   @Override
   public synchronized void onApplicationStart(SparkListenerApplicationStart applicationStart) {
     this.applicationStart = applicationStart;
@@ -276,6 +283,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
 
     captureApplicationParameters(builder);
+    captureEmrStepId(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -305,6 +313,23 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     builder.withTag("openlineage_root_parent_run_id", context.getRootParentRunId());
   }
 
+  /**
+   * Called by SparkSqlFailureAdvice when a SQL call (e.g. SparkSession.sql()) throws an exception
+   * during Catalyst analysis, before any Spark job is submitted. This ensures finishApplication()
+   * has an error signal even when no job/stage/task events fire.
+   */
+  public synchronized void onSqlFailure(Throwable throwable) {
+    if (applicationEnded) {
+      return;
+    }
+    lastSqlFailed = true;
+    lastSqlFailedMessage = throwable.getMessage();
+
+    StringWriter sw = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(sw));
+    lastSqlFailedStackTrace = sw.toString();
+  }
+
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
     log.info(
@@ -328,11 +353,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
+    if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
       return;
     }
+
     initApplicationSpanIfNotInitialized();
 
     if (throwable != null) {
@@ -350,6 +376,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
+    } else if (lastSqlFailed) {
+      applicationSpan.setError(true);
+      applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark SQL Failed");
+      applicationSpan.setTag(DDTags.ERROR_MSG, lastSqlFailedMessage);
+      applicationSpan.setTag(DDTags.ERROR_STACK, lastSqlFailedStackTrace);
     }
 
     applicationMetrics.setSpanMetrics(applicationSpan);
@@ -538,6 +569,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       }
     } else {
       lastJobFailed = false;
+      lastSqlFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
@@ -638,7 +670,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     for (AccumulableInfo info :
         JavaConverters.asJavaCollection(stageInfo.accumulables().values())) {
-      accumulators.put(info.id(), new SparkSQLUtils.AccumulatorWithStage(stageId, info));
+      accumulatorToStageID.put(info.id(), stageId);
     }
 
     Properties prop = stageProperties.remove(stageSpanKey);
@@ -670,7 +702,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkPlanInfo sqlPlan = sqlPlans.get(sqlExecutionId);
     if (sqlPlan != null) {
-      SparkSQLUtils.addSQLPlanToStageSpan(span, sqlPlan, accumulators, stageId);
+      SparkSQLUtils.addSQLPlanToStageSpan(
+          span, sqlPlan, accumulatorToStageID, stageMetric, stageId);
     }
 
     span.finish(completionTimeMs * 1000);
@@ -684,7 +717,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.get(stageSpanKey);
     if (stageMetric != null) {
-      stageMetric.addTaskMetrics(taskEnd);
+      // Not happy that we have to extract external accumulators here, but needed as we're dealing
+      // with Seq which varies across Scala versions
+      stageMetric.addTaskMetrics(taskEnd, getExternalAccumulators(taskEnd.taskMetrics()));
     }
 
     if (taskEnd.taskMetrics() != null) {
@@ -1208,6 +1243,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       builder.withTag("config." + entry.getKey().replace(".", "_"), entry.getValue());
     }
     builder.withTag("config.spark_version", sparkVersion);
+  }
+
+  private static void captureEmrStepId(AgentTracer.SpanBuilder builder) {
+    String stepId = EmrUtils.getEmrStepId();
+    if (stepId != null) {
+      builder.withTag("emr_step_id", stepId);
+    }
   }
 
   private void captureJobParameters(AgentTracer.SpanBuilder builder, Properties properties) {

@@ -73,7 +73,10 @@ dependencies {
   implementation project(':components:json')
   implementation project(':utils:container-utils')
   implementation project(':utils:socket-utils')
+  implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
+  // for OTLP support
+  compileOnly project(':dd-java-agent:agent-otel:otel-bootstrap')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
@@ -93,6 +96,7 @@ dependencies {
   testCompileOnly libs.autoservice.annotation
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':products:metrics:metrics-lib')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'

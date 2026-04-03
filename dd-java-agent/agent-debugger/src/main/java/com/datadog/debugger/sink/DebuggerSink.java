@@ -92,10 +92,10 @@ public class DebuggerSink {
   }
 
   public void stop() {
-    lowRateFlush(this);
-    snapshotSink.highRateFlush(null);
     cancelSchedule(this.flushIntervalScheduled);
     cancelSchedule(this.lowRateScheduled);
+    lowRateFlush(this);
+    snapshotSink.highRateFlush(null);
     probeStatusSink.stop();
     symbolSink.stop();
     snapshotSink.stop();
@@ -208,6 +208,10 @@ public class DebuggerSink {
     probeStatusSink.addBlocked(probeId);
   }
 
+  public void addError(ProbeId probeId, String msg) {
+    probeStatusSink.addError(probeId, msg);
+  }
+
   public void removeDiagnostics(ProbeId probeId) {
     probeStatusSink.removeDiagnostics(probeId);
   }
@@ -216,13 +220,11 @@ public class DebuggerSink {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {
         case INFO:
-          LOGGER.info(msg.getMessage());
-          break;
         case WARN:
-          LOGGER.warn(msg.getMessage());
+          LOGGER.debug(msg.getMessage());
           break;
         case ERROR:
-          LOGGER.error(msg.getMessage());
+          LOGGER.debug(msg.getMessage());
           reportError(probeId, msg);
           break;
       }

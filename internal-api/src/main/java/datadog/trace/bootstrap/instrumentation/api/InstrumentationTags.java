@@ -76,6 +76,7 @@ public class InstrumentationTags {
   public static final String ELASTICSEARCH_RESPONSE_STATUS = "elasticsearch.response.status";
   public static final String STATUS_CODE = "status.code";
   public static final String STATUS_DESCRIPTION = "status.description";
+  public static final String GRPC_STATUS_CODE = "rpc.grpc.status_code";
   public static final String MESSAGE_TYPE = "message.type";
   public static final String MESSAGE_SIZE = "message.size";
   public static final String HYSTRIX_COMMAND = "hystrix.command";

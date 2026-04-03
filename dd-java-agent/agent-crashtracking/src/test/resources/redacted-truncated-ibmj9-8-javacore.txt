@@ -1,0 +1,138 @@
+0SECTION       TITLE subcomponent dump routine
+NULL           ===============================
+1TICHARSET     ISO8859-1
+1TISIGINFO     Dump Event "user" (00004000) received
+1TIDATETIMEUTC Date: 2001/01/01 at 00:00:00:000 (UTC)
+1TIDATETIME    Date: 2001/01/01 at 00:00:00:000
+1TITIMEZONE    Timezone: UTC-0 (UTC)
+1TINANOTIME    System nanotime: 0
+1TIFILENAME    Javacore filename:    /opt/REDACTED/REDACTED/javacore.20010101.000000.12345678.0001.txt
+1TIREQFLAGS    Request Flags: 0x41 (exclusive+preempt)
+1TIPREPSTATE   Prep State: 0x80 (trace_disabled)
+1TIPREPINFO    Exclusive VM access not taken: data may not be consistent across javacore sections
+NULL           ------------------------------------------------------------------------
+0SECTION       GPINFO subcomponent dump routine
+NULL           ================================
+2XHOSLEVEL     OS Level         : AIX 7.2
+2XHCPUS        Processors -
+3XHCPUARCH       Architecture   : ppc64
+3XHNUMCPUS       How Many       : 16
+3XHNUMASUP       NUMA is either not supported or has been disabled by user
+NULL
+1XHERROR2      Register dump section only produced for SIGSEGV, SIGILL or SIGFPE.
+NULL
+NULL           ------------------------------------------------------------------------
+0SECTION       ENVINFO subcomponent dump routine
+NULL           =================================
+1CIJAVAVERSION JRE 1.8.0 AIX ppc64-64 (build 8.0.8.6 - pap6480sr8fp6-REDACTED(SR8 FP6))
+1CIVMVERSION   REDACTED
+1CIJ9VMVERSION REDACTED
+1CIJITVERSION  REDACTED
+1CIOMRVERSION  REDACTED
+1CIIBMVERSION  REDACTED
+1CIVENDOR      IBM Corporation
+1CIJITMODES    JIT enabled, AOT enabled, FSD disabled, HCR enabled
+1CIRUNNINGAS   Running as a standalone JVM
+1CIVMIDLESTATE VM Idle State: ACTIVE
+1CICONTINFO    Running in container : FALSE
+1CICGRPINFO    JVM support for cgroups enabled : FALSE
+1CISTARTTIME   JVM start time: 2001/01/01 at 00:00:00:000
+1CISTARTNANO   JVM start nanotime: 0
+1CIPROCESSID   Process ID: 12345678 (0xBC614E)
+1CICMDLINE     /opt/REDACTED/java/8.0/bin/java -Dosgi.install.area=/opt/REDACTED -Dwas.status.socket=REDACTED -Dosgi.configuration.area=/opt/REDACTED/REDACTED/REDACTED/configuration -Djava.awt.headless=true -Dosgi.framework.extensions=com.ibm.cds,com.ibm.ws.eclipse.adaptors -Xshareclasses:name=webspherev9_8.0_64_%g,nonFatal -Dcom.ibm.xtq.processor.overrideSecureProcessing=true -Xcheck:dump -Djava.security.properties=/opt/REDACTED/properties/java.security -Djava.security.policy=/opt/REDACTED/properties/java.policy -Dcom.ibm.CORBA.ORBPropertyFilePath=/opt/REDACTED/properties -Xbootclasspath/p:/opt/REDACTED/java/8.0/jre/lib/ibmorb.jar -classpath /opt/REDACTED/REDACTED/properties:/opt/REDACTED/properties:/opt/REDACTED/lib/startup.jar:/opt/REDACTED/lib/bootstrap.jar:/opt/REDACTED/lib/lmproxy.jar:/opt/REDACTED/lib/urlprotocols.jar:/opt/REDACTED/deploytool/itp/batchboot.jar:/opt/REDACTED/deploytool/itp/batch2.jar:/opt/REDACTED/java/8.0/lib/tools.jar -Dibm.websphere.internalClassAccessMode=allow -verbose:gc -Xverbosegclog:/opt/REDACTED/REDACTED/logs/REDACTED/verbosegc.%seq.log,10,7000 -Xms3072m -Xmx4096m -Xcompressedrefs -Xscmaxaot16M -Xscmx120M -Dws.ext.dirs=/opt/REDACTED/java/8.0/lib:/opt/REDACTED/REDACTED/classes:/opt/REDACTED/classes:/opt/REDACTED/lib:/opt/REDACTED/installedChannels:/opt/REDACTED/lib/ext:/opt/REDACTED/web/help:/opt/REDACTED/deploytool/itp/plugins/com.ibm.etools.ejbdeploy/runtime -Dcom.ibm.itp.location=/opt/REDACTED/bin -Djava.util.logging.configureByServer=true -Duser.install.root=/opt/REDACTED/REDACTED -Djava.ext.dirs=/opt/REDACTED/tivoli/tam:/opt/REDACTED/javaext:/opt/REDACTED/java/8.0/jre/lib/ext -Dpython.cachedir=/opt/REDACTED/REDACTED/temp/cachedir -Dwas.install.root=/opt/REDACTED -Djava.util.logging.manager=com.ibm.ws.bootstrap.WsLogManager -Dserver.root=/opt/REDACTED/REDACTED -Dcom.ibm.security.jgss.debug=off -Dcom.ibm.security.krb5.Krb5Debug=off -DTEMAGCCollector.gclog.path=None -Dcom.ibm.tivoli.itcam.toolkit.ai.runtimebuilder.enable.rebuild=true -DdisableWSAddressCaching=true -Dlog4j2.formatMsgNoLookups=true -Ddd.integration.jax-ws.enabled=true -Ddd.trace.split-by-tags=servlet.context -Ddd.jmxfetch.enabled=true -Ddd.jmxfetch.start-delay=60 -Ddd.trace.report-hostname=true -Ddd.integration.jms.enabled=true -Ddd.app.customjmxbuilder=false -Ddd.tags=REDACTED:REDACTED, REDACTED:REDACTED,node:REDACTED,cluster:REDACTED -Dcom.sun.management.jmxremote.port=REDACTED -Djavax.management.builder.initial= -Dcom.sun.management.jmxremote.ssl=false -Dcom.sun.management.jmxremote=true -Dcom.ibm.team.server.monitoring.mbean.server=WebSphere -Dcom.sun.management.jmxremote.authenticate=false -Dappdynamics.agent.nodeName=REDACTED -Ddd.env=REDACTED -Dagent.apm.enabled=true -Ddd.version=REDACTED -Ddd.service=REDACTED -javaagent:/opt/redacted/lib/dd-java-agent.jar -agentlib:hprof=cpu=samples,depth=100,interval=10,lineno=y,thread=y,file=out.hprof.txt -Ddd.profiling.enabled=false -Ddd.trace.classloaders.exclude=com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory\$RootStubClassLoader -XX:FlightRecorderOptions=stackdepth=256 -agentlib:am_ibm_16=REDACTED -verbosegc -Dsun.rmi.dgc.client.gcInterval=3600000 -Dsun.rmi.dgc.server.gcInterval=3600000 -Dsun.rmi.transport.connectionTimeout=300000 -Dcom.ibm.jsse2.disableSSLv3=false -Dsun.net.inetaddr.ttl=15 -Dsun.net.inetaddr.negative.ttl=5 -Djava.library.path=/opt/REDACTED/lib/native/aix/ppc_64/:/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/lib/ppc64/j9vm:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/../lib/ppc64:/opt/REDACTED/java/8.0/jre//lib/icc:/opt/REDACTED/bin:/opt/REDACTED/nulldllsdir:/usr/lib64:/usr/lib:/lib:/opt/REDACTED/toolkit/lib/aix536:/opt/REDACTED/toolkit/lib/aix536/ttapi: -Djava.endorsed.dirs=/opt/REDACTED/endorsed_apis:/opt/REDACTED/java/8.0/jre/lib/endorsed -Djava.security.auth.login.config=/opt/REDACTED/REDACTED/properties/wsjaas.conf -Djava.security.policy=/opt/REDACTED/REDACTED/properties/server.policy com.ibm.wsspi.bootstrap.WSPreLauncher -nosplash -application com.ibm.ws.bootstrap.WSLauncher com.ibm.ws.runtime.WsServer
+1CIJAVAHOMEDIR Java Home Dir:   /opt/REDACTED/java/8.0/jre
+1CIJAVADLLDIR  Java DLL Dir:    /opt/REDACTED/java/8.0/jre/bin
+1CISYSCP       Sys Classpath:   /opt/REDACTED/endorsed_apis/jaxws-api.jar;/opt/REDACTED/endorsed_apis/jaxb-api.jar;/opt/REDACTED/endorsed_apis/javax.j2ee.annotation.jar;/opt/REDACTED/java/8.0/jre/lib/ibmorb.jar;/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs/jclSC180/vm.jar;/opt/REDACTED/java/8.0/jre/lib/se-service.jar;/opt/REDACTED/java/8.0/jre/lib/math.jar;/opt/REDACTED/java/8.0/jre/lib/ibmorb.jar;/opt/REDACTED/java/8.0/jre/lib/ibmorbapi.jar;/opt/REDACTED/java/8.0/jre/lib/ibmcfw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmpkcs.jar;/opt/REDACTED/java/8.0/jre/lib/ibmcertpathfw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmjgssfw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmjssefw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmsaslfw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmjcefw.jar;/opt/REDACTED/java/8.0/jre/lib/ibmjgssprovider.jar;/opt/REDACTED/java/8.0/jre/lib/ibmjsseprovider2.jar;/opt/REDACTED/java/8.0/jre/lib/ibmcertpathprovider.jar;/opt/REDACTED/java/8.0/jre/lib/xmldsigfw.jar;/opt/REDACTED/java/8.0/jre/lib/xml.jar;/opt/REDACTED/java/8.0/jre/lib/charsets.jar;/opt/REDACTED/java/8.0/jre/lib/resources.jar;/opt/REDACTED/java/8.0/jre/lib/rt.jar;/opt/REDACTED/java/8.0/jre/lib/dataaccess.jar;/opt/redacted/lib/dd-java-agent.jar;
+1CIUSERARGS    UserArgs:
+2CIUSERARG               -Xoptionsfile=/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs/options.default
+2CIUSERARG               -Xlockword:mode=default,noLockword=java/lang/String,noLockword=java/util/MapEntry,noLockword=java/util/HashMap$Entry,noLockword=org/apache/harmony/luni/util/ModifiedMap$Entry,noLockword=java/util/Hashtable$Entry,noLockword=java/lang/invoke/MethodType,noLockword=java/lang/invoke/MethodHandle,noLockword=java/lang/invoke/CollectHandle,noLockword=java/lang/invoke/ConstructorHandle,noLockword=java/lang/invoke/ConvertHandle,noLockword=java/lang/invoke/ArgumentConversionHandle,noLockword=java/lang/invoke/AsTypeHandle,noLockword=java/lang/invoke/ExplicitCastHandle,noLockword=java/lang/invoke/FilterReturnHandle,noLockword=java/lang/invoke/DirectHandle,noLockword=java/lang/invoke/ReceiverBoundHandle,noLockword=java/lang/invoke/DynamicInvokerHandle,noLockword=java/lang/invoke/FieldHandle,noLockword=java/lang/invoke/FieldGetterHandle,noLockword=java/lang/invoke/FieldSetterHandle,noLockword=java/lang/invoke/StaticFieldGetterHandle,noLockword=java/lang/invoke/StaticFieldSetterHandle,noLockword=java/lang/invoke/IndirectHandle,noLockword=java/lang/invoke/InterfaceHandle,noLockword=java/lang/invoke/VirtualHandle,noLockword=java/lang/invoke/PrimitiveHandle,noLockword=java/lang/invoke/InvokeExactHandle,noLockword=java/lang/invoke/InvokeGenericHandle,noLockword=java/lang/invoke/VarargsCollectorHandle,noLockword=java/lang/invoke/ThunkTuple
+2CIUSERARG               -Djava.lang.stringBuffer.growAggressively=false
+2CIUSERARG               -XX:+OriginalJDK8HeapSizeCompatibilityMode
+2CIUSERARG               -XX:+LegacyXlogOption
+2CIUSERARG               -XX:+EnsureHashed:java/lang/Class,java/lang/Thread
+2CIUSERARG               -Xjcl:jclse29
+2CIUSERARG               -Dcom.ibm.oti.vm.bootstrap.library.path=/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs:/opt/REDACTED/java/8.0/jre/lib/ppc64
+2CIUSERARG               -Dsun.boot.library.path=/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs:/opt/REDACTED/java/8.0/jre/lib/ppc64
+2CIUSERARG               -Djava.library.path=/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/lib/ppc64/j9vm:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/../lib/ppc64:/opt/REDACTED/java/8.0/jre//lib/icc:/lib:/opt/REDACTED/toolkit/lib/aix536:/opt/REDACTED/toolkit/lib/aix536/ttapi:/opt/REDACTED/java/8.0/jre/lib/ppc64/j9vm:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/../lib/ppc64:/opt/REDACTED/java/8.0/jre//lib/icc:/opt/REDACTED/lib/native/aix/ppc_64/:/opt/REDACTED/bin:/opt/REDACTED/nulldllsdir:/usr/lib:/usr/lib64:/usr/lib
+2CIUSERARG               -Djava.home=/opt/REDACTED/java/8.0/jre
+2CIUSERARG               -Djava.ext.dirs=/opt/REDACTED/java/8.0/jre/fips140-2/lib/ext:/opt/REDACTED/java/8.0/jre/lib/ext
+2CIUSERARG               -Duser.dir=/opt/REDACTED/REDACTED
+2CIUSERARG               -Djava.class.path=.
+2CIUSERARG               -Dosgi.install.area=/opt/REDACTED
+2CIUSERARG               -Dwas.status.socket=REDACTED
+2CIUSERARG               -Dosgi.configuration.area=/opt/REDACTED/REDACTED/REDACTED/configuration
+2CIUSERARG               -Djava.awt.headless=true
+2CIUSERARG               -Dosgi.framework.extensions=com.ibm.cds,com.ibm.ws.eclipse.adaptors
+2CIUSERARG               -Xshareclasses:name=webspherev9_8.0_64_%g,nonFatal
+2CIUSERARG               -Dcom.ibm.xtq.processor.overrideSecureProcessing=true
+2CIUSERARG               -Xcheck:dump
+2CIUSERARG               -Djava.security.properties=/opt/REDACTED/properties/java.security
+2CIUSERARG               -Djava.security.policy=/opt/REDACTED/properties/java.policy
+2CIUSERARG               -Dcom.ibm.CORBA.ORBPropertyFilePath=/opt/REDACTED/properties
+2CIUSERARG               -Xbootclasspath/p:/opt/REDACTED/java/8.0/jre/lib/ibmorb.jar
+2CIUSERARG               -Djava.class.path=/opt/REDACTED/REDACTED/properties:/opt/REDACTED/properties:/opt/REDACTED/lib/startup.jar:/opt/REDACTED/lib/bootstrap.jar:/opt/REDACTED/lib/lmproxy.jar:/opt/REDACTED/lib/urlprotocols.jar:/opt/REDACTED/deploytool/itp/batchboot.jar:/opt/REDACTED/deploytool/itp/batch2.jar:/opt/REDACTED/java/8.0/lib/tools.jar
+2CIUSERARG               -Dibm.websphere.internalClassAccessMode=allow
+2CIUSERARG               -verbose:gc
+2CIUSERARG               -Xverbosegclog:/opt/REDACTED/REDACTED/logs/REDACTED/verbosegc.%seq.log,10,7000
+2CIUSERARG               -Xms3072m
+2CIUSERARG               -Xmx4096m
+2CIUSERARG               -Xcompressedrefs
+2CIUSERARG               -Xscmaxaot16M
+2CIUSERARG               -Xscmx120M
+2CIUSERARG               -Dws.ext.dirs=/opt/REDACTED/java/8.0/lib:/opt/REDACTED/REDACTED/classes:/opt/REDACTED/classes:/opt/REDACTED/lib:/opt/REDACTED/installedChannels:/opt/REDACTED/lib/ext:/opt/REDACTED/web/help:/opt/REDACTED/deploytool/itp/plugins/com.ibm.etools.ejbdeploy/runtime
+2CIUSERARG               -Dcom.ibm.itp.location=/opt/REDACTED/bin
+2CIUSERARG               -Djava.util.logging.configureByServer=true
+2CIUSERARG               -Duser.install.root=/opt/REDACTED/REDACTED
+2CIUSERARG               -Djava.ext.dirs=/opt/REDACTED/tivoli/tam:/opt/REDACTED/javaext:/opt/REDACTED/java/8.0/jre/lib/ext
+2CIUSERARG               -Dpython.cachedir=/opt/REDACTED/REDACTED/temp/cachedir
+2CIUSERARG               -Dwas.install.root=/opt/REDACTED
+2CIUSERARG               -Djava.util.logging.manager=com.ibm.ws.bootstrap.WsLogManager
+2CIUSERARG               -Dserver.root=/opt/REDACTED/REDACTED
+2CIUSERARG               -Dcom.ibm.security.jgss.debug=off
+2CIUSERARG               -Dcom.ibm.security.krb5.Krb5Debug=off
+2CIUSERARG               -DTEMAGCCollector.gclog.path=None
+2CIUSERARG               -Dam.home=/opt/REDACTED/itcamdc
+2CIUSERARG               -Dcom.ibm.tivoli.itcam.toolkit.ai.runtimebuilder.enable.rebuild=true
+2CIUSERARG               -DdisableWSAddressCaching=true
+2CIUSERARG               -Dlog4j2.formatMsgNoLookups=true
+2CIUSERARG               -Ddd.integration.jax-ws.enabled=true
+2CIUSERARG               -Ddd.trace.split-by-tags=servlet.context
+2CIUSERARG               -Ddd.jmxfetch.enabled=true
+2CIUSERARG               -Ddd.jmxfetch.start-delay=60
+2CIUSERARG               -Ddd.trace.report-hostname=true
+2CIUSERARG               -Ddd.integration.jms.enabled=true
+2CIUSERARG               -Ddd.app.customjmxbuilder=false
+2CIUSERARG               -Ddd.tags=REDACTED:REDACTED, REDACTED:REDACTED,node:REDACTED,cluster:REDACTED
+2CIUSERARG               -Dcom.sun.management.jmxremote.port=REDACTED
+2CIUSERARG               -Djavax.management.builder.initial=
+2CIUSERARG               -Dcom.sun.management.jmxremote.ssl=false
+2CIUSERARG               -Dcom.sun.management.jmxremote=true
+2CIUSERARG               -Dcom.ibm.team.server.monitoring.mbean.server=WebSphere
+2CIUSERARG               -Dcom.sun.management.jmxremote.authenticate=false
+2CIUSERARG               -Dappdynamics.agent.nodeName=REDACTED
+2CIUSERARG               -Ddd.env=REDACTED
+2CIUSERARG               -Dagent.apm.enabled=true
+2CIUSERARG               -Ddd.version=REDACTED
+2CIUSERARG               -Ddd.service=REDACTED
+2CIUSERARG               -javaagent:/opt/redacted/lib/dd-java-agent.jar
+2CIUSERARG               -agentlib:hprof=cpu=samples,depth=100,interval=10,lineno=y,thread=y,file=out.hprof.txt
+2CIUSERARG               -Ddd.profiling.enabled=false
+2CIUSERARG               -Ddd.trace.classloaders.exclude=com.ibm.xml.xlxp2.jaxb.codegen.AbstractGeneratedStubFactory\$RootStubClassLoader
+2CIUSERARG               -XX:FlightRecorderOptions=stackdepth=256
+2CIUSERARG               -agentlib:am_ibm_16=REDACTED
+2CIUSERARG               -verbose:gc
+2CIUSERARG               -Dsun.rmi.dgc.client.gcInterval=3600000
+2CIUSERARG               -Dsun.rmi.dgc.server.gcInterval=3600000
+2CIUSERARG               -Dsun.rmi.transport.connectionTimeout=300000
+2CIUSERARG               -Dcom.ibm.jsse2.disableSSLv3=false
+2CIUSERARG               -Dsun.net.inetaddr.ttl=15
+2CIUSERARG               -Dsun.net.inetaddr.negative.ttl=5
+2CIUSERARG               -Djava.library.path=/opt/REDACTED/lib/native/aix/ppc_64/:/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/lib/ppc64/j9vm:/opt/REDACTED/java/8.0/jre/lib/ppc64:/opt/REDACTED/java/8.0/jre/../lib/ppc64:/opt/REDACTED/java/8.0/jre//lib/icc:/opt/REDACTED/bin:/opt/REDACTED/nulldllsdir:/usr/lib64:/usr/lib:/lib:/opt/REDACTED/toolkit/lib/aix536:/opt/REDACTED/toolkit/lib/aix536/ttapi:
+2CIUSERARG               -Djava.endorsed.dirs=/opt/REDACTED/endorsed_apis:/opt/REDACTED/java/8.0/jre/lib/endorsed
+2CIUSERARG               -Djava.security.auth.login.config=/opt/REDACTED/REDACTED/properties/wsjaas.conf
+2CIUSERARG               -Djava.security.policy=/opt/REDACTED/REDACTED/properties/server.policy
+2CIUSERARG               -Dsun.java.command=com.ibm.wsspi.bootstrap.WSPreLauncher -nosplash -application com.ibm.ws.bootstrap.WSLauncher com.ibm.ws.runtime.WsServer /opt/REDACTED/REDACTED/config REDACTED REDACTED REDACTED
+2CIUSERARG               -Dsun.java.launcher=SUN_STANDARD
+NULL
+1CIIGNOREDARGS Ignored Args:
+2CIIGNOREDARG            -XX:FlightRecorderOptions=stackdepth=256

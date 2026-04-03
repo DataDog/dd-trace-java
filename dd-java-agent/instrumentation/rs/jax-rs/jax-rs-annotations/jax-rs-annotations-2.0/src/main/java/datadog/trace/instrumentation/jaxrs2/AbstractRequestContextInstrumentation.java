@@ -30,10 +30,7 @@ public abstract class AbstractRequestContextInstrumentation extends Instrumenter
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.tooling.ClassHierarchyIterable",
-      "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
-      packageName + ".JaxRsAnnotationsDecorator",
-      packageName + ".RequestFilterHelper",
+      packageName + ".JaxRsAnnotationsDecorator", packageName + ".RequestFilterHelper",
     };
   }
 

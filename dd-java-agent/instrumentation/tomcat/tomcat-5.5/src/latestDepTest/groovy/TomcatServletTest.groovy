@@ -60,6 +60,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBlockingOnResponse() {
     true
   }
@@ -279,12 +284,7 @@ class TomcatServletEnvEntriesTagTest extends TomcatServletTest {
 
   @Override
   Map<String, Serializable> expectedExtraServerTags(ServerEndpoint endpoint) {
-    super.expectedExtraServerTags(endpoint) + ["custom-tag": "custom-value", "_dd.svc_src": null] as Map<String, Serializable>
-  }
-
-  @Override
-  Map<String, Serializable> expectedExtraControllerTags(ServerEndpoint endpoint) {
-    super.expectedExtraControllerTags(endpoint) + ["_dd.svc_src": null] as Map<String, Serializable>
+    super.expectedExtraServerTags(endpoint) + ["custom-tag": "custom-value"] as Map<String, Serializable>
   }
 
   @Override

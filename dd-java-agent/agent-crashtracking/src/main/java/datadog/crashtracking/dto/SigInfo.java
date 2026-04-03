@@ -19,12 +19,27 @@ public class SigInfo {
   @Json(name = "si_addr")
   public final String address;
 
-  public SigInfo(Integer number, String name, Integer code, String action, String address) {
+  @Json(name = "si_pid")
+  public final Integer pid;
+
+  @Json(name = "si_uid")
+  public final Integer uid;
+
+  public SigInfo(
+      Integer number,
+      String name,
+      Integer code,
+      String action,
+      String address,
+      Integer pid,
+      Integer uid) {
     this.number = number;
     this.name = name;
     this.address = address;
     this.code = code;
     this.action = action;
+    this.pid = pid;
+    this.uid = uid;
   }
 
   @Override
@@ -35,11 +50,13 @@ public class SigInfo {
         && Objects.equals(name, sigInfo.name)
         && Objects.equals(address, sigInfo.address)
         && Objects.equals(code, sigInfo.code)
-        && Objects.equals(action, sigInfo.action);
+        && Objects.equals(action, sigInfo.action)
+        && Objects.equals(pid, sigInfo.pid)
+        && Objects.equals(uid, sigInfo.uid);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(number, name, address, code, action);
+    return Objects.hash(number, name, address, code, action, pid, uid);
   }
 }

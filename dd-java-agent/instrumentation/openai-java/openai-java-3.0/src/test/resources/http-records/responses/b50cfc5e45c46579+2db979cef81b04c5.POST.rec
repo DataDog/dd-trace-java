@@ -1,0 +1,120 @@
+method: POST
+path: responses
+-- begin request body --
+{"input":"Extract the student's name and major from: Alice Johnson majors in mathematics at UCLA.","model":"gpt-4.1","tools":[{"type":"function","name":"extract_student_info_raw","description":"Extract student information from the input text","parameters":{"type":"object","properties":{"name":{"type":"string","description":"Name of the student"},"major":{"type":"string","description":"Major subject"}},"required":["name"]}}]}
+-- end request body -- 
+status code: 200
+-- begin response headers --
+alt-svc: h3=":443"; ma=86400
+cf-cache-status: DYNAMIC
+cf-ray: 9e51b962ca5855dd-SEA
+content-type: application/json
+date: Tue, 31 Mar 2026 19:22:41 GMT
+openai-organization: datadog-staging
+openai-processing-ms: 603
+openai-project: proj_gt6TQZPRbZfoY2J9AQlEJMpd
+openai-version: 2020-10-01
+server: cloudflare
+set-cookie: __cf_bm=R9BwJrSxwTzGoTGS6fXKcV8eDh1BX04veUMDBYwS15U-1774984960.4454625-1.0.1.1-uz3nOd8CenO4BXUzwOLsVhYY9tSMN8QsxbSSmNNauy.HfizmaxKuo.qcNXXpDXriny8fkQsNY9RazpAkA0lO982O0MLRFe4DwnuuTV6PjtsinRv6EOE99E1TmXwynZMx; HttpOnly; Secure; Path=/; Domain=api.openai.com; Expires=Tue, 31 Mar 2026 19:52:41 GMT
+strict-transport-security: max-age=31536000; includeSubDomains; preload
+x-content-type-options: nosniff
+x-ratelimit-limit-requests: 10000
+x-ratelimit-limit-tokens: 30000000
+x-ratelimit-remaining-requests: 9999
+x-ratelimit-remaining-tokens: 30000000
+x-ratelimit-reset-requests: 6ms
+x-ratelimit-reset-tokens: 0s
+x-request-id: req_40a85f5080bf4950a7a3f0767d0f5487
+-- end response headers --
+-- begin response body --
+{
+  "id": "resp_087b549c7dee59590169cc1f0081c88190b42f2bb8e56cbdbf",
+  "object": "response",
+  "created_at": 1774984960,
+  "status": "completed",
+  "background": false,
+  "billing": {
+    "payer": "developer"
+  },
+  "completed_at": 1774984961,
+  "error": null,
+  "frequency_penalty": 0.0,
+  "incomplete_details": null,
+  "instructions": null,
+  "max_output_tokens": null,
+  "max_tool_calls": null,
+  "model": "gpt-4.1-2025-04-14",
+  "output": [
+    {
+      "id": "fc_087b549c7dee59590169cc1f00ebb88190aa809d7470cb514b",
+      "type": "function_call",
+      "status": "completed",
+      "arguments": "{\"name\":\"Alice Johnson\",\"major\":\"mathematics\"}",
+      "call_id": "call_VXETAWtdjoslNAwxpS8pJsJR",
+      "name": "extract_student_info_raw"
+    }
+  ],
+  "parallel_tool_calls": true,
+  "presence_penalty": 0.0,
+  "previous_response_id": null,
+  "prompt_cache_key": null,
+  "prompt_cache_retention": null,
+  "reasoning": {
+    "effort": null,
+    "summary": null
+  },
+  "safety_identifier": null,
+  "service_tier": "default",
+  "store": false,
+  "temperature": 1.0,
+  "text": {
+    "format": {
+      "type": "text"
+    },
+    "verbosity": "medium"
+  },
+  "tool_choice": "auto",
+  "tools": [
+    {
+      "type": "function",
+      "description": "Extract student information from the input text",
+      "name": "extract_student_info_raw",
+      "parameters": {
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "Name of the student"
+          },
+          "major": {
+            "type": "string",
+            "description": "Major subject"
+          }
+        },
+        "required": [
+          "name",
+          "major"
+        ],
+        "additionalProperties": false
+      },
+      "strict": true
+    }
+  ],
+  "top_logprobs": 0,
+  "top_p": 1.0,
+  "truncation": "disabled",
+  "usage": {
+    "input_tokens": 70,
+    "input_tokens_details": {
+      "cached_tokens": 0
+    },
+    "output_tokens": 24,
+    "output_tokens_details": {
+      "reasoning_tokens": 0
+    },
+    "total_tokens": 94
+  },
+  "user": null,
+  "metadata": {}
+}�
+-- end response body --
