@@ -14,8 +14,8 @@ import java.util.List;
  *   <li>pre-split J9 user arguments, such as individual {@code 2CIUSERARG} records
  * </ul>
  *
- * <p>Only a curated subset of arguments is retained for telemetry: {@code -Ddd.*}, {@code -Djdk.*},
- * {@code -Djava.*}, {@code -Dsun.*}, {@code -javaagent:}, {@code -agentlib:}, {@code -X*}, and
+ * <p>Only a curated subset of arguments is retained for telemetry: {@code -Djdk.*}, {@code
+ * -Djava.*}, {@code -Dsun.*}, {@code -javaagent:}, {@code -agentlib:}, {@code -X*}, and
  * module/native-access options.
  */
 final class RuntimeArgs {
@@ -89,7 +89,7 @@ final class RuntimeArgs {
     if (hasSecretLikePropertyName(arg)) {
       return false;
     }
-    if (arg.startsWith("-Ddd.") || arg.startsWith("-Djdk.") || arg.startsWith("-Dosgi.")) {
+    if (arg.startsWith("-Djdk.") || arg.startsWith("-Dosgi.")) {
       return true;
     }
     // J9 lists them as vm args.
