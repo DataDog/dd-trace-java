@@ -62,11 +62,13 @@ final class RuntimeArgs {
       if (arg == null || arg.isEmpty()) {
         continue;
       }
-      if (isAllowedSystemProperty(arg)
-          || arg.startsWith("-javaagent:")
-          || arg.startsWith("-agentlib:")
-          || arg.startsWith("-X")
-          || isModuleOrNativeAccessOption(arg)) {
+      if (isAllowedSystemProperty(arg)) {
+        filtered.add(arg);
+      } else if (arg.startsWith("-javaagent:") || arg.startsWith("-agentlib:")) {
+        // Redact options after '=' — only the jar path / library name is sent
+        int eq = arg.indexOf('=', arg.indexOf(':') + 1);
+        filtered.add(eq >= 0 ? arg.substring(0, eq) + "=REDACTED" : arg);
+      } else if (arg.startsWith("-X") || isModuleOrNativeAccessOption(arg)) {
         filtered.add(arg);
       }
     }

@@ -43,12 +43,16 @@ public class RuntimeArgsTest {
   }
 
   @TableTest({
-    "scenario               | raw                                                   | expectedIncluded                                 ",
-    "quoted onerror unix    | -XX:OnError=\"gcore %p;gdb -p %p\"                    | -XX:OnError=gcore %p;gdb -p %p                   ",
-    "quoted onerror windows | -XX:OnError=\"userdump.exe %p\"                       | -XX:OnError=userdump.exe %p                      ",
-    "quoted module path     | --module-path \"/opt/app-modules:/opt/other-modules\" | --module-path /opt/app-modules:/opt/other-modules"
+    "scenario                   | raw                                                   | expectedIncluded                                 ",
+    "quoted onerror unix        | -XX:OnError=\"gcore %p;gdb -p %p\"                    | -XX:OnError=gcore %p;gdb -p %p                   ",
+    "quoted onerror windows     | -XX:OnError=\"userdump.exe %p\"                       | -XX:OnError=userdump.exe %p                      ",
+    "quoted module path         | --module-path \"/opt/app-modules:/opt/other-modules\" | --module-path /opt/app-modules:/opt/other-modules",
+    "javaagent without options  | -javaagent:/opt/dd-java-agent.jar                     | -javaagent:/opt/dd-java-agent.jar                ",
+    "javaagent options redacted | -javaagent:/opt/dd-java-agent.jar=apikey=deadbeef     | -javaagent:/opt/dd-java-agent.jar=REDACTED       ",
+    "agentlib without options   | -agentlib:jdwp                                        | -agentlib:jdwp                                   ",
+    "agentlib options redacted  | -agentlib:jdwp=transport=dt_socket,server=y           | -agentlib:jdwp=REDACTED                          "
   })
-  public void testParseVmArgsHandlesQuotedArguments(String raw, String expectedIncluded) {
+  public void testParseVmArgsHandlesArgNormalization(String raw, String expectedIncluded) {
     List<String> runtimeArgs = RuntimeArgs.parseVmArgs(raw);
 
     assertThat(runtimeArgs).isNotNull().contains(expectedIncluded);
@@ -60,7 +64,7 @@ public class RuntimeArgsTest {
     "sun token excluded          | -Dsun.auth.token=abc123           | false      | -Dsun.auth.token=abc123          ",
     "dd api key excluded         | -Ddd.api-key=deadbeef             | false      | -Ddd.api-key=deadbeef            ",
     "dd app key excluded         | -Ddd.app-key=deadbeef             | false      | -Ddd.app-key=deadbeef            ",
-    "dd application key excluded | -Ddd.application-key=deadbeef    | false      | -Ddd.application-key=deadbeef   ",
+    "dd application key excluded | -Ddd.application-key=deadbeef     | false      | -Ddd.application-key=deadbeef    ",
     "java logging kept           | -Djava.util.logging.config.file=x | true       | -Djava.util.logging.config.file=x",
     "osgi install kept           | -Dosgi.install.area=/opt/app      | true       | -Dosgi.install.area=/opt/app     "
   })
