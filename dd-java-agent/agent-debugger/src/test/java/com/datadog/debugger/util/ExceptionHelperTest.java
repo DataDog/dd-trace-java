@@ -2,6 +2,7 @@ package com.datadog.debugger.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doAnswer;
@@ -96,6 +97,10 @@ public class ExceptionHelperTest {
     assertEquals(nested, exceptions.pollLast());
     assertEquals(nested.getCause(), exceptions.pollLast());
     assertEquals(nested.getCause().getCause(), exceptions.pollLast());
+    // create a cycle and make sure we handle it gracefully
+    Exception ex2 = new RuntimeException("test2", ex);
+    ex.initCause(ex2);
+    assertNull(ExceptionHelper.getInnerMostThrowable(ex2));
   }
 
   @Test
