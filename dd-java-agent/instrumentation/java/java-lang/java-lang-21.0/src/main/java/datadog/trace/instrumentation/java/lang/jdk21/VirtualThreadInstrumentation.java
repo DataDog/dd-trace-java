@@ -106,7 +106,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     public static void afterInit(@Advice.This Object virtualThread) {
       Context context = current();
       if (context == root()) {
-        return; // no active context to propagate
+        return; // No active context to propagate, avoid creating state
       }
       VirtualThreadState state = new VirtualThreadState(context, captureActiveSpan());
       ContextStore<Object, Object> store =
