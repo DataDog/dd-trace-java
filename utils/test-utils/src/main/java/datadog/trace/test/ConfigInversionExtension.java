@@ -1,12 +1,15 @@
 package datadog.trace.test;
 
+import datadog.trace.config.inversion.ConfigHelper;
+import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.List;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
 import org.junit.jupiter.api.extension.ExtensionContext;
 
 /**
- * JUnit 5 extension that enforces {@code StrictnessPolicy.STRICT_TEST} mode on {@code ConfigHelper}
+ * JUnit 5 extension that enforces {@link StrictnessPolicy#STRICT_TEST} mode on {@link ConfigHelper}
  * during test execution. Any access to an unsupported configuration key will throw {@link
  * IllegalArgumentException} and be collected for assertion in {@link #afterAll}.
  *
@@ -24,6 +27,7 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
   private static final String PREVIOUS_POLICY = "previousPolicy";
   private static final String AVAILABLE = "available";
 
+  @SuppressForbidden
   private static boolean configHelperAvailable() {
     try {
       Class.forName("datadog.trace.config.inversion.ConfigHelper");
@@ -40,11 +44,9 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
     if (!available) {
       return;
     }
-    Object previous = datadog.trace.config.inversion.ConfigHelper.get().configInversionStrictFlag();
+    StrictnessPolicy previous = ConfigHelper.get().configInversionStrictFlag();
     ctx.getStore(NS).put(PREVIOUS_POLICY, previous);
-    datadog.trace.config.inversion.ConfigHelper.get()
-        .setConfigInversionStrict(
-            datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy.STRICT_TEST);
+    ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
   }
 
   @Override
@@ -54,20 +56,13 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
       return;
     }
 
-    List<String> unsupported =
-        datadog.trace.config.inversion.ConfigHelper.get().drainUnsupportedConfigs();
+    List<String> unsupported = ConfigHelper.get().drainUnsupportedConfigs();
 
-    datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy previous =
-        ctx.getStore(NS)
-            .get(
-                PREVIOUS_POLICY,
-                datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy.class);
+    StrictnessPolicy previous = ctx.getStore(NS).get(PREVIOUS_POLICY, StrictnessPolicy.class);
     if (previous != null) {
-      datadog.trace.config.inversion.ConfigHelper.get().setConfigInversionStrict(previous);
+      ConfigHelper.get().setConfigInversionStrict(previous);
     } else {
-      datadog.trace.config.inversion.ConfigHelper.get()
-          .setConfigInversionStrict(
-              datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy.WARNING);
+      ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.WARNING);
     }
 
     if (!unsupported.isEmpty()) {
