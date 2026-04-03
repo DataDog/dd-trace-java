@@ -32,12 +32,14 @@ public class Fingerprinter {
     String typeName = clazz.getTypeName();
     digest.update(typeName.getBytes());
     StackTraceElement[] stackTrace = t.getStackTrace();
-    for (StackTraceElement stackTraceElement : stackTrace) {
-      String className = stackTraceElement.getClassName();
-      if (classNameFiltering.isExcluded(className)) {
-        continue;
+    if (stackTrace != null) {
+      for (StackTraceElement stackTraceElement : stackTrace) {
+        String className = stackTraceElement.getClassName();
+        if (classNameFiltering.isExcluded(className)) {
+          continue;
+        }
+        digest.update(stackTraceElement.toString().getBytes());
       }
-      digest.update(stackTraceElement.toString().getBytes());
     }
     return bytesToHex(digest.digest());
   }
