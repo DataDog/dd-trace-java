@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -9,22 +10,15 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.sink.Snapshot;
-import datadog.trace.agent.test.utils.PortUtils;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import datadog.trace.util.TagsHelper;
-import java.io.IOException;
-import java.nio.file.Files;
 import java.nio.file.Path;
-import java.time.Duration;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
-import java.util.concurrent.locks.LockSupport;
 import java.util.regex.Pattern;
-import okhttp3.OkHttpClient;
-import okhttp3.Request;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
@@ -33,21 +27,9 @@ import org.junit.jupiter.params.provider.ValueSource;
 
 @Flaky
 @NonRetryable
-public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
+public class TracerDebuggerIntegrationTest extends SpringBasedIntegrationTest {
 
-  private static final String DEBUGGER_TEST_APP_CLASS =
-      "datadog.smoketest.debugger.SpringBootTestApplication";
   private static final ProbeId PROBE_ID = new ProbeId("123356536", 1);
-
-  @Override
-  protected String getAppClass() {
-    return DEBUGGER_TEST_APP_CLASS;
-  }
-
-  @Override
-  protected String getAppId() {
-    return TagsHelper.sanitize("SpringBootTestApplication");
-  }
 
   @ParameterizedTest(name = "Process tags enabled ''{0}''")
   @ValueSource(booleans = {true, false})
@@ -86,7 +68,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           }
           requestReceived.set(true);
         });
-    doTestTracer(logProbe, processTagsEnabled);
+    String httpPort = startSpringApp(singletonList(logProbe), processTagsEnabled);
+    sendRequest(httpPort, "/greeting");
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
@@ -120,7 +103,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
                   logFilePath, it -> it.contains("TypePool$Resolution$NoSuchTypeException")));
           requestReceived.set(true);
         });
-    doTestTracer(logProbe);
+    String httpPort = startSpringApp(singletonList(logProbe));
+    sendRequest(httpPort, "/greeting");
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
@@ -151,7 +135,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
           requestReceived.set(true);
         });
-    doTestTracer(logProbe);
+    String httpPort = startSpringApp(singletonList(logProbe));
+    sendRequest(httpPort, "/greeting");
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
@@ -182,7 +167,8 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
           requestReceived.set(true);
         });
-    doTestTracer(logProbe);
+    String httpPort = startSpringApp(singletonList(logProbe));
+    sendRequest(httpPort, "/greeting");
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
@@ -213,54 +199,11 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
           assertTrue(Pattern.matches("\\d+", intakeRequest.getSpanId()));
           requestReceived.set(true);
         });
-    doTestTracer(logProbe);
+    String httpPort = startSpringApp(singletonList(logProbe));
+    sendRequest(httpPort, "/greeting");
     processRequests(
         requestReceived::get,
         () -> String.format("timeout requestReceived=%s", requestReceived.get()));
-  }
-
-  private void doTestTracer(LogProbe logProbe) throws Exception {
-    doTestTracer(logProbe, false);
-  }
-
-  private void doTestTracer(LogProbe logProbe, boolean enableProcessTags) throws Exception {
-    setCurrentConfiguration(createConfig(logProbe));
-    String httpPort = String.valueOf(PortUtils.randomOpenPort());
-    ProcessBuilder processBuilder = createProcessBuilder(logFilePath, "--server.port=" + httpPort);
-    if (!enableProcessTags) {
-      processBuilder.environment().put("DD_EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED", "false");
-    }
-    targetProcess = processBuilder.start();
-    // assert in logs app started
-    waitForSpecificLogLine(
-        logFilePath,
-        "datadog.smoketest.debugger.SpringBootTestApplication - Started SpringBootTestApplication",
-        Duration.ofMillis(100),
-        Duration.ofSeconds(30));
-    sendRequest("http://localhost:" + httpPort + "/greeting");
-    /*
-    RecordedRequest snapshotRequest = retrieveSnapshotRequest();
-    if (snapshotRequest == null) {
-      System.out.println("retry instrumentation because probable race with Tracer...");
-      // may encounter a race with Tracer, try again to re-instrument by removing config and
-      // re-installing instrumentation
-      synchronized (configLock) {
-        setCurrentConfiguration(null);
-        configLock.wait(10_000);
-        if (!isConfigProvided()) {
-          System.out.println("Empty config was not provided!");
-        }
-      }
-      setCurrentConfiguration(createConfig(logProbe));
-      snapshotRequest = retrieveSnapshotRequest();
-    }
-    assertNotNull(snapshotRequest);
-
-    String bodyStr = snapshotRequest.getBody().readUtf8();
-    JsonAdapter<List<JsonSnapshotSerializer.IntakeRequest>> adapter = createAdapterForSnapshot();
-    System.out.println(bodyStr);
-    return adapter.fromJson(bodyStr).get(0);
-     */
   }
 
   @Override
@@ -270,33 +213,5 @@ public class TracerDebuggerIntegrationTest extends BaseIntegrationTest {
         "-Ddd.trace.methods=datadog.smoketest.debugger.controller.WebController[processWithArg]");
     return ProcessBuilderHelper.createProcessBuilder(
         commandParams, logFilePath, getAppClass(), params);
-  }
-
-  private void sendRequest(String url) {
-    OkHttpClient client = new OkHttpClient.Builder().build();
-    Request request = new Request.Builder().url(url).get().build();
-    try {
-      client.newCall(request).execute();
-    } catch (Exception ex) {
-      ex.printStackTrace();
-    }
-  }
-
-  private static void waitForSpecificLogLine(
-      Path logFilePath, String line, Duration sleep, Duration timeout) throws IOException {
-    boolean[] result = new boolean[] {false};
-    long total = sleep.toNanos() == 0 ? 0 : timeout.toNanos() / sleep.toNanos();
-    int i = 0;
-    while (i < total && !result[0]) {
-      Files.lines(logFilePath)
-          .forEach(
-              it -> {
-                if (it.contains(line)) {
-                  result[0] = true;
-                }
-              });
-      LockSupport.parkNanos(sleep.toNanos());
-      i++;
-    }
   }
 }

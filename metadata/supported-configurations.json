@@ -905,6 +905,14 @@
         "aliases": []
       }
     ],
+    "DD_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_CODE_ORIGIN_MAX_USER_FRAMES": [
       {
         "version": "A",
