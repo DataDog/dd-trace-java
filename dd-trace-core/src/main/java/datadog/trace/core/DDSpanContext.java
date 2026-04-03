@@ -46,6 +46,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.locks.StampedLock;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -103,13 +104,15 @@ public class DDSpanContext
   /**
    * Tags are associated to the current span, they will not propagate to the children span.
    *
-   * <p>The underlying assumption for using a normal Map with synchronized access instead of a
-   * ConcurrentHashMap is that even though the tags can be accessed and modified from multiple
-   * threads, they will rarely, if ever, be read and modified concurrently by multiple threads but
-   * rather read and accessed in a serial fashion on thread after thread. The synchronization can
-   * then be wrapped around bulk operations to minimize the costly atomic operations.
+   * <p>Access is protected by {@link #tagsLock}. Even though tags can be accessed and modified from
+   * multiple threads, they will rarely, if ever, be read and modified concurrently — the typical
+   * pattern is serial (thread A writes, then thread B reads). A {@link StampedLock} is used instead
+   * of {@code synchronized} to allow optimistic reads on the hot serialization path (many threads
+   * reading a finished span), while still providing exclusive write access.
    */
   private final TagMap unsafeTags;
+
+  private final StampedLock tagsLock = new StampedLock();
 
   /** The service name is required, otherwise the span are dropped by the agent */
   private volatile String serviceName;
@@ -600,12 +603,15 @@ public class DDSpanContext
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
       unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
       if (limit != Integer.MAX_VALUE) {
         unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
       }
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -723,32 +729,47 @@ public class DDSpanContext
   }
 
   public void setMetric(final CharSequence key, final Number value) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeSetTag(key.toString(), value);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
   public void setMetric(final CharSequence key, final int value) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.set(key.toString(), value);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
   public void setMetric(final CharSequence key, final long value) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.set(key.toString(), value);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
   public void setMetric(final CharSequence key, final float value) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.set(key.toString(), value);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
   public void setMetric(final CharSequence key, final double value) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.set(key.toString(), value);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -757,14 +778,20 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.set(entry);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
   public void removeTag(String tag) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       unsafeTags.remove(tag);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -782,12 +809,18 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.remove(tag);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -797,12 +830,18 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.remove(tag);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -817,8 +856,11 @@ public class DDSpanContext
         precheckIntercept(entry.tag())
             && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
     if (!intercepted) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(entry);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -849,8 +891,11 @@ public class DDSpanContext
    */
   private void setBox(String tag, Object box) {
     if (!tagInterceptor.interceptTag(this, tag, box)) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, box);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -862,8 +907,11 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -875,8 +923,11 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -889,8 +940,11 @@ public class DDSpanContext
     boolean intercepted =
         tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
     if (!intercepted) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -902,8 +956,11 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -915,8 +972,11 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.set(tag, value);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -930,7 +990,8 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       if (needsIntercept) {
         // forEach out-performs the iterator of TagMap
         // Taking advantage of ability to pass through other context arguments
@@ -948,6 +1009,8 @@ public class DDSpanContext
       } else {
         unsafeTags.putAll(map);
       }
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -956,7 +1019,8 @@ public class DDSpanContext
       return;
     }
 
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       for (final TagMap.EntryChange entryChange : ledger) {
         if (entryChange.isRemoval()) {
           unsafeTags.remove(entryChange.tag());
@@ -971,6 +1035,8 @@ public class DDSpanContext
           }
         }
       }
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -980,12 +1046,15 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      synchronized (unsafeTags) {
+      long stamp = tagsLock.writeLock();
+      try {
         for (final Map.Entry<String, ?> tag : map.entrySet()) {
           if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
             unsafeSetTag(tag.getKey(), tag.getValue());
           }
         }
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
     }
   }
@@ -1016,9 +1085,15 @@ public class DDSpanContext
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       default:
-        Object value;
-        synchronized (unsafeTags) {
-          value = unsafeGetTag(key);
+        long stamp = tagsLock.tryOptimisticRead();
+        Object value = unsafeGetTag(key);
+        if (!tagsLock.validate(stamp)) {
+          stamp = tagsLock.readLock();
+          try {
+            value = unsafeGetTag(key);
+          } finally {
+            tagsLock.unlockRead(stamp);
+          }
         }
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
@@ -1038,7 +1113,8 @@ public class DDSpanContext
 
   @Deprecated
   public TagMap getTags() {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.readLock();
+    try {
       TagMap tags = unsafeTags.copy();
 
       tags.put(DDTags.THREAD_ID, threadId);
@@ -1056,6 +1132,8 @@ public class DDSpanContext
         tags.put(Tags.HTTP_URL, value.toString());
       }
       return tags.freeze();
+    } finally {
+      tagsLock.unlockRead(stamp);
     }
   }
 
@@ -1088,8 +1166,11 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -1100,7 +1181,8 @@ public class DDSpanContext
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
-    synchronized (unsafeTags) {
+    long stamp = tagsLock.writeLock();
+    try {
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
@@ -1134,6 +1216,8 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization()));
+    } finally {
+      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -1190,9 +1274,7 @@ public class DDSpanContext
       s.append(" *measured*");
     }
 
-    synchronized (unsafeTags) {
-      s.append(" tags=").append(new TreeMap<>(getTags()));
-    }
+    s.append(" tags=").append(new TreeMap<>(getTags()));
     return s.toString();
   }
 
