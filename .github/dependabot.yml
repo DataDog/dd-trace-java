@@ -1,3 +1,4 @@
+# https://docs.github.com/code-security/dependabot/dependabot-version-updates/configuration-options-for-the-dependabot.yml-file
 version: 2
 updates:
 - package-ecosystem: github-actions
@@ -15,7 +16,8 @@ updates:
       patterns:
       - '*'
   cooldown:
-    default-days: 14
+    default-days: 2
+
 - package-ecosystem: gradle
   directory: /
   schedule:
@@ -33,4 +35,4 @@ updates:
   commit-message:
     prefix: 'chore(build): '
   cooldown:
-    default-days: 14
+    default-days: 2
