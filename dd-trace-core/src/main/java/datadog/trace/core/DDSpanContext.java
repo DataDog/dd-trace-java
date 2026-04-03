@@ -990,27 +990,35 @@ public class DDSpanContext
       return;
     }
 
-    long stamp = tagsLock.writeLock();
-    try {
-      if (needsIntercept) {
-        // forEach out-performs the iterator of TagMap
-        // Taking advantage of ability to pass through other context arguments
-        // to avoid using a capturing lambda
-        map.forEach(
-            this,
-            (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
+    if (needsIntercept) {
+      // interceptTag is called outside the lock because it may call back into setTag/setMetric
+      // on this span (StampedLock is not reentrant). Each entry acquires the write lock
+      // individually, matching the single-tag setTag behaviour.
+      // forEach out-performs the iterator of TagMap.
+      // Taking advantage of ability to pass through other context arguments
+      // to avoid using a capturing lambda.
+      map.forEach(
+          this,
+          (ctx, tagEntry) -> {
+            String tag = tagEntry.tag();
+            Object value = tagEntry.objectValue();
 
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+            if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              long stamp = ctx.tagsLock.writeLock();
+              try {
                 ctx.unsafeTags.set(tagEntry);
+              } finally {
+                ctx.tagsLock.unlockWrite(stamp);
               }
-            });
-      } else {
+            }
+          });
+    } else {
+      long stamp = tagsLock.writeLock();
+      try {
         unsafeTags.putAll(map);
+      } finally {
+        tagsLock.unlockWrite(stamp);
       }
-    } finally {
-      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -1019,24 +1027,32 @@ public class DDSpanContext
       return;
     }
 
-    long stamp = tagsLock.writeLock();
-    try {
-      for (final TagMap.EntryChange entryChange : ledger) {
-        if (entryChange.isRemoval()) {
+    // interceptTag is called outside the lock because it may call back into setTag/setMetric
+    // on this span (StampedLock is not reentrant). Each entry acquires the write lock
+    // individually, matching the single-tag setTag behaviour.
+    for (final TagMap.EntryChange entryChange : ledger) {
+      if (entryChange.isRemoval()) {
+        long stamp = tagsLock.writeLock();
+        try {
           unsafeTags.remove(entryChange.tag());
-        } else {
-          TagMap.Entry entry = (TagMap.Entry) entryChange;
+        } finally {
+          tagsLock.unlockWrite(stamp);
+        }
+      } else {
+        TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          String tag = entry.tag();
-          Object value = entry.objectValue();
+        String tag = entry.tag();
+        Object value = entry.objectValue();
 
-          if (!tagInterceptor.interceptTag(this, tag, value)) {
+        if (!tagInterceptor.interceptTag(this, tag, value)) {
+          long stamp = tagsLock.writeLock();
+          try {
             unsafeTags.set(entry);
+          } finally {
+            tagsLock.unlockWrite(stamp);
           }
         }
       }
-    } finally {
-      tagsLock.unlockWrite(stamp);
     }
   }
 
@@ -1046,15 +1062,18 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      long stamp = tagsLock.writeLock();
-      try {
-        for (final Map.Entry<String, ?> tag : map.entrySet()) {
-          if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+      // interceptTag is called outside the lock because it may call back into setTag/setMetric
+      // on this span (StampedLock is not reentrant). Each entry acquires the write lock
+      // individually, matching the single-tag setTag behaviour.
+      for (final Map.Entry<String, ?> tag : map.entrySet()) {
+        if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+          long stamp = tagsLock.writeLock();
+          try {
             unsafeSetTag(tag.getKey(), tag.getValue());
+          } finally {
+            tagsLock.unlockWrite(stamp);
           }
         }
-      } finally {
-        tagsLock.unlockWrite(stamp);
       }
     }
   }
