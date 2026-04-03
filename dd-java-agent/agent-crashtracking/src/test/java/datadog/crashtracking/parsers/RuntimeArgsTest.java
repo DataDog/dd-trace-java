@@ -55,12 +55,14 @@ public class RuntimeArgsTest {
   }
 
   @TableTest({
-    "scenario               | raw                               | isIncluded | vmArg                            ",
-    "java password excluded | -Djava.net.password=hunter2       | false      | -Djava.net.password=hunter2      ",
-    "sun token excluded     | -Dsun.auth.token=abc123           | false      | -Dsun.auth.token=abc123          ",
-    "dd api key excluded    | -Ddd.api-key=deadbeef             | false      | -Ddd.api-key=deadbeef            ",
-    "java logging kept      | -Djava.util.logging.config.file=x | true       | -Djava.util.logging.config.file=x",
-    "osgi install kept      | -Dosgi.install.area=/opt/app      | true       | -Dosgi.install.area=/opt/app     "
+    "scenario                    | raw                               | isIncluded | vmArg                            ",
+    "java password excluded      | -Djava.net.password=hunter2       | false      | -Djava.net.password=hunter2      ",
+    "sun token excluded          | -Dsun.auth.token=abc123           | false      | -Dsun.auth.token=abc123          ",
+    "dd api key excluded         | -Ddd.api-key=deadbeef             | false      | -Ddd.api-key=deadbeef            ",
+    "dd app key excluded         | -Ddd.app-key=deadbeef             | false      | -Ddd.app-key=deadbeef            ",
+    "dd application key excluded | -Ddd.application-key=deadbeef    | false      | -Ddd.application-key=deadbeef   ",
+    "java logging kept           | -Djava.util.logging.config.file=x | true       | -Djava.util.logging.config.file=x",
+    "osgi install kept           | -Dosgi.install.area=/opt/app      | true       | -Dosgi.install.area=/opt/app     "
   })
   public void testParseVmArgsExcludesSecretLikeSystemProperties(
       String raw, boolean isIncluded, String vmArg) {

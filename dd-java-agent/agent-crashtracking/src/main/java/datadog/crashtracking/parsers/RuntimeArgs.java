@@ -20,17 +20,7 @@ import java.util.List;
  */
 final class RuntimeArgs {
   private static final String[] SECRET_PROPERTY_KEYWORDS = {
-    "password",
-    "passwd",
-    "secret",
-    "token",
-    "apikey",
-    "api-key",
-    "accesskey",
-    "access-key",
-    "privatekey",
-    "private-key",
-    "credential"
+    "password", "passwd", "secret", "token", "key", "credential"
   };
   private static final String[] MODULE_OPTIONS = {
     "--add-modules",
