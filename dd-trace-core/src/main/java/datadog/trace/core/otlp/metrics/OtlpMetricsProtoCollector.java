@@ -47,7 +47,10 @@ import java.util.function.Consumer;
  * metrics message to the start of the payload.
  */
 public final class OtlpMetricsProtoCollector
-    implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
+    implements OtlpMetricsVisitor,
+        OtlpScopedMetricsVisitor,
+        OtlpMetricVisitor,
+        OtlpMetricsCollector {
 
   public static final OtlpMetricsProtoCollector INSTANCE =
       new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
@@ -84,6 +87,7 @@ public final class OtlpMetricsProtoCollector
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */
+  @Override
   public OtlpPayload collectMetrics() {
     return collectMetrics(OtelMetricRegistry.INSTANCE::collectMetrics);
   }
