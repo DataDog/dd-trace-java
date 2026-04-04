@@ -1,6 +1,10 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.api.config.OtlpConfig.Temporality.CUMULATIVE;
+import static datadog.trace.api.config.OtlpConfig.Temporality.DELTA;
+import static datadog.trace.api.config.OtlpConfig.Temporality.LOWMEMORY;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
@@ -13,8 +17,10 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.api.Config;
+import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
@@ -24,13 +30,12 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 public final class OtlpMetricsProto {
   private OtlpMetricsProto() {}
 
-  private static final int AGGREGATION_TEMPORALITY_DELTA = 1;
-  private static final int AGGREGATION_TEMPORALITY_CUMULATIVE = 2;
+  private static final int TEMPORALITY_DELTA = 1;
+  private static final int TEMPORALITY_CUMULATIVE = 2;
 
-  private static final int AGGREGATION_TEMPORALITY =
-      CUMULATIVE.equals(Config.get().getOtlpMetricsTemporalityPreference())
-          ? AGGREGATION_TEMPORALITY_CUMULATIVE
-          : AGGREGATION_TEMPORALITY_DELTA;
+  private static final int COUNTER_TEMPORALITY = temporality(COUNTER);
+  private static final int OBSERVABLE_COUNTER_TEMPORALITY = temporality(OBSERVABLE_COUNTER);
+  private static final int HISTOGRAM_TEMPORALITY = temporality(HISTOGRAM);
 
   /**
    * Records the first part of a scoped metrics message where we know its nested metric messages
@@ -75,11 +80,18 @@ public final class OtlpMetricsProto {
         // gauges have no aggregation temporality
         break;
       case COUNTER:
+        writeTag(buf, 7, LEN_WIRE_TYPE);
+        writeVarInt(buf, remainingBytes + 4);
+        writeTag(buf, 2, VARINT_WIRE_TYPE);
+        writeVarInt(buf, COUNTER_TEMPORALITY);
+        writeTag(buf, 3, VARINT_WIRE_TYPE);
+        writeVarInt(buf, 1); // monotonic
+        break;
       case OBSERVABLE_COUNTER:
         writeTag(buf, 7, LEN_WIRE_TYPE);
         writeVarInt(buf, remainingBytes + 4);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
-        writeVarInt(buf, AGGREGATION_TEMPORALITY);
+        writeVarInt(buf, OBSERVABLE_COUNTER_TEMPORALITY);
         writeTag(buf, 3, VARINT_WIRE_TYPE);
         writeVarInt(buf, 1); // monotonic
         break;
@@ -88,13 +100,14 @@ public final class OtlpMetricsProto {
         writeTag(buf, 7, LEN_WIRE_TYPE);
         writeVarInt(buf, remainingBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
-        writeVarInt(buf, AGGREGATION_TEMPORALITY);
+        // up/down counters are always cumulative
+        writeVarInt(buf, TEMPORALITY_CUMULATIVE);
         break;
       case HISTOGRAM:
         writeTag(buf, 9, LEN_WIRE_TYPE);
         writeVarInt(buf, remainingBytes + 2);
         writeTag(buf, 2, VARINT_WIRE_TYPE);
-        writeVarInt(buf, AGGREGATION_TEMPORALITY);
+        writeVarInt(buf, HISTOGRAM_TEMPORALITY);
         break;
       default:
         throw new IllegalArgumentException("Unknown instrument type: " + descriptor.getType());
@@ -132,5 +145,21 @@ public final class OtlpMetricsProto {
     }
 
     return recordMessage(buf, 1);
+  }
+
+  private static int temporality(OtelInstrumentType type) {
+    OtlpConfig.Temporality preference = Config.get().getOtlpMetricsTemporalityPreference();
+    if (preference == DELTA) {
+      // gauges and up/down counters stay as cumulative
+      if (type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER) {
+        return TEMPORALITY_DELTA;
+      }
+    } else if (preference == LOWMEMORY) {
+      // observable counters, gauges, and up/down counters stay as cumulative
+      if (type == HISTOGRAM || type == COUNTER) {
+        return TEMPORALITY_DELTA;
+      }
+    }
+    return TEMPORALITY_CUMULATIVE;
   }
 }
