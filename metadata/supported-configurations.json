@@ -6737,6 +6737,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_FFM_NATIVE_TRACING_ENABLED", "DD_INTEGRATION_FFM_NATIVE_TRACING_ENABLED"]
       }
     ],
+    "DD_TRACE_JAVA_LANG_21_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_LANG_21_ENABLED", "DD_INTEGRATION_JAVA_LANG_21_ENABLED"]
+      }
+    ],
     "DD_TRACE_JAVA_LANG_22_ENABLED": [
       {
         "version": "A",
@@ -11023,6 +11031,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_VERTX_SQL_CLIENT_ENABLED", "DD_INTEGRATION_VERTX_SQL_CLIENT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_VIRTUAL_THREAD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_VIRTUAL_THREAD_ENABLED", "DD_INTEGRATION_VIRTUAL_THREAD_ENABLED"]
       }
     ],
     "DD_TRACE_WALLCLOCK_ENABLED": [
