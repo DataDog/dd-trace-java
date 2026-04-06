@@ -17,28 +17,18 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  */
 public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCallback {
 
-  private static final ExtensionContext.Namespace NS =
-      ExtensionContext.Namespace.create("dd", "config-inversion");
-
-  private static final String PREVIOUS_POLICY = "previousPolicy";
+  private StrictnessPolicy previousPolicy;
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    StrictnessPolicy previous = ConfigHelper.get().configInversionStrictFlag();
-    ctx.getStore(NS).put(PREVIOUS_POLICY, previous);
+    previousPolicy = ConfigHelper.get().configInversionStrictFlag();
     ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
   }
 
   @Override
   public void afterAll(ExtensionContext ctx) {
     List<String> unsupported = ConfigHelper.get().drainUnsupportedConfigs();
-
-    StrictnessPolicy previous = ctx.getStore(NS).get(PREVIOUS_POLICY, StrictnessPolicy.class);
-    if (previous != null) {
-      ConfigHelper.get().setConfigInversionStrict(previous);
-    } else {
-      ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.WARNING);
-    }
+    ConfigHelper.get().setConfigInversionStrict(previousPolicy);
 
     if (!unsupported.isEmpty()) {
       throw new AssertionError(
