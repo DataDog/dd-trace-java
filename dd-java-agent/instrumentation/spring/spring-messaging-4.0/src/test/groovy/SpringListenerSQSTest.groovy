@@ -10,12 +10,11 @@ import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import listener.Config
+import listener.TestListener
 import org.elasticmq.rest.sqs.SQSRestServer
 import org.springframework.context.annotation.AnnotationConfigApplicationContext
 import org.springframework.messaging.support.GenericMessage
 import software.amazon.awssdk.services.sqs.SqsAsyncClient
-
-import java.util.concurrent.TimeUnit
 
 
 class SpringListenerSQSTest extends InstrumentationSpecification {
@@ -134,6 +133,8 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
   def "async handler keeps spring.consume span active during CompletableFuture execution"() {
     setup:
     def context = new AnnotationConfigApplicationContext(Config)
+    def listener = context.getBean(TestListener)
+    listener.prepareAsyncObservation()
     def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
     def template = SqsTemplate.newTemplate(context.getBean(SqsAsyncClient))
     TEST_WRITER.waitForTraces(2)
@@ -143,6 +144,15 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     TraceUtils.runUnderTrace("parent") {
       template.sendAsync("SpringListenerSQSAsync", "an async message").get()
     }
+    listener.awaitAsyncStarted()
+
+    then:
+    TEST_WRITER.waitForTraces(2)
+    assert TEST_WRITER.size() == 2
+    assert listener.activeParentFinished == false
+
+    when:
+    listener.releaseAsyncObservation()
 
     then:
     def sendingSpan
@@ -166,8 +176,6 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
           errored false
           measured true
           childOf(sendingSpan)
-          // The span duration should be at least 500ms since the async handler sleeps 500ms
-          assert span(0).durationNano > TimeUnit.MILLISECONDS.toNanos(500)
           tags {
             "$Tags.COMPONENT" "spring-messaging"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -184,6 +192,10 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         deleteMessageBatch(it, address, "SpringListenerSQSAsync")
       }
     }
+
+    cleanup:
+    listener?.releaseAsyncObservation()
+    context.close()
   }
 
   static sendMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan, String queueName = "SpringListenerSQS") {
