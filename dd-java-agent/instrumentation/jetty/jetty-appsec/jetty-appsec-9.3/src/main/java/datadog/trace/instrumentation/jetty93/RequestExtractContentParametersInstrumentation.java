@@ -107,18 +107,26 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(
+        @Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      return callDepth == 0 && map == null;
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
+        @Advice.Enter boolean proceed,
         @Advice.Return Collection parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || parts == null || parts.isEmpty()) {
+      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
       Method getSubmittedFileName = null;
       try {
-        getSubmittedFileName =
-            parts.iterator().next().getClass().getMethod("getSubmittedFileName");
+        getSubmittedFileName = parts.iterator().next().getClass().getMethod("getSubmittedFileName");
       } catch (Exception ignored) {
       }
       if (getSubmittedFileName == null) {
