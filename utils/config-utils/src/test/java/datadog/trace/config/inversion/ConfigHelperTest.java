@@ -62,7 +62,7 @@ public class ConfigHelperTest {
             testSupported, testAliases, testAliasMapping, new HashMap<>());
     ConfigHelper.get().setConfigurationSource(testSource);
     strictness = ConfigHelper.get().configInversionStrictFlag();
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
   }
 
   @AfterAll
@@ -177,7 +177,7 @@ public class ConfigHelperTest {
     assertEquals("banana", ConfigHelper.env("DD_FAKE_VAR"));
 
     // Cleanup
-    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT);
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST);
   }
 
   @Test
