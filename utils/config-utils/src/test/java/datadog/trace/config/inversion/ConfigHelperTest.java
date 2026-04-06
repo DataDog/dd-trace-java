@@ -3,6 +3,7 @@ package datadog.trace.config.inversion;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import java.util.ArrayList;
@@ -165,6 +166,14 @@ public class ConfigHelperTest {
 
     assertFalse(result.containsKey(NEW_ALIAS_KEY_2));
     assertFalse(result.containsKey(NEW_ALIAS_TARGET));
+  }
+
+  @Test
+  void testStrictTestThrowsForUnsupportedConfig() {
+    env.set("DD_FAKE_VAR", "banana");
+
+    // STRICT_TEST mode should throw for unsupported DD_ variables
+    assertThrows(IllegalArgumentException.class, () -> ConfigHelper.env("DD_FAKE_VAR"));
   }
 
   @Test
