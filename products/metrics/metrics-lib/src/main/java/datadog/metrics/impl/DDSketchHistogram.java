@@ -43,12 +43,12 @@ public class DDSketchHistogram implements Histogram {
   }
 
   @Override
-  public final double getMinValue() {
+  public double getMinValue() {
     return sketch.getMinValue();
   }
 
   @Override
-  public final double getMaxValue() {
+  public double getMaxValue() {
     return sketch.getMaxValue();
   }
 

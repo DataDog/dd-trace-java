@@ -2,8 +2,8 @@ package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
-import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsVisitor;
-import datadog.trace.bootstrap.otel.metrics.export.OtlpScopedMetricsVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;

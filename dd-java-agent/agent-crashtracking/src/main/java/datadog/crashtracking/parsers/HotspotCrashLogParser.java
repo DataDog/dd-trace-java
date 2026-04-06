@@ -43,6 +43,7 @@ import java.util.regex.Pattern;
  * resulting {@link datadog.crashtracking.dto.CrashLog} will be marked {@code incomplete}.
  */
 public final class HotspotCrashLogParser {
+  private static final String HOTSPOT_JVM_ARGS_PREFIX = "jvm_args:";
   private static final DateTimeFormatter ZONED_DATE_TIME_FORMATTER =
       DateTimeFormatter.ofPattern("EEE MMM ppd HH:mm:ss yyyy zzz", Locale.getDefault());
   private static final DateTimeFormatter OFFSET_DATE_TIME_FORMATTER =
@@ -62,7 +63,8 @@ public final class HotspotCrashLogParser {
     THREAD,
     STACKTRACE,
     REGISTERS,
-    SEEK_DYNAMIC_LIBRARIES,
+    PROCESS,
+    VM_ARGUMENTS,
     DYNAMIC_LIBRARIES,
     SYSTEM,
     DONE
@@ -332,6 +334,13 @@ public final class HotspotCrashLogParser {
     return threadDescriptor;
   }
 
+  private static List<String> parseHotspotJvmArgs(String line) {
+    if (line == null || !line.startsWith(HOTSPOT_JVM_ARGS_PREFIX)) {
+      return null;
+    }
+    return RuntimeArgs.parseVmArgs(line.substring(HOTSPOT_JVM_ARGS_PREFIX.length()));
+  }
+
   public CrashLog parse(String uuid, String crashLog) {
     SigInfo sigInfo = null;
     String pid = null;
@@ -342,6 +351,7 @@ public final class HotspotCrashLogParser {
     boolean incomplete = false;
     String oomMessage = null;
     Map<String, String> registers = null;
+    List<String> runtimeArgs = null;
     List<String> dynamicLibraryLines = null;
     String dynamicLibraryKey = null;
 
@@ -420,7 +430,7 @@ public final class HotspotCrashLogParser {
             registers = new LinkedHashMap<>();
             state = State.REGISTERS;
           } else if (line.contains("P R O C E S S")) {
-            state = State.SEEK_DYNAMIC_LIBRARIES;
+            state = State.PROCESS;
           } else {
             // Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)
             final StackFrame frame = parseLine(line);
@@ -440,8 +450,10 @@ public final class HotspotCrashLogParser {
             }
           }
           break;
-        case SEEK_DYNAMIC_LIBRARIES:
-          if (line.startsWith("Dynamic libraries:")) {
+        case PROCESS:
+          if (runtimeArgs == null && line.startsWith("VM Arguments:")) {
+            state = State.VM_ARGUMENTS;
+          } else if (line.startsWith("Dynamic libraries:")) {
             state = State.DYNAMIC_LIBRARIES;
           } else if (line.contains("S Y S T E M")) {
             state = State.SYSTEM;
@@ -449,9 +461,16 @@ public final class HotspotCrashLogParser {
             state = State.DONE;
           }
           break;
+        case VM_ARGUMENTS:
+          if (line.isEmpty()) {
+            state = State.PROCESS;
+          } else if (runtimeArgs == null && line.startsWith(HOTSPOT_JVM_ARGS_PREFIX)) {
+            runtimeArgs = parseHotspotJvmArgs(line);
+          }
+          break;
         case DYNAMIC_LIBRARIES:
           if (line.isEmpty()) {
-            state = State.SEEK_DYNAMIC_LIBRARIES;
+            state = State.PROCESS;
           } else {
             if (dynamicLibraryKey == null) {
               dynamicLibraryKey = detectDynamicLibrariesKey(line);
@@ -491,8 +510,8 @@ public final class HotspotCrashLogParser {
       }
     }
 
-    // SEEK_DYNAMIC_LIBRARIES and SYSTEM sections are late enough that all critical data is captured
-    if (state != State.DONE && state != State.SEEK_DYNAMIC_LIBRARIES && state != State.SYSTEM) {
+    // PROCESS and SYSTEM sections are late enough that all critical data is captured
+    if (state != State.DONE && state != State.PROCESS && state != State.SYSTEM) {
       // incomplete crash log
       incomplete = true;
     }
@@ -553,7 +572,10 @@ public final class HotspotCrashLogParser {
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
     Experimental experimental =
-        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
+        (registers != null && !registers.isEmpty())
+                || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            ? new Experimental(registers, runtimeArgs)
+            : null;
     DynamicLibs files =
         (dynamicLibraryLines != null && !dynamicLibraryLines.isEmpty())
             ? new DynamicLibs(dynamicLibraryKey, dynamicLibraryLines)

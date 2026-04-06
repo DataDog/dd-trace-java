@@ -13,7 +13,7 @@ public final class OtelInstrumentDescriptor {
   @Nullable private final UTF8BytesString description;
   @Nullable private final UTF8BytesString unit;
 
-  OtelInstrumentDescriptor(
+  public OtelInstrumentDescriptor(
       String instrumentName,
       OtelInstrumentType instrumentType,
       boolean longValues,
