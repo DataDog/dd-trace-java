@@ -216,38 +216,40 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       // Resolve getSubmittedFileName once (Servlet 3.1+; null on Servlet 3.0)
       Method getSubmittedFileName = null;
       try {
-        getSubmittedFileName =
-            parts.iterator().next().getClass().getMethod("getSubmittedFileName");
+        getSubmittedFileName = parts.iterator().next().getClass().getMethod("getSubmittedFileName");
       } catch (Exception ignored) {
       }
       List<String> filenames = new ArrayList<>();
-      for (Object part : parts) {
-        String name = null;
-        // Try Servlet 3.1+ API first (getSubmittedFileName)
-        if (getSubmittedFileName != null) {
+      if (getSubmittedFileName != null) {
+        // Servlet 3.1+: use getSubmittedFileName
+        for (Object part : parts) {
           try {
-            name = (String) getSubmittedFileName.invoke(part);
+            String name = (String) getSubmittedFileName.invoke(part);
+            if (name != null && !name.isEmpty()) {
+              filenames.add(name);
+            }
           } catch (Exception ignored) {
           }
         }
-        // Fallback: parse filename from Content-Disposition header (Servlet 3.0)
-        if (name == null) {
+      } else {
+        // Servlet 3.0: parse filename from Content-Disposition header
+        for (Object part : parts) {
           String cd = ((Part) part).getHeader("content-disposition");
           if (cd != null) {
             for (String tok : cd.split(";")) {
               tok = tok.trim();
               if (tok.startsWith("filename=")) {
-                name = tok.substring(9).trim();
+                String name = tok.substring(9).trim();
                 if (name.startsWith("\"") && name.endsWith("\"")) {
                   name = name.substring(1, name.length() - 1);
+                }
+                if (!name.isEmpty()) {
+                  filenames.add(name);
                 }
                 break;
               }
             }
           }
-        }
-        if (name != null && !name.isEmpty()) {
-          filenames.add(name);
         }
       }
       if (filenames.isEmpty()) {

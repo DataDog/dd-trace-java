@@ -52,8 +52,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),
         getClass().getName() + "$GetPartsAdvice");
-    transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(named("getParts"), getClass().getName() + "$GetFilenamesAdvice");
   }
 
   private static final Reference REQUEST_REFERENCE =
@@ -144,12 +143,21 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(
+        @Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      return callDepth == 0 && map == null;
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
+        @Advice.Enter boolean proceed,
         @Advice.Return Collection parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || parts == null || parts.isEmpty()) {
+      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
       List<String> filenames = new ArrayList<>();
