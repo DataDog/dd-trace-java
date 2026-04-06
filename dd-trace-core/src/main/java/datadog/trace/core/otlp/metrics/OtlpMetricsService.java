@@ -8,6 +8,7 @@ import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,8 +59,19 @@ public final class OtlpMetricsService {
   }
 
   public void start() {
+    // add random jitter of up to 5 seconds to initial delay; avoids a fleet
+    // of apps starting at the same time from exporting OTLP metrics in sync
+    long initialMillis =
+        intervalMillis
+            + Math.min(
+                (long)
+                    (500d
+                        * Math.log(ThreadLocalRandom.current().nextDouble())
+                        / Math.log(1 - 0.25)),
+                5_000);
+
     scheduler.scheduleAtFixedRate(
-        this::export, intervalMillis, intervalMillis, TimeUnit.MILLISECONDS);
+        this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
   }
 
   public void flush() {
