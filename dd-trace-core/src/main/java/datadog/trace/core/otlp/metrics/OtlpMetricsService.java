@@ -24,6 +24,7 @@ public final class OtlpMetricsService {
     this.sender =
         new OtlpHttpSender(
             config.getOtlpMetricsEndpoint(),
+            "/v1/metrics",
             config.getOtlpMetricsHeaders(),
             config.getOtlpMetricsTimeout(),
             config.getOtlpMetricsCompression());
