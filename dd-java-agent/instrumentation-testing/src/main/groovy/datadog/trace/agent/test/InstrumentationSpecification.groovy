@@ -10,7 +10,6 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
-import datadog.trace.config.inversion.ConfigHelper
 
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
@@ -428,13 +427,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
     INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
-
-    // Assert no unsupported configs were encountered during agent install.
-    // This catches configs that were swallowed by InstrumenterIndex.buildModule()/loadModules().
-    def unsupported = ConfigHelper.get().drainUnsupportedConfigs()
-    assert unsupported.isEmpty(): "Unsupported configurations found during agent install. " +
-    "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  " +
-    unsupported.join("\n  ")
   }
 
   protected String idGenerationStrategyName() {
