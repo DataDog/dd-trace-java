@@ -2,7 +2,6 @@ package datadog.trace.test;
 
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.config.inversion.ConfigHelper.StrictnessPolicy;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.List;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -15,9 +14,6 @@ import org.junit.jupiter.api.extension.ExtensionContext;
  *
  * <p>Registered via {@code META-INF/services/org.junit.jupiter.api.extension.Extension} for
  * automatic discovery. Requires {@code junit.jupiter.extensions.autodetection.enabled=true}.
- *
- * <p>Gracefully no-ops when {@code config-utils} is not on the classpath (e.g. in modules that only
- * depend on {@code test-utils}).
  */
 public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCallback {
 
@@ -25,25 +21,9 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
       ExtensionContext.Namespace.create("dd", "config-inversion");
 
   private static final String PREVIOUS_POLICY = "previousPolicy";
-  private static final String AVAILABLE = "available";
-
-  @SuppressForbidden
-  private static boolean configHelperAvailable() {
-    try {
-      Class.forName("datadog.trace.config.inversion.ConfigHelper");
-      return true;
-    } catch (ClassNotFoundException | NoClassDefFoundError e) {
-      return false;
-    }
-  }
 
   @Override
   public void beforeAll(ExtensionContext ctx) {
-    boolean available = configHelperAvailable();
-    ctx.getStore(NS).put(AVAILABLE, available);
-    if (!available) {
-      return;
-    }
     StrictnessPolicy previous = ConfigHelper.get().configInversionStrictFlag();
     ctx.getStore(NS).put(PREVIOUS_POLICY, previous);
     ConfigHelper.get().setConfigInversionStrict(StrictnessPolicy.STRICT_TEST);
@@ -51,11 +31,6 @@ public class ConfigInversionExtension implements BeforeAllCallback, AfterAllCall
 
   @Override
   public void afterAll(ExtensionContext ctx) {
-    Boolean available = ctx.getStore(NS).get(AVAILABLE, Boolean.class);
-    if (available == null || !available) {
-      return;
-    }
-
     List<String> unsupported = ConfigHelper.get().drainUnsupportedConfigs();
 
     StrictnessPolicy previous = ctx.getStore(NS).get(PREVIOUS_POLICY, StrictnessPolicy.class);

@@ -11,7 +11,6 @@ dependencies {
   api(project(":components:environment"))
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
-  compileOnly(project(":utils:config-utils"))
   compileOnly(libs.junit.jupiter)
   compileOnly(libs.tabletest)
   compileOnly(libs.logback.core)
