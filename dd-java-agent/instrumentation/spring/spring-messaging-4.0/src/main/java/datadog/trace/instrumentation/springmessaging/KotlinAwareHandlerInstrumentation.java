@@ -9,7 +9,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
-import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -34,17 +33,12 @@ public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracin
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public KotlinAwareHandlerInstrumentation() {
-    super("spring-messaging", "spring-messaging-4");
+    super("spring-messaging", "spring-messaging-4", "spring-messaging-kotlin");
   }
 
   @Override
   public Map<String, String> contextStore() {
     return Collections.singletonMap("org.reactivestreams.Publisher", Context.class.getName());
-  }
-
-  @Override
-  public List<Instrumenter> typeInstrumentations() {
-    return Collections.singletonList(new KotlinAwareHandlerInstrumentation());
   }
 
   @Override
@@ -60,6 +54,7 @@ public class KotlinAwareHandlerInstrumentation extends InstrumenterModule.Tracin
   }
 
   public static class DoInvokeAdvice {
+
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.Return Object result) {
       if (result instanceof Publisher) {

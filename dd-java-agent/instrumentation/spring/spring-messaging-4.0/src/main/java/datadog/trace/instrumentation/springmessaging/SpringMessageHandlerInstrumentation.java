@@ -54,12 +54,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1"
+      packageName + ".SpringMessageExtractAdapter$1",
     };
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
@@ -76,6 +77,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   }
 
   public static class HandleMessageAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
       AgentSpan span = startSpan(SPRING_INBOUND);
@@ -105,9 +107,6 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
           // span will be finished by the wrapper
           return;
         }
-      }
-      if (null != error) {
-        DECORATE.onError(span, error);
       }
       DECORATE.beforeFinish(span);
       span.finish();
