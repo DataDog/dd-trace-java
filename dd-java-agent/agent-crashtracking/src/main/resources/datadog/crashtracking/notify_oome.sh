@@ -54,6 +54,9 @@ echo "PID: $PID"
 unset JDK_JAVA_OPTIONS
 unset JAVA_TOOL_OPTIONS
 unset _JAVA_OPTIONS
+# Prevent the instrumentation injector from re-injecting the agent into the child JVM
+unset LD_PRELOAD
+unset DYLD_INSERT_LIBRARIES
 
 # Execute the Java command with the loaded values
 "$config_java_home/bin/java" -Ddd.dogstatsd.start-delay=0 -jar "$config_agent" sendOomeEvent "$config_tags"
