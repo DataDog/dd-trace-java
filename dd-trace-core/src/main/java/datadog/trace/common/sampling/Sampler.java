@@ -37,11 +37,16 @@ public interface Sampler {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled()) {
-          if (config.isLlmObsEnabled()) {
+          if (config.isLlmObsEnabled() && isAsmEnabled(config)) {
+            log.debug(
+                "APM is disabled, but both LLMObs and ASM are enabled. All LLMObs and ASM traces will be kept, only 1 APM trace per minute will be sent.");
+            return new LlmObsAndAsmStandaloneSampler(Clock.systemUTC());
+          } else if (config.isLlmObsEnabled()) {
             log.debug("APM is disabled, but LLMObs is enabled. All LLMObs traces will be kept.");
             return new LlmObsStandaloneSampler();
           } else if (isAsmEnabled(config)) {
-            log.debug("APM is disabled, but ASM is enabled. Only 1 trace per minute will be sent.");
+            log.debug(
+                "APM is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent, all ASM traces will be kept.");
             return new AsmStandaloneSampler(Clock.systemUTC());
           }
           // APM disabled and no other products enabled - drop all APM traces
