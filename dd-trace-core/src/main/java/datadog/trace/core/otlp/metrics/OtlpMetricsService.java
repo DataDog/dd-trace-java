@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.metrics;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXPORTER;
 
 import datadog.trace.api.Config;
+import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -27,6 +28,16 @@ public final class OtlpMetricsService {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
 
     switch (config.getOtlpMetricsProtocol()) {
+      case GRPC:
+        this.collector = OtlpMetricsProtoCollector.INSTANCE;
+        this.sender =
+            new OtlpGrpcSender(
+                config.getOtlpMetricsEndpoint(),
+                "/opentelemetry.proto.collector.metrics.v1.MetricsService/Export",
+                config.getOtlpMetricsHeaders(),
+                config.getOtlpMetricsTimeout(),
+                config.getOtlpMetricsCompression());
+        break;
       case HTTP_PROTOBUF:
         this.collector = OtlpMetricsProtoCollector.INSTANCE;
         this.sender =
