@@ -99,11 +99,12 @@ class DependencyResolverSpecification extends DepSpecification {
     given: 'a jar containing META-INF/maven/com.datadoghq/dd-java-agent/pom.properties'
     File file = new File(testDir, 'dd-java-agent.jar')
     ZipOutputStream out = new ZipOutputStream(new FileOutputStream(file))
-    ZipEntry e = new ZipEntry('META-INF/maven/com.datadoghq/dd-java-agent/pom.properties')
-    out.putNextEntry(e)
-    out.write('groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=1.0.0\n'.getBytes('UTF-8'))
-    out.closeEntry()
-    out.close()
+    ZipEntry e = new ZipEntry('META-INF/maven/com.datadoghq/dd-java-agent/pom.properties').with {
+        putNextEntry(e)
+        write('groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=1.0.0\n'.getBytes('UTF-8'))
+        closeEntry()
+        close()
+    }
 
     when:
     List<Dependency> deps = DependencyResolver.resolve(file.toURI())
