@@ -11,6 +11,7 @@ import java.lang.reflect.Field
 import java.lang.reflect.Modifier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_REPEATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
@@ -67,6 +68,14 @@ class TestServlet5 extends HttpServlet {
         case FORWARDED:
           resp.status = endpoint.status
           resp.writer.print(req.getHeader("x-forwarded-for"))
+          break
+        case BODY_MULTIPART_REPEATED:
+          resp.status = endpoint.status
+          // Call getParts() 3 times to verify the filenames callback fires only once
+          req.getParts()
+          req.getParts()
+          req.getParts()
+          resp.writer.print(endpoint.body)
           break
         case BODY_MULTIPART:
         case BODY_URLENCODED:
