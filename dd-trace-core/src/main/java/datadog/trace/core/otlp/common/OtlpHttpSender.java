@@ -45,7 +45,7 @@ public final class OtlpHttpSender implements OtlpSender {
       this.url = HttpUrl.get("http://localhost:4318" + signalPath);
     } else {
       unixDomainSocketPath = null;
-      this.url = HttpUrl.get(endpoint);
+      this.url = HttpUrl.get(endpoint); // HTTP endpoint already includes signal path
     }
 
     this.headers = headers;

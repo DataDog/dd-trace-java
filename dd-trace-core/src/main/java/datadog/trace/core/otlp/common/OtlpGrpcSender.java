@@ -45,7 +45,7 @@ public final class OtlpGrpcSender implements OtlpSender {
       this.url = HttpUrl.get("http://localhost:4317" + signalPath);
     } else {
       unixDomainSocketPath = null;
-      this.url = HttpUrl.get(endpoint + signalPath);
+      this.url = HttpUrl.get(endpoint + signalPath); // GRPC endpoint does not include signal path
     }
 
     this.headers = headers;
