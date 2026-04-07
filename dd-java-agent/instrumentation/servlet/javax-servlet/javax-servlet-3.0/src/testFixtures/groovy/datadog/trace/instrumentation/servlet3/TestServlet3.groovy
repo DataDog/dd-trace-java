@@ -15,6 +15,7 @@ import java.lang.reflect.Modifier
 
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART_REPEATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CREATED_IS
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.CUSTOM_EXCEPTION
@@ -94,6 +95,14 @@ class TestServlet3 {
           case QUERY_PARAM:
             resp.status = endpoint.status
             resp.writer.print(endpoint.bodyForQuery(req.queryString))
+            break
+          case BODY_MULTIPART_REPEATED:
+            resp.status = endpoint.status
+          // Call getParts() 3 times to verify the filenames callback fires only once
+            req.getParts()
+            req.getParts()
+            req.getParts()
+            resp.writer.print(endpoint.body)
             break
           case BODY_URLENCODED:
           case BODY_MULTIPART:
