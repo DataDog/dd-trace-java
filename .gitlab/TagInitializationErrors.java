@@ -17,6 +17,11 @@ import java.util.Map;
  * When a setup is retried and eventually succeeds, multiple testcases are created, with only the
  * last one passing. All intermediate attempts are marked skip so Test Optimization is not misled.
  *
+ * <p>For any suite with multiple initializationError testcases (i.e. retries occurred), all entries
+ * except the last one are already tagged with an existing `dd_tags[test.final_status]`. The last
+ * entry is left unmodified, allowing Test Optimization to apply its default status inference based
+ * on the actual outcome. Files with only one (or zero) initializationError testcases are not modified.
+ *
  * <p>Usage (JEP 330): java TagInitializationErrors.java <xml-file>
  */
 class TagInitializationErrors {
