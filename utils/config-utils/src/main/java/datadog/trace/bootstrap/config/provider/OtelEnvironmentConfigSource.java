@@ -318,9 +318,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * <p>Checks system properties and environment variables.
    */
   private static String getProperty(String sysProp) {
-    String value = SystemProperties.get(sysProp);
-    if (null == value) {
-      value = ConfigHelper.env(toEnvVar(sysProp));
+    // Always validate through ConfigHelper so STRICT_TEST mode can detect unsupported configs
+    String value = ConfigHelper.env(toEnvVar(sysProp));
+    // System property takes precedence over environment variable
+    String sysPropValue = SystemProperties.get(sysProp);
+    if (sysPropValue != null) {
+      value = sysPropValue;
     }
     return value;
   }
