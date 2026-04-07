@@ -7761,6 +7761,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_LOGS_INTAKE_LOG4J_2_ENABLED", "DD_INTEGRATION_LOGS_INTAKE_LOG4J_2_ENABLED"]
       }
     ],
+    "DD_TRACE_LOGS_INTAKE_LOGBACK_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_LOGS_INTAKE_LOGBACK_ENABLED", "DD_INTEGRATION_LOGS_INTAKE_LOGBACK_ENABLED"]
+      }
+    ],
     "DD_TRACE_MAVEN_ENABLED": [
       {
         "version": "A",
