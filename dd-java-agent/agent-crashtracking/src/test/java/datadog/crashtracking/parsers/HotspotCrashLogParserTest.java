@@ -106,8 +106,8 @@ public class HotspotCrashLogParserTest {
     assertTrue(
         crashLog.experimental.runtimeArgs.contains(
             "-javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar"));
-    assertTrue(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
-    assertTrue(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
     assertTrue(
         crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("--add-opens=")));
     assertFalse(
