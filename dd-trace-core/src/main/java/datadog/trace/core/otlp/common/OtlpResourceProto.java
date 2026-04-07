@@ -18,8 +18,6 @@ import java.util.Set;
 public final class OtlpResourceProto {
   private OtlpResourceProto() {}
 
-  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
-
   private static final Set<String> IGNORED_GLOBAL_TAGS =
       new HashSet<>(
           Arrays.asList(
@@ -29,6 +27,8 @@ public final class OtlpResourceProto {
               "service.name",
               "deployment.environment.name",
               "service.version"));
+
+  public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
 
   static byte[] buildResourceMessage(Config config) {
     GrowableBuffer buf = new GrowableBuffer(512);

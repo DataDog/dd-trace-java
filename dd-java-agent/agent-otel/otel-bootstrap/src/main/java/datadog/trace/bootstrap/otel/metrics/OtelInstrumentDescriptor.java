@@ -12,6 +12,7 @@ public final class OtelInstrumentDescriptor {
   private final boolean longValues;
   @Nullable private final UTF8BytesString description;
   @Nullable private final UTF8BytesString unit;
+  private int hash;
 
   public OtelInstrumentDescriptor(
       String instrumentName,
@@ -64,11 +65,15 @@ public final class OtelInstrumentDescriptor {
 
   @Override
   public int hashCode() {
-    int result = instrumentName.toString().toLowerCase(Locale.ROOT).hashCode();
-    result = 31 * result + instrumentType.hashCode();
-    result = 31 * result + Boolean.hashCode(longValues);
-    result = 31 * result + Objects.hashCode(description);
-    result = 31 * result + Objects.hashCode(unit);
+    int result = hash;
+    if (result == 0) {
+      result = instrumentName.toString().toLowerCase(Locale.ROOT).hashCode();
+      result = 31 * result + instrumentType.hashCode();
+      result = 31 * result + Boolean.hashCode(longValues);
+      result = 31 * result + Objects.hashCode(description);
+      result = 31 * result + Objects.hashCode(unit);
+      hash = result;
+    }
     return result;
   }
 
