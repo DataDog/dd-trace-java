@@ -202,10 +202,12 @@ public final class OpenJdkController implements Controller {
       disableEvent(recordingSettings, "jdk.OldObjectSample", "live heap profiling is disabled");
     } else {
       // ddprof live heap requires Java 11+ (JVMTI Allocation Sampler)
+      // isJmethodIDSafe() matches ddprof's own default for liveheap: it only enables
+      // MEMLEAK mode by default on versions where jmethodID is safe.
       boolean ddprofLikelyActive =
           isJavaVersionAtLeast(11)
               && configProvider.getBoolean(
-                  ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, true)
+                  ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED, isJmethodIDSafe())
               && configProvider.getBoolean(
                   ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED, true);
       if (ddprofLikelyActive) {
@@ -213,6 +215,12 @@ public final class OpenJdkController implements Controller {
             recordingSettings,
             "jdk.OldObjectSample",
             "ddprof live heap profiling is expected to handle live heap data");
+      } else if (isOldObjectSampleAvailable()) {
+        enableEvent(recordingSettings, "jdk.OldObjectSample", "heap profiling is enabled");
+      } else if (configProvider.getBoolean(ProfilingConfig.PROFILING_HEAP_ENABLED, false)) {
+        log.warn(
+            "Live heap profiling was explicitly requested but is not supported on this JVM version;"
+                + " no heap profiling data will be collected.");
       }
     }
 

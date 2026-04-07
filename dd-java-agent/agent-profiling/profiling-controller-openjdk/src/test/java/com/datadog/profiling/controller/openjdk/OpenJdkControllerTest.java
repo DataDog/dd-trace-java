@@ -106,8 +106,11 @@ public class OpenJdkControllerTest {
         ((OpenJdkRecordingData)
                 controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
             .getRecording()) {
+      // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
+      // profiling has no effect — the event cannot be safely enabled.
       assertEquals(
-          true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+          isOldObjectSampleAvailable(),
+          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
     }
   }
 
