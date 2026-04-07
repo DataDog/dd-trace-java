@@ -1,7 +1,6 @@
 package datadog.trace.core.otlp.common;
 
 import static datadog.communication.http.OkHttpUtils.buildHttpClient;
-import static datadog.communication.http.OkHttpUtils.gzippedRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.isPlainHttp;
 import static datadog.communication.http.OkHttpUtils.sendWithRetries;
 
@@ -14,7 +13,6 @@ import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -56,10 +54,8 @@ public final class OtlpHttpSender implements OtlpSender {
     this.client = buildHttpClient(isPlainHttp(url), unixDomainSocketPath, null, timeoutMillis);
   }
 
+  @Override
   public void send(OtlpPayload payload) {
-    if (payload == OtlpPayload.EMPTY) {
-      return; // nothing to send
-    }
     Request request = makeRequest(payload);
     try (Response response = sendWithRetries(client, retryPolicy, request)) {
       if (!response.isSuccessful()) {
@@ -75,30 +71,20 @@ public final class OtlpHttpSender implements OtlpSender {
     }
   }
 
+  @Override
   public void shutdown() {
     client.connectionPool().evictAll();
   }
 
   private Request makeRequest(OtlpPayload payload) {
-    Request.Builder requestBuilder =
-        new Request.Builder().url(url).header("Content-Type", payload.getContentType());
-
+    Request.Builder requestBuilder = new Request.Builder().url(url);
     if (gzip) {
-      requestBuilder
-          .header("Content-Length", "-1")
-          .header("Content-Encoding", "gzip")
-          .header("Transfer-Encoding", "chunked");
-    } else {
-      requestBuilder.header("Content-Length", String.valueOf(payload.getContentLength()));
+      requestBuilder.header("Content-Encoding", "gzip").header("Transfer-Encoding", "chunked");
     }
 
+    // add configured headers to the request
     headers.forEach(requestBuilder::addHeader);
 
-    RequestBody requestBody = new OtlpHttpRequestBody(payload);
-    if (gzip) {
-      requestBody = gzippedRequestBodyOf(requestBody);
-    }
-
-    return requestBuilder.post(requestBody).build();
+    return requestBuilder.post(new OtlpHttpRequestBody(payload, gzip)).build();
   }
 }

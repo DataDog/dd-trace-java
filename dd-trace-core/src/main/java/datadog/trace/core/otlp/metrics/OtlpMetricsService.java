@@ -4,12 +4,17 @@ import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_METRICS_EXP
 
 import datadog.trace.api.Config;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
+import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.concurrent.TimeUnit;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /** Periodic service to collect OpenTelemetry metrics and export them over OTLP. */
 public final class OtlpMetricsService {
+  private static final Logger LOGGER = LoggerFactory.getLogger(OtlpMetricsService.class);
+
   public static final OtlpMetricsService INSTANCE = new OtlpMetricsService(Config.get());
 
   private final AgentTaskScheduler scheduler;
@@ -20,14 +25,23 @@ public final class OtlpMetricsService {
 
   private OtlpMetricsService(Config config) {
     this.scheduler = new AgentTaskScheduler(OTLP_METRICS_EXPORTER);
-    this.collector = OtlpMetricsProtoCollector.INSTANCE;
-    this.sender =
-        new OtlpHttpSender(
-            config.getOtlpMetricsEndpoint(),
-            "/v1/metrics",
-            config.getOtlpMetricsHeaders(),
-            config.getOtlpMetricsTimeout(),
-            config.getOtlpMetricsCompression());
+
+    switch (config.getOtlpMetricsProtocol()) {
+      case HTTP_PROTOBUF:
+        this.collector = OtlpMetricsProtoCollector.INSTANCE;
+        this.sender =
+            new OtlpHttpSender(
+                config.getOtlpMetricsEndpoint(),
+                "/v1/metrics",
+                config.getOtlpMetricsHeaders(),
+                config.getOtlpMetricsTimeout(),
+                config.getOtlpMetricsCompression());
+        break;
+      default:
+        LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
+        this.collector = OtlpMetricsCollector.NOOP_COLLECTOR;
+        this.sender = null;
+    }
 
     this.intervalMillis = config.getMetricsOtelInterval();
   }
@@ -41,7 +55,16 @@ public final class OtlpMetricsService {
     scheduler.execute(this::export);
   }
 
+  public void shutdown() {
+    if (sender != null) {
+      sender.shutdown();
+    }
+  }
+
   private void export() {
-    sender.send(collector.collectMetrics());
+    OtlpPayload payload = collector.collectMetrics();
+    if (payload != OtlpPayload.EMPTY) {
+      sender.send(payload);
+    }
   }
 }

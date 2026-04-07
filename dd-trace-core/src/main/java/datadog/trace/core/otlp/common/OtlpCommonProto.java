@@ -1,5 +1,13 @@
 package datadog.trace.core.otlp.common;
 
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -8,7 +16,6 @@ import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
-import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import java.nio.ByteBuffer;
 import java.util.List;
 
@@ -149,28 +156,28 @@ public final class OtlpCommonProto {
   public static void writeAttribute(StreamingBuffer buf, int type, String key, Object value) {
     byte[] keyUtf8 = keyUtf8(key);
     switch (type) {
-      case OtlpAttributeVisitor.STRING:
+      case STRING:
         writeStringAttribute(buf, keyUtf8, valueUtf8((String) value));
         break;
-      case OtlpAttributeVisitor.BOOLEAN:
+      case BOOLEAN:
         writeBooleanAttribute(buf, keyUtf8, (boolean) value);
         break;
-      case OtlpAttributeVisitor.LONG:
+      case LONG:
         writeLongAttribute(buf, keyUtf8, (long) value);
         break;
-      case OtlpAttributeVisitor.DOUBLE:
+      case DOUBLE:
         writeDoubleAttribute(buf, keyUtf8, (double) value);
         break;
-      case OtlpAttributeVisitor.STRING_ARRAY:
+      case STRING_ARRAY:
         writeStringArrayAttribute(buf, keyUtf8, (List<String>) value);
         break;
-      case OtlpAttributeVisitor.BOOLEAN_ARRAY:
+      case BOOLEAN_ARRAY:
         writeBooleanArrayAttribute(buf, keyUtf8, (List<Boolean>) value);
         break;
-      case OtlpAttributeVisitor.LONG_ARRAY:
+      case LONG_ARRAY:
         writeLongArrayAttribute(buf, keyUtf8, (List<Long>) value);
         break;
-      case OtlpAttributeVisitor.DOUBLE_ARRAY:
+      case DOUBLE_ARRAY:
         writeDoubleArrayAttribute(buf, keyUtf8, (List<Double>) value);
         break;
       default:
