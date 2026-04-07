@@ -27,6 +27,10 @@ tasks.named("processResources") {
   dependsOn(pomPropertiesFileTree)
 }
 
+tasks.named("sourcesJar") {
+  dependsOn(pomPropertiesFileTree)
+}
+
 sourceSets {
   // The special pre-check must be compiled with Java 6 to detect unsupported
   // Java versions and prevent issues for users that still using them.
