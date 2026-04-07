@@ -331,8 +331,10 @@ def generatePomProperties = tasks.register('generatePomProperties', WritePropert
   property("version", project.providers.provider { project.version.toString() })
 }
 sourceSets.main.resources.srcDir(
-  generatePomProperties.map { project.layout.buildDirectory.dir("generated/maven-metadata").get() }
-)
+  generatePomProperties.map {
+    project.layout.buildDirectory.dir("generated/maven-metadata").get()
+  }
+  )
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
