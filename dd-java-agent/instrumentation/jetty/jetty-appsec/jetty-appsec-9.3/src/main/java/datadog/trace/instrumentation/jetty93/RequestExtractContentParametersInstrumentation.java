@@ -46,7 +46,12 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
-    transformer.applyAdvice(named("getParts"), getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(
+        named("getParts").and(takesArguments(0)),
+        getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(
+        named("getParts").and(takesArguments(1)),
+        getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
   private static final Reference REQUEST_REFERENCE =
@@ -105,13 +110,86 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     }
   }
 
+  /**
+   * Fires the {@code requestFilesFilenames} event when the application calls public {@code
+   * getParts()}. The {@code _contentParameters == null} guard ensures the WAF is invoked only on
+   * the first call — subsequent calls return the cached result without re-processing.
+   */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
+    static boolean before(@Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
       return callDepth == 0 && map == null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Enter boolean proceed,
+        @Advice.Return Collection parts,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
+        return;
+      }
+      Method getSubmittedFileName = null;
+      try {
+        getSubmittedFileName = parts.iterator().next().getClass().getMethod("getSubmittedFileName");
+      } catch (Exception ignored) {
+      }
+      if (getSubmittedFileName == null) {
+        return;
+      }
+      List<String> filenames = new ArrayList<>();
+      for (Object part : parts) {
+        try {
+          String name = (String) getSubmittedFileName.invoke(part);
+          if (name != null && !name.isEmpty()) {
+            filenames.add(name);
+          }
+        } catch (Exception ignored) {
+        }
+      }
+      if (filenames.isEmpty()) {
+        return;
+      }
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (callback == null) {
+        return;
+      }
+      Flow<Void> flow = callback.apply(reqCtx, filenames);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+        if (brf != null) {
+          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (t == null) {
+            t = new BlockingException("Blocked request (multipart file upload)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Fires the {@code requestFilesFilenames} event when multipart content is parsed via the
+   * internal {@code getParts(MultiMap)} path triggered by {@code getParameter*()} /
+   * {@code getParameterMap()} — i.e. when the application never calls public {@code getParts()}.
+   * In Jetty 9.3+, {@code extractContentParameters()} assigns {@code _contentParameters} before
+   * calling this method, so {@code map == null} cannot be used as a "first parse" guard here;
+   * the call-depth guard prevents double-firing when {@code getParts()} internally delegates to
+   * this method.
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesFromMultiPartAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before() {
+      return CallDepthThreadLocalMap.incrementCallDepth(Collection.class) == 0;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

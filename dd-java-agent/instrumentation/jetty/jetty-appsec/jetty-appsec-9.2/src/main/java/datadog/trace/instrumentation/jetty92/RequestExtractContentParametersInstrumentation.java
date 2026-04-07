@@ -144,8 +144,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
+    static boolean before(@Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
       return callDepth == 0 && map == null;
     }
