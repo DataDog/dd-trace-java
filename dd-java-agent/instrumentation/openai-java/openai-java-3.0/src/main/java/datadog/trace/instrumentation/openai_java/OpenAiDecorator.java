@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.openai_java;
 import com.openai.core.ClientOptions;
 import com.openai.core.http.Headers;
 import datadog.trace.api.Config;
+import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceApiInfo;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.llmobs.LLMObsContext;
 import datadog.trace.api.telemetry.LLMObsMetricCollector;
@@ -13,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.ClientDecorator;
 import java.util.List;
+import java.util.Map;
 
 public class OpenAiDecorator extends ClientDecorator {
   public static final OpenAiDecorator DECORATE = new OpenAiDecorator();
@@ -91,12 +94,20 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan afterStart(AgentSpan span) {
     if (llmObsEnabled) {
+      // set global dd_tags as base layer so UST and span-level tags can override them
+      for (Map.Entry<String, String> entry : Config.get().getGlobalTags().entrySet()) {
+        span.setTag(CommonTags.TAG_PREFIX + entry.getKey(), entry.getValue());
+      }
+
       // set UST (unified service tags, env, service, version)
       span.setTag(CommonTags.ENV, wellKnownTags.getEnv());
       span.setTag(CommonTags.SERVICE, wellKnownTags.getService());
       span.setTag(CommonTags.VERSION, wellKnownTags.getVersion());
+      span.setTag(CommonTags.DDTRACE_VERSION, DDTraceApiInfo.VERSION);
 
       span.setTag(CommonTags.ML_APP, Config.get().getLlmObsMlApp());
+      span.setTag(CommonTags.SOURCE, "integration");
+      span.setTag(CommonTags.INTEGRATION, INTEGRATION);
 
       AgentSpanContext parent = LLMObsContext.current();
       String parentSpanId = LLMObsContext.ROOT_SPAN_ID;
@@ -111,6 +122,9 @@ public class OpenAiDecorator extends ClientDecorator {
   @Override
   public AgentSpan beforeFinish(AgentSpan span) {
     if (llmObsEnabled) {
+      span.setTag(CommonTags.ERROR, span.isError() ? 1 : 0);
+      span.setTag(CommonTags.ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
+
       Object spanKindTag = span.getTag(CommonTags.SPAN_KIND);
       if (spanKindTag != null) {
         String spanKind = spanKindTag.toString();

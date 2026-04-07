@@ -69,6 +69,20 @@ class FingerprinterTest {
         Fingerprinter.fingerprint(new EmptyException("test"), classNameFiltering));
   }
 
+  @Test
+  void nullStacktrace() {
+    assertEquals(
+        "35ae5d9aa4d7179a7d36838ca6266ea459a7cbb6ebc92afc24098bc85cad586",
+        Fingerprinter.fingerprint(
+            new RuntimeException("test") {
+              @Override
+              public StackTraceElement[] getStackTrace() {
+                return null;
+              }
+            },
+            classNameFiltering));
+  }
+
   static class EmptyException extends Exception {
     public EmptyException(String message) {
       super(message, null, false, false);

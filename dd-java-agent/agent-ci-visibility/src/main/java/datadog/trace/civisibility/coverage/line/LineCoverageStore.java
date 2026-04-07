@@ -11,7 +11,6 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.civisibility.coverage.ConcurrentCoverageStore;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -53,88 +52,84 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
   @Nullable
   @Override
   protected TestReport report(
-      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes)
-      throws SourceResolutionException {
-    try {
-      Map<Class<?>, ExecutionDataAdapter> combinedExecutionData = new IdentityHashMap<>();
-      Collection<String> combinedNonCodeResources = new HashSet<>();
+      DDTraceId testSessionId, Long testSuiteId, long testSpanId, Collection<LineProbes> probes) {
+    Map<Class<?>, ExecutionDataAdapter> combinedExecutionData = new IdentityHashMap<>();
+    Collection<String> combinedNonCodeResources = new HashSet<>();
 
-      for (LineProbes probe : probes) {
-        for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probe.getExecutionData().entrySet()) {
-          combinedExecutionData.merge(e.getKey(), e.getValue(), ExecutionDataAdapter::merge);
-        }
-        combinedNonCodeResources.addAll(probe.getNonCodeResources());
+    for (LineProbes probe : probes) {
+      for (Map.Entry<Class<?>, ExecutionDataAdapter> e : probe.getExecutionData().entrySet()) {
+        combinedExecutionData.merge(e.getKey(), e.getValue(), ExecutionDataAdapter::merge);
       }
+      combinedNonCodeResources.addAll(probe.getNonCodeResources());
+    }
 
-      if (combinedExecutionData.isEmpty() && combinedNonCodeResources.isEmpty()) {
-        return null;
+    if (combinedExecutionData.isEmpty() && combinedNonCodeResources.isEmpty()) {
+      return null;
+    }
+
+    Map<String, BitSet> coveredLinesBySourcePath = new HashMap<>();
+    for (Map.Entry<Class<?>, ExecutionDataAdapter> e : combinedExecutionData.entrySet()) {
+      ExecutionDataAdapter executionDataAdapter = e.getValue();
+      String className = executionDataAdapter.getClassName();
+
+      Class<?> clazz = e.getKey();
+      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(clazz);
+      if (sourcePaths.size() != 1) {
+        log.debug(
+            "Skipping coverage reporting for {} because source path could not be determined",
+            className);
+        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+        continue;
       }
+      String sourcePath = sourcePaths.iterator().next();
 
-      Map<String, BitSet> coveredLinesBySourcePath = new HashMap<>();
-      for (Map.Entry<Class<?>, ExecutionDataAdapter> e : combinedExecutionData.entrySet()) {
-        ExecutionDataAdapter executionDataAdapter = e.getValue();
-        String className = executionDataAdapter.getClassName();
+      try (InputStream is = Utils.getClassStream(clazz)) {
+        BitSet coveredLines =
+            coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet());
+        ExecutionDataStore store = new ExecutionDataStore();
+        store.put(executionDataAdapter.toExecutionData());
 
-        Class<?> clazz = e.getKey();
-        String sourcePath = sourcePathResolver.getSourcePath(clazz);
-        if (sourcePath == null) {
-          log.debug(
-              "Skipping coverage reporting for {} because source path could not be determined",
-              className);
-          metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
-        }
+        // TODO optimize this part to avoid parsing
+        //  the same class multiple times for different test cases
+        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
+        analyzer.analyzeClass(is, null);
 
-        try (InputStream is = Utils.getClassStream(clazz)) {
-          BitSet coveredLines =
-              coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet());
-          ExecutionDataStore store = new ExecutionDataStore();
-          store.put(executionDataAdapter.toExecutionData());
-
-          // TODO optimize this part to avoid parsing
-          //  the same class multiple times for different test cases
-          Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
-          analyzer.analyzeClass(is, null);
-
-        } catch (Exception exception) {
-          log.debug(
-              "Skipping coverage reporting for {} ({}) because of error",
-              className,
-              sourcePath,
-              exception);
-          metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
-        }
+      } catch (Exception exception) {
+        log.debug(
+            "Skipping coverage reporting for {} ({}) because of error",
+            className,
+            sourcePath,
+            exception);
+        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
       }
+    }
 
-      List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredLinesBySourcePath.size());
-      for (Map.Entry<String, BitSet> e : coveredLinesBySourcePath.entrySet()) {
-        String sourcePath = e.getKey();
-        BitSet coveredLines = e.getValue();
-        fileEntries.add(new TestReportFileEntry(sourcePath, coveredLines));
+    List<TestReportFileEntry> fileEntries = new ArrayList<>(coveredLinesBySourcePath.size());
+    for (Map.Entry<String, BitSet> e : coveredLinesBySourcePath.entrySet()) {
+      String sourcePath = e.getKey();
+      BitSet coveredLines = e.getValue();
+      fileEntries.add(new TestReportFileEntry(sourcePath, coveredLines));
+    }
+
+    for (String nonCodeResource : combinedNonCodeResources) {
+      Collection<String> resourcePaths = sourcePathResolver.getResourcePaths(nonCodeResource);
+      if (resourcePaths.isEmpty()) {
+        log.debug(
+            "Skipping coverage reporting for {} because resource path could not be determined",
+            nonCodeResource);
+        metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
+        continue;
       }
-
-      for (String nonCodeResource : combinedNonCodeResources) {
-        String resourcePath = sourcePathResolver.getResourcePath(nonCodeResource);
-        if (resourcePath == null) {
-          log.debug(
-              "Skipping coverage reporting for {} because resource path could not be determined",
-              nonCodeResource);
-          metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.PATH);
-          continue;
-        }
+      for (String resourcePath : resourcePaths) {
         fileEntries.add(new TestReportFileEntry(resourcePath, null));
       }
-
-      TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
-      metrics.add(
-          CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
-          report.getTestReportFileEntries().size());
-      return report;
-
-    } catch (Exception e) {
-      metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1);
-      throw e;
     }
+
+    TestReport report = new TestReport(testSessionId, testSuiteId, testSpanId, fileEntries);
+    metrics.add(
+        CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
+        report.getTestReportFileEntries().size());
+    return report;
   }
 
   public static final class Factory implements CoverageStore.Factory {

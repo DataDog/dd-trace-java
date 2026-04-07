@@ -5,11 +5,13 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
@@ -21,6 +23,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
@@ -50,6 +53,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
@@ -60,6 +64,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAIT
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
@@ -81,6 +86,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
@@ -139,6 +145,7 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean codeOriginEnabled;
+  private final boolean codeOriginInterfaceSupport;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean metricsOtelEnabled;
@@ -200,7 +207,9 @@ public class InstrumenterConfig {
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> traceNativeMethods;
   private final Map<String, Set<String>> measureMethods;
+  private final Map<String, Set<String>> measureNativeMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -241,6 +250,10 @@ public class InstrumenterConfig {
     codeOriginEnabled =
         configProvider.getBoolean(
             CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
+    codeOriginInterfaceSupport =
+        configProvider.getBoolean(
+            CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
+            DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
@@ -343,9 +356,15 @@ public class InstrumenterConfig {
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    traceNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
+    measureNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     this.additionalJaxRsAnnotations =
@@ -371,6 +390,10 @@ public class InstrumenterConfig {
 
   public boolean isCodeOriginEnabled() {
     return codeOriginEnabled;
+  }
+
+  public boolean isCodeOriginInterfaceSupport() {
+    return codeOriginInterfaceSupport;
   }
 
   public boolean isTriageEnabled() {
@@ -647,6 +670,18 @@ public class InstrumenterConfig {
     return traceMethods;
   }
 
+  public Map<String, Set<String>> getTraceNativeMethods() {
+    return traceNativeMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureMethods() {
+    return measureMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureNativeMethods() {
+    return measureNativeMethods;
+  }
+
   public boolean isMethodMeasured(Method method) {
     if (this.measureMethods.isEmpty()) {
       return false;
@@ -792,8 +827,14 @@ public class InstrumenterConfig {
         + ", traceMethods='"
         + traceMethods
         + '\''
+        + ", traceNativeMethods='"
+        + traceNativeMethods
+        + '\''
         + ", measureMethods= '"
         + measureMethods
+        + '\''
+        + ", measureNativeMethods= '"
+        + measureNativeMethods
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure

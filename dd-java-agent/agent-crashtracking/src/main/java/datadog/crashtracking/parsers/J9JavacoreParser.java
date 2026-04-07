@@ -45,6 +45,7 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public final class J9JavacoreParser {
+  private static final String J9_USER_ARG_PREFIX = "2CIUSERARG";
 
   private final BuildIdCollector buildIdCollector;
 
@@ -111,15 +112,23 @@ public final class J9JavacoreParser {
     String exceptionDetail = null;
     String pid = null;
     String datetime = null;
+    String currentThreadName = null;
     List<StackFrame> frames = new ArrayList<>();
     boolean incomplete = false;
     boolean foundThreadSection = false;
 
     Map<String, String> registers = null;
+    RuntimeArgs j9UserArgs = new RuntimeArgs();
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
     for (String line : lines) {
+      // Full command line is available under 1CICMDLINE, but it's harder to parse properly,
+      // than adding them from 2CIUSERARGS
+      if (line.startsWith(J9_USER_ARG_PREFIX)) {
+        j9UserArgs.addArg(line.substring(J9_USER_ARG_PREFIX.length()).trim());
+      }
+
       // Track section changes
       if (line.startsWith(SECTION_MARKER)) {
         currentSection = detectSection(line);
@@ -183,6 +192,7 @@ public final class J9JavacoreParser {
           if (inCurrentThread && line.startsWith("3XMTHREADINFO")) {
             Matcher threadMatcher = THREAD_INFO_PATTERN.matcher(line);
             if (threadMatcher.matches()) {
+              currentThreadName = threadMatcher.group(1);
               collectingStack = true;
             }
             continue;
@@ -267,9 +277,12 @@ public final class J9JavacoreParser {
                 frame.path,
                 frame.line,
                 frame.function,
+                frame.frameType,
                 buildInfo.buildId,
                 buildInfo.buildIdType,
                 buildInfo.fileType,
+                frame.ip,
+                frame.symbolAddress,
                 frame.relativeAddress));
       } else {
         enrichedFrames.add(frame);
@@ -277,12 +290,20 @@ public final class J9JavacoreParser {
     }
 
     ErrorData error =
-        new ErrorData(kind, message, new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
+        new ErrorData(
+            kind,
+            message,
+            currentThreadName,
+            new StackTrace(enrichedFrames.toArray(new StackFrame[0])));
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    List<String> runtimeArgs = j9UserArgs.build();
     Experimental experimental =
-        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
+        (registers != null && !registers.isEmpty())
+                || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            ? new Experimental(registers, runtimeArgs)
+            : null;
 
     return new CrashLog(
         uuid,
@@ -294,7 +315,8 @@ public final class J9JavacoreParser {
         procInfo,
         sigInfo,
         "1.0",
-        experimental);
+        experimental,
+        null);
   }
 
   private static Integer safelyParseInt(String value) {
@@ -381,11 +403,14 @@ public final class J9JavacoreParser {
     // Extract source file and line: method(File.java:123)
     int parenStart = function.lastIndexOf('(');
     int parenEnd = function.lastIndexOf(')');
+    String frameType = "java";
     if (parenStart > 0 && parenEnd > parenStart) {
       String sourceInfo = function.substring(parenStart + 1, parenEnd);
       function = function.substring(0, parenStart);
 
-      if (!"Native Method".equals(sourceInfo)) {
+      if ("Native Method".equals(sourceInfo)) {
+        frameType = "native";
+      } else {
         int colonIdx = sourceInfo.lastIndexOf(':');
         if (colonIdx > 0) {
           file = sourceInfo.substring(0, colonIdx);
@@ -400,7 +425,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, line, function, null, null, null, null);
+    return new StackFrame(file, line, function, frameType, null, null, null, null, null, null);
   }
 
   /**
@@ -462,7 +487,7 @@ public final class J9JavacoreParser {
       }
     }
 
-    return new StackFrame(file, null, function, null, null, null, relAddress);
+    return new StackFrame(file, null, function, "native", null, null, null, null, null, relAddress);
   }
 
   private String parseDateTime(String datePart, String timePart) {
