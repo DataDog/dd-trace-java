@@ -91,6 +91,11 @@ abstract class Jetty9Test extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilenamesCalledOnce() {
+    true
+  }
+
+  @Override
   boolean testSessionId() {
     true
   }
