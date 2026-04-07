@@ -961,6 +961,14 @@
         "aliases": []
       }
     ],
+    "DD_CRASHTRACKING_EXTENDED_INFO_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_CRASHTRACKING_PROXY_HOST": [
       {
         "version": "A",

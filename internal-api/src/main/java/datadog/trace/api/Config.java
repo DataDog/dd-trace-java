@@ -298,6 +298,8 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_EXTENDED_INFO_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -1003,6 +1005,7 @@ public class Config {
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
   private final boolean crashTrackingErrorsIntakeEnabled;
+  private final boolean crashTrackingExtendedInfoEnabled;
 
   private final boolean clientIpEnabled;
 
@@ -2220,6 +2223,9 @@ public class Config {
     crashTrackingErrorsIntakeEnabled =
         configProvider.getBoolean(
             CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
+    crashTrackingExtendedInfoEnabled =
+        configProvider.getBoolean(
+            CRASH_TRACKING_EXTENDED_INFO_ENABLED, CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT);
 
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -3811,6 +3817,10 @@ public class Config {
 
   public boolean isCrashTrackingErrorsIntakeEnabled() {
     return crashTrackingErrorsIntakeEnabled;
+  }
+
+  public boolean isCrashTrackingExtendedInfoEnabled() {
+    return crashTrackingExtendedInfoEnabled;
   }
 
   public boolean isTelemetryEnabled() {
@@ -6122,6 +6132,8 @@ public class Config {
         + crashTrackingAgentless
         + ", crashTrackingErrorsIntakeEnabled="
         + crashTrackingErrorsIntakeEnabled
+        + ", crashTrackingExtendedInfoEnabled="
+        + crashTrackingExtendedInfoEnabled
         + ", remoteConfigEnabled="
         + remoteConfigEnabled
         + ", remoteConfigUrl="
