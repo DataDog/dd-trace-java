@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.ContextStore;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import org.apache.kafka.clients.Metadata;
 
 public class KafkaConsumerInstrumentationHelper {
@@ -13,11 +14,13 @@ public class KafkaConsumerInstrumentationHelper {
   }
 
   public static String extractClusterId(
-      KafkaConsumerInfo kafkaConsumerInfo, ContextStore<Metadata, String> metadataContextStore) {
+      KafkaConsumerInfo kafkaConsumerInfo,
+      ContextStore<Metadata, MetadataState> metadataContextStore) {
     if (Config.get().isDataStreamsEnabled() && kafkaConsumerInfo != null) {
       Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
       if (consumerMetadata != null) {
-        return metadataContextStore.get(consumerMetadata);
+        MetadataState state = metadataContextStore.get(consumerMetadata);
+        return state != null ? state.clusterId : null;
       }
     }
     return null;
