@@ -1,5 +1,9 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
+
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
@@ -63,12 +67,10 @@ public final class OtelMetricStorage {
     switch (TEMPORALITY_PREFERENCE) {
       case DELTA:
         // gauges and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM
-            || type == OtelInstrumentType.COUNTER
-            || type == OtelInstrumentType.OBSERVABLE_COUNTER;
+        return type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER;
       case LOWMEMORY:
         // observable counters, gauges, and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM || type == OtelInstrumentType.COUNTER;
+        return type == HISTOGRAM || type == COUNTER;
       case CUMULATIVE:
       default:
         return false;

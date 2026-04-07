@@ -274,14 +274,14 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       otelKey = "otel.exporter.otlp." + subkey;
       otelValue = getOtelProperty(otelKey);
       // special case when using general endpoint as fallback: append appropriate suffix
-      if ("endpoint".equals(subkey) && otelValue != null) {
+      if ("endpoint".equals(subkey) && otelValue != null && !otelValue.startsWith("unix://")) {
         if ("metrics".equals(signal)
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
-          otelValue = otelValue + "/v1/metrics";
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/metrics" : "/v1/metrics");
         }
         if ("traces".equals(signal)
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_TRACES_PROTOCOL))) {
-          otelValue = otelValue + "/v1/traces";
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/traces" : "/v1/traces");
         }
       }
     }

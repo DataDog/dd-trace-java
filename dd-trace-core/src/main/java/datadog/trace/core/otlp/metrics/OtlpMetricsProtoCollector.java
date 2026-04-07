@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
@@ -46,10 +47,15 @@ import java.util.function.Consumer;
  * metrics message to the start of the payload.
  */
 public final class OtlpMetricsProtoCollector
-    implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
+    implements OtlpMetricsVisitor,
+        OtlpScopedMetricsVisitor,
+        OtlpMetricVisitor,
+        OtlpMetricsCollector {
 
   public static final OtlpMetricsProtoCollector INSTANCE =
       new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
+
+  private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
 
   private final GrowableBuffer buf = new GrowableBuffer(512);
 
@@ -81,11 +87,12 @@ public final class OtlpMetricsProtoCollector
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */
-  public OtlpMetricsPayload collectMetrics() {
+  @Override
+  public OtlpPayload collectMetrics() {
     return collectMetrics(OtelMetricRegistry.INSTANCE::collectMetrics);
   }
 
-  OtlpMetricsPayload collectMetrics(Consumer<OtlpMetricsVisitor> registry) {
+  OtlpPayload collectMetrics(Consumer<OtlpMetricsVisitor> registry) {
     start();
     try {
       registry.accept(this);
@@ -140,13 +147,13 @@ public final class OtlpMetricsProtoCollector
   }
 
   // called once we've processed all scopes and metric messages
-  private OtlpMetricsPayload completePayload() {
+  private OtlpPayload completePayload() {
     if (currentScope != null) {
       completeScope();
     }
 
     if (payloadBytes == 0) {
-      return OtlpMetricsPayload.EMPTY;
+      return OtlpPayload.EMPTY;
     }
 
     // prepend the canned resource chunk
@@ -158,7 +165,7 @@ public final class OtlpMetricsProtoCollector
     payloadChunks.addFirst(prefix);
     payloadBytes += prefix.length;
 
-    return new OtlpMetricsPayload(payloadChunks, payloadBytes);
+    return new OtlpPayload(payloadChunks, payloadBytes, PROTOBUF_CONTENT_TYPE);
   }
 
   // called once we've processed all metrics in a specific scope

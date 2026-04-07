@@ -23,6 +23,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import datadog.trace.core.otlp.common.OtlpPayload;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -530,7 +531,7 @@ class OtlpMetricsProtoTest {
     timeSource.set(START_EPOCH_NS); // captured in constructor
     OtlpMetricsProtoCollector collector = new OtlpMetricsProtoCollector(timeSource);
     timeSource.set(END_EPOCH_NS); // captured during collection
-    OtlpMetricsPayload payload =
+    OtlpPayload payload =
         collector.collectMetrics(
             visitor -> {
               for (ScopeSpec s : expectedScopes) {
@@ -554,13 +555,13 @@ class OtlpMetricsProtoTest {
         expectedScopes.stream().filter(s -> !s.metrics.isEmpty()).collect(toList());
 
     if (nonEmptyScopes.isEmpty()) {
-      assertEquals(0, payload.getLength(), "empty registry must produce empty payload");
+      assertEquals(0, payload.getContentLength(), "empty registry must produce empty payload");
       return;
     }
 
     // drain all chunks into a single contiguous byte array
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getLength());
-    payload.drain(chunk -> baos.write(chunk, 0, chunk.length));
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
+    payload.drain(baos::write);
     byte[] bytes = baos.toByteArray();
     assertTrue(bytes.length > 0, "non-empty registry must produce bytes");
 
