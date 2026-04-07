@@ -98,12 +98,11 @@ class DependencyResolverSpecification extends DepSpecification {
   void 'jar with dd-java-agent pom.properties resolves to com.datadoghq:dd-java-agent'() {
     given: 'a jar containing META-INF/maven/com.datadoghq/dd-java-agent/pom.properties'
     File file = new File(testDir, 'dd-java-agent.jar')
-    ZipOutputStream out = new ZipOutputStream(new FileOutputStream(file))
-    ZipEntry e = new ZipEntry('META-INF/maven/com.datadoghq/dd-java-agent/pom.properties').with {
-        putNextEntry(e)
-        write('groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=1.0.0\n'.getBytes('UTF-8'))
-        closeEntry()
-        close()
+    new ZipOutputStream(new FileOutputStream(file)).with {
+      putNextEntry(new ZipEntry('META-INF/maven/com.datadoghq/dd-java-agent/pom.properties'))
+      write('groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=1.0.0\n'.getBytes('UTF-8'))
+      closeEntry()
+      close()
     }
 
     when:

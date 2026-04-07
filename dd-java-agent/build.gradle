@@ -324,17 +324,17 @@ def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
 }
 sourceSets.main.resources.srcDir(generateAgentJarIndex)
 
-def generatePomProperties = tasks.register('generatePomProperties') {
-  def outputDir = project.layout.buildDirectory.dir("generated/maven-metadata")
-  inputs.property("version", project.provider { project.version.toString() })
-  outputs.dir(outputDir)
-  doLast {
-    def pomPropsFile = outputDir.get().file("META-INF/maven/com.datadoghq/dd-java-agent/pom.properties").asFile
-    pomPropsFile.parentFile.mkdirs()
-    pomPropsFile.text = "groupId=com.datadoghq\nartifactId=dd-java-agent\nversion=${project.version}\n"
-  }
+def pomPropertiesOutputDir = project.layout.buildDirectory.dir("generated/maven-metadata")
+def generatePomProperties = tasks.register('generatePomProperties', WriteProperties) {
+  destinationFile = pomPropertiesOutputDir.map { it.file("META-INF/maven/com.datadoghq/dd-java-agent/pom.properties") }
+  property("groupId", "com.datadoghq")
+  property("artifactId", "dd-java-agent")
+  property("version", project.providers.provider { project.version.toString() })
 }
-sourceSets.main.resources.srcDir(generatePomProperties)
+sourceSets.main.resources.srcDir(pomPropertiesOutputDir)
+tasks.named("processResources") {
+  dependsOn(generatePomProperties)
+}
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
