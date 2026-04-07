@@ -96,6 +96,7 @@ dependencies {
   testCompileOnly libs.autoservice.annotation
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation libs.bundles.mockito
   testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':products:metrics:metrics-lib')
