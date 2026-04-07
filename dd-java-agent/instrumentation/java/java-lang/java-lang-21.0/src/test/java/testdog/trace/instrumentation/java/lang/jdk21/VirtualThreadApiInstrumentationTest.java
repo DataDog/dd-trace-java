@@ -13,7 +13,6 @@ import org.junit.jupiter.api.Test;
 
 /** Test the {@code VirtualThread} and {@code Thread.Builder} API. */
 public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentationTest {
-
   @DisplayName("test Thread.Builder.OfVirtual.start()")
   @Test
   void testBuilderOfVirtualStart() throws InterruptedException, TimeoutException {
@@ -144,5 +143,17 @@ public class VirtualThreadApiInstrumentationTest extends AbstractInstrumentation
         trace(
             span().root().operationName("parent"),
             span().childOfPrevious().operationName("asyncChild")));
+  }
+
+  private static void tryUnmount() {
+    try {
+      // Multiple sleeps to attempt triggering repeated park/unpark cycles.
+      // This is not guaranteed to work, but there is no API to force mount/unmount.
+      for (int i = 0; i < 5; i++) {
+        Thread.sleep(10);
+      }
+    } catch (InterruptedException e) {
+      throw new RuntimeException(e);
+    }
   }
 }
