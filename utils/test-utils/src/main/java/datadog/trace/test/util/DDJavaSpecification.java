@@ -58,8 +58,8 @@ public class DDJavaSpecification {
   }
 
   private static Boolean contextTestingAllowed;
-  private static boolean isConfigInstanceModifiable = false;
-  static boolean configModificationFailed = false;
+  private static volatile boolean isConfigInstanceModifiable = false;
+  static volatile boolean configModificationFailed = false;
 
   protected static final TestEnvironmentVariables environmentVariables =
       TestEnvironmentVariables.setup();
@@ -67,7 +67,7 @@ public class DDJavaSpecification {
   private static Properties originalSystemProperties;
 
   protected boolean assertThreadsEachCleanup = true;
-  private boolean ignoreThreadCleanup;
+  private volatile boolean ignoreThreadCleanup;
 
   static void allowContextTesting() {
     if (contextTestingAllowed == null) {
