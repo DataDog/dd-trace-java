@@ -823,7 +823,7 @@ class AIGuardInternalTests extends DDSpecification {
       ", reason='" + reason + '\'' +
       ", blocking=" + blocking +
       ", target='" + target + '\'' +
-      ", messages=" + messages + '\'' +
+      ", messages=" + messages.collect {it.content } + '\'' +
       ", tags=" + tags +
       '}'
     }
