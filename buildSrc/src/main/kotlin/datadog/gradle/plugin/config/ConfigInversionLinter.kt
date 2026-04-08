@@ -1,11 +1,12 @@
 package datadog.gradle.plugin.config
 
-import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
-import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.body.FieldDeclaration
 import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.expr.Expression
+import com.github.javaparser.ast.expr.MethodCallExpr
+import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import org.gradle.api.GradleException
@@ -14,6 +15,7 @@ import org.gradle.api.Project
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType
+import java.io.File
 import java.net.URLClassLoader
 import java.nio.file.Path
 
@@ -23,6 +25,7 @@ class ConfigInversionLinter : Plugin<Project> {
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
     registerCheckConfigStringsTask(target, extension)
+    registerCheckDatadogProfilerConfigTask(target, extension)
   }
 }
 
@@ -202,38 +205,16 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
       val supported = configFields.supported
       val aliasMapping = configFields.aliasMapping
 
-      var parserConfig = ParserConfiguration()
-      parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
-
-      StaticJavaParser.setConfiguration(parserConfig)
-
       val violations = buildList {
         configDir.listFiles()?.forEach { file ->
           val fileName = file.name
-          val cu: CompilationUnit = StaticJavaParser.parse(file)
-
-          cu.findAll(VariableDeclarator::class.java).forEach { varDecl ->
-            varDecl.parentNode
-              .map { it as? FieldDeclaration }
-              .ifPresent { field ->
-                if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
-                  varDecl.typeAsString == "String") {
-
-                  val fieldName = varDecl.nameAsString
-                  if (fieldName.endsWith("_DEFAULT")) return@ifPresent
-                  val init = varDecl.initializer.orElse(null) ?: return@ifPresent
-
-                  if (init !is StringLiteralExpr) return@ifPresent
-                  val rawValue = init.value
-
-                  val normalized = normalize(rawValue)
-                  if (normalized !in supported && normalized !in aliasMapping) {
-                    val line = varDecl.range.map { it.begin.line }.orElse(1)
-                    add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                        "which is missing from '${extension.jsonFile.get()}'")
-                  }
-                }
-              }
+          extractStringConstants(file).forEach { (fieldName, entry) ->
+            if (fieldName.endsWith("_DEFAULT")) return@forEach
+            val normalized = normalize(entry.value)
+            if (normalized !in supported && normalized !in aliasMapping) {
+              add("$fileName:${entry.line} -> Config '${entry.value}' normalizes to '$normalized' " +
+                "which is missing from '${extension.jsonFile.get()}'")
+            }
           }
         }
       }
@@ -246,5 +227,111 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }
     }
+  }
+}
+
+/**
+ * Registers `checkDatadogProfilerConfigs` to validate that every `.ddprof.` config key used as a
+ * primary key in `DatadogProfilerConfig`'s static helpers also has its async-translated form
+ * (`profiling.ddprof.*` → `profiling.async.*`) documented in `supported-configurations.json`.
+ *
+ * The raw form is already validated by `checkConfigStrings`. This task only covers the additional
+ * async form produced by `DatadogProfilerConfig.normalizeKey`.
+ */
+private fun registerCheckDatadogProfilerConfigTask(project: Project, extension: SupportedTracerConfigurations) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register("checkDatadogProfilerConfigs") {
+    group = "verification"
+    description = "Validates all configs read in DatadogProfilerConfig are documented in supported-configurations.json"
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+    inputs.files(mainSourceSetOutput)
+
+    doLast {
+      val repoRoot = project.rootProject.projectDir.toPath()
+
+      // Only ProfilingConfig.java is needed — all .ddprof. keys are defined there
+      val constantMap = extractStringConstants(
+        repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config/ProfilingConfig.java").toFile()
+      )
+
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+      val supported = configFields.supported
+      val aliasMapping = configFields.aliasMapping
+
+      val ddprofConfigFile = repoRoot.resolve(
+        "dd-java-agent/agent-profiling/profiling-ddprof/src/main/java/com/datadog/profiling/ddprof/DatadogProfilerConfig.java"
+      ).toFile()
+      val cu = StaticJavaParser.parse(ddprofConfigFile)
+
+      val helperMethodNames = setOf("getBoolean", "getInteger", "getLong", "getString")
+      val violations = mutableListOf<String>()
+
+      cu.findAll(MethodCallExpr::class.java).forEach { call ->
+        // Only care about static helper calls: getXxx(configProvider, primaryKey, default, ...aliases)
+        // Direct configProvider.getXxx() calls are already covered by checkConfigStrings
+        if (call.scope.isPresent) return@forEach
+        if (call.nameAsString !in helperMethodNames) return@forEach
+        val args = call.arguments
+        if (args.size < 2 || args[0] !is NameExpr || (args[0] as NameExpr).nameAsString != "configProvider") return@forEach
+
+        // Primary key goes through normalizeKey — validate its async-translated form
+        val primaryKeyEntry = resolveConstant(args[1], constantMap) ?: return@forEach
+        checkDocumented(primaryKeyEntry, supported, aliasMapping, call, violations, extension)
+      }
+
+      if (violations.isNotEmpty()) {
+        violations.forEach { logger.error(it) }
+        throw GradleException("Undocumented configs found in DatadogProfilerConfig. Please add the above to '${extension.jsonFile.get()}'.")
+      } else {
+        logger.info("All DatadogProfilerConfig configs are documented.")
+      }
+    }
+  }
+}
+
+private data class ConstantEntry(val value: String, val line: Int)
+
+private fun extractStringConstants(file: File): Map<String, ConstantEntry> {
+  val map = mutableMapOf<String, ConstantEntry>()
+  StaticJavaParser.parse(file).findAll(VariableDeclarator::class.java).forEach { varDecl ->
+    val field = varDecl.parentNode.map { it as? FieldDeclaration }.orElse(null) ?: return@forEach
+    if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL)
+      && varDecl.typeAsString == "String") {
+      val init = varDecl.initializer.orElse(null) as? StringLiteralExpr ?: return@forEach
+      val line = varDecl.range.map { it.begin.line }.orElse(-1)
+      map[varDecl.nameAsString] = ConstantEntry(init.value, line)
+    }
+  }
+  return map
+}
+
+private fun resolveConstant(expr: Expression?, constantMap: Map<String, ConstantEntry>): ConstantEntry? = when (expr) {
+  is StringLiteralExpr -> ConstantEntry(expr.value, -1)
+  is NameExpr -> constantMap[expr.nameAsString]
+  else -> null
+}
+
+// Only check the async-translated form produced by DatadogProfilerConfig.normalizeKey.
+private fun checkDocumented(
+  entry: ConstantEntry,
+  supported: Set<String>,
+  aliasMapping: Map<String, String>,
+  call: MethodCallExpr,
+  violations: MutableList<String>,
+  extension: SupportedTracerConfigurations
+) {
+  if (!entry.value.contains(".ddprof.")) return
+  val asyncNormalized = normalize(entry.value.replace(".ddprof.", ".async."))
+  if (asyncNormalized !in supported && asyncNormalized !in aliasMapping) {
+    val callLine = call.range.map { it.begin.line }.orElse(-1)
+    violations.add("ProfilingConfig.java:${entry.line} (DatadogProfilerConfig.java:$callLine) -> '${entry.value}' (async form) → '$asyncNormalized' is missing from '${extension.jsonFile.get()}'")
   }
 }
