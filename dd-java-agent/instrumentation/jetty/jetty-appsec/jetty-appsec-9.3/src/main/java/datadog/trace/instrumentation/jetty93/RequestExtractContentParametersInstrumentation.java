@@ -47,8 +47,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         named("extractContentParameters").and(takesArguments(0)).or(named("getParts")),
         getClass().getName() + "$ExtractContentParametersAdvice");
     transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)),
-        getClass().getName() + "$GetFilenamesAdvice");
+        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
     transformer.applyAdvice(
         named("getParts").and(takesArguments(1)),
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
@@ -177,13 +176,12 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   /**
-   * Fires the {@code requestFilesFilenames} event when multipart content is parsed via the
-   * internal {@code getParts(MultiMap)} path triggered by {@code getParameter*()} /
-   * {@code getParameterMap()} — i.e. when the application never calls public {@code getParts()}.
-   * In Jetty 9.3+, {@code extractContentParameters()} assigns {@code _contentParameters} before
-   * calling this method, so {@code map == null} cannot be used as a "first parse" guard here;
-   * the call-depth guard prevents double-firing when {@code getParts()} internally delegates to
-   * this method.
+   * Fires the {@code requestFilesFilenames} event when multipart content is parsed via the internal
+   * {@code getParts(MultiMap)} path triggered by {@code getParameter*()} / {@code
+   * getParameterMap()} — i.e. when the application never calls public {@code getParts()}. In Jetty
+   * 9.3+, {@code extractContentParameters()} assigns {@code _contentParameters} before calling this
+   * method, so {@code map == null} cannot be used as a "first parse" guard here; the call-depth
+   * guard prevents double-firing when {@code getParts()} internally delegates to this method.
    */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesFromMultiPartAdvice {
