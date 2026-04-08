@@ -197,14 +197,28 @@ class HistogramsTest extends DDSpecification {
       histogram.accept(value)
     }
 
-    then: "report sum"
+    then: "report sum, min, max"
     histogram.getSum() == 57d
+    histogram.getMinValue() == 0d
+    histogram.getMaxValue() == 25d
 
     when:
     histogram.clear()
 
-    then: "sum reset on clear"
+    then: "sum, min, max reset on clear"
     histogram.getSum() == 0d
+
+    when:
+    histogram.getMinValue()
+
+    then:
+    thrown NoSuchElementException
+
+    when:
+    histogram.getMaxValue()
+
+    then:
+    thrown NoSuchElementException
   }
 
   def validateQuantiles(def histogram, long[] data, double relativeAccuracy) {

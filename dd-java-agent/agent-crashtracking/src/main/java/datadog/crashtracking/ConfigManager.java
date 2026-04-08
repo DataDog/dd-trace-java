@@ -35,7 +35,7 @@ public class ConfigManager {
     final String reportUUID;
     final boolean agentless;
     final boolean sendToErrorTracking;
-    final boolean registerMappingEnabled;
+    final boolean extendedInfoEnabled;
 
     StoredConfig(
         String reportUUID,
@@ -47,7 +47,7 @@ public class ConfigManager {
         String runtimeId,
         boolean agentless,
         boolean sendToErrorTracking,
-        boolean registerMappingEnabled) {
+        boolean extendedInfoEnabled) {
       this.service = service;
       this.env = env;
       this.version = version;
@@ -57,11 +57,11 @@ public class ConfigManager {
       this.reportUUID = reportUUID;
       this.agentless = agentless;
       this.sendToErrorTracking = sendToErrorTracking;
-      this.registerMappingEnabled = registerMappingEnabled;
+      this.extendedInfoEnabled = extendedInfoEnabled;
     }
 
     public CrashUploaderSettings toCrashUploaderSettings() {
-      return new CrashUploaderSettings(registerMappingEnabled);
+      return new CrashUploaderSettings(extendedInfoEnabled);
     }
 
     public static class Builder {
@@ -74,7 +74,7 @@ public class ConfigManager {
       String reportUUID;
       boolean agentless;
       boolean sendToErrorTracking;
-      boolean registerMappingEnabled;
+      boolean extendedInfoEnabled;
 
       public Builder(Config config) {
         // get sane defaults
@@ -85,7 +85,7 @@ public class ConfigManager {
         this.reportUUID = RandomUtils.randomUUID().toString();
         this.agentless = config.isCrashTrackingAgentless();
         this.sendToErrorTracking = config.isCrashTrackingErrorsIntakeEnabled();
-        this.registerMappingEnabled = config.isCrashTrackingExperimentalRegisterMappingEnabled();
+        this.extendedInfoEnabled = config.isCrashTrackingExtendedInfoEnabled();
       }
 
       public Builder service(String service) {
@@ -128,8 +128,8 @@ public class ConfigManager {
         return this;
       }
 
-      public Builder registerMappingEnabled(boolean registerMappingEnabled) {
-        this.registerMappingEnabled = registerMappingEnabled;
+      public Builder extendedInfoEnabled(boolean extendedInfoEnabled) {
+        this.extendedInfoEnabled = extendedInfoEnabled;
         return this;
       }
 
@@ -150,7 +150,7 @@ public class ConfigManager {
             runtimeId,
             agentless,
             sendToErrorTracking,
-            registerMappingEnabled);
+            extendedInfoEnabled);
       }
     }
   }
@@ -210,9 +210,7 @@ public class ConfigManager {
       writeEntry(bw, "agentless", Boolean.toString(config.isCrashTrackingAgentless()));
       writeEntry(bw, "upload_to_et", Boolean.toString(config.isCrashTrackingErrorsIntakeEnabled()));
       writeEntry(
-          bw,
-          "register_mapping",
-          Boolean.toString(config.isCrashTrackingExperimentalRegisterMappingEnabled()));
+          bw, "extended_info", Boolean.toString(config.isCrashTrackingExtendedInfoEnabled()));
 
       Runtime.getRuntime()
           .addShutdownHook(
@@ -276,8 +274,8 @@ public class ConfigManager {
           case "upload_to_et":
             cfgBuilder.sendToErrorTracking(Boolean.parseBoolean(value));
             break;
-          case "register_mapping":
-            cfgBuilder.registerMappingEnabled(Boolean.parseBoolean(value));
+          case "extended_info":
+            cfgBuilder.extendedInfoEnabled(Boolean.parseBoolean(value));
             break;
           default:
             // ignore

@@ -157,12 +157,19 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         ProfilingConfig.PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT_DEFAULT);
 
     sb.append("\n=== Heap Profiling ===\n");
+    boolean heapDefault = ProfilingSupport.isLiveHeapProfilingSafe();
     appendConfig(
         sb,
         "Heap Profiling Enabled",
-        configProvider.getBoolean(
-            ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT),
-        ProfilingConfig.PROFILING_HEAP_ENABLED_DEFAULT);
+        configProvider.getBoolean(ProfilingConfig.PROFILING_HEAP_ENABLED, heapDefault),
+        heapDefault);
+    appendConfig(
+        sb,
+        "DDProf Live Heap Enabled",
+        configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIVEHEAP_ENABLED),
+        null);
+    appendConfig(
+        sb, "JFR OldObjectSample Available", ProfilingSupport.isOldObjectSampleAvailable(), false);
     appendConfig(
         sb,
         "Heap Histogram Enabled",

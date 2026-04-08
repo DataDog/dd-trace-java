@@ -21,7 +21,6 @@ import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
-import java.util.concurrent.CompletionStage;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -55,12 +54,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1"
+      packageName + ".SpringMessageExtractAdapter$1",
     };
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
@@ -77,6 +77,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   }
 
   public static class HandleMessageAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
       AgentSpan span = startSpan(SPRING_INBOUND);
@@ -95,15 +96,20 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
       }
       AgentSpan span = scope.span();
       scope.close();
-      if (result instanceof CompletionStage) {
-        result = ((CompletionStage<?>) result).whenComplete(AsyncResultExtensions.finishSpan(span));
-      } else {
-        if (null != error) {
-          DECORATE.onError(span, error);
-        }
-        DECORATE.beforeFinish(span);
-        span.finish();
+      if (null != error) {
+        DECORATE.onError(span, error);
       }
+      if (result != null) {
+        Object wrappedResult =
+            AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
+        if (wrappedResult != null) {
+          result = wrappedResult;
+          // span will be finished by the wrapper
+          return;
+        }
+      }
+      DECORATE.beforeFinish(span);
+      span.finish();
     }
   }
 }

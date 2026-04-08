@@ -4,6 +4,7 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.api.DDTags
+import datadog.trace.api.DDTraceApiInfo
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.WellKnownTags
 import datadog.trace.api.telemetry.LLMObsMetricCollector
@@ -134,6 +135,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test span with overwrites"() {
@@ -219,6 +222,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test llm span string input formatted to messages"() {
@@ -270,6 +275,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "test llm span with messages"() {
@@ -326,6 +333,8 @@ class DDLLMObsSpanTest  extends DDSpecification{
     def tagVersion = innerSpan.getTag(LLMOBS_TAG_PREFIX + "version")
     tagVersion instanceof UTF8BytesString
     "v1" == tagVersion.toString()
+
+    DDTraceApiInfo.VERSION == innerSpan.getTag(LLMOBS_TAG_PREFIX + "ddtrace.version")
   }
 
   def "finish records span.finished telemetry when LLMObs enabled"() {
@@ -400,6 +409,17 @@ class DDLLMObsSpanTest  extends DDSpecification{
     sessionId     | expectedHasSessionIdTag
     "session-123" | "has_session_id:1"
     null          | "has_session_id:0"
+  }
+
+  def "global dd_tags are included in LLMObs span tags"() {
+    setup:
+    injectSysConfig("trace.global.tags", "team:backend,owner:ml-platform")
+    def test = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "test-span")
+
+    expect:
+    def innerSpan = (AgentSpan) test.span
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "team") == "backend"
+    innerSpan.getTag(LLMOBS_TAG_PREFIX + "owner") == "ml-platform"
   }
 
   private LLMObsSpan llmObsSpan(String kind, name) {

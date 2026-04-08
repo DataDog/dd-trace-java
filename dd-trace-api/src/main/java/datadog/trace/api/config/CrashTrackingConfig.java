@@ -28,16 +28,14 @@ public final class CrashTrackingConfig {
       "crashtracking.errors-intake.enabled";
   public static final boolean CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT = false;
 
+  public static final String CRASH_TRACKING_EXTENDED_INFO_ENABLED =
+      "crashtracking.extended-info.enabled";
+  public static final boolean CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT = false;
+
   public static final String CRASH_TRACKING_START_EARLY = "crashtracking.debug.start-force-first";
   public static final boolean CRASH_TRACKING_START_EARLY_DEFAULT = false;
 
   public static final String CRASH_TRACKING_ENABLE_AUTOCONFIG =
       "crashtracking.debug.autoconfig.enable";
   public static final boolean CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT = false;
-
-  public static final String CRASH_TRACKING_EXPERIMENTAL_REGISTER_MAPPING_ENABLED =
-      "crashtracking.experimental.register-mapping.enabled";
-  public static final boolean CRASH_TRACKING_EXPERIMENTAL_REGISTER_MAPPING_ENABLED_DEFAULT = false;
-
-  private CrashTrackingConfig() {}
 }

@@ -7,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.crashtracking.CrashUploaderSettings;
 import datadog.crashtracking.dto.CrashLog;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -206,8 +205,8 @@ public class HotspotCrashLogParserTest {
     assertTrue(
         crashLog.experimental.runtimeArgs.contains(
             "-javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar"));
-    assertTrue(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
-    assertTrue(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
     assertTrue(
         crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("--add-opens=")));
     assertFalse(
@@ -303,31 +302,6 @@ public class HotspotCrashLogParserTest {
     assertEquals(
         "null".equals(expected) ? null : expected,
         HotspotCrashLogParser.parseCurrentThreadName(line));
-  }
-
-  @Test
-  public void testRegisterToMemoryMappingExcludedWhenDisabled() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser(new CrashUploaderSettings(false))
-            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
-
-    assertNotNull(crashLog.experimental, "registers and runtimeArgs should still be populated");
-    assertThat(crashLog.experimental.registerToMemoryMapping)
-        .as("registerToMemoryMapping should be absent when disabled")
-        .isNull();
-  }
-
-  @Test
-  public void testRegisterToMemoryMappingIncludedWhenEnabled() throws Exception {
-    CrashLog crashLog =
-        new HotspotCrashLogParser(new CrashUploaderSettings(true))
-            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
-
-    assertNotNull(crashLog.experimental);
-    assertNotNull(crashLog.experimental.registerToMemoryMapping);
-    assertFalse(
-        crashLog.experimental.registerToMemoryMapping.isEmpty(),
-        "registerToMemoryMapping should be populated when enabled");
   }
 
   private String readFileAsString(String resource) throws IOException {
