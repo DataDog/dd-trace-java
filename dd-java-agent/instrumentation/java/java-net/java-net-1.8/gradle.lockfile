@@ -126,5 +126,7 @@ org.springframework:spring-context:4.3.7.RELEASE=latestDepTestCompileClasspath,l
 org.springframework:spring-core:4.3.7.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-expression:4.3.7.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-web:4.3.7.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=csiAnnotationProcessor,csiRuntimeClasspath,spotbugsPlugins

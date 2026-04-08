@@ -1,21 +1,22 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.metrics.api.Histogram;
+import datadog.metrics.api.HistogramWithSum;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpHistogramPoint;
 import java.util.List;
 
 final class OtelHistogramSketch extends OtelAggregator {
-  private final Histogram histogram;
-  private volatile double totalSum;
+  private final HistogramWithSum histogram;
 
   OtelHistogramSketch(List<Double> bucketBoundaries) {
-    this.histogram = Histogram.newHistogram(bucketBoundaries);
+    this.histogram = Histogram.newHistogramWithSum(bucketBoundaries);
   }
 
   @Override
   void doRecordDouble(double value) {
     synchronized (histogram) {
       histogram.accept(value);
-      totalSum += value;
     }
   }
 
@@ -25,22 +26,25 @@ final class OtelHistogramSketch extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
+  OtlpDataPoint doCollect(boolean reset) {
     double count;
     List<Double> binBoundaries;
     List<Double> binCounts;
     double sum;
+    double min;
+    double max;
     synchronized (histogram) {
       count = histogram.getCount();
       binBoundaries = histogram.getBinBoundaries();
       binCounts = histogram.getBinCounts();
-      sum = totalSum;
+      sum = histogram.getSum();
+      min = histogram.getMinValue();
+      max = histogram.getMaxValue();
       if (reset) {
         histogram.clear();
-        totalSum = 0;
       }
     }
-    return new OtelHistogramPoint(count, binBoundaries, binCounts, sum);
+    return new OtlpHistogramPoint(count, binBoundaries, binCounts, sum, min, max);
   }
 
   /** Truncate IEEE-754 floating-point value to 10 bits precision. */

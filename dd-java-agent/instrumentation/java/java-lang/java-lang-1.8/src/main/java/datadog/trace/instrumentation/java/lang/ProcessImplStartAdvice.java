@@ -1,13 +1,22 @@
 package datadog.trace.instrumentation.java.lang;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.java.lang.ProcessImplInstrumentationHelpers;
+import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 class ProcessImplStartAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentSpan beforeStart(@Advice.Argument(0) final String[] command) {
+  public static AgentSpan beforeStart(
+      @Advice.Argument(0) final String[] command,
+      @Advice.Argument(1) final Map<String, String> environment) {
+    String rootSessionId = Config.get().getRootSessionId();
+    if (rootSessionId != null && environment != null) {
+      environment.put("_DD_ROOT_JAVA_SESSION_ID", rootSessionId);
+    }
+
     if (!ProcessImplInstrumentationHelpers.ONLINE) {
       return null;
     }

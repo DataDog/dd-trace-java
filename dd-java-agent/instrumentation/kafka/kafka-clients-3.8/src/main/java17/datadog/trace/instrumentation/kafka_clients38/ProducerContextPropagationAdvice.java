@@ -18,6 +18,7 @@ import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -31,7 +32,9 @@ public class ProducerContextPropagationAdvice {
       @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
     AgentSpan span = activeSpan();
     if (span == null) return;
-    String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+    MetadataState metadataState =
+        InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+    String clusterId = metadataState != null ? metadataState.clusterId : null;
     TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
     // Please note that the minimum magic for kafka 3.8+ is 2 so there is no need to check this
     if (Config.get().isKafkaClientPropagationEnabled()

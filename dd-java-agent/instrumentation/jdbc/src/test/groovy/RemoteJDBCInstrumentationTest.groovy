@@ -1146,6 +1146,43 @@ class RemoteDBMTraceInjectedForkedTest extends RemoteJDBCInstrumentationTest {
     final databaseNaming = new DatabaseNamingV1()
     return databaseNaming.normalizedName(dbType)
   }
+
+  def "Oracle DBM comment contains instance name in dddbs and dddb, not generic type string"() {
+    setup:
+    // Use a query text unlikely to already be in v$sql cursor cache
+    def markerQuery = "SELECT 1729 /* oracle-dbm-fix-verify */ FROM dual"
+    def conn = connectTo(ORACLE, peerConnectionProps(ORACLE))
+
+    when:
+    def stmt = conn.createStatement()
+    runUnderTrace("parent") {
+      stmt.execute(markerQuery)
+    }
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    // Connect as system to read v$sql — system shares the same password as the test user
+    // in the gvenzl/oracle-free image (both are set via ORACLE_PASSWORD).
+    def adminUrl = "jdbc:oracle:thin:@//${oracle.getHost()}:${oracle.getMappedPort(1521)}/freepdb1"
+    def adminConn = java.sql.DriverManager.getConnection(adminUrl, "system", oracle.getPassword())
+    def rs = adminConn.createStatement().executeQuery(
+      "SELECT sql_fulltext FROM v\$sql " +
+      "WHERE sql_fulltext LIKE '%1729%' AND sql_fulltext LIKE '%dddbs%' " +
+      "AND sql_fulltext LIKE '%oracle-dbm-fix-verify%' " +
+      "AND ROWNUM = 1"
+      )
+    assert rs.next() : "Instrumented Oracle query not found in v\$sql — DBM comment may be missing"
+    def sqlText = rs.getString(1)
+    // dddbs and dddb should both carry the PDB/service name, not the generic "oracle" type string
+    assert sqlText.contains("dddbs='freepdb1'") : "Expected dddbs='freepdb1' in SQL comment, got: ${sqlText}"
+    assert sqlText.contains("dddb='freepdb1'")  : "Expected dddb='freepdb1' in SQL comment, got: ${sqlText}"
+    assert !sqlText.contains("dddbs='oracle'")  : "dddbs must not be the generic type string 'oracle': ${sqlText}"
+
+    cleanup:
+    adminConn?.close()
+    stmt?.close()
+    conn?.close()
+  }
 }
 
 class RemoteDBMTraceInjectedForkedTestTracePreparedStatements extends RemoteJDBCInstrumentationTest {

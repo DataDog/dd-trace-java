@@ -19,8 +19,16 @@ configurations {
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
 def includedJarFileTree = fileTree(includedAgentDir)
 
+def pomPropertiesDir = project.layout.buildDirectory.dir("generated/maven-metadata")
+def pomPropertiesFileTree = fileTree(pomPropertiesDir)
+
 tasks.named("processResources") {
   dependsOn(includedJarFileTree)
+  dependsOn(pomPropertiesFileTree)
+}
+
+tasks.named("sourcesJar") {
+  dependsOn(pomPropertiesFileTree)
 }
 
 sourceSets {
@@ -33,7 +41,7 @@ sourceSets {
   "main_java11" {
     java.srcDirs "${project.projectDir}/src/main/java11"
   }
-  main.resources.srcDir(includedAgentDir)
+  main.resources.srcDirs(includedAgentDir, pomPropertiesDir)
 }
 
 def java6CompileTask = tasks.named("compileMain_java6Java") {
@@ -163,8 +171,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
       relocate 'datadog.trace.common', 'datadog.trace.agent.common'
       relocate 'datadog.trace.core', 'datadog.trace.agent.core'
       relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
-      // shadow things in internal API that has slf4j in the API and is accessed from core
-      relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
+      // shadow logging-utils that has slf4j in the API and is accessed from core
+      relocate 'datadog.logging', 'datadog.trace.agent.logging'
     }
   }
 }
@@ -251,6 +259,7 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':internal-api'))
     exclude(project(':components:context'))
     exclude(project(':utils:config-utils'))
+    exclude(project(':utils:logging-utils'))
     exclude(project(':utils:time-utils'))
     exclude(project(':products:metrics:metrics-api'))
     exclude(project(':products:metrics:metrics-agent'))
@@ -322,6 +331,14 @@ def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
     })
 }
 sourceSets.main.resources.srcDir(generateAgentJarIndex)
+
+def generatePomProperties = tasks.register('generatePomProperties', WriteProperties) {
+  destinationFile = pomPropertiesDir.map { it.file("META-INF/maven/com.datadoghq/dd-java-agent/pom.properties") }
+  property("groupId", "com.datadoghq")
+  property("artifactId", "dd-java-agent")
+  property("version", project.providers.provider { project.version.toString() })
+}
+pomPropertiesFileTree.builtBy(generatePomProperties)
 
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
@@ -409,6 +426,9 @@ dependencies {
     transitive = false
   }
   sharedShadowInclude project(':utils:version-utils'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':utils:logging-utils'), {
     transitive = false
   }
   sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
