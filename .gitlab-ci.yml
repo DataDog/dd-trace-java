@@ -349,6 +349,7 @@ populate_dep_cache:
 check_knopflerfish_reachable:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
+  tags: [ "docker-in-docker:amd64" ]
   script:
     - curl --fail -I https://resources.knopflerfish.org/repo/maven2/release/org/knopflerfish/kf6/framework/8.0.11/framework-8.0.11.pom
 
