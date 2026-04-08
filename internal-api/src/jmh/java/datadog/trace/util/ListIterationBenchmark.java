@@ -31,6 +31,7 @@ import org.openjdk.jmh.annotations.Warmup;
  *       working with sets (uncommon in the java agent)
  *   <li>
  * </ul>
+ *
  * <code>Java 17 - MacBook M1 - 8 threads
  * Benchmark                                                                          (listSpec)   Mode  Cnt           Score             Error   Units
  * ListIterationBenchmark.cstyleFor_inline                                COLLECTIONS_EMPTY_LIST  thrpt    3  9066154714.207 ±  3993855570.335   ops/s
