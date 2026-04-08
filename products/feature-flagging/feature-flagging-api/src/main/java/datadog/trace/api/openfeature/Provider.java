@@ -43,13 +43,15 @@ public class Provider extends EventProvider implements Metadata {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
+    FlagEvalHook hook = null;
     try {
       metrics = new FlagEvalMetrics();
+      hook = new FlagEvalHook(metrics);
     } catch (NoClassDefFoundError | Exception e) {
       // OTel classes not on classpath — metrics disabled
     }
     this.flagEvalMetrics = metrics;
-    this.flagEvalHook = new FlagEvalHook(metrics);
+    this.flagEvalHook = hook;
   }
 
   @Override
