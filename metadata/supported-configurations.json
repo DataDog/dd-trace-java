@@ -10377,6 +10377,14 @@
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
       }
     ],
+    "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",

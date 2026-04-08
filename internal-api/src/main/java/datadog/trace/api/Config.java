@@ -407,6 +407,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
@@ -953,6 +954,7 @@ public class Config {
   private final boolean perfMetricsEnabled;
 
   private final boolean tracerMetricsEnabled;
+  private final boolean tracerMetricsIgnoreAgentVersion;
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
@@ -2056,6 +2058,8 @@ public class Config {
 
     tracerMetricsEnabled =
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_ENABLED, true, TRACER_METRICS_ENABLED);
+    tracerMetricsIgnoreAgentVersion =
+        configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -3596,6 +3600,10 @@ public class Config {
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
     return tracerMetricsEnabled && isApmTracingEnabled();
+  }
+
+  public boolean isTracerMetricsIgnoreAgentVersion() {
+    return tracerMetricsIgnoreAgentVersion;
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -6063,6 +6071,8 @@ public class Config {
         + perfMetricsEnabled
         + ", tracerMetricsEnabled="
         + tracerMetricsEnabled
+        + ", tracerMetricsIgnoreAgentVersion="
+        + tracerMetricsIgnoreAgentVersion
         + ", tracerMetricsBufferingEnabled="
         + tracerMetricsBufferingEnabled
         + ", tracerMetricsMaxAggregates="

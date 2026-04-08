@@ -76,6 +76,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
   private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
+  private final boolean ignoreAgentVersionForStats;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
   // available
@@ -108,10 +109,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       Monitoring monitoring,
       HttpUrl agentUrl,
       boolean enableV05Traces,
-      boolean metricsEnabled) {
+      boolean metricsEnabled,
+      boolean ignoreAgentVersionForStats) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
+    this.ignoreAgentVersionForStats = ignoreAgentVersionForStats;
     this.traceEndpoints =
         enableV05Traces
             ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
@@ -301,7 +304,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
                     || Boolean.TRUE.equals(canDrop));
 
         newState.supportsClientSideStats =
-            newState.supportsDropping && !AgentVersion.isVersionBelow(newState.version, 7, 65, 0);
+            newState.supportsDropping
+                && (ignoreAgentVersionForStats
+                    || !AgentVersion.isVersionBelow(newState.version, 7, 65, 0));
 
         Object peer_tags = map.get("peer_tags");
         newState.peerTags =
