@@ -346,6 +346,12 @@ populate_dep_cache:
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
 
+check_knopflerfish_reachable:
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: .pre
+  script:
+    - curl --fail -I https://resources.knopflerfish.org/repo/maven2/release/org/knopflerfish/kf6/framework/8.0.11/framework-8.0.11.pom
+
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
@@ -489,6 +495,7 @@ check_inst:
 
 check_smoke:
   extends: .check_job
+  needs: [build, check_knopflerfish_reachable]
   parallel: 4
   variables:
     GRADLE_TARGET: ":smokeCheck"
@@ -761,6 +768,7 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
+  needs: [build_tests, check_knopflerfish_reachable]
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
@@ -770,6 +778,7 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
+  needs: [build_tests, check_knopflerfish_reachable]
   rules: *master_only
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
