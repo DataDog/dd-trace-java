@@ -4,6 +4,8 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.DEFAULT_FLAGS;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpanLink.SAMPLED_FLAG;
 import static datadog.trace.bootstrap.instrumentation.api.SpanAttributes.EMPTY;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.TRACE_PARENT_KEY;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.TRACE_STATE_KEY;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -22,12 +24,15 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.HttpCodecTestHelper;
+import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.IntStream;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
@@ -36,12 +41,15 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
 
   private static final int SPAN_LINK_TAG_MAX_LENGTH = 25_000;
   private static final ObjectMapper JSON_MAPPER = new ObjectMapper();
-  // W3C Trace Context standard header names (W3CHttpCodec is package-private)
-  private static final String TRACE_PARENT_KEY = "traceparent";
-  private static final String TRACE_STATE_KEY = "tracestate";
 
-  private ListWriter writer = new ListWriter();
-  private CoreTracer tracer = tracerBuilder().writer(writer).build();
+  private ListWriter writer;
+  private CoreTracer tracer;
+
+  @BeforeEach
+  void setup() {
+    writer = new ListWriter();
+    tracer = tracerBuilder().writer(writer).build();
+  }
 
   @AfterEach
   void cleanupTest() {
@@ -53,7 +61,6 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     "sampled     | true    | '01'       | '1'   ",
     "not sampled | false   | '00'       | '-1'  "
   })
-  @ParameterizedTest(name = "create span link from extracted context [{index}]")
   void createSpanLinkFromExtractedContext(boolean sampled, String traceFlags, String sample) {
     String traceId = "11223344556677889900aabbccddeeff";
     String spanId = "123456789abcdef0";
@@ -91,12 +98,7 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     span.finish();
     writer.waitForTraces(1);
     String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
-    List<TestSpanLinkJson> decodedSpanLinks =
-        JSON_MAPPER.readValue(
-            spanLinksTag,
-            JSON_MAPPER
-                .getTypeFactory()
-                .constructCollectionType(List.class, TestSpanLinkJson.class));
+    List<SpanLinkAsTag> decodedSpanLinks = deserializeSpanLinks(spanLinksTag);
 
     assertTrue(spanLinksTag.length() < SPAN_LINK_TAG_MAX_LENGTH);
     assertTrue(decodedSpanLinks.size() < tooManyLinkCount);
@@ -139,7 +141,7 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
   @ParameterizedTest(name = "add span link at any time [{index}]")
   void addSpanLinkAtAnyTime(boolean beforeStart, boolean afterStart) throws Exception {
     AgentTracer.SpanBuilder builder = tracer.buildSpan("test", "operation");
-    List<SpanLink> links = new java.util.ArrayList<>();
+    List<SpanLink> links = new ArrayList<>();
 
     if (beforeStart) {
       SpanLink link = createLink(0);
@@ -155,16 +157,13 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     span.finish();
     writer.waitForTraces(1);
     String spanLinksTag = (String) writer.get(0).get(0).getTag(SPAN_LINKS);
-    List<TestSpanLinkJson> decodedSpanLinks =
+    List<SpanLinkAsTag> decodedSpanLinks =
         spanLinksTag == null
             ? java.util.Collections.emptyList()
-            : JSON_MAPPER.readValue(
-                spanLinksTag,
-                JSON_MAPPER
-                    .getTypeFactory()
-                    .constructCollectionType(List.class, TestSpanLinkJson.class));
+            : deserializeSpanLinks(spanLinksTag);
 
-    assertEquals((beforeStart ? 1 : 0) + (afterStart ? 1 : 0), decodedSpanLinks.size());
+    int expectedLinkCount = (beforeStart ? 1 : 0) + (afterStart ? 1 : 0);
+    assertEquals(expectedLinkCount, decodedSpanLinks.size());
     for (int i = 0; i < decodedSpanLinks.size(); i++) {
       assertLink(links.get(i), decodedSpanLinks.get(i));
     }
@@ -195,7 +194,7 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
         SpanAttributes.fromMap(attributes));
   }
 
-  private void assertLink(SpanLink expected, TestSpanLinkJson actual) {
+  private void assertLink(SpanLink expected, SpanLinkAsTag actual) {
     assertEquals(expected.traceId().toHexString(), actual.trace_id);
     assertEquals(DDSpanId.toHexString(expected.spanId()), actual.span_id);
     if (expected.traceFlags() == DEFAULT_FLAGS) {
@@ -215,7 +214,13 @@ class DDSpanLinkTest extends DDCoreJavaSpecification {
     }
   }
 
-  static class TestSpanLinkJson {
+  static List<SpanLinkAsTag> deserializeSpanLinks(String json) throws IOException {
+    return JSON_MAPPER.readValue(
+        json,
+        JSON_MAPPER.getTypeFactory().constructCollectionType(List.class, SpanLinkAsTag.class));
+  }
+
+  static class SpanLinkAsTag {
     public String trace_id;
     public String span_id;
     public Byte flags;

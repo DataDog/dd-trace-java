@@ -51,12 +51,6 @@ public class DDJavaSpecification {
   private static Field configInstanceField;
   private static Constructor<?> configConstructor;
 
-  static {
-    allowContextTesting();
-    installConfigTransformer();
-    makeConfigInstanceModifiable();
-  }
-
   private static Boolean contextTestingAllowed;
   private static volatile boolean isConfigInstanceModifiable = false;
   static volatile boolean configModificationFailed = false;
@@ -68,6 +62,13 @@ public class DDJavaSpecification {
 
   protected boolean assertThreadsEachCleanup = true;
   private volatile boolean ignoreThreadCleanup;
+
+  @BeforeAll
+  static void beforeAll() {
+    allowContextTesting();
+    installConfigTransformer();
+    makeConfigInstanceModifiable();
+  }
 
   static void allowContextTesting() {
     if (contextTestingAllowed == null) {
