@@ -10129,6 +10129,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_ENABLED"]
       }
     ],
+    "DD_TRACE_SPRING_MESSAGING_KOTLIN_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_KOTLIN_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_KOTLIN_ENABLED"]
+      }
+    ],
     "DD_TRACE_SPRING_PATH_FILTER_ENABLED": [
       {
         "version": "A",
