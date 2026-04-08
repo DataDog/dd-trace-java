@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.net.InetSocketAddress;
 import java.net.Proxy;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -27,6 +28,7 @@ import okhttp3.EventListener;
 import okhttp3.HttpUrl;
 import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
+import okhttp3.Protocol;
 import okhttp3.Request;
 import okhttp3.RequestBody;
 import okhttp3.Response;
@@ -62,7 +64,7 @@ public final class OkHttpUtils {
   }
 
   public static OkHttpClient buildHttpClient(
-      final boolean isHttp,
+      final boolean isPlainHttp,
       final String unixDomainSocketPath,
       final String namedPipe,
       final long timeoutMillis) {
@@ -71,7 +73,30 @@ public final class OkHttpUtils {
         Config.get().isJdkSocketEnabled(),
         namedPipe,
         null,
-        isHttp,
+        isPlainHttp,
+        false,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        timeoutMillis,
+        Config.get().isAgentConfiguredUsingDefault());
+  }
+
+  public static OkHttpClient buildHttp2Client(
+      final boolean isPlainHttp,
+      final String unixDomainSocketPath,
+      final String namedPipe,
+      final long timeoutMillis) {
+    return buildHttpClient(
+        unixDomainSocketPath,
+        Config.get().isJdkSocketEnabled(),
+        namedPipe,
+        null,
+        isPlainHttp,
+        true,
         null,
         null,
         null,
@@ -99,6 +124,7 @@ public final class OkHttpUtils {
         config.getAgentNamedPipe(),
         dispatcher,
         isPlainHttp(url),
+        false,
         retryOnConnectionFailure,
         maxRunningRequests,
         proxyHost,
@@ -116,7 +142,8 @@ public final class OkHttpUtils {
       final boolean useJdkUnixDomainSocket,
       final String namedPipe,
       final Dispatcher dispatcher,
-      final boolean isHttp,
+      final boolean isPlainHttp,
+      final boolean isHttp2,
       final Boolean retryOnConnectionFailure,
       final Integer maxRunningRequests,
       final String proxyHost,
@@ -159,9 +186,17 @@ public final class OkHttpUtils {
       log.debug("Using NamedPipe as http transport");
     }
 
-    if (isHttp) {
+    if (isPlainHttp) {
       // force clear text when using http to avoid failures for JVMs without TLS
       builder.connectionSpecs(Collections.singletonList(ConnectionSpec.CLEARTEXT));
+    }
+
+    if (isHttp2) {
+      if (isPlainHttp) {
+        builder.protocols(Collections.singletonList(Protocol.H2_PRIOR_KNOWLEDGE));
+      } else {
+        builder.protocols(Arrays.asList(Protocol.HTTP_2, Protocol.HTTP_1_1));
+      }
     }
 
     if (retryOnConnectionFailure != null) {

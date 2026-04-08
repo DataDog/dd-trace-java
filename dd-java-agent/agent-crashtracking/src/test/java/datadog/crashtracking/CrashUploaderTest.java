@@ -323,6 +323,7 @@ public class CrashUploaderTest {
             .processTags("a:b")
             .runtimeId("1234")
             .tags(ConfigManager.getMergedTagsForSerialization(Config.get())) // take the real ones
+            .extendedInfoEnabled(true)
             .build();
     // When
     uploader = new CrashUploader(config, crashConfig);
@@ -363,6 +364,28 @@ public class CrashUploaderTest {
   }
 
   @Test
+  public void testErrorTrackingExcludesExtendedInfoByDefault() throws Exception {
+    // extendedInfoEnabled defaults to false — files, thread_name and runtime_args must not appear
+    ConfigManager.StoredConfig crashConfig =
+        new ConfigManager.StoredConfig.Builder(config)
+            .reportUUID(SAMPLE_UUID)
+            .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .build();
+
+    uploader = new CrashUploader(config, crashConfig);
+    server.enqueue(new MockResponse().setResponseCode(200));
+    uploader.remoteUpload(readFileAsString("sample-crash-for-telemetry.txt"), false, true);
+
+    final RecordedRequest recordedRequest = server.takeRequest(5, TimeUnit.SECONDS);
+    final ObjectMapper mapper = new ObjectMapper();
+    final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
+
+    assertNull(event.get("files"));
+    assertNull(event.at("/error/thread_name").textValue());
+    assertTrue(event.at("/experimental/runtime_args").isMissingNode());
+  }
+
+  @Test
   public void testErrorTrackingSerializesRuntimeArgs() throws Exception {
     ConfigManager.StoredConfig crashConfig =
         new ConfigManager.StoredConfig.Builder(config)
@@ -370,6 +393,7 @@ public class CrashUploaderTest {
             .processTags("a:b")
             .runtimeId("1234")
             .tags(ConfigManager.getMergedTagsForSerialization(Config.get()))
+            .extendedInfoEnabled(true)
             .build();
 
     uploader = new CrashUploader(config, crashConfig);

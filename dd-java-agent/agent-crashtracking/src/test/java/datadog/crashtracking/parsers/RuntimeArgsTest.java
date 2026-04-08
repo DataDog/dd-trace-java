@@ -19,11 +19,11 @@ public class RuntimeArgsTest {
   @TableTest({
     "scenario                            | resource                           | isIncluded | vmArg                                                                                        ",
     "telemetry fixture logging property  | sample-crash-for-telemetry.txt     | true       | -Djava.util.logging.config.file=/opt/REDACT_THIS/REDACT_THIS/etc/java.util.logging.properties",
-    "telemetry fixture dd property       | sample-crash-for-telemetry.txt     | true       | -Ddd.profiling.enabled=true                                                                  ",
+    "telemetry fixture dd property       | sample-crash-for-telemetry.txt     | false      | -Ddd.profiling.enabled=true                                                                  ",
     "telemetry fixture excluded property | sample-crash-for-telemetry.txt     | false      | -Dkaraf.startRemoteShell=REDACT_THIS                                                         ",
     "telemetry fixture ws provider       | sample-crash-for-telemetry.txt     | false      | -Djavax.xml.ws.spi.Provider=com.sun.xml.ws.spi.ProviderImpl                                  ",
     "telemetry with OnError              | sample-crash-for-telemetry-2.txt   | true       | -XX:OnError=/tmp/dd_crash_uploader.sh %p                                                     ",
-    "telemetry jdk8                      | sample-crash-for-telemetry-3.txt   | true       | -Ddd.trace.enabled=false                                                                     ",
+    "telemetry jdk8                      | sample-crash-for-telemetry-3.txt   | false      | -Ddd.trace.enabled=false                                                                     ",
     "linux aarch64                       | sample-crash-linux-aarch64.txt     | true       | --add-modules=ALL-DEFAULT                                                                    ",
     "macos aarch64                       | sample-crash-macos-aarch64.txt     | true       | --enable-native-access=ALL-UNNAMED                                                           ",
     "jdk8 zip                            | sample-crash-jdk8-zip-getentry.txt | true       | -Dsun.zip.disableMemoryMapping=false                                                         "
@@ -43,24 +43,34 @@ public class RuntimeArgsTest {
   }
 
   @TableTest({
-    "scenario               | raw                                                   | expectedIncluded                                 ",
-    "quoted onerror unix    | -XX:OnError=\"gcore %p;gdb -p %p\"                    | -XX:OnError=gcore %p;gdb -p %p                   ",
-    "quoted onerror windows | -XX:OnError=\"userdump.exe %p\"                       | -XX:OnError=userdump.exe %p                      ",
-    "quoted module path     | --module-path \"/opt/app-modules:/opt/other-modules\" | --module-path /opt/app-modules:/opt/other-modules"
+    "scenario                   | raw                                                   | expectedIncluded                                 ",
+    "quoted onerror unix        | -XX:OnError=\"gcore %p;gdb -p %p\"                    | -XX:OnError=gcore %p;gdb -p %p                   ",
+    "quoted onerror windows     | -XX:OnError=\"userdump.exe %p\"                       | -XX:OnError=userdump.exe %p                      ",
+    "quoted module path         | --module-path \"/opt/app-modules:/opt/other-modules\" | --module-path /opt/app-modules:/opt/other-modules",
+    "javaagent without options  | -javaagent:/opt/dd-java-agent.jar                     | -javaagent:/opt/dd-java-agent.jar                ",
+    "javaagent options redacted | -javaagent:/opt/dd-java-agent.jar=apikey=deadbeef     | -javaagent:/opt/dd-java-agent.jar=REDACTED       ",
+    "agentlib without options   | -agentlib:jdwp                                        | -agentlib:jdwp                                   ",
+    "agentlib options redacted  | -agentlib:jdwp=transport=dt_socket,server=y           | -agentlib:jdwp=REDACTED                          "
   })
-  public void testParseVmArgsHandlesQuotedArguments(String raw, String expectedIncluded) {
+  public void testParseVmArgsHandlesArgNormalization(String raw, String expectedIncluded) {
     List<String> runtimeArgs = RuntimeArgs.parseVmArgs(raw);
 
     assertThat(runtimeArgs).isNotNull().contains(expectedIncluded);
   }
 
   @TableTest({
-    "scenario               | raw                               | isIncluded | vmArg                            ",
-    "java password excluded | -Djava.net.password=hunter2       | false      | -Djava.net.password=hunter2      ",
-    "sun token excluded     | -Dsun.auth.token=abc123           | false      | -Dsun.auth.token=abc123          ",
-    "dd api key excluded    | -Ddd.api-key=deadbeef             | false      | -Ddd.api-key=deadbeef            ",
-    "java logging kept      | -Djava.util.logging.config.file=x | true       | -Djava.util.logging.config.file=x",
-    "osgi install kept      | -Dosgi.install.area=/opt/app      | true       | -Dosgi.install.area=/opt/app     "
+    "scenario                     | raw                                                | isIncluded | vmArg                                             ",
+    "jaas login config excluded   | -Djava.security.auth.login.config=/etc/jaas.conf   | false      | -Djava.security.auth.login.config=/etc/jaas.conf  ",
+    "java socks password excluded | -Djava.net.socks.password=hunter2                  | false      | -Djava.net.socks.password=hunter2                 ",
+    "dd service excluded          | -Ddd.service=myapp                                 | false      | -Ddd.service=myapp                                ",
+    "dd trace enabled excluded    | -Ddd.trace.enabled=true                            | false      | -Ddd.trace.enabled=true                           ",
+    "dd pwd excluded              | -Ddd.db.pwd=hunter2                                | false      | -Ddd.db.pwd=hunter2                               ",
+    "dd passphrase excluded       | -Ddd.ssl.passphrase=topsecret                      | false      | -Ddd.ssl.passphrase=topsecret                     ",
+    "dd api key excluded          | -Ddd.api-key=deadbeef                              | false      | -Ddd.api-key=deadbeef                             ",
+    "dd app key excluded          | -Ddd.app-key=deadbeef                              | false      | -Ddd.app-key=deadbeef                             ",
+    "dd application key excluded  | -Ddd.application-key=deadbeef                      | false      | -Ddd.application-key=deadbeef                     ",
+    "java logging kept            | -Djava.util.logging.config.file=/opt/logging.props | true       | -Djava.util.logging.config.file=/opt/logging.props",
+    "osgi install kept            | -Dosgi.install.area=/opt/app                       | true       | -Dosgi.install.area=/opt/app                      "
   })
   public void testParseVmArgsExcludesSecretLikeSystemProperties(
       String raw, boolean isIncluded, String vmArg) {
@@ -77,7 +87,7 @@ public class RuntimeArgsTest {
   @TableTest({
     "scenario                    | resource                                | isIncluded | vmArg                                                                                                                                      ",
     "truncated ibmj9 optionsfile | redacted-truncated-ibmj9-8-javacore.txt | true       | -Xoptionsfile=/opt/REDACTED/java/8.0/jre/lib/ppc64/compressedrefs/options.default                                                          ",
-    "truncated ibmj9 dd arg      | redacted-truncated-ibmj9-8-javacore.txt | true       | -Ddd.service=REDACTED                                                                                                                      ",
+    "truncated ibmj9 dd arg      | redacted-truncated-ibmj9-8-javacore.txt | false      | -Ddd.service=REDACTED                                                                                                                      ",
     "truncated ibmj9 osgi arg    | redacted-truncated-ibmj9-8-javacore.txt | true       | -Dosgi.install.area=/opt/REDACTED                                                                                                          ",
     "truncated ibmj9 status arg  | redacted-truncated-ibmj9-8-javacore.txt | false      | -Dwas.status.socket=REDACTED                                                                                                               ",
     "truncated ibmj9 xtq arg     | redacted-truncated-ibmj9-8-javacore.txt | false      | -Dcom.ibm.xtq.processor.overrideSecureProcessing=true                                                                                      ",
