@@ -14,7 +14,7 @@ public class NoopFeaturesDiscovery extends DDAgentFeaturesDiscovery {
   public static final NoopFeaturesDiscovery INSTANCE = new NoopFeaturesDiscovery();
 
   private NoopFeaturesDiscovery() {
-    super(null, Monitoring.DISABLED, null, V0_4, false);
+    super(null, Monitoring.DISABLED, null, V0_4, false, false);
   }
 
   @Override
