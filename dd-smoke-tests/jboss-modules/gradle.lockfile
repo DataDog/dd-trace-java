@@ -112,5 +112,7 @@ org.slf4j:slf4j-api:2.0.17=spotbugs,spotbugsSlf4j
 org.slf4j:slf4j-simple:2.0.17=spotbugsSlf4j
 org.spockframework:spock-bom:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath
 org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=annotationProcessor,runtimeClasspath,spotbugsPlugins,testAnnotationProcessor

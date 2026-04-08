@@ -157,5 +157,7 @@ org.springframework:spring-tx:5.1.0.RELEASE=testCompileClasspath,testRuntimeClas
 org.springframework:spring-tx:5.1.19.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
 org.springframework:spring-web:5.1.0.RELEASE=testCompileClasspath,testRuntimeClasspath
 org.springframework:spring-web:5.1.19.RELEASE=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath
+org.tabletest:tabletest-junit:1.2.1=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=latestDepTestCompileClasspath,latestDepTestRuntimeClasspath,testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=spotbugsPlugins

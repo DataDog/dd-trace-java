@@ -1,5 +1,7 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import static datadog.trace.api.datastreams.PathwayContext.PROPAGATION_KEY_BASE64;
+
 import com.amazonaws.services.sqs.model.Message;
 import com.amazonaws.services.sqs.model.MessageAttributeValue;
 import com.fasterxml.jackson.databind.JsonNode;
@@ -9,6 +11,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.messaging.DatadogAttributeParser;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Map;
 import org.slf4j.Logger;
@@ -23,6 +26,7 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
 
   @Override
   public void forEachKey(Message carrier, AgentPropagation.KeyClassifier classifier) {
+    boolean shouldExtractContextFromBody = SHOULD_EXTRACT_CONTEXT_FROM_BODY;
     Map<String, String> systemAttributes = carrier.getAttributes();
     if (systemAttributes.containsKey("AWSTraceHeader")) {
       // alias 'AWSTraceHeader' to 'X-Amzn-Trace-Id' because it uses the same format
@@ -31,12 +35,27 @@ public final class MessageExtractAdapter implements AgentPropagation.ContextVisi
     Map<String, MessageAttributeValue> messageAttributes = carrier.getMessageAttributes();
     if (messageAttributes.containsKey("_datadog")) {
       MessageAttributeValue datadog = messageAttributes.get("_datadog");
+      boolean hasPathwayContext = false;
       if ("String".equals(datadog.getDataType())) {
-        DatadogAttributeParser.forEachProperty(classifier, datadog.getStringValue());
+        String value = datadog.getStringValue();
+        hasPathwayContext = value != null && value.contains(PROPAGATION_KEY_BASE64);
+        DatadogAttributeParser.forEachProperty(classifier, value);
       } else if ("Binary".equals(datadog.getDataType())) {
-        DatadogAttributeParser.forEachProperty(classifier, datadog.getBinaryValue());
+        ByteBuffer value = datadog.getBinaryValue();
+        if (value != null) {
+          ByteBuffer duplicate = value.duplicate();
+          hasPathwayContext =
+              StandardCharsets.UTF_8.decode(duplicate).toString().contains(PROPAGATION_KEY_BASE64);
+        }
+        DatadogAttributeParser.forEachProperty(classifier, value);
       }
-    } else if (SHOULD_EXTRACT_CONTEXT_FROM_BODY) {
+      shouldExtractContextFromBody &= !hasPathwayContext;
+    }
+
+    if (shouldExtractContextFromBody) {
+      // The top-level SQS _datadog attribute and the SNS-style body payload are separate carriers.
+      // APM headers may be present in the message attribute while DSM context still only exists in
+      // the body payload.
       try {
         this.forEachKeyInBody(carrier.getBody(), classifier);
       } catch (Throwable e) {

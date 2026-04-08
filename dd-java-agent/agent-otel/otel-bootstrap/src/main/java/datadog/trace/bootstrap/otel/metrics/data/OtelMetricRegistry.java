@@ -2,8 +2,8 @@ package datadog.trace.bootstrap.otel.metrics.data;
 
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricsVisitor;
-import datadog.trace.bootstrap.otel.metrics.export.OtelScopedMetricsVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -49,7 +49,7 @@ public final class OtelMetricRegistry {
     }
   }
 
-  public void collectMetrics(OtelMetricsVisitor visitor) {
+  public void collectMetrics(OtlpMetricsVisitor visitor) {
     scopedStorage.forEach(
         (scope, storage) ->
             collectScopedMetrics(scope, storage, visitor.visitScopedMetrics(scope)));
@@ -58,7 +58,7 @@ public final class OtelMetricRegistry {
   private void collectScopedMetrics(
       OtelInstrumentationScope instrumentationScope,
       Map<OtelInstrumentDescriptor, OtelMetricStorage> storage,
-      OtelScopedMetricsVisitor visitor) {
+      OtlpScopedMetricsVisitor visitor) {
     List<OtelObservable> observables = scopedObservables.get(instrumentationScope);
     if (observables != null) {
       // take local snapshot of current observables

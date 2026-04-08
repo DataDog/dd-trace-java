@@ -52,11 +52,12 @@ public enum CiVisibilityDistributionMetric {
   /** The number of tests received by the flaky tests endpoint */
   FLAKY_TESTS_RESPONSE_TESTS("flaky_tests.response_tests"),
   /** The time it takes to get the response of the test management tests endpoint request in ms */
-  TEST_MANAGEMENT_TESTS_REQUEST_MS("test_management.request_ms"),
+  TEST_MANAGEMENT_TESTS_REQUEST_MS("test_management_tests.request_ms"),
   /** The number of bytes received by the test management tests endpoint */
-  TEST_MANAGEMENT_TESTS_RESPONSE_BYTES("test_management.response_bytes", ResponseCompressed.class),
+  TEST_MANAGEMENT_TESTS_RESPONSE_BYTES(
+      "test_management_tests.response_bytes", ResponseCompressed.class),
   /** The number of tests received by the test management tests endpoint */
-  TEST_MANAGEMENT_TESTS_RESPONSE_TESTS("test_management.response_tests"),
+  TEST_MANAGEMENT_TESTS_RESPONSE_TESTS("test_management_tests.response_tests"),
   /** The time it takes to make a coverage upload request in ms */
   COVERAGE_UPLOAD_REQUEST_MS("coverage_upload.request_ms"),
   /** The size of a coverage upload request in bytes */

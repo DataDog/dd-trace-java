@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.aws.v1.sqs;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
 import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.api.datastreams.PathwayContext.DATADOG_KEY;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.DSM_CONCERN;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.URIUtils.urlFileName;
 import static datadog.trace.instrumentation.aws.v1.sqs.MessageAttributeInjector.SETTER;
@@ -16,8 +16,6 @@ import com.amazonaws.services.sqs.model.SendMessageBatchRequest;
 import com.amazonaws.services.sqs.model.SendMessageBatchRequestEntry;
 import com.amazonaws.services.sqs.model.SendMessageRequest;
 import datadog.context.Context;
-import datadog.context.propagation.Propagator;
-import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
@@ -44,13 +42,14 @@ public class SqsInterceptor extends RequestHandler2 {
       String queueUrl = smRequest.getQueueUrl();
       if (queueUrl == null) return request;
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
-      Context context = newContext(request, queueUrl);
       // making a copy of the MessageAttributes before modifying them because they can be stored in
       // a kind of ImmutableMap
       Map<String, MessageAttributeValue> messageAttributes =
           new HashMap<>(smRequest.getMessageAttributes());
-      dsmPropagator.inject(context, messageAttributes, SETTER);
+      if (!messageAttributes.containsKey(DATADOG_KEY)) {
+        Context context = newContext(request, queueUrl);
+        defaultPropagator().inject(context, messageAttributes, SETTER);
+      }
       // note: modifying message attributes has to be done before marshalling, otherwise the changes
       // are not reflected in the actual request (and the MD5 check on send will fail).
       smRequest.setMessageAttributes(messageAttributes);
@@ -60,12 +59,13 @@ public class SqsInterceptor extends RequestHandler2 {
       String queueUrl = smbRequest.getQueueUrl();
       if (queueUrl == null) return request;
 
-      Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
       Context context = newContext(request, queueUrl);
       for (SendMessageBatchRequestEntry entry : smbRequest.getEntries()) {
         Map<String, MessageAttributeValue> messageAttributes =
             new HashMap<>(entry.getMessageAttributes());
-        dsmPropagator.inject(context, messageAttributes, SETTER);
+        if (!messageAttributes.containsKey(DATADOG_KEY)) {
+          defaultPropagator().inject(context, messageAttributes, SETTER);
+        }
         entry.setMessageAttributes(messageAttributes);
       }
     } else if (request instanceof ReceiveMessageRequest) {

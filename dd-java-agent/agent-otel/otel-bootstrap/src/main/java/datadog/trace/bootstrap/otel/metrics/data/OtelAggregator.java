@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+
 /** Common behaviour shared across all aggregators. */
 abstract class OtelAggregator {
   private volatile boolean empty = true;
@@ -18,12 +20,12 @@ abstract class OtelAggregator {
     empty = false;
   }
 
-  final OtelPoint collect() {
+  final OtlpDataPoint collect() {
     return doCollect(false);
   }
 
-  final OtelPoint collectAndReset() {
-    OtelPoint point = doCollect(true);
+  final OtlpDataPoint collectAndReset() {
+    OtlpDataPoint point = doCollect(true);
     empty = true;
     return point;
   }
@@ -36,5 +38,5 @@ abstract class OtelAggregator {
     throw new UnsupportedOperationException();
   }
 
-  abstract OtelPoint doCollect(boolean reset);
+  abstract OtlpDataPoint doCollect(boolean reset);
 }
