@@ -2577,6 +2577,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_ASYNC_LIVEHEAP_TRACK_SIZE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_ASYNC_LOGLEVEL": [
       {
         "version": "A",
