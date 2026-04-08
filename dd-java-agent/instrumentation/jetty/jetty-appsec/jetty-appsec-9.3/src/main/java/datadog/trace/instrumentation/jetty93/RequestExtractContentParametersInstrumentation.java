@@ -24,7 +24,6 @@ import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
@@ -112,23 +111,49 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
 
   /**
    * Fires the {@code requestFilesFilenames} event when the application calls public {@code
-   * getParts()}. The {@code _contentParameters == null} guard ensures the WAF is invoked only on
-   * the first call — subsequent calls return the cached result without re-processing.
+   * getParts()}. Guards prevent double-firing:
+   *
+   * <ul>
+   *   <li>{@code contentParameters != null}: set by {@code extractContentParameters()} (the {@code
+   *       getParameterMap()} path); means filenames were already reported via {@code
+   *       GetFilenamesFromMultiPartAdvice}.
+   *   <li>{@code _multiParts != null} (Jetty 9.4+, read via reflection): set by the first {@code
+   *       getParts()} call; means filenames were already reported. In Jetty 9.3 this field does not
+   *       exist, so the reflection throws {@code NoSuchFieldException} and we treat it as null.
+   * </ul>
    */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiParts", optional = true, typing = Assigner.Typing.DYNAMIC)
-            final Object multiParts) {
+        @Advice.This final Request request) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      // contentParameters is set by extractContentParameters() (called from getParameterMap()),
-      // so it being non-null means the request was already processed via that path.
-      // multiParts is set by getParts(MultiMap) (Jetty 9.4+) after the first getParts() call,
-      // so it being non-null means getParts() was already invoked and filenames were reported.
-      // In Jetty 9.3, _multiParts does not exist (optional=true → null).
-      return callDepth == 0 && contentParameters == null && multiParts == null;
+      if (callDepth != 0 || contentParameters != null) {
+        return false;
+      }
+      // Check the multipart cache field to detect repeated calls.
+      // Jetty 9.4+: _multiParts is set after the first getParts() call.
+      // Jetty 9.3.x: _multiPartInputStream is set instead (_multiParts doesn't exist).
+      // A non-null value means getParts() was already invoked and filenames were reported.
+      try {
+        java.lang.reflect.Field f = request.getClass().getDeclaredField("_multiParts");
+        f.setAccessible(true);
+        if (f.get(request) != null) {
+          return false;
+        }
+      } catch (NoSuchFieldException e9_3) {
+        try {
+          java.lang.reflect.Field f = request.getClass().getDeclaredField("_multiPartInputStream");
+          f.setAccessible(true);
+          if (f.get(request) != null) {
+            return false;
+          }
+        } catch (Exception ignored) {
+        }
+      } catch (Exception ignored) {
+      }
+      return true;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
