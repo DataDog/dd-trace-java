@@ -453,8 +453,8 @@ public final class DatadogProfiler {
     profiler.recordSetting(name, value, unit);
   }
 
-  public QueueTimeTracker newQueueTimeTracker() {
-    return new QueueTimeTracker(this, profiler.getCurrentTicks());
+  public QueueTimeTracker newQueueTimeTracker(long submittingSpanId) {
+    return new QueueTimeTracker(this, profiler.getCurrentTicks(), submittingSpanId);
   }
 
   boolean shouldRecordQueueTimeEvent(long startMillis) {
@@ -495,7 +495,8 @@ public final class DatadogProfiler {
       Class<?> scheduler,
       Class<?> queueType,
       int queueLength,
-      Thread origin) {
+      Thread origin,
+      long submittingSpanId) {
     if (profiler != null) {
       // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
       // we avoid doing this unless we are absolutely certain we will record the event
@@ -503,7 +504,14 @@ public final class DatadogProfiler {
       if (taskType != null) {
         long endTicks = profiler.getCurrentTicks();
         profiler.recordQueueTime(
-            startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
+            startTicks,
+            endTicks,
+            taskType,
+            scheduler,
+            queueType,
+            queueLength,
+            origin,
+            submittingSpanId);
       }
     }
   }

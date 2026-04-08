@@ -6,6 +6,7 @@ import datadog.trace.api.profiling.ProfilingContextAttribute;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 
@@ -164,7 +165,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public Timing start(TimerType type) {
     if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
-      return DDPROF.newQueueTimeTracker();
+      AgentSpan span = AgentTracer.activeSpan();
+      long submittingSpanId =
+          (span instanceof ProfilerContext) ? ((ProfilerContext) span).getSpanId() : 0L;
+      return DDPROF.newQueueTimeTracker(submittingSpanId);
     }
     return Timing.NoOp.INSTANCE;
   }
