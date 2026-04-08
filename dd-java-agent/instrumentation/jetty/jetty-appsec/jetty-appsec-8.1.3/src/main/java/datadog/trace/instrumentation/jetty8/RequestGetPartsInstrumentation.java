@@ -34,6 +34,7 @@ import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -205,12 +206,22 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            final Object multiPartInputStream) {
+      // _multiPartInputStream is null only on the first getParts() call; subsequent calls
+      // return the cached multipart result without re-parsing, but we must not re-fire the WAF.
+      return multiPartInputStream == null;
+    }
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
+        @Advice.Enter boolean proceed,
         @Advice.Return Collection parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || parts == null || parts.isEmpty()) {
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
       // Resolve getSubmittedFileName once (Servlet 3.1+; null on Servlet 3.0)
