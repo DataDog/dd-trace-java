@@ -372,6 +372,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     false
   }
 
+  boolean testBodyFilenamesCalledOnceCombined() {
+    false
+  }
+
   boolean testBodyFilenames() {
     false
   }
@@ -481,6 +485,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     BODY_URLENCODED("body-urlencoded?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART("body-multipart?ignore=pair", 200, '[a:[x]]'),
     BODY_MULTIPART_REPEATED("body-multipart-repeated", 200, "ok"),
+    BODY_MULTIPART_COMBINED("body-multipart-combined", 200, "ok"),
     BODY_JSON("body-json", 200, '{"a":"x"}'),
     BODY_XML("body-xml", 200, '<foo attr="attr_value">mytext<bar/></foo>'),
     REDIRECT("redirect", 302, "/redirected"),
@@ -1666,6 +1671,30 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     .addFormDataPart('file', 'evil.php', fileBody)
     .build()
     def httpRequest = request(BODY_MULTIPART_REPEATED, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+      && it.getTag('_dd.appsec.filenames.cb.calls') == 1
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload filenames called once via parameter map'() {
+    setup:
+    assumeTrue(testBodyFilenamesCalledOnceCombined())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART_COMBINED, 'POST', body).build()
     def response = client.newCall(httpRequest).execute()
 
     when:
