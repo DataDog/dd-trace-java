@@ -37,7 +37,9 @@ class FlagEvalMetrics implements Closeable {
       AttributeKey.stringKey("feature_flag.result.allocation_key");
 
   private volatile LongCounter counter;
-  private volatile SdkMeterProvider meterProvider;
+  // Typed as Closeable to avoid loading SdkMeterProvider at class-load time
+  // when the OTel SDK is absent from the classpath
+  private volatile java.io.Closeable meterProvider;
 
   FlagEvalMetrics() {
     try {
@@ -57,9 +59,11 @@ class FlagEvalMetrics implements Closeable {
       PeriodicMetricReader reader =
           PeriodicMetricReader.builder(exporter).setInterval(EXPORT_INTERVAL).build();
 
-      meterProvider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+      SdkMeterProvider sdkMeterProvider =
+          SdkMeterProvider.builder().registerMetricReader(reader).build();
+      meterProvider = sdkMeterProvider;
 
-      Meter meter = meterProvider.meterBuilder(METER_NAME).build();
+      Meter meter = sdkMeterProvider.meterBuilder(METER_NAME).build();
       counter =
           meter
               .counterBuilder(METRIC_NAME)
@@ -113,7 +117,7 @@ class FlagEvalMetrics implements Closeable {
 
   void shutdown() {
     counter = null;
-    SdkMeterProvider mp = meterProvider;
+    java.io.Closeable mp = meterProvider;
     if (mp != null) {
       meterProvider = null;
       try {

@@ -42,8 +42,14 @@ public class Provider extends EventProvider implements Metadata {
   Provider(final Options options, final Evaluator evaluator) {
     this.options = options;
     this.evaluator = evaluator;
-    this.flagEvalMetrics = new FlagEvalMetrics();
-    this.flagEvalHook = new FlagEvalHook(flagEvalMetrics);
+    FlagEvalMetrics metrics = null;
+    try {
+      metrics = new FlagEvalMetrics();
+    } catch (NoClassDefFoundError | Exception e) {
+      // OTel classes not on classpath — metrics disabled
+    }
+    this.flagEvalMetrics = metrics;
+    this.flagEvalHook = new FlagEvalHook(metrics);
   }
 
   @Override
@@ -86,12 +92,17 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
+    if (flagEvalHook == null) {
+      return Collections.emptyList();
+    }
     return Collections.singletonList(flagEvalHook);
   }
 
   @Override
   public void shutdown() {
-    flagEvalMetrics.shutdown();
+    if (flagEvalMetrics != null) {
+      flagEvalMetrics.shutdown();
+    }
     if (evaluator != null) {
       evaluator.shutdown();
     }
