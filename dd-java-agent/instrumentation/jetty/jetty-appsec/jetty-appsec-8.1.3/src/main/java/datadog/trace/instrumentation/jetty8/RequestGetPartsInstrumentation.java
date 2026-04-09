@@ -217,7 +217,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
-        @Advice.Return Collection parts,
+        @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
@@ -226,8 +226,8 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       // Jetty 8 implements Servlet 3.0; getSubmittedFileName does not exist.
       // Parse filename from Content-Disposition header instead.
       List<String> filenames = new ArrayList<>();
-      for (Object part : parts) {
-        String cd = ((Part) part).getHeader("content-disposition");
+      for (Part part : parts) {
+        String cd = part.getHeader("content-disposition");
         if (cd != null) {
           for (String tok : cd.split(";")) {
             tok = tok.trim();
