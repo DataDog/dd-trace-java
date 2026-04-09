@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import datadog.trace.config.inversion.ConfigHelper;
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
@@ -43,9 +44,9 @@ class FlagEvalMetrics implements Closeable {
 
   FlagEvalMetrics() {
     try {
-      String endpoint = System.getenv(ENDPOINT_ENV);
+      String endpoint = ConfigHelper.env(ENDPOINT_ENV);
       if (endpoint == null || endpoint.isEmpty()) {
-        String base = System.getenv(ENDPOINT_GENERIC_ENV);
+        String base = ConfigHelper.env(ENDPOINT_GENERIC_ENV);
         if (base != null && !base.isEmpty()) {
           endpoint = base.endsWith("/") ? base + "v1/metrics" : base + "/v1/metrics";
         } else {

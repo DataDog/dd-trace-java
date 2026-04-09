@@ -44,6 +44,7 @@ dependencies {
   api("dev.openfeature:sdk:1.20.1")
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
+  compileOnly(project(":utils:config-utils"))
   compileOnly("io.opentelemetry:opentelemetry-api:1.47.0")
   compileOnly("io.opentelemetry:opentelemetry-sdk-metrics:1.47.0")
   compileOnly("io.opentelemetry:opentelemetry-exporter-otlp:1.47.0")
