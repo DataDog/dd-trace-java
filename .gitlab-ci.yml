@@ -402,7 +402,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings checkInstrumenterModuleConfigurations checkDecoratorAnalyticsConfigurations
 
 test_published_artifacts:
   extends: .gradle_build
