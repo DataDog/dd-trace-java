@@ -10,7 +10,6 @@ import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-import spock.util.concurrent.PollingConditions
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED
 import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERATION_ENABLED
@@ -28,14 +27,8 @@ import static java.util.concurrent.TimeUnit.SECONDS
  * SECONDTRACEID TRACEID SPANID
  */
 abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
-  // Timeout for the process to complete after all traces have been received
+  // Estimate for the amount of time instrumentation, plus request, plus some extra
   static final int TIMEOUT_SECS = 30
-
-  // Agent initialization (bytecode instrumentation of ~200 integrations) can take >30s on
-  // overloaded CI machines. Use a longer timeout for the initial waitForTraceCount that covers
-  // JVM startup + agent init + first trace flush.
-  @Shared
-  protected final PollingConditions startupPoll = new PollingConditions(timeout: 120, initialDelay: 0, delay: 1, factor: 1)
 
   static final String LOG4J2_BACKEND = "Log4j2"
 
@@ -355,24 +348,51 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   }
 
   /**
-   * Like {@link AbstractSmokeTest#waitForTraceCount} but also checks that the process is still
-   * alive on each poll iteration. Without this, a crashed process causes a silent 30s (or longer)
-   * timeout instead of an immediate failure with a useful message.
+   * Like {@link AbstractSmokeTest#waitForTraceCount} but checks process liveness on every poll
+   * iteration and dumps diagnostic state on failure, so CI failures produce actionable output
+   * instead of a bare "Condition not satisfied" after a 30s timeout.
    */
-  int waitForTraceCountAlive(int count, spock.util.concurrent.PollingConditions conditions) {
-    conditions.eventually {
-      if (traceDecodingFailure != null) {
-        throw traceDecodingFailure
+  int waitForTraceCountAlive(int count) {
+    try {
+      defaultPoll.eventually {
+        if (traceDecodingFailure != null) {
+          throw traceDecodingFailure
+        }
+        if (testedProcess != null && !testedProcess.isAlive()) {
+          def lastLines = tailProcessLog(20)
+          throw new AssertionError(
+            "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
+            "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
+            "Last process output:\n${lastLines}")
+        }
+        assert traceCount.get() >= count
       }
-      if (testedProcess != null && !testedProcess.isAlive()) {
-        // Process died — fail immediately instead of waiting for full timeout
-        throw new AssertionError(
-        "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces (have ${traceCount.get()}). " +
-        "Check ${logFilePath} for errors.")
+    } catch (Throwable e) {
+      if (e instanceof AssertionError && e.message?.startsWith("Process exited")) {
+        throw e // Already enriched — don't wrap again
       }
-      assert traceCount.get() >= count
+      // The default error ("Condition not satisfied after 30s") is useless — enrich with diagnostic state
+      def alive = testedProcess?.isAlive()
+      def lastLines = tailProcessLog(30)
+      throw new AssertionError(
+        "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
+        "traceCount=${traceCount.get()}, process.alive=${alive}, " +
+        "RC polls received: ${rcClientMessages.size()}.\n" +
+        "Last process output:\n${lastLines}", e)
     }
     traceCount.get()
+  }
+
+  private String tailProcessLog(int lines) {
+    try {
+      def logFile = new File(logFilePath)
+      if (!logFile.exists()) return "(log file does not exist: ${logFilePath})"
+      def allLines = logFile.readLines()
+      def tail = allLines.size() > lines ? allLines[-lines..-1] : allLines
+      return tail.join("\n")
+    } catch (Exception e) {
+      return "(failed to read log: ${e.message})"
+    }
   }
 
   def parseTraceFromStdOut( String line ) {
@@ -393,9 +413,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8())
   def "check raw file injection"() {
     when:
-    // Use the longer startup timeout for the initial wait — agent initialization
-    // (bytecode instrumentation) can take >30s on overloaded CI machines
-    def count = waitForTraceCountAlive(2, startupPoll)
+    def count = waitForTraceCountAlive(2)
 
     def newConfig = """
         {"lib_config":
@@ -404,12 +422,12 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
-    count = waitForTraceCountAlive(3, defaultPoll)
+    count = waitForTraceCountAlive(3)
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
     // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
-    count = waitForTraceCountAlive(4, defaultPoll)
+    count = waitForTraceCountAlive(4)
 
     assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
     def exitValue = testedProcess.exitValue()
