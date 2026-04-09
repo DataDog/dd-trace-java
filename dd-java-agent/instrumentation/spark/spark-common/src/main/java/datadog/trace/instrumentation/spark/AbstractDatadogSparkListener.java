@@ -289,7 +289,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         OpenlineageParentContext.from(sparkConf);
     if (isRunningOnDatabricks && databricksProperties != null) {
       String databricksJobId = getDatabricksJobId(databricksProperties);
-      String databricksJobRunId = getDatabricksJobRunId(databricksProperties, databricksClusterName);
+      String databricksJobRunId =
+          getDatabricksJobRunId(databricksProperties, databricksClusterName);
       String databricksTaskRunId = getDatabricksTaskRunId(databricksProperties);
 
       builder.withTag("databricks_job_id", databricksJobId);
