@@ -5,7 +5,6 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer.CoreTracerBuilder;
@@ -45,18 +44,18 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
   }
 
   @BeforeAll
-  void setupCoreSpec() {
+  static void beforeAll() {
     TagsPostProcessorFactory.withAddInternalTags(false);
     TagsPostProcessorFactory.withAddRemoteHostname(false);
   }
 
   @AfterAll
-  void cleanupCoreSpec() {
+  static void afterAll() {
     TagsPostProcessorFactory.reset();
   }
 
   @AfterEach
-  void cleanupCore() throws Exception {
+  void cleanupCore() {
     for (CoreTracer tracer : unclosedTracers) {
       try {
         tracer.close();
@@ -113,7 +112,7 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
             prioritySampling,
             null,
             Collections.emptyMap(),
-            (Baggage) null,
+            null,
             false,
             spanType,
             0,

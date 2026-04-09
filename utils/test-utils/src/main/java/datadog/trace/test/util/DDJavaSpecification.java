@@ -6,6 +6,8 @@ import static net.bytebuddy.description.modifier.Visibility.PUBLIC;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.none;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.EnvironmentVariables;
@@ -31,11 +33,7 @@ import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInstance;
 
-// @TestInstance(Lifecycle.PER_CLASS) — allows non-static @BeforeAll/@AfterAll methods,
-// mirrors Spock's per-class lifecycle where setupSpec/cleanupSpec run once per test class
-@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 @SuppressForbidden
 public class DDJavaSpecification {
 
@@ -61,13 +59,34 @@ public class DDJavaSpecification {
   private static Properties originalSystemProperties;
 
   protected boolean assertThreadsEachCleanup = true;
-  private volatile boolean ignoreThreadCleanup;
+  private static volatile boolean ignoreThreadCleanup;
 
   @BeforeAll
   static void beforeAll() {
     allowContextTesting();
     installConfigTransformer();
     makeConfigInstanceModifiable();
+    assertFalse(
+        configModificationFailed,
+        "Config class modification failed. Ensure all test classes extend DDJavaSpecification");
+    assertTrue(
+        EnvironmentVariables.getAll().entrySet().stream()
+            .noneMatch(e -> e.getKey().startsWith("DD_")));
+    assertTrue(
+        systemPropertiesExceptAllowed().entrySet().stream()
+            .noneMatch(e -> e.getKey().toString().startsWith("dd.")));
+    assertTrue(
+        contextTestingAllowed,
+        "Context not ready for testing. Ensure all test classes extend DDJavaSpecification");
+
+    if (getDDThreads().isEmpty()) {
+      ignoreThreadCleanup = false;
+    } else {
+      System.out.println(
+          "Found DD threads before test started. Ignoring thread cleanup for this test class");
+      ignoreThreadCleanup = true;
+    }
+    saveProperties();
   }
 
   static void allowContextTesting() {
@@ -158,34 +177,8 @@ public class DDJavaSpecification {
     }
   }
 
-  @BeforeAll
-  void setupSpec() {
-    assertTrue(
-        !configModificationFailed,
-        "Config class modification failed. Ensure all test classes extend DDJavaSpecification");
-    assertTrue(
-        EnvironmentVariables.getAll().entrySet().stream()
-            .noneMatch(e -> e.getKey().startsWith("DD_")));
-    assertTrue(
-        systemPropertiesExceptAllowed().entrySet().stream()
-            .noneMatch(e -> e.getKey().toString().startsWith("dd.")));
-    assertTrue(
-        contextTestingAllowed,
-        "Context not ready for testing. Ensure all test classes extend DDJavaSpecification");
-
-    if (getDDThreads().isEmpty()) {
-      ignoreThreadCleanup = false;
-    } else {
-      System.out.println(
-          "Found DD threads before test started. Ignoring thread cleanup for this test class");
-      ignoreThreadCleanup = true;
-    }
-
-    saveProperties();
-  }
-
   @AfterAll
-  void cleanupSpec() {
+  static void afterAll() {
     restoreProperties();
 
     assertTrue(
@@ -249,7 +242,7 @@ public class DDJavaSpecification {
     }
   }
 
-  public Set<Thread> getDDThreads() {
+  static Set<Thread> getDDThreads() {
     return Thread.getAllStackTraces().keySet().stream()
         .filter(
             t ->
@@ -259,7 +252,7 @@ public class DDJavaSpecification {
         .collect(Collectors.toSet());
   }
 
-  void checkThreads() {
+  static void checkThreads() {
     if (ignoreThreadCleanup) {
       return;
     }
@@ -332,7 +325,7 @@ public class DDJavaSpecification {
     rebuildConfig();
   }
 
-  public void rebuildConfig() {
+  static void rebuildConfig() {
     synchronized (DDJavaSpecification.class) {
       checkConfigTransformation();
       try {
@@ -348,18 +341,18 @@ public class DDJavaSpecification {
 
   private static void checkConfigTransformation() {
     assertTrue(isConfigInstanceModifiable);
-    assertTrue(instConfigConstructor != null);
+    assertNotNull(instConfigConstructor);
     checkWritable(instConfigInstanceField);
-    assertTrue(configConstructor != null);
+    assertNotNull(configConstructor);
     checkWritable(configInstanceField);
   }
 
   private static void checkWritable(Field field) {
-    assertTrue(field != null);
+    assertNotNull(field);
     assertTrue(Modifier.isPublic(field.getModifiers()));
     assertTrue(Modifier.isStatic(field.getModifiers()));
     assertTrue(Modifier.isVolatile(field.getModifiers()));
-    assertTrue(!Modifier.isFinal(field.getModifiers()));
+    assertFalse(Modifier.isFinal(field.getModifiers()));
   }
 
   public static class TestEnvironmentVariables
