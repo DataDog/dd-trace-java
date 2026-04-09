@@ -2577,6 +2577,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_ASYNC_LIVEHEAP_TRACK_SIZE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_ASYNC_LOGLEVEL": [
       {
         "version": "A",
@@ -7761,6 +7769,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_LOGS_INTAKE_LOG4J_2_ENABLED", "DD_INTEGRATION_LOGS_INTAKE_LOG4J_2_ENABLED"]
       }
     ],
+    "DD_TRACE_LOGS_INTAKE_LOGBACK_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_LOGS_INTAKE_LOGBACK_ENABLED", "DD_INTEGRATION_LOGS_INTAKE_LOGBACK_ENABLED"]
+      }
+    ],
     "DD_TRACE_MAVEN_ENABLED": [
       {
         "version": "A",
@@ -10119,6 +10135,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SPRING_MESSAGING_KOTLIN_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SPRING_MESSAGING_KOTLIN_ENABLED", "DD_INTEGRATION_SPRING_MESSAGING_KOTLIN_ENABLED"]
       }
     ],
     "DD_TRACE_SPRING_PATH_FILTER_ENABLED": [
