@@ -4,10 +4,11 @@ import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
-import com.github.javaparser.ast.body.FieldDeclaration
-import com.github.javaparser.ast.body.VariableDeclarator
+import com.github.javaparser.ast.body.*
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt
+import com.github.javaparser.ast.stmt.ReturnStmt
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
@@ -23,13 +24,16 @@ class ConfigInversionLinter : Plugin<Project> {
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
     registerCheckConfigStringsTask(target, extension)
+    registerCheckInstrumenterModuleConfigurations(target, extension)
+    registerCheckDecoratorAnalyticsConfigurations(target, extension)
   }
 }
 
 // Data class for fields from generated class
 private data class LoadedConfigFields(
   val supported: Set<String>,
-  val aliasMapping: Map<String, String> = emptyMap()
+  val aliasMapping: Map<String, String> = emptyMap(),
+  val aliases: Map<String, List<String>> = emptyMap()
 )
 
 // Cache for fields from generated class
@@ -55,7 +59,9 @@ private fun loadConfigFields(
 
       @Suppress("UNCHECKED_CAST")
       val aliasMappingMap = clazz.getField("ALIAS_MAPPING").get(null) as Map<String, String>
-      LoadedConfigFields(supportedSet, aliasMappingMap)
+      @Suppress("UNCHECKED_CAST")
+      val aliasesMap = clazz.getField("ALIASES").get(null) as Map<String, List<String>>
+      LoadedConfigFields(supportedSet, aliasMappingMap, aliasesMap)
     }.also { cachedConfigFields = it }
   }
 }
@@ -246,5 +252,182 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
         logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
       }
     }
+  }
+}
+
+private val INSTRUMENTER_MODULE_TYPES = setOf(
+  "InstrumenterModule",
+  "InstrumenterModule.Tracing",
+  "InstrumenterModule.Profiling",
+  "InstrumenterModule.AppSec",
+  "InstrumenterModule.Iast",
+  "InstrumenterModule.Usm",
+  "InstrumenterModule.CiVisibility",
+  "InstrumenterModule.ContextTracking"
+)
+
+/** Checks that [key] exists in [supported] and [aliases], and that all [expectedAliases] are values of that alias entry. */
+private fun MutableList<String>.checkKeyAndAliases(
+  key: String,
+  expectedAliases: List<String>,
+  supported: Set<String>,
+  aliases: Map<String, List<String>>,
+  location: String,
+  context: String
+) {
+  if (key !in supported) {
+    add("$location -> $context: '$key' is missing from SUPPORTED")
+  }
+  if (key !in aliases) {
+    add("$location -> $context: '$key' is missing from ALIASES")
+  } else {
+    val aliasValues = aliases[key] ?: emptyList()
+    for (expected in expectedAliases) {
+      if (expected !in aliasValues) {
+        add("$location -> $context: '$expected' is missing from ALIASES['$key']")
+      }
+    }
+  }
+}
+
+/**
+ * Shared setup for tasks that scan instrumentation source files against the generated config class.
+ * Registers a task that parses Java files in dd-java-agent/instrumentation/ and calls [checker]
+ * for each parsed CompilationUnit to collect violations.
+ */
+private fun registerInstrumentationCheckTask(
+  project: Project,
+  extension: SupportedTracerConfigurations,
+  taskName: String,
+  taskDescription: String,
+  errorHeader: String,
+  errorMessage: String,
+  successMessage: String,
+  checker: MutableList<String>.(LoadedConfigFields, String, CompilationUnit) -> Unit
+) {
+  val ownerPath = extension.configOwnerPath
+  val generatedFile = extension.className
+
+  project.tasks.register(taskName) {
+    group = "verification"
+    description = taskDescription
+
+    val mainSourceSetOutput = ownerPath.map {
+      project.project(it)
+        .extensions.getByType<SourceSetContainer>()
+        .named(SourceSet.MAIN_SOURCE_SET_NAME)
+        .map { main -> main.output }
+    }
+
+    val instrumentationFiles = project.fileTree(project.rootProject.projectDir) {
+      include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
+    }
+    doLast {
+      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
+
+      val parserConfig = ParserConfiguration()
+      parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
+      StaticJavaParser.setConfiguration(parserConfig)
+
+      val repoRoot = project.rootProject.projectDir.toPath()
+      val violations = buildList {
+        instrumentationFiles.files.forEach { file ->
+          val rel = repoRoot.relativize(file.toPath()).toString()
+          val cu: CompilationUnit = try {
+            StaticJavaParser.parse(file)
+          } catch (_: Exception) {
+            return@forEach
+          }
+          checker(configFields, rel, cu)
+        }
+      }
+
+      if (violations.isNotEmpty()) {
+        logger.error(errorHeader)
+        violations.forEach { logger.lifecycle(it) }
+        throw GradleException(errorMessage)
+      } else {
+        logger.info(successMessage)
+      }
+    }
+  }
+}
+
+/** Registers `checkInstrumenterModuleConfigurations` to verify each InstrumenterModule's integration name has proper entries in SUPPORTED and ALIASES. */
+private fun registerCheckInstrumenterModuleConfigurations(project: Project, extension: SupportedTracerConfigurations) {
+  registerInstrumentationCheckTask(
+    project, extension,
+    taskName = "checkInstrumenterModuleConfigurations",
+    taskDescription = "Validates that InstrumenterModule integration names have corresponding entries in SUPPORTED and ALIASES",
+    errorHeader = "\nFound InstrumenterModule integration names with missing SUPPORTED/ALIASES entries:",
+    errorMessage = "InstrumenterModule integration names are missing from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.",
+    successMessage = "All InstrumenterModule integration names have proper SUPPORTED and ALIASES entries."
+  ) { configFields, rel, cu ->
+    cu.findAll(ClassOrInterfaceDeclaration::class.java).forEach classLoop@{ classDecl ->
+      // Only examine classes extending InstrumenterModule.*
+      val extendsModule = classDecl.extendedTypes.any { it.toString() in INSTRUMENTER_MODULE_TYPES }
+      if (!extendsModule) return@classLoop
+
+      classDecl.findAll(ExplicitConstructorInvocationStmt::class.java)
+        .filter { !it.isThis }
+        .forEach { superCall ->
+          val names = superCall.arguments
+            .filterIsInstance<StringLiteralExpr>()
+            .map { it.value }
+          val line = superCall.range.map { it.begin.line }.orElse(1)
+
+          for (name in names) {
+            val normalized = name.uppercase().replace("-", "_").replace(".", "_")
+            val enabledKey = "DD_TRACE_${normalized}_ENABLED"
+            val context = "Integration '$name' (super arg)"
+            val location = "$rel:$line"
+
+            checkKeyAndAliases(
+              enabledKey,
+              listOf("DD_TRACE_INTEGRATION_${normalized}_ENABLED", "DD_INTEGRATION_${normalized}_ENABLED"),
+              configFields.supported, configFields.aliases, location, context
+            )
+          }
+        }
+    }
+  }
+}
+
+/** Registers `checkDecoratorAnalyticsConfigurations` to verify each BaseDecorator subclass's instrumentationNames have proper analytics entries in SUPPORTED and ALIASES. */
+private fun registerCheckDecoratorAnalyticsConfigurations(project: Project, extension: SupportedTracerConfigurations) {
+  registerInstrumentationCheckTask(
+    project, extension,
+    taskName = "checkDecoratorAnalyticsConfigurations",
+    taskDescription = "Validates that Decorator instrumentationNames have corresponding analytics entries in SUPPORTED and ALIASES",
+    errorHeader = "\nFound Decorator instrumentationNames with missing analytics SUPPORTED/ALIASES entries:",
+    errorMessage = "Decorator instrumentationNames are missing analytics entries from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.",
+    successMessage = "All Decorator instrumentationNames have proper analytics SUPPORTED and ALIASES entries."
+  ) { configFields, rel, cu ->
+    cu.findAll(MethodDeclaration::class.java)
+      .filter { it.nameAsString == "instrumentationNames" && it.parameters.isEmpty() }
+      .forEach { method ->
+        val names = method.findAll(ReturnStmt::class.java).flatMap { ret ->
+          ret.expression.map { it.findAll(StringLiteralExpr::class.java).map { s -> s.value } }
+            .orElse(emptyList())
+        }
+        val line = method.range.map { it.begin.line }.orElse(1)
+
+        for (name in names) {
+          val normalized = name.uppercase().replace("-", "_").replace(".", "_")
+          val context = "Decorator instrumentationName '$name'"
+          val location = "$rel:$line"
+
+          checkKeyAndAliases(
+            "DD_TRACE_${normalized}_ANALYTICS_ENABLED",
+            listOf("DD_${normalized}_ANALYTICS_ENABLED"),
+            configFields.supported, configFields.aliases, location, context
+          )
+          checkKeyAndAliases(
+            "DD_TRACE_${normalized}_ANALYTICS_SAMPLE_RATE",
+            listOf("DD_${normalized}_ANALYTICS_SAMPLE_RATE"),
+            configFields.supported, configFields.aliases, location, context
+          )
+        }
+      }
   }
 }
