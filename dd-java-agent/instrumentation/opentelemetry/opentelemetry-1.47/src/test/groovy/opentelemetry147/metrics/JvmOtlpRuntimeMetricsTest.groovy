@@ -5,13 +5,13 @@ import datadog.opentelemetry.shim.metrics.OtelMeterProvider
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDoublePoint
-import datadog.trace.bootstrap.otel.metrics.data.OtlpLongPoint
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry
-import datadog.trace.bootstrap.otel.metrics.data.OtlpDataPoint
-import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricsVisitor
-import datadog.trace.bootstrap.otel.metrics.export.OtlpScopedMetricsVisitor
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint
+import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint
+import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor
+import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor
 
 /**
  * Tests that JVM runtime metrics are registered and exported via OTLP
