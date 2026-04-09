@@ -8,6 +8,7 @@ import io.opentelemetry.api.metrics.LongCounter;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import java.io.Closeable;
 import java.time.Duration;
@@ -54,7 +55,10 @@ class FlagEvalMetrics implements Closeable {
       }
 
       OtlpHttpMetricExporter exporter =
-          OtlpHttpMetricExporter.builder().setEndpoint(endpoint).build();
+          OtlpHttpMetricExporter.builder()
+              .setEndpoint(endpoint)
+              .setAggregationTemporalitySelector(AggregationTemporalitySelector.alwaysCumulative())
+              .build();
 
       PeriodicMetricReader reader =
           PeriodicMetricReader.builder(exporter).setInterval(EXPORT_INTERVAL).build();
