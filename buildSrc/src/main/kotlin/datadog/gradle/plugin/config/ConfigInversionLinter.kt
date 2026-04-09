@@ -318,6 +318,7 @@ private fun registerInstrumentationCheckTask(
         .named(SourceSet.MAIN_SOURCE_SET_NAME)
         .map { main -> main.output }
     }
+    inputs.files(mainSourceSetOutput)
 
     val instrumentationFiles = project.fileTree(project.rootProject.projectDir) {
       include("dd-java-agent/instrumentation/**/src/main/java/**/*.java")
