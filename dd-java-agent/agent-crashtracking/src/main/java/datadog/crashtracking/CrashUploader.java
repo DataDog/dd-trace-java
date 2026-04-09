@@ -579,8 +579,9 @@ public final class CrashUploader {
         // experimental
         if (payload.experimental != null
             && (payload.experimental.ucontext != null
-                || payload.experimental.registerToMemoryMapping != null
-                || payload.experimental.runtimeArgs != null)) {
+                || (uploaderSettings.isExtendedInfoEnabled()
+                    && (payload.experimental.registerToMemoryMapping != null
+                        || payload.experimental.runtimeArgs != null)))) {
           writer.name("experimental");
           writer.beginObject();
           if (payload.experimental.ucontext != null) {

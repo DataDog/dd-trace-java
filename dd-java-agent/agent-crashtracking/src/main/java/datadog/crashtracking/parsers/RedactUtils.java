@@ -50,7 +50,7 @@ public final class RedactUtils {
   //   "Compiled method (c2) ... com.company.Foo::methodName (N bytes)"   (PRODUCT — dots)
   //   "Compiled method (c2) ... com/company/Foo::methodName (N bytes)"   (debug  — slashes)
   private static final Pattern NMETHOD_CLASS =
-      Pattern.compile("([A-Za-z][A-Za-z0-9$]*(?:[./][A-Za-z][A-Za-z0-9$]*)+)::");
+      Pattern.compile("([A-Za-z$_][A-Za-z0-9$_]*(?:[./][A-Za-z$_][A-Za-z0-9$_]*)+)::");
 
   // Library path in two formats produced by os::print_location():
   //   <offset 0x...> in /path/to/lib.so at 0x...       (no dladdr symbol)
@@ -62,11 +62,11 @@ public final class RedactUtils {
   // This specifically identifies the inline string value of a java.lang.Class 'name' field
   private static final Pattern DOTTED_CLASS_OOP_REF =
       Pattern.compile(
-          "\"([A-Za-z][A-Za-z0-9$]*(?:\\.[A-Za-z][A-Za-z0-9$]*)*)\"(\\{0x[0-9a-fA-F]+\\})");
+          "\"([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)\"(\\{0x[0-9a-fA-F]+\\})");
 
   // is an oop: com.company.Class
   private static final Pattern IS_AN_OOP =
-      Pattern.compile("(is an oop: )([A-Za-z][A-Za-z0-9$]*(?:\\.[A-Za-z][A-Za-z0-9$]*)*)");
+      Pattern.compile("(is an oop: )([A-Za-z$_][A-Za-z0-9$_]*(?:\\.[A-Za-z$_][A-Za-z0-9$_]*)*)");
 
   // Hex-dump bytes in "points into unknown readable memory:" lines.
   // Two formats produced by os::print_location():
@@ -215,6 +215,7 @@ public final class RedactUtils {
    * java.lang.Class} oop) use {@link #redactRegisterToMemoryMapping} which detects the oop type
    * automatically.
    */
+  // @VisibleForTesting — no production callers; used directly in unit tests
   static String redactDottedClassOopRef(String line) {
     return redactStringOopRef(line, false);
   }

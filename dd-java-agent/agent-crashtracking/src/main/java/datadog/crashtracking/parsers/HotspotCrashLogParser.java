@@ -455,7 +455,7 @@ public final class HotspotCrashLogParser {
             if (m.lookingAt()) {
               currentRegisterToMemoryMapping = m.group(1);
               registerToMemoryMapping.put(
-                  currentRegisterToMemoryMapping, line.substring(line.indexOf('=') + 1));
+                  currentRegisterToMemoryMapping, line.substring(m.end()));
             } else if (!currentRegisterToMemoryMapping.isEmpty()) {
               registerToMemoryMapping.computeIfPresent(
                   currentRegisterToMemoryMapping, (key, value) -> value + "\n" + line);
