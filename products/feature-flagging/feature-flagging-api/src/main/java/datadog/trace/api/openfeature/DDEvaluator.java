@@ -39,6 +39,7 @@ import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
+import java.util.regex.PatternSyntaxException;
 
 class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
@@ -148,6 +149,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .value(defaultValue)
           .reason(Reason.DEFAULT.name())
           .build();
+    } catch (final PatternSyntaxException e) {
+      return error(defaultValue, ErrorCode.PARSE_ERROR, e);
     } catch (final NumberFormatException e) {
       return error(defaultValue, ErrorCode.TYPE_MISMATCH, e);
     } catch (final Exception e) {
@@ -251,12 +254,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   private static boolean matchesRegex(final Object attributeValue, final Object conditionValue) {
-    try {
-      final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
-      return pattern.matcher(String.valueOf(attributeValue)).find();
-    } catch (Exception e) {
-      return false;
-    }
+    // PatternSyntaxException is intentionally not caught here so it propagates to evaluate(),
+    // which maps it to ErrorCode.PARSE_ERROR.
+    final Pattern pattern = Pattern.compile(String.valueOf(conditionValue));
+    return pattern.matcher(String.valueOf(attributeValue)).find();
   }
 
   private static boolean isOneOf(final Object attributeValue, final Object conditionValue) {
