@@ -152,7 +152,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Enter boolean proceed,
-        @Advice.Return Collection parts,
+        @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
       CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
@@ -160,8 +160,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         return;
       }
       List<String> filenames = new ArrayList<>();
-      for (Object part : parts) {
-        String name = ((Part) part).getSubmittedFileName();
+      for (Part part : parts) {
+        String name = part.getSubmittedFileName();
         if (name != null && !name.isEmpty()) {
           filenames.add(name);
         }
