@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.List;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -52,6 +54,14 @@ public class ConstructorAdvice {
     if (offsetCommitCallbackInvoker != null) {
       InstrumentationContext.get(OffsetCommitCallbackInvoker.class, KafkaConsumerInfo.class)
           .put(offsetCommitCallbackInvoker, kafkaConsumerInfo);
+    }
+
+    if (Config.get().isDataStreamsEnabled()) {
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .putIfAbsent(metadata, MetadataState::new);
+      KafkaConfigHelper.storePendingConsumerConfig(
+          state, normalizedConsumerGroup, KafkaConfigHelper.extractConsumerConfig(consumerConfig));
     }
   }
 
