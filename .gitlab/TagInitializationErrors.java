@@ -22,7 +22,7 @@ import java.util.Map;
  * entry is left unmodified, allowing <em>Test Optimization</em> to apply its default status inference based
  * on the actual outcome. Files with only one (or zero) {@code initializationError} test cases are left unmodified.
  *
- * <p>Usage (JEP 330): java TagInitializationErrors.java <xml-file>
+ * <p>Usage (Java 25): {@code java TagInitializationErrors.java junit-report.xml}
  */
 class TagInitializationErrors {
   public static void main(String[] args) throws Exception {
