@@ -19,7 +19,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -40,6 +39,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   @Override
   public String instrumentedType() {
     return "org.eclipse.jetty.server.Request";
+  }
+
+  @Override
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".MultipartHelper"};
   }
 
   @Override
@@ -159,13 +163,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      List<String> filenames = new ArrayList<>();
-      for (Part part : parts) {
-        String name = part.getSubmittedFileName();
-        if (name != null && !name.isEmpty()) {
-          filenames.add(name);
-        }
-      }
+      List<String> filenames = MultipartHelper.extractFilenames(parts);
       if (filenames.isEmpty()) {
         return;
       }
