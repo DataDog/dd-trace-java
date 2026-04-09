@@ -11,7 +11,7 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * Tags intermediate initializationError retries with dd_tags[test.final_status]=skip.
+ * Tags intermediate {@code initializationError} retries with {@code dd_tags[test.final_status]=skip}.
  *
  * <p>Gradle generates synthetic "initializationError" testcases in JUnit reports for setup methods.
  * When a setup is retried and eventually succeeds, multiple testcases are created, with only the
