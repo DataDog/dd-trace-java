@@ -65,6 +65,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       packageName + ".ParameterCollector",
       packageName + ".ParameterCollector$ParameterCollectorImpl",
       packageName + ".ParameterCollector$ParameterCollectorNoop",
+      packageName + ".MultipartHelper",
     };
   }
 
@@ -227,21 +228,10 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       // Parse filename from Content-Disposition header instead.
       List<String> filenames = new ArrayList<>();
       for (Part part : parts) {
-        String cd = part.getHeader("content-disposition");
-        if (cd != null) {
-          for (String tok : cd.split(";")) {
-            tok = tok.trim();
-            if (tok.startsWith("filename=")) {
-              String name = tok.substring(9).trim();
-              if (name.startsWith("\"") && name.endsWith("\"")) {
-                name = name.substring(1, name.length() - 1);
-              }
-              if (!name.isEmpty()) {
-                filenames.add(name);
-              }
-              break;
-            }
-          }
+        String name =
+            MultipartHelper.filenameFromContentDisposition(part.getHeader("content-disposition"));
+        if (name != null) {
+          filenames.add(name);
         }
       }
       if (filenames.isEmpty()) {
