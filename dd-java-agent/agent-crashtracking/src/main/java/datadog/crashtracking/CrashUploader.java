@@ -577,46 +577,40 @@ public final class CrashUploader {
           writer.endObject();
         }
         // experimental
-        if (payload.experimental != null) {
-          // ucontext is always emitted when present; the remaining fields are only emitted
-          // when extended-info is enabled. Skip the block entirely if nothing would be written.
-          boolean experimentalHasContent =
-              payload.experimental.ucontext != null
-                  || (uploaderSettings.isExtendedInfoEnabled()
-                      && (payload.experimental.registerToMemoryMapping != null
-                          || payload.experimental.runtimeArgs != null));
-          if (experimentalHasContent) {
-            writer.name("experimental");
+        if (payload.experimental != null
+            && (payload.experimental.ucontext != null
+                || payload.experimental.registerToMemoryMapping != null
+                || payload.experimental.runtimeArgs != null)) {
+          writer.name("experimental");
+          writer.beginObject();
+          if (payload.experimental.ucontext != null) {
+            writer.name("ucontext");
             writer.beginObject();
-            if (payload.experimental.ucontext != null) {
-              writer.name("ucontext");
-              writer.beginObject();
-              for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
-                writer.name(entry.getKey()).value(entry.getValue());
-              }
-              writer.endObject();
-            }
-            if (uploaderSettings.isExtendedInfoEnabled()
-                && payload.experimental.registerToMemoryMapping != null) {
-              writer.name("register_to_memory_mapping");
-              writer.beginObject();
-              for (Map.Entry<String, String> entry :
-                  payload.experimental.registerToMemoryMapping.entrySet()) {
-                writer.name(entry.getKey()).value(entry.getValue());
-              }
-              writer.endObject();
-            }
-            if (uploaderSettings.isExtendedInfoEnabled()
-                && payload.experimental.runtimeArgs != null) {
-              writer.name("runtime_args");
-              writer.beginArray();
-              for (String arg : payload.experimental.runtimeArgs) {
-                writer.value(arg);
-              }
-              writer.endArray();
+            for (Map.Entry<String, String> entry : payload.experimental.ucontext.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
             }
             writer.endObject();
           }
+          if (uploaderSettings.isExtendedInfoEnabled()
+              && payload.experimental.registerToMemoryMapping != null) {
+            writer.name("register_to_memory_mapping");
+            writer.beginObject();
+            for (Map.Entry<String, String> entry :
+                payload.experimental.registerToMemoryMapping.entrySet()) {
+              writer.name(entry.getKey()).value(entry.getValue());
+            }
+            writer.endObject();
+          }
+          if (uploaderSettings.isExtendedInfoEnabled()
+              && payload.experimental.runtimeArgs != null) {
+            writer.name("runtime_args");
+            writer.beginArray();
+            for (String arg : payload.experimental.runtimeArgs) {
+              writer.value(arg);
+            }
+            writer.endArray();
+          }
+          writer.endObject();
         }
         // files (e.g. /proc/self/maps or dynamic_libraries)
         if (uploaderSettings.isExtendedInfoEnabled() && payload.files != null) {
