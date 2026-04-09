@@ -10,9 +10,13 @@ import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.coverage.SkippableAwareCoverageStoreFactory;
 import datadog.trace.civisibility.coverage.file.FileCoverageStore;
 import datadog.trace.civisibility.coverage.line.LineCoverageStore;
+import datadog.communication.http.OkHttpUtils;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
+import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
+import datadog.trace.civisibility.communication.TelemetryListener;
 import datadog.trace.civisibility.coverage.report.CoverageProcessor;
-import datadog.trace.civisibility.coverage.report.CoverageReportUploader;
 import datadog.trace.civisibility.coverage.report.JacocoCoverageProcessor;
+import datadog.trace.coverage.CoverageReportUploader;
 import datadog.trace.civisibility.coverage.report.child.ChildProcessCoverageReporter;
 import datadog.trace.civisibility.coverage.report.child.JacocoChildProcessCoverageReporter;
 import datadog.trace.civisibility.domain.buildsystem.ModuleSignalRouter;
@@ -34,11 +38,20 @@ public class CiVisibilityCoverageServices {
 
       ExecutionSettings executionSettings =
           repoServices.executionSettingsFactory.create(JvmInfo.CURRENT_JVM, null);
-      CoverageReportUploader coverageReportUploader =
-          executionSettings.isCodeCoverageReportUploadEnabled()
-              ? new CoverageReportUploader(
-                  services.ciIntake, repoServices.ciTags, services.metricCollector)
-              : null;
+      CoverageReportUploader coverageReportUploader;
+      if (executionSettings.isCodeCoverageReportUploadEnabled()) {
+        OkHttpUtils.CustomListener telemetryListener =
+            new TelemetryListener.Builder(services.metricCollector)
+                .requestCount(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST)
+                .requestBytes(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_BYTES)
+                .requestErrors(CiVisibilityCountMetric.COVERAGE_UPLOAD_REQUEST_ERRORS)
+                .requestDuration(CiVisibilityDistributionMetric.COVERAGE_UPLOAD_REQUEST_MS)
+                .build();
+        coverageReportUploader =
+            new CoverageReportUploader(services.ciIntake, repoServices.ciTags, telemetryListener);
+      } else {
+        coverageReportUploader = null;
+      }
 
       coverageProcessorFactory =
           new JacocoCoverageProcessor.Factory(

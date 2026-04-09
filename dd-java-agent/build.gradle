@@ -237,6 +237,7 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', incl
 includeSubprojShadowJar(project(':dd-java-agent:agent-iast'), 'iast', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-debugger'), 'debugger', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visibility', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-code-coverage'), 'code-coverage', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)

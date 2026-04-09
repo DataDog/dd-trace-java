@@ -1,0 +1,252 @@
+package datadog.trace.codecoverage;
+
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.instrument.ClassFileTransformer;
+import java.lang.instrument.Instrumentation;
+import java.lang.ref.WeakReference;
+import java.security.ProtectionDomain;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.function.Predicate;
+import org.jacoco.core.data.ExecutionData;
+import org.jacoco.core.data.ExecutionDataStore;
+import org.jacoco.core.data.IExecutionDataVisitor;
+import org.jacoco.core.data.SessionInfoStore;
+import org.jacoco.core.instr.Instrumenter;
+import org.jacoco.core.runtime.IRuntime;
+import org.jacoco.core.runtime.InjectedClassRuntime;
+import org.jacoco.core.runtime.RuntimeData;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+/**
+ * A {@link ClassFileTransformer} that uses JaCoCo's {@link Instrumenter} to insert boolean probes
+ * into class bytecode at load time.
+ *
+ * <p>Must be registered <b>before</b> ByteBuddy's transformer so that JaCoCo sees original class
+ * bytes (CRC64 must match the {@code .class} files on disk for analysis to work).
+ */
+public final class CodeCoverageTransformer implements ClassFileTransformer {
+
+  private static final Logger log = LoggerFactory.getLogger(CodeCoverageTransformer.class);
+
+  private final RuntimeData runtimeData;
+  private final Instrumenter instrumenter;
+  private final Predicate<String> filter;
+  private final ConcurrentLinkedQueue<NewClass> newlyInstrumented = new ConcurrentLinkedQueue<>();
+
+  /** Lightweight pair of CRC64 class ID and VM class name, queued at transform time. */
+  static final class NewClass {
+    final long classId;
+    final String className;
+
+    NewClass(long classId, String className) {
+      this.classId = classId;
+      this.className = className;
+    }
+  }
+
+  /**
+   * Maps CRC64 class ID to the defining ClassLoader recorded at transform time. Uses weak
+   * references so classloaders can be garbage-collected when their classes are unloaded.
+   */
+  private final ConcurrentHashMap<Long, WeakReference<ClassLoader>> classLoadersByClassId =
+      new ConcurrentHashMap<>();
+
+  /**
+   * Initializes the JaCoCo runtime and instrumenter.
+   *
+   * <p>This replicates the logic from JaCoCo's {@code AgentModule} and {@code PreMain}: it creates
+   * an isolated classloader, opens {@code java.lang} to it via {@code
+   * Instrumentation.redefineModule}, loads {@link InjectedClassRuntime} in that module, and starts
+   * the runtime.
+   *
+   * @param inst the JVM instrumentation service
+   * @param filter predicate that decides which classes to instrument (VM class name format)
+   * @throws Exception if the JaCoCo runtime cannot be initialized
+   */
+  public CodeCoverageTransformer(Instrumentation inst, Predicate<String> filter) throws Exception {
+    this.filter = filter;
+    this.runtimeData = new RuntimeData();
+
+    // Replicate AgentModule logic: create isolated classloader and open java.lang to it
+    Set<String> scope = new HashSet<>();
+    addToScopeWithInnerClasses(InjectedClassRuntime.class, scope);
+
+    // Use the classloader that has the (shaded) JaCoCo classes as the resource source and parent.
+    // The parent provides access to AbstractRuntime, IRuntime, RuntimeData, ASM classes, etc.
+    // Scoped classes (InjectedClassRuntime and its inner classes) are re-defined in the isolated
+    // classloader so they belong to its distinct unnamed module — which has java.lang opened to it.
+    ClassLoader agentLoader = CodeCoverageTransformer.class.getClassLoader();
+
+    ClassLoader isolatedLoader =
+        new ClassLoader(agentLoader) {
+          @Override
+          protected Class<?> loadClass(String name, boolean resolve) throws ClassNotFoundException {
+            if (!scope.contains(name)) {
+              return super.loadClass(name, resolve);
+            }
+            byte[] bytes;
+            try (InputStream resourceStream =
+                agentLoader.getResourceAsStream(name.replace('.', '/') + ".class")) {
+              if (resourceStream == null) {
+                throw new ClassNotFoundException(name);
+              }
+              bytes = readAllBytes(resourceStream);
+            } catch (IOException e) {
+              throw new RuntimeException(e);
+            }
+            return defineClass(
+                name, bytes, 0, bytes.length, CodeCoverageTransformer.class.getProtectionDomain());
+          }
+        };
+
+    // Open java.lang package to the isolated classloader's unnamed module
+    openPackage(inst, Object.class, isolatedLoader);
+
+    // Load InjectedClassRuntime in the isolated module
+    @SuppressWarnings("unchecked")
+    Class<InjectedClassRuntime> rtClass =
+        (Class<InjectedClassRuntime>)
+            isolatedLoader.loadClass(InjectedClassRuntime.class.getName());
+
+    IRuntime runtime =
+        rtClass.getConstructor(Class.class, String.class).newInstance(Object.class, "$DDCov");
+
+    runtime.startup(runtimeData);
+    this.instrumenter = new Instrumenter(runtime);
+  }
+
+  /** Recursively adds the given class and all its declared inner classes to the scope set. */
+  private static void addToScopeWithInnerClasses(Class<?> clazz, Set<String> scope) {
+    scope.add(clazz.getName());
+    for (Class<?> inner : clazz.getDeclaredClasses()) {
+      addToScopeWithInnerClasses(inner, scope);
+    }
+  }
+
+  /** Reads all bytes from an input stream. */
+  private static byte[] readAllBytes(InputStream is) throws IOException {
+    byte[] buf = new byte[1024];
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    int r;
+    while ((r = is.read(buf)) != -1) {
+      out.write(buf, 0, r);
+    }
+    return out.toByteArray();
+  }
+
+  /**
+   * Opens the package of {@code classInPackage} to the unnamed module of {@code targetLoader}.
+   *
+   * <p>This uses {@code Instrumentation.redefineModule} reflectively (same approach as JaCoCo's
+   * {@code AgentModule.openPackage}).
+   */
+  private static void openPackage(
+      Instrumentation inst, Class<?> classInPackage, ClassLoader targetLoader) throws Exception {
+    // module of the package to open (e.g. java.base for java.lang)
+    Object module = Class.class.getMethod("getModule").invoke(classInPackage);
+
+    // unnamed module of the isolated classloader
+    Object unnamedModule = ClassLoader.class.getMethod("getUnnamedModule").invoke(targetLoader);
+
+    Class<?> moduleClass = Class.forName("java.lang.Module");
+
+    // Instrumentation.redefineModule(Module, Set, Map, Map<String, Set<Module>>, Set, Map)
+    Instrumentation.class
+        .getMethod(
+            "redefineModule", moduleClass, Set.class, Map.class, Map.class, Set.class, Map.class)
+        .invoke(
+            inst,
+            module, // module to modify
+            Collections.emptySet(), // extraReads
+            Collections.emptyMap(), // extraExports
+            Collections.singletonMap(
+                classInPackage.getPackage().getName(),
+                Collections.singleton(unnamedModule)), // extraOpens
+            Collections.emptySet(), // extraUses
+            Collections.emptyMap()); // extraProvides
+  }
+
+  @Override
+  public byte[] transform(
+      ClassLoader loader,
+      String className,
+      Class<?> classBeingRedefined,
+      ProtectionDomain pd,
+      byte[] classfileBuffer) {
+    if (classBeingRedefined != null) {
+      return null; // retransformation not supported (schema change)
+    }
+    if (className == null || loader == null) {
+      return null; // skip bootstrap classes and unnamed classes
+    }
+    if (!filter.test(className)) {
+      return null;
+    }
+    try {
+      byte[] instrumented = instrumenter.instrument(classfileBuffer, className);
+      long classId = org.jacoco.core.internal.data.CRC64.classId(classfileBuffer);
+      classLoadersByClassId.put(classId, new WeakReference<>(loader));
+      newlyInstrumented.add(new NewClass(classId, className));
+      return instrumented;
+    } catch (Exception e) {
+      log.debug("Failed to instrument class {}", className, e);
+      return null;
+    }
+  }
+
+  /**
+   * Returns the defining ClassLoader recorded at transform time for the given CRC64 class ID, or
+   * null if the class was not instrumented by this transformer or if the classloader has been
+   * garbage-collected.
+   */
+  public ClassLoader getDefiningClassLoader(long classId) {
+    WeakReference<ClassLoader> ref = classLoadersByClassId.get(classId);
+    return (ref != null) ? ref.get() : null;
+  }
+
+  /**
+   * Drains and returns the list of classes that have been instrumented since the last call. Each
+   * entry contains the CRC64 class ID and the VM-format class name.
+   */
+  public List<NewClass> drainNewClasses() {
+    List<NewClass> result = new ArrayList<>();
+    NewClass entry;
+    while ((entry = newlyInstrumented.poll()) != null) {
+      result.add(entry);
+    }
+    return result;
+  }
+
+  /**
+   * Collects current probe data and resets all probes to {@code false}.
+   *
+   * <p>{@code RuntimeData.collect()} passes references to live {@code boolean[]} probe arrays to
+   * the visitor and then resets them when requested. To keep the snapshot intact, clone the arrays
+   * before forwarding them to the target store. This preserves the existing JaCoCo
+   * serialize/deserialize semantics without the extra byte buffer round-trip.
+   *
+   * @param target store to receive the execution data
+   * @param sessionTarget store to receive session info
+   */
+  public void collectAndReset(ExecutionDataStore target, SessionInfoStore sessionTarget) {
+    runtimeData.collect(snapshotExecutionData(target), sessionTarget, true);
+  }
+
+  static IExecutionDataVisitor snapshotExecutionData(ExecutionDataStore target) {
+    return data -> {
+      if (data.hasHits()) {
+        target.put(new ExecutionData(data.getId(), data.getName(), data.getProbes().clone()));
+      }
+    };
+  }
+}

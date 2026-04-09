@@ -27,6 +27,7 @@ dependencies {
   implementation project(':components:json')
   implementation project(':internal-api')
   implementation project(':internal-api:internal-api-9')
+  implementation project(':utils:coverage-utils')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation("com.google.jimfs:jimfs:1.1") // an in-memory file system for testing code that works with files
