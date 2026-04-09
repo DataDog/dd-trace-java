@@ -10,20 +10,35 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Tags intermediate {@code initializationError} retries with {@code dd_tags[test.final_status]=skip}.
- *
- * <p>Gradle generates synthetic "initializationError" testcases in JUnit reports for setup methods.
- * When a setup is retried and eventually succeeds, multiple testcases are created, with only the
- * last one passing. All intermediate attempts are marked skip so Test Optimization is not misled.
- *
- * <p>For any suite with multiple {@code initializationError} test cases (when retries occurred), all entries
- * but the last one are tagged by this script with `dd_tags[test.final_status]=skip`. The last
- * entry is left unmodified, allowing <em>Test Optimization</em> to apply its default status inference based
- * on the actual outcome. Files with only one (or zero) {@code initializationError} test cases are left unmodified.
- *
- * <p>Usage (Java 25): {@code java TagInitializationErrors.java junit-report.xml}
- */
+/// Tags intermediate `initializationError` retries with `dd_tags[test.final_status]=skip`.
+///
+/// Gradle generates synthetic "initializationError" testcases in JUnit reports for setup methods.
+/// When a setup is retried and eventually succeeds, multiple testcases are created, with only the
+/// last one passing. All intermediate attempts are marked skip so Test Optimization is not misled.
+///
+/// For any suite with multiple `initializationError` test cases (when retries occurred), all entries
+/// but the last one are tagged by this script with `dd_tags[test.final_status]=skip`. The last
+/// entry is left unmodified, allowing **Test Optimization** to apply its default status inference based
+/// on the actual outcome. Files with only one (or zero) `initializationError` test cases are left unmodified.
+///
+/// Before:
+/// 
+/// ```
+/// <testcase name="initializationError" />
+/// ```
+/// 
+/// After:
+/// 
+/// ```
+/// <testcase name="initializationError">
+///   <properties>
+///     <property name="dd_tags[test.final_status]" value="skip" /> 
+///   </properties>
+/// </testcase>
+/// ```
+/// 
+/// Usage (Java 25): `java TagInitializationErrors.java junit-report.xml`
+
 class TagInitializationErrors {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
