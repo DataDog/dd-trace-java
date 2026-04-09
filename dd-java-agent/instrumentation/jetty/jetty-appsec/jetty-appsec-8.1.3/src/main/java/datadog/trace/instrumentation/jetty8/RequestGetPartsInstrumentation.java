@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -224,41 +223,23 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      // Resolve getSubmittedFileName once (Servlet 3.1+; null on Servlet 3.0)
-      Method getSubmittedFileName = null;
-      try {
-        getSubmittedFileName = parts.iterator().next().getClass().getMethod("getSubmittedFileName");
-      } catch (Exception ignored) {
-      }
+      // Jetty 8 implements Servlet 3.0; getSubmittedFileName does not exist.
+      // Parse filename from Content-Disposition header instead.
       List<String> filenames = new ArrayList<>();
-      if (getSubmittedFileName != null) {
-        // Servlet 3.1+: use getSubmittedFileName
-        for (Object part : parts) {
-          try {
-            String name = (String) getSubmittedFileName.invoke(part);
-            if (name != null && !name.isEmpty()) {
-              filenames.add(name);
-            }
-          } catch (Exception ignored) {
-          }
-        }
-      } else {
-        // Servlet 3.0: parse filename from Content-Disposition header
-        for (Object part : parts) {
-          String cd = ((Part) part).getHeader("content-disposition");
-          if (cd != null) {
-            for (String tok : cd.split(";")) {
-              tok = tok.trim();
-              if (tok.startsWith("filename=")) {
-                String name = tok.substring(9).trim();
-                if (name.startsWith("\"") && name.endsWith("\"")) {
-                  name = name.substring(1, name.length() - 1);
-                }
-                if (!name.isEmpty()) {
-                  filenames.add(name);
-                }
-                break;
+      for (Object part : parts) {
+        String cd = ((Part) part).getHeader("content-disposition");
+        if (cd != null) {
+          for (String tok : cd.split(";")) {
+            tok = tok.trim();
+            if (tok.startsWith("filename=")) {
+              String name = tok.substring(9).trim();
+              if (name.startsWith("\"") && name.endsWith("\"")) {
+                name = name.substring(1, name.length() - 1);
               }
+              if (!name.isEmpty()) {
+                filenames.add(name);
+              }
+              break;
             }
           }
         }
