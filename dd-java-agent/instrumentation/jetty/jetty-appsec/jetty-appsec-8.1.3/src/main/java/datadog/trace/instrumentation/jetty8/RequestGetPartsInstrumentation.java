@@ -313,10 +313,12 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     @Override
     public void visitMethodInsn(
         int opcode, String owner, String name, String descriptor, boolean isInterface) {
+      // Match MultiMap.add() in both Jetty 8.x (Object,Object) and Jetty 9.x (String,Object).
       if (opcode == Opcodes.INVOKEVIRTUAL
           && owner.equals("org/eclipse/jetty/util/MultiMap")
           && name.equals("add")
-          && descriptor.equals("(Ljava/lang/String;Ljava/lang/Object;)V")) {
+          && (descriptor.equals("(Ljava/lang/String;Ljava/lang/Object;)V")
+              || descriptor.equals("(Ljava/lang/Object;Ljava/lang/Object;)V"))) {
         super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
         // stack: ..., key, value, collParams
         super.visitInsn(Opcodes.DUP_X2);
@@ -329,7 +331,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
             Opcodes.INVOKEINTERFACE,
             Type.getInternalName(ParameterCollector.class),
             "put",
-            "(Ljava/lang/String;Ljava/lang/String;)V",
+            "(Ljava/lang/Object;Ljava/lang/Object;)V",
             true);
         // original stack
       }
