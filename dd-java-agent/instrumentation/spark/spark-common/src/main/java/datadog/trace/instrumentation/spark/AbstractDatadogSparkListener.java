@@ -293,7 +293,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
-    if (isRunningOnDatabricks && databricksProperties != null) {
+    if (isRunningOnDatabricks
+        && databricksProperties != null
+        && Config.get().isDataJobsDatabricksStandaloneEnabled()) {
       String databricksJobId = getDatabricksJobId(databricksProperties);
       String databricksJobRunId =
           getDatabricksJobRunId(databricksProperties, databricksClusterName);
@@ -375,9 +377,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
-    if (applicationSpan == null && jobCount > 0) {
-      // If the application span is not initialized but spark jobs have been executed,
-      // those jobs were streaming-only. In this case we don't send the application span.
+    if ((applicationSpan == null && jobCount > 0)
+        || (isRunningOnDatabricks && !Config.get().isDataJobsDatabricksStandaloneEnabled())) {
+      // If the application span is not initialized but spark jobs have been executed, those jobs
+      // were streaming-only or Databricks (standalone mode disabled). Don't send application span.
       return;
     }
 
@@ -493,6 +496,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.context());
+    } else if (isRunningOnDatabricks && !Config.get().isDataJobsDatabricksStandaloneEnabled()) {
+      addDatabricksSpecificTags(spanBuilder, jobProperties, true);
     } else {
       initApplicationSpanIfNotInitialized(
           isRunningOnDatabricks ? jobProperties : null, queryStart.time());
@@ -529,8 +534,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     /*-
      * The spark.job span hierarchy depends on the setup:
      *
-     * spark.application (including databricks) | spark.streaming_batch
-     *               \                                    |
+     * spark.application (or databricks.task when standalone disabled) | spark.streaming_batch
+     *               \                                                          |
      *                    [spark.sql] optional, only present if using spark-sql
      *                          |
      *                      spark.job
@@ -542,6 +547,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
       jobSpanBuilder.asChildOf(batchSpan.context());
+    } else if (isRunningOnDatabricks && !Config.get().isDataJobsDatabricksStandaloneEnabled()) {
+      addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
     } else {
       initApplicationSpanIfNotInitialized(
           isRunningOnDatabricks ? jobStart.properties() : null, jobStart.time());
