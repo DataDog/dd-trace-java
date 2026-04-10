@@ -358,6 +358,11 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
         if (traceDecodingFailure != null) {
           throw traceDecodingFailure
         }
+        // Check the count BEFORE liveness — the process may have exited normally
+        // after delivering all traces, and we don't want to treat that as a failure.
+        if (traceCount.get() >= count) {
+          return
+        }
         if (testedProcess != null && !testedProcess.isAlive()) {
           def lastLines = tailProcessLog(20)
           throw new AssertionError(
