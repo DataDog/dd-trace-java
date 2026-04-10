@@ -32,15 +32,18 @@ public class ScopeLifecycleBenchmark {
   public static class ThreadState {
     AgentSpan span;
     AgentSpan childSpan;
+    AgentScope activeScope;
 
     @Setup(Level.Iteration)
     public void setup() {
       span = TRACER.startSpan("benchmark", "parent");
       childSpan = TRACER.startSpan("benchmark", "child");
+      activeScope = TRACER.activateSpan(span);
     }
 
     @TearDown(Level.Iteration)
     public void tearDown() {
+      activeScope.close();
       childSpan.finish();
       span.finish();
     }
