@@ -20,6 +20,11 @@ configurations.testRuntimeOnly {
   exclude group: 'javax.servlet', module: 'javax.servlet-api'
 }
 
+tasks.named('latestDepForkedTest', Test) {
+  // Signal that we are running against Jetty 8.x so Jetty8*LatestDepForkedTest activates.
+  systemProperty 'test.dd.filenames', 'true'
+}
+
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '7.6.0.v20120127'
   implementation project(':dd-java-agent:instrumentation:jetty:jetty-common')
@@ -34,8 +39,14 @@ dependencies {
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '7.6.0.v20120127'
   testImplementation group: 'org.eclipse.jetty', name: 'jetty-continuation', version: '7.6.0.v20120127'
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
+  // Needed to compile Jetty8LatestDepForkedTest (provides MultipartConfigElement).
+  // Uses the Orbit repackaging so it is not caught by the javax.servlet:javax.servlet-api exclusion.
+  // Compile-only: the Orbit jar is provided at runtime by Jetty 8.x in the latestDepForkedTest.
+  testCompileOnly group: 'org.eclipse.jetty.orbit', name: 'javax.servlet', version: '3.0.0.v201112011016'
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
+  // Activated only on Jetty 8.x (muzzle rejects it for 7.6)
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '8.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '8.+'
