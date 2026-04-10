@@ -80,7 +80,12 @@ class ContinuableScope implements AgentScope {
    * I would hope this becomes unnecessary.
    */
   final void onProperClose() {
-    if (!scopeManager.scopeListeners.isEmpty()) {
+    boolean hasScopeListeners = !scopeManager.scopeListeners.isEmpty();
+    boolean hasExtendedListeners = !scopeManager.extendedScopeListeners.isEmpty();
+    if (!hasScopeListeners && !hasExtendedListeners) {
+      return;
+    }
+    if (hasScopeListeners) {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -89,7 +94,7 @@ class ContinuableScope implements AgentScope {
         }
       }
     }
-    if (!scopeManager.extendedScopeListeners.isEmpty()) {
+    if (hasExtendedListeners) {
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
           listener.afterScopeClosed();
@@ -173,14 +178,16 @@ class ContinuableScope implements AgentScope {
   }
 
   public final void afterActivated() {
-    if (scopeManager.scopeListeners.isEmpty() && scopeManager.extendedScopeListeners.isEmpty()) {
+    boolean hasScopeListeners = !scopeManager.scopeListeners.isEmpty();
+    boolean hasExtendedListeners = !scopeManager.extendedScopeListeners.isEmpty();
+    if (!hasScopeListeners && !hasExtendedListeners) {
       return;
     }
     AgentSpan span = span();
     if (span == null) {
       return;
     }
-    if (!scopeManager.scopeListeners.isEmpty()) {
+    if (hasScopeListeners) {
       for (final ScopeListener listener : scopeManager.scopeListeners) {
         try {
           listener.afterScopeActivated();
@@ -189,7 +196,7 @@ class ContinuableScope implements AgentScope {
         }
       }
     }
-    if (!scopeManager.extendedScopeListeners.isEmpty()) {
+    if (hasExtendedListeners) {
       for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
         try {
           listener.afterScopeActivated(span.getTraceId(), span.getSpanId());
