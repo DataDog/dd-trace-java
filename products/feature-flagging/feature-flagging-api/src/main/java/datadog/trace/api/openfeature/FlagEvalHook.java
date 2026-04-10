@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.FlagEvaluationDetails;
 import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.HookContext;
@@ -24,7 +25,7 @@ class FlagEvalHook implements Hook<Object> {
       String flagKey = details.getFlagKey();
       String variant = details.getVariant();
       String reason = details.getReason();
-      dev.openfeature.sdk.ErrorCode errorCode = details.getErrorCode();
+      ErrorCode errorCode = details.getErrorCode();
 
       String allocationKey = null;
       ImmutableMetadata metadata = details.getFlagMetadata();

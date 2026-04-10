@@ -12,12 +12,9 @@ Published as `com.datadoghq:dd-openfeature` on Maven Central.
     <artifactId>dd-openfeature</artifactId>
     <version>${dd-openfeature.version}</version>
 </dependency>
-<dependency>
-    <groupId>dev.openfeature</groupId>
-    <artifactId>sdk</artifactId>
-    <version>1.20.1</version>
-</dependency>
 ```
+
+The OpenFeature SDK (`dev.openfeature:sdk`) is included as a transitive dependency.
 
 ### Evaluation metrics (optional)
 
