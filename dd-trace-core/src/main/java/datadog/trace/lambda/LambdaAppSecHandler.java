@@ -829,10 +829,17 @@ public class LambdaAppSecHandler {
     final Map<String, List<String>> queryParameters;
     final Object body;
 
-    static final LambdaEventData EMPTY = new LambdaEventData(
-        Collections.emptyMap(), null, null, null, null,
-        LambdaTriggerType.UNKNOWN,
-        Collections.emptyMap(), Collections.emptyMap(), null);
+    static final LambdaEventData EMPTY =
+        new LambdaEventData(
+            Collections.emptyMap(),
+            null,
+            null,
+            null,
+            null,
+            LambdaTriggerType.UNKNOWN,
+            Collections.emptyMap(),
+            Collections.emptyMap(),
+            null);
 
     LambdaEventData(
         Map<String, String> headers,
@@ -879,7 +886,8 @@ public class LambdaAppSecHandler {
       }
 
       String forwardedProto = headers != null ? headers.get("x-forwarded-proto") : null;
-      this.scheme = (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : "https";
+      this.scheme =
+          (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : "https";
 
       String forwardedPort = headers != null ? headers.get("x-forwarded-port") : null;
       int parsedPort = -1;
