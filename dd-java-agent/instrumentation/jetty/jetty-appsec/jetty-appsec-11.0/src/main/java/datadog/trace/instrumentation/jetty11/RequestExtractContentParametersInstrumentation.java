@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty93;
+package datadog.trace.instrumentation.jetty11;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -18,10 +18,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import jakarta.servlet.http.Part;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.eclipse.jetty.server.Request;
@@ -58,23 +58,23 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 9.3.x ([9.3, 9.4)):
-  //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiPartInputStream exists only in 9.3.x (excludes 9.4+ where it became _multiParts)
+  // Discriminates Jetty 11.x ([11.0, 12.0)):
+  //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12)
+  //  - _multiParts exists in 11.x
+  //  - jakarta.servlet.http.Part exists in 11.x classpath (excludes 9.4–10.x which use javax)
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiPartInputStream",
-              "Lorg/eclipse/jetty/util/MultiPartInputStreamParser;")
+          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
           .build();
+
+  private static final Reference JAKARTA_PART_REFERENCE =
+      new Reference.Builder("jakarta.servlet.http.Part").build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE};
+    return new Reference[] {REQUEST_REFERENCE, JAKARTA_PART_REFERENCE};
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -130,8 +130,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
    *   <li>{@code _contentParameters != null}: set by {@code extractContentParameters()} (the {@code
    *       getParameterMap()} path); means filenames were already reported via {@code
    *       GetFilenamesFromMultiPartAdvice}.
-   *   <li>{@code _multiPartInputStream != null}: set by the first {@code getParts()} call in Jetty
-   *       9.3.x; means filenames were already reported.
+   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 11.x;
+   *       means filenames were already reported.
    * </ul>
    */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -139,10 +139,10 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
+        @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
+            final Object multiParts) {
       final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      return callDepth == 0 && contentParameters == null && multiPartInputStream == null;
+      return callDepth == 0 && contentParameters == null && multiParts == null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -184,10 +184,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   /**
    * Fires the {@code requestFilesFilenames} event when multipart content is parsed via the internal
    * {@code getParts(MultiMap)} path triggered by {@code getParameter*()} / {@code
-   * getParameterMap()} — i.e. when the application never calls public {@code getParts()}. In Jetty
-   * 9.3+, {@code extractContentParameters()} assigns {@code _contentParameters} before calling this
-   * method, so {@code map == null} cannot be used as a "first parse" guard here; the call-depth
-   * guard prevents double-firing when {@code getParts()} internally delegates to this method.
+   * getParameterMap()} — i.e. when the application never calls public {@code getParts()}.
    */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesFromMultiPartAdvice {

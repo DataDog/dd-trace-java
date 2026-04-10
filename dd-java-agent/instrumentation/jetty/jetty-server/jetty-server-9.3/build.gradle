@@ -41,6 +41,7 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
 
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.20.v20190813'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '9.4.20.v20190813'
