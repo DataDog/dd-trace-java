@@ -96,6 +96,10 @@ public abstract class TraceCollector implements AgentTraceCollector {
     return endToEndStartTime;
   }
 
+  boolean longRunningSpansEnabled() {
+    return false;
+  }
+
   abstract void touch();
 
   abstract void registerSpan(final DDSpan span);

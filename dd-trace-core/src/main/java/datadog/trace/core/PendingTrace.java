@@ -155,6 +155,11 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     this.spans = new ConcurrentLinkedDeque<>();
   }
 
+  @Override
+  boolean longRunningSpansEnabled() {
+    return pendingTraceBuffer.longRunningSpansEnabled();
+  }
+
   /**
    * Current timestamp in nanoseconds; 'touches' the trace by updating {@link #lastReferenced}.
    *
