@@ -418,6 +418,8 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2",
   ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.3",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4",
+  ":dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-10.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-12.0",
   ":dd-java-agent:instrumentation:jetty:jetty-client:jetty-client-9.1",

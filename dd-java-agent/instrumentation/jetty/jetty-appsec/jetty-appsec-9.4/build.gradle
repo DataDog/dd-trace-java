@@ -2,7 +2,7 @@ muzzle {
   pass {
     group = 'org.eclipse.jetty'
     module = 'jetty-server'
-    versions = '[9.3,9.4)'
+    versions = '[9.4,11.0)'
     assertInverse = true
   }
 }
@@ -10,7 +10,7 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
-  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.2.30.v20200428'
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'
 }
 
 // testing happens in the jetty-* modules
