@@ -72,9 +72,12 @@ public class LambdaAppSecHandler {
 
     try {
       LambdaEventData eventData = extractEventData((ByteArrayInputStream) event);
+      if (eventData == LambdaEventData.EMPTY) {
+        return null;
+      }
       return processAppSecRequestData(eventData);
     } catch (Exception e) {
-      log.error("Failed to process AppSec request data", e);
+      log.debug("Failed to process AppSec request data", e);
       return null;
     }
   }
@@ -97,7 +100,7 @@ public class LambdaAppSecHandler {
       if (requestEndedCallback != null) {
         requestEndedCallback.apply(requestContext, span);
       } else {
-        log.warn("requestEnded callback is null");
+        log.debug("requestEnded callback is null");
       }
     }
   }
@@ -130,7 +133,7 @@ public class LambdaAppSecHandler {
         return merged;
       }
 
-      log.warn(
+      log.debug(
           "Cannot merge AppSec data: extension context is not a TagContext: {}",
           extensionContext.getClass());
     }
@@ -142,7 +145,7 @@ public class LambdaAppSecHandler {
     Supplier<Flow<Object>> requestStartedCallback =
         tracer.getCallbackProvider(RequestContextSlot.APPSEC).getCallback(EVENTS.requestStarted());
     if (requestStartedCallback == null) {
-      log.warn("requestStarted callback is null");
+      log.debug("requestStarted callback is null");
       return null;
     }
 
@@ -166,10 +169,10 @@ public class LambdaAppSecHandler {
         if (methodUriCallback != null) {
           // Reconstruct full path with query string for AppSec analysis
           String fullPath = buildFullPath(eventData.path, eventData.queryParameters);
-          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath);
+          LambdaURIDataAdapter uriAdapter = new LambdaURIDataAdapter(fullPath, eventData.headers);
           methodUriCallback.apply(requestContext, eventData.method, uriAdapter);
         } else {
-          log.warn("requestMethodUriRaw callback is null");
+          log.debug("requestMethodUriRaw callback is null");
         }
       }
 
@@ -184,7 +187,7 @@ public class LambdaAppSecHandler {
             headerCallback.accept(requestContext, header.getKey(), header.getValue());
           }
         } else {
-          log.warn("requestHeader callback is null");
+          log.debug("requestHeader callback is null");
         }
       }
 
@@ -199,7 +202,7 @@ public class LambdaAppSecHandler {
           Integer port = eventData.sourcePort != null ? eventData.sourcePort : 0;
           socketAddrCallback.apply(requestContext, eventData.sourceIp, port);
         } else {
-          log.warn("requestClientSocketAddress callback is null");
+          log.debug("requestClientSocketAddress callback is null");
         }
       }
 
@@ -211,7 +214,7 @@ public class LambdaAppSecHandler {
       if (headerDoneCallback != null) {
         headerDoneCallback.apply(requestContext);
       } else {
-        log.warn("requestHeaderDone callback is null");
+        log.debug("requestHeaderDone callback is null");
       }
 
       // Call requestPathParams
@@ -223,7 +226,7 @@ public class LambdaAppSecHandler {
         if (pathParamsCallback != null) {
           pathParamsCallback.apply(requestContext, eventData.pathParameters);
         } else {
-          log.warn("requestPathParams callback is null");
+          log.debug("requestPathParams callback is null");
         }
       }
 
@@ -236,7 +239,7 @@ public class LambdaAppSecHandler {
         if (bodyCallback != null) {
           bodyCallback.apply(requestContext, eventData.body);
         } else {
-          log.warn("requestBodyProcessed callback is null");
+          log.debug("requestBodyProcessed callback is null");
         }
       }
     }
@@ -250,20 +253,11 @@ public class LambdaAppSecHandler {
       int availableBytes = inputStream.available();
 
       if (availableBytes <= 0 || availableBytes > MAX_EVENT_SIZE) {
-        log.warn(
+        log.debug(
             "Event size {} exceeds limit {} or is invalid, skipping AppSec processing",
             availableBytes,
             MAX_EVENT_SIZE);
-        return new LambdaEventData(
-            Collections.emptyMap(),
-            null,
-            null,
-            null,
-            null,
-            LambdaTriggerType.UNKNOWN,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            null);
+        return LambdaEventData.EMPTY;
       }
 
       StringBuilder jsonBuilder = new StringBuilder(availableBytes);
@@ -287,16 +281,7 @@ public class LambdaAppSecHandler {
       log.debug("Event JSON parsed successfully");
 
       if (event == null) {
-        return new LambdaEventData(
-            Collections.emptyMap(),
-            null,
-            null,
-            null,
-            null,
-            LambdaTriggerType.UNKNOWN,
-            Collections.emptyMap(),
-            Collections.emptyMap(),
-            null);
+        return LambdaEventData.EMPTY;
       }
 
       // Detect trigger type
@@ -320,17 +305,8 @@ public class LambdaAppSecHandler {
           return extractGenericData(event);
       }
     } catch (Exception e) {
-      log.error("Failed to parse event data from JSON", e);
-      return new LambdaEventData(
-          Collections.emptyMap(),
-          null,
-          null,
-          null,
-          null,
-          LambdaTriggerType.UNKNOWN,
-          Collections.emptyMap(),
-          Collections.emptyMap(),
-          null);
+      log.debug("Failed to parse event data from JSON", e);
+      return LambdaEventData.EMPTY;
     }
   }
 
@@ -525,7 +501,8 @@ public class LambdaAppSecHandler {
 
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
-    String sourceIp = headers.get("x-forwarded-for");
+    String xff = headers.get("x-forwarded-for");
+    String sourceIp = xff != null ? xff.split(",")[0].trim() : null;
 
     return new LambdaEventData(
         headers, method, path, sourceIp, null, triggerType, pathParameters, queryParameters, body);
@@ -780,8 +757,7 @@ public class LambdaAppSecHandler {
     }
 
     try {
-      Object parsed = OBJECT_ADAPTER.fromJson(body);
-      return parsed;
+      return OBJECT_ADAPTER.fromJson(body);
     } catch (Exception e) {
       return null;
     }
@@ -864,6 +840,11 @@ public class LambdaAppSecHandler {
     final Map<String, List<String>> queryParameters;
     final Object body;
 
+    static final LambdaEventData EMPTY = new LambdaEventData(
+        Collections.emptyMap(), null, null, null, null,
+        LambdaTriggerType.UNKNOWN,
+        Collections.emptyMap(), Collections.emptyMap(), null);
+
     LambdaEventData(
         Map<String, String> headers,
         String method,
@@ -890,8 +871,10 @@ public class LambdaAppSecHandler {
   private static class LambdaURIDataAdapter extends URIDataAdapterBase {
     private final String path;
     private final String query;
+    private final String scheme;
+    private final int port;
 
-    LambdaURIDataAdapter(String pathWithQuery) {
+    LambdaURIDataAdapter(String pathWithQuery, Map<String, String> headers) {
       if (pathWithQuery != null) {
         int queryIndex = pathWithQuery.indexOf('?');
         if (queryIndex != -1) {
@@ -905,11 +888,24 @@ public class LambdaAppSecHandler {
         this.path = "/";
         this.query = null;
       }
+
+      String forwardedProto = headers != null ? headers.get("x-forwarded-proto") : null;
+      this.scheme = (forwardedProto != null && !forwardedProto.isEmpty()) ? forwardedProto : "https";
+
+      String forwardedPort = headers != null ? headers.get("x-forwarded-port") : null;
+      int parsedPort = -1;
+      if (forwardedPort != null && !forwardedPort.isEmpty()) {
+        try {
+          parsedPort = Integer.parseInt(forwardedPort.trim());
+        } catch (NumberFormatException ignored) {
+        }
+      }
+      this.port = parsedPort > 0 ? parsedPort : 443;
     }
 
     @Override
     public String scheme() {
-      return "https";
+      return scheme;
     }
 
     @Override
@@ -919,7 +915,7 @@ public class LambdaAppSecHandler {
 
     @Override
     public int port() {
-      return 443;
+      return port;
     }
 
     @Override
