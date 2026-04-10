@@ -501,7 +501,11 @@ public class LambdaAppSecHandler {
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
     String xff = headers.get("x-forwarded-for");
-    String sourceIp = xff != null ? xff.split(",")[0].trim() : null;
+    String sourceIp = null;
+    if (xff != null) {
+      int commaIdx = xff.indexOf(',');
+      sourceIp = (commaIdx >= 0 ? xff.substring(0, commaIdx) : xff).trim();
+    }
 
     return new LambdaEventData(
         headers, method, path, sourceIp, null, triggerType, pathParameters, queryParameters, body);
