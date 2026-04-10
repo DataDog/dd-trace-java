@@ -7,6 +7,7 @@ import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.IGSpanInfo;
 import datadog.trace.api.gateway.RequestContext;
@@ -21,14 +22,18 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.io.Reader;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -48,6 +53,10 @@ public class LambdaAppSecHandler {
   private static final JsonAdapter<Object> OBJECT_ADAPTER = MOSHI.adapter(Object.class);
 
   private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
+
+  private static final Set<String> RESPONSE_HEADER_ALLOW_LIST =
+      new HashSet<>(
+          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
   /**
    * Process AppSec request data at the start of a Lambda invocation. Extract event data and invokes
@@ -102,6 +111,173 @@ public class LambdaAppSecHandler {
       } else {
         log.debug("requestEnded callback is null");
       }
+    }
+  }
+
+  /**
+   * Process response data through WAF before the request context is closed. Extracts status code,
+   * headers, and body from the Lambda response and fires the corresponding gateway events.
+   *
+   * @param span the current span
+   * @param result the Lambda handler result (expected to be a ByteArrayOutputStream)
+   */
+  public static void processResponseData(AgentSpan span, Object result) {
+    if (!ActiveSubsystems.APPSEC_ACTIVE
+        || span == null
+        || !(result instanceof ByteArrayOutputStream)) {
+      return;
+    }
+
+    try {
+      byte[] bytes = ((ByteArrayOutputStream) result).toByteArray();
+      if (bytes.length == 0 || bytes.length > MAX_EVENT_SIZE) {
+        log.debug(
+            "Response size {} exceeds limit {} or is empty, skipping response processing",
+            bytes.length,
+            MAX_EVENT_SIZE);
+        return;
+      }
+
+      String json = new String(bytes, StandardCharsets.UTF_8);
+      LambdaResponseData responseData = extractResponseData(json);
+      if (responseData == null) {
+        return;
+      }
+
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext == null) {
+        log.debug("Span has no RequestContext, skipping response processing");
+        return;
+      }
+
+      AgentTracer.TracerAPI tracer = AgentTracer.get();
+      CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
+
+      // Fire responseStarted
+      if (responseData.statusCode > 0) {
+        BiFunction<RequestContext, Integer, Flow<Void>> responseStartedCb =
+            cbp.getCallback(EVENTS.responseStarted());
+        if (responseStartedCb != null) {
+          responseStartedCb.apply(requestContext, responseData.statusCode);
+        }
+      }
+
+      // Fire responseHeader for each allowed header
+      if (responseData.headers != null && !responseData.headers.isEmpty()) {
+        TriConsumer<RequestContext, String, String> responseHeaderCb =
+            cbp.getCallback(EVENTS.responseHeader());
+        if (responseHeaderCb != null) {
+          for (Map.Entry<String, String> header : responseData.headers.entrySet()) {
+            responseHeaderCb.accept(requestContext, header.getKey(), header.getValue());
+          }
+        }
+      }
+
+      // Fire responseHeaderDone
+      Function<RequestContext, Flow<Void>> responseHeaderDoneCb =
+          cbp.getCallback(EVENTS.responseHeaderDone());
+      if (responseHeaderDoneCb != null) {
+        responseHeaderDoneCb.apply(requestContext);
+      }
+
+      // Fire responseBody
+      if (responseData.body != null) {
+        BiFunction<RequestContext, Object, Flow<Void>> responseBodyCb =
+            cbp.getCallback(EVENTS.responseBody());
+        if (responseBodyCb != null) {
+          responseBodyCb.apply(requestContext, responseData.body);
+        }
+      }
+    } catch (Exception e) {
+      log.error("Failed to process AppSec response data", e);
+    }
+  }
+
+  static LambdaResponseData extractResponseData(String json) {
+    try {
+      Map<String, Object> response = MAP_ADAPTER.fromJson(json);
+      if (response == null) {
+        return null;
+      }
+
+      // Extract status code
+      int statusCode = 0;
+      Object statusCodeObj = response.get("statusCode");
+      if (statusCodeObj instanceof Number) {
+        statusCode = ((Number) statusCodeObj).intValue();
+      }
+
+      // Extract and filter headers
+      Map<String, String> headers = new java.util.HashMap<>();
+      Map<String, String> rawHeaders = extractStringMap(response.get("headers"));
+
+      // Merge multiValueHeaders if present (API GW v1 / ALB)
+      Object multiValueHeadersObj = response.get("multiValueHeaders");
+      if (multiValueHeadersObj instanceof Map) {
+        Map<?, ?> multiValueHeaders = (Map<?, ?>) multiValueHeadersObj;
+        for (Map.Entry<?, ?> entry : multiValueHeaders.entrySet()) {
+          if (entry.getKey() != null && entry.getValue() instanceof java.util.List) {
+            String key = String.valueOf(entry.getKey());
+            java.util.List<?> values = (java.util.List<?>) entry.getValue();
+            String joinedValue =
+                values.stream()
+                    .map(String::valueOf)
+                    .collect(java.util.stream.Collectors.joining(", "));
+            rawHeaders.put(key, joinedValue);
+          }
+        }
+      }
+
+      // Filter to allow-list (case-insensitive)
+      for (Map.Entry<String, String> entry : rawHeaders.entrySet()) {
+        if (RESPONSE_HEADER_ALLOW_LIST.contains(entry.getKey().toLowerCase())) {
+          headers.put(entry.getKey(), entry.getValue());
+        }
+      }
+
+      // Extract body
+      Object body = null;
+      Object bodyObj = response.get("body");
+      if (bodyObj != null) {
+        String bodyString = String.valueOf(bodyObj);
+
+        // Handle base64 encoding
+        Boolean isBase64Encoded = (Boolean) response.get("isBase64Encoded");
+        if (Boolean.TRUE.equals(isBase64Encoded)) {
+          try {
+            bodyString = new String(Base64.getDecoder().decode(bodyString), StandardCharsets.UTF_8);
+          } catch (Exception e) {
+            log.debug("Failed to decode base64 response body", e);
+            bodyString = null;
+          }
+        }
+
+        if (bodyString != null) {
+          // Determine content-type from response headers
+          String contentType = null;
+          for (Map.Entry<String, String> entry : headers.entrySet()) {
+            if ("content-type".equalsIgnoreCase(entry.getKey())) {
+              contentType = entry.getValue();
+              break;
+            }
+          }
+
+          // If JSON content-type or unknown, attempt JSON parsing
+          if (contentType == null
+              || contentType.contains("json")
+              || contentType.contains("javascript")) {
+            Object parsed = parseBodyAsJson(bodyString);
+            body = parsed != null ? parsed : bodyString;
+          } else {
+            body = bodyString;
+          }
+        }
+      }
+
+      return new LambdaResponseData(statusCode, headers, body);
+    } catch (Exception e) {
+      log.debug("Failed to parse response data from JSON", e);
+      return null;
     }
   }
 
@@ -870,6 +1046,19 @@ public class LambdaAppSecHandler {
       this.triggerType = triggerType;
       this.pathParameters = pathParameters;
       this.queryParameters = queryParameters;
+      this.body = body;
+    }
+  }
+
+  /** Data extracted from a Lambda response for WAF analysis */
+  static class LambdaResponseData {
+    final int statusCode;
+    final Map<String, String> headers;
+    final Object body;
+
+    LambdaResponseData(int statusCode, Map<String, String> headers, Object body) {
+      this.statusCode = statusCode;
+      this.headers = headers;
       this.body = body;
     }
   }
