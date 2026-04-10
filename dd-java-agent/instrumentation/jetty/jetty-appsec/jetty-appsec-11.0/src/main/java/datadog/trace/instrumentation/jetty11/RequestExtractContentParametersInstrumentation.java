@@ -58,15 +58,20 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 11.x ([11.0, 12.0)):
+  // Discriminates Jetty 11.0.0–11.0.9 ([11.0, 11.0.10)):
   //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12)
-  //  - _multiParts exists in 11.x
+  //  - _multiParts: MultiPartFormInputStream exists in 11.0.0–11.0.9 (excludes 11.0.10+ where it
+  //    reverted to MultiParts, covered by jetty-appsec-11.0.10)
   //  - jakarta.servlet.http.Part exists in 11.x classpath (excludes 9.4–10.x which use javax)
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
+          .withField(
+              new String[0],
+              0,
+              "_multiParts",
+              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
           .build();
 
   private static final Reference JAKARTA_PART_REFERENCE =
@@ -130,7 +135,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
    *   <li>{@code _contentParameters != null}: set by {@code extractContentParameters()} (the {@code
    *       getParameterMap()} path); means filenames were already reported via {@code
    *       GetFilenamesFromMultiPartAdvice}.
-   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 11.x;
+   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 11.0.x;
    *       means filenames were already reported.
    * </ul>
    */
