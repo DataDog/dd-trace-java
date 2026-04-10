@@ -24,8 +24,6 @@ import org.slf4j.LoggerFactory;
 public final class Initializer {
   static final Logger LOG = LoggerFactory.getLogger(Initializer.class);
   static final String PID_PREFIX = "_pid";
-  static final String RWXRWXRWX = "rwxrwxrwx";
-  static final String R_XR_XR_X = "r-xr-xr-x";
 
   private interface FlagAccess {
     String getValue(String flagName);
