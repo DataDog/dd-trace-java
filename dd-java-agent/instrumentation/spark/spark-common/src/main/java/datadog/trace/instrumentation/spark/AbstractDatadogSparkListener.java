@@ -598,6 +598,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     notifyOl(x -> openLineageSparkListener.onJobEnd(x), jobEnd);
 
     jobSpan.finish(jobEnd.time() * 1000);
+
+    if (isRunningOnDatabricks
+        && Config.get().isDataJobsDatabricksStandaloneEnabled()
+        && jobSpans.isEmpty()
+        && applicationSpan != null) {
+      finishApplication(jobEnd.time(), null, 0, null);
+    }
   }
 
   @Override

@@ -85,6 +85,8 @@ public final class GeneralConfig {
       "data.jobs.parse_spark_plan.enabled";
   public static final String DATA_JOBS_EXPERIMENTAL_FEATURES_ENABLED =
       "data.jobs.experimental_features.enabled";
+  public static final String DATA_JOBS_DATABRICKS_STANDALONE_ENABLED =
+      "data.jobs.databricks.standalone.enabled";
 
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
