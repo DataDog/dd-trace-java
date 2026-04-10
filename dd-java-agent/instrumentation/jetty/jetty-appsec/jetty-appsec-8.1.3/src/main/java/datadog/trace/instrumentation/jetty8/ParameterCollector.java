@@ -9,7 +9,9 @@ import java.util.Map;
 public interface ParameterCollector {
   boolean isEmpty();
 
-  void put(String key, String value);
+  // Takes Object to accommodate both Jetty 8.x (MultiMap.add(Object,Object)) and
+  // Jetty 9.x (MultiMap.add(String,Object)) bytecode call sites.
+  void put(Object key, Object value);
 
   Map<String, List<String>> getMap();
 
@@ -24,7 +26,7 @@ public interface ParameterCollector {
     }
 
     @Override
-    public void put(String key, String value) {}
+    public void put(Object key, Object value) {}
 
     @Override
     public Map<String, List<String>> getMap() {
@@ -39,16 +41,19 @@ public interface ParameterCollector {
       return map == null;
     }
 
-    public void put(String key, String value) {
+    public void put(Object key, Object value) {
+      if (!(key instanceof String) || !(value instanceof String)) {
+        return;
+      }
       if (map == null) {
         map = new HashMap<>();
       }
       List<String> strings = map.get(key);
       if (strings == null) {
         strings = new ArrayList<>();
-        map.put(key, strings);
+        map.put((String) key, strings);
       }
-      strings.add(value);
+      strings.add((String) value);
     }
 
     @Override
