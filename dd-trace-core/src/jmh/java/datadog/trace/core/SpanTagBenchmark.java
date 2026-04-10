@@ -39,7 +39,7 @@ public class SpanTagBenchmark {
   public static class SharedSpan {
     AgentSpan span;
 
-    @Setup(Level.Invocation)
+    @Setup(Level.Iteration)
     public void setup() {
       span = TRACER.startSpan("benchmark", "tag-benchmark-shared");
     }
