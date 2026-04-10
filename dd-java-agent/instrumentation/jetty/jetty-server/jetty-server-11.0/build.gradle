@@ -48,6 +48,7 @@ dependencies {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
   testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0'))
+  testImplementation(project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-11.0.10'))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')

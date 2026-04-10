@@ -63,7 +63,8 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-7.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-8.1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.2')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0.10')
   // Include all websocket instrumentation modules for testing. Only the version-compatible module will apply at runtime.
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
@@ -72,13 +73,15 @@ dependencies {
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
   latestDepTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
   latestDepTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
-  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0')
+  latestDepTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0.10')
   latestDepTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 
   latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.+'
   latestDepForkedTestImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.+'
   latestDepForkedTestImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.+'
-  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-9.4')
+  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0')
+  latestDepForkedTestImplementation project(':dd-java-agent:instrumentation:jetty:jetty-appsec:jetty-appsec-10.0.10')
   latestDepForkedTestImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
 }
 
