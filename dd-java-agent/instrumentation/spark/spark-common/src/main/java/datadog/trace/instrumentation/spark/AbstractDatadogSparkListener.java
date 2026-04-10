@@ -255,7 +255,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     notifyOl(x -> openLineageSparkListener.onApplicationStart(x), applicationStart);
   }
 
-  private void initApplicationSpanIfNotInitialized(Properties databricksProperties) {
+  private void initApplicationSpanIfNotInitialized(
+      Properties databricksProperties, long startTimeMs) {
     if (applicationSpan != null) {
       return;
     }
@@ -271,8 +272,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
               .map(e -> e.getKey() + ":" + e.getValue())
               .collect(Collectors.joining(","));
 
+      // On Databricks, the SparkContext is created at cluster startup, not at job execution time.
+      // Use the provided job start time so the span reflects actual job execution, not idle time.
+      long spanStartTimeMs =
+          (isRunningOnDatabricks && startTimeMs > 0) ? startTimeMs : applicationStart.time();
+
       builder
-          .withStartTimestamp(applicationStart.time() * 1000)
+          .withStartTimestamp(spanStartTimeMs * 1000)
           .withTag("application_name", applicationStart.appName())
           .withTag("djm.tags", ddTags)
           .withTag("spark_user", applicationStart.sparkUser());
@@ -375,7 +381,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
 
-    initApplicationSpanIfNotInitialized(null);
+    initApplicationSpanIfNotInitialized(null, 0);
 
     if (throwable != null) {
       applicationSpan.addThrowable(throwable);
@@ -488,7 +494,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.context());
     } else {
-      initApplicationSpanIfNotInitialized(isRunningOnDatabricks ? jobProperties : null);
+      initApplicationSpanIfNotInitialized(
+          isRunningOnDatabricks ? jobProperties : null, queryStart.time());
       spanBuilder.asChildOf(applicationSpan.context());
     }
 
@@ -536,7 +543,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
           getOrCreateStreamingBatchSpan(batchKey, jobStart.time(), jobStart.properties());
       jobSpanBuilder.asChildOf(batchSpan.context());
     } else {
-      initApplicationSpanIfNotInitialized(isRunningOnDatabricks ? jobStart.properties() : null);
+      initApplicationSpanIfNotInitialized(
+          isRunningOnDatabricks ? jobStart.properties() : null, jobStart.time());
       jobSpanBuilder.asChildOf(applicationSpan.context());
     }
 
