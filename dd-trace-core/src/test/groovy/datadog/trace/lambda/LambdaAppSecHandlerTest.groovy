@@ -730,6 +730,111 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
     capturedQuery == "id=123&filter=active"
   }
 
+  def "extracts scheme and port from X-Forwarded headers"() {
+    given:
+    def eventJson = '''
+    {
+      "path": "/api/test",
+      "headers": {
+        "x-forwarded-proto": "http",
+        "x-forwarded-port": "8080"
+      },
+      "requestContext": {
+        "httpMethod": "GET",
+        "requestId": "req-123"
+      }
+    }
+    '''
+    def event = createInputStream(eventJson)
+
+    def capturedScheme = null
+    def capturedPort = null
+
+    setupMockCallbacks(
+    onMethodUri: { method, uri ->
+      capturedScheme = uri.scheme()
+      capturedPort = uri.port()
+    }
+    )
+
+    when:
+    def result = LambdaAppSecHandler.processRequestStart(event)
+
+    then:
+    result != null
+    capturedScheme == "http"
+    capturedPort == 8080
+  }
+
+  def "falls back to https/443 when X-Forwarded headers are absent"() {
+    given:
+    def eventJson = '''
+    {
+      "path": "/api/test",
+      "headers": {},
+      "requestContext": {
+        "httpMethod": "GET",
+        "requestId": "req-123"
+      }
+    }
+    '''
+    def event = createInputStream(eventJson)
+
+    def capturedScheme = null
+    def capturedPort = null
+
+    setupMockCallbacks(
+    onMethodUri: { method, uri ->
+      capturedScheme = uri.scheme()
+      capturedPort = uri.port()
+    }
+    )
+
+    when:
+    def result = LambdaAppSecHandler.processRequestStart(event)
+
+    then:
+    result != null
+    capturedScheme == "https"
+    capturedPort == 443
+  }
+
+  def "handles invalid X-Forwarded-Port gracefully"() {
+    given:
+    def eventJson = '''
+    {
+      "path": "/api/test",
+      "headers": {
+        "x-forwarded-proto": "https",
+        "x-forwarded-port": "not-a-number"
+      },
+      "requestContext": {
+        "httpMethod": "GET",
+        "requestId": "req-123"
+      }
+    }
+    '''
+    def event = createInputStream(eventJson)
+
+    def capturedScheme = null
+    def capturedPort = null
+
+    setupMockCallbacks(
+    onMethodUri: { method, uri ->
+      capturedScheme = uri.scheme()
+      capturedPort = uri.port()
+    }
+    )
+
+    when:
+    def result = LambdaAppSecHandler.processRequestStart(event)
+
+    then:
+    result != null
+    capturedScheme == "https"
+    capturedPort == 443
+  }
+
   def "handles invalid base64 body gracefully"() {
     given:
     def eventJson = '''
@@ -1271,7 +1376,7 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
       get() >> new Flow.ResultFlow<>(mockAppSecContext)
     }
 
-    def mockMethodUriCallback = callbacks.onMethodUri ? Mock(datadog.trace.api.function.TriFunction) {
+    def mockMethodUriCallback = callbacks.onMethodUri ? Mock(TriFunction) {
       apply(_ as RequestContext, _ as String, _ as URIDataAdapter) >> {
         RequestContext ctx, String method, URIDataAdapter uri ->
         callbacks.onMethodUri(method, uri)
