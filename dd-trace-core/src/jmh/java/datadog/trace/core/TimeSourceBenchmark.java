@@ -60,4 +60,40 @@ public class TimeSourceBenchmark {
   public long traceGetTimeWithNanoTicks() {
     return TRACER.getTimeWithNanoTicks(System.nanoTime());
   }
+
+  /**
+   * Measures a full span start + finish cycle, exercising both the {@code rootSpan} CAS guard in
+   * {@link PendingTrace#registerSpan} and the {@code lazySet} of {@code lastReferenced} in {@link
+   * PendingTrace#getCurrentTimeNano}.
+   */
+  @Benchmark
+  public void startAndFinishSpan() {
+    TRACER.startSpan("benchmark", "op").finish();
+  }
+
+  @State(Scope.Benchmark)
+  public static class SharedState {
+    PendingTrace sharedTrace;
+
+    @Setup(Level.Trial)
+    public void setup() {
+      TraceCollector collector = TRACER.createTraceCollector(DDTraceId.ONE);
+      sharedTrace = (PendingTrace) collector;
+    }
+
+    @TearDown(Level.Trial)
+    public void teardown() {
+      sharedTrace = null;
+    }
+  }
+
+  /**
+   * Measures {@link PendingTrace#getCurrentTimeNano()} under cross-thread contention on a single
+   * shared {@code PendingTrace}. All threads write to the same {@code lastReferenced} field,
+   * demonstrating the benefit of {@code lazySet} over a volatile store under contention.
+   */
+  @Benchmark
+  public long getCurrentTimeNano_contended(SharedState shared) {
+    return shared.sharedTrace.getCurrentTimeNano();
+  }
 }
