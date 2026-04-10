@@ -18,12 +18,19 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.IOException;
+import java.io.InputStream;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.jar.asm.ClassReader;
+import net.bytebuddy.jar.asm.ClassVisitor;
+import net.bytebuddy.jar.asm.FieldVisitor;
+import net.bytebuddy.jar.asm.Opcodes;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
@@ -58,15 +65,18 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 9.4–10.x ([9.4, 11.0)):
+  // Discriminates Jetty 9.4.10–10.x ([9.4.10, 11.0)):
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiParts exists from 9.4+ (excludes 9.3.x where only _multiPartInputStream existed)
   //  - javax.servlet.http.Part exists in 9.4–10.x classpath (excludes Jetty 11+ which uses jakarta)
+  //  - classLoaderMatcher checks _multiParts field exists (any type) to exclude Jetty 9.3.x and
+  //    early 9.4.x (< 9.4.10) which use _multiPartInputStream instead (covered by
+  // jetty-appsec-9.3).
+  //    The _multiParts field type changed between 9.4.10 (MultiParts) and 10.x
+  //    (MultiPartFormInputStream), so a typed muzzle reference cannot cover the full range.
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
           .build();
 
   private static final Reference JAVAX_PART_REFERENCE =
@@ -75,6 +85,44 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   @Override
   public Reference[] additionalMuzzleReferences() {
     return new Reference[] {REQUEST_REFERENCE, JAVAX_PART_REFERENCE};
+  }
+
+  /** Accepts classloaders where {@code Request._multiParts} field exists (any type). */
+  @Override
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    return MultiPartsFieldMatcher.INSTANCE;
+  }
+
+  public static class MultiPartsFieldMatcher
+      extends ElementMatcher.Junction.ForNonNullValues<ClassLoader> {
+    public static final ElementMatcher.Junction<ClassLoader> INSTANCE =
+        new MultiPartsFieldMatcher();
+
+    @Override
+    protected boolean doMatch(ClassLoader cl) {
+      try (InputStream is = cl.getResourceAsStream("org/eclipse/jetty/server/Request.class")) {
+        if (is == null) {
+          return false;
+        }
+        ClassReader cr = new ClassReader(is);
+        final boolean[] found = {false};
+        cr.accept(
+            new ClassVisitor(Opcodes.ASM9) {
+              @Override
+              public FieldVisitor visitField(
+                  int access, String name, String descriptor, String signature, Object value) {
+                if ("_multiParts".equals(name)) {
+                  found[0] = true;
+                }
+                return null;
+              }
+            },
+            ClassReader.SKIP_CODE);
+        return found[0];
+      } catch (IOException e) {
+        return false;
+      }
+    }
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
