@@ -15,7 +15,6 @@ dependencies {
   api(group = "commons-fileupload", name = "commons-fileupload", version = "1.5")
 
   compileOnly(libs.junit.jupiter)
-  compileOnly(libs.tabletest)
   compileOnly(libs.logback.core)
   compileOnly(libs.logback.classic)
 

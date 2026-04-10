@@ -1,4 +1,4 @@
-package datadog.trace.test.util;
+package datadog.trace.junit.utils.tabletest;
 
 import org.tabletest.junit.TypeConverter;
 

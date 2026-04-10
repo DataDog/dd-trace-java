@@ -11,4 +11,5 @@ dependencies {
   api(project(":components:environment"))
 
   compileOnly(libs.junit.jupiter)
+  compileOnly(libs.tabletest)
 }
