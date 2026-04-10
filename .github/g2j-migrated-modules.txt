@@ -7,4 +7,5 @@
 
 buildSrc/call-site-instrumentation-plugin
 components/json
+dd-java-agent/instrumentation/opentelemetry/opentelemetry-1.4
 dd-trace-api
