@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty94;
+package datadog.trace.instrumentation.jetty1110;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -18,10 +18,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import jakarta.servlet.http.Part;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import org.eclipse.jetty.server.Request;
@@ -58,27 +58,25 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 9.4.10–9.4.x ([9.4.10, 10.0)):
-  //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiParts: MultiParts exists in 9.4.10+ (excludes early 9.4.x covered by
-  //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where it is MultiPartFormInputStream)
-  //  - _queryEncoding: String exists only in 9.4.x; changed to Charset in all 10.x (excludes
-  //    10.0.10+ where _multiParts reverted to MultiParts)
-  //  - javax.servlet.http.Part exists in 9.4.x classpath (excludes Jetty 11+ which uses jakarta)
+  // Discriminates Jetty 11.0.10–11.0.x ([11.0.10, 12.0)):
+  //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12 where
+  //    org.eclipse.jetty.server.Request was removed)
+  //  - _multiParts: MultiParts exists in 11.0.10+ (excludes 11.0.0–11.0.9 where it was
+  //    MultiPartFormInputStream, covered by jetty-appsec-11.0)
+  //  - jakarta.servlet.http.Part exists in 11.x classpath (excludes 9.4–10.x which use javax)
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
           .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
-          .withField(new String[0], 0, "_queryEncoding", "Ljava/lang/String;")
           .build();
 
-  private static final Reference JAVAX_PART_REFERENCE =
-      new Reference.Builder("javax.servlet.http.Part").build();
+  private static final Reference JAKARTA_PART_REFERENCE =
+      new Reference.Builder("jakarta.servlet.http.Part").build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE, JAVAX_PART_REFERENCE};
+    return new Reference[] {REQUEST_REFERENCE, JAKARTA_PART_REFERENCE};
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
@@ -134,7 +132,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
    *   <li>{@code _contentParameters != null}: set by {@code extractContentParameters()} (the {@code
    *       getParameterMap()} path); means filenames were already reported via {@code
    *       GetFilenamesFromMultiPartAdvice}.
-   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 9.4.10+;
+   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 11.0.10+;
    *       means filenames were already reported.
    * </ul>
    */

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty94;
+package datadog.trace.instrumentation.jetty10;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
@@ -58,19 +58,20 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 9.4.10–9.4.x ([9.4.10, 10.0)):
+  // Discriminates Jetty 10.0.0–10.0.9 ([10.0, 10.0.10)):
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiParts: MultiParts exists in 9.4.10+ (excludes early 9.4.x covered by
-  //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where it is MultiPartFormInputStream)
-  //  - _queryEncoding: String exists only in 9.4.x; changed to Charset in all 10.x (excludes
-  //    10.0.10+ where _multiParts reverted to MultiParts)
-  //  - javax.servlet.http.Part exists in 9.4.x classpath (excludes Jetty 11+ which uses jakarta)
+  //  - _multiParts: MultiPartFormInputStream exists in 10.0.0–10.0.9 (excludes 9.4.x where it is
+  //    MultiParts, and excludes 10.0.10+ where it reverted to MultiParts)
+  //  - javax.servlet.http.Part exists in 10.x classpath (excludes Jetty 11+ which uses jakarta)
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
-          .withField(new String[0], 0, "_queryEncoding", "Ljava/lang/String;")
+          .withField(
+              new String[0],
+              0,
+              "_multiParts",
+              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
           .build();
 
   private static final Reference JAVAX_PART_REFERENCE =
@@ -134,7 +135,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
    *   <li>{@code _contentParameters != null}: set by {@code extractContentParameters()} (the {@code
    *       getParameterMap()} path); means filenames were already reported via {@code
    *       GetFilenamesFromMultiPartAdvice}.
-   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 9.4.10+;
+   *   <li>{@code _multiParts != null}: set by the first {@code getParts()} call in Jetty 10.x;
    *       means filenames were already reported.
    * </ul>
    */
