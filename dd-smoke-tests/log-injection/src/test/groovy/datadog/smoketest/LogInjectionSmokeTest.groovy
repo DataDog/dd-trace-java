@@ -365,17 +365,16 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
         }
         if (testedProcess != null && !testedProcess.isAlive()) {
           def lastLines = tailProcessLog(20)
-          throw new AssertionError(
+          // RuntimeException (not AssertionError) so PollingConditions propagates
+          // immediately instead of retrying for the full timeout.
+          throw new RuntimeException(
             "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
             "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
             "Last process output:\n${lastLines}")
         }
         assert traceCount.get() >= count
       }
-    } catch (Throwable e) {
-      if (e instanceof AssertionError && e.message?.startsWith("Process exited")) {
-        throw e // Already enriched — don't wrap again
-      }
+    } catch (AssertionError e) {
       // The default error ("Condition not satisfied after 30s") is useless — enrich with diagnostic state
       def alive = testedProcess?.isAlive()
       def lastLines = tailProcessLog(30)
