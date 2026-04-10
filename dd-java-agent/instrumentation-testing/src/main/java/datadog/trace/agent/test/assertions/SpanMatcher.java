@@ -345,6 +345,10 @@ public final class SpanMatcher {
    * It might evolve into partial link collection testing, matching links using TID/SIP.
    */
   private void assertSpanLinks(List<AgentSpanLink> links) {
+    // Check if links should be asserted at all
+    if (this.linkMatchers == null) {
+      return;
+    }
     int linkCount = links == null ? 0 : links.size();
     int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
