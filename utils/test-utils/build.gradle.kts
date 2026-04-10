@@ -7,6 +7,7 @@ apply(from = "$rootDir/gradle/java.gradle")
 dependencies {
   api(libs.bytebuddy)
   api(libs.bytebuddyagent)
+  api(libs.forbiddenapis)
 
   api(project(":components:environment"))
   api(project(":utils:config-utils"))
