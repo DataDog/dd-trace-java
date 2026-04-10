@@ -1,7 +1,6 @@
 package datadog.crashtracking;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
 import com.datadoghq.profiler.JVMAccess;
@@ -12,17 +11,13 @@ import datadog.environment.SystemProperties;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
-import java.io.IOException;
+import java.io.File;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -251,8 +246,8 @@ public final class Initializer {
    */
   private static String getJ9CrashUploaderScriptPath() {
     String scriptFileName = getScriptFileName("dd_crash_uploader");
-    Path scriptPath = TempLocationManager.getInstance().getTempDir().resolve(scriptFileName);
-    return scriptPath.toString();
+    String tempDir = TempLocationManager.getInstance().getTempDir().toString();
+    return tempDir + File.separator + scriptFileName;
   }
 
   static InputStream getCrashUploaderTemplate() {
@@ -280,19 +275,11 @@ public final class Initializer {
     else if (selfClass.startsWith("file:")) {
       int idx = selfClass.lastIndexOf("dd-java-agent");
       if (idx > -1) {
-        Path libsPath = Paths.get(selfClass.substring(5, idx + 13), "build", "libs");
-        try (Stream<Path> files = Files.walk(libsPath)) {
-          Predicate<Path> isJarFile =
-              p -> p.getFileName().toString().toLowerCase(ROOT).endsWith(".jar");
-          agentPath =
-              files
-                  .sorted(reverseOrder())
-                  .filter(isJarFile)
-                  .findFirst()
-                  .map(Path::toString)
-                  .orElse(null);
-        } catch (IOException ignored) {
-          // Ignore failure to get agent path
+        File libsDir = new File(selfClass.substring(5, idx + 13), "build/libs");
+        File[] jars = libsDir.listFiles(f -> f.getName().toLowerCase(ROOT).endsWith(".jar"));
+        if (jars != null && jars.length > 0) {
+          Arrays.sort(jars, (a, b) -> b.getName().compareTo(a.getName()));
+          agentPath = jars[0].getAbsolutePath();
         }
       }
     }

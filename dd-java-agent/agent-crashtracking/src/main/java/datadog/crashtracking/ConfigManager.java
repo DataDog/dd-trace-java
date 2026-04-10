@@ -12,9 +12,13 @@ import datadog.trace.util.PidHelper;
 import datadog.trace.util.RandomUtils;
 import java.io.BufferedReader;
 import java.io.BufferedWriter;
+import java.io.File;
+import java.io.FileInputStream;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
+import java.io.InputStreamReader;
+import java.io.OutputStreamWriter;
+import java.nio.charset.StandardCharsets;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
@@ -157,8 +161,8 @@ public class ConfigManager {
 
   private ConfigManager() {}
 
-  private static String getBaseName(Path path) {
-    String filename = path.getFileName().toString();
+  private static String getBaseName(File file) {
+    String filename = file.getName();
     int dotIndex = filename.lastIndexOf('.');
     if (dotIndex == -1) {
       return filename;
@@ -185,18 +189,20 @@ public class ConfigManager {
     writer.newLine();
   }
 
-  public static void writeConfigToPath(Path scriptPath, String... additionalEntries) {
-    String cfgFileName = getBaseName(scriptPath) + PID_PREFIX + PidHelper.getPid() + ".cfg";
-    Path cfgPath = scriptPath.resolveSibling(cfgFileName);
-    writeConfigToFile(Config.get(), cfgPath, additionalEntries);
+  public static void writeConfigToPath(File scriptFile, String... additionalEntries) {
+    String cfgFileName = getBaseName(scriptFile) + PID_PREFIX + PidHelper.getPid() + ".cfg";
+    File cfgFile = new File(scriptFile.getParentFile(), cfgFileName);
+    writeConfigToFile(Config.get(), cfgFile, additionalEntries);
   }
 
   // @VisibleForTesting
-  static void writeConfigToFile(Config config, Path cfgPath, String... additionalEntries) {
+  static void writeConfigToFile(Config config, File cfgFile, String... additionalEntries) {
     final WellKnownTags wellKnownTags = config.getWellKnownTags();
 
-    LOGGER.debug("Writing config file: {}", cfgPath);
-    try (BufferedWriter bw = Files.newBufferedWriter(cfgPath)) {
+    LOGGER.debug("Writing config file: {}", cfgFile);
+    try (BufferedWriter bw =
+        new BufferedWriter(
+            new OutputStreamWriter(new FileOutputStream(cfgFile), StandardCharsets.UTF_8))) {
       for (int i = 0; i < additionalEntries.length; i += 2) {
         writeEntry(bw, additionalEntries[i], additionalEntries[i + 1]);
       }
@@ -217,27 +223,21 @@ public class ConfigManager {
               new Thread(
                   AGENT_THREAD_GROUP,
                   () -> {
-                    try {
-                      LOGGER.debug("Deleting config file: {}", cfgPath);
-                      Files.deleteIfExists(cfgPath);
-                    } catch (IOException e) {
-                      LOGGER.warn(SEND_TELEMETRY, "Failed deleting config file: {}", cfgPath, e);
-                    }
+                    LOGGER.debug("Deleting config file: {}", cfgFile);
+                    cfgFile.delete();
                   }));
-      LOGGER.debug("Config file written: {}", cfgPath);
+      LOGGER.debug("Config file written: {}", cfgFile);
     } catch (IOException e) {
-      LOGGER.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgPath);
-      try {
-        Files.deleteIfExists(cfgPath);
-      } catch (IOException ignored) {
-        // ignore
-      }
+      LOGGER.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgFile);
+      cfgFile.delete();
     }
   }
 
   @Nullable
-  public static StoredConfig readConfig(Config config, Path scriptPath) {
-    try (final BufferedReader reader = Files.newBufferedReader(scriptPath)) {
+  public static StoredConfig readConfig(Config config, File scriptFile) {
+    try (final BufferedReader reader =
+        new BufferedReader(
+            new InputStreamReader(new FileInputStream(scriptFile), StandardCharsets.UTF_8))) {
       final StoredConfig.Builder cfgBuilder = new StoredConfig.Builder(config);
       String line;
       while ((line = reader.readLine()) != null) {
@@ -284,7 +284,7 @@ public class ConfigManager {
       }
       return cfgBuilder.build();
     } catch (Throwable t) {
-      LOGGER.error("Failed to read config file: {}", scriptPath, t);
+      LOGGER.error("Failed to read config file: {}", scriptFile, t);
     }
     return null;
   }
