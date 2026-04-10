@@ -80,19 +80,23 @@ class ContinuableScope implements AgentScope {
    * I would hope this becomes unnecessary.
    */
   final void onProperClose() {
-    for (final ScopeListener listener : scopeManager.scopeListeners) {
-      try {
-        listener.afterScopeClosed();
-      } catch (Exception e) {
-        ContinuableScopeManager.log.debug("ScopeListener threw exception in close()", e);
+    if (!scopeManager.scopeListeners.isEmpty()) {
+      for (final ScopeListener listener : scopeManager.scopeListeners) {
+        try {
+          listener.afterScopeClosed();
+        } catch (Exception e) {
+          ContinuableScopeManager.log.debug("ScopeListener threw exception in close()", e);
+        }
       }
     }
 
-    for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
-      try {
-        listener.afterScopeClosed();
-      } catch (Exception e) {
-        ContinuableScopeManager.log.debug("ScopeListener threw exception in close()", e);
+    if (!scopeManager.extendedScopeListeners.isEmpty()) {
+      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+        try {
+          listener.afterScopeClosed();
+        } catch (Exception e) {
+          ContinuableScopeManager.log.debug("ScopeListener threw exception in close()", e);
+        }
       }
     }
   }
@@ -154,6 +158,9 @@ class ContinuableScope implements AgentScope {
   }
 
   public final void beforeActivated() {
+    if (scopeState == Stateful.DEFAULT) {
+      return;
+    }
     AgentSpan span = span();
     if (span == null) {
       return;
@@ -167,24 +174,31 @@ class ContinuableScope implements AgentScope {
   }
 
   public final void afterActivated() {
+    if (scopeManager.scopeListeners.isEmpty() && scopeManager.extendedScopeListeners.isEmpty()) {
+      return;
+    }
     AgentSpan span = span();
     if (span == null) {
       return;
     }
-    for (final ScopeListener listener : scopeManager.scopeListeners) {
-      try {
-        listener.afterScopeActivated();
-      } catch (Throwable e) {
-        ContinuableScopeManager.log.debug("ScopeListener threw exception in afterActivated()", e);
+    if (!scopeManager.scopeListeners.isEmpty()) {
+      for (final ScopeListener listener : scopeManager.scopeListeners) {
+        try {
+          listener.afterScopeActivated();
+        } catch (Throwable e) {
+          ContinuableScopeManager.log.debug("ScopeListener threw exception in afterActivated()", e);
+        }
       }
     }
 
-    for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
-      try {
-        listener.afterScopeActivated(span.getTraceId(), span.getSpanId());
-      } catch (Throwable e) {
-        ContinuableScopeManager.log.debug(
-            "ExtendedScopeListener threw exception in afterActivated()", e);
+    if (!scopeManager.extendedScopeListeners.isEmpty()) {
+      for (final ExtendedScopeListener listener : scopeManager.extendedScopeListeners) {
+        try {
+          listener.afterScopeActivated(span.getTraceId(), span.getSpanId());
+        } catch (Throwable e) {
+          ContinuableScopeManager.log.debug(
+              "ExtendedScopeListener threw exception in afterActivated()", e);
+        }
       }
     }
   }

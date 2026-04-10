@@ -297,7 +297,7 @@ public class DDSpanContext
     this.traceId = traceId;
     this.spanId = spanId;
     this.parentId = parentId;
-    this.parentServiceName = String.valueOf(parentServiceName);
+    this.parentServiceName = parentServiceName != null ? parentServiceName.toString() : null;
 
     if (baggageItems == null || baggageItems.isEmpty()) {
       this.baggageItems = EMPTY_BAGGAGE;

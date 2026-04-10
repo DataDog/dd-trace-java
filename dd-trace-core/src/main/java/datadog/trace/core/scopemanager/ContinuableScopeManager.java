@@ -58,6 +58,8 @@ public final class ContinuableScopeManager implements ContextManager {
   private final int depthLimit;
   final HealthMetrics healthMetrics;
   private final ProfilingContextIntegration profilingContextIntegration;
+  private final boolean profilingEnabled;
+  private final boolean hasDepthLimit;
 
   /**
    * Constructor with NOOP Profiling and HealthMetrics implementations.
@@ -81,12 +83,15 @@ public final class ContinuableScopeManager implements ContextManager {
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
+    this.hasDepthLimit = this.depthLimit < Integer.MAX_VALUE;
     this.strictMode = strictMode;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
     this.profilingContextIntegration = profilingContextIntegration;
+    this.profilingEnabled =
+        !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
 
     ContextManager.register(this);
   }
@@ -134,12 +139,13 @@ public final class ContinuableScopeManager implements ContextManager {
       return top;
     }
 
-    // DQH - This check could go before the check above, since depth limit checking is fast
-    final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
-      healthMetrics.onScopeStackOverflow();
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+    if (hasDepthLimit) {
+      final int currentDepth = scopeStack.depth();
+      if (depthLimit <= currentDepth) {
+        healthMetrics.onScopeStackOverflow();
+        log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+        return noopScope();
+      }
     }
 
     assert span != null;
@@ -169,12 +175,13 @@ public final class ContinuableScopeManager implements ContextManager {
       return top;
     }
 
-    // DQH - This check could go before the check above, since depth limit checking is fast
-    final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
-      healthMetrics.onScopeStackOverflow();
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+    if (hasDepthLimit) {
+      final int currentDepth = scopeStack.depth();
+      if (depthLimit <= currentDepth) {
+        healthMetrics.onScopeStackOverflow();
+        log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+        return noopScope();
+      }
     }
 
     assert context != null;
@@ -263,7 +270,7 @@ public final class ContinuableScopeManager implements ContextManager {
     ScopeStack scopeStack = scopeStack();
 
     final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
+    if (hasDepthLimit && depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return noopScope();
@@ -344,6 +351,9 @@ public final class ContinuableScopeManager implements ContextManager {
     // currently this just manages things the profiler has to do per scope, but could be expanded
     // to encapsulate other scope lifecycle activities
     // FIXME DDSpanContext is always a ProfilerContext anyway...
+    if (!profilingEnabled) {
+      return Stateful.DEFAULT;
+    }
     AgentSpan span = AgentSpan.fromContext(context);
     if (span != null && span.context() instanceof ProfilerContext) {
       return profilingContextIntegration.newScopeState((ProfilerContext) span.context());
