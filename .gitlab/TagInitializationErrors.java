@@ -5,6 +5,7 @@ import javax.xml.transform.TransformerFactory;
 import javax.xml.transform.dom.DOMSource;
 import javax.xml.transform.stream.StreamResult;
 import java.io.File;
+import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -92,8 +93,15 @@ class TagInitializationErrors {
       }
     }
     if (!modified) return;
-    var transformer = TransformerFactory.newInstance().newTransformer();
-    transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-    transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
+    var tmpFile = File.createTempFile("TagInitializationErrors", ".xml", xmlFile.getParentFile());
+    try {
+      var transformer = TransformerFactory.newInstance().newTransformer();
+      transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+      transformer.transform(new DOMSource(doc), new StreamResult(tmpFile));
+      Files.move(tmpFile.toPath(), xmlFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+    } catch (Exception e) {
+      tmpFile.delete();
+      throw e;
+    }
   }
 }
