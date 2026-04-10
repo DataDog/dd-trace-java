@@ -248,6 +248,7 @@ include(
   ":dd-smoke-tests:vertx-3.9",
   ":dd-smoke-tests:vertx-3.9-resteasy",
   ":dd-smoke-tests:vertx-4.2",
+  ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
