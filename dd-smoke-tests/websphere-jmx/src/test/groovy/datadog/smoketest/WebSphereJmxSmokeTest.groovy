@@ -92,9 +92,8 @@ class WebSphereJmxSmokeTest extends AbstractSmokeTest {
 
   def cleanupSpec() {
     websphere?.stop()
-    listenerThread?.interrupt()
-    listenerThread?.join()
     statsdSocket?.close()
+    listenerThread?.join()
   }
 
   def "jmxfetch reports WebSphere thread pool metrics via statsd"() {
