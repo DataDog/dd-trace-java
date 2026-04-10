@@ -19,6 +19,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -109,12 +110,20 @@ public class WithConfigExtension
   }
 
   private void applyDeclaredConfig(ExtensionContext context) {
-    // Class-level @WithConfig annotations (supports composed/meta-annotations)
-    List<WithConfig> classConfigs =
-        AnnotationSupport.findRepeatableAnnotations(
-            context.getRequiredTestClass(), WithConfig.class);
-    for (WithConfig cfg : classConfigs) {
-      applyConfig(cfg);
+    // Class-level @WithConfig annotations
+    // Walk the entire class hierarchy so annotations on superclasses are applied
+    // (topmost first, then subclass overrides)
+    Class<?> testClass = context.getRequiredTestClass();
+    List<Class<?>> hierarchy = new ArrayList<>();
+    for (Class<?> cls = testClass; cls != null; cls = cls.getSuperclass()) {
+      hierarchy.add(cls);
+    }
+    for (int i = hierarchy.size() - 1; i >= 0; i--) {
+      List<WithConfig> classConfigs =
+          AnnotationSupport.findRepeatableAnnotations(hierarchy.get(i), WithConfig.class);
+      for (WithConfig cfg : classConfigs) {
+        applyConfig(cfg);
+      }
     }
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
     context
