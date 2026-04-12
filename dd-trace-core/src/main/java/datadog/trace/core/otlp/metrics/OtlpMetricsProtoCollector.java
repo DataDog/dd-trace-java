@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import datadog.trace.core.otlp.common.OtlpCommonProto;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -93,6 +94,7 @@ public final class OtlpMetricsProtoCollector
   }
 
   OtlpPayload collectMetrics(Consumer<OtlpMetricsVisitor> registry) {
+    OtlpCommonProto.recalibrateCaches();
     start();
     try {
       registry.accept(this);
@@ -108,7 +110,7 @@ public final class OtlpMetricsProtoCollector
     startNanos = endNanos;
     endNanos = timeSource.getCurrentTimeNanos();
 
-    // clear payloadChunks in case it wasn't fully consumed via OtlpMetricsPayload
+    // clear payloadChunks in case it wasn't fully consumed via OtlpPayload
     payloadChunks.clear();
   }
 
@@ -116,7 +118,7 @@ public final class OtlpMetricsProtoCollector
   private void stop() {
     buf.reset();
 
-    // leave payloadChunks in place so it can be consumed via OtlpMetricsPayload
+    // leave payloadChunks in place so it can be consumed via OtlpPayload
     scopedChunks.clear();
     metricChunks.clear();
 

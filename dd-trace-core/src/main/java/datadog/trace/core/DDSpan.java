@@ -883,7 +883,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
-  List<? extends AgentSpanLink> getLinks() {
+  public List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
