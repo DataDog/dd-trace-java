@@ -135,6 +135,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.requestBodyStart(), callbacks.requestBodyStartCb)
     ss.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ss.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
+    ss.registerCallback(events.requestFilesFilenames(), callbacks.requestFilesFilenamesCb)
     ss.registerCallback(events.responseBody(), callbacks.responseBodyObjectCb)
     ss.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
@@ -364,6 +365,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testBodyMultipart() {
+    false
+  }
+
+  boolean testBodyFilenames() {
     false
   }
 
@@ -1618,6 +1623,29 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
+  def 'test instrumentation gateway file upload filenames'() {
+    setup:
+    assumeTrue(testBodyFilenames())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'evil.php', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.filenames') == "[evil.php]"
+    }
+
+    cleanup:
+    response.close()
+  }
+
   def 'test instrumentation gateway json request body'() {
     setup:
     assumeTrue(testBodyJson())
@@ -2552,6 +2580,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean responseHeadersInTags
       boolean responseBodyTag
       Object responseBody
+      List<String> uploadedFilenames
     }
 
     static final String stringOrEmpty(String string) {
@@ -2718,6 +2747,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         Flow.ResultFlow.empty()
       }
     } as BiFunction<RequestContext, Object, Flow<Void>>)
+
+    final BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCb =
+    ({
+      RequestContext rqCtxt, List<String> filenames ->
+      rqCtxt.traceSegment.setTagTop('request.body.filenames', filenames as String)
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      context.uploadedFilenames = filenames
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
 
     final BiFunction<RequestContext, Object, Flow<Void>> responseBodyObjectCb =
     ({

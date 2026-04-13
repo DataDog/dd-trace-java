@@ -3029,6 +3029,47 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void captureExpressionsWithInheritedCaptureLimits()
+      throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .capture(new LogProbe.Capture(1, 10, 3, 1))
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "typed", new ValueScript(DSL.ref("typed"), "typed"), null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext.CapturedValue msgValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed_fld_fld_msg"));
+    assertEquals("hel", msgValue.getValue());
+    assertEquals("truncated", msgValue.getNotCapturedReason());
+    CapturedContext.CapturedValue typedValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed"));
+    Map<String, CapturedContext.CapturedValue> fields =
+        (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
+    CapturedContext.CapturedValue fldValue = fields.get("fld");
+    assertEquals("depth", fldValue.getNotCapturedReason());
+  }
+
+  @Test
   public void methodParametersAttribute() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Config config = mock(Config.class);
@@ -3059,7 +3100,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
       assertEquals(
-          "Instrumentation failed for CapturedSnapshot01: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          "Instrumentation failed for CapturedSnapshot01: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     } else {
       Snapshot snapshot = assertOneSnapshot(listener);
@@ -3069,9 +3110,17 @@ public class CapturedSnapshotTest extends CapturingTestBase {
 
   @Test
   @EnabledForJreRange(min = JRE.JAVA_17)
-  public void methodParametersAttributeRecord() throws IOException, URISyntaxException {
+  public void methodParametersAttributeRecord() throws Exception {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot29";
     final String RECORD_NAME = "com.datadog.debugger.MyRecord1";
+    Config config = mock(Config.class);
+    when(config.isDebuggerCodeOriginEnabled()).thenReturn(false);
+    when(config.isDebuggerExceptionEnabled()).thenReturn(false);
+    when(config.isDynamicInstrumentationEnabled()).thenReturn(false);
+    Instrumentation inst = mock(Instrumentation.class);
+    Class<?> springClass = Class.forName("org.springframework.core.SpringVersion");
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {springClass});
+    DebuggerAgent.run(config, inst, null);
     TestSnapshotListener listener = installMethodProbeAtExit(RECORD_NAME, "<init>", null);
     Map<String, byte[]> buffers =
         compile(CLASS_NAME, SourceCompiler.DebugInfo.ALL, "17", Arrays.asList("-parameters"));
@@ -3089,7 +3138,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
       verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
       assertEquals(PROBE_ID.getId(), probeIdCaptor.getAllValues().get(0).getId());
       assertEquals(
-          "Instrumentation failed for com.datadog.debugger.MyRecord1: java.lang.RuntimeException: Method Parameters attribute detected, instrumentation not supported",
+          "Instrumentation failed for com.datadog.debugger.MyRecord1: Method Parameters attribute detected, instrumentation not supported",
           strCaptor.getAllValues().get(0));
     }
   }
@@ -3130,6 +3179,23 @@ public class CapturedSnapshotTest extends CapturingTestBase {
             null,
             typeBytes);
     assertNull(result);
+  }
+
+  @Test
+  @EnabledForJreRange(min = JRE.JAVA_17)
+  public void recordWithTypeAnnotation() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot33";
+    LogProbe probe1 = createMethodProbeAtExit(PROBE_ID1, CLASS_NAME, "parse", null);
+    TestSnapshotListener listener = installProbes(probe1);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
+    Reflect.onClass(testClass).call("parse", "1").get();
+    ArgumentCaptor<ProbeId> probeIdCaptor = ArgumentCaptor.forClass(ProbeId.class);
+    ArgumentCaptor<String> strCaptor = ArgumentCaptor.forClass(String.class);
+    verify(probeStatusSink, times(1)).addError(probeIdCaptor.capture(), strCaptor.capture());
+    assertEquals(PROBE_ID1.getId(), probeIdCaptor.getAllValues().get(0).getId());
+    assertEquals(
+        "Instrumentation failed for com.datadog.debugger.CapturedSnapshot33: Instrumentation of a record with type annotation is not supported",
+        strCaptor.getAllValues().get(0));
   }
 
   private TestSnapshotListener setupInstrumentTheWorldTransformer(

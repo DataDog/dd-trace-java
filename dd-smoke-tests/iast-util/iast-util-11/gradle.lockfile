@@ -145,5 +145,7 @@ org.springframework:spring-expression:5.2.0.RELEASE=compileClasspath
 org.springframework:spring-jcl:5.2.0.RELEASE=compileClasspath
 org.springframework:spring-web:5.2.0.RELEASE=compileClasspath
 org.springframework:spring-webmvc:5.2.0.RELEASE=compileClasspath
+org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath
+org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=annotationProcessor,spotbugsPlugins,testAnnotationProcessor,testFixturesAnnotationProcessor

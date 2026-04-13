@@ -1,10 +1,12 @@
 package datadog.trace.instrumentation.springmessaging;
 
+import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
@@ -12,11 +14,13 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -36,11 +40,12 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(
                 named("invoke")
                     .and(takesArgument(0, named("org.springframework.messaging.Message")))),
+        SpringMessageHandlerInstrumentation.class.getName() + "$ContextPropagationAdvice",
         SpringMessageHandlerInstrumentation.class.getName() + "$HandleMessageAdvice");
   }
 
@@ -49,39 +54,60 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1"
+      packageName + ".SpringMessageExtractAdapter$1",
     };
   }
 
-  public static class HandleMessageAdvice {
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope onEnter(
-        @Advice.This InvocableHandlerMethod thiz, @Advice.Argument(0) Message<?> message) {
-      AgentSpanContext parentContext;
-      AgentSpan parent = activeSpan();
-      if (null != parent) {
-        // prefer existing context, assume it was already extracted from this message
-        parentContext = parent.context();
-      } else {
-        // otherwise try to re-extract the message context to avoid disconnected trace
-        parentContext = extractContextAndGetSpanContext(message, GETTER);
+    public static void onEnter(
+        @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
+      if (activeSpan() == null) {
+        // no local active span, so extract from message to avoid disconnected trace
+        scope = defaultPropagator().extract(getRootContext(), message, GETTER).attach();
       }
-      AgentSpan span = startSpan(SPRING_INBOUND, parentContext);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Local("ctxScope") ContextScope scope) {
+      if (scope != null) scope.close();
+    }
+  }
+
+  public static class HandleMessageAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
+      AgentSpan span = startSpan(SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable error) {
+    public static void onExit(
+        @Advice.Enter AgentScope scope,
+        @Advice.Return(readOnly = false) Object result,
+        @Advice.Thrown Throwable error) {
       if (null == scope) {
         return;
       }
       AgentSpan span = scope.span();
+      scope.close();
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      scope.close();
+      if (result != null) {
+        Object wrappedResult =
+            AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
+        if (wrappedResult != null) {
+          result = wrappedResult;
+          // span will be finished by the wrapper
+          return;
+        }
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }

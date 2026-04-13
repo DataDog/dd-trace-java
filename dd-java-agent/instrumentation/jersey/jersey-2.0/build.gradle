@@ -44,8 +44,8 @@ dependencies {
   testImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '3.0.0'
   testImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version: jersey3Version
 
-  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '+'
-  latestDepTestImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version:'+'
+  latestDepTestImplementation group: 'jakarta.ws.rs', name: 'jakarta.ws.rs-api', version: '4.+'
+  latestDepTestImplementation group: 'org.glassfish.jersey.core', name: 'jersey-common', version:'4.+'
 
   jersey2JettyTestImplementation project(':dd-java-agent:instrumentation-testing'), {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'

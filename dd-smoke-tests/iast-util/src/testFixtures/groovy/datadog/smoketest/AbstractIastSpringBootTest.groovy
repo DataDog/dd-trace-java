@@ -42,6 +42,11 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
   }
 
   @Override
+  protected boolean withExternalServer() {
+    true
+  }
+
+  @Override
   boolean isErrorLog(String log) {
     if (log.contains('no such algorithm: DES for provider SUN')) {
       return false
@@ -777,10 +782,10 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
 
     where:
     path   | parameter | value
-    ''     | 'url'     | 'https://dd.datad0g.com/'
-    ''     | 'host'    | 'dd.datad0g.com'
-    '/uri' | 'url'     | 'https://dd.datad0g.com/'
-    '/uri' | 'host'    | 'dd.datad0g.com'
+    ''     | 'url'     | externalServer.address.toString()
+    ''     | 'host'    | externalServer.address.host
+    '/uri' | 'url'     | externalServer.address.toString()
+    '/uri' | 'host'    | externalServer.address.host
   }
 
   void 'ssrf is present (#path) (#parameter)'() {
@@ -818,18 +823,18 @@ abstract class AbstractIastSpringBootTest extends AbstractIastServerSmokeTest {
     }
 
     where:
-    path                     | parameter     | value                     | protocolSecure | endSlash
-    "apache-httpclient4"     | "url"         | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient4"     | "host"        | "dd.datad0g.com"          | false          | false
-    "apache-httpasyncclient" | "url"         | "https://dd.datad0g.com/" | true           | true
-    "apache-httpasyncclient" | "urlProducer" | "https://dd.datad0g.com/" | true           | true
-    "apache-httpasyncclient" | "host"        | "dd.datad0g.com"          | false          | false
-    "apache-httpclient5"     | "url"         | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient5"     | "urlHandler"  | "https://dd.datad0g.com/" | true           | true
-    "apache-httpclient5"     | "host"        | "dd.datad0g.com"          | false          | true
-    "commons-httpclient2"    | "url"         | "https://dd.datad0g.com/" | true           | true
-    "okHttp2"                | "url"         | "https://dd.datad0g.com/" | true           | true
-    "okHttp3"                | "url"         | "https://dd.datad0g.com/" | true           | true
+    path                     | parameter     | value                       | protocolSecure | endSlash
+    "apache-httpclient4"     | "url"         | "$externalServer.address/"  | true           | true
+    "apache-httpclient4"     | "host"        | externalServer.address.host | false          | false
+    "apache-httpasyncclient" | "url"         | "$externalServer.address/"  | true           | true
+    "apache-httpasyncclient" | "urlProducer" | "$externalServer.address/"  | true           | true
+    "apache-httpasyncclient" | "host"        | externalServer.address.host | false          | false
+    "apache-httpclient5"     | "url"         | "$externalServer.address/"  | true           | true
+    "apache-httpclient5"     | "urlHandler"  | "$externalServer.address/"  | true           | true
+    "apache-httpclient5"     | "host"        | externalServer.address.host | false          | true
+    "commons-httpclient2"    | "url"         | "$externalServer.address/"  | true           | true
+    "okHttp2"                | "url"         | "$externalServer.address/"  | true           | true
+    "okHttp3"                | "url"         | "$externalServer.address/"  | true           | true
   }
 
   void 'test iast metrics stored in spans'() {

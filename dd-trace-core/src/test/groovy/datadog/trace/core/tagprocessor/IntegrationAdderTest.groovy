@@ -1,6 +1,6 @@
 package datadog.trace.core.tagprocessor
 
-
+import datadog.trace.api.TagMap
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
 
@@ -11,14 +11,14 @@ class IntegrationAdderTest extends DDSpecification {
     def spanContext = Mock(DDSpanContext)
 
     when:
-
-    def enrichedTags = calculator.processTags(["_dd.integration": "bad"], spanContext, [])
+    def unsafeTags = TagMap.fromMap(["_dd.integration": "bad"])
+    calculator.processTags(unsafeTags, spanContext, {link -> })
 
     then:
     1 * spanContext.getIntegrationName() >> (isSet ? "test" : null)
 
     and:
-    assert enrichedTags == (isSet ? ["_dd.integration": "test"] : [:])
+    assert unsafeTags == (isSet ? ["_dd.integration": "test"] : [:])
 
     where:
     isSet  << [true, false]
