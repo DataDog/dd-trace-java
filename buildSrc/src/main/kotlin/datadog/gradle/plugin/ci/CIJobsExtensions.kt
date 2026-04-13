@@ -3,8 +3,37 @@ package datadog.gradle.plugin.ci
 import org.gradle.api.Project
 import org.gradle.api.Task
 import org.gradle.api.provider.Provider
+import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.extra
 import kotlin.math.abs
+
+private fun selectedSlotFor(
+  rootProject: Project,
+  identityPath: String,
+  kind: String,
+): Provider<Boolean> =
+  rootProject.providers.gradleProperty("slot").map { slot ->
+    val parts = slot.split("/")
+    if (parts.size != 2) {
+      rootProject.logger.warn("Invalid slot format '{}', expected 'X/Y'. Treating all {}s as selected.", slot, kind)
+      return@map true
+    }
+
+    val selectedSlot = parts[0].toIntOrNull()
+    val totalSlots = parts[1].toIntOrNull()
+
+    if (selectedSlot == null || totalSlots == null || totalSlots <= 0) {
+      rootProject.logger.warn(
+        "Invalid slot values '{}', expected numeric 'X/Y' with Y > 0. Treating all {}s as selected.",
+        slot,
+        kind,
+      )
+      return@map true
+    }
+
+    val slotForIdentity = abs(identityPath.hashCode() % totalSlots) + 1 // Convert to 1-based
+    slotForIdentity == selectedSlot
+  }.orElse(true)
 
 /**
  * Determines if the current project is in the selected slot.
@@ -15,41 +44,21 @@ import kotlin.math.abs
  * If the "slot" property is not provided, all projects are considered to be in the selected slot.
  */
 val Project.isInSelectedSlot: Provider<Boolean>
-  get() = rootProject.providers.gradleProperty("slot").map { slot ->
-    val parts = slot.split("/")
-    if (parts.size != 2) {
-      project.logger.warn("Invalid slot format '{}', expected 'X/Y'. Treating all projects as selected.", slot)
-      return@map true
-    }
+  get() = selectedSlotFor(rootProject, path, "project")
 
-    val selectedSlot = parts[0].toIntOrNull()
-    val totalSlots = parts[1].toIntOrNull()
+val Task.isInSelectedSlot: Provider<Boolean>
+  get() = selectedSlotFor(project.rootProject, path, "task")
 
-    if (selectedSlot == null || totalSlots == null || totalSlots <= 0) {
-      project.logger.warn("Invalid slot values '{}', expected numeric 'X/Y' with Y > 0. Treating all projects as selected.", slot)
-      return@map true
-    }
-
-    // Distribution numbers when running on rootProject.allprojects indicates
-    // bucket sizes are reasonably balanced:
-    //
-    // * size  4 distribution: {2=146, 0=143, 1=157, 3=145}
-    // * size  6 distribution: {4=100, 0=92, 3=97, 2=97, 1=108, 5=97}
-    // * size  8 distribution: {2=62, 4=72, 0=71, 5=70, 7=78, 6=84, 1=87, 3=67}
-    // * size 10 distribution: {8=62, 0=65, 5=70, 9=59, 3=54, 1=56, 6=63, 4=47, 2=52, 7=63}
-    // * size 12 distribution: {10=55, 0=47, 4=45, 9=46, 8=51, 3=51, 2=46, 1=59, 5=52, 7=49, 11=45, 6=45}
-    val projectSlot = abs(project.path.hashCode() % totalSlots) + 1 // Convert to 1-based
-
-    project.logger.info(
-      "Project {} assigned to slot {}/{}, active slot is {}",
-      project.path,
-      projectSlot,
-      totalSlots,
-      selectedSlot,
-    )
-
-    projectSlot == selectedSlot
-  }.orElse(true)
+private fun Project.aggregateTestTasksFor(subproject: Project, aggregateTaskName: String): List<Test> =
+  when (aggregateTaskName) {
+    "allTests" -> subproject.tasks.withType(Test::class.java).matching { testTask ->
+      !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
+    }.toList()
+    "allLatestDepTests" -> subproject.tasks.withType(Test::class.java).matching { testTask ->
+      testTask.name.contains("latest", ignoreCase = true)
+    }.toList()
+    else -> emptyList()
+  }
 
 /**
  * Returns the task's path, given affected projects, if this task or its dependencies are affected by git changes.
@@ -91,22 +100,26 @@ private fun Project.createRootTask(
   forceCoverage: Boolean
 ) {
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
+  val taskLevelSlotting = !coverage && (subProjTaskName == "allTests" || subProjTaskName == "allLatestDepTests")
   tasks.register(rootTaskName) {
     subprojects.forEach { subproject ->
       if (
-        subproject.isInSelectedSlot.get() &&
         includePrefixes.any { subproject.path.startsWith(it) } &&
         !excludePrefixes.any { subproject.path.startsWith(it) }
       ) {
-        val testTask = subproject.tasks.findByName(subProjTaskName)
+        if (!taskLevelSlotting && !subproject.isInSelectedSlot.get()) {
+          return@forEach
+        }
+
+        val aggregateTask = subproject.tasks.findByName(subProjTaskName)
         var isAffected = true
 
-        if (testTask != null) {
+        if (aggregateTask != null) {
           val useGitChanges = rootProject.extra.get("useGitChanges") as Boolean
           if (useGitChanges) {
             @Suppress("UNCHECKED_CAST")
             val affectedProjects = rootProject.extra.get("affectedProjects") as Map<Project, Set<String>>
-            val affectedTaskPath = findAffectedTaskPath(testTask, affectedProjects)
+            val affectedTaskPath = findAffectedTaskPath(aggregateTask, affectedProjects)
             if (affectedTaskPath != null) {
               logger.warn("Selecting ${subproject.path}:$subProjTaskName (affected by $affectedTaskPath)")
             } else {
@@ -115,7 +128,13 @@ private fun Project.createRootTask(
             }
           }
           if (isAffected) {
-            dependsOn(testTask)
+            if (taskLevelSlotting) {
+              dependsOn(aggregateTestTasksFor(subproject, subProjTaskName).filter { testTask ->
+                testTask.isInSelectedSlot.get()
+              })
+            } else {
+              dependsOn(aggregateTask)
+            }
           }
         }
 
