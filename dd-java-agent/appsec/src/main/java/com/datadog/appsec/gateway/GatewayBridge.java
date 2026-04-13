@@ -123,6 +123,7 @@ public class GatewayBridge {
   private volatile DataSubscriberInfo httpClientRequestSubInfo;
   private volatile DataSubscriberInfo httpClientResponseSubInfo;
   private volatile DataSubscriberInfo ioFileSubInfo;
+  private volatile DataSubscriberInfo ioFileWriteSubInfo;
   private volatile DataSubscriberInfo sessionIdSubInfo;
   private volatile DataSubscriberInfo userIdSubInfo;
   private final ConcurrentHashMap<String, DataSubscriberInfo> loginEventSubInfo =
@@ -188,6 +189,7 @@ public class GatewayBridge {
     subscriptionService.registerCallback(EVENTS.httpClientRequest(), this::onHttpClientRequest);
     subscriptionService.registerCallback(EVENTS.httpClientResponse(), this::onHttpClientResponse);
     subscriptionService.registerCallback(EVENTS.fileLoaded(), this::onFileLoaded);
+    subscriptionService.registerCallback(EVENTS.fileWritten(), this::onFileWritten);
     subscriptionService.registerCallback(EVENTS.requestSession(), this::onRequestSession);
     subscriptionService.registerCallback(EVENTS.execCmd(), this::onExecCmd);
     subscriptionService.registerCallback(EVENTS.shellCmd(), this::onShellCmd);
@@ -544,6 +546,33 @@ public class GatewayBridge {
         return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
       } catch (ExpiredSubscriberInfoException e) {
         ioFileSubInfo = null;
+      }
+    }
+  }
+
+  private Flow<Void> onFileWritten(RequestContext ctx_, String path) {
+    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
+    if (ctx == null) {
+      return NoopFlow.INSTANCE;
+    }
+    while (true) {
+      DataSubscriberInfo subInfo = ioFileWriteSubInfo;
+      if (subInfo == null) {
+        subInfo = producerService.getDataSubscribers(KnownAddresses.IO_FS_FILE_WRITE);
+        ioFileWriteSubInfo = subInfo;
+      }
+      if (subInfo == null || subInfo.isEmpty()) {
+        return NoopFlow.INSTANCE;
+      }
+      DataBundle bundle =
+          new MapDataBundle.Builder(CAPACITY_0_2)
+              .add(KnownAddresses.IO_FS_FILE_WRITE, path)
+              .build();
+      try {
+        GatewayContext gwCtx = new GatewayContext(true, RuleType.LFI);
+        return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
+      } catch (ExpiredSubscriberInfoException e) {
+        ioFileWriteSubInfo = null;
       }
     }
   }

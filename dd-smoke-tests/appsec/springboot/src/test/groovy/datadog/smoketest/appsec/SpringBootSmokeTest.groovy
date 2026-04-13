@@ -419,6 +419,30 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           on_match: []
         ],
+        [
+          id          : 'rasp-930-101',
+          name        : 'Local File Inclusion write exploit',
+          enable      : 'true',
+          tags        : [
+            type      : 'lfi',
+            category  : 'vulnerability_trigger',
+            cwe       : '98',
+            capec     : '252',
+            confidence: '0',
+            module    : 'rasp'
+          ],
+          conditions  : [
+            [
+              parameters: [
+                resource: [[address: 'server.io.fs.file_write']],
+                params  : [[address: 'server.request.query']],
+              ],
+              operator  : 'lfi_detector',
+            ],
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
       ])
   }
 
@@ -764,6 +788,39 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'paths'    | _
     'file'    | _
     'path'    | _
+  }
+
+  void 'rasp blocks on LFI write'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/fileoutputstream?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan('fileoutputstream')
+    assert rootSpan != null, 'root span not found'
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-930-101') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+    rootSpan.span.metaStruct == null
   }
 
   def findFirstMatchingSpan(String resource) {

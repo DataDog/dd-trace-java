@@ -34,4 +34,19 @@ class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
     ['/tmp', ['log', 'test.txt'] as String[]] | '/tmp/log/test.txt'
     ['test.txt', [] as String[]]              | 'test.txt'
   }
+
+  void 'test beforeFileWritten'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    final flow = Mock(Flow)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+
+    when:
+    FileLoadedRaspHelper.INSTANCE.beforeFileWritten('test.txt')
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileWritten()) >> listener
+    1 * listener.apply(reqCtx, 'test.txt') >> flow
+  }
 }

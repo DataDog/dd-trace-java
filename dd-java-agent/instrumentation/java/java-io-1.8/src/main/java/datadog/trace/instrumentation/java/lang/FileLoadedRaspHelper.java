@@ -5,6 +5,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.EventType;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
@@ -93,16 +94,24 @@ public class FileLoadedRaspHelper {
   }
 
   public void beforeFileLoaded(@Nonnull final String path) {
+    invokeRaspCallback(EVENTS.fileLoaded(), path);
+  }
+
+  public void beforeFileWritten(@Nonnull final String path) {
+    invokeRaspCallback(EVENTS.fileWritten(), path);
+  }
+
+  private void invokeRaspCallback(
+      EventType<BiFunction<RequestContext, String, Flow<Void>>> eventType,
+      @Nonnull final String path) {
     if (!Config.get().isAppSecRaspEnabled()) {
       return;
     }
     try {
-      final BiFunction<RequestContext, String, Flow<Void>> fileLoadedCallback =
-          AgentTracer.get()
-              .getCallbackProvider(RequestContextSlot.APPSEC)
-              .getCallback(EVENTS.fileLoaded());
+      final BiFunction<RequestContext, String, Flow<Void>> callback =
+          AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC).getCallback(eventType);
 
-      if (fileLoadedCallback == null) {
+      if (callback == null) {
         return;
       }
 
@@ -116,7 +125,7 @@ public class FileLoadedRaspHelper {
         return;
       }
 
-      Flow<Void> flow = fileLoadedCallback.apply(ctx, path);
+      Flow<Void> flow = callback.apply(ctx, path);
       Flow.Action action = flow.getAction();
       if (action instanceof Flow.Action.RequestBlockingAction) {
         BlockResponseFunction brf = ctx.getBlockResponseFunction();
