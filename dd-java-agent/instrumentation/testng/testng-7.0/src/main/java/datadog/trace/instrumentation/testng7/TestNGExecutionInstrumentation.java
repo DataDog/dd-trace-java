@@ -110,20 +110,26 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter
     public static void suppressFailures(@Advice.Argument(0) final ITestResult result) {
-      if (result.getStatus() != ITestResult.FAILURE) {
-        // nothing to suppress
-        return;
-      }
-
       IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
       if (!(retryAnalyzer instanceof RetryAnalyzer)) {
         // test execution policies not injected
         return;
       }
       RetryAnalyzer ddRetryAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      if (ddRetryAnalyzer.getAndResetSuppressFailures()) {
+
+      if (result.getStatus() == ITestResult.FAILURE
+          && ddRetryAnalyzer.getAndResetSuppressFailures()) {
         // "failed but within success percentage"
         result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
+      } else if (result.isSuccess() && ddRetryAnalyzer.shouldPropagateFailure()) {
+        // Aligns session status with DD's reported result on EFD. Without this,
+        // the session status would depend on the result order:
+        // - pass + fail -> fail (correct)
+        // - fail + pass -> pass (incorrect, EFD should fail on flaky)
+        result.setStatus(ITestResult.FAILURE);
+        result.setThrowable(
+            new AssertionError(
+                "Datadog Early Flake Detection: test has flaky results (mixed pass/fail)"));
       }
     }
   }
