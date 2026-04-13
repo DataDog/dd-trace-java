@@ -11,7 +11,6 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector;
-import datadog.trace.test.util.Flaky;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -130,7 +129,6 @@ class BaggagePropagatorTelemetryTest {
     assertEquals(1, itemsTruncatedMetric.value.longValue());
   }
 
-  @Flaky
   @Test
   void shouldNotIncrementTelemetryCounterWhenBaggageExtractionFails() {
     Config config = mock(Config.class);
