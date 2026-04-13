@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.ArrayList;
@@ -13,9 +14,12 @@ import java.util.concurrent.CyclicBarrier;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.RepeatedTest;
 import org.junit.jupiter.api.Test;
 
 public class DDSpanContextConcurrencyTest {
@@ -210,8 +214,8 @@ public class DDSpanContextConcurrencyTest {
 
   /**
    * Tests the transition from owner-thread to shared mode under concurrent writes: the creating
-   * thread sets tags first, then 8 other threads join in. This exercises the STATE_OWNER →
-   * STATE_SHARED transition while writes are in flight.
+   * thread sets tags first, then 8 other threads join in. This exercises the owner → shared
+   * transition while writes are in flight.
    */
   @Test
   @DisplayName("Owner-to-shared transition under concurrent writes — no crash, all tags present")
@@ -227,7 +231,7 @@ public class DDSpanContextConcurrencyTest {
       span.setTag("owner_" + i, "val_" + i);
     }
 
-    // Now launch 8 threads that also write — these trigger the transition to STATE_SHARED
+    // Now launch 8 threads that also write — these trigger the transition to shared mode
     CyclicBarrier barrier = new CyclicBarrier(numThreads);
     CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
 
@@ -305,5 +309,308 @@ public class DDSpanContextConcurrencyTest {
     tagger.shutdown();
     tagger.awaitTermination(10, TimeUnit.SECONDS);
     assertEquals(0, errors.size(), "Errors during cross-thread tagging of short spans: " + errors);
+  }
+
+  /**
+   * Concurrent reads and writes from multiple threads on the same span. Readers call getTag while
+   * writers call setTag, exercising the read path under contention.
+   */
+  @Test
+  @DisplayName("Mixed concurrent reads and writes — no crash, readers see consistent values")
+  void concurrentReadsAndWrites() throws Exception {
+    int numWriters = 4;
+    int numReaders = 4;
+    int iterations = 5_000;
+    ExecutorService executor = Executors.newFixedThreadPool(numWriters + numReaders);
+    CyclicBarrier barrier = new CyclicBarrier(numWriters + numReaders);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+    AtomicBoolean done = new AtomicBoolean(false);
+
+    AgentSpan span = TRACER.startSpan("test", "readWrite");
+    // Pre-populate with initial values so readers always have something
+    for (int i = 0; i < 50; i++) {
+      span.setTag("shared_" + i, "init");
+    }
+
+    List<Future<?>> futures = new ArrayList<>();
+
+    // Writers: overwrite shared keys with thread-specific values
+    for (int w = 0; w < numWriters; w++) {
+      final int writerIdx = w;
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  for (int i = 0; i < iterations; i++) {
+                    int key = i % 50;
+                    span.setTag("shared_" + key, "w" + writerIdx + "_" + i);
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    // Readers: read tags concurrently with writes
+    for (int r = 0; r < numReaders; r++) {
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  while (!done.get()) {
+                    for (int i = 0; i < 50; i++) {
+                      Object val = span.getTag("shared_" + i);
+                      // Value should be non-null (either "init" or a writer's value)
+                      assertNotNull(val, "Tag shared_" + i + " was null during concurrent read");
+                    }
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    // Wait for writers to finish, then signal readers to stop
+    for (int i = 0; i < numWriters; i++) {
+      futures.get(i).get(30, TimeUnit.SECONDS);
+    }
+    done.set(true);
+    for (int i = numWriters; i < futures.size(); i++) {
+      futures.get(i).get(5, TimeUnit.SECONDS);
+    }
+
+    span.finish();
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Errors during concurrent reads/writes: " + errors);
+  }
+
+  /**
+   * Randomized fuzz test: each thread performs a random mix of setTag (String, int, double,
+   * boolean), setMetric, getTag, and removeTag operations. Repeated 10 times for coverage.
+   */
+  @RepeatedTest(10)
+  @DisplayName("Fuzz test: randomized tag operations from 8 threads — no crash")
+  void fuzzRandomizedOperations() throws Exception {
+    int numThreads = 8;
+    int opsPerThread = 2_000;
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    CyclicBarrier barrier = new CyclicBarrier(numThreads);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    AgentSpan span = TRACER.startSpan("test", "fuzz");
+
+    List<Future<?>> futures = new ArrayList<>();
+    for (int t = 0; t < numThreads; t++) {
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  ThreadLocalRandom rng = ThreadLocalRandom.current();
+                  for (int i = 0; i < opsPerThread; i++) {
+                    String key = "fuzz_" + rng.nextInt(100);
+                    switch (rng.nextInt(7)) {
+                      case 0:
+                        span.setTag(key, "str_" + i);
+                        break;
+                      case 1:
+                        span.setTag(key, rng.nextInt());
+                        break;
+                      case 2:
+                        span.setTag(key, rng.nextDouble());
+                        break;
+                      case 3:
+                        span.setTag(key, rng.nextBoolean());
+                        break;
+                      case 4:
+                        span.setMetric(key, rng.nextInt(1000));
+                        break;
+                      case 5:
+                        span.getTag(key);
+                        break;
+                      case 6:
+                        span.setTag(key, (String) null);
+                        break;
+                    }
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    for (Future<?> f : futures) {
+      f.get(30, TimeUnit.SECONDS);
+    }
+    span.finish();
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Errors during fuzz test: " + errors);
+  }
+
+  /**
+   * Verifies that tag values written by a single thread are never corrupted (torn). Each writer
+   * thread owns unique keys and writes values with a recognizable pattern. After all writes
+   * complete, we verify every key holds a value from the correct writer thread.
+   */
+  @Test
+  @DisplayName("Value consistency: per-thread keys retain correct writer identity")
+  void valueConsistencyPerThreadKeys() throws Exception {
+    int numThreads = 8;
+    int keysPerThread = 100;
+    int writesPerKey = 100;
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    CyclicBarrier barrier = new CyclicBarrier(numThreads);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    AgentSpan span = TRACER.startSpan("test", "consistency");
+
+    List<Future<?>> futures = new ArrayList<>();
+    for (int t = 0; t < numThreads; t++) {
+      final int threadIdx = t;
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  for (int w = 0; w < writesPerKey; w++) {
+                    for (int k = 0; k < keysPerThread; k++) {
+                      span.setTag("t" + threadIdx + "_k" + k, "t" + threadIdx + "_v" + w);
+                    }
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    for (Future<?> f : futures) {
+      f.get(30, TimeUnit.SECONDS);
+    }
+    span.finish();
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Errors during consistency test: " + errors);
+
+    // Each key should contain a value from the correct thread (pattern: "tN_vM")
+    for (int t = 0; t < numThreads; t++) {
+      for (int k = 0; k < keysPerThread; k++) {
+        Object val = span.getTag("t" + t + "_k" + k);
+        assertNotNull(val, "Tag t" + t + "_k" + k + " was null");
+        assertTrue(
+            val.toString().startsWith("t" + t + "_"),
+            "Tag t" + t + "_k" + k + " has wrong writer: " + val);
+      }
+    }
+  }
+
+  /**
+   * Exercises the owner→shared transition at the exact moment of finish(). The owner thread writes
+   * tags and then finishes, while other threads attempt to write simultaneously. This tests that
+   * transitionToShared() in finish() correctly makes post-finish writes visible.
+   */
+  @RepeatedTest(50)
+  @DisplayName("Race: finish() concurrent with cross-thread writes — no crash")
+  void finishRacesWithCrossThreadWrites() throws Exception {
+    int numThreads = 4;
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    CyclicBarrier barrier = new CyclicBarrier(numThreads + 1); // +1 for the owner/finisher
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    AgentSpan span = TRACER.startSpan("test", "finishRace");
+    span.setTag("owner_tag", "present");
+
+    List<Future<?>> futures = new ArrayList<>();
+    for (int t = 0; t < numThreads; t++) {
+      final int threadIdx = t;
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  for (int i = 0; i < 100; i++) {
+                    span.setTag("race_" + threadIdx + "_" + i, "val");
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    // Owner thread joins the barrier and finishes concurrently
+    barrier.await(5, TimeUnit.SECONDS);
+    span.finish();
+
+    for (Future<?> f : futures) {
+      f.get(10, TimeUnit.SECONDS);
+    }
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Errors during finish race: " + errors);
+    assertEquals("present", span.getTag("owner_tag"));
+  }
+
+  /**
+   * Concurrent setMetric calls from multiple threads, verifying that metric values (int, long,
+   * float, double) are not corrupted.
+   */
+  @Test
+  @DisplayName("Concurrent setMetric from 8 threads — no crash, values present")
+  void concurrentSetMetric() throws Exception {
+    int numThreads = 8;
+    int metricsPerThread = 500;
+    ExecutorService executor = Executors.newFixedThreadPool(numThreads);
+    CyclicBarrier barrier = new CyclicBarrier(numThreads);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    AgentSpan span = TRACER.startSpan("test", "metrics");
+
+    List<Future<?>> futures = new ArrayList<>();
+    for (int t = 0; t < numThreads; t++) {
+      final int threadIdx = t;
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  for (int i = 0; i < metricsPerThread; i++) {
+                    String key = "m_t" + threadIdx + "_" + i;
+                    switch (i % 4) {
+                      case 0:
+                        ((DDSpan) span).context().setMetric(key, i);
+                        break;
+                      case 1:
+                        ((DDSpan) span).context().setMetric(key, (long) i);
+                        break;
+                      case 2:
+                        ((DDSpan) span).context().setMetric(key, (float) i);
+                        break;
+                      case 3:
+                        ((DDSpan) span).context().setMetric(key, (double) i);
+                        break;
+                    }
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    for (Future<?> f : futures) {
+      f.get(30, TimeUnit.SECONDS);
+    }
+    span.finish();
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Errors during concurrent setMetric: " + errors);
+    // Spot-check: each thread's last metric should be present
+    for (int t = 0; t < numThreads; t++) {
+      assertNotNull(
+          span.getTag("m_t" + t + "_" + (metricsPerThread - 1)),
+          "Thread " + t + " last metric missing");
+    }
   }
 }

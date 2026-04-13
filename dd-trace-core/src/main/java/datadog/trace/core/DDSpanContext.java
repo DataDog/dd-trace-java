@@ -96,13 +96,6 @@ public class DDSpanContext
   private final long threadId;
   private final UTF8BytesString threadName;
 
-  // Thread-owned tag write optimization: skip synchronized(unsafeTags) when the writing thread
-  // is the span's creating thread (the common case). Once any other thread accesses the tags,
-  // we transition to STATE_SHARED and all subsequent accesses take the lock.
-  private static final int STATE_OWNER = 0;
-  private static final int STATE_SHARED = 1;
-  private volatile int tagWriteState = STATE_OWNER;
-
   private volatile short httpStatusCode;
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
@@ -119,111 +112,7 @@ public class DDSpanContext
   private final TagMap unsafeTags;
 
   void transitionToShared() {
-    tagWriteState = STATE_SHARED;
-  }
-
-  private boolean isOwnerThread() {
-    return tagWriteState == STATE_OWNER && Thread.currentThread().getId() == threadId;
-  }
-
-  // Fast-path tag write helpers: skip the lock when the owner thread is writing
-  private void tagSet(String key, Object value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(String key, int value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(String key, long value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(String key, float value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(String key, double value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(String key, boolean value) {
-    if (isOwnerThread()) {
-      unsafeTags.set(key, value);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(key, value);
-      }
-    }
-  }
-
-  private void tagSet(TagMap.EntryReader entry) {
-    if (isOwnerThread()) {
-      unsafeTags.set(entry);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.set(entry);
-      }
-    }
-  }
-
-  private void tagRemove(String key) {
-    if (isOwnerThread()) {
-      unsafeTags.remove(key);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeTags.remove(key);
-      }
-    }
-  }
-
-  private Object tagGet(String key) {
-    if (isOwnerThread()) {
-      return unsafeTags.getObject(key);
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        return unsafeTags.getObject(key);
-      }
-    }
+    unsafeTags.transitionToShared();
   }
 
   /** The service name is required, otherwise the span are dropped by the agent */
@@ -451,11 +340,10 @@ public class DDSpanContext
     final Thread current = Thread.currentThread();
     this.threadId = current.getId();
     this.threadName = THREAD_NAMES.computeIfAbsent(current.getName(), Functions.UTF8_ENCODE);
-
-    // Disable thread-owned tag optimization for long-running spans because the writer thread
-    // can call processTagsAndBaggage on unfinished spans, creating concurrent access.
-    if (traceCollector.longRunningSpansEnabled()) {
-      this.tagWriteState = STATE_SHARED;
+    // Enable thread-owned tag optimization: skip synchronization when the owner thread writes.
+    // Disable for long-running spans because the writer thread reads tags on unfinished spans.
+    if (!traceCollector.longRunningSpansEnabled()) {
+      this.unsafeTags.setOwnerThread(current);
     }
 
     this.disableSamplingMechanismValidation = disableSamplingMechanismValidation;
@@ -721,21 +609,10 @@ public class DDSpanContext
   }
 
   public void setSpanSamplingPriority(double rate, int limit) {
-    if (isOwnerThread()) {
-      unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
-      unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
-      if (limit != Integer.MAX_VALUE) {
-        unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
-      }
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
-        unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
-        if (limit != Integer.MAX_VALUE) {
-          unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
-        }
-      }
+    unsafeSetTag(SPAN_SAMPLING_MECHANISM_TAG, SamplingMechanism.SPAN_SAMPLING_RATE);
+    unsafeSetTag(SPAN_SAMPLING_RULE_RATE_TAG, rate);
+    if (limit != Integer.MAX_VALUE) {
+      unsafeSetTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG, limit);
     }
   }
 
@@ -853,34 +730,35 @@ public class DDSpanContext
   }
 
   public void setMetric(final CharSequence key, final Number value) {
-    tagSet(key.toString(), (Object) value);
+    unsafeSetTag(key.toString(), value);
   }
 
   public void setMetric(final CharSequence key, final int value) {
-    tagSet(key.toString(), value);
+    unsafeTags.set(key.toString(), value);
   }
 
   public void setMetric(final CharSequence key, final long value) {
-    tagSet(key.toString(), value);
+    unsafeTags.set(key.toString(), value);
   }
 
   public void setMetric(final CharSequence key, final float value) {
-    tagSet(key.toString(), value);
+    unsafeTags.set(key.toString(), value);
   }
 
   public void setMetric(final CharSequence key, final double value) {
-    tagSet(key.toString(), value);
+    unsafeTags.set(key.toString(), value);
   }
 
   public void setMetric(final TagMap.EntryReader entry) {
     if (entry == null) {
       return;
     }
-    tagSet(entry);
+
+    unsafeTags.set(entry);
   }
 
   public void removeTag(String tag) {
-    tagRemove(tag);
+    unsafeTags.remove(tag);
   }
 
   /**
@@ -897,9 +775,9 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      tagRemove(tag);
+      unsafeTags.remove(tag);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -908,9 +786,9 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      tagRemove(tag);
+      unsafeTags.remove(tag);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
-      tagSet(tag, (Object) value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -924,7 +802,7 @@ public class DDSpanContext
         precheckIntercept(entry.tag())
             && tagInterceptor.interceptTag(this, entry.tag(), entry.objectValue());
     if (!intercepted) {
-      tagSet(entry);
+      unsafeTags.set(entry);
     }
   }
 
@@ -954,7 +832,7 @@ public class DDSpanContext
    */
   private void setBox(String tag, Object box) {
     if (!tagInterceptor.interceptTag(this, tag, box)) {
-      tagSet(tag, box);
+      unsafeTags.set(tag, box);
     }
   }
 
@@ -965,7 +843,7 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -976,7 +854,7 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -988,7 +866,7 @@ public class DDSpanContext
     boolean intercepted =
         tagInterceptor.needsIntercept(tag) && tagInterceptor.interceptTag(this, tag, value);
     if (!intercepted) {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -999,7 +877,7 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -1010,7 +888,7 @@ public class DDSpanContext
     if (precheckIntercept(tag)) {
       this.setBox(tag, value);
     } else {
-      tagSet(tag, value);
+      unsafeTags.set(tag, value);
     }
   }
 
@@ -1023,39 +901,22 @@ public class DDSpanContext
       return;
     }
 
-    if (isOwnerThread()) {
-      if (needsIntercept) {
-        map.forEach(
-            this,
-            (ctx, tagEntry) -> {
-              String tag = tagEntry.tag();
-              Object value = tagEntry.objectValue();
+    if (needsIntercept) {
+      // forEach out-performs the iterator of TagMap
+      // Taking advantage of ability to pass through other context arguments
+      // to avoid using a capturing lambda
+      map.forEach(
+          this,
+          (ctx, tagEntry) -> {
+            String tag = tagEntry.tag();
+            Object value = tagEntry.objectValue();
 
-              if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
-                ctx.unsafeTags.set(tagEntry);
-              }
-            });
-      } else {
-        unsafeTags.putAll(map);
-      }
+            if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              ctx.unsafeTags.set(tagEntry);
+            }
+          });
     } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        if (needsIntercept) {
-          map.forEach(
-              this,
-              (ctx, tagEntry) -> {
-                String tag = tagEntry.tag();
-                Object value = tagEntry.objectValue();
-
-                if (!ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
-                  ctx.unsafeTags.set(tagEntry);
-                }
-              });
-        } else {
-          unsafeTags.putAll(map);
-        }
-      }
+      unsafeTags.putAll(map);
     }
   }
 
@@ -1064,33 +925,17 @@ public class DDSpanContext
       return;
     }
 
-    if (isOwnerThread()) {
-      for (final TagMap.EntryChange entryChange : ledger) {
-        if (entryChange.isRemoval()) {
-          unsafeTags.remove(entryChange.tag());
-        } else {
-          TagMap.Entry entry = (TagMap.Entry) entryChange;
-          String tag = entry.tag();
-          Object value = entry.objectValue();
-          if (!tagInterceptor.interceptTag(this, tag, value)) {
-            unsafeTags.set(entry);
-          }
-        }
-      }
-    } else {
-      synchronized (unsafeTags) {
-        tagWriteState = STATE_SHARED;
-        for (final TagMap.EntryChange entryChange : ledger) {
-          if (entryChange.isRemoval()) {
-            unsafeTags.remove(entryChange.tag());
-          } else {
-            TagMap.Entry entry = (TagMap.Entry) entryChange;
-            String tag = entry.tag();
-            Object value = entry.objectValue();
-            if (!tagInterceptor.interceptTag(this, tag, value)) {
-              unsafeTags.set(entry);
-            }
-          }
+    for (final TagMap.EntryChange entryChange : ledger) {
+      if (entryChange.isRemoval()) {
+        unsafeTags.remove(entryChange.tag());
+      } else {
+        TagMap.Entry entry = (TagMap.Entry) entryChange;
+
+        String tag = entry.tag();
+        Object value = entry.objectValue();
+
+        if (!tagInterceptor.interceptTag(this, tag, value)) {
+          unsafeTags.set(entry);
         }
       }
     }
@@ -1102,20 +947,9 @@ public class DDSpanContext
     } else if (map instanceof TagMap) {
       setAllTags((TagMap) map);
     } else if (!map.isEmpty()) {
-      if (isOwnerThread()) {
-        for (final Map.Entry<String, ?> tag : map.entrySet()) {
-          if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
-            unsafeSetTag(tag.getKey(), tag.getValue());
-          }
-        }
-      } else {
-        synchronized (unsafeTags) {
-          tagWriteState = STATE_SHARED;
-          for (final Map.Entry<String, ?> tag : map.entrySet()) {
-            if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
-              unsafeSetTag(tag.getKey(), tag.getValue());
-            }
-          }
+      for (final Map.Entry<String, ?> tag : map.entrySet()) {
+        if (!tagInterceptor.interceptTag(this, tag.getKey(), tag.getValue())) {
+          unsafeSetTag(tag.getKey(), tag.getValue());
         }
       }
     }
@@ -1147,7 +981,7 @@ public class DDSpanContext
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       default:
-        Object value = tagGet(key);
+        Object value = unsafeGetTag(key);
         // maintain previously observable type of http url :|
         return value == null ? null : Tags.HTTP_URL.equals(key) ? value.toString() : value;
     }
@@ -1166,25 +1000,23 @@ public class DDSpanContext
 
   @Deprecated
   public TagMap getTags() {
-    synchronized (unsafeTags) {
-      TagMap tags = unsafeTags.copy();
+    TagMap tags = unsafeTags.copy();
 
-      tags.put(DDTags.THREAD_ID, threadId);
-      // maintain previously observable type of the thread name :|
-      tags.put(DDTags.THREAD_NAME, threadName.toString());
-      if (samplingPriority != PrioritySampling.UNSET) {
-        tags.put(SAMPLE_RATE_KEY, samplingPriority);
-      }
-      if (httpStatusCode != 0) {
-        tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
-      }
-      // maintain previously observable type of http url :|
-      Object value = tags.get(Tags.HTTP_URL);
-      if (value != null) {
-        tags.put(Tags.HTTP_URL, value.toString());
-      }
-      return tags.freeze();
+    tags.put(DDTags.THREAD_ID, threadId);
+    // maintain previously observable type of the thread name :|
+    tags.put(DDTags.THREAD_NAME, threadName.toString());
+    if (samplingPriority != PrioritySampling.UNSET) {
+      tags.put(SAMPLE_RATE_KEY, samplingPriority);
     }
+    if (httpStatusCode != 0) {
+      tags.put(Tags.HTTP_STATUS, (int) httpStatusCode);
+    }
+    // maintain previously observable type of http url :|
+    Object value = tags.get(Tags.HTTP_URL);
+    if (value != null) {
+      tags.put(Tags.HTTP_URL, value.toString());
+    }
+    return tags.freeze();
   }
 
   /**
@@ -1216,9 +1048,7 @@ public class DDSpanContext
   }
 
   void earlyProcessTags(AppendableSpanLinks links) {
-    synchronized (unsafeTags) {
-      TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
-    }
+    TagsPostProcessorFactory.eagerProcessor().processTags(unsafeTags, this, links);
   }
 
   void processTagsAndBaggage(
@@ -1228,41 +1058,39 @@ public class DDSpanContext
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
-    synchronized (unsafeTags) {
-      // Tags
-      TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
+    // Tags
+    TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
-      String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
-      if (linksTag != null) {
-        unsafeTags.put(SPAN_LINKS, linksTag);
-      }
-      // Baggage
-      Map<String, String> baggageItemsWithPropagationTags;
-      if (injectBaggageAsTags) {
-        baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
-        if (w3cBaggage != null) {
-          injectW3CBaggageTags(baggageItemsWithPropagationTags);
-        }
-        propagationTags.fillTagMap(baggageItemsWithPropagationTags);
-      } else {
-        baggageItemsWithPropagationTags = propagationTags.createTagMap();
-      }
-
-      consumer.accept(
-          new Metadata(
-              threadId,
-              threadName,
-              unsafeTags,
-              baggageItemsWithPropagationTags,
-              samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
-              measured,
-              topLevel,
-              httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
-              // Get origin from rootSpan.context
-              getOrigin(),
-              longRunningVersion,
-              ProcessTags.getTagsForSerialization()));
+    String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
+    if (linksTag != null) {
+      unsafeTags.put(SPAN_LINKS, linksTag);
     }
+    // Baggage
+    Map<String, String> baggageItemsWithPropagationTags;
+    if (injectBaggageAsTags) {
+      baggageItemsWithPropagationTags = new HashMap<>(baggageItems);
+      if (w3cBaggage != null) {
+        injectW3CBaggageTags(baggageItemsWithPropagationTags);
+      }
+      propagationTags.fillTagMap(baggageItemsWithPropagationTags);
+    } else {
+      baggageItemsWithPropagationTags = propagationTags.createTagMap();
+    }
+
+    consumer.accept(
+        new Metadata(
+            threadId,
+            threadName,
+            unsafeTags,
+            baggageItemsWithPropagationTags,
+            samplingPriority != PrioritySampling.UNSET ? samplingPriority : getSamplingPriority(),
+            measured,
+            topLevel,
+            httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+            // Get origin from rootSpan.context
+            getOrigin(),
+            longRunningVersion,
+            ProcessTags.getTagsForSerialization()));
   }
 
   void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
@@ -1318,9 +1146,7 @@ public class DDSpanContext
       s.append(" *measured*");
     }
 
-    synchronized (unsafeTags) {
-      s.append(" tags=").append(new TreeMap<>(getTags()));
-    }
+    s.append(" tags=").append(new TreeMap<>(getTags()));
     return s.toString();
   }
 

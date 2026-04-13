@@ -49,6 +49,11 @@ public class StreamingTraceCollector extends TraceCollector {
   }
 
   @Override
+  boolean longRunningSpansEnabled() {
+    return false;
+  }
+
+  @Override
   void touch() {
     // do nothing
   }

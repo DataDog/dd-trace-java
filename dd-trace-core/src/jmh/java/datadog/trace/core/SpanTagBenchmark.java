@@ -86,10 +86,65 @@ public class SpanTagBenchmark {
     return state.span;
   }
 
+  // Multi-threaded owner-thread benchmarks: 8 threads each working on their own span.
+  // Measures the macro impact of the optimization when many threads tag spans concurrently,
+  // the realistic web-server scenario.
+
+  @Benchmark
+  @Threads(8)
+  @OutputTimeUnit(NANOSECONDS)
+  public AgentSpan setStringTag_ownerThread_8T(SpanPerThread state) {
+    state.span.setTag("key", "value");
+    return state.span;
+  }
+
+  @Benchmark
+  @Threads(8)
+  @OutputTimeUnit(NANOSECONDS)
+  public AgentSpan setIntTag_ownerThread_8T(SpanPerThread state) {
+    state.span.setTag("key", 42);
+    return state.span;
+  }
+
+  @Benchmark
+  @Threads(8)
+  @OutputTimeUnit(NANOSECONDS)
+  public AgentSpan setTenTags_ownerThread_8T(SpanPerThread state) {
+    state.span.setTag("k0", "v0");
+    state.span.setTag("k1", "v1");
+    state.span.setTag("k2", "v2");
+    state.span.setTag("k3", "v3");
+    state.span.setTag("k4", "v4");
+    state.span.setTag("k5", 5);
+    state.span.setTag("k6", 6L);
+    state.span.setTag("k7", 7.0);
+    state.span.setTag("k8", true);
+    state.span.setTag("k9", "v9");
+    return state.span;
+  }
+
   @Benchmark
   @Threads(1)
   @OutputTimeUnit(MICROSECONDS)
   public AgentSpan fullLifecycle_tenTags(SpanPerThread state) {
+    state.span.setTag("k0", "v0");
+    state.span.setTag("k1", "v1");
+    state.span.setTag("k2", "v2");
+    state.span.setTag("k3", "v3");
+    state.span.setTag("k4", "v4");
+    state.span.setTag("k5", 5);
+    state.span.setTag("k6", 6L);
+    state.span.setTag("k7", 7.0);
+    state.span.setTag("k8", true);
+    state.span.setTag("k9", "v9");
+    state.span.finish();
+    return state.span;
+  }
+
+  @Benchmark
+  @Threads(8)
+  @OutputTimeUnit(MICROSECONDS)
+  public AgentSpan fullLifecycle_tenTags_8T(SpanPerThread state) {
     state.span.setTag("k0", "v0");
     state.span.setTag("k1", "v1");
     state.span.setTag("k2", "v2");

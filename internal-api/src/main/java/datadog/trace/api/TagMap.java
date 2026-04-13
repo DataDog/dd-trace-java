@@ -279,6 +279,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   /** Checks if the TagMap is writable - if not throws {@link IllegalStateException} */
   void checkWriteAccess();
 
+  /** Sets the thread that owns this TagMap for lock-free access. */
+  default void setOwnerThread(Thread thread) {}
+
+  /** Transitions this TagMap to shared mode, requiring synchronization for all future access. */
+  default void transitionToShared() {}
+
   abstract class EntryChange {
     public static final EntryRemoval newRemoval(String tag) {
       return new EntryRemoval(tag);
@@ -1259,6 +1265,7 @@ final class OptimizedTagMap implements TagMap {
   private final Object[] buckets;
   private int size;
   private boolean frozen;
+  private volatile Thread ownerThread;
 
   public OptimizedTagMap() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
@@ -1397,6 +1404,16 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public Entry getEntry(String tag) {
+    if (isOwnerThread()) {
+      return getEntryImpl(tag);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return getEntryImpl(tag);
+    }
+  }
+
+  private Entry getEntryImpl(String tag) {
     Object[] thisBuckets = this.buckets;
 
     int hash = TagMap.Entry._hash(tag);
@@ -1467,7 +1484,16 @@ final class OptimizedTagMap implements TagMap {
   @Override
   public Entry getAndSet(Entry newEntry) {
     this.checkWriteAccess();
+    if (isOwnerThread()) {
+      return getAndSetImpl(newEntry);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return getAndSetImpl(newEntry);
+    }
+  }
 
+  private Entry getAndSetImpl(Entry newEntry) {
     Object[] thisBuckets = this.buckets;
 
     int newHash = newEntry.hash();
@@ -1550,7 +1576,17 @@ final class OptimizedTagMap implements TagMap {
 
   public void putAll(Map<? extends String, ? extends Object> map) {
     this.checkWriteAccess();
+    if (isOwnerThread()) {
+      putAllImpl(map);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      putAllImpl(map);
+    }
+  }
 
+  private void putAllImpl(Map<? extends String, ? extends Object> map) {
     if (map instanceof OptimizedTagMap) {
       this.putAllOptimizedMap((OptimizedTagMap) map);
     } else {
@@ -1574,7 +1610,17 @@ final class OptimizedTagMap implements TagMap {
    */
   public void putAll(TagMap that) {
     this.checkWriteAccess();
+    if (isOwnerThread()) {
+      putAllTagMapImpl(that);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      putAllTagMapImpl(that);
+    }
+  }
 
+  private void putAllTagMapImpl(TagMap that) {
     if (that instanceof OptimizedTagMap) {
       this.putAllOptimizedMap((OptimizedTagMap) that);
     } else {
@@ -1732,6 +1778,17 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public void fillMap(Map<? super String, Object> map) {
+    if (isOwnerThread()) {
+      fillMapImpl(map);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      fillMapImpl(map);
+    }
+  }
+
+  private void fillMapImpl(Map<? super String, Object> map) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1750,6 +1807,17 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
+    if (isOwnerThread()) {
+      fillStringMapImpl(stringMap);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      fillStringMapImpl(stringMap);
+    }
+  }
+
+  private void fillStringMapImpl(Map<? super String, ? super String> stringMap) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1782,7 +1850,16 @@ final class OptimizedTagMap implements TagMap {
   @Override
   public Entry getAndRemove(String tag) {
     this.checkWriteAccess();
+    if (isOwnerThread()) {
+      return getAndRemoveImpl(tag);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return getAndRemoveImpl(tag);
+    }
+  }
 
+  private Entry getAndRemoveImpl(String tag) {
     Object[] thisBuckets = this.buckets;
 
     int hash = TagMap.Entry._hash(tag);
@@ -1821,6 +1898,16 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public TagMap copy() {
+    if (isOwnerThread()) {
+      return copyImpl();
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return copyImpl();
+    }
+  }
+
+  private TagMap copyImpl() {
     OptimizedTagMap copy = new OptimizedTagMap();
     copy.putAllIntoEmptyMap(this);
     return copy;
@@ -1846,6 +1933,17 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
+    if (isOwnerThread()) {
+      forEachImpl(consumer);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      forEachImpl(consumer);
+    }
+  }
+
+  private void forEachImpl(Consumer<? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1865,6 +1963,17 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+    if (isOwnerThread()) {
+      forEachImpl(thisObj, consumer);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      forEachImpl(thisObj, consumer);
+    }
+  }
+
+  private <T> void forEachImpl(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1885,6 +1994,18 @@ final class OptimizedTagMap implements TagMap {
   @Override
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
+    if (isOwnerThread()) {
+      forEachImpl(thisObj, otherObj, consumer);
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      forEachImpl(thisObj, otherObj, consumer);
+    }
+  }
+
+  private <T, U> void forEachImpl(
+      T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
     Object[] thisBuckets = this.buckets;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -1904,9 +2025,34 @@ final class OptimizedTagMap implements TagMap {
 
   public void clear() {
     this.checkWriteAccess();
+    if (isOwnerThread()) {
+      clearImpl();
+      return;
+    }
+    synchronized (this) {
+      ownerThread = null;
+      clearImpl();
+    }
+  }
 
+  private void clearImpl() {
     Arrays.fill(this.buckets, null);
     this.size = 0;
+  }
+
+  @Override
+  public void setOwnerThread(Thread thread) {
+    this.ownerThread = thread;
+  }
+
+  @Override
+  public void transitionToShared() {
+    this.ownerThread = null;
+  }
+
+  private boolean isOwnerThread() {
+    Thread ot = this.ownerThread;
+    return ot != null && ot == Thread.currentThread();
   }
 
   public OptimizedTagMap freeze() {
@@ -2007,24 +2153,39 @@ final class OptimizedTagMap implements TagMap {
   public Object compute(
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
-
-    return TagMap.super.compute(key, remappingFunction);
+    if (isOwnerThread()) {
+      return TagMap.super.compute(key, remappingFunction);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return TagMap.super.compute(key, remappingFunction);
+    }
   }
 
   @Override
   public Object computeIfAbsent(
       String key, Function<? super String, ? extends Object> mappingFunction) {
     this.checkWriteAccess();
-
-    return TagMap.super.computeIfAbsent(key, mappingFunction);
+    if (isOwnerThread()) {
+      return TagMap.super.computeIfAbsent(key, mappingFunction);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return TagMap.super.computeIfAbsent(key, mappingFunction);
+    }
   }
 
   @Override
   public Object computeIfPresent(
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
-
-    return TagMap.super.computeIfPresent(key, remappingFunction);
+    if (isOwnerThread()) {
+      return TagMap.super.computeIfPresent(key, remappingFunction);
+    }
+    synchronized (this) {
+      ownerThread = null;
+      return TagMap.super.computeIfPresent(key, remappingFunction);
+    }
   }
 
   @Override

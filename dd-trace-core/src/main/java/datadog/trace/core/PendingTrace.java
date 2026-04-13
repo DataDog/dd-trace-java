@@ -155,11 +155,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     this.spans = new ConcurrentLinkedDeque<>();
   }
 
-  @Override
-  boolean longRunningSpansEnabled() {
-    return pendingTraceBuffer.longRunningSpansEnabled();
-  }
-
   /**
    * Current timestamp in nanoseconds; 'touches' the trace by updating {@link #lastReferenced}.
    *
@@ -174,6 +169,11 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     long nanoTicks = timeSource.getNanoTicks();
     LAST_REFERENCED.lazySet(this, nanoTicks);
     return tracer.getTimeWithNanoTicks(nanoTicks);
+  }
+
+  @Override
+  boolean longRunningSpansEnabled() {
+    return pendingTraceBuffer.longRunningSpansEnabled();
   }
 
   @Override
