@@ -2,7 +2,7 @@
 
 Measures tracer throughput overhead across decreasing heap sizes using spring-petclinic and JMeter.
 
-Based on Doug's methodology: run petclinic with `GET /owners/3` (DB-backed endpoint) at heap sizes from 256m down to 64m, comparing no-agent baseline vs candidate agent.
+Runs petclinic with `GET /owners/3` (DB-backed endpoint) at heap sizes from 256m down to 64m, comparing no-agent baseline vs candidate agent.
 
 ## Quick start
 

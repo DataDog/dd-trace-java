@@ -170,7 +170,7 @@ ensure_agent() {
 
 # --- JMeter JMX generation ---
 # Generate a minimal JMX inline so we don't depend on an external file.
-# Mirrors Doug's http-headless-with-db.jmx: N threads, infinite loop, GET /<endpoint>
+# N threads, infinite loop, GET /<endpoint>
 generate_jmx() {
   local jmx_file="$1"
   cat > "${jmx_file}" <<JMXEOF
