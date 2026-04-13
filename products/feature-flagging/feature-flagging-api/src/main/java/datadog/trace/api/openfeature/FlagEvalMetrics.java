@@ -12,8 +12,12 @@ import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import java.io.Closeable;
 import java.time.Duration;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 class FlagEvalMetrics implements Closeable {
+
+  private static final Logger log = LoggerFactory.getLogger(FlagEvalMetrics.class);
 
   private static final String METER_NAME = "ddtrace.openfeature";
   private static final String METRIC_NAME = "feature_flag.evaluations";
@@ -40,7 +44,7 @@ class FlagEvalMetrics implements Closeable {
   private volatile LongCounter counter;
   // Typed as Closeable to avoid loading SdkMeterProvider at class-load time
   // when the OTel SDK is absent from the classpath
-  private volatile java.io.Closeable meterProvider;
+  private volatile Closeable meterProvider;
 
   FlagEvalMetrics() {
     try {
@@ -71,8 +75,17 @@ class FlagEvalMetrics implements Closeable {
               .setUnit(METRIC_UNIT)
               .setDescription(METRIC_DESC)
               .build();
-    } catch (NoClassDefFoundError | Exception e) {
-      // OTel SDK not on classpath or initialization failed — counter stays null (no-op)
+
+      log.debug("Flag evaluation metrics initialized, exporting to {}", endpoint);
+    } catch (NoClassDefFoundError e) {
+      log.error(
+          "Evaluation logging is enabled but OpenTelemetry SDK is not on the classpath. "
+              + "Add opentelemetry-sdk-metrics and opentelemetry-exporter-otlp to your dependencies, "
+              + "or disable evaluation logging via Provider.Options.evaluationLogging(false).");
+      counter = null;
+      meterProvider = null;
+    } catch (Exception e) {
+      log.error("Failed to initialize flag evaluation metrics: {}", e.getMessage());
       counter = null;
       meterProvider = null;
     }
@@ -118,7 +131,7 @@ class FlagEvalMetrics implements Closeable {
 
   void shutdown() {
     counter = null;
-    java.io.Closeable mp = meterProvider;
+    Closeable mp = meterProvider;
     if (mp != null) {
       meterProvider = null;
       try {
