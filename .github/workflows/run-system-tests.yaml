@@ -64,6 +64,7 @@ jobs:
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
     uses: DataDog/system-tests/.github/workflows/system-tests.yml@1e5d6b7096279ca43ce4826fda3cc805635b63c1 # system tests are pinned on release branches only
     permissions:
+      contents: read
       id-token: write
     with:
       library: java
