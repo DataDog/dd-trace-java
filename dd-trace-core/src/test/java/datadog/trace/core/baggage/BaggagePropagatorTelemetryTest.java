@@ -17,11 +17,19 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class BaggagePropagatorTelemetryTest {
 
   private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
+
+  @BeforeEach
+  void setup() {
+    // Drain any metrics accumulated by other tests
+    CoreMetricCollector.getInstance().prepareMetrics();
+    CoreMetricCollector.getInstance().drain();
+  }
 
   @Test
   void shouldDirectlyIncrementBaggageMetrics() {
