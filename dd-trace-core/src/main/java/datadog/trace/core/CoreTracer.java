@@ -868,7 +868,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
       TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
+      tmp.set(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
       this.localRootSpanTags = tmp.freeze();
     } else {
       this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
