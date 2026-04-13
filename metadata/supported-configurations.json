@@ -2921,12 +2921,12 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_DIRECT_MEMORY_ENABLED": [
+    "DD_PROFILING_DIRECTALLOCATION_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
         "default": "false",
-        "aliases": ["DD_PROFILING_DIRECTALLOCATION_ENABLED"]
+        "aliases": ["DD_PROFILING_DIRECT_MEMORY_ENABLED"]
       }
     ],
     "DD_PROFILING_DISABLED_EVENTS": [
