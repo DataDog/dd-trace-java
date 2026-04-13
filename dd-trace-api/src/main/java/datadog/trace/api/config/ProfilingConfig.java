@@ -11,7 +11,12 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
-  public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
+
+  /**
+   * @deprecated The default is now computed dynamically based on JVM capabilities.
+   */
+  @Deprecated public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
+
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
   @Deprecated // Use dd.api-key instead
