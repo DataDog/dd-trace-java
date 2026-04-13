@@ -1090,7 +1090,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     setup:
     final path = '/tmp/output.txt'
     eventDispatcher.getDataSubscribers({
-      KnownAddresses.IO_FS_FILE_WRITE in it
+      KnownAddresses.IO_FS_FILE in it && KnownAddresses.IO_FS_FILE_WRITE in it
     }) >> nonEmptyDsInfo
     DataBundle bundle
     GatewayContext gatewayContext
@@ -1102,6 +1102,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
       a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
     }
+    bundle.get(KnownAddresses.IO_FS_FILE) == path
     bundle.get(KnownAddresses.IO_FS_FILE_WRITE) == path
     flow.result == null
     flow.action == Flow.Action.Noop.INSTANCE

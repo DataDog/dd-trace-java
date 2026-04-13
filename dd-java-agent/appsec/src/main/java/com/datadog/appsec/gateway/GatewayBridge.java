@@ -558,7 +558,9 @@ public class GatewayBridge {
     while (true) {
       DataSubscriberInfo subInfo = ioFileWriteSubInfo;
       if (subInfo == null) {
-        subInfo = producerService.getDataSubscribers(KnownAddresses.IO_FS_FILE_WRITE);
+        subInfo =
+            producerService.getDataSubscribers(
+                KnownAddresses.IO_FS_FILE, KnownAddresses.IO_FS_FILE_WRITE);
         ioFileWriteSubInfo = subInfo;
       }
       if (subInfo == null || subInfo.isEmpty()) {
@@ -566,6 +568,7 @@ public class GatewayBridge {
       }
       DataBundle bundle =
           new MapDataBundle.Builder(CAPACITY_0_2)
+              .add(KnownAddresses.IO_FS_FILE, path)
               .add(KnownAddresses.IO_FS_FILE_WRITE, path)
               .build();
       try {
