@@ -434,10 +434,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           conditions  : [
             [
               parameters: [
-                resource: [[address: 'server.io.fs.file_write']],
-                params  : [[address: 'server.request.query']],
+                inputs : [[address: 'server.io.fs.file_write']],
+                regex  : '(?:^|[/\\\\])\\.\\.[/\\\\]',
+                options: [case_sensitive: true, min_length: 4],
               ],
-              operator  : 'lfi_detector',
+              operator  : 'match_regex',
             ],
           ],
           transformers: [],
