@@ -69,7 +69,7 @@ jobs:
     with:
       library: java
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-      ref: "main" # system tests are pinned on release branches only
+      ref: 1e5d6b7096279ca43ce4826fda3cc805635b63c1 # system tests are pinned on release branches only
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
