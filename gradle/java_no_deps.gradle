@@ -121,9 +121,9 @@ def tracerJavaExtension = extensions.create(TracerJavaExtension.NAME, TracerJava
 
 
 
-// Only run one testcontainers test at a time
+// Number of testcontainers test at a time
 ext.testcontainersLimit = gradle.sharedServices.registerIfAbsent("testcontainersLimit", BuildService) {
-  maxParallelUsages = 1
+  maxParallelUsages = 2
 }
 
 // Task for tests that want to run forked in their own separate JVM
