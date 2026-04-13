@@ -10,6 +10,7 @@ import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
@@ -144,7 +145,7 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
     capture(TRACE_EXTENSIONS_PATH, extensions);
 
     String exporter = getOtelProperty("otel.traces.exporter");
-    if ("otlp".equalsIgnoreCase(exporter)) {
+    if ("otlp".equalsIgnoreCase(exporter)) { // traces defaults to non-OTLP (i.e. datadog)
       capture(TRACE_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_TRACES_HEADERS,
@@ -179,7 +180,8 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
             "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
-    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) {
+    if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
+      capture(METRICS_OTEL_EXPORTER, "otlp");
       capture(
           OTLP_METRICS_HEADERS,
           getOtelOtlpProperty("metrics", "headers", "dd." + OTLP_METRICS_HEADERS));
@@ -272,14 +274,14 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
       otelKey = "otel.exporter.otlp." + subkey;
       otelValue = getOtelProperty(otelKey);
       // special case when using general endpoint as fallback: append appropriate suffix
-      if ("endpoint".equals(subkey) && otelValue != null) {
+      if ("endpoint".equals(subkey) && otelValue != null && !otelValue.startsWith("unix://")) {
         if ("metrics".equals(signal)
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_METRICS_PROTOCOL))) {
-          otelValue = otelValue + "/v1/metrics";
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/metrics" : "/v1/metrics");
         }
         if ("traces".equals(signal)
             && !"grpc".equalsIgnoreCase(otelEnvironment.get(OTLP_TRACES_PROTOCOL))) {
-          otelValue = otelValue + "/v1/traces";
+          otelValue = otelValue + (otelValue.endsWith("/") ? "v1/traces" : "/v1/traces");
         }
       }
     }
@@ -316,9 +318,12 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
    * <p>Checks system properties and environment variables.
    */
   private static String getProperty(String sysProp) {
-    String value = SystemProperties.get(sysProp);
-    if (null == value) {
-      value = ConfigHelper.env(toEnvVar(sysProp));
+    // Always validate through ConfigHelper so STRICT_TEST mode can detect unsupported configs
+    String value = ConfigHelper.env(toEnvVar(sysProp));
+    // System property takes precedence over environment variable
+    String sysPropValue = SystemProperties.get(sysProp);
+    if (sysPropValue != null) {
+      value = sysPropValue;
     }
     return value;
   }

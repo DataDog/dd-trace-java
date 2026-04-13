@@ -298,6 +298,8 @@ import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTL
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_EXTENDED_INFO_ENABLED;
+import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_TAGS;
 import static datadog.trace.api.config.CwsConfig.CWS_ENABLED;
 import static datadog.trace.api.config.CwsConfig.CWS_TLS_REFRESH;
@@ -447,6 +449,7 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
@@ -926,6 +929,7 @@ public class Config {
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
+  private final String metricsOtelExporter;
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
@@ -1002,6 +1006,7 @@ public class Config {
   private final boolean crashTrackingAgentless;
   private final Map<String, String> crashTrackingTags;
   private final boolean crashTrackingErrorsIntakeEnabled;
+  private final boolean crashTrackingExtendedInfoEnabled;
 
   private final boolean clientIpEnabled;
 
@@ -1908,6 +1913,8 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
+    metricsOtelExporter = configProvider.getString(METRICS_OTEL_EXPORTER);
+
     int cardinalityLimit =
         configProvider.getInteger(
             METRICS_OTEL_CARDINALITY_LIMIT, DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT);
@@ -2227,6 +2234,9 @@ public class Config {
     crashTrackingErrorsIntakeEnabled =
         configProvider.getBoolean(
             CRASH_TRACKING_ERRORS_INTAKE_ENABLED, CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT);
+    crashTrackingExtendedInfoEnabled =
+        configProvider.getBoolean(
+            CRASH_TRACKING_EXTENDED_INFO_ENABLED, CRASH_TRACKING_EXTENDED_INFO_ENABLED_DEFAULT);
 
     float telemetryInterval =
         configProvider.getFloat(TELEMETRY_HEARTBEAT_INTERVAL, DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL);
@@ -3820,6 +3830,10 @@ public class Config {
     return crashTrackingErrorsIntakeEnabled;
   }
 
+  public boolean isCrashTrackingExtendedInfoEnabled() {
+    return crashTrackingExtendedInfoEnabled;
+  }
+
   public boolean isTelemetryEnabled() {
     return instrumenterConfig.isTelemetryEnabled();
   }
@@ -5271,6 +5285,10 @@ public class Config {
     return instrumenterConfig.isMetricsOtelEnabled();
   }
 
+  public boolean isMetricsOtlpExporterEnabled() {
+    return "otlp".equalsIgnoreCase(metricsOtelExporter);
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -6125,6 +6143,8 @@ public class Config {
         + crashTrackingAgentless
         + ", crashTrackingErrorsIntakeEnabled="
         + crashTrackingErrorsIntakeEnabled
+        + ", crashTrackingExtendedInfoEnabled="
+        + crashTrackingExtendedInfoEnabled
         + ", remoteConfigEnabled="
         + remoteConfigEnabled
         + ", remoteConfigUrl="
@@ -6349,6 +6369,8 @@ public class Config {
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", metricsOtelExporter="
+        + metricsOtelExporter
         + ", metricsOtelInterval="
         + metricsOtelInterval
         + ", metricsOtelTimeout="

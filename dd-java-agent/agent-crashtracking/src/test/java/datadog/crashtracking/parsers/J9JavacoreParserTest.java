@@ -91,6 +91,9 @@ public class J9JavacoreParserTest {
     assertFalse(crashLog.experimental.ucontext.isEmpty());
     assertTrue(crashLog.experimental.ucontext.containsKey(pcRegister));
     assertTrue(crashLog.experimental.ucontext.containsKey(spRegister));
+    assertNotNull(crashLog.experimental.runtimeArgs);
+    assertTrue(
+        crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("-Xdump:java:")));
   }
 
   @Test

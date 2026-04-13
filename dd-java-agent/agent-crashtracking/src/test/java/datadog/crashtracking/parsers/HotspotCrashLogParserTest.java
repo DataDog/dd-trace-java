@@ -1,6 +1,7 @@
 package datadog.crashtracking.parsers;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -64,6 +65,13 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x000000016feee0f0", crashLog.experimental.ucontext.get("sp"));
     assertEquals("0x000000010f8ac794", crashLog.experimental.ucontext.get("pc"));
     assertEquals("0x0000000060001000", crashLog.experimental.ucontext.get("cpsr"));
+
+    assertNotNull(crashLog.experimental.runtimeArgs);
+    assertTrue(crashLog.experimental.runtimeArgs.contains("--enable-native-access=ALL-UNNAMED"));
+    assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
+    assertFalse(
+        crashLog.experimental.runtimeArgs.stream()
+            .anyMatch(arg -> arg.contains("SourceLauncher") || arg.endsWith("CrashTest.java")));
   }
 
   /** Linux aarch64 uses uppercase register names: R0-R30 */
@@ -81,6 +89,33 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x0000ffff9efa168c", crashLog.experimental.ucontext.get("R30"));
     // "Register to memory mapping:" section must NOT be included
     assertEquals(31, crashLog.experimental.ucontext.size(), "R0-R30 = 31 registers");
+
+    assertNotNull(crashLog.experimental.runtimeArgs);
+    assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
+  }
+
+  @Test
+  public void testRuntimeArgsFilteringFromHotspotJvmArgs() throws Exception {
+    final CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-for-telemetry.txt"));
+
+    assertNotNull(crashLog.experimental);
+    assertNotNull(crashLog.experimental.runtimeArgs);
+    assertTrue(
+        crashLog.experimental.runtimeArgs.contains(
+            "-javaagent:/opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.profiling.enabled=true"));
+    assertFalse(crashLog.experimental.runtimeArgs.contains("-Ddd.service=REDACT_THIS"));
+    assertTrue(
+        crashLog.experimental.runtimeArgs.stream().anyMatch(arg -> arg.startsWith("--add-opens=")));
+    assertFalse(
+        crashLog.experimental.runtimeArgs.stream()
+            .anyMatch(arg -> arg.startsWith("-Djavax.xml.ws.spi.Provider=")));
+    assertTrue(
+        crashLog.experimental.runtimeArgs.stream()
+            .anyMatch(arg -> arg.startsWith("-Djava.util.logging.config.file=")));
   }
 
   @TableTest({

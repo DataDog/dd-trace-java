@@ -50,9 +50,8 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
-  static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
