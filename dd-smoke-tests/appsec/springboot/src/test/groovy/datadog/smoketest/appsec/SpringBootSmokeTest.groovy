@@ -419,30 +419,6 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           ],
           on_match: []
         ],
-        [
-          id          : 'rasp-930-101',
-          name        : 'Local File Inclusion write exploit',
-          enable      : 'true',
-          tags        : [
-            type      : 'lfi',
-            category  : 'vulnerability_trigger',
-            cwe       : '98',
-            capec     : '252',
-            confidence: '0',
-            module    : 'rasp'
-          ],
-          conditions  : [
-            [
-              parameters: [
-                resource: [[address: 'server.io.fs.file_write']],
-                params  : [[address: 'server.request.query']],
-              ],
-              operator  : 'lfi_detector',
-            ],
-          ],
-          transformers: [],
-          on_match    : ['block']
-        ],
       ])
   }
 
@@ -814,7 +790,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
     def trigger = null
     for (t in rootSpan.triggers) {
-      if (t['rule']['id'] == 'rasp-930-101') {
+      if (t['rule']['id'] == 'rasp-930-100') {
         trigger = t
         break
       }
