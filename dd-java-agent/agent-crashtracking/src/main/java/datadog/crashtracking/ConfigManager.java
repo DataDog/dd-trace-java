@@ -229,7 +229,7 @@ public class ConfigManager {
       LOGGER.debug("Config file written: {}", cfgFile);
     } catch (IOException e) {
       LOGGER.warn(SEND_TELEMETRY, "Failed writing config file: {}", cfgFile);
-      cfgFile.delete();
+      cfgFile.delete(); // best-effort cleanup; failure is acceptable here
     }
   }
 
