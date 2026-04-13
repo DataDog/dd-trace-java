@@ -63,6 +63,7 @@ public class WithConfigExtension
   private static Field configInstanceField;
   private static Constructor<?> configConstructor;
 
+  private static volatile boolean configTransformerInstalled = false;
   private static volatile boolean isConfigInstanceModifiable = false;
   private static volatile boolean configModificationFailed = false;
 
@@ -74,9 +75,15 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    installConfigTransformer();
+    if (!configTransformerInstalled) {
+      installConfigTransformer();
+      configTransformerInstalled = true;
+    }
     makeConfigInstanceModifiable();
     assertFalse(configModificationFailed, "Config class modification failed");
+    if (isConfigInstanceModifiable) {
+      checkConfigTransformation();
+    }
     if (originalSystemProperties == null) {
       saveProperties();
     }
@@ -86,10 +93,10 @@ public class WithConfigExtension
   public void beforeEach(ExtensionContext context) {
     restoreProperties();
     environmentVariables.clear();
+    applyDeclaredConfig(context);
     if (isConfigInstanceModifiable) {
       rebuildConfig();
     }
-    applyDeclaredConfig(context);
   }
 
   @Override
@@ -140,10 +147,20 @@ public class WithConfigExtension
 
   private static void applyConfig(WithConfig cfg) {
     if (cfg.env()) {
-      injectEnvConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setEnvVariable(cfg.key(), cfg.value(), cfg.addPrefix());
     } else {
-      injectSysConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setSysProperty(cfg.key(), cfg.value(), cfg.addPrefix());
     }
+  }
+
+  private static void setSysProperty(String name, String value, boolean addPrefix) {
+    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
+    System.setProperty(prefixedName, value);
+  }
+
+  private static void setEnvVariable(String name, String value, boolean addPrefix) {
+    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
+    environmentVariables.set(prefixedName, value);
   }
 
   // endregion
@@ -155,9 +172,7 @@ public class WithConfigExtension
   }
 
   public static void injectSysConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
-    System.setProperty(prefixedName, value);
+    setSysProperty(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -166,7 +181,6 @@ public class WithConfigExtension
   }
 
   public static void removeSysConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
     String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
     System.clearProperty(prefixedName);
     rebuildConfig();
@@ -177,9 +191,7 @@ public class WithConfigExtension
   }
 
   public static void injectEnvConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
-    environmentVariables.set(prefixedName, value);
+    setEnvVariable(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -188,7 +200,6 @@ public class WithConfigExtension
   }
 
   public static void removeEnvConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
     String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
     environmentVariables.removePrefixed(prefixedName);
     rebuildConfig();
@@ -254,7 +265,6 @@ public class WithConfigExtension
 
   private static void rebuildConfig() {
     synchronized (WithConfigExtension.class) {
-      checkConfigTransformation();
       try {
         Object newInstConfig = instConfigConstructor.newInstance();
         instConfigInstanceField.set(null, newInstConfig);
