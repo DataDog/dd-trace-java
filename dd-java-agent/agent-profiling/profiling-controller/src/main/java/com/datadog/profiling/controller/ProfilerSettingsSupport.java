@@ -94,6 +94,13 @@ public abstract class ProfilerSettingsSupport {
   protected final String uploadCompression;
   protected final boolean allocationProfilingEnabled;
   protected final boolean heapProfilingEnabled;
+  protected final boolean cpuProfilingEnabled;
+  protected final boolean wallProfilingEnabled;
+  protected final boolean exceptionProfilingEnabled;
+  protected final boolean ioProfilingEnabled;
+  protected final boolean lockProfilingEnabled;
+  protected final boolean threadProfilingEnabled;
+  protected final boolean directMemoryProfilingEnabled;
   protected final boolean startForceFirst;
   protected final String templateOverride;
   protected final int exceptionSampleLimit;
@@ -141,6 +148,32 @@ public abstract class ProfilerSettingsSupport {
     heapProfilingEnabled =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_HEAP_ENABLED, ProfilingSupport.isLiveHeapProfilingSafe());
+    cpuProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_CPU_ENABLED, ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT);
+    wallProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_WALL_ENABLED, ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT);
+    exceptionProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED,
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT);
+    ioProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_IO_ENABLED, ProfilingConfig.PROFILING_IO_ENABLED_DEFAULT);
+    lockProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_LOCK_ENABLED, ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT);
+    threadProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_THREAD_ENABLED,
+            ProfilingConfig.PROFILING_THREAD_ENABLED_DEFAULT);
+    directMemoryProfilingEnabled =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED,
+            configProvider.getBoolean(
+                ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED,
+                ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT));
     startForceFirst =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_START_FORCE_FIRST,
@@ -293,6 +326,13 @@ public abstract class ProfilerSettingsSupport {
         + ", uploadCompression='" + uploadCompression + '\''
         + ", allocationProfilingEnabled=" + allocationProfilingEnabled
         + ", heapProfilingEnabled=" + heapProfilingEnabled
+        + ", cpuProfilingEnabled=" + cpuProfilingEnabled
+        + ", wallProfilingEnabled=" + wallProfilingEnabled
+        + ", exceptionProfilingEnabled=" + exceptionProfilingEnabled
+        + ", ioProfilingEnabled=" + ioProfilingEnabled
+        + ", lockProfilingEnabled=" + lockProfilingEnabled
+        + ", threadProfilingEnabled=" + threadProfilingEnabled
+        + ", directMemoryProfilingEnabled=" + directMemoryProfilingEnabled
         + ", startForceFirst=" + startForceFirst
         + ", templateOverride='" + templateOverride + '\''
         + ", exceptionSampleLimit=" + exceptionSampleLimit

@@ -136,6 +136,55 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         .append(proxyPassword != null ? "[REDACTED]" : null)
         .append(" (default: null)\n");
 
+    sb.append("\n=== Feature Gates ===\n");
+    appendConfig(
+        sb,
+        "CPU Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_CPU_ENABLED, ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Wall Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_WALL_ENABLED, ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Exception Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED,
+            ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "I/O Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_IO_ENABLED, ProfilingConfig.PROFILING_IO_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_IO_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Lock Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_LOCK_ENABLED, ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Thread Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_THREAD_ENABLED,
+            ProfilingConfig.PROFILING_THREAD_ENABLED_DEFAULT),
+        ProfilingConfig.PROFILING_THREAD_ENABLED_DEFAULT);
+    appendConfig(
+        sb,
+        "Direct Memory Profiling Enabled",
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED,
+            configProvider.getBoolean(
+                ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED,
+                ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT)),
+        ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT);
+
     sb.append("\n=== Allocation Profiling ===\n");
     boolean allocDefault = ProfilingSupport.isObjectAllocationSampleAvailable();
     boolean allocEnabled =

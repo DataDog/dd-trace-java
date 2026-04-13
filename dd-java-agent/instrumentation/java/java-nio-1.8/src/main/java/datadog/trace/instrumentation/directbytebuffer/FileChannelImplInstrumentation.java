@@ -2,7 +2,8 @@ package datadog.trace.instrumentation.directbytebuffer;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -24,11 +25,15 @@ public final class FileChannelImplInstrumentation extends InstrumenterModule.Pro
 
   @Override
   public boolean isEnabled() {
+    ConfigProvider cp = ConfigProvider.getInstance();
+    boolean enabled =
+        cp.getBoolean(
+            PROFILING_DIRECT_MEMORY_ENABLED,
+            cp.getBoolean(
+                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT));
     return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
+        && enabled
         && Platform.hasJfr();
   }
 
