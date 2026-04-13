@@ -1,4 +1,5 @@
 import org.w3c.dom.Element;
+import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
@@ -51,7 +52,13 @@ class TagInitializationErrors {
       System.err.println("File not found: " + xmlFile);
       System.exit(1);
     }
-    var doc = DocumentBuilderFactory.newInstance().newDocumentBuilder().parse(xmlFile);
+    var dbf = DocumentBuilderFactory.newInstance();
+    dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+    dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+    dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
+    dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+    dbf.setExpandEntityReferences(false);
+    var doc = dbf.newDocumentBuilder().parse(xmlFile);
     var testcases = doc.getElementsByTagName("testcase");
     Map<String, List<Element>> byClassname = new LinkedHashMap<>();
     for (int i = 0; i < testcases.getLength(); i++) {
