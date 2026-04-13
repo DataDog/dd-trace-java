@@ -47,6 +47,16 @@ public class RetryAnalyzer implements IRetryAnalyzer {
   public void setSuppressFailures(ITestResult result) {
     createExecutionPolicy(result);
     suppressFailures = executionPolicy.suppressFailures();
+    if (result.isSuccess() && executionPolicy.propagateFailure()) {
+      // Aligns session status with DD's reported result on EFD. Without this,
+      // the session status would depend on the result order:
+      // - pass + fail -> fail (correct)
+      // - fail + pass -> pass (incorrect, EFD should fail on flaky)
+      result.setStatus(ITestResult.FAILURE);
+      result.setThrowable(
+          new AssertionError(
+              "Datadog Early Flake Detection: test has flaky results (mixed pass/fail)"));
+    }
   }
 
   public boolean getAndResetSuppressFailures() {
