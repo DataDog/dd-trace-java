@@ -87,6 +87,14 @@ class FlagEvalMetrics implements Closeable {
     this.meterProvider = null;
   }
 
+  /** Package-private constructor for integration testing with an injected SdkMeterProvider. */
+  FlagEvalMetrics(SdkMeterProvider sdkMeterProvider) {
+    meterProvider = sdkMeterProvider;
+    Meter meter = sdkMeterProvider.meterBuilder(METER_NAME).build();
+    counter =
+        meter.counterBuilder(METRIC_NAME).setUnit(METRIC_UNIT).setDescription(METRIC_DESC).build();
+  }
+
   void record(
       String flagKey, String variant, String reason, ErrorCode errorCode, String allocationKey) {
     LongCounter c = counter;
