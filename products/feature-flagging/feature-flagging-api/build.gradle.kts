@@ -56,6 +56,7 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.moshi)
+  testImplementation("io.opentelemetry:opentelemetry-sdk-testing:1.47.0")
   testImplementation("org.awaitility:awaitility:4.3.0")
 }
 

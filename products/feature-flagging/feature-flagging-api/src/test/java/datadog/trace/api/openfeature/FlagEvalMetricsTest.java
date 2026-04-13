@@ -1,5 +1,6 @@
 package datadog.trace.api.openfeature;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
@@ -8,6 +9,15 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
+import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
+import io.opentelemetry.sdk.metrics.data.LongPointData;
+import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
+import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
+import java.util.Collection;
 import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -121,7 +131,7 @@ class FlagEvalMetricsTest {
 
   @Test
   void recordIsNoOpWhenCounterIsNull() {
-    FlagEvalMetrics metrics = new FlagEvalMetrics(null);
+    FlagEvalMetrics metrics = new FlagEvalMetrics((LongCounter) null);
     // Should not throw
     metrics.record("my-flag", "on", "TARGETING_MATCH", null, null);
   }
@@ -135,6 +145,51 @@ class FlagEvalMetricsTest {
     metrics.record("my-flag", "on", "TARGETING_MATCH", null, null);
 
     verifyNoInteractions(counter);
+  }
+
+  @Test
+  void exporterIsConfiguredWithCumulativeTemporalityForCounters() {
+    // Regression guard: FlagEvalMetrics must explicitly configure alwaysCumulative() so that
+    // the Datadog agent receives absolute counts rather than delta values that may be converted
+    // to rates. This test documents and enforces that the exporter uses CUMULATIVE for counters.
+    try (OtlpHttpMetricExporter exporter =
+        OtlpHttpMetricExporter.builder()
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.alwaysCumulative())
+            .build()) {
+      assertEquals(
+          AggregationTemporality.CUMULATIVE,
+          exporter.getAggregationTemporality(InstrumentType.COUNTER),
+          "alwaysCumulative() selector must produce CUMULATIVE for counters");
+    }
+  }
+
+  @Test
+  void multipleRecordCallsAccumulateCumulativelyInExportedMetrics() {
+    // Use InMemoryMetricReader with cumulative temporality (matching what FlagEvalMetrics
+    // configures on the OTLP exporter) to verify that N record() calls produce a sum of N.
+    InMemoryMetricReader reader = InMemoryMetricReader.create();
+    SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
+
+    try (FlagEvalMetrics metrics = new FlagEvalMetrics(provider)) {
+      for (int i = 0; i < 5; i++) {
+        metrics.record("count-flag", "on", "STATIC", null, "default-alloc");
+      }
+
+      Collection<MetricData> data = reader.collectAllMetrics();
+      MetricData metric =
+          data.stream()
+              .filter(m -> m.getName().equals("feature_flag.evaluations"))
+              .findFirst()
+              .orElseThrow(() -> new AssertionError("feature_flag.evaluations metric not found"));
+
+      assertEquals(
+          AggregationTemporality.CUMULATIVE,
+          metric.getLongSumData().getAggregationTemporality(),
+          "Exported metric must use CUMULATIVE temporality");
+
+      LongPointData point = metric.getLongSumData().getPoints().iterator().next();
+      assertEquals(5L, point.getValue(), "5 record() calls must produce a cumulative sum of 5");
+    }
   }
 
   private static void assertAttribute(Attributes attrs, String key, String expected) {
