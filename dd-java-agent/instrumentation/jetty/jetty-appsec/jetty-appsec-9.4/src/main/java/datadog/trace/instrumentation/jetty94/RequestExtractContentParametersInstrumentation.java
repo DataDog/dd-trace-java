@@ -58,19 +58,18 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 9.4.10–9.4.x ([9.4.10, 10.0)):
+  // Discriminates Jetty [9.4.10, 10.0) and [10.0.10, 11.0):
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiParts: MultiParts exists in 9.4.10+ (excludes early 9.4.x covered by
-  //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where it is MultiPartFormInputStream)
-  //  - _queryEncoding: String exists only in 9.4.x; changed to Charset in all 10.x (excludes
-  //    10.0.10+ where _multiParts reverted to MultiParts)
-  //  - javax.servlet.http.Part exists in 9.4.x classpath (excludes Jetty 11+ which uses jakarta)
+  //  - _multiParts: MultiParts exists in 9.4.10+ and 10.0.10+ (excludes early 9.4.x covered by
+  //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where _multiParts is MultiPartFormInputStream)
+  //  - javax.servlet.http.Part exists in both 9.4.x and 10.x classpath (excludes Jetty 11+ which
+  //    uses jakarta)
+  //  Note: GetFilenamesAdvice reads _multiParts with typing=DYNAMIC so it works for all versions.
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
           .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
-          .withField(new String[0], 0, "_queryEncoding", "Ljava/lang/String;")
           .build();
 
   private static final Reference JAVAX_PART_REFERENCE =
