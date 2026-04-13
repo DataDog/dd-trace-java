@@ -87,6 +87,11 @@ public class WithConfigExtension
     if (originalSystemProperties == null) {
       saveProperties();
     }
+    // Apply class-level @WithConfig so config is available before @BeforeAll methods
+    applyClassLevelConfig(context);
+    if (isConfigInstanceModifiable) {
+      rebuildConfig();
+    }
   }
 
   @Override
@@ -116,8 +121,12 @@ public class WithConfigExtension
     }
   }
 
-  private void applyDeclaredConfig(ExtensionContext context) {
-    // Class-level @WithConfig annotations
+  private static void applyDeclaredConfig(ExtensionContext context) {
+    applyClassLevelConfig(context);
+    applyMethodLevelConfig(context);
+  }
+
+  private static void applyClassLevelConfig(ExtensionContext context) {
     // Walk the entire class hierarchy so annotations on superclasses are applied
     // (topmost first, then subclass overrides)
     Class<?> testClass = context.getRequiredTestClass();
@@ -132,6 +141,9 @@ public class WithConfigExtension
         applyConfig(cfg);
       }
     }
+  }
+
+  private static void applyMethodLevelConfig(ExtensionContext context) {
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
     context
         .getTestMethod()
