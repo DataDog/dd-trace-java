@@ -3337,7 +3337,7 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_WALL_ENABLED": [
+    "DD_PROFILING_WALLTIME_ENABLED": [
       {
         "version": "A",
         "type": "boolean",
