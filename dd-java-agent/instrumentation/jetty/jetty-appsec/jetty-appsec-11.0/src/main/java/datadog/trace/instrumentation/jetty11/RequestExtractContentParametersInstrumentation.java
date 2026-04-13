@@ -58,20 +58,16 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 11.0.0–11.0.9 ([11.0, 11.0.10)):
-  //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12)
-  //  - _multiParts: MultiPartFormInputStream exists in 11.0.0–11.0.9 (excludes 11.0.10+ where it
-  //    reverted to MultiParts, covered by jetty-appsec-11.0.10)
+  // Discriminates Jetty 11.0.x ([11.0, 12.0)):
+  //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12
+  //    where org.eclipse.jetty.server.Request was removed)
   //  - jakarta.servlet.http.Part exists in 11.x classpath (excludes 9.4–10.x which use javax)
+  // NOTE: _multiParts changes type at 11.0.10 (MultiPartFormInputStream → MultiParts); both
+  // are handled transparently because GetFilenamesAdvice reads it with typing=DYNAMIC.
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(
-              new String[0],
-              0,
-              "_multiParts",
-              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
           .build();
 
   private static final Reference JAKARTA_PART_REFERENCE =

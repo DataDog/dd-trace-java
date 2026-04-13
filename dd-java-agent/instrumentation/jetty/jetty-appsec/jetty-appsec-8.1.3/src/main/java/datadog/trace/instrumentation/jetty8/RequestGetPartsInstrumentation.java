@@ -7,8 +7,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
-import datadog.trace.advice.ActiveRequestContext;
-import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -20,12 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.List;
 import java.util.function.BiFunction;
 import javax.servlet.ServletException;
-import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.asm.AsmVisitorWrapper;
 import net.bytebuddy.description.field.FieldDescription;
@@ -33,7 +27,6 @@ import net.bytebuddy.description.field.FieldList;
 import net.bytebuddy.description.method.MethodList;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.Implementation;
-import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -65,7 +58,6 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       packageName + ".ParameterCollector",
       packageName + ".ParameterCollector$ParameterCollectorImpl",
       packageName + ".ParameterCollector$ParameterCollectorNoop",
-      packageName + ".MultipartHelper",
     };
   }
 
@@ -82,8 +74,6 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
             .and(takesArgument(0, String.class))
             .or(named("getParts").and(takesArguments(0))),
         getClass().getName() + "$GetPartsAdvice");
-    transformer.applyAdvice(
-        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
   }
 
   @Override
@@ -204,60 +194,6 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     }
   }
 
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class GetFilenamesAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(
-        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
-            final Object multiPartInputStream) {
-      // _multiPartInputStream is null only on the first getParts() call; subsequent calls
-      // return the cached multipart result without re-parsing, but we must not re-fire the WAF.
-      return multiPartInputStream == null;
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
-        @Advice.Enter boolean proceed,
-        @Advice.Return Collection<Part> parts,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      if (!proceed || t != null || parts == null || parts.isEmpty()) {
-        return;
-      }
-      // Jetty 8 implements Servlet 3.0; getSubmittedFileName does not exist.
-      // Parse filename from Content-Disposition header instead.
-      List<String> filenames = new ArrayList<>();
-      for (Part part : parts) {
-        String name =
-            MultipartHelper.filenameFromContentDisposition(part.getHeader("content-disposition"));
-        if (name != null) {
-          filenames.add(name);
-        }
-      }
-      if (filenames.isEmpty()) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (multipart file upload)");
-          }
-        }
-      }
-    }
-  }
-
   public static class GetPartsVisitorWrapper implements AsmVisitorWrapper {
     @Override
     public int mergeWriter(int flags) {
@@ -313,12 +249,10 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     @Override
     public void visitMethodInsn(
         int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      // Match MultiMap.add() in both Jetty 8.x (Object,Object) and Jetty 9.x (String,Object).
       if (opcode == Opcodes.INVOKEVIRTUAL
           && owner.equals("org/eclipse/jetty/util/MultiMap")
           && name.equals("add")
-          && (descriptor.equals("(Ljava/lang/String;Ljava/lang/Object;)V")
-              || descriptor.equals("(Ljava/lang/Object;Ljava/lang/Object;)V"))) {
+          && descriptor.equals("(Ljava/lang/String;Ljava/lang/Object;)V")) {
         super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
         // stack: ..., key, value, collParams
         super.visitInsn(Opcodes.DUP_X2);
@@ -331,7 +265,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
             Opcodes.INVOKEINTERFACE,
             Type.getInternalName(ParameterCollector.class),
             "put",
-            "(Ljava/lang/Object;Ljava/lang/Object;)V",
+            "(Ljava/lang/String;Ljava/lang/String;)V",
             true);
         // original stack
       }

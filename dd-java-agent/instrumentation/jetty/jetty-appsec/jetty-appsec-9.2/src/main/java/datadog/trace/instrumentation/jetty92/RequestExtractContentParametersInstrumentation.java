@@ -19,10 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.util.Collection;
-import java.util.List;
 import java.util.function.BiFunction;
-import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
@@ -42,11 +39,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {packageName + ".MultipartHelper"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("extractContentParameters").and(takesArguments(0)),
@@ -56,7 +48,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
             .and(takesArguments(1))
             .and(takesArgument(0, named("org.eclipse.jetty.util.MultiMap"))),
         getClass().getName() + "$GetPartsAdvice");
-    transformer.applyAdvice(named("getParts"), getClass().getName() + "$GetFilenamesAdvice");
   }
 
   private static final Reference REQUEST_REFERENCE =
@@ -138,50 +129,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
           blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
           if (t == null) {
             t = new BlockingException("Blocked request (for Request/getParts)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
-    }
-  }
-
-  @RequiresRequestContext(RequestContextSlot.APPSEC)
-  public static class GetFilenamesAdvice {
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before(@Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      return callDepth == 0 && map == null;
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    static void after(
-        @Advice.Enter boolean proceed,
-        @Advice.Return Collection<Part> parts,
-        @ActiveRequestContext RequestContext reqCtx,
-        @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
-      if (!proceed || t != null || parts == null || parts.isEmpty()) {
-        return;
-      }
-      List<String> filenames = MultipartHelper.extractFilenames(parts);
-      if (filenames.isEmpty()) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }

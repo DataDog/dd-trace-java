@@ -1,9 +1,17 @@
 muzzle {
   pass {
+    name = '9_series'
     group = 'org.eclipse.jetty'
     module = 'jetty-server'
     versions = '[9.4.10,10.0)'
     assertInverse = true
+  }
+  pass {
+    name = '10_series'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = '[10.0.10,11.0)'
+    javaVersion = 11
   }
 }
 
