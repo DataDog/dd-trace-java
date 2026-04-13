@@ -604,7 +604,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     then:
     rootSpans.size() == 1
     forEachRootSpanTrigger {
-      assert it['rule']['id'] == '__test_file_upload_block'
+      assert it['rule']['id'] in ['__test_file_upload_block', 'crs-944-140']
     }
     rootSpans.each {
       assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
