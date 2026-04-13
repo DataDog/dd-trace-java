@@ -10,11 +10,17 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
-  public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = true;
+
+  /**
+   * @deprecated Not used. The actual default is computed dynamically by {@link
+   *     datadog.trace.api.profiling.ProfilingSupport#isObjectAllocationSampleAvailable()}.
+   */
+  @Deprecated public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = true;
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
 
   /**
-   * @deprecated The default is now computed dynamically based on JVM capabilities.
+   * @deprecated The old value was {@code false}. The default is now computed dynamically via
+   *     {@link datadog.trace.api.profiling.ProfilingSupport#isLiveHeapProfilingSafe()}.
    */
   @Deprecated public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
 
@@ -32,9 +38,8 @@ public final class ProfilingConfig {
   public static final boolean PROFILING_THREAD_ENABLED_DEFAULT = true;
 
   /**
-   * Unified gate for direct memory (native ByteBuffer / FileChannel) profiling.
-   *
-   * @see #PROFILING_DIRECT_ALLOCATION_ENABLED
+   * Unified gate for direct memory (native ByteBuffer / FileChannel) profiling. Replaces the
+   * deprecated {@link #PROFILING_DIRECT_ALLOCATION_ENABLED}.
    */
   public static final String PROFILING_DIRECT_MEMORY_ENABLED = "profiling.direct.memory.enabled";
 

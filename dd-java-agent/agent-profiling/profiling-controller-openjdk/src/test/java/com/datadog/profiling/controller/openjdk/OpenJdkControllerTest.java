@@ -6,9 +6,15 @@ import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampl
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_AUXILIARY_TYPE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_IO_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -273,6 +279,123 @@ public class OpenJdkControllerTest {
       assertFalse(
           Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
           "OldObjectSample should be disabled when unified live heap flag is false");
+    }
+  }
+
+  @Test
+  public void testCpuGateDisablesCpuEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_CPU_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.ExecutionSample#enabled")),
+          "ExecutionSample must be disabled when CPU profiling is disabled");
+    }
+  }
+
+  @Test
+  public void testExceptionGateDisablesExceptionEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_EXCEPTION_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("datadog.ExceptionSample#enabled")),
+          "ExceptionSample must be disabled when exception profiling is disabled");
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("datadog.ExceptionCount#enabled")),
+          "ExceptionCount must be disabled when exception profiling is disabled");
+    }
+  }
+
+  @Test
+  public void testIoGateDisablesIoEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_IO_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.FileRead#enabled")),
+          "FileRead must be disabled when I/O profiling is disabled");
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.SocketRead#enabled")),
+          "SocketRead must be disabled when I/O profiling is disabled");
+    }
+  }
+
+  @Test
+  public void testLockGateDisablesLockEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_LOCK_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.JavaMonitorEnter#enabled")),
+          "JavaMonitorEnter must be disabled when lock profiling is disabled");
+    }
+  }
+
+  @Test
+  public void testThreadGateDisablesThreadEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_THREAD_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.ThreadStart#enabled")),
+          "ThreadStart must be disabled when thread profiling is disabled");
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.ThreadEnd#enabled")),
+          "ThreadEnd must be disabled when thread profiling is disabled");
+    }
+  }
+
+  @Test
+  public void testWallGateDoesNotDisableTimelineEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_WALL_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      // JavaMonitorWait and ThreadPark serve timeline purposes beyond wall-clock profiling and must
+      // NOT be disabled when only wall profiling is disabled. (ThreadSleep is disabled by the
+      // dd.jfp template by default and is therefore not checked here.)
+      assertTrue(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.JavaMonitorWait#enabled")),
+          "JavaMonitorWait must remain enabled when only wall profiling is disabled");
+      assertTrue(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.ThreadPark#enabled")),
+          "ThreadPark must remain enabled when only wall profiling is disabled");
     }
   }
 

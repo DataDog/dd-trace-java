@@ -36,8 +36,6 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_T
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT;
 
 import com.datadog.profiling.controller.ConfigurationException;
 import com.datadog.profiling.controller.Controller;
@@ -276,7 +274,9 @@ public final class OpenJdkController implements Controller {
           "Aggregated smaps collection is disabled in the config");
     }
 
-    // Feature gates — unified profiling.*.enabled keys
+    // Feature gates — unified profiling.*.enabled keys.
+    // These gates are evaluated at recording creation time only; profiling does not use Remote
+    // Config, so events disabled here remain disabled for the lifetime of the recording.
 
     if (!configProvider.getBoolean(PROFILING_CPU_ENABLED, PROFILING_CPU_ENABLED_DEFAULT)) {
       disableEvent(recordingSettings, "jdk.ExecutionSample", "CPU profiling is disabled");
@@ -285,11 +285,9 @@ public final class OpenJdkController implements Controller {
       disableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", "CPU profiling is disabled");
     }
 
-    if (!configProvider.getBoolean(PROFILING_WALL_ENABLED, PROFILING_WALL_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "jdk.JavaMonitorWait", "wall-clock profiling is disabled");
-      disableEvent(recordingSettings, "jdk.ThreadPark", "wall-clock profiling is disabled");
-      disableEvent(recordingSettings, "jdk.ThreadSleep", "wall-clock profiling is disabled");
-    }
+    // jdk.JavaMonitorWait, jdk.ThreadPark, and jdk.ThreadSleep are intentionally NOT gated by
+    // PROFILING_WALL_ENABLED: they serve purposes beyond wall-clock profile construction
+    // (timeline blocking events, queueing time) and must remain enabled independently.
 
     if (!configProvider.getBoolean(
         PROFILING_EXCEPTION_ENABLED, PROFILING_EXCEPTION_ENABLED_DEFAULT)) {
@@ -307,6 +305,8 @@ public final class OpenJdkController implements Controller {
 
     if (!configProvider.getBoolean(PROFILING_LOCK_ENABLED, PROFILING_LOCK_ENABLED_DEFAULT)) {
       disableEvent(recordingSettings, "jdk.JavaMonitorEnter", "lock profiling is disabled");
+      // BiasedLock events are no-ops on JDK 18+ (biased locking removed via JEP 374); disabling
+      // them here is harmless on modern JDKs.
       disableEvent(recordingSettings, "jdk.BiasedLockRevocation", "lock profiling is disabled");
       disableEvent(recordingSettings, "jdk.BiasedLockSelfRevocation", "lock profiling is disabled");
       disableEvent(

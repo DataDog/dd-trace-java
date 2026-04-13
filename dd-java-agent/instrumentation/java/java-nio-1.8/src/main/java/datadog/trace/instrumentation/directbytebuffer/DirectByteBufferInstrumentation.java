@@ -1,8 +1,5 @@
 package datadog.trace.instrumentation.directbytebuffer;
 
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -25,14 +22,9 @@ public final class DirectByteBufferInstrumentation extends InstrumenterModule.Pr
   @Override
   public boolean isEnabled() {
     ConfigProvider cp = ConfigProvider.getInstance();
-    boolean enabled =
-        cp.getBoolean(
-            PROFILING_DIRECT_MEMORY_ENABLED,
-            cp.getBoolean(
-                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT));
     return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
-        && enabled
+        && DirectMemoryProfilingHelper.isEnabled(cp)
         && Platform.hasJfr();
   }
 

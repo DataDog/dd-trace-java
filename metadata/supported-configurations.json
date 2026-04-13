@@ -2461,7 +2461,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
       }
     ],
@@ -3069,7 +3069,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],

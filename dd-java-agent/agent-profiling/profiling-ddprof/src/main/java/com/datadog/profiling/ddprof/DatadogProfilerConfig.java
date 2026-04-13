@@ -252,6 +252,11 @@ public class DatadogProfilerConfig {
     return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
   }
 
+  // Note: ddprof does not currently implement a native lock sampler. The unified gate
+  // dd.profiling.lock.enabled (PROFILING_LOCK_ENABLED) is honored by the JFR controller
+  // for jdk.JavaMonitorEnter. If a ddprof-based lock profiler is added in the future,
+  // it should check PROFILING_LOCK_ENABLED here.
+
   public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
     return getBoolean(
         configProvider,
