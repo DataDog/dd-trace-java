@@ -20,6 +20,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
+import datadog.trace.junit.utils.context.AllowContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
@@ -40,7 +41,7 @@ import org.opentest4j.AssertionFailedError;
  * current implementation is inspired and kept close to it Groovy / Spock counterpart, the {@code
  * InstrumentationSpecification}.
  */
-@ExtendWith(TestClassShadowingExtension.class)
+@ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 

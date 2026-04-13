@@ -3029,6 +3029,47 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
+  public void captureExpressionsWithInheritedCaptureLimits()
+      throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .capture(new LogProbe.Capture(1, 10, 3, 1))
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "typed", new ValueScript(DSL.ref("typed"), "typed"), null)))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext.CapturedValue msgValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed_fld_fld_msg"));
+    assertEquals("hel", msgValue.getValue());
+    assertEquals("truncated", msgValue.getNotCapturedReason());
+    CapturedContext.CapturedValue typedValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed"));
+    Map<String, CapturedContext.CapturedValue> fields =
+        (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
+    CapturedContext.CapturedValue fldValue = fields.get("fld");
+    assertEquals("depth", fldValue.getNotCapturedReason());
+  }
+
+  @Test
   public void methodParametersAttribute() throws Exception {
     final String CLASS_NAME = "CapturedSnapshot01";
     Config config = mock(Config.class);

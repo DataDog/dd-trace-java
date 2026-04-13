@@ -1,13 +1,17 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
+
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.bootstrap.otel.common.export.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
-import datadog.trace.bootstrap.otel.metrics.export.OtlpMetricVisitor;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.Map;
@@ -63,12 +67,10 @@ public final class OtelMetricStorage {
     switch (TEMPORALITY_PREFERENCE) {
       case DELTA:
         // gauges and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM
-            || type == OtelInstrumentType.COUNTER
-            || type == OtelInstrumentType.OBSERVABLE_COUNTER;
+        return type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER;
       case LOWMEMORY:
         // observable counters, gauges, and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM || type == OtelInstrumentType.COUNTER;
+        return type == HISTOGRAM || type == COUNTER;
       case CUMULATIVE:
       default:
         return false;
