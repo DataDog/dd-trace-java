@@ -1,5 +1,6 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.Flaky
 import org.opensearch.action.admin.cluster.health.ClusterHealthRequest
@@ -38,6 +39,13 @@ class OpensearchTransportClientTest extends InstrumentationSpecification {
   boolean useStrictTraceWrites() {
     //FIXME IDM
     false
+  }
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation because this test loads a BreakTrace test instrumentation with fake name "test"
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
   }
 
   def setupSpec() {
