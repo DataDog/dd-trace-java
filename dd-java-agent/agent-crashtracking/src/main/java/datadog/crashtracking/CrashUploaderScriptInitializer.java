@@ -77,7 +77,14 @@ public final class CrashUploaderScriptInitializer {
       }
       scriptDirectory.setReadable(true, false);
       scriptDirectory.setWritable(true, false);
-      scriptDirectory.setExecutable(true, false);
+      if (!scriptDirectory.setReadable(true, false)
+          || !scriptDirectory.setWritable(true, false)
+          || !scriptDirectory.setExecutable(true, false)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Failed to set permissions on crash tracking script folder {}. {}",
+            scriptDirectory, SETUP_FAILURE_MESSAGE);
+      }
     }
     if (!scriptDirectory.canWrite()) {
       LOG.warn(SEND_TELEMETRY, "Read only directory {}. " + SETUP_FAILURE_MESSAGE, scriptDirectory);
