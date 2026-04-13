@@ -20,13 +20,13 @@ import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class FileLoadedRaspHelper {
+public class FileIORaspHelper {
 
-  public static FileLoadedRaspHelper INSTANCE = new FileLoadedRaspHelper();
+  public static FileIORaspHelper INSTANCE = new FileIORaspHelper();
 
-  private static final Logger LOGGER = LoggerFactory.getLogger(FileLoadedRaspHelper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(FileIORaspHelper.class);
 
-  private FileLoadedRaspHelper() {
+  private FileIORaspHelper() {
     // prevent instantiation
   }
 
