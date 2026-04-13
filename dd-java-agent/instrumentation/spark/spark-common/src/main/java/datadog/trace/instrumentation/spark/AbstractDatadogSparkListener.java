@@ -35,6 +35,10 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import java.util.stream.Collectors;
 import org.apache.spark.ExceptionFailure;
@@ -92,6 +96,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
   private static final int OL_CIRCUIT_BREAKER_TIMEOUT_IN_SECONDS = 60;
+  private static final int DATABRICKS_STANDALONE_FINALIZATION_DELAY_SECONDS = 30;
 
   volatile SparkListenerInterface openLineageSparkListener = null;
   public volatile SparkConf openLineageSparkConf = null;
@@ -149,12 +154,20 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private volatile boolean applicationEnded = false;
 
+  private final ScheduledExecutorService applicationFinalizationScheduler;
+  private ScheduledFuture<?> pendingApplicationFinalization;
+
   public AbstractDatadogSparkListener(SparkConf sparkConf, String appId, String sparkVersion) {
     tracer = AgentTracer.get();
 
     this.sparkConf = sparkConf;
     this.appId = appId;
     this.sparkVersion = sparkVersion;
+
+    applicationFinalizationScheduler =
+        Executors.newSingleThreadScheduledExecutor(
+            new AgentThreadFactory(
+                AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_FINALIZATION));
 
     isRunningOnDatabricks = sparkConf.contains("spark.databricks.sparkContextId");
     databricksClusterName = sparkConf.get("spark.databricks.clusterUsageTags.clusterName", null);
@@ -377,6 +390,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
+    if (pendingApplicationFinalization != null) {
+      pendingApplicationFinalization.cancel(false);
+      pendingApplicationFinalization = null;
+    }
+    applicationFinalizationScheduler.shutdown();
+
     if ((applicationSpan == null && jobCount > 0)
         || (isRunningOnDatabricks && !Config.get().isDataJobsDatabricksStandaloneEnabled())) {
       // If the application span is not initialized but spark jobs have been executed, those jobs
@@ -512,6 +531,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
+    if (pendingApplicationFinalization != null) {
+      pendingApplicationFinalization.cancel(false);
+      pendingApplicationFinalization = null;
+    }
     jobCount++;
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
@@ -610,7 +633,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         && Config.get().isDataJobsDatabricksStandaloneEnabled()
         && jobSpans.isEmpty()
         && applicationSpan != null) {
-      finishApplication(jobEnd.time(), null, 0, null);
+      final long jobEndTimeMs = jobEnd.time();
+      pendingApplicationFinalization =
+          applicationFinalizationScheduler.schedule(
+              () -> finishApplication(jobEndTimeMs, null, 0, null),
+              DATABRICKS_STANDALONE_FINALIZATION_DELAY_SECONDS,
+              TimeUnit.SECONDS);
     }
   }
 

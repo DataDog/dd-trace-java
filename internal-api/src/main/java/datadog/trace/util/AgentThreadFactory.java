@@ -47,6 +47,7 @@ public final class AgentThreadFactory implements ThreadFactory {
     PROCESS_SUPERVISOR("dd-process-supervisor"),
 
     DATA_JOBS_MONITORING_SHUTDOWN_HOOK("dd-data-jobs-shutdown-hook"),
+    DATA_JOBS_MONITORING_FINALIZATION("dd-data-jobs-finalization"),
 
     DATA_STREAMS_MONITORING("dd-data-streams-monitor"),
 
