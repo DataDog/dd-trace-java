@@ -21,6 +21,7 @@ import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.config.WithConfigExtension;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Arrays;
@@ -33,6 +34,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
+@WithConfig(key = "trace.experimental.long-running.enabled", value = "true")
+@WithConfig(key = "trace.experimental.long-running.initial.flush.interval", value = "10")
+@WithConfig(key = "trace.experimental.long-running.flush.interval", value = "20")
 public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
   private static final long INITIAL_FLUSH_PERIOD_MILLI = TimeUnit.SECONDS.toMillis(10);
@@ -60,11 +64,6 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
-    WithConfigExtension.injectSysConfig("trace.experimental.long-running.enabled", "true");
-    WithConfigExtension.injectSysConfig(
-        "trace.experimental.long-running.initial.flush.interval", "10");
-    WithConfigExtension.injectSysConfig("trace.experimental.long-running.flush.interval", "20");
-
     tracer = mock(CoreTracer.class);
     traceConfig = mock(CoreTracer.ConfigSnapshot.class);
     features = mock(DDAgentFeaturesDiscovery.class);
