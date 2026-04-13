@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #
-# Memory-pressure benchmark for dd-trace-java using spring-petclinic + JMeter.
+# Throughput benchmark for dd-trace-java using spring-petclinic + JMeter.
 #
 # Runs petclinic at decreasing heap sizes with and without the tracer agent,
 # measures stabilized throughput via JMeter, and prints a comparison table.
@@ -177,7 +177,7 @@ generate_jmx() {
 <?xml version="1.0" encoding="UTF-8"?>
 <jmeterTestPlan version="1.2" properties="5.0" jmeter="5.6.2">
   <hashTree>
-    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Memory Benchmark" enabled="true">
+    <TestPlan guiclass="TestPlanGui" testclass="TestPlan" testname="Throughput Benchmark" enabled="true">
       <boolProp name="TestPlan.functional_mode">false</boolProp>
       <boolProp name="TestPlan.tearDown_on_shutdown">false</boolProp>
       <boolProp name="TestPlan.serialize_threadgroups">false</boolProp>
@@ -504,7 +504,7 @@ else:
 # --- Main ---
 
 main() {
-  log_section "Memory Pressure Benchmark"
+  log_section "Throughput Benchmark"
   log "Heap sizes: ${HEAP_SIZES}"
   log "Warmup: ${WARMUP_SECS}s  Measure: ${MEASURE_SECS}s  Threads: ${THREADS}"
   log "Endpoint: GET /${ENDPOINT}"

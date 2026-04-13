@@ -1,6 +1,6 @@
-# Memory Pressure Benchmark
+# Throughput Benchmark
 
-Measures tracer throughput overhead across decreasing heap sizes using spring-petclinic and JMeter.
+Measures tracer throughput overhead under load at varying heap sizes using spring-petclinic and JMeter.
 
 Runs petclinic with `GET /owners/3` (DB-backed endpoint) at heap sizes from 256m down to 64m, comparing no-agent baseline vs candidate agent.
 
