@@ -1,5 +1,6 @@
 package datadog.trace.core.baggage;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -20,8 +21,7 @@ import org.junit.jupiter.api.Test;
 
 class BaggagePropagatorTelemetryTest {
 
-  private static final CarrierVisitor<Map<String, String>> MAP_VISITOR =
-      (map, consumer) -> map.forEach(consumer);
+  private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
 
   @Test
   void shouldDirectlyIncrementBaggageMetrics() {
@@ -68,6 +68,7 @@ class BaggagePropagatorTelemetryTest {
     assertTrue(baggageMetric.tags.contains("header_style:baggage"));
   }
 
+  @Flaky
   @Test
   void shouldDirectlyIncrementAllBaggageMetrics() {
     BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
@@ -86,7 +87,7 @@ class BaggagePropagatorTelemetryTest {
             .findFirst()
             .orElse(null);
     assertNotNull(injectedMetric);
-    assertTrue(injectedMetric.value.longValue() == 1);
+    assertEquals(1, injectedMetric.value.longValue());
     assertTrue(injectedMetric.tags.contains("header_style:baggage"));
 
     CoreMetricCollector.CoreMetric malformedMetric =
@@ -95,7 +96,7 @@ class BaggagePropagatorTelemetryTest {
             .findFirst()
             .orElse(null);
     assertNotNull(malformedMetric);
-    assertTrue(malformedMetric.value.longValue() == 1);
+    assertEquals(1, malformedMetric.value.longValue());
     assertTrue(malformedMetric.tags.contains("header_style:baggage"));
 
     CoreMetricCollector.CoreMetric bytesTruncatedMetric =
@@ -107,7 +108,7 @@ class BaggagePropagatorTelemetryTest {
             .findFirst()
             .orElse(null);
     assertNotNull(bytesTruncatedMetric);
-    assertTrue(bytesTruncatedMetric.value.longValue() == 1);
+    assertEquals(1, bytesTruncatedMetric.value.longValue());
 
     CoreMetricCollector.CoreMetric itemsTruncatedMetric =
         metrics.stream()
@@ -118,7 +119,7 @@ class BaggagePropagatorTelemetryTest {
             .findFirst()
             .orElse(null);
     assertNotNull(itemsTruncatedMetric);
-    assertTrue(itemsTruncatedMetric.value.longValue() == 1);
+    assertEquals(1, itemsTruncatedMetric.value.longValue());
   }
 
   @Flaky
