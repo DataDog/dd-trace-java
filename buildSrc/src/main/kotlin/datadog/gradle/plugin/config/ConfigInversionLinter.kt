@@ -4,7 +4,10 @@ import com.github.javaparser.ParserConfiguration
 import com.github.javaparser.StaticJavaParser
 import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
-import com.github.javaparser.ast.body.*
+import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
+import com.github.javaparser.ast.body.FieldDeclaration
+import com.github.javaparser.ast.body.MethodDeclaration
+import com.github.javaparser.ast.body.VariableDeclarator
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import com.github.javaparser.ast.stmt.ExplicitConstructorInvocationStmt
@@ -255,17 +258,6 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
   }
 }
 
-private val INSTRUMENTER_MODULE_TYPES = setOf(
-  "InstrumenterModule",
-  "InstrumenterModule.Tracing",
-  "InstrumenterModule.Profiling",
-  "InstrumenterModule.AppSec",
-  "InstrumenterModule.Iast",
-  "InstrumenterModule.Usm",
-  "InstrumenterModule.CiVisibility",
-  "InstrumenterModule.ContextTracking"
-)
-
 /** Checks that [key] exists in [supported] and [aliases], and that all [expectedAliases] are values of that alias entry. */
 private fun MutableList<String>.checkKeyAndAliases(
   key: String,
@@ -366,7 +358,7 @@ private fun registerCheckInstrumenterModuleConfigurations(project: Project, exte
   ) { configFields, rel, cu ->
     cu.findAll(ClassOrInterfaceDeclaration::class.java).forEach classLoop@{ classDecl ->
       // Only examine classes extending InstrumenterModule.*
-      val extendsModule = classDecl.extendedTypes.any { it.toString() in INSTRUMENTER_MODULE_TYPES }
+      val extendsModule = classDecl.extendedTypes.any { it.toString().startsWith("InstrumenterModule") }
       if (!extendsModule) return@classLoop
 
       classDecl.findAll(ExplicitConstructorInvocationStmt::class.java)
