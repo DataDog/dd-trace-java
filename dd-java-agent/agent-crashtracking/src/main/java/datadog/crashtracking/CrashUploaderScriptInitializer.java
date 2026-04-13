@@ -83,7 +83,8 @@ public final class CrashUploaderScriptInitializer {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to set permissions on crash tracking script folder {}. {}",
-            scriptDirectory, SETUP_FAILURE_MESSAGE);
+            scriptDirectory,
+            SETUP_FAILURE_MESSAGE);
       }
     }
     if (!scriptDirectory.canWrite()) {
