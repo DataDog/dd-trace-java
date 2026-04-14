@@ -368,9 +368,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
           // RuntimeException (not AssertionError) so PollingConditions propagates
           // immediately instead of retrying for the full timeout.
           throw new RuntimeException(
-            "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
-            "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
-            "Last process output:\n${lastLines}")
+          "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
+          "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
+          "Last process output:\n${lastLines}")
         }
         assert traceCount.get() >= count
       }
@@ -379,10 +379,10 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       def alive = testedProcess?.isAlive()
       def lastLines = tailProcessLog(30)
       throw new AssertionError(
-        "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
-        "traceCount=${traceCount.get()}, process.alive=${alive}, " +
-        "RC polls received: ${rcClientMessages.size()}.\n" +
-        "Last process output:\n${lastLines}", e)
+      "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
+      "traceCount=${traceCount.get()}, process.alive=${alive}, " +
+      "RC polls received: ${rcClientMessages.size()}.\n" +
+      "Last process output:\n${lastLines}", e)
     }
     traceCount.get()
   }
