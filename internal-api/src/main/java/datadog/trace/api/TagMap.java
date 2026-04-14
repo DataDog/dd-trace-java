@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import datadog.trace.api.function.TriConsumer;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.AbstractCollection;
 import java.util.AbstractSet;
 import java.util.Arrays;
@@ -1285,6 +1286,11 @@ final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
  * #withLock(Runnable)} which always acquires the monitor. Inner per-operation calls are reentrant
  * on the same monitor and add zero overhead.
  */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification =
+        "Owner-thread fast path: *Impl methods run either on the owner thread (no lock needed)"
+            + " or inside synchronized(this) via reentrant calls. See class javadoc.")
 final class OptimizedTagMap implements TagMap {
   // Using special constructor that creates a frozen view of an existing array
   // Bucket calculation requires that array length is a power of 2
