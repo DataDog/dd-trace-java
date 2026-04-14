@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
 import static datadog.trace.api.gateway.Events.EXEC_CMD_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
+import static datadog.trace.api.gateway.Events.FILE_WRITTEN_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
@@ -447,6 +448,7 @@ public class InstrumentationGateway {
             };
       case DATABASE_SQL_QUERY_ID:
       case FILE_LOADED_ID:
+      case FILE_WRITTEN_ID:
       case SHELL_CMD_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {

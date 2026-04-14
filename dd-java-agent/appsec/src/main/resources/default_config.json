@@ -5458,6 +5458,75 @@
       "transformers": []
     },
     {
+      "id": "dog-920-110",
+      "name": "Zipslip Attack - Unsafe Zip extraction",
+      "tags": {
+        "type": "http_protocol_violation",
+        "category": "attack_attempt",
+        "cwe": "502",
+        "capec": "1000/152/586",
+        "confidence": "0",
+        "module": "waf"
+      },
+      "conditions": [
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.request.body.filenames"
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x_filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x.filename"
+                ]
+              },
+              {
+                "address": "server.request.headers.no_cookies",
+                "key_path": [
+                  "x-file-name"
+                ]
+              }
+            ],
+            "regex": "\\.zip$",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 5
+            }
+          },
+          "operator": "match_regex"
+        },
+        {
+          "parameters": {
+            "inputs": [
+              {
+                "address": "server.io.fs.file_write"
+              }
+            ],
+            "regex": "(?:^|[/\\\\])\\.\\.[/\\\\]",
+            "options": {
+              "case_sensitive": true,
+              "min_length": 4
+            }
+          },
+          "operator": "match_regex"
+        }
+      ],
+      "transformers": []
+    },
+    {
       "id": "dog-931-001",
       "name": "RFI: URL Payload to well known RFI target",
       "tags": {

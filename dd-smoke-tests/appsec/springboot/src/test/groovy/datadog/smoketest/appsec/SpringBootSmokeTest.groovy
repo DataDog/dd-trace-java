@@ -766,6 +766,39 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'path'    | _
   }
 
+  void 'rasp blocks on LFI write'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/fileoutputstream?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan('fileoutputstream')
+    assert rootSpan != null, 'root span not found'
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-930-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+    rootSpan.span.metaStruct == null
+  }
+
   def findFirstMatchingSpan(String resource) {
     return this.rootSpans.toList().find { (it.span.resource == 'GET /lfi/' + resource) }
   }
