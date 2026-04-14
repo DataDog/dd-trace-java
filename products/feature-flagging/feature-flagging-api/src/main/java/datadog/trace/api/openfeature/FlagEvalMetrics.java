@@ -83,9 +83,9 @@ class FlagEvalMetrics implements Closeable {
       log.debug("Flag evaluation metrics initialized, exporting to {}", endpoint);
     } catch (NoClassDefFoundError e) {
       log.error(
-          "Evaluation logging is enabled but OpenTelemetry SDK is not on the classpath. "
-              + "Add opentelemetry-sdk-metrics and opentelemetry-exporter-otlp to your dependencies, "
-              + "or disable evaluation logging via Provider.Options.evaluationLogging(false).",
+          "OpenTelemetry SDK is not on the classpath — evaluation metrics disabled. "
+              + "Add opentelemetry-sdk-metrics and opentelemetry-exporter-otlp to your dependencies "
+              + "to enable flag evaluation metrics.",
           e);
       counter = null;
       meterProvider = null;

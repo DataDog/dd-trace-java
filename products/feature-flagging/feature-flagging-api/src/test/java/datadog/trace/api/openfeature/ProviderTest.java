@@ -150,15 +150,6 @@ public class ProviderTest {
   }
 
   @Test
-  public void testEvaluationLoggingDisabled() {
-    Provider provider =
-        new Provider(
-            new Options().initTimeout(10, MILLISECONDS).evaluationLogging(false),
-            mock(Evaluator.class));
-    assertThat(provider.getProviderHooks().size(), equalTo(0));
-  }
-
-  @Test
   public void testShutdownCleansUpMetrics() throws Exception {
     Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(anyLong(), any(), any())).thenReturn(true);

@@ -47,15 +47,13 @@ public class Provider extends EventProvider implements Metadata {
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
     FlagEvalHook hook = null;
-    if (options.isEvaluationLogging()) {
-      try {
-        metrics = new FlagEvalMetrics();
-        hook = new FlagEvalHook(metrics);
-      } catch (LinkageError | Exception e) {
-        // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
-        // This outer catch fires when the class itself can't load (OTel API absent entirely).
-        log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
-      }
+    try {
+      metrics = new FlagEvalMetrics();
+      hook = new FlagEvalHook(metrics);
+    } catch (LinkageError | Exception e) {
+      // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
+      // This outer catch fires when the class itself can't load (OTel API absent entirely).
+      log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
@@ -166,17 +164,10 @@ public class Provider extends EventProvider implements Metadata {
 
     private long timeout;
     private TimeUnit unit;
-    private boolean evaluationLogging = true;
 
     public Options initTimeout(final long timeout, final TimeUnit unit) {
       this.timeout = timeout;
       this.unit = unit;
-      return this;
-    }
-
-    /** Enable or disable evaluation logging via OTel metrics. Default: true. */
-    public Options evaluationLogging(final boolean enabled) {
-      this.evaluationLogging = enabled;
       return this;
     }
 
@@ -186,10 +177,6 @@ public class Provider extends EventProvider implements Metadata {
 
     public TimeUnit getUnit() {
       return unit;
-    }
-
-    public boolean isEvaluationLogging() {
-      return evaluationLogging;
     }
   }
 }
