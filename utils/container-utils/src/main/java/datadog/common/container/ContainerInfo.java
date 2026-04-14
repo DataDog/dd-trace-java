@@ -252,12 +252,43 @@ public class ContainerInfo {
         containerInfo.setPodId(cGroupInfo.getPodId());
       }
 
-      if (cGroupInfo.getContainerId() != null) {
+      if (cGroupInfo.getContainerId() != null
+          && shouldReplaceContainerId(
+              containerInfo.getContainerId(),
+              containerInfo.getPodId(),
+              cGroupInfo.getContainerId(),
+              cGroupInfo.getPodId())) {
         containerInfo.setContainerId(cGroupInfo.getContainerId());
       }
     }
 
     return containerInfo;
+  }
+
+  /**
+   * Keeps the best available container id candidate across cgroup lines.
+   *
+   * <p>Some environments expose both detailed cgroup-v1 controller paths and a cgroup-v2 membership
+   * path (0::...) where the tail can be task-level and less specific.
+   */
+  private static boolean shouldReplaceContainerId(
+      @Nullable String currentContainerId,
+      @Nullable String currentPodId,
+      String candidateContainerId,
+      @Nullable String candidatePodId) {
+    if (currentContainerId == null) {
+      return true;
+    }
+
+    if (currentContainerId.matches(CONTAINER_REGEX) && candidateContainerId.matches(TASK_REGEX)) {
+      // Do not replace a pod-scoped container id with a task-scoped id from a less specific path.
+      // This protects hybrid cgroup output where trailing 0:: lines contain only task ids.
+      if (currentPodId != null && candidatePodId == null) {
+        return false;
+      }
+    }
+
+    return true;
   }
 
   static CGroupInfo parseLine(final String line) throws ParseException {
