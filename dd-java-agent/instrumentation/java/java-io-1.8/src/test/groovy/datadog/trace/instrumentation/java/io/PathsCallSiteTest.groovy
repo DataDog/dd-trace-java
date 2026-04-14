@@ -66,4 +66,5 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
     then:
     1 * helper.beforeFileLoaded(file)
   }
+
 }
