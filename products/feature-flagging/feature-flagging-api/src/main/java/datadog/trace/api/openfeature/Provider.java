@@ -49,7 +49,7 @@ public class Provider extends EventProvider implements Metadata {
         metrics = new FlagEvalMetrics();
         hook = new FlagEvalHook(metrics);
       } catch (NoClassDefFoundError | Exception e) {
-        // FlagEvalMetrics logs the error — degrade to no-op
+        // Fallback: FlagEvalMetrics constructor threw unexpectedly — degrade to no-op
       }
     }
     this.flagEvalMetrics = metrics;

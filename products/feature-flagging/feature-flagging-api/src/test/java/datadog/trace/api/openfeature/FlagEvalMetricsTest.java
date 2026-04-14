@@ -9,13 +9,10 @@ import static org.mockito.Mockito.verifyNoInteractions;
 import dev.openfeature.sdk.ErrorCode;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.LongCounter;
-import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
-import io.opentelemetry.sdk.metrics.InstrumentType;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
-import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import org.junit.jupiter.api.Test;
@@ -148,25 +145,10 @@ class FlagEvalMetricsTest {
   }
 
   @Test
-  void exporterIsConfiguredWithCumulativeTemporalityForCounters() {
-    // Regression guard: FlagEvalMetrics must explicitly configure alwaysCumulative() so that
-    // the Datadog agent receives absolute counts rather than delta values that may be converted
-    // to rates. This test documents and enforces that the exporter uses CUMULATIVE for counters.
-    try (OtlpHttpMetricExporter exporter =
-        OtlpHttpMetricExporter.builder()
-            .setAggregationTemporalitySelector(AggregationTemporalitySelector.alwaysCumulative())
-            .build()) {
-      assertEquals(
-          AggregationTemporality.CUMULATIVE,
-          exporter.getAggregationTemporality(InstrumentType.COUNTER),
-          "alwaysCumulative() selector must produce CUMULATIVE for counters");
-    }
-  }
-
-  @Test
   void multipleRecordCallsAccumulateCumulativelyInExportedMetrics() {
-    // Use InMemoryMetricReader with cumulative temporality (matching what FlagEvalMetrics
-    // configures on the OTLP exporter) to verify that N record() calls produce a sum of N.
+    // InMemoryMetricReader defaults to cumulative temporality. This validates that N record()
+    // calls produce a cumulative sum of N, matching the alwaysCumulative() selector configured
+    // on the production OTLP exporter in FlagEvalMetrics.
     InMemoryMetricReader reader = InMemoryMetricReader.create();
     SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
 
