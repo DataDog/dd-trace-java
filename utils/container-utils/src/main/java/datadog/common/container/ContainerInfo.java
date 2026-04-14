@@ -252,14 +252,7 @@ public class ContainerInfo {
         containerInfo.setPodId(cGroupInfo.getPodId());
       }
 
-      if (cGroupInfo.getContainerId() != null
-          && shouldReplaceContainerId(
-              containerInfo.getContainerId(),
-              containerInfo.getPodId(),
-              cGroupInfo.getContainerId(),
-              cGroupInfo.getPodId())) {
-        containerInfo.setContainerId(cGroupInfo.getContainerId());
-      }
+      replaceContainerIdIfBetter(containerInfo, cGroupInfo);
     }
 
     return containerInfo;
@@ -271,24 +264,23 @@ public class ContainerInfo {
    * <p>Some environments expose both detailed cgroup-v1 controller paths and a cgroup-v2 membership
    * path (0::...) where the tail can be task-level and less specific.
    */
-  private static boolean shouldReplaceContainerId(
-      @Nullable String currentContainerId,
-      @Nullable String currentPodId,
-      String candidateContainerId,
-      @Nullable String candidatePodId) {
-    if (currentContainerId == null) {
-      return true;
-    }
+  private static void replaceContainerIdIfBetter(
+      ContainerInfo currentContainerInfo, CGroupInfo candidate) {
+    String candidateContainerId = candidate.getContainerId();
+    if (candidateContainerId == null) return;
 
-    if (currentContainerId.matches(CONTAINER_REGEX) && candidateContainerId.matches(TASK_REGEX)) {
+    String currentContainerId = currentContainerInfo.getContainerId();
+    if (currentContainerId != null
+        && currentContainerId.matches(CONTAINER_REGEX)
+        && candidateContainerId.matches(TASK_REGEX)
+        && currentContainerInfo.getPodId() != null
+        && candidate.getPodId() == null) {
       // Do not replace a pod-scoped container id with a task-scoped id from a less specific path.
       // This protects hybrid cgroup output where trailing 0:: lines contain only task ids.
-      if (currentPodId != null && candidatePodId == null) {
-        return false;
-      }
+      return;
     }
 
-    return true;
+    currentContainerInfo.setContainerId(candidateContainerId);
   }
 
   static CGroupInfo parseLine(final String line) throws ParseException {
