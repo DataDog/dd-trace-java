@@ -22,7 +22,7 @@ public final class Metadata {
   private final CharSequence origin;
   private final int longRunningVersion;
   private final UTF8BytesString processTags;
-  private final List<AgentSpanLink> spanLinks;
+  private final List<? extends AgentSpanLink> spanLinks;
 
   public Metadata(
       long threadId,
@@ -36,7 +36,7 @@ public final class Metadata {
       CharSequence origin,
       int longRunningVersion,
       UTF8BytesString processTags,
-      List<AgentSpanLink> spanLinks) {
+      List<? extends AgentSpanLink> spanLinks) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
@@ -99,7 +99,7 @@ public final class Metadata {
     return processTags;
   }
 
-  public List<AgentSpanLink> getSpanLinks() {
+  public List<? extends AgentSpanLink> getSpanLinks() {
     return spanLinks;
   }
 }

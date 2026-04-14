@@ -177,7 +177,8 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
-  private void encodeSpanLinks(Writable writable, int fieldId, List<AgentSpanLink> links) {
+  private void encodeSpanLinks(
+      Writable writable, int fieldId, List<? extends AgentSpanLink> links) {
     writable.writeInt(fieldId);
     if (links == null || links.isEmpty()) {
       writable.startArray(0);
@@ -422,7 +423,7 @@ public final class TraceMapperV1 implements TraceMapper {
 
   private void writeFlatMapAttributes(Writable writable, String keyPrefix, Map<?, ?> mapValue) {
     for (Map.Entry<?, ?> entry : mapValue.entrySet()) {
-      String key = keyPrefix + "." + String.valueOf(entry.getKey());
+      String key = keyPrefix + "." + entry.getKey();
       Object value = entry.getValue();
       if (value instanceof Map) {
         writeFlatMapAttributes(writable, key, (Map<?, ?>) value);

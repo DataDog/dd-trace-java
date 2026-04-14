@@ -889,7 +889,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
-  List<AgentSpanLink> getLinks() {
+  List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
@@ -900,7 +900,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     // If links are initially null / empty, then the shared placeholder List EMPTY is used.
-    // Bacause EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
     // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
 
