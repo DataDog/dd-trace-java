@@ -47,7 +47,7 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
     transformer.applyAdvice(
         named("runTestResultListener").and(takesArgument(0, named("org.testng.ITestResult"))),
-        TestNGExecutionInstrumentation.class.getName() + "$SuppressFailuresAdvice");
+        TestNGExecutionInstrumentation.class.getName() + "$ModifyStatusAdvice");
   }
 
   @Override
@@ -106,10 +106,10 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
     }
   }
 
-  public static class SuppressFailuresAdvice {
+  public static class ModifyStatusAdvice {
     @SuppressWarnings("bytebuddy-exception-suppression")
     @Advice.OnMethodEnter
-    public static void suppressFailures(@Advice.Argument(0) final ITestResult result) {
+    public static void modifyStatus(@Advice.Argument(0) final ITestResult result) {
       IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
       if (!(retryAnalyzer instanceof RetryAnalyzer)) {
         // test execution policies not injected
