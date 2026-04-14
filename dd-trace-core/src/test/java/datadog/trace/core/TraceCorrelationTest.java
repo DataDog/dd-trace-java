@@ -10,15 +10,13 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.junit.utils.config.WithConfigExtension;
 import org.junit.jupiter.api.Test;
-import org.tabletest.junit.TableTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class TraceCorrelationTest extends DDCoreJavaSpecification {
 
-  @TableTest({
-    "scenario         | log128bTraceId",
-    "128-bit enabled  | true          ",
-    "128-bit disabled | false         "
-  })
+  @ValueSource(booleans = {true, false})
+  @ParameterizedTest
   void getTraceIdWithoutTrace(boolean log128bTraceId) {
     WithConfigExtension.injectSysConfig(
         TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));
@@ -36,11 +34,8 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
     tracer.close();
   }
 
-  @TableTest({
-    "scenario         | log128bTraceId",
-    "128-bit enabled  | true          ",
-    "128-bit disabled | false         "
-  })
+  @ValueSource(booleans = {true, false})
+  @ParameterizedTest
   void getTraceIdWithTrace(boolean log128bTraceId) {
     WithConfigExtension.injectSysConfig(
         TRACE_128_BIT_TRACEID_GENERATION_ENABLED, String.valueOf(log128bTraceId));

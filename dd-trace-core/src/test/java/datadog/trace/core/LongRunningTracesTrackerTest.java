@@ -121,10 +121,9 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
   @Test
   void maxTrackedTracesIsEnforced() {
-    for (int i = 0; i < MAX_TRACKED_TRACES; i++) {
+    for (int i = 0; i < MAX_TRACKED_TRACES + 1; i++) {
       tracker.add(newTraceToTrack());
     }
-    tracker.add(newTraceToTrack());
     assertEquals(MAX_TRACKED_TRACES, tracker.trackedCount());
     assertEquals(1, tracker.getDropped());
   }

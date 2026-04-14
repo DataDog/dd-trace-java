@@ -1,5 +1,6 @@
 package datadog.trace.core;
 
+import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -7,20 +8,17 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
-import datadog.trace.junit.utils.config.WithConfigExtension;
 import java.util.Arrays;
 import java.util.Properties;
-import org.tabletest.junit.TableTest;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 
 public class BlackholeSpanTest extends DDCoreJavaSpecification {
 
-  @TableTest({
-    "scenario                         | moreBits",
-    "128 bit traceid logging enabled  | true    ",
-    "128 bit traceid logging disabled | false   "
-  })
-  void shouldMuteTracing(String moreBits) throws Exception {
-    WithConfigExtension.injectSysConfig("trace.128.bit.traceid.logging.enabled", moreBits);
+  @ValueSource(strings = {"true", "false"})
+  @ParameterizedTest
+  void shouldMuteTracing(String use128bitTraceId) throws Exception {
+    injectSysConfig("trace.128.bit.traceid.logging.enabled", use128bitTraceId);
     ListWriter writer = new ListWriter();
     Properties props = new Properties();
     CoreTracer tracer = tracerBuilder().withProperties(props).writer(writer).build();
