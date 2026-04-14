@@ -22,7 +22,6 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 import org.apache.http.HttpInetConnection;
@@ -110,17 +109,11 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
       AgentSpan span = spanFromContext(scope.context());
       DECORATE.onRequest(span, TargetContext.getRequest(connection).getRequest());
 
-      // set peer hostname from the connection since request URIs are relative paths
+      // set peer info from the connection since request URIs are relative paths
       if (connection instanceof HttpInetConnection) {
-        java.net.InetAddress remoteAddress = ((HttpInetConnection) connection).getRemoteAddress();
-        if (remoteAddress != null) {
-          span.setTag(Tags.PEER_HOSTNAME, remoteAddress.getHostName());
-          span.setTag(Tags.PEER_HOST_IPV4, remoteAddress.getHostAddress());
-          int remotePort = ((HttpInetConnection) connection).getRemotePort();
-          if (remotePort > 0) {
-            span.setTag(Tags.PEER_PORT, remotePort);
-          }
-        }
+        HttpInetConnection inetConn = (HttpInetConnection) connection;
+        DECORATE.onPeerConnection(span, inetConn.getRemoteAddress());
+        DECORATE.setPeerPort(span, inetConn.getRemotePort());
       }
       scope.close();
     }
