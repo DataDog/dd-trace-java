@@ -12,8 +12,8 @@ import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import java.io.IOException;
 import java.net.ConnectException;
 import java.net.ServerSocket;

@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
+
 final class OtelLongValue extends OtelAggregator {
   private volatile long value;
 
@@ -9,7 +12,7 @@ final class OtelLongValue extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelLongPoint(value);
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpLongPoint(value);
   }
 }

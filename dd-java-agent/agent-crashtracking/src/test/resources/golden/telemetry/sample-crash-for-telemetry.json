@@ -1,0 +1,682 @@
+{
+  "data_schema_version": "1.0",
+  "error": {
+    "is_crash": true,
+    "kind": "SIGSEGV",
+    "message": "Process terminated by signal SIGSEGV",
+    "thread_name": "JavaThread REDACT_THIS daemon",
+    "source_type": "Crashtracking",
+    "stack": {
+      "format": "CrashTrackerV1",
+      "frames": [
+        {
+          "function": "vframeStreamForte::forte_next()+0x797",
+          "path": "libjvm.so",
+          "relative_address": "0x6b7187",
+          "type": "vm"
+        },
+        {
+          "function": "forte_fill_call_trace_given_top(JavaThread*, ASGCT_CallTrace*, int, frame) [clone .isra.22]+0x7bd",
+          "path": "libjvm.so",
+          "relative_address": "0x6b79ad",
+          "type": "vm"
+        },
+        {
+          "function": "AsyncGetCallTrace+0x193",
+          "path": "libjvm.so",
+          "relative_address": "0x6b8123",
+          "type": "vm"
+        },
+        {
+          "function": "Profiler::getJavaTraceAsync(void*, ASGCT_CallFrame*, int, StackContext*, bool*) [clone .isra.531]+0xd8",
+          "path": "libjavaProfiler.so",
+          "relative_address": "0x146c8",
+          "type": "native"
+        },
+        {
+          "function": "Profiler::recordSample(void*, unsigned long long, int, int, Event*)+0xa2d",
+          "path": "libjavaProfiler.so",
+          "relative_address": "0x1c18d",
+          "type": "native"
+        },
+        {
+          "function": "WallClock::sharedSignalHandler(int, siginfo_t*, void*)+0x148",
+          "path": "libjavaProfiler.so",
+          "relative_address": "0x1d128",
+          "type": "native"
+        },
+        {
+          "path": "libpthread.so.0",
+          "relative_address": "0x12cf0",
+          "type": "native"
+        },
+        {
+          "function": "JfrStackTrace::record_safe(JavaThread*, int)+0x5a9",
+          "path": "libjvm.so",
+          "relative_address": "0x85f9e9",
+          "type": "vm"
+        },
+        {
+          "function": "JfrStackTraceRepository::record_for_leak_profiler(JavaThread*, int)+0x50",
+          "path": "libjvm.so",
+          "relative_address": "0x861650",
+          "type": "vm"
+        },
+        {
+          "function": "ObjectSampler::sample(HeapWordImpl**, unsigned long, JavaThread*)+0x10a",
+          "path": "libjvm.so",
+          "relative_address": "0xb1ecba",
+          "type": "vm"
+        },
+        {
+          "function": "JfrAllocationTracer::JfrAllocationTracer(Klass const*, HeapWordImpl**, unsigned long, bool, JavaThread*)+0x5e",
+          "path": "libjvm.so",
+          "relative_address": "0x81abee",
+          "type": "vm"
+        },
+        {
+          "function": "AllocTracer::send_allocation_in_new_tlab(Klass*, HeapWordImpl**, unsigned long, unsigned long, JavaThread*)+0x30",
+          "path": "libjvm.so",
+          "relative_address": "0x3afa20",
+          "type": "vm"
+        },
+        {
+          "function": "MemAllocator::allocate() const+0x13d",
+          "path": "libjvm.so",
+          "relative_address": "0xa8f8ed",
+          "type": "vm"
+        },
+        {
+          "function": "InstanceKlass::allocate_objArray(int, int, JavaThread*)+0x13c",
+          "path": "libjvm.so",
+          "relative_address": "0x7e443c",
+          "type": "vm"
+        },
+        {
+          "function": "OptoRuntime::new_array_C(Klass*, int, JavaThread*)+0x129",
+          "path": "libjvm.so",
+          "relative_address": "0xbe1b59",
+          "type": "vm"
+        },
+        {
+          "function": "~RuntimeStub::_new_array_Java",
+          "type": "stub"
+        },
+        {
+          "function": "java.util.HashMap.resize()[Ljava/util/HashMap$Node;",
+          "type": "compiled",
+          "ip": "0x00007f378f0fdfbc",
+          "symbol_address": "0x00007f378f0fd6e0",
+          "relative_address": "0x00000000000008dc"
+        },
+        {
+          "function": "java.util.HashMap.putVal(ILjava/lang/Object;Ljava/lang/Object;ZZ)Ljava/lang/Object;",
+          "type": "compiled",
+          "ip": "0x00007f378efcdf58",
+          "symbol_address": "0x00007f378efcdf00",
+          "relative_address": "0x0000000000000058"
+        },
+        {
+          "function": "java.util.HashSet.add(Ljava/lang/Object;)Z",
+          "type": "compiled",
+          "ip": "0x00007f378d617d0c",
+          "symbol_address": "0x00007f378d617bc0",
+          "relative_address": "0x000000000000014c"
+        },
+        {
+          "function": "com.REDACT_THIS.util.dom.DOMUtil.doTransform(Lorg/w3c/dom/Node;Ljava/io/PrintStream;IZZZZZ)V",
+          "type": "compiled",
+          "ip": "0x00007f3791bae000",
+          "symbol_address": "0x00007f3791bac3c0",
+          "relative_address": "0x0000000000001c40"
+        },
+        {
+          "function": "com.REDACT_THIS.util.dom.DOMUtil.doTransform(Lorg/w3c/dom/Node;Ljava/io/PrintStream;IZZZZZ)V",
+          "type": "compiled",
+          "ip": "0x00007f3791bae2a8",
+          "symbol_address": "0x00007f3791bac3c0",
+          "relative_address": "0x0000000000001ee8"
+        },
+        {
+          "function": "com.REDACT_THIS.util.dom.DOMUtil.doTransform(Lorg/w3c/dom/Node;Ljava/io/PrintStream;IZZZZZ)V",
+          "type": "compiled",
+          "ip": "0x00007f3791bae2a8",
+          "symbol_address": "0x00007f3791bac3c0",
+          "relative_address": "0x0000000000001ee8"
+        },
+        {
+          "function": "com.REDACT_THIS.util.dom.DOMUtil.doTransform(Lorg/w3c/dom/Node;Ljava/io/PrintStream;IZZZZZ)V",
+          "type": "compiled",
+          "ip": "0x00007f3791baf8e4",
+          "symbol_address": "0x00007f3791bac3c0",
+          "relative_address": "0x0000000000003524"
+        },
+        {
+          "function": "com.REDACT_THIS.util.dom.DOMUtil.partToString(Lorg/w3c/dom/Node;)Ljava/lang/String;",
+          "type": "compiled",
+          "ip": "0x00007f3793ab3a98",
+          "symbol_address": "0x00007f3793ab36e0",
+          "relative_address": "0x00000000000003b8"
+        },
+        {
+          "function": "com.REDACT_THIS.message.impl.MessagePartDOMExt.writeExternal(Ljava/io/ObjectOutput;)V",
+          "type": "compiled",
+          "ip": "0x00007f379481ac54",
+          "symbol_address": "0x00007f379481ab40",
+          "relative_address": "0x0000000000000114"
+        },
+        {
+          "function": "java.io.ObjectOutputStream.writeOrdinaryObject(Ljava/lang/Object;Ljava/io/ObjectStreamClass;Z)V",
+          "type": "compiled",
+          "ip": "0x00007f378801d208",
+          "symbol_address": "0x00007f378801cc40",
+          "relative_address": "0x00000000000005c8"
+        },
+        {
+          "function": "java.io.ObjectOutputStream.writeObject0(Ljava/lang/Object;Z)V",
+          "type": "compiled",
+          "ip": "0x00007f37866bbe44",
+          "symbol_address": "0x00007f37866bb440",
+          "relative_address": "0x0000000000000a04"
+        },
+        {
+          "function": "jdk.internal.reflect.GeneratedMethodAccessor173.invoke(Ljava/lang/Object;[Ljava/lang/Object;)Ljava/lang/Object;",
+          "type": "compiled",
+          "ip": "0x00007f3790dd1af8",
+          "symbol_address": "0x00007f3790dd1720",
+          "relative_address": "0x00000000000003d8"
+        },
+        {
+          "function": "java.io.ObjectOutputStream.writeSerialData(Ljava/lang/Object;Ljava/io/ObjectStreamClass;)V",
+          "type": "compiled",
+          "ip": "0x00007f378d5ea3b4",
+          "symbol_address": "0x00007f378d5e9f80",
+          "relative_address": "0x0000000000000434"
+        },
+        {
+          "function": "java.io.ObjectOutputStream.writeOrdinaryObject(Ljava/lang/Object;Ljava/io/ObjectStreamClass;Z)V",
+          "type": "compiled",
+          "ip": "0x00007f378801cd64",
+          "symbol_address": "0x00007f378801cc40",
+          "relative_address": "0x0000000000000124"
+        },
+        {
+          "function": "java.io.ObjectOutputStream.writeObject0(Ljava/lang/Object;Z)V",
+          "type": "compiled",
+          "ip": "0x00007f37866bbe44",
+          "symbol_address": "0x00007f37866bb440",
+          "relative_address": "0x0000000000000a04"
+        },
+        {
+          "function": "com.REDACT_THIS.message.impl.Message.writeExternal(Ljava/io/ObjectOutput;)V",
+          "type": "compiled",
+          "ip": "0x00007f3788015f64",
+          "symbol_address": "0x00007f37880156a0",
+          "relative_address": "0x00000000000008c4"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.ExternalizableConverter.marshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3792795dfc",
+          "symbol_address": "0x00007f3792795a20",
+          "relative_address": "0x00000000000003dc"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.core.TreeMarshaller.convertAnother(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/converters/Converter;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791afb514",
+          "symbol_address": "0x00007f3791afaac0",
+          "relative_address": "0x0000000000000a54"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshallField(Lcom/REDACT_THIS/xstream/converters/MarshallingContext;Ljava/lang/Object;Ljava/lang/reflect/Field;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791adfc90",
+          "symbol_address": "0x00007f3791adfbc0",
+          "relative_address": "0x00000000000000d0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter$2.writeField(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791ad2240",
+          "symbol_address": "0x00007f3791ad1880",
+          "relative_address": "0x00000000000009c0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.doMarshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791b2d550",
+          "symbol_address": "0x00007f3791b2d120",
+          "relative_address": "0x0000000000000430"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3790cac354",
+          "symbol_address": "0x00007f3790cac000",
+          "relative_address": "0x0000000000000354"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.core.TreeMarshaller.convertAnother(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/converters/Converter;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791afb514",
+          "symbol_address": "0x00007f3791afaac0",
+          "relative_address": "0x0000000000000a54"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshallField(Lcom/REDACT_THIS/xstream/converters/MarshallingContext;Ljava/lang/Object;Ljava/lang/reflect/Field;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791adfc90",
+          "symbol_address": "0x00007f3791adfbc0",
+          "relative_address": "0x00000000000000d0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter$2.writeField(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791ad2240",
+          "symbol_address": "0x00007f3791ad1880",
+          "relative_address": "0x00000000000009c0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.doMarshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791b2d550",
+          "symbol_address": "0x00007f3791b2d120",
+          "relative_address": "0x0000000000000430"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3790cac354",
+          "symbol_address": "0x00007f3790cac000",
+          "relative_address": "0x0000000000000354"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.core.TreeMarshaller.convertAnother(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/converters/Converter;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791afb514",
+          "symbol_address": "0x00007f3791afaac0",
+          "relative_address": "0x0000000000000a54"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshallField(Lcom/REDACT_THIS/xstream/converters/MarshallingContext;Ljava/lang/Object;Ljava/lang/reflect/Field;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791adfc90",
+          "symbol_address": "0x00007f3791adfbc0",
+          "relative_address": "0x00000000000000d0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter$2.writeField(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791ad2240",
+          "symbol_address": "0x00007f3791ad1880",
+          "relative_address": "0x00000000000009c0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.doMarshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791b2d550",
+          "symbol_address": "0x00007f3791b2d120",
+          "relative_address": "0x0000000000000430"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3790cac354",
+          "symbol_address": "0x00007f3790cac000",
+          "relative_address": "0x0000000000000354"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.core.TreeMarshaller.convertAnother(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/converters/Converter;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791afb514",
+          "symbol_address": "0x00007f3791afaac0",
+          "relative_address": "0x0000000000000a54"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshallField(Lcom/REDACT_THIS/xstream/converters/MarshallingContext;Ljava/lang/Object;Ljava/lang/reflect/Field;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791adfc90",
+          "symbol_address": "0x00007f3791adfbc0",
+          "relative_address": "0x00000000000000d0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter$2.writeField(Ljava/lang/String;Ljava/lang/String;Ljava/lang/Class;Ljava/lang/Class;Ljava/lang/Object;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791ad2240",
+          "symbol_address": "0x00007f3791ad1880",
+          "relative_address": "0x00000000000009c0"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.doMarshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791b2d550",
+          "symbol_address": "0x00007f3791b2d120",
+          "relative_address": "0x0000000000000430"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.converters.reflection.AbstractReflectionConverter.marshal(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/io/HierarchicalStreamWriter;Lcom/REDACT_THIS/xstream/converters/MarshallingContext;)V",
+          "type": "compiled",
+          "ip": "0x00007f3790cac354",
+          "symbol_address": "0x00007f3790cac000",
+          "relative_address": "0x0000000000000354"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.core.TreeMarshaller.convertAnother(Ljava/lang/Object;Lcom/REDACT_THIS/xstream/converters/Converter;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791afb514",
+          "symbol_address": "0x00007f3791afaac0",
+          "relative_address": "0x0000000000000a54"
+        },
+        {
+          "function": "com.REDACT_THIS.xstream.XStream.toXML(Ljava/lang/Object;Ljava/io/OutputStream;)V",
+          "type": "compiled",
+          "ip": "0x00007f3792118638",
+          "symbol_address": "0x00007f3792117560",
+          "relative_address": "0x00000000000010d8"
+        },
+        {
+          "function": "com.REDACT_THIS.recover.impl.fs.FSJobSerializer.serializeJob(Ljava/lang/String;Lcom/REDACT_THIS/recover/impl/GenericRecoveryJob;)V",
+          "type": "compiled",
+          "ip": "0x00007f3792c6fce4",
+          "symbol_address": "0x00007f3792c6ec40",
+          "relative_address": "0x00000000000010a4"
+        },
+        {
+          "function": "com.REDACT_THIS.recover.impl.db.RecoveryPoolDBImpl.specificSave(Lcom/REDACT_THIS/recover/spi/RecoveryJob;)V",
+          "type": "compiled",
+          "ip": "0x00007f3792bc1348",
+          "symbol_address": "0x00007f3792bbd140",
+          "relative_address": "0x0000000000004208"
+        },
+        {
+          "function": "com.REDACT_THIS.recover.impl.REDACT_THIS.saveJob(Lcom/REDACT_THIS/recover/spi/RecoveryJob;ILjava/lang/String;)V",
+          "type": "compiled",
+          "ip": "0x00007f3792a8ccc0",
+          "symbol_address": "0x00007f3792a8c360",
+          "relative_address": "0x0000000000000960"
+        },
+        {
+          "function": "com.REDACT_THIS.frame.core.FrameWorkListener.callbackNewData(Lcom/REDACT_THIS/frame/header/GenericTask;Ljava/util/concurrent/ExecutorService;)V",
+          "type": "compiled",
+          "ip": "0x00007f3791797330",
+          "symbol_address": "0x00007f3791796420",
+          "relative_address": "0x0000000000000f10"
+        },
+        {
+          "function": "com.REDACT_THIS.frame.connection.direct.DirectModeMessageListener.onMessage(Ljavax/jms/Message;)V",
+          "type": "compiled",
+          "ip": "0x00007f379469d294",
+          "symbol_address": "0x00007f379469b860",
+          "relative_address": "0x0000000000001a34"
+        },
+        {
+          "function": "datadog.trace.instrumentation.jms.DatadogMessageListener.onMessage(Ljavax/jms/Message;)V",
+          "type": "compiled",
+          "ip": "0x00007f3793579980",
+          "symbol_address": "0x00007f3793579540",
+          "relative_address": "0x0000000000000440"
+        },
+        {
+          "function": "org.apache.activemq.artemis.jms.client.JMSMessageListenerWrapper.onMessage(Lorg/apache/activemq/artemis/api/core/client/ClientMessage;)V",
+          "type": "compiled",
+          "ip": "0x00007f379357de48",
+          "symbol_address": "0x00007f379357d540",
+          "relative_address": "0x0000000000000908"
+        },
+        {
+          "function": "org.apache.activemq.artemis.core.client.impl.ClientConsumerImpl$Runner.run()V",
+          "type": "compiled",
+          "ip": "0x00007f3790905918",
+          "symbol_address": "0x00007f3790904900",
+          "relative_address": "0x0000000000001018"
+        },
+        {
+          "function": "org.apache.activemq.artemis.utils.actors.ProcessorBase$$Lambda$2929+0x00000007ce44f8f8.run()V",
+          "type": "compiled",
+          "ip": "0x00007f3793dbf494",
+          "symbol_address": "0x00007f3793dbf1e0",
+          "relative_address": "0x00000000000002b4"
+        },
+        {
+          "function": "java.util.concurrent.ThreadPoolExecutor.runWorker(Ljava/util/concurrent/ThreadPoolExecutor$Worker;)V",
+          "type": "compiled",
+          "ip": "0x00007f3786d0efc8",
+          "symbol_address": "0x00007f3786d0ec60",
+          "relative_address": "0x0000000000000368"
+        },
+        {
+          "function": "java.util.concurrent.ThreadPoolExecutor$Worker.run()V",
+          "type": "compiled",
+          "ip": "0x00007f3794223f98",
+          "symbol_address": "0x00007f3794223f20",
+          "relative_address": "0x0000000000000078"
+        },
+        {
+          "function": "org.apache.activemq.artemis.utils.ActiveMQThreadFactory$1.run()V",
+          "line": 44,
+          "type": "interpreted"
+        },
+        {
+          "function": "~StubRoutines::call_stub",
+          "type": "stub"
+        }
+      ]
+    }
+  },
+  "incomplete": false,
+  "metadata": {
+    "family": "java",
+    "library_name": "dd-trace-java",
+    "library_version": "1.60.0-SNAPSHOT~cffe9c6085"
+  },
+  "os_info": {
+    "architecture": "amd64",
+    "bitness": "64-bit",
+    "os_type": "Linux",
+    "version": "4.18.0-425.10.1.el8_7.x86_64"
+  },
+  "proc_info": {
+    "pid": 161958
+  },
+  "sig_info": {
+    "si_addr": "0x0000000000000070",
+    "si_code": 1,
+    "si_code_human_readable": "SEGV_MAPERR",
+    "si_signo": 11,
+    "si_signo_human_readable": "SIGSEGV"
+  },
+  "experimental": {
+    "ucontext": {
+      "RAX": "0x00007f36ccfbf170",
+      "RBX": "0x000000008fd66048",
+      "RCX": "0x0000000000000758",
+      "RDX": "0x0000000000000008",
+      "RSP": "0x00007f35e6253190",
+      "RBP": "0x00007f35e6253220",
+      "RSI": "0x00007f3639c2ff00",
+      "RDI": "0x0000000000000000",
+      "R8": "0x00007f37a16e2590",
+      "R9": "0x00007f37a16e25a0",
+      "R10": "0x00000000000008dd",
+      "R11": "0x00007f3744198b70",
+      "R12": "0x0000000000000000",
+      "R13": "0x00007f35e6254750",
+      "R14": "0x00007f3639c2ff00",
+      "R15": "0x00007f35e6253320",
+      "RIP": "0x00007f37a18bc187",
+      "EFLAGS": "0x0000000000010286",
+      "CSGSFS": "0x002b000000000033",
+      "ERR": "0x0000000000000004",
+      "TRAPNO": "0x000000000000000e"
+    }
+  },
+  "timestamp": "2023-10-17T20:25:14+08:00",
+  "uuid": "a4194cd6-8cb3-45fd-9bd9-3af83e0a3ad3",
+  "version_id": 0,
+  "files": {
+    "/proc/self/maps": [
+      "56339e062000-56339e063000 r-xp 00000000 fd:01 268593916                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/bin/java",
+      "56339e064000-56339e065000 r--p 00001000 fd:01 268593916                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/bin/java",
+      "56339e065000-56339e066000 rw-p 00002000 fd:01 268593916                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/bin/java",
+      "56339e268000-5633a0a2a000 rw-p 00000000 00:00 0                          [heap]",
+      "7f36253e4000-7f36253f5000 r-xp 00000000 fd:01 738098                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libnetty_transport_native_epoll_x86_644532585321406590842.so (deleted)",
+      "7f36253f5000-7f36255f4000 ---p 00011000 fd:01 738098                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libnetty_transport_native_epoll_x86_644532585321406590842.so (deleted)",
+      "7f36255f4000-7f36255f7000 r--p 00010000 fd:01 738098                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libnetty_transport_native_epoll_x86_644532585321406590842.so (deleted)",
+      "7f36471f2000-7f36472b1000 r-xp 00000000 fd:01 134286687                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt.so",
+      "7f36472b1000-7f36472b3000 r--p 000be000 fd:01 134286687                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt.so",
+      "7f36472b3000-7f36472be000 rw-p 000c0000 fd:01 134286687                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt.so",
+      "7f36a03a7000-7f36a042a000 r-xp 00000000 08:02 16778618                   /usr/lib64/libpcre2-8.so.0.7.1",
+      "7f36a042a000-7f36a0629000 ---p 00083000 08:02 16778618                   /usr/lib64/libpcre2-8.so.0.7.1",
+      "7f36a0629000-7f36a062a000 r--p 00082000 08:02 16778618                   /usr/lib64/libpcre2-8.so.0.7.1",
+      "7f36a062a000-7f36a062b000 rw-p 00083000 08:02 16778618                   /usr/lib64/libpcre2-8.so.0.7.1",
+      "7f36a062b000-7f36a0652000 r-xp 00000000 08:02 16778688                   /usr/lib64/libselinux.so.1",
+      "7f36a0652000-7f36a0852000 ---p 00027000 08:02 16778688                   /usr/lib64/libselinux.so.1",
+      "7f36a0852000-7f36a0853000 r--p 00027000 08:02 16778688                   /usr/lib64/libselinux.so.1",
+      "7f36a0853000-7f36a0854000 rw-p 00028000 08:02 16778688                   /usr/lib64/libselinux.so.1",
+      "7f36a0856000-7f36a085c000 r-xp 00000000 08:02 16778122                   /usr/lib64/libuuid.so.1.3.0",
+      "7f36a085c000-7f36a0a5c000 ---p 00006000 08:02 16778122                   /usr/lib64/libuuid.so.1.3.0",
+      "7f36a0a5c000-7f36a0a5d000 r--p 00006000 08:02 16778122                   /usr/lib64/libuuid.so.1.3.0",
+      "7f36a0a5e000-7f36a0aab000 r-xp 00000000 08:02 16795056                   /usr/lib64/libblkid.so.1.1.0",
+      "7f36a0aab000-7f36a0caa000 ---p 0004d000 08:02 16795056                   /usr/lib64/libblkid.so.1.1.0",
+      "7f36a0caa000-7f36a0caf000 r--p 0004c000 08:02 16795056                   /usr/lib64/libblkid.so.1.1.0",
+      "7f36a0caf000-7f36a0cb0000 rw-p 00051000 08:02 16795056                   /usr/lib64/libblkid.so.1.1.0",
+      "7f36a0cb1000-7f36a0d07000 r-xp 00000000 08:02 16794553                   /usr/lib64/libmount.so.1.1.0",
+      "7f36a0d07000-7f36a0f06000 ---p 00056000 08:02 16794553                   /usr/lib64/libmount.so.1.1.0",
+      "7f36a0f06000-7f36a0f09000 r--p 00055000 08:02 16794553                   /usr/lib64/libmount.so.1.1.0",
+      "7f36a0f09000-7f36a0f0a000 rw-p 00058000 08:02 16794553                   /usr/lib64/libmount.so.1.1.0",
+      "7f36a0f0b000-7f36a0faf000 r-xp 00000000 08:02 16812353                   /usr/lib64/libnss_myhostname.so.2",
+      "7f36a0faf000-7f36a11ae000 ---p 000a4000 08:02 16812353                   /usr/lib64/libnss_myhostname.so.2",
+      "7f36a11ae000-7f36a11b5000 r--p 000a3000 08:02 16812353                   /usr/lib64/libnss_myhostname.so.2",
+      "7f36a11b5000-7f36a11b6000 rw-p 000aa000 08:02 16812353                   /usr/lib64/libnss_myhostname.so.2",
+      "7f36a21c6000-7f36a21da000 r-xp 00000000 08:02 16778934                   /usr/lib64/libresolv-2.28.so",
+      "7f36a21da000-7f36a23da000 ---p 00014000 08:02 16778934                   /usr/lib64/libresolv-2.28.so",
+      "7f36a23da000-7f36a23db000 r--p 00014000 08:02 16778934                   /usr/lib64/libresolv-2.28.so",
+      "7f36a23db000-7f36a23dc000 rw-p 00015000 08:02 16778934                   /usr/lib64/libresolv-2.28.so",
+      "7f36a23de000-7f36a23e3000 r-xp 00000000 08:02 16778928                   /usr/lib64/libnss_dns-2.28.so",
+      "7f36a23e3000-7f36a25e3000 ---p 00005000 08:02 16778928                   /usr/lib64/libnss_dns-2.28.so",
+      "7f36a25e3000-7f36a25e4000 r--p 00005000 08:02 16778928                   /usr/lib64/libnss_dns-2.28.so",
+      "7f36a25e4000-7f36a25e5000 rw-p 00006000 08:02 16778928                   /usr/lib64/libnss_dns-2.28.so",
+      "7f37412dd000-7f37412e8000 r-xp 00000000 08:02 16778930                   /usr/lib64/libnss_files-2.28.so",
+      "7f37412e8000-7f37414e8000 ---p 0000b000 08:02 16778930                   /usr/lib64/libnss_files-2.28.so",
+      "7f37414e8000-7f37414e9000 r--p 0000b000 08:02 16778930                   /usr/lib64/libnss_files-2.28.so",
+      "7f37414e9000-7f37414ea000 rw-p 0000c000 08:02 16778930                   /usr/lib64/libnss_files-2.28.so",
+      "7f3742802000-7f3742819000 r-xp 00000000 08:02 17872891                   /usr/lib64/libgcc_s-8-20210514.so.1",
+      "7f3742819000-7f3742a18000 ---p 00017000 08:02 17872891                   /usr/lib64/libgcc_s-8-20210514.so.1",
+      "7f3742a18000-7f3742a19000 r--p 00016000 08:02 17872891                   /usr/lib64/libgcc_s-8-20210514.so.1",
+      "7f3742a19000-7f3742a1a000 rw-p 00017000 08:02 17872891                   /usr/lib64/libgcc_s-8-20210514.so.1",
+      "7f3742a1a000-7f3742ba0000 r-xp 00000000 08:02 16778139                   /usr/lib64/libstdc++.so.6.0.25",
+      "7f3742ba0000-7f3742d9f000 ---p 00186000 08:02 16778139                   /usr/lib64/libstdc++.so.6.0.25",
+      "7f3742d9f000-7f3742dab000 r--p 00185000 08:02 16778139                   /usr/lib64/libstdc++.so.6.0.25",
+      "7f3742dab000-7f3742dac000 rw-p 00191000 08:02 16778139                   /usr/lib64/libstdc++.so.6.0.25",
+      "7f3742daf000-7f3742de2000 r-xp 00000000 fd:01 896814                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libjavaProfiler586350205236920700.so",
+      "7f3742de2000-7f3742fe2000 ---p 00033000 fd:01 896814                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libjavaProfiler586350205236920700.so",
+      "7f3742fe2000-7f3742fe3000 r--p 00033000 fd:01 896814                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libjavaProfiler586350205236920700.so",
+      "7f3742fe3000-7f3742fe4000 rw-p 00034000 fd:01 896814                     /opt/REDACT_THIS/REDACT_THIS/temp/tmp/libjavaProfiler586350205236920700.so",
+      "7f37430e6000-7f3743229000 r--s 012f3000 fd:01 730845                     /opt/REDACT_THIS/datadog-apm-agent/dd-java-agent.jar",
+      "7f3743a31000-7f3743a84000 r--p 00000000 08:02 50332956                   /usr/lib/locale/C.utf8/LC_CTYPE",
+      "7f3743a84000-7f3743cfc000 r--p 00000000 08:02 50332937                   /usr/lib/locale/en_US.utf8/LC_COLLATE",
+      "7f375c00d000-7f375c014000 r-xp 00000000 fd:01 134286676                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt_headless.so",
+      "7f375c014000-7f375c015000 ---p 00007000 fd:01 134286676                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt_headless.so",
+      "7f375c015000-7f375c016000 r--p 00007000 fd:01 134286676                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt_headless.so",
+      "7f375c016000-7f375c017000 rw-p 00008000 fd:01 134286676                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libawt_headless.so",
+      "7f375c039000-7f375c03a000 r-xp 00000000 fd:01 134286689                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/librmi.so",
+      "7f375c03a000-7f375c03b000 r--p 00000000 fd:01 134286689                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/librmi.so",
+      "7f375c03b000-7f375c03c000 rw-p 00001000 fd:01 134286689                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/librmi.so",
+      "7f375c04c000-7f375c11a000 r-xp 00000000 fd:01 134286671                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjsvml.so",
+      "7f375c11a000-7f375c11b000 r--p 000cd000 fd:01 134286671                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjsvml.so",
+      "7f375c11b000-7f375c11c000 rw-p 000ce000 fd:01 134286671                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjsvml.so",
+      "7f37948c3000-7f379c000000 r--s 00000000 fd:01 134286673                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/modules",
+      "7f37a0001000-7f37a0006000 r-xp 00000000 fd:01 134286659                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement_ext.so",
+      "7f37a0006000-7f37a0007000 ---p 00005000 fd:01 134286659                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement_ext.so",
+      "7f37a0007000-7f37a0008000 r--p 00005000 fd:01 134286659                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement_ext.so",
+      "7f37a0008000-7f37a0009000 rw-p 00006000 fd:01 134286659                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement_ext.so",
+      "7f37a0009000-7f37a0016000 r-xp 00000000 fd:01 134286672                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libverify.so",
+      "7f37a0016000-7f37a0018000 r--p 0000c000 fd:01 134286672                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libverify.so",
+      "7f37a0018000-7f37a0019000 rw-p 0000e000 fd:01 134286672                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libverify.so",
+      "7f37a0019000-7f37a002e000 r-xp 00000000 fd:01 134286678                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnet.so",
+      "7f37a002e000-7f37a002f000 r--p 00014000 fd:01 134286678                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnet.so",
+      "7f37a002f000-7f37a0030000 rw-p 00015000 fd:01 134286678                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnet.so",
+      "7f37a019c000-7f37a0a70000 r--s 00000000 08:02 50926650                   /var/lib/sss/mc/passwd",
+      "7f37a0a70000-7f37a0a7a000 r-xp 00000000 08:02 16953247                   /usr/lib64/libnss_sss.so.2",
+      "7f37a0a7a000-7f37a0c79000 ---p 0000a000 08:02 16953247                   /usr/lib64/libnss_sss.so.2",
+      "7f37a0c79000-7f37a0c7a000 r--p 00009000 08:02 16953247                   /usr/lib64/libnss_sss.so.2",
+      "7f37a0c7a000-7f37a0c7b000 rw-p 0000a000 08:02 16953247                   /usr/lib64/libnss_sss.so.2",
+      "7f37a0c7b000-7f37a0dfc000 r-xp 00000000 08:02 16778922                   /usr/lib64/libm-2.28.so",
+      "7f37a0dfc000-7f37a0ffb000 ---p 00181000 08:02 16778922                   /usr/lib64/libm-2.28.so",
+      "7f37a0ffb000-7f37a0ffc000 r--p 00180000 08:02 16778922                   /usr/lib64/libm-2.28.so",
+      "7f37a0ffc000-7f37a0ffd000 rw-p 00181000 08:02 16778922                   /usr/lib64/libm-2.28.so",
+      "7f37a0ffd000-7f37a1004000 r-xp 00000000 08:02 16778936                   /usr/lib64/librt-2.28.so",
+      "7f37a1004000-7f37a1203000 ---p 00007000 08:02 16778936                   /usr/lib64/librt-2.28.so",
+      "7f37a1203000-7f37a1204000 r--p 00006000 08:02 16778936                   /usr/lib64/librt-2.28.so",
+      "7f37a1204000-7f37a1205000 rw-p 00007000 08:02 16778936                   /usr/lib64/librt-2.28.so",
+      "7f37a1205000-7f37a238a000 r-xp 00000000 fd:01 402776938                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/server/libjvm.so",
+      "7f37a238a000-7f37a238b000 ---p 01185000 fd:01 402776938                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/server/libjvm.so",
+      "7f37a238b000-7f37a2443000 r--p 01185000 fd:01 402776938                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/server/libjvm.so",
+      "7f37a2443000-7f37a2473000 rw-p 0123d000 fd:01 402776938                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/server/libjvm.so",
+      "7f37a24cc000-7f37a2688000 r-xp 00000000 08:02 16778918                   /usr/lib64/libc-2.28.so",
+      "7f37a2688000-7f37a2888000 ---p 001bc000 08:02 16778918                   /usr/lib64/libc-2.28.so",
+      "7f37a2888000-7f37a288c000 r--p 001bc000 08:02 16778918                   /usr/lib64/libc-2.28.so",
+      "7f37a288c000-7f37a288e000 rw-p 001c0000 08:02 16778918                   /usr/lib64/libc-2.28.so",
+      "7f37a2892000-7f37a2895000 r-xp 00000000 08:02 16778920                   /usr/lib64/libdl-2.28.so",
+      "7f37a2895000-7f37a2a94000 ---p 00003000 08:02 16778920                   /usr/lib64/libdl-2.28.so",
+      "7f37a2a94000-7f37a2a95000 r--p 00002000 08:02 16778920                   /usr/lib64/libdl-2.28.so",
+      "7f37a2a95000-7f37a2a96000 rw-p 00003000 08:02 16778920                   /usr/lib64/libdl-2.28.so",
+      "7f37a2a96000-7f37a2ab1000 r-xp 00000000 08:02 16778932                   /usr/lib64/libpthread-2.28.so",
+      "7f37a2ab1000-7f37a2cb0000 ---p 0001b000 08:02 16778932                   /usr/lib64/libpthread-2.28.so",
+      "7f37a2cb0000-7f37a2cb1000 r--p 0001a000 08:02 16778932                   /usr/lib64/libpthread-2.28.so",
+      "7f37a2cb1000-7f37a2cb2000 rw-p 0001b000 08:02 16778932                   /usr/lib64/libpthread-2.28.so",
+      "7f37a2cb6000-7f37a2ccc000 r-xp 00000000 08:02 16778960                   /usr/lib64/libz.so.1.2.11",
+      "7f37a2ccc000-7f37a2ecc000 ---p 00016000 08:02 16778960                   /usr/lib64/libz.so.1.2.11",
+      "7f37a2ecc000-7f37a2ecd000 r--p 00016000 08:02 16778960                   /usr/lib64/libz.so.1.2.11",
+      "7f37a2ece000-7f37a2efb000 r-xp 00000000 08:02 16810540                   /usr/lib64/ld-2.28.so",
+      "7f37a2efc000-7f37a2f00000 r-xp 00000000 fd:01 134286590                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement.so",
+      "7f37a2f00000-7f37a2f01000 r--p 00003000 fd:01 134286590                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement.so",
+      "7f37a2f01000-7f37a2f02000 rw-p 00004000 fd:01 134286590                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libmanagement.so",
+      "7f37a2f02000-7f37a2f04000 r-xp 00000000 fd:01 134286559                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libextnet.so",
+      "7f37a2f04000-7f37a2f05000 r--p 00001000 fd:01 134286559                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libextnet.so",
+      "7f37a2f05000-7f37a2f06000 rw-p 00002000 fd:01 134286559                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libextnet.so",
+      "7f37a2f06000-7f37a2f18000 r-xp 00000000 fd:01 134286688                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnio.so",
+      "7f37a2f18000-7f37a2f19000 ---p 00012000 fd:01 134286688                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnio.so",
+      "7f37a2f19000-7f37a2f1a000 r--p 00012000 fd:01 134286688                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnio.so",
+      "7f37a2f1a000-7f37a2f1b000 rw-p 00013000 fd:01 134286688                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libnio.so",
+      "7f37a2f1b000-7f37a2f1c000 r--p 00000000 08:02 51076467                   /usr/lib/locale/en_US.utf8/LC_NUMERIC",
+      "7f37a2f1c000-7f37a2f1d000 r--p 00000000 08:02 1430595                    /usr/lib/locale/en_US.utf8/LC_TIME",
+      "7f37a2f1d000-7f37a2f1e000 r--p 00000000 08:02 1430602                    /usr/lib/locale/en_US.utf8/LC_MONETARY",
+      "7f37a2f1e000-7f37a2f1f000 r--p 00000000 08:02 1335                       /usr/lib/locale/en_US.utf8/LC_MESSAGES/SYS_LC_MESSAGES",
+      "7f37a2f1f000-7f37a2f20000 r--p 00000000 08:02 33584760                   /usr/lib/locale/en_US.utf8/LC_PAPER",
+      "7f37a2f20000-7f37a2f21000 r--p 00000000 08:02 50332940                   /usr/lib/locale/en_US.utf8/LC_NAME",
+      "7f37a2f21000-7f37a2f22000 r--p 00000000 08:02 1341                       /usr/lib/locale/en_US.utf8/LC_ADDRESS",
+      "7f37a2f22000-7f37a2f23000 r--p 00000000 08:02 1430603                    /usr/lib/locale/en_US.utf8/LC_TELEPHONE",
+      "7f37a2f23000-7f37a2f24000 r--p 00000000 08:02 1430601                    /usr/lib/locale/en_US.utf8/LC_MEASUREMENT",
+      "7f37a2f24000-7f37a2f2b000 r--s 00000000 08:02 50332972                   /usr/lib64/gconv/gconv-modules.cache",
+      "7f37a2f2b000-7f37a2f2d000 r--s 0000d000 fd:01 134535492                  /opt/REDACT_THIS/REDACT_THIS/lib/endorsed/org.apache.karaf.specs.java.xml-4.3.9.SEE2.jar",
+      "7f37a2f2d000-7f37a2f34000 r-xp 00000000 fd:01 134286682                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libzip.so",
+      "7f37a2f34000-7f37a2f35000 ---p 00007000 fd:01 134286682                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libzip.so",
+      "7f37a2f35000-7f37a2f36000 r--p 00007000 fd:01 134286682                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libzip.so",
+      "7f37a2f36000-7f37a2f37000 rw-p 00008000 fd:01 134286682                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libzip.so",
+      "7f37a2f84000-7f37a2f8c000 rw-s 00000000 08:02 37453686                   /tmp/hsperfdata_ediadm/161958",
+      "7f37a2f8c000-7f37a2fb0000 r-xp 00000000 fd:01 134286567                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjava.so",
+      "7f37a2fb0000-7f37a2fb1000 ---p 00024000 fd:01 134286567                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjava.so",
+      "7f37a2fb1000-7f37a2fb2000 r--p 00024000 fd:01 134286567                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjava.so",
+      "7f37a2fb2000-7f37a2fb3000 rw-p 00025000 fd:01 134286567                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjava.so",
+      "7f37a2fb4000-7f37a2fbe000 r-xp 00000000 fd:01 134286560                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libinstrument.so",
+      "7f37a2fbe000-7f37a2fbf000 r--p 00009000 fd:01 134286560                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libinstrument.so",
+      "7f37a2fbf000-7f37a2fc0000 rw-p 0000a000 fd:01 134286560                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libinstrument.so",
+      "7f37a2fc0000-7f37a2fdb000 r-xp 00000000 fd:01 134286669                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjimage.so",
+      "7f37a2fdb000-7f37a2fdd000 r--p 0001a000 fd:01 134286669                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjimage.so",
+      "7f37a2fdd000-7f37a2fde000 rw-p 0001c000 fd:01 134286669                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjimage.so",
+      "7f37a30e3000-7f37a30f2000 r-xp 00000000 fd:01 134286555                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjli.so",
+      "7f37a30f2000-7f37a30f3000 r--p 0000e000 fd:01 134286555                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjli.so",
+      "7f37a30f3000-7f37a30f4000 rw-p 0000f000 fd:01 134286555                  /opt/REDACT_THIS/REDACT_THIS/runtime/jvm64/lib/libjli.so",
+      "7f37a30f4000-7f37a30f5000 r--p 00000000 08:02 1430600                    /usr/lib/locale/en_US.utf8/LC_IDENTIFICATION",
+      "7f37a30f5000-7f37a30f6000 r--s 00002000 fd:01 134535495                  /opt/REDACT_THIS/REDACT_THIS/lib/endorsed/org.apache.karaf.specs.locator-4.3.9.SEE2.jar",
+      "7f37a30fb000-7f37a30fc000 r--p 0002d000 08:02 16810540                   /usr/lib64/ld-2.28.so",
+      "7f37a30fc000-7f37a30fe000 rw-p 0002e000 08:02 16810540                   /usr/lib64/ld-2.28.so",
+      "7ffe6c3a9000-7ffe6c3cb000 rw-p 00000000 00:00 0                          [stack]",
+      "7ffe6c3f0000-7ffe6c3f4000 r--p 00000000 00:00 0                          [vvar]",
+      "7ffe6c3f4000-7ffe6c3f6000 r-xp 00000000 00:00 0                          [vdso]",
+      "ffffffffff600000-ffffffffff601000 r-xp 00000000 00:00 0                  [vsyscall]"
+    ]
+  }
+}

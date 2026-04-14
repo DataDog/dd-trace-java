@@ -10,14 +10,18 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.TransactionInfo;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.Sink;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter {
+  private static final Logger log = LoggerFactory.getLogger(MsgPackDatastreamsPayloadWriter.class);
   private static final byte[] ENV = "Env".getBytes(ISO_8859_1);
   private static final byte[] VERSION = "Version".getBytes(ISO_8859_1);
   private static final byte[] PRIMARY_TAG = "PrimaryTag".getBytes(ISO_8859_1);
@@ -49,6 +53,11 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] TRANSACTIONS = "Transactions".getBytes(ISO_8859_1);
   private static final byte[] TRANSACTION_CHECKPOINT_IDS =
       "TransactionCheckpointIds".getBytes(ISO_8859_1);
+  private static final byte[] CONFIGS = "Configs".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_TYPE = "Type".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -134,13 +143,14 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     for (StatsBucket bucket : data) {
       boolean hasBacklogs = !bucket.getBacklogs().isEmpty();
       boolean hasTransactions = !bucket.getTransactions().isEmpty();
-
       boolean hasSchemaRegistryUsages = !bucket.getSchemaRegistryUsages().isEmpty();
+      boolean hasKafkaConfigs = !bucket.getKafkaConfigs().isEmpty();
       writer.startMap(
           3
               + (hasBacklogs ? 1 : 0)
               + (hasTransactions ? 2 : 0)
-              + (hasSchemaRegistryUsages ? 1 : 0));
+              + (hasSchemaRegistryUsages ? 1 : 0)
+              + (hasKafkaConfigs ? 1 : 0));
 
       /* 1 */
       writer.writeUTF8(START);
@@ -164,11 +174,13 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
         writeSchemaRegistryUsages(bucket.getSchemaRegistryUsages(), writer);
       }
 
+      if (hasKafkaConfigs) {
+        writeKafkaConfigs(bucket.getKafkaConfigs(), writer);
+      }
+
       if (hasTransactions) {
-        /* 6 */
         writer.writeUTF8(TRANSACTIONS);
         writer.writeBinary(bucket.getTransactions().getData());
-        /* 7 */
         writer.writeUTF8(TRANSACTION_CHECKPOINT_IDS);
         writer.writeBinary(TransactionInfo.getCheckpointIdCacheBytes());
       }
@@ -271,6 +283,31 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(COUNT);
       packer.writeLong(count);
+    }
+  }
+
+  private void writeKafkaConfigs(List<KafkaConfigReport> configs, Writable packer) {
+    packer.writeUTF8(CONFIGS);
+    packer.startArray(configs.size());
+    for (KafkaConfigReport config : configs) {
+      packer.startMap(4); // Type, KafkaClusterId, ConsumerGroup, Config
+
+      packer.writeUTF8(CONFIG_TYPE);
+      packer.writeString(config.getType(), null);
+
+      packer.writeUTF8(CONFIG_KAFKA_CLUSTER_ID);
+      packer.writeString(config.getKafkaClusterId(), null);
+
+      packer.writeUTF8(CONFIG_CONSUMER_GROUP);
+      packer.writeString(config.getConsumerGroup(), null);
+
+      packer.writeUTF8(CONFIG_ENTRIES);
+      Map<String, String> entries = config.getConfig();
+      packer.startMap(entries.size());
+      for (Map.Entry<String, String> entry : entries.entrySet()) {
+        packer.writeString(entry.getKey(), null);
+        packer.writeString(entry.getValue() != null ? entry.getValue() : "", null);
+      }
     }
   }
 

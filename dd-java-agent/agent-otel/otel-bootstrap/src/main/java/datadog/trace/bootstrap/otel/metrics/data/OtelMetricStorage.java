@@ -1,19 +1,26 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
+
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.config.OtlpConfig;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
-import datadog.trace.bootstrap.otel.metrics.export.OtelMetricVisitor;
-import datadog.trace.relocate.api.RatelimitedLogger;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
+import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import io.opentelemetry.api.common.Attributes;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.WeakHashMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.function.BiConsumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -32,6 +39,9 @@ public final class OtelMetricStorage {
 
   private static final Attributes CARDINALITY_OVERFLOW =
       Attributes.builder().put("otel.metric.overflow", true).build();
+
+  private static final Map<ClassLoader, BiConsumer<Object, OtlpAttributeVisitor>>
+      ATTRIBUTE_READERS = new WeakHashMap<>();
 
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
@@ -57,12 +67,10 @@ public final class OtelMetricStorage {
     switch (TEMPORALITY_PREFERENCE) {
       case DELTA:
         // gauges and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM
-            || type == OtelInstrumentType.COUNTER
-            || type == OtelInstrumentType.OBSERVABLE_COUNTER;
+        return type == HISTOGRAM || type == COUNTER || type == OBSERVABLE_COUNTER;
       case LOWMEMORY:
         // observable counters, gauges, and up/down counters stay as cumulative
-        return type == OtelInstrumentType.HISTOGRAM || type == OtelInstrumentType.COUNTER;
+        return type == HISTOGRAM || type == COUNTER;
       case CUMULATIVE:
       default:
         return false;
@@ -149,7 +157,7 @@ public final class OtelMetricStorage {
     return aggregators.computeIfAbsent(attributes, aggregatorSupplier);
   }
 
-  public void collectMetric(OtelMetricVisitor visitor) {
+  public void collectMetric(OtlpMetricVisitor visitor) {
     if (resetOnCollect) {
       doCollectAndReset(visitor);
     } else {
@@ -157,13 +165,27 @@ public final class OtelMetricStorage {
     }
   }
 
+  public static void registerAttributeReader(
+      ClassLoader cl, BiConsumer<Object, OtlpAttributeVisitor> reader) {
+    ATTRIBUTE_READERS.put(cl, reader);
+  }
+
+  private static void visitAttributes(Object attributes, OtlpMetricVisitor visitor) {
+    ClassLoader cl = attributes.getClass().getClassLoader();
+    BiConsumer<Object, OtlpAttributeVisitor> reader = ATTRIBUTE_READERS.get(cl);
+    if (reader != null) {
+      reader.accept(attributes, visitor);
+    }
+  }
+
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
-  private void doCollect(OtelMetricVisitor visitor) {
+  private void doCollect(OtlpMetricVisitor visitor) {
     // no need to hold writers back if we are not resetting metrics on collect
     currentRecording.aggregators.forEach(
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
-            visitor.visitPoint(attributes, aggregator.collect());
+            visitAttributes(attributes, visitor);
+            visitor.visitDataPoint(aggregator.collect());
           }
         });
   }
@@ -173,7 +195,7 @@ public final class OtelMetricStorage {
    *
    * <p>Each collect request toggles between two groups of aggregators: current / previous.
    */
-  private void doCollectAndReset(OtelMetricVisitor visitor) {
+  private void doCollectAndReset(OtlpMetricVisitor visitor) {
 
     // capture _current_ recording for collection, its aggregators will be reset at the end
     final Recording recording = currentRecording;
@@ -197,7 +219,8 @@ public final class OtelMetricStorage {
     aggregators.forEach(
         (attributes, aggregator) -> {
           if (!aggregator.isEmpty()) {
-            visitor.visitPoint(attributes, aggregator.collectAndReset());
+            visitAttributes(attributes, visitor);
+            visitor.visitDataPoint(aggregator.collectAndReset());
           }
         });
 

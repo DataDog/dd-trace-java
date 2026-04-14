@@ -6,7 +6,6 @@ import com.openai.core.http.HttpResponseFor
 import com.openai.core.http.StreamResponse
 import com.openai.models.chat.completions.ChatCompletion
 import com.openai.models.chat.completions.ChatCompletionChunk
-import com.openai.models.completions.Completion
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -94,7 +93,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   def "create async chat/completion test withRawResponse"() {
-    CompletableFuture<HttpResponseFor<Completion>> completionFuture = runUnderTrace("parent") {
+    CompletableFuture<HttpResponseFor<ChatCompletion>> completionFuture = runUnderTrace("parent") {
       openAiClient.async().chat().completions().withRawResponse().create(params)
     }
 
@@ -148,7 +147,66 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(false, outputTag, [:])
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, outputTag, [:], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    (toolDefinitions[0].schema.properties as Map).containsKey("school")
+    (toolDefinitions[0].schema.properties as Map).containsKey("grades")
+    (toolDefinitions[0].schema.properties as Map).containsKey("clubs")
+    and:
+    outputTag.size() == 1
+    LLMObs.LLMMessage outputMsg = outputTag.get(0)
+    outputMsg.toolCalls.size() == 1
+    def toolcall = outputMsg.toolCalls.get(0)
+    toolcall.name == "extract_student_info"
+    toolcall.toolId instanceof String
+    toolcall.type == "function"
+    toolcall.arguments == [
+      name: 'David Nguyen',
+      major: 'computer science',
+      school: 'Stanford University',
+      grades: 3.8,
+      clubs: ['Chess Club', 'South Asian Student Association']
+    ]
+  }
+
+  def "create chat/completion test with raw tool definition"() {
+    runUnderTrace("parent") {
+      openAiClient.chat().completions().create(chatCompletionCreateParamsWithRawTools())
+    }
+
+    expect:
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, null, [:], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info_raw"
+    toolDefinitions[0].description == "Extract student information from the input text"
+    toolDefinitions[0].schema.type == "object"
+    (toolDefinitions[0].schema.properties as Map).containsKey("name")
+    (toolDefinitions[0].schema.properties as Map).containsKey("major")
+    toolDefinitions[0].schema.required == ["name"]
+  }
+
+  def "create chat/completion test with tool choice"() {
+    runUnderTrace("parent") {
+      openAiClient.chat().completions().create(chatCompletionCreateParamsWithToolChoice())
+    }
+
+    expect:
+    List<LLMObs.LLMMessage> outputTag = []
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(false, outputTag, [tool_choice: "function"], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -179,7 +237,12 @@ class ChatCompletionServiceTest extends OpenAiTest {
 
     expect:
     List<LLMObs.LLMMessage> outputTag = []
-    assertChatCompletionTrace(true, outputTag, [stream: true])
+    List<Map<String, Object>> toolDefinitions = []
+    assertChatCompletionTrace(true, outputTag, [stream: true], true, toolDefinitions)
+    and:
+    toolDefinitions.size() == 1
+    toolDefinitions[0].name == "extract_student_info"
+    toolDefinitions[0].description == "Get the student information from the body of the input text"
     and:
     outputTag.size() == 1
     LLMObs.LLMMessage outputMsg = outputTag.get(0)
@@ -295,6 +358,13 @@ class ChatCompletionServiceTest extends OpenAiTest {
   }
 
   private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata) {
+    assertChatCompletionTrace(isStreaming, outputTagsOut, metadata, false, null)
+  }
+
+  private void assertChatCompletionTrace(boolean isStreaming, List outputTagsOut, Map metadata, boolean expectToolDefinitions, List<Map<String, Object>> toolDefinitionsOut) {
+    def expectedMetadata = new LinkedHashMap(metadata)
+    expectedMetadata.putIfAbsent("stream", isStreaming)
+
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -313,7 +383,7 @@ class ChatCompletionServiceTest extends OpenAiTest {
             "_ml_obs_tag.span.kind" "llm"
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" String
-            "_ml_obs_tag.metadata" metadata
+            "_ml_obs_tag.metadata" expectedMetadata
             "_ml_obs_tag.input" List
             "_ml_obs_tag.output" List
             def outputTags = tag("_ml_obs_tag.output")
@@ -325,10 +395,22 @@ class ChatCompletionServiceTest extends OpenAiTest {
               "_ml_obs_metric.input_tokens" Long
               "_ml_obs_metric.output_tokens" Long
               "_ml_obs_metric.total_tokens" Long
+              "_ml_obs_metric.cache_read_input_tokens" Long
             }
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
+            if (expectToolDefinitions) {
+              "$CommonTags.TOOL_DEFINITIONS" List
+              def toolDefinitions = tag("$CommonTags.TOOL_DEFINITIONS")
+              if (toolDefinitionsOut != null && toolDefinitions != null) {
+                toolDefinitionsOut.addAll(toolDefinitions)
+              }
+            }
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
+            "$CommonTags.ERROR" 0
             "openai.request.method" "POST"
             "openai.request.endpoint" "/v1/chat/completions"
             "openai.api_base" openAiBaseApi

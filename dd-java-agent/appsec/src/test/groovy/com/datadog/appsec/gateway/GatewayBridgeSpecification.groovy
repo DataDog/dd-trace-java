@@ -121,6 +121,8 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, HttpClientResponse, Flow<Void>> httpClientResponseCB
   BiFunction<RequestContext, Long, Flow<Void>> httpClientSamplingCB
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
+  BiFunction<RequestContext, String, Flow<Void>> fileWrittenCB
+  BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCB
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
@@ -461,7 +463,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT]
+    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> {
       requestStartedCB = it[1]; null
@@ -535,6 +537,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     1 * ig.registerCallback(EVENTS.fileLoaded(), _) >> {
       fileLoadedCB = it[1]; null
     }
+    1 * ig.registerCallback(EVENTS.fileWritten(), _) >> {
+      fileWrittenCB = it[1]; null
+    }
     1 * ig.registerCallback(EVENTS.requestSession(), _) >> {
       requestSessionCB = it[1]; null
     }
@@ -552,6 +557,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
     1 * ig.registerCallback(EVENTS.httpRoute(), _) >> {
       httpRouteCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestFilesFilenames(), _) >> {
+      requestFilesFilenamesCB = it[1]; null
     }
     0 * ig.registerCallback(_, _)
 
@@ -1076,6 +1084,62 @@ class GatewayBridgeSpecification extends DDSpecification {
     flow.action == Flow.Action.Noop.INSTANCE
     gatewayContext.isTransient == true
     gatewayContext.isRasp == true
+  }
+
+  void 'process file written'() {
+    setup:
+    final path = '/tmp/output.txt'
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.IO_FS_FILE in it && KnownAddresses.IO_FS_FILE_WRITE in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = fileWrittenCB.apply(ctx, path)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.IO_FS_FILE) == path
+    bundle.get(KnownAddresses.IO_FS_FILE_WRITE) == path
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == true
+    gatewayContext.isRasp == true
+  }
+
+  void 'process request files filenames'() {
+    setup:
+    final filenames = ['malicious.php', 'document.pdf']
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_FILES_FILENAMES in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = requestFilesFilenamesCB.apply(ctx, filenames)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.REQUEST_FILES_FILENAMES) == filenames
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'process request files filenames with empty list returns noop'() {
+    when:
+    Flow<?> flow = requestFilesFilenamesCB.apply(ctx, [])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.publishDataEvent(*_)
   }
 
   void 'process exec cmd'() {

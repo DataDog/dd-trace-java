@@ -1,6 +1,7 @@
 package locator
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import net.bytebuddy.agent.builder.AgentBuilder
 import net.bytebuddy.description.type.TypeDescription
 import net.bytebuddy.dynamic.DynamicType
@@ -19,6 +20,8 @@ class ClassInjectingLoadClassDisabledForkedTest extends InstrumentationSpecifica
   @Override
   protected void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     injectSysConfig("dd.resolver.use.loadclass", "false")
 

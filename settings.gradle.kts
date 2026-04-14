@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.3.2"
+  id("com.gradle.develocity") version "4.4.0"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -60,7 +60,7 @@ include(
   ":dd-trace-core",
   ":dd-java-agent",
   ":dd-java-agent:agent-bootstrap",
-  ":dd-java-agent:agent-builder",
+  ":dd-java-agent:agent-installer",
   ":dd-java-agent:agent-tooling",
   ":dd-java-agent:agent-jmxfetch",
   ":dd-java-agent:agent-logging",
@@ -159,8 +159,10 @@ include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
+  ":utils:junit-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:logging-utils",
   ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
@@ -247,6 +249,7 @@ include(
   ":dd-smoke-tests:vertx-3.9",
   ":dd-smoke-tests:vertx-3.9-resteasy",
   ":dd-smoke-tests:vertx-4.2",
+  ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
@@ -386,6 +389,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-17.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-21.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-22.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8",
   ":dd-java-agent:instrumentation:java:java-net:java-net-1.8",

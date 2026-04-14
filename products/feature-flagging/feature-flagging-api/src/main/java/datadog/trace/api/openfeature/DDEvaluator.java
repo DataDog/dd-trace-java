@@ -87,10 +87,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
         return error(defaultValue, ErrorCode.INVALID_CONTEXT);
       }
 
-      if (context.getTargetingKey() == null) {
-        return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
-      }
-
       final Flag flag = config.flags.get(key);
       if (flag == null) {
         return error(defaultValue, ErrorCode.FLAG_NOT_FOUND);
@@ -127,6 +123,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
               return resolveVariant(
                   target, key, defaultValue, flag, split.variationKey, allocation, context);
             } else {
+              if (targetingKey == null) {
+                return error(defaultValue, ErrorCode.TARGETING_KEY_MISSING);
+              }
               // To match a split, subject must match ALL underlying shards
               boolean allShardsMatch = true;
               for (final Shard shard : split.shards) {

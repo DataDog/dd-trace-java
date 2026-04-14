@@ -7,58 +7,61 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
-import java.math.BigInteger;
 import java.util.HashSet;
 import java.util.Set;
-import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
 import org.junit.jupiter.params.provider.ValueSource;
+import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(DDTraceApiTableTestConverters.class)
 class DDSpanIdTest {
 
-  @ParameterizedTest(name = "convert ids from/to String {0}")
-  @MethodSource("convertIdsFromToStringArguments")
-  void convertIdsFromToString(String displayName, String stringId, long expectedId) {
+  @TableTest({
+    "scenario          | stringId               | expectedId    ",
+    "zero              | '0'                    | 0             ",
+    "one               | '1'                    | 1             ",
+    "max               | '18446744073709551615' | DDSpanId.MAX  ",
+    "long max          | '9223372036854775807'  | Long.MAX_VALUE",
+    "long max plus one | '9223372036854775808'  | Long.MIN_VALUE"
+  })
+  @ParameterizedTest(name = "convert ids from/to String [{index}]")
+  void convertIdsFromToString(String stringId, long expectedId) {
     long ddid = DDSpanId.from(stringId);
 
     assertEquals(expectedId, ddid);
     assertEquals(stringId, DDSpanId.toString(ddid));
   }
 
-  static Stream<Arguments> convertIdsFromToStringArguments() {
-    return Stream.of(
-        Arguments.of("zero", "0", 0L),
-        Arguments.of("one", "1", 1L),
-        Arguments.of("max", "18446744073709551615", DDSpanId.MAX),
-        Arguments.of("long max", String.valueOf(Long.MAX_VALUE), Long.MAX_VALUE),
-        Arguments.of(
-            "long max plus one",
-            BigInteger.valueOf(Long.MAX_VALUE).add(BigInteger.ONE).toString(),
-            Long.MIN_VALUE));
-  }
-
-  @ParameterizedTest(name = "fail on illegal String {0}")
-  @MethodSource("failOnIllegalStringArguments")
+  @ParameterizedTest(name = "fail on illegal String [{index}]")
+  @NullSource
+  @ValueSource(
+      strings = {
+        "",
+        "-1",
+        "18446744073709551616",
+        "18446744073709551625",
+        "184467440737095516150",
+        "18446744073709551a1",
+        "184467440737095511a"
+      })
   void failOnIllegalString(String stringId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.from(stringId));
   }
 
-  static Stream<Arguments> failOnIllegalStringArguments() {
-    return Stream.of(
-        Arguments.of((Object) null),
-        Arguments.of(""),
-        Arguments.of("-1"),
-        Arguments.of("18446744073709551616"),
-        Arguments.of("18446744073709551625"),
-        Arguments.of("184467440737095516150"),
-        Arguments.of("18446744073709551a1"),
-        Arguments.of("184467440737095511a"));
-  }
-
-  @ParameterizedTest(name = "convert ids from/to hex String {0}")
-  @MethodSource("convertIdsFromToHexStringArguments")
+  @TableTest({
+    "scenario                    | hexId                  | expectedId       ",
+    "zero                        | '0'                    | 0                ",
+    "one                         | '1'                    | 1                ",
+    "max                         | 'ffffffffffffffff'     | DDSpanId.MAX     ",
+    "long max                    | '7fffffffffffffff'     | Long.MAX_VALUE   ",
+    "long min                    | '8000000000000000'     | Long.MIN_VALUE   ",
+    "long min with leading zeros | '00008000000000000000' | Long.MIN_VALUE   ",
+    "hex sample                  | 'cafebabe'             | 3405691582       ",
+    "fifteen hex digits          | '123456789abcdef'      | 81985529216486895"
+  })
+  @ParameterizedTest(name = "convert ids from/to hex String [{index}]")
   void convertIdsFromToHexString(String hexId, long expectedId) {
     long ddid = DDSpanId.fromHex(hexId);
     String padded16 =
@@ -73,27 +76,22 @@ class DDSpanIdTest {
     assertEquals(padded16, DDSpanId.toHexStringPadded(ddid));
   }
 
-  static Stream<Arguments> convertIdsFromToHexStringArguments() {
-    return Stream.of(
-        Arguments.of("0", 0L),
-        Arguments.of("1", 1L),
-        Arguments.of(repeat("f", 16), DDSpanId.MAX),
-        Arguments.of("7" + repeat("f", 15), Long.MAX_VALUE),
-        Arguments.of("8" + repeat("0", 15), Long.MIN_VALUE),
-        Arguments.of(repeat("0", 4) + "8" + repeat("0", 15), Long.MIN_VALUE),
-        Arguments.of("cafebabe", 3405691582L),
-        Arguments.of("123456789abcdef", 81985529216486895L));
-  }
-
-  @ParameterizedTest(name = "convert ids from part of hex String {0}")
-  @MethodSource("convertIdsFromPartOfHexStringArguments")
+  @TableTest({
+    "scenario                                 | hexId              | start | length | lowerCaseOnly | expectedId   ",
+    "null input                               |                    | 1     | 1      | false         |              ",
+    "empty input                              | ''                 | 1     | 1      | false         |              ",
+    "negative start                           | '00'               | -1    | 1      | false         |              ",
+    "zero length                              | '00'               | 0     | 0      | false         |              ",
+    "single zero at index 0                   | '00'               | 0     | 1      | false         | DDSpanId.ZERO",
+    "single zero at index 1                   | '00'               | 1     | 1      | false         | DDSpanId.ZERO",
+    "single zero at index 1 duplicate         | '00'               | 1     | 1      | false         | DDSpanId.ZERO",
+    "max lower-case                           | 'ffffffffffffffff' | 0     | 16     | true          | DDSpanId.MAX ",
+    "upper-case rejected when lower-case only | 'ffffffffffffFfff' | 0     | 16     | true          |              ",
+    "upper-case accepted when lower disabled  | 'ffffffffffffFfff' | 0     | 16     | false         | DDSpanId.MAX "
+  })
+  @ParameterizedTest(name = "convert ids from part of hex String [{index}]")
   void convertIdsFromPartOfHexString(
-      String displayName,
-      String hexId,
-      int start,
-      int length,
-      boolean lowerCaseOnly,
-      Long expectedId) {
+      String hexId, int start, int length, boolean lowerCaseOnly, Long expectedId) {
     Long parsedId = null;
     try {
       parsedId = DDSpanId.fromHex(hexId, start, length, lowerCaseOnly);
@@ -108,46 +106,11 @@ class DDSpanIdTest {
     }
   }
 
-  static Stream<Arguments> convertIdsFromPartOfHexStringArguments() {
-    return Stream.of(
-        Arguments.of("null input", null, 1, 1, false, null),
-        Arguments.of("empty input", "", 1, 1, false, null),
-        Arguments.of("negative start", "00", -1, 1, false, null),
-        Arguments.of("zero length", "00", 0, 0, false, null),
-        Arguments.of("single zero at index 0", "00", 0, 1, false, DDSpanId.ZERO),
-        Arguments.of("single zero at index 1", "00", 1, 1, false, DDSpanId.ZERO),
-        Arguments.of("single zero at index 1 duplicate", "00", 1, 1, false, DDSpanId.ZERO),
-        Arguments.of("max lower-case", repeat("f", 16), 0, 16, true, DDSpanId.MAX),
-        Arguments.of(
-            "upper-case rejected when lower-case only",
-            repeat("f", 12) + "Ffff",
-            0,
-            16,
-            true,
-            null),
-        Arguments.of(
-            "upper-case accepted when lower-case disabled",
-            repeat("f", 12) + "Ffff",
-            0,
-            16,
-            false,
-            DDSpanId.MAX));
-  }
-
-  @ParameterizedTest(name = "fail on illegal hex String {0}")
-  @MethodSource("failOnIllegalHexStringArguments")
+  @ParameterizedTest(name = "fail on illegal hex String [{index}]")
+  @NullSource
+  @ValueSource(strings = {"", "-1", "10000000000000000", "ffffffffffffffzf", "fffffffffffffffz"})
   void failOnIllegalHexString(String hexId) {
     assertThrows(NumberFormatException.class, () -> DDSpanId.fromHex(hexId));
-  }
-
-  static Stream<Arguments> failOnIllegalHexStringArguments() {
-    return Stream.of(
-        Arguments.of((Object) null),
-        Arguments.of(""),
-        Arguments.of("-1"),
-        Arguments.of("1" + repeat("0", 16)),
-        Arguments.of(repeat("f", 14) + "zf"),
-        Arguments.of(repeat("f", 15) + "z"));
   }
 
   @ParameterizedTest(name = "generate id with {0}")

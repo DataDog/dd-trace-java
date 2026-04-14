@@ -231,9 +231,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     assert logLines[1].endsWith("- ${tagsPart} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
     assert logLines[2].endsWith("- ${tagsPart}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${tagsPart} 0 0 - AFTER FIRST SPAN")
     assert logLines[3].endsWith("- ${tagsPart} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
-    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[0].endsWith("-    0 0 - INSIDE THIRD SPAN")
+    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[4].endsWith("-    0 0 - INSIDE THIRD SPAN")
     assert logLines[5].endsWith("- ${tagsPart} ${forthTraceId} ${forthSpanId} - INSIDE FORTH SPAN")
-    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
+    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[6].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
     return true
   }
 

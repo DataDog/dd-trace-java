@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 import java.util.concurrent.atomic.DoubleAdder;
 
 final class OtelDoubleSum extends OtelAggregator {
@@ -11,7 +13,7 @@ final class OtelDoubleSum extends OtelAggregator {
   }
 
   @Override
-  OtelPoint doCollect(boolean reset) {
-    return new OtelDoublePoint(reset ? total.sumThenReset() : total.sum());
+  OtlpDataPoint doCollect(boolean reset) {
+    return new OtlpDoublePoint(reset ? total.sumThenReset() : total.sum());
   }
 }
