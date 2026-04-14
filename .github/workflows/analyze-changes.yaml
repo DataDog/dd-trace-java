@@ -20,7 +20,7 @@ jobs:
         with:
           submodules: 'recursive'
       - name: Cache Gradle dependencies
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: |
             ~/.gradle/caches
@@ -30,7 +30,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4.33.0
+        uses: github/codeql-action/init@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -43,7 +43,7 @@ jobs:
           ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4.33.0
+        uses: github/codeql-action/analyze@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
 
   trivy:
     name: Analyze changes with Trivy
@@ -60,7 +60,7 @@ jobs:
           submodules: 'recursive'
       
       - name: Cache Gradle dependencies
-        uses: actions/cache@cdf6c1fa76f9f475f3d7449005a359c84ca0f306 # v5.0.3
+        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
         with:
           path: |
             ~/.gradle/caches
@@ -102,7 +102,7 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4.33.0
+        uses: github/codeql-action/upload-sarif@c10b8064de6f491fea524254123dbe5e09572f13 # v4.35.1
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
