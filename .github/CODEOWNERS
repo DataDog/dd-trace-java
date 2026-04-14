@@ -45,10 +45,14 @@
 /internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-capabilities-java
 
 # @DataDog/apm-serverless
-/dd-trace-core/src/main/java/datadog/trace/lambda/              @DataDog/apm-serverless
-/dd-trace-core/src/test/groovy/datadog/trace/lambda/            @DataDog/apm-serverless
-**/InferredProxy*.java                                          @DataDog/apm-serverless
-**/InferredProxy*.groovy                                        @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
+/dd-trace-core/src/main/java/datadog/trace/lambda/                      @DataDog/apm-serverless
+/dd-trace-core/src/test/groovy/datadog/trace/lambda/                    @DataDog/apm-serverless
+/utils/container-utils/                                                 @DataDog/apm-serverless
+**/InferredProxy*.java                                                  @DataDog/apm-serverless
+**/InferredProxy*.groovy                                                @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
 /.github/                               @DataDog/apm-lang-platform-java
