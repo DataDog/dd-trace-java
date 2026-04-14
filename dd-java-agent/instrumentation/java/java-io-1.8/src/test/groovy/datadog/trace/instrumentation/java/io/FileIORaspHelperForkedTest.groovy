@@ -3,13 +3,13 @@ package datadog.trace.instrumentation.java.io
 import datadog.trace.api.gateway.CallbackProvider
 import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContextSlot
-import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
+import datadog.trace.instrumentation.java.lang.FileIORaspHelper
 
 import java.util.function.BiFunction
 
 import static datadog.trace.api.gateway.Events.EVENTS
 
-class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
+class FileIORaspHelperForkedTest extends BaseIoRaspCallSiteTest {
 
   void 'test Helper'() {
     setup:
@@ -19,7 +19,7 @@ class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
     tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
 
     when:
-    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(*args)
+    FileIORaspHelper.INSTANCE.beforeFileLoaded(*args)
 
     then:
     1 * callbackProvider.getCallback(EVENTS.fileLoaded()) >> listener
@@ -33,5 +33,20 @@ class FileLoadedRaspHelperForkedTest extends BaseIoRaspCallSiteTest {
     [new URI('file:/test.txt')]               | 'file:/test.txt'
     ['/tmp', ['log', 'test.txt'] as String[]] | '/tmp/log/test.txt'
     ['test.txt', [] as String[]]              | 'test.txt'
+  }
+
+  void 'test beforeFileWritten'() {
+    setup:
+    final callbackProvider = Mock(CallbackProvider)
+    final listener = Mock(BiFunction)
+    final flow = Mock(Flow)
+    tracer.getCallbackProvider(RequestContextSlot.APPSEC) >> callbackProvider
+
+    when:
+    FileIORaspHelper.INSTANCE.beforeFileWritten('test.txt')
+
+    then:
+    1 * callbackProvider.getCallback(EVENTS.fileWritten()) >> listener
+    1 * listener.apply(reqCtx, 'test.txt') >> flow
   }
 }
