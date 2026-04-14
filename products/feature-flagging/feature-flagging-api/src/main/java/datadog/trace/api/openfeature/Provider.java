@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
+import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.Metadata;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.ProviderEvent;
@@ -14,17 +15,24 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Provider extends EventProvider implements Metadata {
 
+  private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
   private final AtomicBoolean initialized = new AtomicBoolean(false);
+  private final FlagEvalMetrics flagEvalMetrics;
+  private final FlagEvalHook flagEvalHook;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -37,6 +45,18 @@ public class Provider extends EventProvider implements Metadata {
   Provider(final Options options, final Evaluator evaluator) {
     this.options = options;
     this.evaluator = evaluator;
+    FlagEvalMetrics metrics = null;
+    FlagEvalHook hook = null;
+    try {
+      metrics = new FlagEvalMetrics();
+      hook = new FlagEvalHook(metrics);
+    } catch (LinkageError | Exception e) {
+      // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
+      // This outer catch fires when the class itself can't load (OTel API absent entirely).
+      log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
+    }
+    this.flagEvalMetrics = metrics;
+    this.flagEvalHook = hook;
   }
 
   @Override
@@ -78,7 +98,18 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   @Override
+  public List<Hook> getProviderHooks() {
+    if (flagEvalHook == null) {
+      return Collections.emptyList();
+    }
+    return Collections.singletonList(flagEvalHook);
+  }
+
+  @Override
   public void shutdown() {
+    if (flagEvalMetrics != null) {
+      flagEvalMetrics.shutdown();
+    }
     if (evaluator != null) {
       evaluator.shutdown();
     }
