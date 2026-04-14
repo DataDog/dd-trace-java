@@ -386,9 +386,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     log.info("Finishing spark application trace");
 
     if (applicationEnded) {
+      log.info("finishApplication called but applicationEnded already true, skipping");
       return;
     }
     applicationEnded = true;
+    log.info(
+        "finishApplication proceeding. isRunningOnDatabricks={}, standaloneEnabled={}, applicationSpan={}, jobCount={}",
+        isRunningOnDatabricks,
+        Config.get().isDataJobsDatabricksStandaloneEnabled(),
+        applicationSpan,
+        jobCount);
 
     if (pendingApplicationFinalization != null) {
       pendingApplicationFinalization.cancel(false);
@@ -400,6 +407,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         || (isRunningOnDatabricks && !Config.get().isDataJobsDatabricksStandaloneEnabled())) {
       // If the application span is not initialized but spark jobs have been executed, those jobs
       // were streaming-only or Databricks (standalone mode disabled). Don't send application span.
+      log.info(
+          "finishApplication early return: applicationSpan={}, jobCount={}, isRunningOnDatabricks={}, standaloneEnabled={}",
+          applicationSpan,
+          jobCount,
+          isRunningOnDatabricks,
+          Config.get().isDataJobsDatabricksStandaloneEnabled());
       return;
     }
 
@@ -427,12 +440,18 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_STACK, lastSqlFailedStackTrace);
     }
 
+    log.info(
+        "Setting application span metrics. applicationMetrics={}, maxExecutorCount={}, applicationSpan={}",
+        applicationMetrics,
+        maxExecutorCount,
+        applicationSpan);
     applicationMetrics.setSpanMetrics(applicationSpan);
     applicationSpan.setMetric("spark.max_executor_count", maxExecutorCount);
     applicationSpan.setMetric(
         "spark.available_executor_time", computeCurrentAvailableExecutorTime(time));
 
     applicationSpan.finish(time * 1000);
+    log.info("Application span finished at time={}", time);
 
     // write traces synchronously:
     // as soon as the application finishes, the JVM starts to shut down
