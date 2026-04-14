@@ -133,7 +133,7 @@ class FlagEvalMetrics implements Closeable {
 
       c.add(1, builder.build());
     } catch (Exception e) {
-      // Never let metrics recording break flag evaluation
+      log.debug("Failed to record flag evaluation metric for {}", flagKey, e);
     }
   }
 

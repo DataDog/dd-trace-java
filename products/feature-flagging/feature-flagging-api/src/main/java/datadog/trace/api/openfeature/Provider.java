@@ -19,9 +19,12 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class Provider extends EventProvider implements Metadata {
 
+  private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
@@ -48,8 +51,8 @@ public class Provider extends EventProvider implements Metadata {
       try {
         metrics = new FlagEvalMetrics();
         hook = new FlagEvalHook(metrics);
-      } catch (NoClassDefFoundError | Exception e) {
-        // Fallback: FlagEvalMetrics constructor threw unexpectedly — degrade to no-op
+      } catch (LinkageError | Exception e) {
+        log.error("Failed to initialize evaluation metrics — metrics disabled", e);
       }
     }
     this.flagEvalMetrics = metrics;
