@@ -52,7 +52,9 @@ public class Provider extends EventProvider implements Metadata {
         metrics = new FlagEvalMetrics();
         hook = new FlagEvalHook(metrics);
       } catch (LinkageError | Exception e) {
-        log.error("Failed to initialize evaluation metrics — metrics disabled", e);
+        // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
+        // This outer catch fires when the class itself can't load (OTel API absent entirely).
+        log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
       }
     }
     this.flagEvalMetrics = metrics;
