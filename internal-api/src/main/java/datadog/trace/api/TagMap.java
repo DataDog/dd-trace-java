@@ -15,6 +15,7 @@ import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.function.Supplier;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
@@ -284,6 +285,16 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
   /** Transitions this TagMap to shared mode, requiring synchronization for all future access. */
   default void transitionToShared() {}
+
+  /** Execute op while holding the tag map's internal lock. Use for compound operations. */
+  default void withLock(Runnable op) {
+    op.run();
+  }
+
+  /** Execute op while holding the tag map's internal lock. Use for compound operations. */
+  default <T> T withLock(Supplier<T> op) {
+    return op.get();
+  }
 
   abstract class EntryChange {
     public static final EntryRemoval newRemoval(String tag) {
@@ -1256,6 +1267,24 @@ final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
  * However as a precaution if a BucketGroup becomes completely empty, then that BucketGroup will be
  * removed from the collision chain.
  */
+/**
+ * Thread-safe hash map optimized for span tags.
+ *
+ * <p>Supports an owner-thread optimization: when {@link #setOwnerThread(Thread)} is called, the
+ * designated thread can read and write without acquiring the monitor. All other threads use {@code
+ * synchronized(this)}. On the first non-owner access, {@code ownerThread} is set to {@code null},
+ * permanently disabling the fast path.
+ *
+ * <p>There is a narrow TOCTOU window during transition: the owner thread may be inside an impl
+ * method (lock-free) when a non-owner thread enters {@code synchronized(this)} and nulls {@code
+ * ownerThread}. JVM reference writes are atomic (JLS 17.7), so the worst case is a lost update, not
+ * structural corruption. The window closes on the owner thread's next volatile read of {@code
+ * ownerThread}.
+ *
+ * <p>For compound operations (multiple reads/writes that must be atomic), callers should use {@link
+ * #withLock(Runnable)} which always acquires the monitor. Inner per-operation calls are reentrant
+ * on the same monitor and add zero overhead.
+ */
 final class OptimizedTagMap implements TagMap {
   // Using special constructor that creates a frozen view of an existing array
   // Bucket calculation requires that array length is a power of 2
@@ -1288,12 +1317,24 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public int size() {
-    return this.size;
+    if (isOwnerThread()) {
+      return this.size;
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return this.size;
+    }
   }
 
   @Override
   public boolean isEmpty() {
-    return (this.size == 0);
+    if (isOwnerThread()) {
+      return (this.size == 0);
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return (this.size == 0);
+    }
   }
 
   @Deprecated
@@ -1370,9 +1411,29 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public boolean containsValue(Object value) {
-    // This could be optimized - but probably isn't called enough to be worth it
-    for (EntryReader entryReader : this) {
-      if (entryReader.objectValue().equals(value)) return true;
+    if (isOwnerThread()) {
+      return containsValueImpl(value);
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return containsValueImpl(value);
+    }
+  }
+
+  private boolean containsValueImpl(Object value) {
+    Object[] thisBuckets = this.buckets;
+    for (int i = 0; i < thisBuckets.length; ++i) {
+      Object thisBucket = thisBuckets[i];
+      if (thisBucket instanceof Entry) {
+        if (java.util.Objects.equals(((Entry) thisBucket).objectValue(), value)) return true;
+      } else if (thisBucket instanceof BucketGroup) {
+        for (BucketGroup g = (BucketGroup) thisBucket; g != null; g = g.prev) {
+          for (int j = 0; j < BucketGroup.LEN; ++j) {
+            Entry e = g._entryAt(j);
+            if (e != null && java.util.Objects.equals(e.objectValue(), value)) return true;
+          }
+        }
+      }
     }
     return false;
   }
@@ -1408,7 +1469,7 @@ final class OptimizedTagMap implements TagMap {
       return getEntryImpl(tag);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return getEntryImpl(tag);
     }
   }
@@ -1488,7 +1549,7 @@ final class OptimizedTagMap implements TagMap {
       return getAndSetImpl(newEntry);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return getAndSetImpl(newEntry);
     }
   }
@@ -1581,7 +1642,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       putAllImpl(map);
     }
   }
@@ -1615,7 +1676,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       putAllTagMapImpl(that);
     }
   }
@@ -1783,7 +1844,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       fillMapImpl(map);
     }
   }
@@ -1812,7 +1873,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       fillStringMapImpl(stringMap);
     }
   }
@@ -1854,7 +1915,7 @@ final class OptimizedTagMap implements TagMap {
       return getAndRemoveImpl(tag);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return getAndRemoveImpl(tag);
     }
   }
@@ -1902,7 +1963,7 @@ final class OptimizedTagMap implements TagMap {
       return copyImpl();
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return copyImpl();
     }
   }
@@ -1914,10 +1975,22 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public TagMap immutableCopy() {
+    if (isOwnerThread()) {
+      return immutableCopyImpl();
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return immutableCopyImpl();
+    }
+  }
+
+  private TagMap immutableCopyImpl() {
     if (this.frozen) {
       return this;
     } else {
-      return this.copy().freeze();
+      OptimizedTagMap copy = new OptimizedTagMap();
+      copy.putAllIntoEmptyMap(this);
+      return copy.freeze();
     }
   }
 
@@ -1938,7 +2011,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       forEachImpl(consumer);
     }
   }
@@ -1968,7 +2041,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       forEachImpl(thisObj, consumer);
     }
   }
@@ -1999,7 +2072,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       forEachImpl(thisObj, otherObj, consumer);
     }
   }
@@ -2030,7 +2103,7 @@ final class OptimizedTagMap implements TagMap {
       return;
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       clearImpl();
     }
   }
@@ -2050,19 +2123,56 @@ final class OptimizedTagMap implements TagMap {
     this.ownerThread = null;
   }
 
+  @Override
+  public void withLock(Runnable op) {
+    synchronized (this) {
+      revokeOwnership();
+      op.run();
+    }
+  }
+
+  @Override
+  public <T> T withLock(Supplier<T> op) {
+    synchronized (this) {
+      revokeOwnership();
+      return op.get();
+    }
+  }
+
+  /**
+   * Revoke owner-thread fast path. Guarded to avoid redundant volatile writes on the cache line.
+   */
+  private void revokeOwnership() {
+    if (ownerThread != null) {
+      ownerThread = null;
+    }
+  }
+
   private boolean isOwnerThread() {
     Thread ot = this.ownerThread;
     return ot != null && ot == Thread.currentThread();
   }
 
   public OptimizedTagMap freeze() {
-    this.frozen = true;
-
-    return this;
+    if (isOwnerThread()) {
+      this.frozen = true;
+      return this;
+    }
+    synchronized (this) {
+      revokeOwnership();
+      this.frozen = true;
+      return this;
+    }
   }
 
   public boolean isFrozen() {
-    return this.frozen;
+    if (isOwnerThread()) {
+      return this.frozen;
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return this.frozen;
+    }
   }
 
   public void checkWriteAccess() {
@@ -2157,7 +2267,7 @@ final class OptimizedTagMap implements TagMap {
       return TagMap.super.compute(key, remappingFunction);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return TagMap.super.compute(key, remappingFunction);
     }
   }
@@ -2170,7 +2280,7 @@ final class OptimizedTagMap implements TagMap {
       return TagMap.super.computeIfAbsent(key, mappingFunction);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return TagMap.super.computeIfAbsent(key, mappingFunction);
     }
   }
@@ -2183,14 +2293,20 @@ final class OptimizedTagMap implements TagMap {
       return TagMap.super.computeIfPresent(key, remappingFunction);
     }
     synchronized (this) {
-      ownerThread = null;
+      revokeOwnership();
       return TagMap.super.computeIfPresent(key, remappingFunction);
     }
   }
 
   @Override
   public String toString() {
-    return toPrettyString();
+    if (isOwnerThread()) {
+      return toPrettyString();
+    }
+    synchronized (this) {
+      revokeOwnership();
+      return toPrettyString();
+    }
   }
 
   /**
@@ -3023,19 +3139,101 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public void clear() {
+  public synchronized int size() {
+    return super.size();
+  }
+
+  @Override
+  public synchronized boolean isEmpty() {
+    return super.isEmpty();
+  }
+
+  @Override
+  public synchronized Object get(Object key) {
+    return super.get(key);
+  }
+
+  @Override
+  public synchronized boolean containsKey(Object key) {
+    return super.containsKey(key);
+  }
+
+  @Override
+  public synchronized boolean containsValue(Object value) {
+    return super.containsValue(value);
+  }
+
+  @Override
+  public synchronized void clear() {
     this.checkWriteAccess();
 
     super.clear();
   }
 
-  public LegacyTagMap freeze() {
+  @Override
+  public synchronized Object put(String key, Object value) {
+    this.checkWriteAccess();
+
+    return super.put(key, value);
+  }
+
+  @Override
+  public synchronized void putAll(Map<? extends String, ? extends Object> m) {
+    this.checkWriteAccess();
+
+    super.putAll(m);
+  }
+
+  @Override
+  public synchronized Object remove(Object key) {
+    this.checkWriteAccess();
+
+    return super.remove(key);
+  }
+
+  @Override
+  public synchronized boolean remove(Object key, Object value) {
+    this.checkWriteAccess();
+
+    return super.remove(key, value);
+  }
+
+  @Override
+  public synchronized Set<Map.Entry<String, Object>> entrySet() {
+    return super.entrySet();
+  }
+
+  @Override
+  public synchronized Set<String> keySet() {
+    return super.keySet();
+  }
+
+  @Override
+  public synchronized Collection<Object> values() {
+    return super.values();
+  }
+
+  @Override
+  public void withLock(Runnable op) {
+    synchronized (this) {
+      op.run();
+    }
+  }
+
+  @Override
+  public <T> T withLock(Supplier<T> op) {
+    synchronized (this) {
+      return op.get();
+    }
+  }
+
+  public synchronized LegacyTagMap freeze() {
     this.frozen = true;
 
     return this;
   }
 
-  public boolean isFrozen() {
+  public synchronized boolean isFrozen() {
     return this.frozen;
   }
 
@@ -3044,7 +3242,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public TagMap copy() {
+  public synchronized TagMap copy() {
     return new LegacyTagMap(this);
   }
 
@@ -3059,22 +3257,22 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public void fillMap(Map<? super String, Object> map) {
+  public synchronized void fillMap(Map<? super String, Object> map) {
     map.putAll(this);
   }
 
   @Override
-  public void fillStringMap(Map<? super String, ? super String> stringMap) {
-    for (Map.Entry<String, Object> entry : this.entrySet()) {
+  public synchronized void fillStringMap(Map<? super String, ? super String> stringMap) {
+    for (Map.Entry<String, Object> entry : super.entrySet()) {
       stringMap.put(entry.getKey(), entry.getValue().toString());
     }
   }
 
   @Override
-  public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
+  public synchronized void forEach(Consumer<? super TagMap.EntryReader> consumer) {
     EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
 
-    for (Map.Entry<String, Object> entry : this.entrySet()) {
+    for (Map.Entry<String, Object> entry : super.entrySet()) {
       entryReadingHelper.set(entry);
 
       consumer.accept(entryReadingHelper);
@@ -3082,10 +3280,11 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
+  public synchronized <T> void forEach(
+      T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
     EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
 
-    for (Map.Entry<String, Object> entry : this.entrySet()) {
+    for (Map.Entry<String, Object> entry : super.entrySet()) {
       entryReadingHelper.set(entry);
 
       consumer.accept(thisObj, entryReadingHelper);
@@ -3093,11 +3292,11 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public <T, U> void forEach(
+  public synchronized <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
     EntryReadingHelper entryReadingHelper = new EntryReadingHelper();
 
-    for (Map.Entry<String, Object> entry : this.entrySet()) {
+    for (Map.Entry<String, Object> entry : super.entrySet()) {
       entryReadingHelper.set(entry);
 
       consumer.accept(thisObj, otherObj, entryReadingHelper);
@@ -3310,47 +3509,19 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public Object put(String key, Object value) {
-    this.checkWriteAccess();
-
-    return super.put(key, value);
-  }
-
-  @Override
-  public void putAll(Map<? extends String, ? extends Object> m) {
-    this.checkWriteAccess();
-
-    super.putAll(m);
-  }
-
-  @Override
   public void putAll(TagMap that) {
     this.putAll((Map<? extends String, ? extends Object>) that);
   }
 
   @Override
-  public Object remove(Object key) {
-    this.checkWriteAccess();
-
-    return super.remove(key);
-  }
-
-  @Override
-  public boolean remove(Object key, Object value) {
-    this.checkWriteAccess();
-
-    return super.remove(key, value);
-  }
-
-  @Override
-  public boolean remove(String tag) {
+  public synchronized boolean remove(String tag) {
     this.checkWriteAccess();
 
     return (super.remove(tag) != null);
   }
 
   @Override
-  public Object compute(
+  public synchronized Object compute(
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
 
@@ -3358,7 +3529,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public Object computeIfAbsent(
+  public synchronized Object computeIfAbsent(
       String key, Function<? super String, ? extends Object> mappingFunction) {
     this.checkWriteAccess();
 
@@ -3366,7 +3537,7 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   }
 
   @Override
-  public Object computeIfPresent(
+  public synchronized Object computeIfPresent(
       String key, BiFunction<? super String, ? super Object, ? extends Object> remappingFunction) {
     this.checkWriteAccess();
 

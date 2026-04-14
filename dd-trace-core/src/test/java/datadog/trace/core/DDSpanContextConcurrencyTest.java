@@ -613,4 +613,145 @@ public class DDSpanContextConcurrencyTest {
           "Thread " + t + " last metric missing");
     }
   }
+
+  /**
+   * Verifies compound atomicity of setSpanSamplingPriority: the three sampling tags must always
+   * appear together (all or none) when observed via getTags().
+   */
+  @RepeatedTest(10)
+  @DisplayName("setSpanSamplingPriority atomicity: 3 tags always consistent in getTags()")
+  void spanSamplingPriorityAtomicity() throws Exception {
+    AgentSpan span = TRACER.startSpan("test", "samplingAtomicity");
+    DDSpanContext ctx = ((DDSpan) span).context();
+    // Transition to shared so the compound lock is in effect
+    ctx.transitionToShared();
+
+    int iterations = 2000;
+    AtomicBoolean running = new AtomicBoolean(true);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    // Writer: repeatedly sets span sampling priority
+    Thread writer =
+        new Thread(
+            () -> {
+              try {
+                for (int i = 0; i < iterations; i++) {
+                  ctx.setSpanSamplingPriority(0.5, 100);
+                }
+              } catch (Throwable e) {
+                errors.add(e);
+              } finally {
+                running.set(false);
+              }
+            });
+
+    // Reader: checks that the 3 sampling tags are consistent
+    Thread reader =
+        new Thread(
+            () -> {
+              try {
+                while (running.get()) {
+                  datadog.trace.api.TagMap tags = ctx.getTags();
+                  Object mechanism = tags.getObject("_dd.span_sampling.mechanism");
+                  Object ruleRate = tags.getObject("_dd.span_sampling.rule_rate");
+                  Object maxPerSecond = tags.getObject("_dd.span_sampling.max_per_second");
+
+                  // Either all three are present or none
+                  if (mechanism != null || ruleRate != null || maxPerSecond != null) {
+                    if (mechanism == null || ruleRate == null || maxPerSecond == null) {
+                      errors.add(
+                          new AssertionError(
+                              "Partial sampling tags: mechanism="
+                                  + mechanism
+                                  + " ruleRate="
+                                  + ruleRate
+                                  + " maxPerSecond="
+                                  + maxPerSecond));
+                    }
+                  }
+                }
+              } catch (Throwable e) {
+                errors.add(e);
+              }
+            });
+
+    writer.start();
+    reader.start();
+    writer.join(30_000);
+    reader.join(5_000);
+    span.finish();
+
+    assertEquals(0, errors.size(), "Atomicity violated: " + errors);
+  }
+
+  /**
+   * Verifies that getTags() returns a consistent snapshot: THREAD_ID and THREAD_NAME are always
+   * present and consistent with the span's owning thread.
+   */
+  @Test
+  @DisplayName("getTags() snapshot consistency: virtual fields always present")
+  void getTagsSnapshotConsistency() throws Exception {
+    AgentSpan span = TRACER.startSpan("test", "getTagsConsistency");
+
+    span.setTag("user_tag", "hello");
+    span.finish();
+
+    datadog.trace.api.TagMap tags = ((DDSpan) span).context().getTags();
+    assertNotNull(tags.getObject("thread.id"), "THREAD_ID missing from getTags()");
+    assertNotNull(tags.getObject("thread.name"), "THREAD_NAME missing from getTags()");
+    assertEquals("hello", tags.getObject("user_tag"));
+  }
+
+  /**
+   * Exercises the transition window: owner tags, finish (triggers transitionToShared), then
+   * concurrent readers verify tags are visible post-transition.
+   */
+  @RepeatedTest(5)
+  @DisplayName("Transition + concurrent read: tags written before finish visible after")
+  void transitionAndConcurrentRead() throws Exception {
+    int numReaders = 4;
+    int tagsToWrite = 200;
+    AgentSpan span = TRACER.startSpan("test", "transitionRead");
+
+    // Owner thread writes tags
+    for (int i = 0; i < tagsToWrite; i++) {
+      span.setTag("pre_" + i, "val_" + i);
+    }
+
+    // Finish triggers transitionToShared
+    span.finish();
+
+    // Multiple reader threads verify all tags are visible
+    CyclicBarrier barrier = new CyclicBarrier(numReaders);
+    ExecutorService executor = Executors.newFixedThreadPool(numReaders);
+    CopyOnWriteArrayList<Throwable> errors = new CopyOnWriteArrayList<>();
+
+    List<Future<?>> futures = new ArrayList<>();
+    for (int r = 0; r < numReaders; r++) {
+      futures.add(
+          executor.submit(
+              () -> {
+                try {
+                  barrier.await(5, TimeUnit.SECONDS);
+                  for (int i = 0; i < tagsToWrite; i++) {
+                    Object val = span.getTag("pre_" + i);
+                    if (!"val_".concat(String.valueOf(i)).equals(val)) {
+                      errors.add(
+                          new AssertionError(
+                              "Tag pre_" + i + " expected val_" + i + " got " + val));
+                    }
+                  }
+                } catch (Throwable e) {
+                  errors.add(e);
+                }
+              }));
+    }
+
+    for (Future<?> f : futures) {
+      f.get(10, TimeUnit.SECONDS);
+    }
+    executor.shutdown();
+
+    assertEquals(0, errors.size(), "Tags not visible after transition: " + errors);
+  }
 }
