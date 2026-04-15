@@ -122,14 +122,11 @@ public class TestNGExecutionInstrumentation extends InstrumenterModule.CiVisibil
         // "failed but within success percentage"
         result.setStatus(ITestResult.SUCCESS_PERCENTAGE_FAILURE);
       } else if (result.isSuccess() && ddRetryAnalyzer.shouldPropagateFailure()) {
-        // Aligns session status with DD's reported result on EFD. Without this,
-        // the session status would depend on the result order:
-        // - pass + fail -> fail (correct)
-        // - fail + pass -> pass (incorrect, EFD should fail on flaky)
+        // mark status as failed to propagate an earlier failure suppressed by TestNG
         result.setStatus(ITestResult.FAILURE);
         result.setThrowable(
             new AssertionError(
-                "Datadog Early Flake Detection: test has flaky results (mixed pass/fail)"));
+                "Datadog: propagating test failure based on aggregated execution results"));
       }
     }
   }

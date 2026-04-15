@@ -73,7 +73,10 @@ public class EarlyFlakeDetection implements TestExecutionPolicy {
 
   @Override
   public boolean propagateFailure() {
-    // used to bypass TestNG's RetryAnalyzer marking `fail` + `pass` test executions as passed
+    // used to bypass TestNG's RetryAnalyzer, which made the framework session status depend on
+    // result order:
+    // pass + fail -> fail (correct)
+    // fail + pass -> pass (incorrect)
     return !suppressFailures && results == ExecutionAggregation.MIXED;
   }
 
