@@ -100,14 +100,15 @@ public class DDSpanContext
 
   // Cached span.kind ordinal for fast isOutbound() checks.
   // Ordinal constants -- keep in sync with SPAN_KIND_VALUES array.
-  public static final byte SPAN_KIND_UNSET = 0;
+  // UNSET and CUSTOM are package-private (they don't correspond to actual span.kind values).
+  static final byte SPAN_KIND_UNSET = 0;
   public static final byte SPAN_KIND_SERVER = 1;
   public static final byte SPAN_KIND_CLIENT = 2;
   public static final byte SPAN_KIND_PRODUCER = 3;
   public static final byte SPAN_KIND_CONSUMER = 4;
   public static final byte SPAN_KIND_INTERNAL = 5;
   public static final byte SPAN_KIND_BROKER = 6;
-  public static final byte SPAN_KIND_CUSTOM = 7;
+  static final byte SPAN_KIND_CUSTOM = 7;
 
   /** Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null. */
   static final String[] SPAN_KIND_VALUES = {
@@ -747,25 +748,37 @@ public class DDSpanContext
    * span.kind is set.
    */
   public void setSpanKind(String kind) {
+    spanKindOrdinal = spanKindToOrdinal(kind);
+  }
+
+  /** Maps a span.kind string to its byte ordinal. Identity checks first, then string switch. */
+  static byte spanKindToOrdinal(String kind) {
     if (kind == null) {
-      spanKindOrdinal = SPAN_KIND_UNSET;
-      return;
+      return SPAN_KIND_UNSET;
     }
-    // Use identity checks first (canonical constants), then fall back to equals
-    if (kind == Tags.SPAN_KIND_SERVER || Tags.SPAN_KIND_SERVER.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_SERVER;
-    } else if (kind == Tags.SPAN_KIND_CLIENT || Tags.SPAN_KIND_CLIENT.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_CLIENT;
-    } else if (kind == Tags.SPAN_KIND_PRODUCER || Tags.SPAN_KIND_PRODUCER.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_PRODUCER;
-    } else if (kind == Tags.SPAN_KIND_CONSUMER || Tags.SPAN_KIND_CONSUMER.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_CONSUMER;
-    } else if (kind == Tags.SPAN_KIND_INTERNAL || Tags.SPAN_KIND_INTERNAL.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_INTERNAL;
-    } else if (kind == Tags.SPAN_KIND_BROKER || Tags.SPAN_KIND_BROKER.equals(kind)) {
-      spanKindOrdinal = SPAN_KIND_BROKER;
-    } else {
-      spanKindOrdinal = SPAN_KIND_CUSTOM;
+    // Fast path: identity checks against canonical constants (covers all decorator usage)
+    if (kind == Tags.SPAN_KIND_SERVER) return SPAN_KIND_SERVER;
+    if (kind == Tags.SPAN_KIND_CLIENT) return SPAN_KIND_CLIENT;
+    if (kind == Tags.SPAN_KIND_PRODUCER) return SPAN_KIND_PRODUCER;
+    if (kind == Tags.SPAN_KIND_CONSUMER) return SPAN_KIND_CONSUMER;
+    if (kind == Tags.SPAN_KIND_INTERNAL) return SPAN_KIND_INTERNAL;
+    if (kind == Tags.SPAN_KIND_BROKER) return SPAN_KIND_BROKER;
+    // Slow path: non-interned string -- use switch (hash-based dispatch)
+    switch (kind) {
+      case Tags.SPAN_KIND_SERVER:
+        return SPAN_KIND_SERVER;
+      case Tags.SPAN_KIND_CLIENT:
+        return SPAN_KIND_CLIENT;
+      case Tags.SPAN_KIND_PRODUCER:
+        return SPAN_KIND_PRODUCER;
+      case Tags.SPAN_KIND_CONSUMER:
+        return SPAN_KIND_CONSUMER;
+      case Tags.SPAN_KIND_INTERNAL:
+        return SPAN_KIND_INTERNAL;
+      case Tags.SPAN_KIND_BROKER:
+        return SPAN_KIND_BROKER;
+      default:
+        return SPAN_KIND_CUSTOM;
     }
   }
 
@@ -820,7 +833,7 @@ public class DDSpanContext
   }
 
   public void removeTag(String tag) {
-    if (Tags.SPAN_KIND.equals(tag)) {
+    if (tag == Tags.SPAN_KIND || Tags.SPAN_KIND.equals(tag)) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
@@ -1074,13 +1087,13 @@ public class DDSpanContext
       case Tags.SPAN_KIND:
         {
           byte ordinal = spanKindOrdinal;
-          if (ordinal != SPAN_KIND_UNSET && ordinal != SPAN_KIND_CUSTOM) {
+          if (ordinal > SPAN_KIND_UNSET && ordinal < SPAN_KIND_CUSTOM) {
             return SPAN_KIND_VALUES[ordinal];
           }
           // UNSET or CUSTOM -- fall through to tag map
           Object value;
           synchronized (unsafeTags) {
-            value = unsafeGetTag(key);
+            value = unsafeGetTag(Tags.SPAN_KIND);
           }
           return value;
         }
