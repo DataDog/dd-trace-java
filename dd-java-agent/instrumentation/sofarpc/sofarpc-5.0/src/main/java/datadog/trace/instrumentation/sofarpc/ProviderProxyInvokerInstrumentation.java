@@ -46,17 +46,21 @@ public class ProviderProxyInvokerInstrumentation
       if (protocol == null) {
         return null;
       }
-      AgentSpan span;
-      if ("bolt".equals(protocol) || "h2c".equals(protocol)) {
-        // Bolt propagates Datadog trace headers via SofaRequest.requestProps — extract from there.
-        AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
-        span = startSpan(SOFA_RPC_SERVER, parentContext);
-      } else {
-        // For Triple and other protocols, trace context is propagated at the transport layer
-        // (e.g. gRPC Metadata). The transport instrumentation already activated the parent span,
-        // so startSpan without an explicit parent inherits it automatically.
-        span = startSpan(SOFA_RPC_SERVER);
+      // Prefer the parent context stored by transport-specific instrumentation (e.g.
+      // TripleServerInstrumentation reads it from gRPC Metadata). For Bolt and H2C the
+      // transport instrumentations only set the protocol, so parentContext is null here and
+      // we fall back to extracting from SofaRequest.requestProps as before.
+      AgentSpanContext parentContext = SofaRpcProtocolContext.getParentContext();
+      if (parentContext == null) {
+        parentContext = extractContextAndGetSpanContext(request, GETTER);
       }
+      // parentContext may be null for Triple+gRPC-enabled: TripleServerInstrumentation skips
+      // Metadata extraction when a grpc.server span is already active. In that case
+      // startSpan() without an explicit parent naturally attaches to the active grpc.server span.
+      AgentSpan span =
+          parentContext != null
+              ? startSpan(SOFA_RPC_SERVER, parentContext)
+              : startSpan(SOFA_RPC_SERVER);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       span.setTag("sofarpc.protocol", protocol);

@@ -31,7 +31,6 @@ public class SofaRpcModule extends InstrumenterModule.Tracing {
         new AbstractClusterInstrumentation(),
         new BoltServerProcessorInstrumentation(),
         new H2cServerTaskInstrumentation(),
-        new TripleServerInstrumentation(),
         new ProviderProxyInvokerInstrumentation());
   }
 }
