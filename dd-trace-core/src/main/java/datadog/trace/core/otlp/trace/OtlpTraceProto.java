@@ -52,6 +52,11 @@ import datadog.trace.core.propagation.PropagationTags;
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
 public final class OtlpTraceProto {
 
+  private static final UTF8BytesString SERVICE_NAME = UTF8BytesString.create("service.name");
+  private static final UTF8BytesString RESOURCE_NAME = UTF8BytesString.create("resource.name");
+  private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
+  private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
+
   static final int NO_TRACE_FLAGS = 0x00000000;
   static final int SAMPLED_TRACE_FLAG = 0x00000001;
   static final int REMOTE_TRACE_FLAG = 0x00000300;
@@ -130,15 +135,11 @@ public final class OtlpTraceProto {
     writeI64(buf, span.getStartTime() + PendingTrace.getDurationNano(span));
 
     if (!Config.get().getServiceName().equalsIgnoreCase(span.getServiceName())) {
-      writeTag(buf, 9, LEN_WIRE_TYPE);
-      writeAttribute(buf, STRING, "service.name", span.getServiceName());
+      writeSpanTag(buf, SERVICE_NAME, span.getServiceName());
     }
-    writeTag(buf, 9, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING, "resource.name", span.getResourceName());
-    writeTag(buf, 9, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING, "operation.name", span.getOperationName());
-    writeTag(buf, 9, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING, "span.type", span.getSpanType());
+    writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
+    writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
+    writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
 
     span.processTagsAndBaggage(metaWriter);
 
