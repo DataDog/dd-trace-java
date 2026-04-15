@@ -229,7 +229,7 @@ public class TagInterceptor {
       path = uri == null ? null : uri.getPath();
     }
     if (path != null) {
-      final boolean isClient = span.getSpanKindOrdinal() == DDSpanContext.SPAN_KIND_CLIENT;
+      final boolean isClient = span.isClientSpanKind();
       Pair<CharSequence, Byte> normalized =
           isClient
               ? HttpResourceNames.computeForClient(method, path, false)

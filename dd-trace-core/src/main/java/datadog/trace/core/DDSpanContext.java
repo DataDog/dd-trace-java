@@ -100,14 +100,13 @@ public class DDSpanContext
 
   // Cached span.kind ordinal for fast isOutbound() checks.
   // Ordinal constants -- keep in sync with SPAN_KIND_VALUES array.
-  // UNSET and CUSTOM are package-private (they don't correspond to actual span.kind values).
   static final byte SPAN_KIND_UNSET = 0;
-  public static final byte SPAN_KIND_SERVER = 1;
-  public static final byte SPAN_KIND_CLIENT = 2;
-  public static final byte SPAN_KIND_PRODUCER = 3;
-  public static final byte SPAN_KIND_CONSUMER = 4;
-  public static final byte SPAN_KIND_INTERNAL = 5;
-  public static final byte SPAN_KIND_BROKER = 6;
+  static final byte SPAN_KIND_SERVER = 1;
+  static final byte SPAN_KIND_CLIENT = 2;
+  static final byte SPAN_KIND_PRODUCER = 3;
+  static final byte SPAN_KIND_CONSUMER = 4;
+  static final byte SPAN_KIND_INTERNAL = 5;
+  static final byte SPAN_KIND_BROKER = 6;
   static final byte SPAN_KIND_CUSTOM = 7;
 
   /** Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null. */
@@ -743,47 +742,42 @@ public class DDSpanContext
     return httpStatusCode;
   }
 
+  /** Identity-first string comparison: checks reference equality, then falls back to equals. */
+  static boolean tagEquals(String tagValue, String tagLiteral) {
+    return (tagValue == tagLiteral) || tagLiteral.equals(tagValue);
+  }
+
   /**
    * Cache the span.kind ordinal for fast isOutbound() checks. Called from TagInterceptor when
    * span.kind is set.
    */
   public void setSpanKind(String kind) {
-    spanKindOrdinal = spanKindToOrdinal(kind);
-  }
-
-  /** Maps a span.kind string to its byte ordinal. Identity checks first, then string switch. */
-  static byte spanKindToOrdinal(String kind) {
     if (kind == null) {
-      return SPAN_KIND_UNSET;
-    }
-    // Fast path: identity checks against canonical constants (covers all decorator usage)
-    if (kind == Tags.SPAN_KIND_SERVER) return SPAN_KIND_SERVER;
-    if (kind == Tags.SPAN_KIND_CLIENT) return SPAN_KIND_CLIENT;
-    if (kind == Tags.SPAN_KIND_PRODUCER) return SPAN_KIND_PRODUCER;
-    if (kind == Tags.SPAN_KIND_CONSUMER) return SPAN_KIND_CONSUMER;
-    if (kind == Tags.SPAN_KIND_INTERNAL) return SPAN_KIND_INTERNAL;
-    if (kind == Tags.SPAN_KIND_BROKER) return SPAN_KIND_BROKER;
-    // Slow path: non-interned string -- use switch (hash-based dispatch)
-    switch (kind) {
-      case Tags.SPAN_KIND_SERVER:
-        return SPAN_KIND_SERVER;
-      case Tags.SPAN_KIND_CLIENT:
-        return SPAN_KIND_CLIENT;
-      case Tags.SPAN_KIND_PRODUCER:
-        return SPAN_KIND_PRODUCER;
-      case Tags.SPAN_KIND_CONSUMER:
-        return SPAN_KIND_CONSUMER;
-      case Tags.SPAN_KIND_INTERNAL:
-        return SPAN_KIND_INTERNAL;
-      case Tags.SPAN_KIND_BROKER:
-        return SPAN_KIND_BROKER;
-      default:
-        return SPAN_KIND_CUSTOM;
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_SERVER)) {
+      spanKindOrdinal = SPAN_KIND_SERVER;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_CLIENT)) {
+      spanKindOrdinal = SPAN_KIND_CLIENT;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_PRODUCER)) {
+      spanKindOrdinal = SPAN_KIND_PRODUCER;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_CONSUMER)) {
+      spanKindOrdinal = SPAN_KIND_CONSUMER;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_INTERNAL)) {
+      spanKindOrdinal = SPAN_KIND_INTERNAL;
+    } else if (tagEquals(kind, Tags.SPAN_KIND_BROKER)) {
+      spanKindOrdinal = SPAN_KIND_BROKER;
+    } else {
+      spanKindOrdinal = SPAN_KIND_CUSTOM;
     }
   }
 
   public byte getSpanKindOrdinal() {
     return spanKindOrdinal;
+  }
+
+  /** Returns true if the cached span.kind is "client". */
+  public boolean isClientSpanKind() {
+    return spanKindOrdinal == SPAN_KIND_CLIENT;
   }
 
   public void setOrigin(final CharSequence origin) {
@@ -833,7 +827,7 @@ public class DDSpanContext
   }
 
   public void removeTag(String tag) {
-    if (tag == Tags.SPAN_KIND || Tags.SPAN_KIND.equals(tag)) {
+    if (tagEquals(tag, Tags.SPAN_KIND)) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
