@@ -75,7 +75,6 @@ class BaggagePropagatorTelemetryTest {
     assertTrue(baggageMetric.tags.contains("header_style:baggage"));
   }
 
-  @Flaky
   @Test
   void shouldDirectlyIncrementAllBaggageMetrics() {
     BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
