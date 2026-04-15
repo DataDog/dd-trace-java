@@ -835,6 +835,7 @@ public class DDSpanContext
 
   public void removeTag(String tag) {
     if (tagEquals(tag, Tags.SPAN_KIND)) {
+      // Clear the cached ordinal; unsafeTags still needs to be updated below.
       spanKindOrdinal = SPAN_KIND_UNSET;
     }
     synchronized (unsafeTags) {
