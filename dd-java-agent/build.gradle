@@ -156,6 +156,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // Prevents conflict with other instances, but doesn't relocate instrumentation
     if (!projectName.equals('instrumentation')) {
       relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
+      relocate 'org.yaml.snakeyaml.Yaml', 'datadog.trace.agent.jmxfetch.LegacyYaml'
       relocate 'okhttp3', 'datadog.okhttp3'
       relocate 'okio', 'datadog.okio'
 
