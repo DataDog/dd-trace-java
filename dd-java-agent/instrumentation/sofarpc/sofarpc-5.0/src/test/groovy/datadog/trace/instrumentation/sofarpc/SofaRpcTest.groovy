@@ -120,6 +120,7 @@ class SofaRpcTest extends InstrumentationSpecification {
           childOf span(0)
           tags {
             "$Tags.RPC_SERVICE" serviceUniqueName
+            "rpc.method" "sayHello"
             "rpc.system" "sofarpc"
             "sofarpc.protocol" "bolt"
             "component" "sofarpc-client"
@@ -139,6 +140,7 @@ class SofaRpcTest extends InstrumentationSpecification {
           childOf trace(0).get(1)
           tags {
             "$Tags.RPC_SERVICE" serviceUniqueName
+            "rpc.method" "sayHello"
             "rpc.system" "sofarpc"
             "sofarpc.protocol" "bolt"
             "component" "sofarpc-server"
@@ -176,6 +178,7 @@ class SofaRpcTest extends InstrumentationSpecification {
           errored false
           tags {
             "$Tags.RPC_SERVICE" serviceUniqueName
+            "rpc.method" "fail"
             "rpc.system" "sofarpc"
             "sofarpc.protocol" "bolt"
             "component" "sofarpc-client"
@@ -194,6 +197,7 @@ class SofaRpcTest extends InstrumentationSpecification {
           childOf trace(0).get(0)
           tags {
             "$Tags.RPC_SERVICE" serviceUniqueName
+            "rpc.method" "fail"
             "rpc.system" "sofarpc"
             "sofarpc.protocol" "bolt"
             "component" "sofarpc-server"

@@ -48,6 +48,7 @@ public class SofaRpcServerDecorator extends ServerDecorator {
     String serviceName = request.getTargetServiceUniqueName();
     String methodName = request.getMethodName();
     span.setTag(Tags.RPC_SERVICE, serviceName);
+    span.setTag("rpc.method", methodName);
     if (serviceName != null && methodName != null) {
       span.setResourceName(serviceName + "/" + methodName);
     } else if (methodName != null) {

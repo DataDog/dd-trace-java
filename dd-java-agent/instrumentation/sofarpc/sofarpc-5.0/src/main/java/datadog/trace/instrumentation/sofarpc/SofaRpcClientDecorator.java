@@ -47,6 +47,7 @@ public class SofaRpcClientDecorator extends ClientDecorator {
     String serviceName = request.getTargetServiceUniqueName();
     String methodName = request.getMethodName();
     span.setTag(Tags.RPC_SERVICE, serviceName);
+    span.setTag("rpc.method", methodName);
     // peer.service is derived automatically by PeerServiceCalculator from rpc.service.
     if (serviceName != null && methodName != null) {
       span.setResourceName(serviceName + "/" + methodName);

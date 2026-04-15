@@ -562,7 +562,6 @@ include(
   ":dd-java-agent:instrumentation:snakeyaml-1.33",
   ":dd-java-agent:instrumentation:sofarpc",
   ":dd-java-agent:instrumentation:sofarpc:sofarpc-5.0",
-  ":dd-java-agent:instrumentation:sofarpc:sofarpc-5.14",
   ":dd-java-agent:instrumentation:spark:spark-common",
   ":dd-java-agent:instrumentation:spark:spark_2.12",
   ":dd-java-agent:instrumentation:spark:spark_2.13",

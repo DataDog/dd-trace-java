@@ -43,29 +43,29 @@ class SofaRpcTripleWithGrpcForkedTest extends InstrumentationSpecification {
   def setupSpec() {
     ServerConfig serverConfig =
       new ServerConfig()
-        .setProtocol("tri")
-        .setHost("127.0.0.1")
-        .setPort(triplePort)
+      .setProtocol("tri")
+      .setHost("127.0.0.1")
+      .setPort(triplePort)
 
     ProviderConfig<GreeterService> providerConfig =
       new ProviderConfig<GreeterService>()
-        .setApplication(new ApplicationConfig().setAppName("test-server"))
-        .setInterfaceId(GreeterService.name)
-        .setRef(new GreeterServiceImpl())
-        .setServer(serverConfig)
-        .setRegister(false)
+      .setApplication(new ApplicationConfig().setAppName("test-server"))
+      .setInterfaceId(GreeterService.name)
+      .setRef(new GreeterServiceImpl())
+      .setServer(serverConfig)
+      .setRegister(false)
 
     tripleProviderBootstrap = providerConfig.export()
 
     greeterService =
       new ConsumerConfig<GreeterService>()
-        .setApplication(new ApplicationConfig().setAppName("test-client"))
-        .setInterfaceId(GreeterService.name)
-        .setDirectUrl("tri://127.0.0.1:${triplePort}")
-        .setProtocol("tri")
-        .setRegister(false)
-        .setSubscribe(false)
-        .refer()
+      .setApplication(new ApplicationConfig().setAppName("test-client"))
+      .setInterfaceId(GreeterService.name)
+      .setDirectUrl("tri://127.0.0.1:${triplePort}")
+      .setProtocol("tri")
+      .setRegister(false)
+      .setSubscribe(false)
+      .refer()
   }
 
   def cleanupSpec() {
