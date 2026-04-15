@@ -1,6 +1,6 @@
 package datadog.trace.api;
 
-import datadog.trace.test.util.TableTestTypeConverters;
+import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
 import org.tabletest.junit.TypeConverter;
 
 /** TableTest converters shared by dd-trace-api test classes for unparsable constants. */

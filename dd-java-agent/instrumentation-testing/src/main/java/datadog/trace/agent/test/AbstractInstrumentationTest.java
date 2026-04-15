@@ -20,7 +20,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
+import datadog.trace.junit.utils.context.AllowContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
@@ -31,7 +31,6 @@ import java.util.function.Function;
 import java.util.function.Predicate;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.AssertionFailedError;
@@ -42,7 +41,7 @@ import org.opentest4j.AssertionFailedError;
  * current implementation is inspired and kept close to it Groovy / Spock counterpart, the {@code
  * InstrumentationSpecification}.
  */
-@ExtendWith(TestClassShadowingExtension.class)
+@ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
@@ -54,19 +53,6 @@ public abstract class AbstractInstrumentationTest {
 
   protected ClassFileTransformer activeTransformer;
   protected ClassFileTransformerListener transformerLister;
-
-  @SuppressForbidden // Class.forName() used to dynamically configure context if present
-  @BeforeAll
-  static void allowContextTesting() {
-    // Allow re-registration of context managers so each test can use a fresh tracer.
-    // This mirrors DDSpecification.allowContextTesting() for the Spock test framework.
-    try {
-      Class.forName("datadog.context.ContextManager").getMethod("allowTesting").invoke(null);
-      Class.forName("datadog.context.ContextBinder").getMethod("allowTesting").invoke(null);
-    } catch (Throwable ignore) {
-      // don't block testing if context types aren't available
-    }
-  }
 
   @BeforeEach
   public void init() {

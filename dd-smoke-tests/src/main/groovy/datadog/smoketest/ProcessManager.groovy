@@ -50,7 +50,7 @@ abstract class ProcessManager extends Specification {
 
   // Here for backwards compatibility with single process case
   @Shared
-  def logFilePath = logFilePaths[0]
+  def logFilePath = logFilePaths.length > 0 ? logFilePaths[0] : null
 
   def setup() {
     testedProcesses.each {
