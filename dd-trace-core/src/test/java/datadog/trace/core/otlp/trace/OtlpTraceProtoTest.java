@@ -9,18 +9,25 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
+import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -106,10 +113,22 @@ class OtlpTraceProtoTest {
     final int parentIndex;
 
     /**
-     * Indices into the already-built span list to link to (one {@link SpanLink} per entry). Each
-     * index must refer to a span that precedes this one in the list. An empty array means no links.
+     * Links to add to this span (one {@link SpanLink} per entry). Each link targets a span that
+     * precedes this one in the list. An empty array means no links.
      */
-    final int[] linkTargets;
+    final LinkSpec[] links;
+
+    /** If true, the span is measured (sets the {@code _dd.measured} attribute). */
+    boolean measured;
+
+    /** Non-zero HTTP status code to set via {@code setHttpStatusCode}; 0 = not set. */
+    int httpStatusCode;
+
+    /**
+     * If true, starts the span under a synthetic {@link ExtractedContext} carrying a known 128-bit
+     * trace ID, exercising the high-order bytes of {@code writeTraceId}.
+     */
+    boolean use128BitTraceId;
 
     SpanSpec(
         String resourceName,
@@ -124,7 +143,7 @@ class OtlpTraceProtoTest {
         String serviceName,
         Map<String, Object> extraTags,
         int parentIndex,
-        int... linkTargets) {
+        LinkSpec... links) {
       this.resourceName = resourceName;
       this.operationName = operationName;
       this.spanType = spanType;
@@ -137,7 +156,37 @@ class OtlpTraceProtoTest {
       this.serviceName = serviceName;
       this.extraTags = extraTags;
       this.parentIndex = parentIndex;
-      this.linkTargets = linkTargets;
+      this.links = links;
+    }
+
+    SpanSpec measured() {
+      this.measured = true;
+      return this;
+    }
+
+    SpanSpec httpStatusCode(int code) {
+      this.httpStatusCode = code;
+      return this;
+    }
+
+    SpanSpec use128BitTraceId() {
+      this.use128BitTraceId = true;
+      return this;
+    }
+  }
+
+  /** Descriptor for a single span link: the index of the target span and optional attributes. */
+  static final class LinkSpec {
+    final int targetIndex;
+    final SpanAttributes attributes;
+
+    LinkSpec(int targetIndex) {
+      this(targetIndex, SpanAttributes.EMPTY);
+    }
+
+    LinkSpec(int targetIndex, SpanAttributes attributes) {
+      this.targetIndex = targetIndex;
+      this.attributes = attributes;
     }
   }
 
@@ -258,10 +307,12 @@ class OtlpTraceProtoTest {
         -1);
   }
 
-  /**
-   * A span with {@link SpanLink}s pointing to the spans at the given {@code linkTargets} indices.
-   */
-  private static SpanSpec linkedSpan(String resourceName, int... linkTargets) {
+  /** A span with {@link SpanLink}s pointing to the spans at the given {@code targetIndices}. */
+  private static SpanSpec linkedSpan(String resourceName, int... targetIndices) {
+    LinkSpec[] links = new LinkSpec[targetIndices.length];
+    for (int i = 0; i < targetIndices.length; i++) {
+      links[i] = new LinkSpec(targetIndices[i]);
+    }
     return new SpanSpec(
         resourceName,
         "op.linked",
@@ -275,10 +326,31 @@ class OtlpTraceProtoTest {
         null,
         new HashMap<>(),
         -1,
-        linkTargets);
+        links);
   }
 
-  @SuppressWarnings("unchecked")
+  /**
+   * A span with one {@link SpanLink} pointing to the span at {@code targetIndex}, carrying the
+   * given {@link SpanAttributes}.
+   */
+  private static SpanSpec linkedSpanWithAttrs(
+      String resourceName, int targetIndex, SpanAttributes attributes) {
+    return new SpanSpec(
+        resourceName,
+        "op.linked",
+        "web",
+        null,
+        BASE_MICROS,
+        BASE_MICROS + DURATION_MICROS,
+        false,
+        null,
+        0,
+        null,
+        new HashMap<>(),
+        -1,
+        new LinkSpec(targetIndex, attributes));
+  }
+
   private static Map<String, Object> tags(Object... keyValues) {
     Map<String, Object> map = new HashMap<>();
     for (int i = 0; i < keyValues.length; i += 2) {
@@ -361,6 +433,25 @@ class OtlpTraceProtoTest {
                 span("target.a", "op.a", "web"),
                 span("target.b", "op.b", "web"),
                 linkedSpan("multi.linked", 0, 1))),
+        Arguments.of(
+            "span link with attributes — link attributes written to proto",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithAttrs(
+                    "attr.linked",
+                    0,
+                    SpanAttributes.builder().put("link.source", "test").build()))),
+
+        // ── metadata paths ────────────────────────────────────────────────────
+        Arguments.of(
+            "measured span — _dd.measured attribute written",
+            asList(span("measured.op", "op.measured", "web").measured())),
+        Arguments.of(
+            "span with http status code — http.status_code written via setHttpStatusCode",
+            asList(span("GET /resource", "servlet.request", "web").httpStatusCode(404))),
+        Arguments.of(
+            "span with 128-bit trace ID — high-order trace_id bytes non-zero",
+            asList(span("GET /api", "servlet.request", "web").use128BitTraceId())),
 
         // ── multiple spans in one payload ─────────────────────────────────────
         Arguments.of(
@@ -447,12 +538,29 @@ class OtlpTraceProtoTest {
 
   // ── span construction ─────────────────────────────────────────────────────
 
+  /**
+   * A known 128-bit trace ID used by {@link SpanSpec#use128BitTraceId} test cases. High-order bits
+   * are non-zero so the test can assert the proto encodes them correctly.
+   */
+  static final DD128bTraceId TRACE_ID_128BIT =
+      DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
+
   /** Builds {@link DDSpan} instances from the given specs, collecting them in order. */
   private static List<DDSpan> buildSpans(List<SpanSpec> specs) {
     List<DDSpan> spans = new ArrayList<>(specs.size());
     for (SpanSpec spec : specs) {
       AgentSpan agentSpan;
-      if (spec.parentIndex >= 0) {
+      if (spec.use128BitTraceId) {
+        ExtractedContext parent128 =
+            new ExtractedContext(
+                TRACE_ID_128BIT,
+                0L,
+                PrioritySampling.UNSET,
+                null,
+                PropagationTags.factory().empty(),
+                TracePropagationStyle.DATADOG);
+        agentSpan = TRACER.startSpan("test", spec.operationName, parent128, spec.startMicros);
+      } else if (spec.parentIndex >= 0) {
         agentSpan =
             TRACER.startSpan(
                 "test",
@@ -481,6 +589,12 @@ class OtlpTraceProtoTest {
           agentSpan.setErrorMessage(spec.errorMessage);
         }
       }
+      if (spec.measured) {
+        agentSpan.setMeasured(true);
+      }
+      if (spec.httpStatusCode != 0) {
+        agentSpan.setHttpStatusCode(spec.httpStatusCode);
+      }
 
       spec.extraTags.forEach(
           (key, value) -> {
@@ -490,8 +604,15 @@ class OtlpTraceProtoTest {
             else if (value instanceof Double) agentSpan.setTag(key, (double) (Double) value);
           });
 
-      for (int linkTarget : spec.linkTargets) {
-        agentSpan.addLink(SpanLink.from(spans.get(linkTarget).context()));
+      for (LinkSpec link : spec.links) {
+        agentSpan.addLink(
+            link.attributes.isEmpty()
+                ? SpanLink.from(spans.get(link.targetIndex).context())
+                : SpanLink.from(
+                    spans.get(link.targetIndex).context(),
+                    SpanLink.DEFAULT_FLAGS,
+                    "",
+                    link.attributes));
       }
 
       agentSpan.finish(spec.finishMicros);
@@ -604,7 +725,7 @@ class OtlpTraceProtoTest {
           attrKeys.add(readKeyValueKey(sp.readBytes().newCodedInput()));
           break;
         case 13:
-          verifyLink(sp.readBytes().newCodedInput(), caseName);
+          verifyLink(sp.readBytes().newCodedInput(), spec.links[linkCount], caseName);
           linkCount++;
           break;
         case 15:
@@ -637,6 +758,15 @@ class OtlpTraceProtoTest {
     // ── trace_id (field 1): 16 bytes ─────────────────────────────────────────
     assertNotNull(parsedTraceId, "trace_id must be present [" + caseName + "]");
     assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes [" + caseName + "]");
+    if (spec.use128BitTraceId) {
+      // high-order bytes occupy parsedTraceId[8..15] (little-endian in the wire format)
+      long highOrderBytes =
+          readLittleEndianLong(java.util.Arrays.copyOfRange(parsedTraceId, 8, 16));
+      assertNotEquals(
+          0L,
+          highOrderBytes,
+          "128-bit trace_id high-order bytes must be non-zero [" + caseName + "]");
+    }
 
     // ── span_id (field 2): 8 bytes, encodes span.getSpanId() ─────────────────
     assertNotNull(parsedSpanId, "span_id must be present [" + caseName + "]");
@@ -717,6 +847,19 @@ class OtlpTraceProtoTest {
           "attributes must include extra tag '" + key + "' [" + caseName + "]");
     }
 
+    if (spec.measured) {
+      assertTrue(
+          attrKeys.contains("_dd.measured"),
+          "attributes must include '_dd.measured' for measured spans [" + caseName + "]");
+    }
+    if (spec.httpStatusCode != 0) {
+      assertTrue(
+          attrKeys.contains("http.status_code"),
+          "attributes must include 'http.status_code' when set via setHttpStatusCode ["
+              + caseName
+              + "]");
+    }
+
     // ── status (field 15) ─────────────────────────────────────────────────────
     if (spec.error) {
       assertTrue(statusFound, "status must be present for error span [" + caseName + "]");
@@ -725,30 +868,31 @@ class OtlpTraceProtoTest {
         assertEquals(
             spec.errorMessage, parsedStatusMessage, "status.message mismatch [" + caseName + "]");
       } else {
-        assertEquals(
-            null,
-            parsedStatusMessage,
-            "status.message must be absent when not set [" + caseName + "]");
+        assertNull(
+            parsedStatusMessage, "status.message must be absent when not set [" + caseName + "]");
       }
     } else {
       assertFalse(statusFound, "status must be absent for non-error span [" + caseName + "]");
     }
 
     // ── links (field 13) ──────────────────────────────────────────────────────
-    assertEquals(spec.linkTargets.length, linkCount, "link count mismatch [" + caseName + "]");
+    assertEquals(spec.links.length, linkCount, "link count mismatch [" + caseName + "]");
   }
 
   /**
-   * Parses a {@code Span.Link} message body and verifies trace_id and span_id are present.
+   * Parses a {@code Span.Link} message body and verifies trace_id, span_id, and (if expected) link
+   * attributes are present.
    *
    * <pre>
    *   Link { bytes trace_id = 1; bytes span_id = 2; string trace_state = 3;
    *          KeyValue attributes = 4; fixed32 flags = 6; }
    * </pre>
    */
-  private static void verifyLink(CodedInputStream link, String caseName) throws IOException {
+  private static void verifyLink(CodedInputStream link, LinkSpec linkSpec, String caseName)
+      throws IOException {
     byte[] traceId = null;
     byte[] spanId = null;
+    Set<String> linkAttrKeys = new HashSet<>();
     while (!link.isAtEnd()) {
       int tag = link.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
@@ -758,6 +902,9 @@ class OtlpTraceProtoTest {
         case 2:
           spanId = link.readBytes().toByteArray();
           break;
+        case 4:
+          linkAttrKeys.add(readKeyValueKey(link.readBytes().newCodedInput()));
+          break;
         default:
           link.skipField(tag);
       }
@@ -766,6 +913,11 @@ class OtlpTraceProtoTest {
     assertEquals(16, traceId.length, "Link.trace_id must be 16 bytes [" + caseName + "]");
     assertNotNull(spanId, "Link.span_id must be present [" + caseName + "]");
     assertEquals(8, spanId.length, "Link.span_id must be 8 bytes [" + caseName + "]");
+    for (String expectedKey : linkSpec.attributes.asMap().keySet()) {
+      assertTrue(
+          linkAttrKeys.contains(expectedKey),
+          "Link attributes must include '" + expectedKey + "' [" + caseName + "]");
+    }
   }
 
   // ── proto parsing helpers ─────────────────────────────────────────────────
