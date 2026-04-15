@@ -25,6 +25,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
+import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -70,7 +71,7 @@ import org.junit.jupiter.params.provider.MethodSource;
  */
 class OtlpTraceProtoTest {
 
-  static final CoreTracer TRACER = CoreTracer.builder().build();
+  static final CoreTracer TRACER = CoreTracer.builder().writer(new LoggingWriter()).build();
 
   // ── spec classes (test-data descriptors) ──────────────────────────────────
 
