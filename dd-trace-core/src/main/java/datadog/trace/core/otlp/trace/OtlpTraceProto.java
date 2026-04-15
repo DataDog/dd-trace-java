@@ -89,8 +89,11 @@ public final class OtlpTraceProto {
     writeTag(buf, 2, LEN_WIRE_TYPE);
     writeSpanId(buf, span.getSpanId());
 
-    writeTag(buf, 3, LEN_WIRE_TYPE);
-    writeString(buf, propagationTags.getW3CTracestate());
+    String tracestate = propagationTags.getW3CTracestate();
+    if (tracestate != null) {
+      writeTag(buf, 3, LEN_WIRE_TYPE);
+      writeString(buf, tracestate);
+    }
 
     if (span.getParentId() != 0) {
       writeTag(buf, 4, LEN_WIRE_TYPE);
@@ -238,7 +241,9 @@ public final class OtlpTraceProto {
   }
 
   private static int spanKind(CharSequence spanKind) {
-    if (SPAN_KIND_SERVER.contentEquals(spanKind)) {
+    if (spanKind == null) {
+      return 1; // UNSPECIFIED -> INTERNAL
+    } else if (SPAN_KIND_SERVER.contentEquals(spanKind)) {
       return 2; // SERVER
     } else if (SPAN_KIND_CLIENT.contentEquals(spanKind)) {
       return 3; // CLIENT
