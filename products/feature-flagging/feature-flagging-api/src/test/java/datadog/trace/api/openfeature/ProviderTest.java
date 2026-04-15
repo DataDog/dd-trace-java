@@ -24,6 +24,7 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
 import dev.openfeature.sdk.FlagEvaluationDetails;
+import dev.openfeature.sdk.Hook;
 import dev.openfeature.sdk.OpenFeatureAPI;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.ProviderEvent;
@@ -31,6 +32,7 @@ import dev.openfeature.sdk.ProviderState;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.function.Consumer;
@@ -136,6 +138,28 @@ public class ProviderTest {
                         "Class " + FeatureFlaggingGateway.class.getName() + " not found");
                   }
                 }));
+  }
+
+  @Test
+  public void testGetProviderHooksReturnsFlagEvalHook() {
+    Provider provider =
+        new Provider(new Options().initTimeout(10, MILLISECONDS), mock(Evaluator.class));
+    List<Hook> hooks = provider.getProviderHooks();
+    assertThat(hooks.size(), equalTo(1));
+    assertThat(hooks.get(0) instanceof FlagEvalHook, equalTo(true));
+  }
+
+  @Test
+  public void testShutdownCleansUpMetrics() throws Exception {
+    Evaluator evaluator = mock(Evaluator.class);
+    when(evaluator.initialize(anyLong(), any(), any())).thenReturn(true);
+    Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+    provider.initialize(null);
+    provider.shutdown();
+    verify(evaluator).shutdown();
+    // After shutdown, getProviderHooks still returns a list (hook is still present but metrics is
+    // shut down)
+    assertThat(provider.getProviderHooks().size(), equalTo(1));
   }
 
   public interface EvaluateMethod<E> {

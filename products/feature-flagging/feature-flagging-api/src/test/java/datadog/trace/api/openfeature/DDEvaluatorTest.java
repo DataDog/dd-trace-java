@@ -288,10 +288,37 @@ public class DDEvaluatorTest {
                 new Result<>("default")
                     // Result depends on shard calculation - either match or default
                     .reason(TARGETING_MATCH.name(), DEFAULT.name())),
+        // Type mismatch: STRING flag evaluated as Integer
         new TestCase<>(0)
             .flag("string-number-flag")
             .targetingKey("user-123")
-            .result(new Result<>(123).reason(TARGETING_MATCH.name()).variant("string-num")),
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: STRING flag evaluated as Boolean
+        new TestCase<>(false)
+            .flag("simple-string")
+            .targetingKey("user-123")
+            .result(new Result<>(false).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: BOOLEAN flag evaluated as String
+        new TestCase<>("default")
+            .flag("boolean-flag")
+            .targetingKey("user-123")
+            .result(
+                new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: NUMERIC flag evaluated as Integer
+        new TestCase<>(0)
+            .flag("double-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: INTEGER flag evaluated as Double
+        new TestCase<>(0.0)
+            .flag("integer-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0.0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Variant value type mismatch: INTEGER flag with string variant value
+        new TestCase<>(0)
+            .flag("integer-string-variant-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
         new TestCase<>("default")
             .flag("broken-flag")
             .targetingKey("user-123")
@@ -551,6 +578,9 @@ public class DDEvaluatorTest {
     flags.put("not-one-of-false-flag", createNotOneOfFalseFlag());
     flags.put("null-context-values-flag", createNullContextValuesFlag());
     flags.put("country-rule-flag", createCountryRuleFlag());
+    flags.put(
+        "integer-string-variant-flag",
+        createSimpleFlag("integer-string-variant-flag", ValueType.INTEGER, "not-a-number", "bad"));
     return new ServerConfiguration(null, null, null, flags);
   }
 

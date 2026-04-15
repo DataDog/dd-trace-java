@@ -73,6 +73,7 @@ public class AIGuardInternal implements Evaluator {
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
   static final String META_STRUCT_SDS = "sds";
+  static final String META_STRUCT_TAG_PROBS = "tag_probs";
 
   public static void install() {
     final Config config = Config.get();
@@ -258,12 +259,17 @@ public class AIGuardInternal implements Evaluator {
         final List<String> tags = (List<String>) result.get("tags");
         @SuppressWarnings("unchecked")
         final List<?> sdsFindings = (List<?>) result.get("sds_findings");
+        @SuppressWarnings("unchecked")
+        final Map<String, Number> tagProbs = (Map<String, Number>) result.get("tag_probs");
         span.setTag(ACTION_TAG, action);
         if (reason != null) {
           span.setTag(REASON_TAG, reason);
         }
         if (tags != null && !tags.isEmpty()) {
           metaStruct.put(META_STRUCT_CATEGORIES, tags);
+        }
+        if (tagProbs != null && !tagProbs.isEmpty()) {
+          metaStruct.put(META_STRUCT_TAG_PROBS, tagProbs);
         }
         if (sdsFindings != null && !sdsFindings.isEmpty()) {
           metaStruct.put(META_STRUCT_SDS, sdsFindings);
@@ -273,9 +279,9 @@ public class AIGuardInternal implements Evaluator {
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags, sdsFindings);
+          throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
-        return new Evaluation(action, reason, tags, sdsFindings);
+        return new Evaluation(action, reason, tags, tagProbs, sdsFindings);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);
