@@ -5,7 +5,6 @@ import foo.bar.TestFilesSuite
 import groovy.transform.CompileDynamic
 
 import java.nio.charset.StandardCharsets
-import java.nio.file.StandardCopyOption
 
 @CompileDynamic
 class FilesCallSiteTest extends BaseIoRaspCallSiteTest {
