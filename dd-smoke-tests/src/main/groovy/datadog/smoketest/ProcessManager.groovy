@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -15,6 +16,7 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE')
 
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
@@ -194,18 +196,11 @@ abstract class ProcessManager extends Specification {
   }
 
   /**
-   * @return Set of noisy variables to remove.
-   */
-  protected Set<String> noisyEnvironmentVariables() {
-    return ['CI_COMMIT_MESSAGE'] as Set
-  }
-
-  /**
    * Some variable can be printed in smoke application logs and result into false-positive test result.
    * @param env environment variables to process.
    */
   void muteNoisyEnvironmentVariables(Map<String, String> env) {
-    noisyEnvironmentVariables().each { String envVar -> env.remove(envVar) }
+    env.keySet().removeAll(NOISY_ENVIRONMENT_VARIABLES)
   }
 
   /**
