@@ -771,24 +771,19 @@ public class DDSpanContext
     }
   }
 
-  public byte getSpanKindOrdinal() {
+  byte getSpanKindOrdinal() {
     return spanKindOrdinal;
   }
 
-  /** Returns true if the cached span.kind is "client". */
-  public boolean isClientSpanKind() {
-    return spanKindOrdinal == SPAN_KIND_CLIENT;
-  }
-
-  /** Returns the span.kind tag value from the cached ordinal, or falls back to the tag map. */
-  private Object getSpanKindTag() {
+  /** Returns the span.kind string from the cached ordinal, or falls back to the tag map. */
+  public String getSpanKindString() {
     byte ordinal = spanKindOrdinal;
     if (ordinal > SPAN_KIND_UNSET && ordinal < SPAN_KIND_CUSTOM) {
       return SPAN_KIND_VALUES[ordinal];
     }
     // UNSET or CUSTOM -- fall through to tag map
     synchronized (unsafeTags) {
-      return unsafeGetTag(Tags.SPAN_KIND);
+      return unsafeTags.getString(Tags.SPAN_KIND);
     }
   }
 
@@ -1091,7 +1086,7 @@ public class DDSpanContext
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       case Tags.SPAN_KIND:
-        return getSpanKindTag();
+        return getSpanKindString();
       default:
         Object value;
         synchronized (unsafeTags) {
