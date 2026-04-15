@@ -2,7 +2,10 @@ package datadog.trace.instrumentation.java.lang;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.appsec.RaspCallSites;
+import java.nio.file.OpenOption;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
+import java.util.Set;
 import javax.annotation.Nullable;
 
 @CallSite(
@@ -12,14 +15,61 @@ public class FileChannelCallSite {
 
   @CallSite.Before(
       "java.nio.channels.FileChannel java.nio.channels.FileChannel.open(java.nio.file.Path, java.nio.file.OpenOption[])")
+  public static void beforeOpenArray(
+      @CallSite.Argument(0) @Nullable final Path path,
+      @CallSite.Argument(1) @Nullable final OpenOption[] options) {
+    if (path != null) {
+      String pathStr = path.toString();
+      FileIORaspHelper.INSTANCE.beforeFileLoaded(pathStr);
+      if (hasWriteOption(options)) {
+        FileIORaspHelper.INSTANCE.beforeFileWritten(pathStr);
+      }
+    }
+  }
+
   @CallSite.Before(
       "java.nio.channels.FileChannel java.nio.channels.FileChannel.open(java.nio.file.Path, java.util.Set, java.nio.file.attribute.FileAttribute[])")
-  public static void beforeOpen(@CallSite.Argument(0) @Nullable final Path path) {
+  public static void beforeOpenSet(
+      @CallSite.Argument(0) @Nullable final Path path,
+      @CallSite.Argument(1) @Nullable final Set<? extends OpenOption> options) {
     if (path != null) {
-      // Fire both read and write callbacks: the WAF determines whether to block
-      // based on the full request context (e.g. zipslip requires body.filenames too).
-      FileIORaspHelper.INSTANCE.beforeFileLoaded(path.toString());
-      FileIORaspHelper.INSTANCE.beforeFileWritten(path.toString());
+      String pathStr = path.toString();
+      FileIORaspHelper.INSTANCE.beforeFileLoaded(pathStr);
+      if (hasWriteOption(options)) {
+        FileIORaspHelper.INSTANCE.beforeFileWritten(pathStr);
+      }
     }
+  }
+
+  private static boolean hasWriteOption(@Nullable final OpenOption[] options) {
+    if (options == null) {
+      return false;
+    }
+    for (OpenOption opt : options) {
+      if (isWriteOption(opt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasWriteOption(@Nullable final Set<? extends OpenOption> options) {
+    if (options == null) {
+      return false;
+    }
+    for (OpenOption opt : options) {
+      if (isWriteOption(opt)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean isWriteOption(final OpenOption opt) {
+    return opt == StandardOpenOption.WRITE
+        || opt == StandardOpenOption.APPEND
+        || opt == StandardOpenOption.CREATE
+        || opt == StandardOpenOption.CREATE_NEW
+        || opt == StandardOpenOption.TRUNCATE_EXISTING;
   }
 }

@@ -7,7 +7,7 @@ import java.nio.file.StandardOpenOption
 
 class FileChannelCallSiteTest extends BaseIoRaspCallSiteTest {
 
-  void 'test RASP FileChannel.open read-only fires beforeFileLoaded'() {
+  void 'test RASP FileChannel.open read-only fires only beforeFileLoaded'() {
     setup:
     final helper = Mock(FileIORaspHelper)
     FileIORaspHelper.INSTANCE = helper
@@ -18,10 +18,10 @@ class FileChannelCallSiteTest extends BaseIoRaspCallSiteTest {
 
     then:
     1 * helper.beforeFileLoaded(path.toString())
-    1 * helper.beforeFileWritten(path.toString())
+    0 * helper.beforeFileWritten(_)
   }
 
-  void 'test RASP FileChannel.open write fires beforeFileWritten'() {
+  void 'test RASP FileChannel.open write fires both beforeFileLoaded and beforeFileWritten'() {
     setup:
     final helper = Mock(FileIORaspHelper)
     FileIORaspHelper.INSTANCE = helper
@@ -35,7 +35,7 @@ class FileChannelCallSiteTest extends BaseIoRaspCallSiteTest {
     1 * helper.beforeFileWritten(path.toString())
   }
 
-  void 'test RASP FileChannel.open with Set of options'() {
+  void 'test RASP FileChannel.open with Set READ-only fires only beforeFileLoaded'() {
     setup:
     final helper = Mock(FileIORaspHelper)
     FileIORaspHelper.INSTANCE = helper
@@ -47,6 +47,35 @@ class FileChannelCallSiteTest extends BaseIoRaspCallSiteTest {
 
     then:
     1 * helper.beforeFileLoaded(path.toString())
+    0 * helper.beforeFileWritten(_)
+  }
+
+  void 'test RASP FileChannel.open with Set WRITE fires both callbacks'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final path = temporaryFolder.resolve('test_rasp_fc_set_write.txt')
+    final options = EnumSet.of(StandardOpenOption.WRITE, StandardOpenOption.CREATE)
+
+    when:
+    TestFileChannelSuite.openWithSet(path, options).close()
+
+    then:
+    1 * helper.beforeFileLoaded(path.toString())
     1 * helper.beforeFileWritten(path.toString())
+  }
+
+  void 'test RASP FileChannel.open with no options fires only beforeFileLoaded'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final path = newFile('test_rasp_fc_default.txt').toPath()
+
+    when:
+    TestFileChannelSuite.openWithOptions(path).close()
+
+    then:
+    1 * helper.beforeFileLoaded(path.toString())
+    0 * helper.beforeFileWritten(_)
   }
 }
