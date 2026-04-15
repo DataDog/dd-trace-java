@@ -97,6 +97,32 @@ public class DDSpanContext
   private final UTF8BytesString threadName;
 
   private volatile short httpStatusCode;
+
+  // Cached span.kind ordinal for fast isOutbound() checks.
+  // Ordinal constants -- keep in sync with SPAN_KIND_VALUES array.
+  public static final byte SPAN_KIND_UNSET = 0;
+  public static final byte SPAN_KIND_SERVER = 1;
+  public static final byte SPAN_KIND_CLIENT = 2;
+  public static final byte SPAN_KIND_PRODUCER = 3;
+  public static final byte SPAN_KIND_CONSUMER = 4;
+  public static final byte SPAN_KIND_INTERNAL = 5;
+  public static final byte SPAN_KIND_BROKER = 6;
+  public static final byte SPAN_KIND_CUSTOM = 7;
+
+  /** Maps ordinal to canonical string constant. Index 0 (UNSET) and 7 (CUSTOM) are null. */
+  static final String[] SPAN_KIND_VALUES = {
+    null, // UNSET
+    Tags.SPAN_KIND_SERVER,
+    Tags.SPAN_KIND_CLIENT,
+    Tags.SPAN_KIND_PRODUCER,
+    Tags.SPAN_KIND_CONSUMER,
+    Tags.SPAN_KIND_INTERNAL,
+    Tags.SPAN_KIND_BROKER,
+    null // CUSTOM
+  };
+
+  private volatile byte spanKindOrdinal;
+
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
 
@@ -716,6 +742,37 @@ public class DDSpanContext
     return httpStatusCode;
   }
 
+  /**
+   * Cache the span.kind ordinal for fast isOutbound() checks. Called from TagInterceptor when
+   * span.kind is set.
+   */
+  public void setSpanKind(String kind) {
+    if (kind == null) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+      return;
+    }
+    // Use identity checks first (canonical constants), then fall back to equals
+    if (kind == Tags.SPAN_KIND_SERVER || Tags.SPAN_KIND_SERVER.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_SERVER;
+    } else if (kind == Tags.SPAN_KIND_CLIENT || Tags.SPAN_KIND_CLIENT.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_CLIENT;
+    } else if (kind == Tags.SPAN_KIND_PRODUCER || Tags.SPAN_KIND_PRODUCER.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_PRODUCER;
+    } else if (kind == Tags.SPAN_KIND_CONSUMER || Tags.SPAN_KIND_CONSUMER.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_CONSUMER;
+    } else if (kind == Tags.SPAN_KIND_INTERNAL || Tags.SPAN_KIND_INTERNAL.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_INTERNAL;
+    } else if (kind == Tags.SPAN_KIND_BROKER || Tags.SPAN_KIND_BROKER.equals(kind)) {
+      spanKindOrdinal = SPAN_KIND_BROKER;
+    } else {
+      spanKindOrdinal = SPAN_KIND_CUSTOM;
+    }
+  }
+
+  public byte getSpanKindOrdinal() {
+    return spanKindOrdinal;
+  }
+
   public void setOrigin(final CharSequence origin) {
     DDSpanContext context = getRootSpanContextOrThis();
     context.origin = origin;
@@ -763,6 +820,9 @@ public class DDSpanContext
   }
 
   public void removeTag(String tag) {
+    if (Tags.SPAN_KIND.equals(tag)) {
+      spanKindOrdinal = SPAN_KIND_UNSET;
+    }
     synchronized (unsafeTags) {
       unsafeTags.remove(tag);
     }
@@ -782,9 +842,7 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      synchronized (unsafeTags) {
-        unsafeTags.remove(tag);
-      }
+      removeTag(tag);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -797,9 +855,7 @@ public class DDSpanContext
       return;
     }
     if (null == value) {
-      synchronized (unsafeTags) {
-        unsafeTags.remove(tag);
-      }
+      removeTag(tag);
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
@@ -1015,6 +1071,19 @@ public class DDSpanContext
         return threadName.toString();
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
+      case Tags.SPAN_KIND:
+        {
+          byte ordinal = spanKindOrdinal;
+          if (ordinal != SPAN_KIND_UNSET && ordinal != SPAN_KIND_CUSTOM) {
+            return SPAN_KIND_VALUES[ordinal];
+          }
+          // UNSET or CUSTOM -- fall through to tag map
+          Object value;
+          synchronized (unsafeTags) {
+            value = unsafeGetTag(key);
+          }
+          return value;
+        }
       default:
         Object value;
         synchronized (unsafeTags) {

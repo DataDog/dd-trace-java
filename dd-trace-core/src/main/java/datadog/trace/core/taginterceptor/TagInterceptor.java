@@ -123,6 +123,7 @@ public class TagInterceptor {
       case HTTP_URL:
       case ORIGIN_KEY:
       case MEASURED:
+      case Tags.SPAN_KIND:
         return true;
 
       default:
@@ -193,6 +194,11 @@ public class TagInterceptor {
         return interceptOrigin(span, value);
       case MEASURED:
         return interceptMeasured(span, value);
+      case Tags.SPAN_KIND:
+        // Cache the ordinal for fast isOutbound() checks.
+        // Return false so the value is still stored in unsafeTags for serialization.
+        span.setSpanKind(String.valueOf(value));
+        return false;
       default:
         return intercept(span, tag, value);
     }
@@ -223,7 +229,7 @@ public class TagInterceptor {
       path = uri == null ? null : uri.getPath();
     }
     if (path != null) {
-      final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
+      final boolean isClient = span.getSpanKindOrdinal() == DDSpanContext.SPAN_KIND_CLIENT;
       Pair<CharSequence, Byte> normalized =
           isClient
               ? HttpResourceNames.computeForClient(method, path, false)
