@@ -780,6 +780,18 @@ public class DDSpanContext
     return spanKindOrdinal == SPAN_KIND_CLIENT;
   }
 
+  /** Returns the span.kind tag value from the cached ordinal, or falls back to the tag map. */
+  private Object getSpanKindTag() {
+    byte ordinal = spanKindOrdinal;
+    if (ordinal > SPAN_KIND_UNSET && ordinal < SPAN_KIND_CUSTOM) {
+      return SPAN_KIND_VALUES[ordinal];
+    }
+    // UNSET or CUSTOM -- fall through to tag map
+    synchronized (unsafeTags) {
+      return unsafeGetTag(Tags.SPAN_KIND);
+    }
+  }
+
   public void setOrigin(final CharSequence origin) {
     DDSpanContext context = getRootSpanContextOrThis();
     context.origin = origin;
@@ -1079,18 +1091,7 @@ public class DDSpanContext
       case Tags.HTTP_STATUS:
         return 0 == httpStatusCode ? null : (int) httpStatusCode;
       case Tags.SPAN_KIND:
-        {
-          byte ordinal = spanKindOrdinal;
-          if (ordinal > SPAN_KIND_UNSET && ordinal < SPAN_KIND_CUSTOM) {
-            return SPAN_KIND_VALUES[ordinal];
-          }
-          // UNSET or CUSTOM -- fall through to tag map
-          Object value;
-          synchronized (unsafeTags) {
-            value = unsafeGetTag(Tags.SPAN_KIND);
-          }
-          return value;
-        }
+        return getSpanKindTag();
       default:
         Object value;
         synchronized (unsafeTags) {

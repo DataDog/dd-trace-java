@@ -2,7 +2,6 @@ package datadog.trace.core;
 
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -34,16 +33,13 @@ public class IsOutboundBenchmark {
 
   @Setup
   public void setup() {
-    AgentSpan cs = TRACER.startSpan("benchmark", "client.op");
-    cs.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
-    clientSpan = (DDSpan) cs;
+    clientSpan = (DDSpan) TRACER.startSpan("benchmark", "client.op");
+    clientSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT);
 
-    AgentSpan ss = TRACER.startSpan("benchmark", "server.op");
-    ss.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
-    serverSpan = (DDSpan) ss;
+    serverSpan = (DDSpan) TRACER.startSpan("benchmark", "server.op");
+    serverSpan.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER);
 
-    AgentSpan us = TRACER.startSpan("benchmark", "unset.op");
-    unsetSpan = (DDSpan) us;
+    unsetSpan = (DDSpan) TRACER.startSpan("benchmark", "unset.op");
   }
 
   @Benchmark
