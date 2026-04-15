@@ -121,7 +121,7 @@ public class DDSpanContext
     null // CUSTOM
   };
 
-  private volatile byte spanKindOrdinal;
+  private volatile byte spanKindOrdinal = SPAN_KIND_UNSET;
 
   private CharSequence integrationName;
   private CharSequence serviceNameSource;
