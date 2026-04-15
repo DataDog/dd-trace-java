@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUME
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static java.util.Arrays.asList;
+import static java.util.Arrays.copyOfRange;
 import static java.util.Collections.emptyList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,6 +18,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.google.protobuf.CodedInputStream;
 import com.google.protobuf.WireFormat;
 import datadog.trace.api.DD128bTraceId;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -130,6 +132,9 @@ class OtlpTraceProtoTest {
      */
     boolean use128BitTraceId;
 
+    /** Trace origin carried in the extracted parent context; {@code null} = no origin. */
+    String origin;
+
     SpanSpec(
         String resourceName,
         String operationName,
@@ -173,20 +178,40 @@ class OtlpTraceProtoTest {
       this.use128BitTraceId = true;
       return this;
     }
+
+    /**
+     * Sets the origin propagated via an {@link ExtractedContext} parent so that {@code
+     * metadata.getOrigin()} is non-null and the {@code _dd.origin} attribute is written.
+     */
+    SpanSpec origin(String origin) {
+      this.origin = origin;
+      return this;
+    }
   }
 
-  /** Descriptor for a single span link: the index of the target span and optional attributes. */
+  /**
+   * Descriptor for a single span link: target span index, optional attributes, tracestate, and
+   * flags.
+   */
   static final class LinkSpec {
     final int targetIndex;
     final SpanAttributes attributes;
+    final String traceState;
+    final byte traceFlags;
 
     LinkSpec(int targetIndex) {
-      this(targetIndex, SpanAttributes.EMPTY);
+      this(targetIndex, SpanAttributes.EMPTY, "", SpanLink.DEFAULT_FLAGS);
     }
 
     LinkSpec(int targetIndex, SpanAttributes attributes) {
+      this(targetIndex, attributes, "", SpanLink.DEFAULT_FLAGS);
+    }
+
+    LinkSpec(int targetIndex, SpanAttributes attributes, String traceState, byte traceFlags) {
       this.targetIndex = targetIndex;
       this.attributes = attributes;
+      this.traceState = traceState;
+      this.traceFlags = traceFlags;
     }
   }
 
@@ -194,6 +219,13 @@ class OtlpTraceProtoTest {
 
   private static final long BASE_MICROS = 1_700_000_000_000_000L;
   private static final long DURATION_MICROS = 500_000L; // 500 ms
+
+  /**
+   * A known 128-bit trace ID used by {@link SpanSpec#use128BitTraceId} test cases. High-order bits
+   * are non-zero so the test can assert the proto encodes them correctly.
+   */
+  static final DD128bTraceId TRACE_ID_128BIT =
+      DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
 
   private static SpanSpec span(String resourceName, String operationName, String spanType) {
     return new SpanSpec(
@@ -351,6 +383,44 @@ class OtlpTraceProtoTest {
         new LinkSpec(targetIndex, attributes));
   }
 
+  /** A span with one {@link SpanLink} carrying the given W3C tracestate string. */
+  private static SpanSpec linkedSpanWithTracestate(
+      String resourceName, int targetIndex, String traceState) {
+    return new SpanSpec(
+        resourceName,
+        "op.linked",
+        "web",
+        null,
+        BASE_MICROS,
+        BASE_MICROS + DURATION_MICROS,
+        false,
+        null,
+        0,
+        null,
+        new HashMap<>(),
+        -1,
+        new LinkSpec(targetIndex, SpanAttributes.EMPTY, traceState, SpanLink.DEFAULT_FLAGS));
+  }
+
+  /** A span with one {@link SpanLink} carrying the given trace flags. */
+  private static SpanSpec linkedSpanWithFlags(
+      String resourceName, int targetIndex, byte traceFlags) {
+    return new SpanSpec(
+        resourceName,
+        "op.linked",
+        "web",
+        null,
+        BASE_MICROS,
+        BASE_MICROS + DURATION_MICROS,
+        false,
+        null,
+        0,
+        null,
+        new HashMap<>(),
+        -1,
+        new LinkSpec(targetIndex, SpanAttributes.EMPTY, "", traceFlags));
+  }
+
   private static Map<String, Object> tags(Object... keyValues) {
     Map<String, Object> map = new HashMap<>();
     for (int i = 0; i < keyValues.length; i += 2) {
@@ -441,6 +511,16 @@ class OtlpTraceProtoTest {
                     "attr.linked",
                     0,
                     SpanAttributes.builder().put("link.source", "test").build()))),
+        Arguments.of(
+            "span link with tracestate — Link.trace_state field written",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithTracestate("tracestate.linked", 0, "vendor=abc;p=123"))),
+        Arguments.of(
+            "span link with non-default flags — extra flag bit preserved alongside SAMPLED",
+            asList(
+                span("anchor.op", "anchor.op", "web"),
+                linkedSpanWithFlags("flags.linked", 0, (byte) 0x02))),
 
         // ── metadata paths ────────────────────────────────────────────────────
         Arguments.of(
@@ -449,6 +529,9 @@ class OtlpTraceProtoTest {
         Arguments.of(
             "span with http status code — http.status_code written via setHttpStatusCode",
             asList(span("GET /resource", "servlet.request", "web").httpStatusCode(404))),
+        Arguments.of(
+            "span with origin — _dd.origin attribute written",
+            asList(span("GET /api", "servlet.request", "web").origin("rum"))),
         Arguments.of(
             "span with 128-bit trace ID — high-order trace_id bytes non-zero",
             asList(span("GET /api", "servlet.request", "web").use128BitTraceId())),
@@ -538,13 +621,6 @@ class OtlpTraceProtoTest {
 
   // ── span construction ─────────────────────────────────────────────────────
 
-  /**
-   * A known 128-bit trace ID used by {@link SpanSpec#use128BitTraceId} test cases. High-order bits
-   * are non-zero so the test can assert the proto encodes them correctly.
-   */
-  static final DD128bTraceId TRACE_ID_128BIT =
-      DD128bTraceId.from(0x0123456789abcdefL, 0xfedcba9876543210L);
-
   /** Builds {@link DDSpan} instances from the given specs, collecting them in order. */
   private static List<DDSpan> buildSpans(List<SpanSpec> specs) {
     List<DDSpan> spans = new ArrayList<>(specs.size());
@@ -560,6 +636,17 @@ class OtlpTraceProtoTest {
                 PropagationTags.factory().empty(),
                 TracePropagationStyle.DATADOG);
         agentSpan = TRACER.startSpan("test", spec.operationName, parent128, spec.startMicros);
+      } else if (spec.origin != null) {
+        ExtractedContext parentWithOrigin =
+            new ExtractedContext(
+                DDTraceId.ONE,
+                0L,
+                PrioritySampling.UNSET,
+                spec.origin,
+                PropagationTags.factory().empty(),
+                TracePropagationStyle.DATADOG);
+        agentSpan =
+            TRACER.startSpan("test", spec.operationName, parentWithOrigin, spec.startMicros);
       } else if (spec.parentIndex >= 0) {
         agentSpan =
             TRACER.startSpan(
@@ -606,13 +693,11 @@ class OtlpTraceProtoTest {
 
       for (LinkSpec link : spec.links) {
         agentSpan.addLink(
-            link.attributes.isEmpty()
-                ? SpanLink.from(spans.get(link.targetIndex).context())
-                : SpanLink.from(
-                    spans.get(link.targetIndex).context(),
-                    SpanLink.DEFAULT_FLAGS,
-                    "",
-                    link.attributes));
+            SpanLink.from(
+                spans.get(link.targetIndex).context(),
+                link.traceFlags,
+                link.traceState,
+                link.attributes));
       }
 
       agentSpan.finish(spec.finishMicros);
@@ -760,8 +845,7 @@ class OtlpTraceProtoTest {
     assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes [" + caseName + "]");
     if (spec.use128BitTraceId) {
       // high-order bytes occupy parsedTraceId[8..15] (little-endian in the wire format)
-      long highOrderBytes =
-          readLittleEndianLong(java.util.Arrays.copyOfRange(parsedTraceId, 8, 16));
+      long highOrderBytes = readLittleEndianLong(copyOfRange(parsedTraceId, 8, 16));
       assertNotEquals(
           0L,
           highOrderBytes,
@@ -859,6 +943,11 @@ class OtlpTraceProtoTest {
               + caseName
               + "]");
     }
+    if (spec.origin != null) {
+      assertTrue(
+          attrKeys.contains("_dd.origin"),
+          "attributes must include '_dd.origin' when origin is set [" + caseName + "]");
+    }
 
     // ── status (field 15) ─────────────────────────────────────────────────────
     if (spec.error) {
@@ -892,7 +981,9 @@ class OtlpTraceProtoTest {
       throws IOException {
     byte[] traceId = null;
     byte[] spanId = null;
+    String parsedTraceState = null;
     Set<String> linkAttrKeys = new HashSet<>();
+    int parsedFlags = 0;
     while (!link.isAtEnd()) {
       int tag = link.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
@@ -902,8 +993,14 @@ class OtlpTraceProtoTest {
         case 2:
           spanId = link.readBytes().toByteArray();
           break;
+        case 3:
+          parsedTraceState = link.readString();
+          break;
         case 4:
           linkAttrKeys.add(readKeyValueKey(link.readBytes().newCodedInput()));
+          break;
+        case 6:
+          parsedFlags = link.readFixed32();
           break;
         default:
           link.skipField(tag);
@@ -913,6 +1010,14 @@ class OtlpTraceProtoTest {
     assertEquals(16, traceId.length, "Link.trace_id must be 16 bytes [" + caseName + "]");
     assertNotNull(spanId, "Link.span_id must be present [" + caseName + "]");
     assertEquals(8, spanId.length, "Link.span_id must be 8 bytes [" + caseName + "]");
+    if (!linkSpec.traceState.isEmpty()) {
+      assertEquals(
+          linkSpec.traceState, parsedTraceState, "Link.trace_state mismatch [" + caseName + "]");
+    }
+    // SpanLink.from() ORs in the SAMPLED_FLAG (0x01) when the target context has positive
+    // sampling priority, which all test anchor spans have via the default tracer sampler.
+    int expectedFlags = Byte.toUnsignedInt((byte) (linkSpec.traceFlags | 0x01));
+    assertEquals(expectedFlags, parsedFlags, "Link.flags mismatch [" + caseName + "]");
     for (String expectedKey : linkSpec.attributes.asMap().keySet()) {
       assertTrue(
           linkAttrKeys.contains(expectedKey),
