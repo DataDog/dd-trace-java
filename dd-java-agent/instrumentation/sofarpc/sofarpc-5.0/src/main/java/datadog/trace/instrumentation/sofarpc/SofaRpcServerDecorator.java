@@ -41,6 +41,7 @@ public class SofaRpcServerDecorator extends ServerDecorator {
   }
 
   public AgentSpan onRequest(AgentSpan span, SofaRequest request) {
+    span.setTag("rpc.system", "sofarpc");
     if (request == null) {
       return span;
     }
@@ -56,9 +57,18 @@ public class SofaRpcServerDecorator extends ServerDecorator {
   }
 
   public AgentSpan onResponse(AgentSpan span, SofaResponse response) {
-    if (response != null && response.isError()) {
+    if (response == null) {
+      return span;
+    }
+    if (response.isError()) {
+      // RPC-layer error (timeout, serialization failure, etc.)
       span.setError(true);
       span.setTag("error.message", response.getErrorMsg());
+    } else if (response.getAppResponse() instanceof Throwable) {
+      // Application exception: ProviderProxyInvoker catches it and stores in appResponse
+      Throwable t = (Throwable) response.getAppResponse();
+      span.setError(true);
+      span.setTag("error.message", t.getMessage());
     }
     return span;
   }

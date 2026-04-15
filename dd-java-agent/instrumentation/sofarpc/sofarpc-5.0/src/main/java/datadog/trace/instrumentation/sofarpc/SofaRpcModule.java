@@ -21,11 +21,17 @@ public class SofaRpcModule extends InstrumenterModule.Tracing {
       packageName + ".SofaRpcServerDecorator",
       packageName + ".SofaRpcInjectAdapter",
       packageName + ".SofaRpcExtractAdapter",
+      packageName + ".SofaRpcProtocolContext",
     };
   }
 
   @Override
   public List<Instrumenter> typeInstrumentations() {
-    return asList(new AbstractClusterInstrumentation(), new ProviderProxyInvokerInstrumentation());
+    return asList(
+        new AbstractClusterInstrumentation(),
+        new BoltServerProcessorInstrumentation(),
+        new H2cServerTaskInstrumentation(),
+        new TripleServerInstrumentation(),
+        new ProviderProxyInvokerInstrumentation());
   }
 }

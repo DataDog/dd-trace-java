@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.sofarpc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extractContextAndGetSpanContext;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
-import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.sofarpc.SofaRpcExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.sofarpc.SofaRpcServerDecorator.DECORATE;
@@ -41,17 +40,26 @@ public class ProviderProxyInvokerInstrumentation
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope enter(@Advice.Argument(0) SofaRequest request) {
-      // Triple protocol uses gRPC transport: the gRPC instrumentation already handles
-      // context propagation and creates a grpc.server span. Detect this by checking
-      // whether an active span is already present on the current thread — if so, skip
-      // creating a duplicate sofarpc.request span that would start an orphan trace.
-      if (activeSpan() != null) {
+      // Protocol is set in thread-local by transport-specific instrumentation before this call.
+      // If null, the transport is not instrumented — skip.
+      String protocol = SofaRpcProtocolContext.get();
+      if (protocol == null) {
         return null;
       }
-      AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
-      AgentSpan span = startSpan(SOFA_RPC_SERVER, parentContext);
+      AgentSpan span;
+      if ("bolt".equals(protocol) || "h2c".equals(protocol)) {
+        // Bolt propagates Datadog trace headers via SofaRequest.requestProps — extract from there.
+        AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
+        span = startSpan(SOFA_RPC_SERVER, parentContext);
+      } else {
+        // For Triple and other protocols, trace context is propagated at the transport layer
+        // (e.g. gRPC Metadata). The transport instrumentation already activated the parent span,
+        // so startSpan without an explicit parent inherits it automatically.
+        span = startSpan(SOFA_RPC_SERVER);
+      }
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
+      span.setTag("sofarpc.protocol", protocol);
       return activateSpan(span);
     }
 
@@ -67,8 +75,8 @@ public class ProviderProxyInvokerInstrumentation
       DECORATE.onResponse(span, response);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

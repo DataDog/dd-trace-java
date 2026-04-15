@@ -11,6 +11,8 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import com.alipay.sofa.rpc.client.AbstractCluster;
+import com.alipay.sofa.rpc.config.ConsumerConfig;
 import com.alipay.sofa.rpc.core.request.SofaRequest;
 import com.alipay.sofa.rpc.core.response.SofaResponse;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -38,10 +40,16 @@ public class AbstractClusterInstrumentation
 
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(0) SofaRequest request) {
+    public static AgentScope enter(
+        @Advice.This AbstractCluster self, @Advice.Argument(0) SofaRequest request) {
+      ConsumerConfig config = self.getConsumerConfig();
+      String protocol = config != null ? config.getProtocol() : null;
       AgentSpan span = startSpan(SOFA_RPC_CLIENT);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
+      if (protocol != null) {
+        span.setTag("sofarpc.protocol", protocol);
+      }
       AgentScope scope = activateSpan(span);
       defaultPropagator().inject(span, request, SETTER);
       return scope;
@@ -59,8 +67,8 @@ public class AbstractClusterInstrumentation
       DECORATE.onResponse(span, response);
       DECORATE.onError(span, throwable);
       DECORATE.beforeFinish(span);
-      span.finish();
       scope.close();
+      span.finish();
     }
   }
 }

@@ -40,12 +40,14 @@ public class SofaRpcClientDecorator extends ClientDecorator {
   }
 
   public AgentSpan onRequest(AgentSpan span, SofaRequest request) {
+    span.setTag("rpc.system", "sofarpc");
     if (request == null) {
       return span;
     }
     String serviceName = request.getTargetServiceUniqueName();
     String methodName = request.getMethodName();
     span.setTag(Tags.RPC_SERVICE, serviceName);
+    // peer.service is derived automatically by PeerServiceCalculator from rpc.service.
     if (serviceName != null && methodName != null) {
       span.setResourceName(serviceName + "/" + methodName);
     } else if (methodName != null) {
