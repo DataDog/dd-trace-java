@@ -366,7 +366,7 @@ public final class TraceMapperV1 implements TraceMapper {
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
       if (!DDTags.SPAN_EVENTS.equals(entry.tag())) {
-        tagCount += getFlatAttributeCount(entry.objectValue());
+        tagCount += getFlatAttributeCount(entry);
       }
     }
 
@@ -387,7 +387,7 @@ public final class TraceMapperV1 implements TraceMapper {
       if (DDTags.SPAN_EVENTS.equals(entry.tag())) {
         continue;
       }
-      writeFlattenedTagAttribute(writable, entry.tag(), entry.objectValue());
+      writeFlattenedTagAttribute(writable, entry);
     }
     if (writeHttpStatus) {
       writeAttribute(writable, HTTP_STATUS, httpStatusCode);
@@ -402,15 +402,42 @@ public final class TraceMapperV1 implements TraceMapper {
     }
   }
 
+  private int getFlatAttributeCount(TagMap.EntryReader entry) {
+    return entry.isObject() ? getFlatAttributeCount(entry.objectValue()) : 1;
+  }
+
   private int getFlatAttributeCount(Object value) {
     if (!(value instanceof Map)) {
       return 1;
     }
+
     int count = 0;
     for (Object nestedValue : ((Map<?, ?>) value).values()) {
       count += getFlatAttributeCount(nestedValue);
     }
     return count;
+  }
+
+  private void writeFlattenedTagAttribute(Writable writable, TagMap.EntryReader entry) {
+    switch (entry.type()) {
+      case TagMap.EntryReader.BOOLEAN:
+        writeStreamingString(writable, entry.tag());
+        writable.writeInt(VALUE_TYPE_BOOLEAN);
+        writable.writeBoolean(entry.booleanValue());
+        return;
+
+      case TagMap.EntryReader.INT:
+      case TagMap.EntryReader.LONG:
+      case TagMap.EntryReader.FLOAT:
+      case TagMap.EntryReader.DOUBLE:
+        writeStreamingString(writable, entry.tag());
+        writable.writeInt(VALUE_TYPE_FLOAT);
+        writable.writeDouble(entry.doubleValue());
+        return;
+
+      default:
+        writeFlattenedTagAttribute(writable, entry.tag(), entry.objectValue());
+    }
   }
 
   private void writeFlattenedTagAttribute(Writable writable, String key, Object value) {

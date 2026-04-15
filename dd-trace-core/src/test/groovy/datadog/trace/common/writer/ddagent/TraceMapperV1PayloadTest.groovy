@@ -658,6 +658,49 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertTrue(!attributes.containsKey("appsec.events.users.login.success"))
   }
 
+  def "test primitive span tags are encoded in v1 attributes"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [
+        "tag.bool"  : true,
+        "tag.int"   : 7,
+        "tag.long"  : 9L,
+        "tag.float" : 3.5f,
+        "tag.double": 4.25d
+      ],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      0,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable)
+
+    then:
+    assertEquals(true, attributes.get("tag.bool"))
+    assertEquals(7d, (attributes.get("tag.int") as Number).doubleValue(), 0.000001d)
+    assertEquals(9d, (attributes.get("tag.long") as Number).doubleValue(), 0.000001d)
+    assertEquals(3.5d, (attributes.get("tag.float") as Number).doubleValue(), 0.000001d)
+    assertEquals(4.25d, (attributes.get("tag.double") as Number).doubleValue(), 0.000001d)
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
