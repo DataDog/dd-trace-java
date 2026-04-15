@@ -165,12 +165,10 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   private void completeSpan() {
 
     // add span message prefix to its nested chunks and promote to scoped
-    if (spanBytes > 0) {
-      byte[] spanPrefix = recordSpanMessage(buf, currentSpan, metaWriter, spanBytes);
-      scopedChunks.add(spanPrefix);
-      scopedChunks.addAll(spanChunks);
-      scopedBytes += spanPrefix.length + spanBytes;
-    }
+    byte[] spanPrefix = recordSpanMessage(buf, currentSpan, metaWriter, spanBytes);
+    scopedChunks.add(spanPrefix);
+    scopedChunks.addAll(spanChunks);
+    scopedBytes += spanPrefix.length + spanBytes;
 
     // reset temporary elements for next span
     currentSpan = null;
