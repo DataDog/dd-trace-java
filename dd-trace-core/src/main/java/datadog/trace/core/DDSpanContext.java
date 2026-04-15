@@ -288,6 +288,60 @@ public class DDSpanContext
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
       final boolean injectBaggageAsTags) {
+    this(
+        traceId,
+        spanId,
+        parentId,
+        parentServiceName,
+        serviceNameSource,
+        serviceName,
+        operationName,
+        resourceName,
+        samplingPriority,
+        origin,
+        baggageItems,
+        w3cBaggage,
+        errorFlag,
+        spanType,
+        tagsSize,
+        null, // tagBase
+        traceCollector,
+        requestContextDataAppSec,
+        requestContextDataIast,
+        CiVisibilityContextData,
+        pathwayContext,
+        disableSamplingMechanismValidation,
+        propagationTags,
+        profilingContextIntegration,
+        injectBaggageAsTags);
+  }
+
+  public DDSpanContext(
+      final DDTraceId traceId,
+      final long spanId,
+      final long parentId,
+      final CharSequence parentServiceName,
+      final CharSequence serviceNameSource,
+      final String serviceName,
+      final CharSequence operationName,
+      final CharSequence resourceName,
+      final int samplingPriority,
+      final CharSequence origin,
+      final Map<String, String> baggageItems,
+      final Baggage w3cBaggage,
+      final boolean errorFlag,
+      final CharSequence spanType,
+      final int tagsSize,
+      final TagMap tagBase,
+      final TraceCollector traceCollector,
+      final Object requestContextDataAppSec,
+      final Object requestContextDataIast,
+      final Object CiVisibilityContextData,
+      final PathwayContext pathwayContext,
+      final boolean disableSamplingMechanismValidation,
+      final PropagationTags propagationTags,
+      final ProfilingContextIntegration profilingContextIntegration,
+      final boolean injectBaggageAsTags) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -313,10 +367,14 @@ public class DDSpanContext
     assert pathwayContext != null;
     this.pathwayContext = pathwayContext;
 
-    // The +1 is the magic number from the tags below that we set at the end,
-    // and "* 4 / 3" is to make sure that we don't resize immediately
-    final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
-    this.unsafeTags = TagMap.create(capacity);
+    if (tagBase != null) {
+      this.unsafeTags = tagBase.copy();
+    } else {
+      // The +1 is the magic number from the tags below that we set at the end,
+      // and "* 4 / 3" is to make sure that we don't resize immediately
+      final int capacity = Math.max((tagsSize <= 0 ? 3 : (tagsSize + 1)) * 4 / 3, 8);
+      this.unsafeTags = TagMap.create(capacity);
+    }
 
     // must set this before setting the service and resource names below
     this.profilingContextIntegration = profilingContextIntegration;
@@ -987,6 +1045,26 @@ public class DDSpanContext
           }
         }
       }
+    }
+  }
+
+  /**
+   * Runs the tag interceptor over tags already present in unsafeTags (from a template copy). Tags
+   * that are intercepted are removed from unsafeTags and processed by the interceptor. This avoids
+   * re-adding tags that are already present from the template.
+   */
+  void interceptAllTags(final TagMap templateTags) {
+    synchronized (unsafeTags) {
+      templateTags.forEach(
+          this,
+          (ctx, tagEntry) -> {
+            String tag = tagEntry.tag();
+            Object value = tagEntry.objectValue();
+
+            if (ctx.tagInterceptor.interceptTag(ctx, tag, value)) {
+              ctx.unsafeTags.remove(tag);
+            }
+          });
     }
   }
 

@@ -688,6 +688,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.defaultSpanTags = defaultSpanTags;
     this.defaultSpanTagsNeedsIntercept = this.tagInterceptor.needsIntercept(this.defaultSpanTags);
 
+    // Initialize localRootSpanTags before dynamicConfig so ConfigSnapshot can pre-merge them
+    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
+      TagMap tmp = TagMap.fromMap(localRootSpanTags);
+      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
+      this.localRootSpanTags = tmp.freeze();
+    } else {
+      this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
+    }
+    this.localRootSpanTagsNeedIntercept =
+        this.tagInterceptor.needsIntercept(this.localRootSpanTags);
+
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
             .setTracingEnabled(true) // implied by installation of CoreTracer
@@ -866,16 +877,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
-    if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
-      TagMap tmp = TagMap.fromMap(localRootSpanTags);
-      tmp.put(PROFILING_CONTEXT_ENGINE, profilingContextIntegration.name());
-      this.localRootSpanTags = tmp.freeze();
-    } else {
-      this.localRootSpanTags = TagMap.fromMapImmutable(localRootSpanTags);
-    }
-
-    this.localRootSpanTagsNeedIntercept =
-        this.tagInterceptor.needsIntercept(this.localRootSpanTags);
+    // localRootSpanTags already initialized above (before dynamicConfig)
     if (serviceDiscoveryFactory != null) {
       AgentTaskScheduler.get()
           .schedule(
@@ -2073,14 +2075,23 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         operationName = resourceName;
       }
 
-      final TagMap mergedTracerTags = traceConfig.mergedTracerTags;
-      boolean mergedTracerTagsNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
+      // Use pre-merged template for root spans, mergedTracerTags template for child spans
+      final TagMap tagBase;
+      final boolean tagBaseNeedsIntercept;
+      if (rootSpanTags != null) {
+        // Root span: use pre-merged template (mergedTracerTags + rootSpanTags - Tags.VERSION)
+        tagBase = traceConfig.preMergedRootSpanBase;
+        tagBaseNeedsIntercept = traceConfig.preMergedRootSpanBaseNeedsIntercept;
+      } else {
+        // Child span: use mergedTracerTags as template
+        tagBase = traceConfig.mergedTracerTags;
+        tagBaseNeedsIntercept = traceConfig.mergedTracerTagsNeedsIntercept;
+      }
 
       final int tagsSize =
-          mergedTracerTags.size()
+          tagBase.size()
               + (null == tagLedger ? 0 : tagLedger.estimateSize())
               + (null == coreTags ? 0 : coreTags.size())
-              + (null == rootSpanTags ? 0 : rootSpanTags.size())
               + (null == contextualTags ? 0 : contextualTags.size());
 
       if (builderRequestContextDataAppSec != null) {
@@ -2111,6 +2122,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               errorFlag,
               spanType,
               tagsSize,
+              tagBase,
               parentTraceCollector,
               requestContextDataAppSec,
               requestContextDataIast,
@@ -2121,17 +2133,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.profilingContextIntegration,
               tracer.injectBaggageAsTags);
 
+      // Apply tag intercept for the template tags if needed
+      if (tagBaseNeedsIntercept) {
+        context.interceptAllTags(tagBase);
+      }
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
       // set in the builder should come last, so that they override other tags.
-      context.setAllTags(mergedTracerTags, mergedTracerTagsNeedsIntercept);
       context.setAllTags(tagLedger);
       context.setAllTags(coreTags, coreTagsNeedsIntercept);
-      context.setAllTags(rootSpanTags, rootSpanTagsNeedsIntercept);
       context.setAllTags(contextualTags);
-      // remove version here since will be done later on the postProcessor.
-      // it will allow knowing if it will be set manually or not
-      context.removeTag(Tags.VERSION);
       return context;
     }
   }
@@ -2327,6 +2338,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     final TagMap mergedTracerTags;
     final boolean mergedTracerTagsNeedsIntercept;
 
+    /** Pre-merged template for root spans: mergedTracerTags + localRootSpanTags - Tags.VERSION */
+    final TagMap preMergedRootSpanBase;
+
+    final boolean preMergedRootSpanBaseNeedsIntercept;
+
     protected ConfigSnapshot(
         DynamicConfig<ConfigSnapshot>.Builder builder, ConfigSnapshot oldSnapshot) {
       super(builder, oldSnapshot);
@@ -2351,6 +2367,14 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         mergedTracerTagsNeedsIntercept =
             CoreTracer.this.tagInterceptor.needsIntercept(mergedTracerTags);
       }
+
+      // Pre-merge root span base: mergedTracerTags + localRootSpanTags - Tags.VERSION
+      TagMap rootBase = mergedTracerTags.copy();
+      rootBase.putAll(CoreTracer.this.localRootSpanTags);
+      rootBase.remove(Tags.VERSION);
+      preMergedRootSpanBase = rootBase.freeze();
+      preMergedRootSpanBaseNeedsIntercept =
+          mergedTracerTagsNeedsIntercept || CoreTracer.this.localRootSpanTagsNeedIntercept;
     }
   }
 
