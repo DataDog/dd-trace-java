@@ -39,6 +39,9 @@ public class SamplingMechanism {
   public static final byte REMOTE_ADAPTIVE_RULE = 12;
   public static final byte AI_GUARD = 13;
 
+  /** Highest known non-negative mechanism value. Used to size pre-computed caches. */
+  public static final byte MAX_KNOWN_MECHANISM = AI_GUARD;
+
   /** Force override sampling decision from external source, like W3C traceparent. */
   public static final byte EXTERNAL_OVERRIDE = Byte.MIN_VALUE;
 

@@ -96,6 +96,22 @@ class SamplingMechanismTest extends DDSpecification {
     EXTERNAL_OVERRIDE | userKeepX    | false
   }
 
+  def "MAX_KNOWN_MECHANISM equals the highest non-negative byte constant"() {
+    when:
+    int maxFound = SamplingMechanism.getDeclaredFields()
+      .findAll {
+        java.lang.reflect.Modifier.isStatic(it.modifiers) &&
+          it.type == byte &&
+          it.name != 'MAX_KNOWN_MECHANISM'
+      }
+      .collect { it.get(null) as int }
+      .findAll { it >= 0 }
+      .max()
+
+    then:
+    SamplingMechanism.MAX_KNOWN_MECHANISM == maxFound
+  }
+
   void 'Test canAvoidSamplingPriorityLock'(){
     setup:
     injectSysConfig("dd.apm.tracing.enabled", "false")

@@ -26,17 +26,15 @@ public class PTagsFactory implements PropagationTags.Factory {
   static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
 
   /**
-   * Pre-computed TagValue instances for known sampling mechanisms (0 through 13). Avoids the "-" +
-   * samplingMechanism String concatenation and TagValue.from() cache lookup on every sampling
-   * decision.
+   * Pre-computed TagValue instances for known sampling mechanisms (0 through {@link
+   * SamplingMechanism#MAX_KNOWN_MECHANISM}). Avoids the "-" + samplingMechanism String
+   * concatenation and TagValue.from() cache lookup on every sampling decision.
    */
-  private static final int MAX_KNOWN_MECHANISM = SamplingMechanism.AI_GUARD; // 13
-
   private static final TagValue[] DECISION_MAKER_VALUES;
 
   static {
-    DECISION_MAKER_VALUES = new TagValue[MAX_KNOWN_MECHANISM + 1];
-    for (int i = 0; i <= MAX_KNOWN_MECHANISM; i++) {
+    DECISION_MAKER_VALUES = new TagValue[SamplingMechanism.MAX_KNOWN_MECHANISM + 1];
+    for (int i = 0; i <= SamplingMechanism.MAX_KNOWN_MECHANISM; i++) {
       DECISION_MAKER_VALUES[i] = TagValue.from("-" + i);
     }
   }
@@ -239,7 +237,7 @@ public class PTagsFactory implements PropagationTags.Factory {
         // format
         if (samplingMechanism >= 0) {
           TagValue newDM =
-              samplingMechanism <= MAX_KNOWN_MECHANISM
+              samplingMechanism <= SamplingMechanism.MAX_KNOWN_MECHANISM
                   ? DECISION_MAKER_VALUES[samplingMechanism]
                   : TagValue.from("-" + samplingMechanism);
           if (!newDM.equals(decisionMakerTagValue)) {
