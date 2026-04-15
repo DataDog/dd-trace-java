@@ -95,7 +95,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // attributes = 3, a collection of key to value pairs common in all `spans`
     encodeAttributes(writable, 3, buildChunkAttributes(trace));
     // spans = 4, a list of spans in this chunk
-    encodeSpans(writable, 4, trace, firstSpanMeta);
+    encodeSpans(writable, 4, trace);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
     encodeBytes(writable, 6, firstSpan.getTraceId().to128BitBytes());
     // samplingMechanism = 7, uint32
@@ -114,23 +114,16 @@ public final class TraceMapperV1 implements TraceMapper {
     return singletonMap("service", service);
   }
 
-  private void encodeSpans(
-      Writable writable,
-      int fieldId,
-      List<? extends CoreSpan<?>> spans,
-      Metadata firstSpanMetadata) {
+  private void encodeSpans(Writable writable, int fieldId, List<? extends CoreSpan<?>> spans) {
     int spansCount = spans.size();
 
     writable.writeInt(fieldId);
     writable.startArray(spansCount);
 
-    for (int i = 0; i < spansCount; i++) {
-      final CoreSpan<?> span = spans.get(i);
-
-      Metadata meta;
-      if (i == 0) {
-        meta = firstSpanMetadata;
-      } else {
+    // spanMetadata will already have data from first span.
+    Metadata meta = spanMetadata.metadata;
+    for (CoreSpan<?> span : spans) {
+      if (meta == null) {
         span.processTagsAndBaggage(spanMetadata, false);
         meta = spanMetadata.metadata;
       }
@@ -174,6 +167,8 @@ public final class TraceMapperV1 implements TraceMapper {
       encodeString(writable, 15, tags.getString(Tags.COMPONENT));
       // kind = 16, the SpanKind of this span as defined in the OTEL Specification, uint32
       encodeInt(writable, 16, getSpanKindValue(tags.getString(Tags.SPAN_KIND)));
+
+      meta = null; // Proceed to next span metadata.
     }
   }
 
