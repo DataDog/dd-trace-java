@@ -258,15 +258,15 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
   }
 }
 
-/** Checks that [key] exists in [supported] and [aliases], and that all [expectedAliases] are values of that alias entry. */
-private fun MutableList<String>.checkKeyAndAliases(
+/** Collects violations for [key] against [supported] and [aliases], checking that all [expectedAliases] are values of that alias entry. */
+private fun collectMissingKeysAndAliases(
   key: String,
   expectedAliases: List<String>,
   supported: Set<String>,
   aliases: Map<String, List<String>>,
   location: String,
   context: String
-) {
+): List<String> = buildList {
   if (key !in supported) {
     add("$location -> $context: '$key' is missing from SUPPORTED")
   }
@@ -284,7 +284,7 @@ private fun MutableList<String>.checkKeyAndAliases(
 
 /**
  * Shared setup for tasks that scan instrumentation source files against the generated config class.
- * Registers a task that parses Java files in dd-java-agent/instrumentation/ and calls [checker]
+ * Registers a task that parses Java files in dd-java-agent/instrumentation/ and calls [collectPropertyViolations]
  * for each parsed CompilationUnit to collect violations.
  */
 private fun registerInstrumentationCheckTask(
@@ -295,7 +295,7 @@ private fun registerInstrumentationCheckTask(
   errorHeader: String,
   errorMessage: String,
   successMessage: String,
-  checker: MutableList<String>.(LoadedConfigFields, String, CompilationUnit) -> Unit
+  collectPropertyViolations: (LoadedConfigFields, String, CompilationUnit) -> List<String>
 ) {
   val ownerPath = extension.configOwnerPath
   val generatedFile = extension.className
@@ -323,16 +323,14 @@ private fun registerInstrumentationCheckTask(
       StaticJavaParser.setConfiguration(parserConfig)
 
       val repoRoot = project.rootProject.projectDir.toPath()
-      val violations = buildList {
-        instrumentationFiles.files.forEach { file ->
-          val rel = repoRoot.relativize(file.toPath()).toString()
-          val cu: CompilationUnit = try {
-            StaticJavaParser.parse(file)
-          } catch (_: Exception) {
-            return@forEach
-          }
-          checker(configFields, rel, cu)
+      val violations = instrumentationFiles.files.flatMap { file ->
+        val rel = repoRoot.relativize(file.toPath()).toString()
+        val cu: CompilationUnit = try {
+          StaticJavaParser.parse(file)
+        } catch (_: Exception) {
+          return@flatMap emptyList()
         }
+        collectPropertyViolations(configFields, rel, cu)
       }
 
       if (violations.isNotEmpty()) {
@@ -356,6 +354,8 @@ private fun registerCheckInstrumenterModuleConfigurations(project: Project, exte
     errorMessage = "InstrumenterModule integration names are missing from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.",
     successMessage = "All InstrumenterModule integration names have proper SUPPORTED and ALIASES entries."
   ) { configFields, rel, cu ->
+    val cuViolations = mutableListOf<String>()
+
     cu.findAll(ClassOrInterfaceDeclaration::class.java).forEach classLoop@{ classDecl ->
       // Only examine classes extending InstrumenterModule.*
       val extendsModule = classDecl.extendedTypes.any { it.toString().startsWith("InstrumenterModule") }
@@ -375,14 +375,16 @@ private fun registerCheckInstrumenterModuleConfigurations(project: Project, exte
             val context = "Integration '$name' (super arg)"
             val location = "$rel:$line"
 
-            checkKeyAndAliases(
+            cuViolations.addAll(collectMissingKeysAndAliases(
               enabledKey,
               listOf("DD_TRACE_INTEGRATION_${normalized}_ENABLED", "DD_INTEGRATION_${normalized}_ENABLED"),
               configFields.supported, configFields.aliases, location, context
-            )
+            ))
           }
         }
     }
+
+    cuViolations
   }
 }
 
@@ -396,6 +398,8 @@ private fun registerCheckDecoratorAnalyticsConfigurations(project: Project, exte
     errorMessage = "Decorator instrumentationNames are missing analytics entries from SUPPORTED or ALIASES in '${extension.jsonFile.get()}'.",
     successMessage = "All Decorator instrumentationNames have proper analytics SUPPORTED and ALIASES entries."
   ) { configFields, rel, cu ->
+    val cuViolations = mutableListOf<String>()
+
     cu.findAll(MethodDeclaration::class.java)
       .filter { it.nameAsString == "instrumentationNames" && it.parameters.isEmpty() }
       .forEach { method ->
@@ -410,17 +414,19 @@ private fun registerCheckDecoratorAnalyticsConfigurations(project: Project, exte
           val context = "Decorator instrumentationName '$name'"
           val location = "$rel:$line"
 
-          checkKeyAndAliases(
+          cuViolations.addAll(collectMissingKeysAndAliases(
             "DD_TRACE_${normalized}_ANALYTICS_ENABLED",
             listOf("DD_${normalized}_ANALYTICS_ENABLED"),
             configFields.supported, configFields.aliases, location, context
-          )
-          checkKeyAndAliases(
+          ))
+          cuViolations.addAll(collectMissingKeysAndAliases(
             "DD_TRACE_${normalized}_ANALYTICS_SAMPLE_RATE",
             listOf("DD_${normalized}_ANALYTICS_SAMPLE_RATE"),
             configFields.supported, configFields.aliases, location, context
-          )
+          ))
         }
       }
+
+    cuViolations
   }
 }
