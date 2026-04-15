@@ -396,6 +396,17 @@ public final class Events<D> {
         REQUEST_FILES_FILENAMES;
   }
 
+  static final int FILE_WRITTEN_ID = 31;
+
+  @SuppressWarnings("rawtypes")
+  private static final EventType FILE_WRITTEN = new ET<>("file.written", FILE_WRITTEN_ID);
+
+  /** An I/O file written */
+  @SuppressWarnings("unchecked")
+  public EventType<BiFunction<RequestContext, String, Flow<Void>>> fileWritten() {
+    return (EventType<BiFunction<RequestContext, String, Flow<Void>>>) FILE_WRITTEN;
+  }
+
   static final int MAX_EVENTS = nextId.get();
 
   private static final class ET<T> extends EventType<T> {
