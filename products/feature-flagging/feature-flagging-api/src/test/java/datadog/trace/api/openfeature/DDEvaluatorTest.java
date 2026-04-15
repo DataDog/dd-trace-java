@@ -314,7 +314,8 @@ public class DDEvaluatorTest {
             .flag("integer-flag")
             .targetingKey("user-123")
             .result(new Result<>(0.0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
-        // Variant value type mismatch: INTEGER flag with string variant value
+        // Variant stores "not-a-number" for an INTEGER flag; Double.parseDouble fails ->
+        // PARSE_ERROR
         new TestCase<>(0)
             .flag("integer-string-variant-flag")
             .targetingKey("user-123")
@@ -494,6 +495,11 @@ public class DDEvaluatorTest {
             .flag("invalid-regex-flag")
             .targetingKey("user-123")
             .context("email", "user@example.com")
+            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
+        new TestCase<>("default")
+            .flag("invalid-regex-not-matches-flag")
+            .targetingKey("user-123")
+            .context("email", "user@example.com")
             .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)));
   }
 
@@ -587,6 +593,7 @@ public class DDEvaluatorTest {
         "integer-string-variant-flag",
         createSimpleFlag("integer-string-variant-flag", ValueType.INTEGER, "not-a-number", "bad"));
     flags.put("invalid-regex-flag", createInvalidRegexFlag());
+    flags.put("invalid-regex-not-matches-flag", createInvalidRegexNotMatchesFlag());
     return new ServerConfiguration(null, null, null, flags);
   }
 
@@ -1286,6 +1293,27 @@ public class DDEvaluatorTest {
 
     return new Flag(
         "invalid-regex-flag", true, ValueType.STRING, variants, singletonList(allocation));
+  }
+
+  private Flag createInvalidRegexNotMatchesFlag() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("excluded", new Variant("excluded", "excluded-value"));
+
+    // Condition with an intentionally invalid regex pattern (unclosed bracket) under NOT_MATCHES
+    final List<ConditionConfiguration> conditions =
+        singletonList(
+            new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "[invalid"));
+    final List<Rule> rules = singletonList(new Rule(conditions));
+    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
+    final Allocation allocation =
+        new Allocation("invalid-regex-not-matches-alloc", rules, null, null, splits, false);
+
+    return new Flag(
+        "invalid-regex-not-matches-flag",
+        true,
+        ValueType.STRING,
+        variants,
+        singletonList(allocation));
   }
 
   private static Map<String, Object> mapOf(final Object... props) {
