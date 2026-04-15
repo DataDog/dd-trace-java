@@ -39,44 +39,66 @@ final class TagValue extends TagElement {
     return start < 0 || end <= 0 || s.length() < end;
   }
 
+  /** Hash a DD-encoded input by converting each char to W3C (the canonical form). */
   private static int hashDD(CharSequence s, int start, int end) {
-    return hash(TagValue::convertDDtoW3C, s, start, end);
-  }
-
-  private static int hashW3C(CharSequence s, int start, int end) {
-    return hash(TagValue::identity, s, start, end);
-  }
-
-  private static int hash(CharConverter converter, CharSequence s, int start, int end) {
     int h = 0;
     end = Integer.min(s.length(), end);
     if (start >= 0 && end > 0) {
       for (int i = start; i < end; i++) {
-        h = 31 * h + converter.convert(s.charAt(i));
+        h = 31 * h + convertDDtoW3C(s.charAt(i));
       }
     }
     return h;
   }
 
-  private static boolean compareDD(CharSequence s, int start, int end, TagValue tagValue) {
-    return compare(TagValue::identity, s, start, end, tagValue);
-  }
-
-  private static boolean compareW3C(CharSequence s, int start, int end, TagValue tagValue) {
-    return compare(TagValue::convertW3CtoDD, s, start, end, tagValue);
-  }
-
-  private static boolean compare(
-      CharConverter converter, CharSequence s, int start, int end, TagValue tagValue) {
+  /** Hash a W3C-encoded input directly (already in canonical form). */
+  private static int hashW3C(CharSequence s, int start, int end) {
+    int h = 0;
     end = Integer.min(s.length(), end);
-    if (start < 0 || end < 0 || end - start != tagValue.length()) {
+    if (start >= 0 && end > 0) {
+      for (int i = start; i < end; i++) {
+        h = 31 * h + s.charAt(i);
+      }
+    }
+    return h;
+  }
+
+  /**
+   * Compare a DD-encoded input against a cached TagValue. The input is already in DD form, so we
+   * compare directly against the TagValue's DD representation (obtained once before the loop).
+   */
+  private static boolean compareDD(CharSequence s, int start, int end, TagValue tagValue) {
+    end = Integer.min(s.length(), end);
+    int len = end - start;
+    if (start < 0 || end < 0 || len != tagValue.length()) {
       return false;
     }
-    boolean eq = true;
-    for (int i = start, j = 0; eq && i < end; i++, j++) {
-      eq = converter.convert(s.charAt(i)) == tagValue.charAt(j);
+    CharSequence dd = tagValue.forType(Encoding.DATADOG);
+    for (int i = start, j = 0; i < end; i++, j++) {
+      if (s.charAt(i) != dd.charAt(j)) {
+        return false;
+      }
     }
-    return eq;
+    return true;
+  }
+
+  /**
+   * Compare a W3C-encoded input against a cached TagValue. Converts each W3C input char to DD form
+   * and compares against the TagValue's DD representation (obtained once before the loop).
+   */
+  private static boolean compareW3C(CharSequence s, int start, int end, TagValue tagValue) {
+    end = Integer.min(s.length(), end);
+    int len = end - start;
+    if (start < 0 || end < 0 || len != tagValue.length()) {
+      return false;
+    }
+    CharSequence dd = tagValue.forType(Encoding.DATADOG);
+    for (int i = start, j = 0; i < end; i++, j++) {
+      if (convertW3CtoDD(s.charAt(i)) != dd.charAt(j)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   private static TagValue produceDD(CharSequence s, int hash, int start, int end) {

@@ -25,6 +25,22 @@ import javax.annotation.Nonnull;
 public class PTagsFactory implements PropagationTags.Factory {
   static final String PROPAGATION_ERROR_TAG_KEY = "_dd.propagation_error";
 
+  /**
+   * Pre-computed TagValue instances for known sampling mechanisms (0 through 13). Avoids the "-" +
+   * samplingMechanism String concatenation and TagValue.from() cache lookup on every sampling
+   * decision.
+   */
+  private static final int MAX_KNOWN_MECHANISM = SamplingMechanism.AI_GUARD; // 13
+
+  private static final TagValue[] DECISION_MAKER_VALUES;
+
+  static {
+    DECISION_MAKER_VALUES = new TagValue[MAX_KNOWN_MECHANISM + 1];
+    for (int i = 0; i <= MAX_KNOWN_MECHANISM; i++) {
+      DECISION_MAKER_VALUES[i] = TagValue.from("-" + i);
+    }
+  }
+
   private final EnumMap<HeaderType, PTagsCodec> DEC_ENC_MAP = new EnumMap<>(HeaderType.class);
 
   private final int xDatadogTagsLimit;
@@ -222,7 +238,10 @@ public class PTagsFactory implements PropagationTags.Factory {
         // Protect against possible SamplingMechanism.UNKNOWN (-1) that doesn't comply with the
         // format
         if (samplingMechanism >= 0) {
-          TagValue newDM = TagValue.from("-" + samplingMechanism);
+          TagValue newDM =
+              samplingMechanism <= MAX_KNOWN_MECHANISM
+                  ? DECISION_MAKER_VALUES[samplingMechanism]
+                  : TagValue.from("-" + samplingMechanism);
           if (!newDM.equals(decisionMakerTagValue)) {
             // This should invalidate any cached w3c and datadog header
             clearCachedHeader(DATADOG);
@@ -428,12 +447,12 @@ public class PTagsFactory implements PropagationTags.Factory {
     }
 
     private void clearCachedHeader(HeaderType headerType) {
-      if (headerType == DATADOG) {
-        invalidateXDatadogTagsSize();
-      }
       String[] cache = headerCache;
       if (cache == null) {
         return;
+      }
+      if (headerType == DATADOG) {
+        invalidateXDatadogTagsSize();
       }
       cache[headerType.ordinal()] = null;
     }
