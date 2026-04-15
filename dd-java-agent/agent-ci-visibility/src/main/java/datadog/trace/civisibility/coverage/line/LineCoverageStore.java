@@ -13,6 +13,7 @@ import datadog.trace.civisibility.coverage.ConcurrentCoverageStore;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
 import java.io.InputStream;
+import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.BitSet;
 import java.util.Collection;
@@ -62,6 +63,10 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       }
       combinedNonCodeResources.addAll(probe.getNonCodeResources());
     }
+
+    // Copy per-test probe data back into JaCoCo's shared $jacocoData arrays so that
+    // JaCoCo's aggregate coverage reports remain accurate.
+    copyProbeDataToJacoco(combinedExecutionData);
 
     if (combinedExecutionData.isEmpty() && combinedNonCodeResources.isEmpty()) {
       return null;
@@ -130,6 +135,26 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
         CiVisibilityDistributionMetric.CODE_COVERAGE_FILES,
         report.getTestReportFileEntries().size());
     return report;
+  }
+
+  private static void copyProbeDataToJacoco(Map<Class<?>, ExecutionDataAdapter> executionData) {
+    for (Map.Entry<Class<?>, ExecutionDataAdapter> e : executionData.entrySet()) {
+      Class<?> clazz = e.getKey();
+      boolean[] probeActivations = e.getValue().getProbeActivations();
+      try {
+        Field jacocoDataField = clazz.getDeclaredField("$jacocoData");
+        jacocoDataField.setAccessible(true);
+        boolean[] jacocoData = (boolean[]) jacocoDataField.get(null);
+        if (jacocoData != null) {
+          for (int i = 0; i < probeActivations.length && i < jacocoData.length; i++) {
+            jacocoData[i] |= probeActivations[i];
+          }
+        }
+      } catch (Exception ex) {
+        // Class may not have $jacocoData field (e.g. not instrumented by JaCoCo agent),
+        // or field may not be accessible — silently ignore
+      }
+    }
   }
 
   public static final class Factory implements CoverageStore.Factory {

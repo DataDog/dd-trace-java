@@ -59,6 +59,22 @@ public class LineProbes implements CoverageProbes {
   }
 
   @Override
+  public boolean[] resolveProbeArray(Class<?> clazz, long classId, int probeCount) {
+    try {
+      if (lastCoveredClass != clazz) {
+        lastCoveredExecutionData =
+            executionData.computeIfAbsent(
+                lastCoveredClass = clazz,
+                k -> new ExecutionDataAdapter(classId, k.getName(), probeCount));
+      }
+      return lastCoveredExecutionData.getProbeActivations();
+    } catch (Exception e) {
+      metrics.add(CiVisibilityCountMetric.CODE_COVERAGE_ERRORS, 1, CoverageErrorType.RECORD);
+      return null;
+    }
+  }
+
+  @Override
   public void recordNonCodeResource(String absolutePath) {
     nonCodeResources.put(absolutePath, absolutePath);
   }

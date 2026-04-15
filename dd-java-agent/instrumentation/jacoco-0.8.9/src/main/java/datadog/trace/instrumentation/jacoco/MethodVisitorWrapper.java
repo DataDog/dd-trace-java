@@ -18,6 +18,7 @@ public class MethodVisitorWrapper {
   private static final MethodHandle visitInsnHandle;
   private static final MethodHandle visitIntInsnHandle;
   private static final MethodHandle visitLdcInsnHandle;
+  private static final MethodHandle visitVarInsnHandle;
   private static final MethodHandle getTypeHandle;
 
   static {
@@ -45,6 +46,8 @@ public class MethodVisitorWrapper {
         accessMethod(lookup, shadedMethodVisitorClass, "visitIntInsn", int.class, int.class);
     visitLdcInsnHandle =
         accessMethod(lookup, shadedMethodVisitorClass, "visitLdcInsn", Object.class);
+    visitVarInsnHandle =
+        accessMethod(lookup, shadedMethodVisitorClass, "visitVarInsn", int.class, int.class);
 
     Class<?> shadedTypeClass = getJacocoClass(jacocoClassLoader, jacocoPackageName, ".asm.Type");
     getTypeHandle = accessMethod(lookup, shadedTypeClass, "getType", String.class);
@@ -117,6 +120,10 @@ public class MethodVisitorWrapper {
     } else {
       visitLdcInsnHandle.invoke(mv, value);
     }
+  }
+
+  public void visitVarInsn(int opcode, int var) throws Throwable {
+    visitVarInsnHandle.invoke(mv, opcode, var);
   }
 
   public void pushClass(String className) throws Throwable {
