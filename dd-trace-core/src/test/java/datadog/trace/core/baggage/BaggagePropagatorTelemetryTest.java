@@ -11,17 +11,24 @@ import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.metrics.BaggageMetrics;
 import datadog.trace.api.telemetry.CoreMetricCollector;
-import datadog.trace.test.util.Flaky;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class BaggagePropagatorTelemetryTest {
 
   private static final CarrierVisitor<Map<String, String>> MAP_VISITOR = Map::forEach;
+
+  @BeforeEach
+  void setup() {
+    // Drain any metrics accumulated by other tests
+    CoreMetricCollector.getInstance().prepareMetrics();
+    CoreMetricCollector.getInstance().drain();
+  }
 
   @Test
   void shouldDirectlyIncrementBaggageMetrics() {
@@ -68,7 +75,6 @@ class BaggagePropagatorTelemetryTest {
     assertTrue(baggageMetric.tags.contains("header_style:baggage"));
   }
 
-  @Flaky
   @Test
   void shouldDirectlyIncrementAllBaggageMetrics() {
     BaggageMetrics baggageMetrics = BaggageMetrics.getInstance();
@@ -122,7 +128,6 @@ class BaggagePropagatorTelemetryTest {
     assertEquals(1, itemsTruncatedMetric.value.longValue());
   }
 
-  @Flaky
   @Test
   void shouldNotIncrementTelemetryCounterWhenBaggageExtractionFails() {
     Config config = mock(Config.class);

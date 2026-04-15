@@ -69,6 +69,7 @@ public class AIGuardInternal implements Evaluator {
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
+  static final String EVENT_TAG = "ai_guard.event";
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
@@ -227,6 +228,7 @@ public class AIGuardInternal implements Evaluator {
     final AgentSpan localRootSpan = span.getLocalRootSpan();
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+      localRootSpan.setTag(EVENT_TAG, true);
     }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
