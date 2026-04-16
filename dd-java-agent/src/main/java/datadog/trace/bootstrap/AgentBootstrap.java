@@ -294,6 +294,22 @@ public final class AgentBootstrap {
         case "com.sun.tools.script.shell.Main": // jrunscript
         case "sun.tools.jconsole.JConsole": // jconsole
         case "sun.applet.Main": // appletviewer
+        case "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer": // tnameserv
+        // (Oracle/OpenJDK 8)
+        case "com.sun.tools.corba.se.idl.toJavaPortable.Compile": // idlj (Oracle/OpenJDK 8)
+        case "com.sun.corba.se.impl.activation.ORBD": // orbd
+        case "com.sun.corba.se.impl.activation.ServerTool": // servertool
+        case "sun.tools.jps.Jps": // jps
+        case "sun.tools.jstack.JStack": // jstack
+        case "sun.tools.jmap.JMap": // jmap
+        case "sun.tools.jinfo.JInfo": // jinfo
+        case "com.sun.tools.hat.Main": // jhat
+        case "sun.tools.jstat.Jstat": // jstat
+        case "sun.tools.jstatd.Jstatd": // jstatd
+        case "sun.tools.jcmd.JCmd": // jcmd
+        case "jdk.jfr.internal.tool.Main": // jfr, backported to OpenJDK 8 in 8u262 (JEP 328
+        // backport, July 2020)
+        case "sun.jvm.hotspot.jdi.SADebugServer": // jsadebugd
           return true;
       }
     }
