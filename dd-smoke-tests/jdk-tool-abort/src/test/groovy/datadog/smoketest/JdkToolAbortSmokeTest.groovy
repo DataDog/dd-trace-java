@@ -22,14 +22,18 @@ class JdkToolAbortSmokeTest extends Specification {
   private static final int TOOL_TIMEOUT_SECS = 15
 
   /**
-   * Tools excluded from testing because they would not terminate on their own:
+   * Binaries excluded from testing, for one of the following reasons:
    * <ul>
-   *   <li>JVM launchers ({@code java}, {@code javaw}) — they ARE the JVM, no {@code -J-} prefix
-   *   <li>Long-running daemons / servers
-   *   <li>GUI tools that open windows
-   *   <li>Interactive REPLs
-   *   <li>Deprecated packaging tools removed in JDK 14
-   *   <li>Native non-JVM tools (Async Profiler shims in newer JDKs)
+   *   <li><b>JVM launchers</b> ({@code java}, {@code javaw}) — they ARE the JVM; {@code -J-} has
+   *       no meaning for them.
+   *   <li><b>Long-running daemons / servers</b> — they do not terminate on their own.
+   *   <li><b>GUI tools</b> — they open windows and block waiting for user interaction.
+   *   <li><b>Deprecated / removed tools</b> — dropped in JDK 14; not present on modern JDKs.
+   *   <li><b>Pure native binaries</b> — do not launch a JVM, so {@code JAVA_TOOL_OPTIONS} and
+   *       {@code -J-} arguments are silently ignored; the agent premain never fires and no
+   *       {@code isJdkTool()} entry is needed.
+   *   <li><b>Third-party tools</b> bundled by some JDK distributions but not standard JDK
+   *       built-ins, so they have no {@code isJdkTool()} entry.
    * </ul>
    */
   private static final Set<String> EXCLUDED_TOOLS = [
@@ -44,23 +48,27 @@ class JdkToolAbortSmokeTest extends Specification {
     "servertool",
     "tnameserv",
     "jstatd",
-    // Requires an attached JVM
+    // Requires an attached JVM to operate
     "jsadebugd",
-    // GUI tools
+    // GUI tools that open windows and block
     "jconsole",
     "appletviewer",
     "jvisualvm",
     "jmc",
-    // Interactive REPL
-    "jshell",
+    // HotSpot SA GUI debugger (JDK 8)
+    "hsdb",
+    // HotSpot SA command-line debugger (JDK 8)
+    "clhsdb",
     // Deprecated/removed packaging tools
     "pack200",
     "unpack200",
-    // Native non-JVM tools (Async Profiler shims in newer JDKs)
+    // Windows CGI adapter — not executable on POSIX systems
+    "java-rmi.cgi",
+    // Async Profiler binaries (bundled by some JVM distributions)
     "asprof",
     "jfrconv",
-    // Windows CGI adapter
-    "java-rmi.cgi",
+    // OpenJ9/Semeru JIT Compilation Server (C++ daemon)
+    "jitserver",
   ] as Set
 
   @Shared

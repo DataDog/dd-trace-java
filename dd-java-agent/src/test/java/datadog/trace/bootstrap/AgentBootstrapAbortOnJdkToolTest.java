@@ -54,6 +54,7 @@ class AgentBootstrapAbortOnJdkToolTest {
   @ParameterizedTest
   @ValueSource(
       strings = {
+        // Standard JDK 9+ module-based tools
         "java.base", // keytool
         "jdk.compiler", // javac
         "jdk.jartool", // jar
@@ -62,6 +63,10 @@ class AgentBootstrapAbortOnJdkToolTest {
         "jdk.jconsole", // jconsole
         "jdk.jshell", // jshell
         "jdk.jfr", // jfr (JDK 9+)
+        // OpenJ9 / Semeru 11+ module-based tools
+        "openj9.dtfj", // jextract, jpackcore
+        "openj9.dtfjview", // jdmpview
+        "openj9.traceformat", // traceformat
       })
   void isJdkToolByModuleMain(String moduleMain) {
     System.setProperty("jdk.module.main", moduleMain);
@@ -77,9 +82,18 @@ class AgentBootstrapAbortOnJdkToolTest {
         "com.ibm.security.krb5.internal.tools.Klist", // klist
         "com.ibm.security.krb5.internal.tools.Ktab", // ktab
         "com.ibm.jvm.dtfjview.DTFJView", // jdmpview
+        "com.ibm.jvm.j9.dump.extract.Main", // jextract
+        "com.ibm.gsk.ikeyman.Ikeyman", // ikeyman
         "com.ibm.gsk.ikeyman.ikeycmd", // ikeycmd
         "com.ibm.CosNaming.TransientNameServer", // tnameserv
         "com.ibm.idl.toJavaPortable.Compile", // idlj
+        // OpenJ9 / Semeru 8 specific tool main classes (OpenJ9 reimplementation of HotSpot tools)
+        "openj9.tools.attach.diagnostics.tools.Jcmd", // jcmd
+        "openj9.tools.attach.diagnostics.tools.Jps", // jps
+        "openj9.tools.attach.diagnostics.tools.Jstat", // jstat
+        "openj9.tools.attach.diagnostics.tools.Jmap", // jmap
+        "openj9.tools.attach.diagnostics.tools.Jstack", // jstack
+        "com.ibm.jvm.TraceFormat", // traceformat
         // Standard JDK 8 tool main classes (Corretto 8 / OpenJDK 8)
         "sun.tools.jar.Main", // jar
         "com.sun.tools.javac.Main", // javac
@@ -118,6 +132,9 @@ class AgentBootstrapAbortOnJdkToolTest {
         "sun.tools.jcmd.JCmd", // jcmd
         "jdk.jfr.internal.tool.Main", // jfr (OpenJDK 8u262+ backport)
         "sun.jvm.hotspot.jdi.SADebugServer", // jsadebugd
+        "jdk.nashorn.tools.Shell", // jjs (Nashorn JS shell, JDK 8)
+        "sun.jvm.hotspot.HSDB", // hsdb (HotSpot SA GUI debugger, JDK 8)
+        "sun.jvm.hotspot.CLHSDB", // clhsdb (HotSpot SA command-line debugger, JDK 8)
       })
   void isJdkToolByCommand(String mainClass) {
     System.setProperty("sun.java.command", mainClass);
