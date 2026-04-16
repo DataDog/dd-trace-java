@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="ExternalDependencies">
+    <plugin id="com.gradle.develocity.ide" />
+    <plugin id="dev.turingcomplete.intellijbytecodeplugin" />
+    <plugin id="google-java-format" />
+    <plugin id="io.github.nchaugen.tabletest" />
+  </component>
+</project>
