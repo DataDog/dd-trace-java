@@ -751,7 +751,7 @@ public class DDSpanContext
    * Cache the span.kind ordinal for fast isOutbound() checks. Called from TagInterceptor when
    * span.kind is set.
    */
-  public void setSpanKind(String kind) {
+  public void setSpanKindOrdinal(String kind) {
     if (kind == null) {
       spanKindOrdinal = SPAN_KIND_UNSET;
     } else if (tagEquals(kind, Tags.SPAN_KIND_SERVER)) {

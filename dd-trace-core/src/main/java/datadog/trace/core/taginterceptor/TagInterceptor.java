@@ -197,7 +197,7 @@ public class TagInterceptor {
       case Tags.SPAN_KIND:
         // Cache the ordinal for fast isOutbound() checks.
         // Return false so the value is still stored in unsafeTags for serialization.
-        span.setSpanKind(String.valueOf(value));
+        span.setSpanKindOrdinal(String.valueOf(value));
         return false;
       default:
         return intercept(span, tag, value);
