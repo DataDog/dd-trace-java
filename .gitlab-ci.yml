@@ -11,6 +11,7 @@ include:
 stages:
   - build
   - publish
+  # These benchmarks are intended to replace the legacy benchmarks in the future
   - java-spring-petclinic-parallel
   - java-spring-petclinic-parallel-slo
   - shared-pipeline
