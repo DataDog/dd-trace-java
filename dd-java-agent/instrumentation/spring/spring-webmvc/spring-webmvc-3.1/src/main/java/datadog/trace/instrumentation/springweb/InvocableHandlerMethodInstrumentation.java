@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.springweb;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
-import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
+import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.handlerSpanContinueKey;
+import static datadog.trace.instrumentation.springweb.SpringWebHttpServerDecorator.handlerSpanKey;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -53,12 +53,12 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
         return;
       }
       ServletWebRequest servletWebRequest = (ServletWebRequest) nativeWebRequest;
-      final String handlerSpanKey =
-          DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
+      final Class<?> handlerClass = self.getBean().getClass();
+      final String handlerSpanKey = handlerSpanKey(handlerClass);
 
       if (Boolean.TRUE.equals(
           servletWebRequest.getAttribute(
-              handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
+              handlerSpanContinueKey(handlerClass), ServletWebRequest.SCOPE_REQUEST))) {
         return;
       }
 
@@ -67,7 +67,7 @@ public class InvocableHandlerMethodInstrumentation extends InstrumenterModule.Tr
         return;
       }
       servletWebRequest.setAttribute(
-          handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, true, ServletWebRequest.SCOPE_REQUEST);
+          handlerSpanContinueKey(handlerClass), true, ServletWebRequest.SCOPE_REQUEST);
       result =
           ((CompletionStage<?>) result)
               .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
