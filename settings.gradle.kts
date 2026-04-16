@@ -186,6 +186,7 @@ include(
   ":dd-smoke-tests:gradle",
   ":dd-smoke-tests:grpc-1.5",
   ":dd-smoke-tests:java9-modules",
+  ":dd-smoke-tests:jdk-tool-abort",
   ":dd-smoke-tests:jersey-2",
   ":dd-smoke-tests:jersey-3",
   ":dd-smoke-tests:jboss-modules",
