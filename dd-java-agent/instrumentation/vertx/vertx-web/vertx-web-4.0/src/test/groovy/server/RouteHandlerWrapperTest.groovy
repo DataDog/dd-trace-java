@@ -3,7 +3,7 @@ package server
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper
+import datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper
 import io.vertx.ext.web.RoutingContext
 
 class RouteHandlerWrapperTest extends InstrumentationSpecification {
@@ -15,7 +15,7 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     def handlerSpan = Mock(AgentSpan)
 
     when:
-    RouteHandlerWrapper.updateRoute(
+    RouteUpdateHelper.updateRoute(
       context, "GET", "/items/:id", parentSpan, handlerSpan, "matches")
 
     then:
@@ -36,7 +36,7 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     def handlerSpan = Mock(AgentSpan)
 
     when:
-    RouteHandlerWrapper.updateRoute(context, "GET", "/", parentSpan, handlerSpan, "matches")
+    RouteUpdateHelper.updateRoute(context, "GET", "/", parentSpan, handlerSpan, "matches")
 
     then:
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null

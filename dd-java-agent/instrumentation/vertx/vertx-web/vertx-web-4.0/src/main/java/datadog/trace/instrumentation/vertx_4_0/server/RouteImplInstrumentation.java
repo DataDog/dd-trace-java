@@ -44,7 +44,7 @@ public class RouteImplInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PathParameterPublishingHelper",
+      packageName + ".RouteUpdateHelper", packageName + ".PathParameterPublishingHelper",
     };
   }
 

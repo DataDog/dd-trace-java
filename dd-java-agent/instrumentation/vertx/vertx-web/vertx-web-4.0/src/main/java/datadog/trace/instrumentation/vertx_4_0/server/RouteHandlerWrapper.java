@@ -4,24 +4,19 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.PARENT_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.updateRoute;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
 import io.vertx.ext.web.impl.RouteImpl;
 
 public class RouteHandlerWrapper implements Handler<RoutingContext> {
-  static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
-  static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
-  static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
-  static final String ROUTE_OVERWRITE_DEBUG_TAG = "dd.debug.vertx.route_overwrite";
-
   private final Handler<RoutingContext> actual;
   private final boolean spanStarter;
 
@@ -86,57 +81,5 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       path = noBackslashhMountPoint + path;
     }
     updateRoute(routingContext, method, path, parentSpan, handlerSpan, "route_handler");
-  }
-
-  static void updateRoute(
-      final RoutingContext routingContext,
-      final String method,
-      final String path,
-      final AgentSpan parentSpan,
-      final AgentSpan handlerSpan,
-      final String source) {
-    if (method == null || path == null) {
-      return;
-    }
-    final String previousRoute = routingContext.get(ROUTE_CONTEXT_KEY);
-    if (!shouldUpdateRoute(routingContext, parentSpan, handlerSpan, path)) {
-      return;
-    }
-
-    routingContext.put(ROUTE_CONTEXT_KEY, path);
-    final String previous = previousRoute == null ? "" : previousRoute;
-    final String debugValue = source + ":" + previous + "->" + path;
-    if (parentSpan != null) {
-      HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
-      parentSpan.setTag(ROUTE_OVERWRITE_DEBUG_TAG, debugValue);
-    }
-    if (handlerSpan != null
-        && handlerSpan.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
-      HTTP_RESOURCE_DECORATOR.withRoute(handlerSpan, method, path, true);
-      handlerSpan.setTag(ROUTE_OVERWRITE_DEBUG_TAG, debugValue);
-    }
-  }
-
-  static boolean shouldUpdateRoute(
-      final RoutingContext routingContext,
-      final AgentSpan parentSpan,
-      final AgentSpan handlerSpan,
-      final String path) {
-    if (parentSpan == null && handlerSpan == null) {
-      return false;
-    }
-    final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
-    if (currentRoute != null && currentRoute.equals(path)) {
-      return false;
-    }
-    // do not override route with a "/" if it's already set (it's probably more meaningful)
-    if (!path.equals("/")) {
-      return true;
-    }
-    return !hasHttpRoute(parentSpan) && !hasHttpRoute(handlerSpan);
-  }
-
-  private static boolean hasHttpRoute(final AgentSpan span) {
-    return span != null && span.getTag(Tags.HTTP_ROUTE) != null;
   }
 }
