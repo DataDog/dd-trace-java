@@ -430,10 +430,10 @@ class DDSpanContextTest extends DDCoreSpecification {
   def "setTag then removeTag clears span.kind"() {
     when:
     def span = tracer.buildSpan("test", "test").start()
-    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+    span.setTag(Tags.SPAN_KIND, kindString)
 
     then:
-    span.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_SERVER
+    span.getTag(Tags.SPAN_KIND) == kindString
 
     when:
     ((DDSpan) span).context().removeTag(Tags.SPAN_KIND)
@@ -443,6 +443,16 @@ class DDSpanContextTest extends DDCoreSpecification {
 
     cleanup:
     span.finish()
+
+    where:
+    kindString << [
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER,
+    ]
   }
 
   def "setTag with custom span.kind falls back to tag map"() {
