@@ -62,22 +62,22 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
   //  - _multiParts: MultiParts exists in 9.4.10+ and 10.0.10+ (excludes early 9.4.x covered by
   //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where _multiParts is MultiPartFormInputStream)
-  //  - javax.servlet.http.Part exists in both 9.4.x and 10.x classpath (excludes Jetty 11+ which
-  //    uses jakarta)
+  //  - _dispatcherType: Ljavax/servlet/DispatcherType; in the Request bytecode (excludes Jetty 11+
+  //    where the field descriptor is Ljakarta/servlet/DispatcherType;). This check is tied to the
+  //    Request.class bytecode, NOT just classpath presence, so it works even when both
+  //    javax.servlet and jakarta.servlet are on the classpath simultaneously.
   //  Note: GetFilenamesAdvice reads _multiParts with typing=DYNAMIC so it works for all versions.
   private static final Reference REQUEST_REFERENCE =
       new Reference.Builder("org.eclipse.jetty.server.Request")
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
           .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
+          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
           .build();
-
-  private static final Reference JAVAX_PART_REFERENCE =
-      new Reference.Builder("javax.servlet.http.Part").build();
 
   @Override
   public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE, JAVAX_PART_REFERENCE};
+    return new Reference[] {REQUEST_REFERENCE};
   }
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
