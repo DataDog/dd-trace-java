@@ -261,7 +261,7 @@ public final class AgentBootstrap {
       String mainClass = command;
       int firstSpace = command.indexOf(' ');
       if (firstSpace != -1) {
-        mainClass = command.subSequence(0, firstSpace).toString();
+        mainClass = command.substring(0, firstSpace);
       }
       switch (mainClass) {
         // IBM J9 JDK 8 specific tool main classes
