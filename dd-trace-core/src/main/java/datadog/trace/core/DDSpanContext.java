@@ -1107,12 +1107,15 @@ public class DDSpanContext
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
+      // Convert span links to tag in order to support old protocols `v0.4` and `v0.5`.
+      // Eventually old protocols will be decommissioned and this code will be removed.
       if (spanLinksAsTag) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.put(SPAN_LINKS, linksTag);
         }
       }
+
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
       if (injectBaggageAsTags) {
