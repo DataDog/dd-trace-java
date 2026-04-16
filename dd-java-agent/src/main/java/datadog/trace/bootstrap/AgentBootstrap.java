@@ -258,11 +258,8 @@ public final class AgentBootstrap {
     String command = SystemProperties.get("sun.java.command");
     if (null != command && !command.isEmpty()) {
       // substring on first space
-      String mainClass = command;
       int firstSpace = command.indexOf(' ');
-      if (firstSpace != -1) {
-        mainClass = command.substring(0, firstSpace);
-      }
+      String mainClass = firstSpace > 0 ? command.substring(0, firstSpace) : command;
       switch (mainClass) {
         // IBM J9 JDK 8 specific tool main classes
         case "com.ibm.crypto.tools.KeyTool": // keytool
