@@ -1,5 +1,6 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
 import static java.util.Collections.emptyList
 
 import datadog.trace.api.DDSpanId
@@ -14,11 +15,8 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
-
-import static datadog.trace.api.sampling.PrioritySampling.UNSET
 
 class TraceGenerator {
 
@@ -181,11 +179,20 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.samplingPriority = samplingPriority
-      this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, samplingPriority, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0,
-        ProcessTags.tagsForSerialization, spanLinks == null ? emptyList() : spanLinks)
       this.httpStatusCode = (short) statusCode
+      this.metadata = new Metadata(
+        Thread.currentThread().getId(),
+        UTF8BytesString.create(Thread.currentThread().getName()),
+        TagMap.fromMap(tags),
+        baggage,
+        samplingPriority,
+        measured,
+        topLevel,
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+        origin,
+        0,
+        ProcessTags.tagsForSerialization,
+        spanLinks)
     }
 
     @Override
