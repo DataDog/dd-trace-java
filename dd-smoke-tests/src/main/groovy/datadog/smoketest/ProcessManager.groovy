@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
@@ -15,6 +16,7 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE')
 
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
@@ -77,8 +79,10 @@ abstract class ProcessManager extends Specification {
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
 
-      processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
-      processBuilder.environment().put("DD_API_KEY", apiKey())
+      Map<String, String> env = processBuilder.environment()
+      env.put("JAVA_HOME", System.getProperty("java.home"))
+      env.put("DD_API_KEY", apiKey())
+      muteNoisyEnvironmentVariables(env)
 
       processBuilder.redirectErrorStream(true)
 
@@ -189,6 +193,14 @@ abstract class ProcessManager extends Specification {
 
     return line.contains("ERROR") || line.contains("ASSERTION FAILED")
     || line.contains("Failed to handle exception in instrumentation")
+  }
+
+  /**
+   * Some variable can be printed in smoke application logs and result into false-positive test result.
+   * @param env environment variables to process.
+   */
+  void muteNoisyEnvironmentVariables(Map<String, String> env) {
+    env.keySet().removeAll(NOISY_ENVIRONMENT_VARIABLES)
   }
 
   /**
