@@ -45,8 +45,8 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  *   <li>{@code unmount()}: swaps the carrier thread's original context back, saving the virtual
  *       thread's (possibly modified) context for the next mount.
  *   <li>Steps 2-3 repeat on each park/unpark cycle, potentially on different carrier threads.
- *   <li>{@code afterDone()}: cancels the help continuation, releasing the context scope to be
- *       closed.
+ *   <li>{@code afterDone()} / {@code afterTerminate()} for early VirtualThread support: cancels the
+ *       help continuation, releasing the context scope to be closed.
  * </ol>
  *
  * <p>Instrumenting the internal {@code VirtualThread.runContinuation()} method does not work as the
@@ -111,6 +111,9 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
     transformer.applyAdvice(
         isMethod().and(named("afterDone")).and(takesArguments(boolean.class)),
         getClass().getName() + "$AfterDone");
+    transformer.applyAdvice(
+        isMethod().and(named("afterTerminate")).and(takesArguments(boolean.class, boolean.class)),
+        getClass().getName() + "$AfterDone");
   }
 
   public static final class Construct {
@@ -153,7 +156,7 @@ public final class VirtualThreadInstrumentation extends InstrumenterModule.Conte
 
   public static final class AfterDone {
     @OnMethodEnter(suppress = Throwable.class)
-    public static void onTerminate(@Advice.This Object virtualThread) {
+    public static void onDone(@Advice.This Object virtualThread) {
       ContextStore<Object, VirtualThreadState> store =
           InstrumentationContext.get(VIRTUAL_THREAD_CLASS_NAME, VIRTUAL_THREAD_STATE_CLASS_NAME);
       VirtualThreadState state = store.remove(virtualThread);
