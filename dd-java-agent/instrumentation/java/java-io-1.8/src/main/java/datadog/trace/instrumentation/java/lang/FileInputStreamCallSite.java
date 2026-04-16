@@ -12,7 +12,7 @@ import javax.annotation.Nullable;
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
 @CallSite(
     spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileLoadedRaspHelper.class)
+    helpers = FileIORaspHelper.class)
 public class FileInputStreamCallSite {
 
   @CallSite.Before("void java.io.FileInputStream.<init>(java.lang.String)")
@@ -35,6 +35,6 @@ public class FileInputStreamCallSite {
   }
 
   private static void raspCallback(String path) {
-    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(path);
+    FileIORaspHelper.INSTANCE.beforeFileLoaded(path);
   }
 }

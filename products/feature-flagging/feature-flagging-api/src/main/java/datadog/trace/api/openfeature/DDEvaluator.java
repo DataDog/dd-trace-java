@@ -14,6 +14,7 @@ import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.featureflag.ufc.v1.Shard;
 import datadog.trace.api.featureflag.ufc.v1.ShardRange;
 import datadog.trace.api.featureflag.ufc.v1.Split;
+import datadog.trace.api.featureflag.ufc.v1.ValueType;
 import datadog.trace.api.featureflag.ufc.v1.Variant;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -343,6 +344,31 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
           .build();
     }
 
+    if (!isTypeCompatible(target, flag.variationType)) {
+      return error(
+          defaultValue,
+          ErrorCode.TYPE_MISMATCH,
+          "Requested type "
+              + target.getSimpleName()
+              + " does not match flag variationType "
+              + flag.variationType.name());
+    }
+
+    final T mappedValue;
+    try {
+      mappedValue = mapValue(target, variant.value);
+    } catch (final NumberFormatException e) {
+      return error(
+          defaultValue,
+          ErrorCode.PARSE_ERROR,
+          "Variant '"
+              + variant.key
+              + "' value does not match declared type "
+              + flag.variationType.name()
+              + ": "
+              + e.getMessage());
+    }
+
     final ImmutableMetadata.ImmutableMetadataBuilder metadataBuilder =
         ImmutableMetadata.builder()
             .addString("flagKey", flag.key)
@@ -350,7 +376,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("allocationKey", allocation.key);
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
-            .value(mapValue(target, variant.value))
+            .value(mappedValue)
             .reason(Reason.TARGETING_MATCH.name())
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
@@ -369,6 +395,26 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     }
     final Value resolved = context.getValue(name);
     return context.convertValue(resolved);
+  }
+
+  private static boolean isTypeCompatible(final Class<?> target, final ValueType variationType) {
+    if (variationType == null) {
+      return true; // No type info — allow any
+    }
+    switch (variationType) {
+      case BOOLEAN:
+        return target == Boolean.class;
+      case STRING:
+        return target == String.class;
+      case INTEGER:
+        return target == Integer.class;
+      case NUMERIC:
+        return target == Double.class;
+      case JSON:
+        return target == Value.class;
+      default:
+        return true; // Unknown types pass through — mapValue errors caught as GENERAL
+    }
   }
 
   @SuppressWarnings("unchecked")
