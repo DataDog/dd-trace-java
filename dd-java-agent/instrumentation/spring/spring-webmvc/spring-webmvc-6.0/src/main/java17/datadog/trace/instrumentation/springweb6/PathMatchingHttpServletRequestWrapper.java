@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
-  private final Map<String, Object> localAttributes = new HashMap<>();
+  private Map<String, Object> localAttributes;
 
   public PathMatchingHttpServletRequestWrapper(HttpServletRequest request) {
     super(request);
@@ -14,20 +14,27 @@ class PathMatchingHttpServletRequestWrapper extends HttpServletRequestWrapper {
 
   @Override
   public Object getAttribute(String name) {
-    final Object ret = localAttributes.get(name);
-    if (ret == null) {
-      return super.getAttribute(name);
+    if (localAttributes != null) {
+      final Object ret = localAttributes.get(name);
+      if (ret != null) {
+        return ret;
+      }
     }
-    return ret;
+    return super.getAttribute(name);
   }
 
   @Override
   public void setAttribute(String name, Object o) {
+    if (localAttributes == null) {
+      localAttributes = new HashMap<>();
+    }
     localAttributes.put(name, o);
   }
 
   @Override
   public void removeAttribute(String name) {
-    localAttributes.remove(name);
+    if (localAttributes != null) {
+      localAttributes.remove(name);
+    }
   }
 }
