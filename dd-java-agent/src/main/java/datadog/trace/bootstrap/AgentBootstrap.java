@@ -253,6 +253,20 @@ public final class AgentBootstrap {
           return true;
       }
     }
+    // Handles IBMJ9 tools
+    String command = SystemProperties.get("sun.java.command");
+    if (null != command && !command.isEmpty()) {
+      // substring on first space
+      String mainClass = command;
+      int firstSpace = command.indexOf(' ');
+      if (firstSpace != -1) {
+        mainClass = command.subSequence(0, firstSpace).toString();
+      }
+      switch (mainClass) {
+        case "com.ibm.crypto.tools.KeyTool": // keytool
+          return true;
+      }
+    }
     return false;
   }
 
