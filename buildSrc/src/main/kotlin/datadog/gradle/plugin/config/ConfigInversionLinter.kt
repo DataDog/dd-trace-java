@@ -9,11 +9,15 @@ import com.github.javaparser.ast.expr.MethodCallExpr
 import com.github.javaparser.ast.expr.NameExpr
 import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
+import org.gradle.api.Action
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
+import org.gradle.api.tasks.SourceSetOutput
 import org.gradle.kotlin.dsl.getByType
 import java.io.File
 import java.net.URLClassLoader
@@ -25,7 +29,12 @@ class ConfigInversionLinter : Plugin<Project> {
     registerLogEnvVarUsages(target, extension)
     registerCheckEnvironmentVariablesUsage(target)
     registerCheckConfigStringsTask(target, extension)
-    registerCheckDatadogProfilerConfigTask(target, extension)
+
+    target.tasks.register("checkConfigurations") {
+      group = "verification"
+      description = "Runs all config inversion validation checks"
+      dependsOn("logEnvVarUsages", "checkEnvironmentVariablesUsage", "checkConfigStrings")
+    }
   }
 }
 
@@ -193,106 +202,97 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
     }
     inputs.files(mainSourceSetOutput)
 
-    doLast {
-      val repoRoot: Path = project.rootProject.projectDir.toPath()
-      val configDir = repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config").toFile()
+    doLast("regular-config-check", RegularConfigCheckAction(mainSourceSetOutput, generatedFile, extension))
+    doLast("profiling-config-check", ProfilingConfigCheckAction(mainSourceSetOutput, generatedFile, extension))
+  }
+}
 
-      if (!configDir.exists()) {
-        throw GradleException("Config directory not found: ${configDir.absolutePath}")
-      }
+/** Validates that all config definitions in the config directory are documented in supported-configurations.json. */
+private class RegularConfigCheckAction(
+  private val mainSourceSetOutput: Provider<Provider<SourceSetOutput>>,
+  private val generatedClassName: Provider<String>,
+  private val extension: SupportedTracerConfigurations
+) : Action<Task> {
+  override fun execute(task: Task) {
+    val repoRoot: Path = task.project.rootProject.projectDir.toPath()
+    val configDir = repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config").toFile()
 
-      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
-      val supported = configFields.supported
-      val aliasMapping = configFields.aliasMapping
+    if (!configDir.exists()) {
+      throw GradleException("Config directory not found: ${configDir.absolutePath}")
+    }
 
-      val violations = buildList {
-        configDir.listFiles()?.forEach { file ->
-          val fileName = file.name
-          extractStringConstants(file).forEach { (fieldName, entry) ->
-            if (fieldName.endsWith("_DEFAULT")) return@forEach
-            val normalized = normalize(entry.value)
-            if (normalized !in supported && normalized !in aliasMapping) {
-              add("$fileName:${entry.line} -> Config '${entry.value}' normalizes to '$normalized' " +
-                "which is missing from '${extension.jsonFile.get()}'")
-            }
+    val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedClassName.get())
+    val supported = configFields.supported
+    val aliasMapping = configFields.aliasMapping
+
+    val violations = buildList {
+      configDir.listFiles()?.forEach { file ->
+        val fileName = file.name
+        extractStringConstants(file).forEach { (fieldName, entry) ->
+          if (fieldName.endsWith("_DEFAULT")) return@forEach
+          val normalized = normalize(entry.value)
+          if (normalized !in supported && normalized !in aliasMapping) {
+            add("$fileName:${entry.line} -> Config '${entry.value}' normalizes to '$normalized' " +
+              "which is missing from '${extension.jsonFile.get()}'")
           }
         }
       }
+    }
 
-      if (violations.isNotEmpty()) {
-        logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
-        violations.forEach { logger.lifecycle(it) }
-        throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
-      } else {
-        logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
-      }
+    if (violations.isNotEmpty()) {
+      task.logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
+      violations.forEach { task.logger.lifecycle(it) }
+      throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
+    } else {
+      task.logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
     }
   }
 }
 
 /**
- * Registers `checkDatadogProfilerConfigs` to validate that every `.ddprof.` config key used as a
- * primary key in `DatadogProfilerConfig`'s static helpers also has its async-translated form
- * (`profiling.ddprof.*` → `profiling.async.*`) documented in `supported-configurations.json`.
- *
- * The raw form is already validated by `checkConfigStrings`. This task only covers the additional
- * async form produced by `DatadogProfilerConfig.normalizeKey`.
+ * Validates that every `.ddprof.` config key used as a primary key in `DatadogProfilerConfig`'s
+ * static helpers also has its async-translated form (`profiling.ddprof.*` → `profiling.async.*`)
+ * documented in `supported-configurations.json`.
  */
-private fun registerCheckDatadogProfilerConfigTask(project: Project, extension: SupportedTracerConfigurations) {
-  val ownerPath = extension.configOwnerPath
-  val generatedFile = extension.className
+private class ProfilingConfigCheckAction(
+  private val mainSourceSetOutput: Provider<Provider<SourceSetOutput>>,
+  private val generatedClassName: Provider<String>,
+  private val extension: SupportedTracerConfigurations
+) : Action<Task> {
+  override fun execute(task: Task) {
+    val repoRoot = task.project.rootProject.projectDir.toPath()
 
-  project.tasks.register("checkDatadogProfilerConfigs") {
-    group = "verification"
-    description = "Validates all configs read in DatadogProfilerConfig are documented in supported-configurations.json"
+    val constantMap = extractStringConstants(
+      repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config/ProfilingConfig.java").toFile()
+    )
 
-    val mainSourceSetOutput = ownerPath.map {
-      project.project(it)
-        .extensions.getByType<SourceSetContainer>()
-        .named(SourceSet.MAIN_SOURCE_SET_NAME)
-        .map { main -> main.output }
+    val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedClassName.get())
+    val supported = configFields.supported
+    val aliasMapping = configFields.aliasMapping
+
+    val ddprofConfigFile = repoRoot.resolve(
+      "dd-java-agent/agent-profiling/profiling-ddprof/src/main/java/com/datadog/profiling/ddprof/DatadogProfilerConfig.java"
+    ).toFile()
+    val cu = StaticJavaParser.parse(ddprofConfigFile)
+
+    val helperMethodNames = setOf("getBoolean", "getInteger", "getLong", "getString")
+    val violations = mutableListOf<String>()
+
+    cu.findAll(MethodCallExpr::class.java).forEach { call ->
+      if (call.scope.isPresent) return@forEach
+      if (call.nameAsString !in helperMethodNames) return@forEach
+      val args = call.arguments
+      if (args.size < 2 || args[0] !is NameExpr || (args[0] as NameExpr).nameAsString != "configProvider") return@forEach
+
+      val primaryKeyEntry = resolveConstant(args[1], constantMap) ?: return@forEach
+      checkDocumented(primaryKeyEntry, supported, aliasMapping, call, violations, extension)
     }
-    inputs.files(mainSourceSetOutput)
 
-    doLast {
-      val repoRoot = project.rootProject.projectDir.toPath()
-
-      // Only ProfilingConfig.java is needed — all .ddprof. keys are defined there
-      val constantMap = extractStringConstants(
-        repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config/ProfilingConfig.java").toFile()
-      )
-
-      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
-      val supported = configFields.supported
-      val aliasMapping = configFields.aliasMapping
-
-      val ddprofConfigFile = repoRoot.resolve(
-        "dd-java-agent/agent-profiling/profiling-ddprof/src/main/java/com/datadog/profiling/ddprof/DatadogProfilerConfig.java"
-      ).toFile()
-      val cu = StaticJavaParser.parse(ddprofConfigFile)
-
-      val helperMethodNames = setOf("getBoolean", "getInteger", "getLong", "getString")
-      val violations = mutableListOf<String>()
-
-      cu.findAll(MethodCallExpr::class.java).forEach { call ->
-        // Only care about static helper calls: getXxx(configProvider, primaryKey, default, ...aliases)
-        // Direct configProvider.getXxx() calls are already covered by checkConfigStrings
-        if (call.scope.isPresent) return@forEach
-        if (call.nameAsString !in helperMethodNames) return@forEach
-        val args = call.arguments
-        if (args.size < 2 || args[0] !is NameExpr || (args[0] as NameExpr).nameAsString != "configProvider") return@forEach
-
-        // Primary key goes through normalizeKey — validate its async-translated form
-        val primaryKeyEntry = resolveConstant(args[1], constantMap) ?: return@forEach
-        checkDocumented(primaryKeyEntry, supported, aliasMapping, call, violations, extension)
-      }
-
-      if (violations.isNotEmpty()) {
-        violations.forEach { logger.error(it) }
-        throw GradleException("Undocumented configs found in DatadogProfilerConfig. Please add the above to '${extension.jsonFile.get()}'.")
-      } else {
-        logger.info("All DatadogProfilerConfig configs are documented.")
-      }
+    if (violations.isNotEmpty()) {
+      violations.forEach { task.logger.error(it) }
+      throw GradleException("Undocumented configs found in DatadogProfilerConfig. Please add the above to '${extension.jsonFile.get()}'.")
+    } else {
+      task.logger.info("All DatadogProfilerConfig configs are documented.")
     }
   }
 }
