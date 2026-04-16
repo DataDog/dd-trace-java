@@ -393,4 +393,67 @@ class DDSpanContextTest extends DDCoreSpecification {
     Tags.SPAN_KIND_INTERNAL | DDSpanContext.SPAN_KIND_INTERNAL
     Tags.SPAN_KIND_BROKER  | DDSpanContext.SPAN_KIND_BROKER
   }
+
+  def "setTag and getTag round-trip for span.kind"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, kindString)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == kindString
+
+    cleanup:
+    span.finish()
+
+    where:
+    kindString << [
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER,
+    ]
+  }
+
+  def "getTag returns null when span.kind is not set"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == null
+
+    cleanup:
+    span.finish()
+  }
+
+  def "setTag then removeTag clears span.kind"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_SERVER)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == Tags.SPAN_KIND_SERVER
+
+    when:
+    ((DDSpan) span).context().removeTag(Tags.SPAN_KIND)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == null
+
+    cleanup:
+    span.finish()
+  }
+
+  def "setTag with custom span.kind falls back to tag map"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, "custom-kind")
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == "custom-kind"
+
+    cleanup:
+    span.finish()
+  }
 }
