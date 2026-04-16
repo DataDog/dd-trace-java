@@ -41,7 +41,7 @@ public class EndHandlerWrapper implements Handler<Void> {
                   : mountPoint;
           path = noBackslashhMountPoint + path;
         }
-        updateRoute(routingContext, method, path, parentSpan, span);
+        updateRoute(routingContext, method, path, parentSpan, span, "end_handler");
       }
       if (span != null) {
         DECORATE.onResponse(span, routingContext.response());

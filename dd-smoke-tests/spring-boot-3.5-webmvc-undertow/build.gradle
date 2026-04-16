@@ -73,13 +73,13 @@ def downloadAgent1604 = registerDownloadTask(
   "downloadAgent1604",
   "https://github.com/DataDog/dd-trace-java/releases/download/v1.60.4/dd-java-agent.jar",
   agent1604File
-)
+  )
 
 def downloadAgent1610 = registerDownloadTask(
   "downloadAgent1610",
   "https://github.com/DataDog/dd-trace-java/releases/download/v1.61.0/dd-java-agent.jar",
   agent1610File
-)
+  )
 
 def configureReleasedAgentTestTask = { String taskName, File agentJar, TaskProvider downloadTask ->
   tasks.register(taskName, Test) {
