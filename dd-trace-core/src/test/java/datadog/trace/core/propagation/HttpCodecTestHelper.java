@@ -10,7 +10,7 @@ public class HttpCodecTestHelper {
   public static final String TRACE_PARENT_KEY = W3CHttpCodec.TRACE_PARENT_KEY;
   public static final String TRACE_STATE_KEY = W3CHttpCodec.TRACE_STATE_KEY;
 
-  public static HttpCodec.Extractor W3CHttpCodecNewExtractor(
+  public static HttpCodec.Extractor newW3cHttpCodecExtractor(
       Config config, Supplier<TraceConfig> traceConfigSupplier) {
     return W3CHttpCodec.newExtractor(config, traceConfigSupplier);
   }
