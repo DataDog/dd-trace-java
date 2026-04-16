@@ -58,7 +58,6 @@ import datadog.trace.plugin.csi.util.MethodType;
 import java.io.File;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import javax.annotation.Nonnull;
@@ -267,7 +266,6 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final List<Expression> parameterIndicesValues =
           advice
               .getArguments()
-              .sorted(Comparator.comparingInt(argSpec -> argSpec.getIndex()))
               .map(argSpec -> intLiteral(argSpec.getIndex()))
               .collect(Collectors.toList());
       final VariableDeclarator parameterIndices =
