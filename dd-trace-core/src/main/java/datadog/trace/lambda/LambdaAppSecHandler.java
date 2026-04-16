@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -21,13 +22,12 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -41,6 +41,7 @@ import org.slf4j.LoggerFactory;
 public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
+  private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
   private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final JsonAdapter<Map> MAP_ADAPTER = MOSHI.adapter(Map.class);
@@ -132,7 +133,7 @@ public class LambdaAppSecHandler {
         return merged;
       }
 
-      log.debug(
+      rlLog.warn(
           "Cannot merge AppSec data: extension context is not a TagContext: {}",
           extensionContext.getClass());
     }
@@ -259,15 +260,12 @@ public class LambdaAppSecHandler {
         return LambdaEventData.EMPTY;
       }
 
-      StringBuilder jsonBuilder = new StringBuilder(availableBytes);
-      try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-        char[] buffer = new char[1024];
-        int charsRead;
-        while ((charsRead = reader.read(buffer)) != -1) {
-          jsonBuilder.append(buffer, 0, charsRead);
-        }
+      byte[] bytes = new byte[availableBytes];
+      int read = inputStream.read(bytes);
+      if (read <= 0) {
+        return LambdaEventData.EMPTY;
       }
-      return extractEventDataFromJson(jsonBuilder.toString());
+      return extractEventDataFromJson(new String(bytes, 0, read, StandardCharsets.UTF_8));
     } finally {
       inputStream.reset();
     }
