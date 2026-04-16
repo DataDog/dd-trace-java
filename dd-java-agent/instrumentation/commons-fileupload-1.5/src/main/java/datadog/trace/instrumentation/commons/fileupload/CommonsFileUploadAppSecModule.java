@@ -17,6 +17,9 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.IOException;
+import java.io.InputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -47,6 +50,9 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
+
+    static final int MAX_FILE_CONTENT_BYTES = 4096;
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Return final List<FileItem> fileItems,
@@ -57,11 +63,6 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
 
       List<String> filenames = new ArrayList<>();
       for (FileItem fileItem : fileItems) {
@@ -77,14 +78,65 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      // Fire filenames event
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (filenamesCallback != null) {
+        Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            t = new BlockingException("Blocked request (multipart file upload)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+            return;
+          }
+        }
+      }
+
+      // Fire content event only if not blocked
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (contentCallback == null) {
+        return;
+      }
+      List<String> filesContent = new ArrayList<>();
+      for (FileItem fileItem : fileItems) {
+        if (fileItem.isFormField()) {
+          continue;
+        }
+        String name = fileItem.getName();
+        if (name == null || name.isEmpty()) {
+          continue;
+        }
+        String content = "";
+        try {
+          InputStream is = fileItem.getInputStream();
+          byte[] buf = new byte[MAX_FILE_CONTENT_BYTES];
+          int total = 0;
+          int n;
+          while (total < MAX_FILE_CONTENT_BYTES
+              && (n = is.read(buf, total, MAX_FILE_CONTENT_BYTES - total)) != -1) {
+            total += n;
+          }
+          content = new String(buf, 0, total, StandardCharsets.ISO_8859_1);
+        } catch (IOException ignored) {
+        }
+        filesContent.add(content);
+      }
+      if (filesContent.isEmpty()) {
+        return;
+      }
+      Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+      Flow.Action contentAction = contentFlow.getAction();
+      if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
         BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
         if (brf != null) {
           brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (multipart file upload)");
+          t = new BlockingException("Blocked request (multipart file upload content)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
       }
