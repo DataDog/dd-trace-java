@@ -92,6 +92,7 @@ import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.otlp.metrics.OtlpMetricsService;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
@@ -786,19 +787,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // asynchronously create the aggregator to avoid triggering expensive classloading during the
     // tracer initialisation.
     sharedCommunicationObjects.whenReady(
-        () ->
-            AgentTaskScheduler.get()
-                .execute(
-                    () -> {
-                      metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
-                      // Schedule the metrics aggregator to begin reporting after a random delay of
-                      // 1 to 10 seconds (using milliseconds granularity.)
-                      // This avoids a fleet of traced applications starting at the same time from
-                      // sending metrics in sync.
-                      AgentTaskScheduler.get()
-                          .scheduleWithJitter(
-                              MetricsAggregator::start, metricsAggregator, 1, SECONDS);
-                    }));
+        () -> AgentTaskScheduler.get().execute(() -> startMetricsAggregation(config, sco)));
 
     if (dataStreamsMonitoring == null) {
       this.dataStreamsMonitoring =
@@ -901,6 +890,20 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               },
               1,
               SECONDS);
+    }
+  }
+
+  private void startMetricsAggregation(Config config, SharedCommunicationObjects sco) {
+    metricsAggregator = createMetricsAggregator(config, sco, this.healthMetrics);
+    // Schedule the metrics aggregator to begin reporting after a random delay of
+    // 1 to 10 seconds (using milliseconds granularity.)
+    // This avoids a fleet of traced applications starting at the same time from
+    // sending metrics in sync.
+    AgentTaskScheduler.get()
+        .scheduleWithJitter(MetricsAggregator::start, metricsAggregator, 1, SECONDS);
+
+    if (config.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.start();
     }
   }
 
@@ -1415,6 +1418,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     RumInjector.shutdownTelemetry();
     AgentMeter.statsDClient().close();
     metricsAggregator.close();
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.shutdown();
+    }
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     healthMetrics.close();
@@ -1449,6 +1455,10 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       metricsAggregator.forceReport().get(2_500, MILLISECONDS);
     } catch (InterruptedException | ExecutionException | TimeoutException e) {
       log.debug("Failed to wait for metrics flush.", e);
+    }
+
+    if (initialConfig.isMetricsOtlpExporterEnabled()) {
+      OtlpMetricsService.INSTANCE.flush();
     }
   }
 
@@ -2353,18 +2363,18 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     result.putAll(userSpanTags);
     if (null != config) { // static
       if (!config.getEnv().isEmpty()) {
-        result.put("env", config.getEnv());
+        result.set("env", config.getEnv());
       }
       if (config.isDataJobsEnabled()) {
-        result.put(DJM_ENABLED, 1);
+        result.set(DJM_ENABLED, 1);
       }
       if (config.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       }
     }
     if (null != traceConfig) { // dynamic
       if (traceConfig.isDataStreamsEnabled()) {
-        result.put(DSM_ENABLED, 1);
+        result.set(DSM_ENABLED, 1);
       } else {
         result.remove(DSM_ENABLED);
       }

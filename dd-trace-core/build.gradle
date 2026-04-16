@@ -75,6 +75,8 @@ dependencies {
   implementation project(':utils:socket-utils')
   implementation project(':utils:logging-utils')
   implementation project(':utils:queue-utils')
+  // for OTLP support
+  compileOnly project(':dd-java-agent:agent-otel:otel-bootstrap')
   // for span exception debugging
   compileOnly project(':dd-java-agent:agent-debugger:debugger-bootstrap')
 
@@ -94,6 +96,8 @@ dependencies {
   testCompileOnly libs.autoservice.annotation
 
   testImplementation project(':dd-java-agent:testing')
+  testImplementation libs.bundles.mockito
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':products:metrics:metrics-lib')
   testImplementation group: 'org.msgpack', name: 'msgpack-core', version: '0.8.20'
@@ -103,6 +107,7 @@ dependencies {
   testImplementation group: 'com.amazonaws', name: 'aws-lambda-java-events', version:'3.11.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
   testImplementation libs.testcontainers
+  testImplementation project(':utils:junit-utils')
 
   traceAgentTestImplementation libs.testcontainers
 }

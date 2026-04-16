@@ -52,6 +52,10 @@ variables:
     description: "Enable flaky tests"
     value: "false"
 
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 40_000_000
+
 # trigger new commit cancel
 workflow:
   auto_cancel:

@@ -5,6 +5,7 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,14 +70,20 @@ public abstract class AIGuard {
     private final Action action;
     private final String reason;
     private final List<String> tags;
+    private final Map<String, Number> tagProbs;
     private final List<?> sds;
 
     public AIGuardAbortError(
-        final Action action, final String reason, final List<String> tags, final List<?> sds) {
+        final Action action,
+        final String reason,
+        final List<String> tags,
+        final Map<String, Number> tagProbs,
+        final List<?> sds) {
       super(reason);
       this.action = action;
       this.reason = reason;
       this.tags = tags;
+      this.tagProbs = tagProbs != null ? tagProbs : Collections.emptyMap();
       this.sds = sds != null ? sds : Collections.emptyList();
     }
 
@@ -90,6 +97,10 @@ public abstract class AIGuard {
 
     public List<String> getTags() {
       return tags;
+    }
+
+    public Map<String, Number> getTagProbabilities() {
+      return tagProbs;
     }
 
     public List<?> getSds() {
@@ -156,6 +167,7 @@ public abstract class AIGuard {
     final Action action;
     final String reason;
     final List<String> tags;
+    final Map<String, Number> tagProbs;
     final List<?> sds;
 
     /**
@@ -164,13 +176,19 @@ public abstract class AIGuard {
      * @param action the recommended action for the evaluated content
      * @param reason human-readable explanation for the decision
      * @param tags list of tags associated with the evaluation (e.g. indirect-prompt-injection)
+     * @param tagProbs map of tags associated to their probability
      * @param sds list of Sensitive Data Scanner findings
      */
     public Evaluation(
-        final Action action, final String reason, final List<String> tags, final List<?> sds) {
+        final Action action,
+        final String reason,
+        final List<String> tags,
+        final Map<String, Number> tagProbs,
+        final List<?> sds) {
       this.action = action;
       this.reason = reason;
       this.tags = tags;
+      this.tagProbs = tagProbs;
       this.sds = sds != null ? sds : Collections.emptyList();
     }
 
@@ -199,6 +217,15 @@ public abstract class AIGuard {
      */
     public List<String> getTags() {
       return tags;
+    }
+
+    /**
+     * Returns a map from tag to their probability (e.g. [indirect-prompt-injection: 0.25])
+     *
+     * @return map of tag probabilities.
+     */
+    public Map<String, Number> getTagProbabilities() {
+      return tagProbs;
     }
 
     /**

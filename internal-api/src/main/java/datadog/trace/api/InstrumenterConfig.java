@@ -5,6 +5,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
@@ -52,6 +53,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
@@ -143,6 +145,7 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean codeOriginEnabled;
+  private final boolean codeOriginInterfaceSupport;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean metricsOtelEnabled;
@@ -247,6 +250,10 @@ public class InstrumenterConfig {
     codeOriginEnabled =
         configProvider.getBoolean(
             CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
+    codeOriginInterfaceSupport =
+        configProvider.getBoolean(
+            CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
+            DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
@@ -383,6 +390,10 @@ public class InstrumenterConfig {
 
   public boolean isCodeOriginEnabled() {
     return codeOriginEnabled;
+  }
+
+  public boolean isCodeOriginInterfaceSupport() {
+    return codeOriginInterfaceSupport;
   }
 
   public boolean isTriageEnabled() {
