@@ -34,19 +34,31 @@ class JdkToolAbortSmokeTest extends Specification {
    */
   private static final Set<String> EXCLUDED_TOOLS = [
     // JVM launchers
-    "java", "javaw", "javaws",
+    "java",
+    "javaw",
+    "javaws",
     // Long-running daemons / servers
-    "rmiregistry", "rmid", "orbd", "servertool", "tnameserv", "jstatd",
+    "rmiregistry",
+    "rmid",
+    "orbd",
+    "servertool",
+    "tnameserv",
+    "jstatd",
     // Requires an attached JVM
     "jsadebugd",
     // GUI tools
-    "jconsole", "appletviewer", "jvisualvm", "jmc",
+    "jconsole",
+    "appletviewer",
+    "jvisualvm",
+    "jmc",
     // Interactive REPL
     "jshell",
     // Deprecated/removed packaging tools
-    "pack200", "unpack200",
+    "pack200",
+    "unpack200",
     // Native non-JVM tools (Async Profiler shims in newer JDKs)
-    "asprof", "jfrconv",
+    "asprof",
+    "jfrconv",
     // Windows CGI adapter
     "java-rmi.cgi",
   ] as Set
@@ -117,14 +129,18 @@ class JdkToolAbortSmokeTest extends Specification {
       "-J-javaagent:${agentJar}",
       "-J-Ddd.trace.agent.port=${server.address.port}",
       "-J-Ddd.agent.host=localhost",
-    ]
+    ]*.toString()
     Process proc = new ProcessBuilder(cmd)
       .redirectErrorStream(true)
       .start()
     // Close stdin so interactive tools (e.g. jdb) do not block waiting for input.
     proc.outputStream.close()
     // Drain stdout/stderr on a background thread to prevent pipe buffer saturation.
-    Thread.start { try { proc.inputStream.bytes } catch (ignored) {} }
+    Thread.start {
+      try {
+        proc.inputStream.bytes
+      } catch (ignored) {}
+    }
     if (!proc.waitFor(TOOL_TIMEOUT_SECS, TimeUnit.SECONDS)) {
       System.err.println("WARNING: ${binary.name} did not exit within ${TOOL_TIMEOUT_SECS}s — forcibly killed")
       proc.destroyForcibly()
@@ -152,9 +168,13 @@ class JdkToolAbortSmokeTest extends Specification {
     // Use a TreeMap so iteration order is deterministic (alphabetical by name)
     Map<String, File> tools = new TreeMap<>()
     for (File dir : scanDirs) {
-      if (!dir.isDirectory()) continue
+      if (!dir.isDirectory()) {
+        continue
+      }
       dir.listFiles()?.each { File f ->
-        if (!f.isFile() || !f.canExecute()) return
+        if (!f.isFile() || !f.canExecute()) {
+          return
+        }
         String name = f.name.replaceFirst(/\.exe$/, "")
         if (!(name in EXCLUDED_TOOLS)) {
           tools.putIfAbsent(name, f)
