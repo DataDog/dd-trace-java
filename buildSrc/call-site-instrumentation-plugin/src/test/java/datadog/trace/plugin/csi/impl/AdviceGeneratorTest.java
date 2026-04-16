@@ -426,6 +426,44 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
         });
   }
 
+  /**
+   * Captures two of three arguments positionally. Before the fix, this would throw a
+   * ClassCastException because ArgumentSpecification does not implement Comparable and the
+   * generator called Stream.sorted() without an explicit comparator.
+   */
+  @CallSite(spi = CallSites.class)
+  public static class MultiplePartialArgumentsBeforeAdvice {
+    @CallSite.Before(
+        "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+    public static void before(
+        @CallSite.Argument(0) java.util.Locale locale, @CallSite.Argument(1) String format) {}
+  }
+
+  @Test
+  void multiplePartialArgumentsWithBeforeAdvice() {
+    CallSiteSpecification spec =
+        buildClassSpecification(MultiplePartialArgumentsBeforeAdvice.class);
+    AdviceGenerator generator = buildAdviceGenerator(buildDir);
+
+    CallSiteResult result = generator.generate(spec);
+
+    assertNoErrors(result);
+    CallSiteAssert asserter = assertCallSites(result.getFile());
+    asserter.advices(
+        0,
+        advice -> {
+          advice.pointcut(
+              "java/lang/String",
+              "format",
+              "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+          advice.statements(
+              "int[] parameterIndices = new int[] { 0, 1 };",
+              "handler.dupParameters(descriptor, parameterIndices, null);",
+              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/util/Locale;Ljava/lang/String;)V\");",
+              "handler.method(opcode, owner, name, descriptor, isInterface);");
+        });
+  }
+
   @CallSite(spi = CallSites.class)
   public static class SuperTypeReturnAdvice {
     @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")
