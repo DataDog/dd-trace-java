@@ -12,6 +12,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -37,21 +38,16 @@ public interface Sampler {
       Sampler sampler;
       if (config != null) {
         if (!config.isApmTracingEnabled()) {
-          if (config.isLlmObsEnabled() && isAsmEnabled(config)) {
-            log.debug(
-                "APM is disabled, but both LLMObs and ASM are enabled. All LLMObs and ASM traces will be kept, only 1 APM trace per minute will be sent.");
-            return new LlmObsAndAsmStandaloneSampler(Clock.systemUTC());
-          } else if (config.isLlmObsEnabled()) {
-            log.debug("APM is disabled, but LLMObs is enabled. All LLMObs traces will be kept.");
-            return new LlmObsStandaloneSampler();
-          } else if (isAsmEnabled(config)) {
-            log.debug(
-                "APM is disabled, but ASM is enabled. Only 1 APM trace per minute will be sent, all ASM traces will be kept.");
-            return new AsmStandaloneSampler(Clock.systemUTC());
+          List<StandaloneProduct> active = new ArrayList<>();
+          if (config.isLlmObsEnabled()) active.add(StandaloneProduct.LLMOBS);
+          if (isAsmEnabled(config)) active.add(StandaloneProduct.ASM);
+          if (active.isEmpty()) {
+            log.debug("APM is disabled. All APM traces will be dropped.");
+            return new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
           }
-          // APM disabled and no other products enabled - drop all APM traces
-          log.debug("APM is disabled. All APM traces will be dropped.");
-          return new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+          log.debug("APM is disabled, standalone products active: {}.", active);
+          return new StandaloneSampler(active, Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();

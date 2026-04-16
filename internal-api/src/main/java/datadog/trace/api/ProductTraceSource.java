@@ -24,6 +24,9 @@ public class ProductTraceSource {
   public static final int DBM = 0x10;
   public static final int LLMOBS = 0x20;
 
+  /** Bitmask of all products that can operate in standalone mode (without APM tracing). */
+  private static final int STANDALONE_PRODUCTS_MASK = ASM | LLMOBS;
+
   /** Updates the bitfield by setting the bit corresponding to a specific product. */
   public static int updateProduct(int bitfield, int product) {
     return bitfield |= product; // Set the bit for the given product
@@ -32,6 +35,11 @@ public class ProductTraceSource {
   /** Checks if the bitfield is marked for a specific product. */
   public static boolean isProductMarked(final int bitfield, int product) {
     return (bitfield & product) != 0; // Check if the bit is set
+  }
+
+  /** Returns true if the bitfield contains a mark for any standalone product. */
+  public static boolean isAnyStandaloneProductMarked(final int bitfield) {
+    return (bitfield & STANDALONE_PRODUCTS_MASK) != 0;
   }
 
   /**

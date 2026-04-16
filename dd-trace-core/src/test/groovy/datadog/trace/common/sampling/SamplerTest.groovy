@@ -3,9 +3,9 @@ package datadog.trace.common.sampling
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 
-class SamplerTest extends DDSpecification{
+class SamplerTest extends DDSpecification {
 
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and appsec enabled is enabled"() {
+  void "test that StandaloneSampler is selected when apm tracing disabled and appsec enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")
     System.setProperty("dd.appsec.enabled", "true")
@@ -15,10 +15,10 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof AsmStandaloneSampler
+    sampler instanceof StandaloneSampler
   }
 
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and iast enabled is enabled"() {
+  void "test that StandaloneSampler is selected when apm tracing disabled and iast enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")
     System.setProperty("dd.iast.enabled", "true")
@@ -28,10 +28,10 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof AsmStandaloneSampler
+    sampler instanceof StandaloneSampler
   }
 
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and sca enabled is enabled"() {
+  void "test that StandaloneSampler is selected when apm tracing disabled and sca enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")
     System.setProperty("dd.appsec.sca.enabled", "true")
@@ -41,10 +41,10 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof AsmStandaloneSampler
+    sampler instanceof StandaloneSampler
   }
 
-  void "test that LlmObsStandaloneSampler is selected when apm tracing disabled and llmobs enabled"() {
+  void "test that StandaloneSampler is selected when apm tracing disabled and llmobs enabled"() {
     setup:
     System.setProperty("dd.apm.tracing.enabled", "false")
     System.setProperty("dd.llmobs.enabled", "true")
@@ -54,7 +54,21 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    sampler instanceof LlmObsStandaloneSampler
+    sampler instanceof StandaloneSampler
+  }
+
+  void "test that StandaloneSampler is selected when apm tracing disabled and both llmobs and asm enabled"() {
+    setup:
+    System.setProperty("dd.apm.tracing.enabled", "false")
+    System.setProperty("dd.llmobs.enabled", "true")
+    System.setProperty("dd.appsec.enabled", "true")
+    Config config = new Config()
+
+    when:
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+
+    then:
+    sampler instanceof StandaloneSampler
   }
 
   void "test that ForcePrioritySampler with SAMPLER_DROP is selected when apm tracing disabled and no other products enabled"() {
@@ -69,7 +83,7 @@ class SamplerTest extends DDSpecification{
     sampler instanceof ForcePrioritySampler
   }
 
-  void "test that AsmStandaloneSampler is not selected when apm tracing enabled and asm not enabled"() {
+  void "test that StandaloneSampler is not selected when apm tracing enabled"() {
     setup:
     Config config = new Config()
 
@@ -77,6 +91,6 @@ class SamplerTest extends DDSpecification{
     Sampler sampler = Sampler.Builder.forConfig(config, null)
 
     then:
-    !(sampler instanceof AsmStandaloneSampler)
+    !(sampler instanceof StandaloneSampler)
   }
 }
