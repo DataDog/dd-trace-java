@@ -80,6 +80,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
               : mountPoint;
       path = noBackslashhMountPoint + path;
     }
-    updateRoute(routingContext, method, path, parentSpan, handlerSpan, "route_handler");
+    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
   }
 }

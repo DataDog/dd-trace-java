@@ -16,16 +16,14 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
 
     when:
     RouteUpdateHelper.updateRoute(
-      context, "GET", "/items/:id", parentSpan, handlerSpan, "matches")
+      context, "GET", "/items/:id", parentSpan, handlerSpan)
 
     then:
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * parentSpan.setTag("dd.debug.vertx.route_overwrite", "matches:->/items/:id")
     1 * handlerSpan.getResourceNamePriority() >> Byte.MIN_VALUE
     1 * handlerSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * handlerSpan.setTag("dd.debug.vertx.route_overwrite", "matches:->/items/:id")
     0 * _
   }
 
@@ -36,7 +34,7 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     def handlerSpan = Mock(AgentSpan)
 
     when:
-    RouteUpdateHelper.updateRoute(context, "GET", "/", parentSpan, handlerSpan, "matches")
+    RouteUpdateHelper.updateRoute(context, "GET", "/", parentSpan, handlerSpan)
 
     then:
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null

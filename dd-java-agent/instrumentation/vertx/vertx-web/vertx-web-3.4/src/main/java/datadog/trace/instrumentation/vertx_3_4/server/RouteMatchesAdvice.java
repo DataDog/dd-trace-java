@@ -36,7 +36,7 @@ class RouteMatchesAdvice {
         }
         path = mountPoint + path;
       }
-      updateRoute(ctx, method, path, parentSpan, handlerSpan, "matches");
+      updateRoute(ctx, method, path, parentSpan, handlerSpan);
     }
     Map<String, String> params = ctx.pathParams();
     if (params.isEmpty()) {
@@ -72,7 +72,7 @@ class RouteMatchesAdvice {
           }
           path = mountPoint + path;
         }
-        updateRoute(ctx, method, path, parentSpan, handlerSpan, "matches");
+        updateRoute(ctx, method, path, parentSpan, handlerSpan);
       }
       Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {
