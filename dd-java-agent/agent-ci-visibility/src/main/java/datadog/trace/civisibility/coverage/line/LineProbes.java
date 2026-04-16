@@ -59,13 +59,18 @@ public class LineProbes implements CoverageProbes {
   }
 
   @Override
-  public boolean[] resolveProbeArray(Class<?> clazz, long classId, int probeCount) {
+  public boolean[] resolveProbeArray(Class<?> clazz, long classId, boolean[] jacocoArray) {
     try {
       if (lastCoveredClass != clazz) {
         lastCoveredExecutionData =
             executionData.computeIfAbsent(
                 lastCoveredClass = clazz,
-                k -> new ExecutionDataAdapter(classId, k.getName(), probeCount));
+                k -> {
+                  ExecutionDataAdapter adapter =
+                      new ExecutionDataAdapter(classId, k.getName(), jacocoArray.length);
+                  adapter.setJacocoArray(jacocoArray);
+                  return adapter;
+                });
       }
       return lastCoveredExecutionData.getProbeActivations();
     } catch (Exception e) {

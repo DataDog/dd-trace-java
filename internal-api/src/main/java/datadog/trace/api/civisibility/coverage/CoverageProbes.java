@@ -7,7 +7,7 @@ public interface CoverageProbes {
 
   void recordNonCodeResource(String absolutePath);
 
-  default boolean[] resolveProbeArray(Class<?> clazz, long classId, int probeCount) {
+  default boolean[] resolveProbeArray(Class<?> clazz, long classId, boolean[] jacocoArray) {
     return null;
   }
 }
