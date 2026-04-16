@@ -18,8 +18,6 @@ import net.bytebuddy.asm.Advice;
 public class RouteImplInstrumentation extends InstrumenterModule
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
-  private Advice.PostProcessor.Factory postProcessorFactory;
-
   public RouteImplInstrumentation() {
     super("vertx", "vertx-4.0");
   }
@@ -31,11 +29,9 @@ public class RouteImplInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    if (enabledSystems.contains(TargetSystem.IAST)) {
-      postProcessorFactory = IastPostProcessorFactory.INSTANCE;
-      return true;
-    }
-    return enabledSystems.contains(TargetSystem.APPSEC);
+    return enabledSystems.contains(TargetSystem.TRACING)
+        || enabledSystems.contains(TargetSystem.APPSEC)
+        || enabledSystems.contains(TargetSystem.IAST);
   }
 
   @Override
@@ -80,6 +76,6 @@ public class RouteImplInstrumentation extends InstrumenterModule
 
   @Override
   public Advice.PostProcessor.Factory postProcessor() {
-    return postProcessorFactory;
+    return IastPostProcessorFactory.INSTANCE;
   }
 }

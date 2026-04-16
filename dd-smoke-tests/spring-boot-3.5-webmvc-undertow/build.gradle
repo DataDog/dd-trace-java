@@ -1,0 +1,121 @@
+apply from: "$rootDir/gradle/java.gradle"
+import java.nio.file.Files
+import java.nio.file.StandardCopyOption
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+}
+
+description = 'Spring Boot 3.5 WebMvc Undertow Smoke Tests.'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}
+
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+tasks.register('webmvcUndertowBuild35', Exec) {
+  workingDir "$appDir"
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(21)
+  ]
+  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+tasks.named("compileTestGroovy", GroovyCompile) {
+  dependsOn project(':dd-trace-api').tasks.named("jar")
+  dependsOn 'webmvcUndertowBuild35'
+  outputs.upToDateWhen {
+    !webmvcUndertowBuild35.didWork
+  }
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddatadog.smoketest.springboot.uberJar.path=$appBuildDir/libs/webmvc-3.5-undertow-smoketest.jar"
+}
+
+def releasedAgentsDir = file("$buildDir/released-agents")
+def agent1604File = file("$releasedAgentsDir/dd-java-agent-1.60.4.jar")
+def agent1610File = file("$releasedAgentsDir/dd-java-agent-1.61.0.jar")
+
+def registerDownloadTask = { String taskName, String url, File outputFile ->
+  tasks.register(taskName) {
+    description = "Download ${outputFile.name} for regression checks."
+    outputs.file(outputFile)
+    doLast {
+      outputFile.parentFile.mkdirs()
+      if (!outputFile.exists()) {
+        new URL(url).withInputStream { inStream ->
+          Files.copy(inStream, outputFile.toPath(), StandardCopyOption.REPLACE_EXISTING)
+        }
+      }
+    }
+  }
+}
+
+def downloadAgent1604 = registerDownloadTask(
+  "downloadAgent1604",
+  "https://github.com/DataDog/dd-trace-java/releases/download/v1.60.4/dd-java-agent.jar",
+  agent1604File
+)
+
+def downloadAgent1610 = registerDownloadTask(
+  "downloadAgent1610",
+  "https://github.com/DataDog/dd-trace-java/releases/download/v1.61.0/dd-java-agent.jar",
+  agent1610File
+)
+
+def configureReleasedAgentTestTask = { String taskName, File agentJar, TaskProvider downloadTask ->
+  tasks.register(taskName, Test) {
+    group = "verification"
+    description = "Run Spring Boot 3.5 Undertow smoke test with ${agentJar.name}"
+    testClassesDirs = sourceSets.test.output.classesDirs
+    classpath = sourceSets.test.runtimeClasspath
+    dependsOn tasks.named("testClasses")
+    dependsOn "webmvcUndertowBuild35"
+    dependsOn downloadTask
+    useJUnitPlatform()
+    filter {
+      includeTestsMatching("SpringBoot35UndertowIntegrationTest")
+    }
+    // Override the default local-agent path injected by :dd-smoke-tests.
+    systemProperty "datadog.smoketest.agent.jar.path.override", agentJar.absolutePath
+    jvmArgs "-Ddatadog.smoketest.springboot.uberJar.path=$appBuildDir/libs/webmvc-3.5-undertow-smoketest.jar"
+  }
+}
+
+def testWithAgent1604 = configureReleasedAgentTestTask("testWithAgent1604", agent1604File, downloadAgent1604)
+def testWithAgent1610 = configureReleasedAgentTestTask("testWithAgent1610", agent1610File, downloadAgent1610)
+
+tasks.register("reproducerMatrix") {
+  group = "verification"
+  description = "Run reproducer against 1.60.4 then 1.61.0."
+  dependsOn testWithAgent1604
+  dependsOn testWithAgent1610
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
+}

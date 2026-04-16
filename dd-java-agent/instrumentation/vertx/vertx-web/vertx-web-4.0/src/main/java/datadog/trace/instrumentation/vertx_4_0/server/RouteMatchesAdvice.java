@@ -1,7 +1,12 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.PARENT_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.updateRoute;
+
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.ext.web.RoutingContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -15,6 +20,24 @@ class RouteMatchesAdvice {
       @Advice.Thrown(readOnly = false) Throwable t) {
     if (ret != 0 || t != null) {
       return;
+    }
+    final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
+    final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
+    if (ctx.currentRoute() != null) {
+      final String method = ctx.request().method().name();
+      String path = ctx.currentRoute().getPath();
+      if (path == null) {
+        path = ctx.currentRoute().getName();
+      }
+      final String mountPoint = ctx.mountPoint();
+      if (mountPoint != null && path != null) {
+        final String noBackslashhMountPoint =
+            mountPoint.endsWith("/")
+                ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+                : mountPoint;
+        path = noBackslashhMountPoint + path;
+      }
+      updateRoute(ctx, method, path, parentSpan, handlerSpan);
     }
     Map<String, String> params = ctx.pathParams();
     if (params.isEmpty()) {
@@ -38,6 +61,24 @@ class RouteMatchesAdvice {
         @Advice.Thrown(readOnly = false) Throwable t) {
       if (!ret || t != null) {
         return;
+      }
+      final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
+      final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
+      if (ctx.currentRoute() != null) {
+        final String method = ctx.request().method().name();
+        String path = ctx.currentRoute().getPath();
+        if (path == null) {
+          path = ctx.currentRoute().getName();
+        }
+        final String mountPoint = ctx.mountPoint();
+        if (mountPoint != null && path != null) {
+          final String noBackslashhMountPoint =
+              mountPoint.endsWith("/")
+                  ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+                  : mountPoint;
+          path = noBackslashhMountPoint + path;
+        }
+        updateRoute(ctx, method, path, parentSpan, handlerSpan);
       }
       Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {

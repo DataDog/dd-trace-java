@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.PARENT_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.updateRoute;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -19,11 +21,28 @@ public class EndHandlerWrapper implements Handler<Void> {
   @Override
   public void handle(final Void event) {
     AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
     try {
       if (actual != null) {
         actual.handle(event);
       }
     } finally {
+      if (routingContext.currentRoute() != null) {
+        final String method = routingContext.request().method().name();
+        String path = routingContext.currentRoute().getPath();
+        if (path == null) {
+          path = routingContext.currentRoute().getName();
+        }
+        final String mountPoint = routingContext.mountPoint();
+        if (mountPoint != null && path != null) {
+          final String noBackslashhMountPoint =
+              mountPoint.endsWith("/")
+                  ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+                  : mountPoint;
+          path = noBackslashhMountPoint + path;
+        }
+        updateRoute(routingContext, method, path, parentSpan, span);
+      }
       if (span != null) {
         DECORATE.onResponse(span, routingContext.response());
         span.finish();

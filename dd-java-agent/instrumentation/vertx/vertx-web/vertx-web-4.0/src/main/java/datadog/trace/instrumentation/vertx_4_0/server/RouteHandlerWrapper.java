@@ -10,6 +10,7 @@ import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INST
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import io.vertx.core.Handler;
 import io.vertx.ext.web.RoutingContext;
@@ -62,7 +63,8 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
 
   private void setRoute(RoutingContext routingContext) {
     final AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
-    if (parentSpan == null) {
+    final AgentSpan handlerSpan = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    if (parentSpan == null && handlerSpan == null) {
       return;
     }
 
@@ -82,15 +84,38 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
               : mountPoint;
       path = noBackslashhMountPoint + path;
     }
-    if (method != null && path != null && shouldUpdateRoute(routingContext, parentSpan, path)) {
-      routingContext.put(ROUTE_CONTEXT_KEY, path);
+    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
+  }
+
+  static void updateRoute(
+      final RoutingContext routingContext,
+      final String method,
+      final String path,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    if (method == null || path == null) {
+      return;
+    }
+    if (!shouldUpdateRoute(routingContext, parentSpan, handlerSpan, path)) {
+      return;
+    }
+
+    routingContext.put(ROUTE_CONTEXT_KEY, path);
+    if (parentSpan != null) {
       HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
+    }
+    if (handlerSpan != null
+        && handlerSpan.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
+      HTTP_RESOURCE_DECORATOR.withRoute(handlerSpan, method, path, true);
     }
   }
 
   static boolean shouldUpdateRoute(
-      final RoutingContext routingContext, final AgentSpan span, final String path) {
-    if (span == null) {
+      final RoutingContext routingContext,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan,
+      final String path) {
+    if (parentSpan == null && handlerSpan == null) {
       return false;
     }
     final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
@@ -98,6 +123,13 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       return false;
     }
     // do not override route with a "/" if it's already set (it's probably more meaningful)
-    return !path.equals("/") || span.getTag(Tags.HTTP_ROUTE) == null;
+    if (!path.equals("/")) {
+      return true;
+    }
+    return !hasHttpRoute(parentSpan) && !hasHttpRoute(handlerSpan);
+  }
+
+  private static boolean hasHttpRoute(final AgentSpan span) {
+    return span != null && span.getTag(Tags.HTTP_ROUTE) != null;
   }
 }

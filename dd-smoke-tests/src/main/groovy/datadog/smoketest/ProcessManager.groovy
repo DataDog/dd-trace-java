@@ -19,7 +19,10 @@ abstract class ProcessManager extends Specification {
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
   @Shared
-  protected String shadowJarPath = System.getProperty("datadog.smoketest.agent.shadowJar.path")
+  protected String shadowJarPath =
+  System.getProperty(
+  "datadog.smoketest.agent.jar.path.override",
+  System.getProperty("datadog.smoketest.agent.shadowJar.path"))
   @Shared
   protected boolean isIBM = System.getProperty("java.vendor", "").contains("IBM")
 
