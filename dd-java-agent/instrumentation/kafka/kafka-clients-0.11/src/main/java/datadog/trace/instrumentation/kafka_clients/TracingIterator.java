@@ -142,7 +142,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, group, bootstrapServers);
+        decorator.onConsume(span, val, group, clusterId, bootstrapServers);
         if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
           activateNext(span);
         } else {
