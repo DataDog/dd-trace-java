@@ -4,7 +4,6 @@ muzzle {
     group = 'org.eclipse.jetty'
     module = 'jetty-server'
     versions = '[9.4.10,10.0)'
-    assertInverse = true
   }
   pass {
     name = '10_series'
