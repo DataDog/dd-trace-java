@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.aerospike4
 
-import static datadog.environment.OperatingSystem.arm64
+import static datadog.environment.OperatingSystem.isArm64
+import static datadog.environment.OperatingSystem.isLinux
 import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
 import static java.util.concurrent.TimeUnit.SECONDS
+import static org.junit.jupiter.api.Assumptions.assumeFalse
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
 import datadog.trace.agent.test.asserts.TraceAssert
@@ -14,8 +16,6 @@ import org.testcontainers.containers.GenericContainer
 import spock.lang.Shared
 
 abstract class AerospikeBaseTest extends VersionedNamingTestBase {
-  // arm64 supported only since `ce-6.2.0.2`:
-  private static final String AEROSPIKE_IMAGE = isArm64() ? 'aerospike:ce-6.2.0.2' : 'aerospike:5.5.0.9'
 
   @Shared
   def aerospike
@@ -27,7 +27,10 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
   int aerospikePort = 3000
 
   def setup() throws Exception {
-    aerospike = new GenericContainer(AEROSPIKE_IMAGE)
+    // TODO: skip aerospike under arm46 Linux, as supported since ce-6.2.0.2 only
+    assumeFalse(isArm64() && isLinux())
+
+    aerospike = new GenericContainer('aerospike:5.5.0.9')
       .withExposedPorts(3000)
       .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
 
