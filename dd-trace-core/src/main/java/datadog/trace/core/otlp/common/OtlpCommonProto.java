@@ -47,7 +47,9 @@ public final class OtlpCommonProto {
           : null;
 
   public static void recalibrateCaches() {
-    VALUE_CACHE.recalibrate();
+    if (VALUE_CACHE != null) {
+      VALUE_CACHE.recalibrate();
+    }
   }
 
   public static int sizeVarInt(int value) {
