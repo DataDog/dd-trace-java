@@ -58,6 +58,24 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    */
   default void onSpanFinished(AgentSpan span) {}
 
+  /**
+   * Called when a span context continuation activates on a worker thread (task execution start).
+   * Implementations record the start tick so a synthetic SpanNode can be emitted at deactivation.
+   *
+   * @param profilerContext the activated span context
+   * @param startTicks TSC tick at activation (from {@link #getCurrentTicks()})
+   */
+  default void onTaskActivation(ProfilerContext profilerContext, long startTicks) {}
+
+  /**
+   * Called when a span context continuation deactivates on a worker thread (task execution end).
+   * Implementations emit a lightweight synthetic SpanNode covering the worker thread interval.
+   *
+   * @param profilerContext the deactivated span context
+   * @param startTicks TSC tick recorded at {@link #onTaskActivation}
+   */
+  default void onTaskDeactivation(ProfilerContext profilerContext, long startTicks) {}
+
   String name();
 
   final class NoOp implements ProfilingContextIntegration {
