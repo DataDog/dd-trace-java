@@ -45,7 +45,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpTraceProto} via {@link OtlpTraceProtoCollector#collectSpans}.
+ * Tests for {@link OtlpTraceProto} via {@link OtlpTraceProtoCollector#collectTraces}.
  *
  * <p>Each test case builds real {@link DDSpan} instances via a shared {@link CoreTracer}, collects
  * them using {@link OtlpTraceProtoCollector}, drains the resulting chunked payload into a
@@ -550,10 +550,11 @@ class OtlpTraceProtoTest {
 
   @ParameterizedTest(name = "{0}")
   @MethodSource("cases")
-  void testCollectSpans(String caseName, List<SpanSpec> specs) throws IOException {
+  void testCollectTraces(String caseName, List<SpanSpec> specs) throws IOException {
     List<DDSpan> spans = buildSpans(specs);
 
-    OtlpPayload payload = OtlpTraceProtoCollector.INSTANCE.collectSpans(spans);
+    OtlpTraceProtoCollector.INSTANCE.addTrace(spans);
+    OtlpPayload payload = OtlpTraceProtoCollector.INSTANCE.collectTraces();
 
     if (spans.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty span list must produce empty payload");

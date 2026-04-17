@@ -259,19 +259,27 @@ public final class OtlpTraceProto {
 
   public static class MetaWriter implements MetadataConsumer {
     private final StreamingBuffer buf;
-    private boolean firstSpan = true;
+
+    private boolean includeProcessTags;
+    private boolean includeSamplingTags;
 
     public MetaWriter(StreamingBuffer buf) {
       this.buf = buf;
     }
 
-    public void reset() {
-      firstSpan = true;
+    /** Call this to ensure process tags are written out for the next span. */
+    public void includeProcessTags() {
+      includeProcessTags = true;
+    }
+
+    /** Call this to ensure sampling tags are written out for the next span. */
+    public void includeSamplingTags() {
+      includeSamplingTags = true;
     }
 
     @Override
     public void accept(Metadata metadata) {
-      if ((firstSpan || metadata.topLevel()) && metadata.hasSamplingPriority()) {
+      if ((includeSamplingTags || metadata.topLevel()) && metadata.hasSamplingPriority()) {
         writeSpanTag(buf, SAMPLING_PRIORITY_KEY, metadata.samplingPriority());
       }
       if (metadata.measured()) {
@@ -297,13 +305,15 @@ public final class OtlpTraceProto {
       if (metadata.getOrigin() != null) {
         writeSpanTag(buf, ORIGIN_KEY, metadata.getOrigin());
       }
-      if (firstSpan && metadata.processTags() != null) {
+      if (includeProcessTags && metadata.processTags() != null) {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
       metadata.getTags().forEach(tagEntry -> writeSpanTag(buf, tagEntry));
 
-      firstSpan = false;
+      // reset for next span
+      includeProcessTags = false;
+      includeSamplingTags = false;
     }
   }
 }

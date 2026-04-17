@@ -9,6 +9,7 @@ import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanMessage;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpCommonProto;
 import datadog.trace.core.otlp.common.OtlpPayload;
@@ -48,6 +49,8 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   private final List<byte[]> scopedChunks = new ArrayList<>();
   private final List<byte[]> spanChunks = new ArrayList<>();
 
+  private boolean payloadStarted;
+
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
   private int scopedBytes;
@@ -56,19 +59,31 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   private OtelInstrumentationScope currentScope;
   private DDSpan currentSpan;
 
+  /** Adds the given trace spans to the collector. */
+  @Override
+  public void addTrace(List<? extends CoreSpan<?>> spans) {
+    if (!payloadStarted) {
+      start();
+      metaWriter.includeProcessTags();
+      payloadStarted = true;
+    }
+
+    for (int i = 0, len = spans.size(); i < len; i++) {
+      if (i == 0 || i == len - 1) {
+        metaWriter.includeSamplingTags();
+      }
+      visitSpan(spans.get(i));
+    }
+  }
+
   /**
-   * Collects trace spans and marshalls them into a chunked payload.
+   * Marshalls the traces collected so far into a chunked payload.
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */
   @Override
-  public OtlpPayload collectSpans(List<DDSpan> spans) {
-    OtlpCommonProto.recalibrateCaches();
-    start();
+  public OtlpPayload collectTraces() {
     try {
-      // for now put all spans under the default scope
-      visitScopedSpans(DEFAULT_TRACE_SCOPE);
-      spans.forEach(this::visitSpan);
       return completePayload();
     } finally {
       stop();
@@ -77,14 +92,22 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
 
   /** Prepare temporary elements to collect trace data. */
   private void start() {
+
     // clear payloadChunks in case it wasn't fully consumed via OtlpPayload
     payloadChunks.clear();
+
+    // remove stale entries from caches
+    OtlpCommonProto.recalibrateCaches();
+
+    // for now put all spans under the default scope
+    visitScopedSpans(DEFAULT_TRACE_SCOPE);
   }
 
   /** Cleanup elements used to collect trace data. */
   private void stop() {
+    payloadStarted = false;
+
     buf.reset();
-    metaWriter.reset();
 
     // leave payloadChunks in place so it can be consumed via OtlpPayload
     scopedChunks.clear();
@@ -105,12 +128,12 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
     currentScope = scope;
   }
 
-  private void visitSpan(DDSpan span) {
+  private void visitSpan(CoreSpan<?> span) {
     if (currentSpan != null) {
       completeSpan();
     }
-    currentSpan = span;
-    span.getLinks().forEach(this::visitSpanLink);
+    currentSpan = (DDSpan) span;
+    currentSpan.getLinks().forEach(this::visitSpanLink);
   }
 
   private void visitSpanLink(AgentSpanLink spanLink) {

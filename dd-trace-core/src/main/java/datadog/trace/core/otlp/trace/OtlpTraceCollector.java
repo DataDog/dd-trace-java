@@ -1,12 +1,14 @@
 package datadog.trace.core.otlp.trace;
 
-import datadog.trace.core.DDSpan;
+import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.List;
 
-/** Collects trace spans ready for export. */
+/** Collects traces ready for export. */
 public interface OtlpTraceCollector {
-  OtlpTraceCollector NOOP_COLLECTOR = spans -> OtlpPayload.EMPTY;
+  OtlpTraceCollector NOOP_COLLECTOR = () -> OtlpPayload.EMPTY;
 
-  OtlpPayload collectSpans(List<DDSpan> spans);
+  OtlpPayload collectTraces();
+
+  default void addTrace(List<? extends CoreSpan<?>> spans) {}
 }
