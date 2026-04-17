@@ -133,7 +133,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 8, I64_WIRE_TYPE);
     writeI64(buf, span.getStartTime() + PendingTrace.getDurationNano(span));
 
-    if (!Config.get().getServiceName().equalsIgnoreCase(span.getServiceName())) {
+    if (!Config.get().getServiceName().equals(span.getServiceName())) {
       writeSpanTag(buf, SERVICE_NAME, span.getServiceName());
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
