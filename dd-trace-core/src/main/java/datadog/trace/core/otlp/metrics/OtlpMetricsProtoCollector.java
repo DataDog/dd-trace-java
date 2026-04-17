@@ -34,7 +34,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Collects OpenTelemetry metrics and marshalls them into a chunked 'metrics.proto' payload.
+ * Collects OpenTelemetry metrics and marshals them into a chunked 'metrics.proto' payload.
  *
  * <p>This collector is designed to be called by a single thread. To minimize allocations each
  * collection returns a payload only to be used by the calling thread until the next collection.
@@ -84,7 +84,7 @@ public final class OtlpMetricsProtoCollector
   }
 
   /**
-   * Collects OpenTelemetry metrics and marshalls them into a chunked payload.
+   * Collects OpenTelemetry metrics and marshals them into a chunked payload.
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */

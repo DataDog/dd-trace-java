@@ -19,7 +19,7 @@ import java.util.Deque;
 import java.util.List;
 
 /**
- * Collects Datadog traces and marshalls them into a chunked 'trace.proto' payload.
+ * Collects Datadog traces and marshals them into a chunked 'trace.proto' payload.
  *
  * <p>This collector is designed to be called by a single thread. To minimize allocations each
  * collection returns a payload only to be used by the calling thread until the next collection.
@@ -77,7 +77,7 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   }
 
   /**
-   * Marshalls the traces collected so far into a chunked payload.
+   * Marshals the traces collected so far into a chunked payload.
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */
