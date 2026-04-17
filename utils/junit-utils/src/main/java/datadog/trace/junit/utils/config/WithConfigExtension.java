@@ -75,15 +75,24 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
+    /*
+     * Patch config classes to make them modifiable.
+     */
+    // Install config transformer error listener
     if (!configTransformerInstalled) {
       installConfigTransformer();
       configTransformerInstalled = true;
     }
+    // Make config instance modifiable
     makeConfigInstanceModifiable();
+    // Verify that config class transformation succeeded
     assertFalse(configModificationFailed, "Config class modification failed");
     if (isConfigInstanceModifiable) {
       checkConfigTransformation();
     }
+    /*
+     * Back up config and apply class-level config values.
+     */
     if (originalSystemProperties == null) {
       saveProperties();
     }
@@ -127,8 +136,8 @@ public class WithConfigExtension
   }
 
   private static void applyClassLevelConfig(ExtensionContext context) {
-    // Walk the entire class hierarchy so annotations on superclasses are applied
-    // (topmost first, then subclass overrides)
+    // Walk the entire class hierarchy so annotations on superclasses and apply topmost first, then
+    // subclass overrides.
     Class<?> testClass = context.getRequiredTestClass();
     List<Class<?>> hierarchy = new ArrayList<>();
     for (Class<?> cls = testClass; cls != null; cls = cls.getSuperclass()) {
@@ -166,12 +175,12 @@ public class WithConfigExtension
   }
 
   private static void setSysProperty(String name, String value, boolean addPrefix) {
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
     System.setProperty(prefixedName, value);
   }
 
   private static void setEnvVariable(String name, String value, boolean addPrefix) {
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
     environmentVariables.set(prefixedName, value);
   }
 
@@ -193,7 +202,7 @@ public class WithConfigExtension
   }
 
   public static void removeSysConfig(String name, boolean addPrefix) {
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
     System.clearProperty(prefixedName);
     rebuildConfig();
   }
@@ -212,7 +221,7 @@ public class WithConfigExtension
   }
 
   public static void removeEnvConfig(String name, boolean addPrefix) {
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
     environmentVariables.removePrefixed(prefixedName);
     rebuildConfig();
   }
