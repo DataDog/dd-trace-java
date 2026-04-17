@@ -14,10 +14,12 @@ public final class DBQueryInfo {
   private static final ToIntFunction<DBQueryInfo> SQL_WEIGHER = DBQueryInfo::weight;
   private static final DDCache<String, DBQueryInfo> CACHED_PREPARED_STATEMENTS =
       DDCaches.newFixedSizeWeightedCache(512, SQL_WEIGHER, COMBINED_SQL_LIMIT);
+  private static final DDCache<String, DBQueryInfo> CACHED_STATEMENTS =
+      DDCaches.newFixedSizeWeightedCache(512, SQL_WEIGHER, COMBINED_SQL_LIMIT);
   private static final Function<String, DBQueryInfo> NORMALIZE = DBQueryInfo::new;
 
   public static DBQueryInfo ofStatement(String sql) {
-    return NORMALIZE.apply(sql);
+    return CACHED_STATEMENTS.computeIfAbsent(sql, NORMALIZE);
   }
 
   public static DBQueryInfo ofPreparedStatement(String sql) {
