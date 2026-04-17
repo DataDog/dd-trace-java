@@ -1,5 +1,8 @@
 package datadog.gradle.plugin.config
 
+import com.github.javaparser.ParserConfiguration
+import com.github.javaparser.StaticJavaParser
+import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
 import com.github.javaparser.ast.body.ClassOrInterfaceDeclaration
 import com.github.javaparser.ast.body.FieldDeclaration
@@ -42,7 +45,7 @@ class ConfigInversionLinter : Plugin<Project> {
 }
 
 // Data class for fields from generated class
-internal data class LoadedConfigFields(
+data class LoadedConfigFields(
   val supported: Set<String>,
   val aliasMapping: Map<String, String> = emptyMap(),
   val aliases: Map<String, List<String>> = emptyMap()
