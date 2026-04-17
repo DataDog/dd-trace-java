@@ -462,6 +462,10 @@ public class CrashUploaderTest {
     final ObjectMapper mapper = new ObjectMapper();
     final JsonNode event = mapper.readTree(recordedRequest.getBody().readUtf8());
 
+    JsonNode experimental = event.at("/experimental");
+    // experimental must either be absent or, if present, contain at least one field (no empty {})
+    assertThat(experimental.isMissingNode() || (experimental.isObject() && experimental.size() > 0))
+        .isTrue();
     assertThat(event.at("/experimental/register_to_memory_mapping").isMissingNode()).isTrue();
   }
 

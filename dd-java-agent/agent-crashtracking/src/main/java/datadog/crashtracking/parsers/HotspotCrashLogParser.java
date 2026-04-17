@@ -450,12 +450,15 @@ public final class HotspotCrashLogParser {
           if (nextThreadSectionState != null) {
             currentRegisterToMemoryMapping = "";
             state = nextThreadSectionState;
+          } else if (line.startsWith("siginfo:")) {
+            // siginfo marks the end of the register-to-memory mapping section;
+            // stop appending continuations to the last register's value
+            currentRegisterToMemoryMapping = "";
           } else if (!line.isEmpty()) {
             final Matcher m = REGISTER_TO_MEMORY_MAPPING_PARSER.matcher(line);
             if (m.lookingAt()) {
               currentRegisterToMemoryMapping = m.group(1);
-              registerToMemoryMapping.put(
-                  currentRegisterToMemoryMapping, line.substring(line.indexOf('=') + 1));
+              registerToMemoryMapping.put(currentRegisterToMemoryMapping, line.substring(m.end()));
             } else if (!currentRegisterToMemoryMapping.isEmpty()) {
               registerToMemoryMapping.computeIfPresent(
                   currentRegisterToMemoryMapping, (key, value) -> value + "\n" + line);
