@@ -40,6 +40,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Stream;
+import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
@@ -619,6 +620,114 @@ class OtlpTraceProtoTest {
       verifySpan(
           CodedInputStream.newInstance(spanBlobs.get(i)), spans.get(i), specs.get(i), caseName);
     }
+  }
+
+  @Test
+  void testCollectMultipleTraces() throws IOException {
+    // Three independent traces — each root span gets its own auto-generated trace ID.
+    List<DDSpan> trace1 =
+        buildSpans(asList(span("trace1.root", "op.root", "web"), childSpan("trace1.child", 0)));
+    List<DDSpan> trace2 = buildSpans(asList(span("trace2.root", "op.root", "db")));
+    List<DDSpan> trace3 =
+        buildSpans(
+            asList(
+                span("trace3.a", "op.a", "web"),
+                span("trace3.b", "op.b", "web"),
+                span("trace3.c", "op.c", "web")));
+
+    // Sanity: all three traces must have distinct trace IDs.
+    DDTraceId traceId1 = trace1.get(0).getTraceId();
+    DDTraceId traceId2 = trace2.get(0).getTraceId();
+    DDTraceId traceId3 = trace3.get(0).getTraceId();
+    assertNotEquals(traceId1, traceId2, "trace IDs must be distinct");
+    assertNotEquals(traceId2, traceId3, "trace IDs must be distinct");
+    assertNotEquals(traceId1, traceId3, "trace IDs must be distinct");
+
+    OtlpTraceProtoCollector.INSTANCE.addTrace(trace1);
+    OtlpTraceProtoCollector.INSTANCE.addTrace(trace2);
+    OtlpTraceProtoCollector.INSTANCE.addTrace(trace3);
+    OtlpPayload payload = OtlpTraceProtoCollector.INSTANCE.collectTraces();
+
+    // Collect all span IDs we expect to find across all three traces.
+    Set<Long> expectedSpanIds = new HashSet<>();
+    Set<Long> expectedTraceIds = new HashSet<>();
+    for (DDSpan s : trace1) {
+      expectedSpanIds.add(s.getSpanId());
+      expectedTraceIds.add(s.getTraceId().toLong());
+    }
+    for (DDSpan s : trace2) {
+      expectedSpanIds.add(s.getSpanId());
+      expectedTraceIds.add(s.getTraceId().toLong());
+    }
+    for (DDSpan s : trace3) {
+      expectedSpanIds.add(s.getSpanId());
+      expectedTraceIds.add(s.getTraceId().toLong());
+    }
+    int totalSpans = trace1.size() + trace2.size() + trace3.size(); // 6
+
+    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
+    payload.drain(baos::write);
+    byte[] bytes = baos.toByteArray();
+    assertTrue(bytes.length > 0, "multi-trace payload must be non-empty");
+
+    // Parse TracesData → ResourceSpans → ScopeSpans → extract span_id and trace_id per span.
+    CodedInputStream td = CodedInputStream.newInstance(bytes);
+    int tdTag = td.readTag();
+    assertEquals(1, WireFormat.getTagFieldNumber(tdTag), "TracesData.resource_spans is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(tdTag));
+    CodedInputStream rs = td.readBytes().newCodedInput();
+    assertTrue(td.isAtEnd(), "expected exactly one ResourceSpans");
+
+    CodedInputStream ss = null;
+    while (!rs.isAtEnd()) {
+      int rsTag = rs.readTag();
+      if (WireFormat.getTagFieldNumber(rsTag) == 2) {
+        ss = rs.readBytes().newCodedInput();
+      } else {
+        rs.skipField(rsTag);
+      }
+    }
+    assertNotNull(ss, "ScopeSpans must be present in ResourceSpans");
+
+    Set<Long> parsedSpanIds = new HashSet<>();
+    Set<Long> parsedTraceIds = new HashSet<>();
+    while (!ss.isAtEnd()) {
+      int ssTag = ss.readTag();
+      if (WireFormat.getTagFieldNumber(ssTag) == 2) {
+        CodedInputStream sp = ss.readBytes().newCodedInput();
+        byte[] parsedTraceId = null;
+        byte[] parsedSpanId = null;
+        while (!sp.isAtEnd()) {
+          int spTag = sp.readTag();
+          switch (WireFormat.getTagFieldNumber(spTag)) {
+            case 1:
+              parsedTraceId = sp.readBytes().toByteArray();
+              break;
+            case 2:
+              parsedSpanId = sp.readBytes().toByteArray();
+              break;
+            default:
+              sp.skipField(spTag);
+          }
+        }
+        assertNotNull(parsedSpanId, "span_id must be present in every span");
+        assertNotNull(parsedTraceId, "trace_id must be present in every span");
+        assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes");
+        assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes");
+        parsedSpanIds.add(readLittleEndianLong(parsedSpanId));
+        parsedTraceIds.add(readLittleEndianLong(parsedTraceId));
+      } else {
+        ss.skipField(ssTag);
+      }
+    }
+
+    assertEquals(
+        totalSpans, parsedSpanIds.size(), "all spans from all traces must appear in payload");
+    assertEquals(expectedSpanIds, parsedSpanIds, "span IDs in payload must match those built");
+    assertEquals(
+        expectedTraceIds.size(),
+        parsedTraceIds.size(),
+        "payload must contain spans with all three distinct trace IDs");
   }
 
   // ── span construction ─────────────────────────────────────────────────────
