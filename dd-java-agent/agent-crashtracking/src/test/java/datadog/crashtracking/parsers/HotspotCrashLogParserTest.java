@@ -289,6 +289,37 @@ public class HotspotCrashLogParserTest {
     assertEquals("stub", crashLog.error.stack.frames[9].frameType);
   }
 
+  /**
+   * Regression test: a {@code siginfo:} line appearing inside the {@code Register to memory
+   * mapping:} section must not be appended as a continuation of the last register's value.
+   */
+  @Test
+  public void testSiginfoLineNotAppendedToRegisterMapping() {
+    // Minimal crash log fragment that drives the parser into REGISTER_TO_MEMORY_MAPPING state,
+    // then encounters a siginfo: line (returned null by nextThreadSectionState — intentional, not
+    // a state transition), then continues with another register entry.
+    String log =
+        "# A fatal error has been detected by the Java Runtime Environment:\n"
+            + "# A core dump file may have been created\n"
+            + "T H R E A D\n"
+            + "Native frames: (J=compiled Java code, j=interpreted, Vv=VM code, C=native code)\n"
+            + "Register to memory mapping:\n"
+            + "\n"
+            + "RSP =0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80\n"
+            + "siginfo: si_signo: 11 (SIGSEGV), si_code: 1 (SEGV_MAPERR), si_addr: 0x0000000000000070\n"
+            + "RDI =0x0 is NULL\n";
+
+    CrashLog crashLog = new HotspotCrashLogParser().parse(UUID.randomUUID().toString(), log);
+
+    assertThat(crashLog.experimental).isNotNull();
+    Map<String, String> mapping = crashLog.experimental.registerToMemoryMapping;
+    assertThat(mapping).isNotNull();
+    assertThat(mapping.get("RSP"))
+        .isEqualTo("0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80");
+    assertThat(mapping.get("RSP")).doesNotContain("siginfo:");
+    assertThat(mapping.get("RDI")).isEqualTo("0x0 is NULL");
+  }
+
   @TableTest({
     "scenario                 | line                                                                                                                   | expected                          ",
     "quoted java thread       | Current thread (0x0000000caff48000):  JavaThread \"zip-reader-0\" daemon [_thread_in_native, id=18947, stack(0x1,0x2)] | JavaThread \"zip-reader-0\" daemon",
