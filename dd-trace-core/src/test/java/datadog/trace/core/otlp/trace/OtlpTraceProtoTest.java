@@ -3,6 +3,7 @@ package datadog.trace.core.otlp.trace;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static java.util.Arrays.asList;
@@ -86,7 +87,7 @@ class OtlpTraceProtoTest {
     /** Span type → attribute "span.type". */
     final String spanType;
 
-    /** Span kind tag value; {@code null} → INTERNAL (kind=1). */
+    /** Span kind tag value; {@code null} → UNSPECIFIED (kind=0). */
     final String spanKind;
 
     /** Start time in microseconds since epoch → start_time_unix_nano = startMicros * 1000. */
@@ -440,8 +441,9 @@ class OtlpTraceProtoTest {
 
         // ── span kinds ────────────────────────────────────────────────────────
         Arguments.of(
-            "minimal span — default INTERNAL kind",
+            "minimal span — default UNSPECIFIED kind",
             asList(span("GET /api/users", "servlet.request", "web"))),
+        Arguments.of("internal span kind", asList(kindSpan("GET /api/users", SPAN_KIND_INTERNAL))),
         Arguments.of("server span kind", asList(kindSpan("GET /api/users", SPAN_KIND_SERVER))),
         Arguments.of("client span kind", asList(kindSpan("redis.get", SPAN_KIND_CLIENT))),
         Arguments.of("producer span kind", asList(kindSpan("kafka.produce", SPAN_KIND_PRODUCER))),
@@ -1142,8 +1144,8 @@ class OtlpTraceProtoTest {
    * Returns the expected SpanKind enum value for the given Datadog span kind tag value.
    *
    * <pre>
-   *   SPAN_KIND_UNSPECIFIED = 0  (unused)
-   *   SPAN_KIND_INTERNAL    = 1  (default)
+   *   SPAN_KIND_UNSPECIFIED = 0  (default)
+   *   SPAN_KIND_INTERNAL    = 1
    *   SPAN_KIND_SERVER      = 2
    *   SPAN_KIND_CLIENT      = 3
    *   SPAN_KIND_PRODUCER    = 4
@@ -1151,11 +1153,12 @@ class OtlpTraceProtoTest {
    * </pre>
    */
   private static int expectedKind(String spanKind) {
+    if (SPAN_KIND_INTERNAL.equals(spanKind)) return 1;
     if (SPAN_KIND_SERVER.equals(spanKind)) return 2;
     if (SPAN_KIND_CLIENT.equals(spanKind)) return 3;
     if (SPAN_KIND_PRODUCER.equals(spanKind)) return 4;
     if (SPAN_KIND_CONSUMER.equals(spanKind)) return 5;
-    return 1; // INTERNAL
+    return 0; // UNSPECIFIED
   }
 
   /**

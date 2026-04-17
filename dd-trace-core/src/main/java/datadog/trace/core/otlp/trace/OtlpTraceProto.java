@@ -243,7 +243,7 @@ public final class OtlpTraceProto {
 
   private static int spanKind(CharSequence spanKind) {
     if (spanKind == null) {
-      return 1; // UNSPECIFIED -> INTERNAL
+      return 0; // UNSPECIFIED
     } else if (SPAN_KIND_SERVER.contentEquals(spanKind)) {
       return 2; // SERVER
     } else if (SPAN_KIND_CLIENT.contentEquals(spanKind)) {
