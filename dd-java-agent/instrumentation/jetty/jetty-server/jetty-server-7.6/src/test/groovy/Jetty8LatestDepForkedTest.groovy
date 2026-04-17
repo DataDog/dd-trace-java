@@ -40,12 +40,16 @@ abstract class Jetty8LatestDepForkedTest extends Jetty76Test {
 
   @Override
   boolean testBodyFilenamesCalledOnce() {
-    true
+    // Jetty 8.x has no _multiParts field guard; getParts() called multiple times
+    // (BODY_MULTIPART_REPEATED) fires the event more than once.
+    false
   }
 
   @Override
   boolean testBodyFilenamesCalledOnceCombined() {
-    true
+    // Jetty 8.x has no _contentParameters field guard; BODY_MULTIPART_COMBINED
+    // fires the event on the getParts() call regardless of prior parameterMap access.
+    false
   }
 
   static class Jetty8TestHandler extends AbstractHandler {
