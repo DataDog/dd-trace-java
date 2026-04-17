@@ -14,17 +14,36 @@ muzzle {
   }
 }
 
+def os = System.getProperty("os.name").toLowerCase()
+def arch = System.getProperty("os.arch").toLowerCase()
+def arm64 = arch.contains("aarch64") || arch.contains("arm64")
+def skipLinuxArm64Tests = os.contains("linux") && arm64
+
 protobuf {
   protoc {
-    def os = System.getProperty("os.name").toLowerCase()
-    def arch = System.getProperty("os.arch").toLowerCase()
-
-    // There is no m1 support for protoc 3.0.0, so require Rosetta
-    if (os.contains("mac") && arch.contains("aarch64")) {
+    // There is no macOS arm64 support for protoc 3.0.0, so require Rosetta.
+    if (os.contains("mac") && arm64) {
       artifact = "com.google.protobuf:protoc:3.0.0:osx-x86_64"
     } else {
       artifact = "com.google.protobuf:protoc:3.0.0"
     }
+  }
+}
+
+// TODO: protobuf supports arm64 linux since 3.12.0, but it is not source-compatible with 3.0.0
+if (skipLinuxArm64Tests) {
+  tasks.matching {
+    it.name in [
+      "extractTestProto",
+      "generateTestProto",
+      "compileTestJava",
+      "compileTestGroovy",
+      "processTestResources",
+      "testClasses",
+      "test"
+    ]
+  }.configureEach {
+    enabled = false
   }
 }
 
