@@ -4,19 +4,16 @@ import com.aerospike.client.AerospikeClient
 import com.aerospike.client.Bin
 import com.aerospike.client.Key
 import datadog.trace.api.Config
-import spock.lang.Shared
 
 abstract class AerospikeClientTest extends AerospikeBaseTest {
-
-  @Shared
-  AerospikeClient client
+  private AerospikeClient client
 
   def setup() throws Exception {
     client = new AerospikeClient(aerospikeHost, aerospikePort)
   }
 
   def cleanup() throws Exception {
-    client.close()
+    client?.close()
   }
 
   def "test put then get"() {

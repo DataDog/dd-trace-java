@@ -42,9 +42,7 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
   }
 
   def cleanup() throws Exception {
-    if (aerospike) {
-      aerospike.stop()
-    }
+    aerospike?.stop()
   }
 
   def aerospikeSpan(TraceAssert trace, int index, String methodName, Object parentSpan = null) {
