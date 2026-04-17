@@ -9889,6 +9889,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_SOCKET_ENABLED", "DD_INTEGRATION_SOCKET_ENABLED"]
       }
     ],
+    "DD_TRACE_SOFARPC_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_SOFARPC_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SOFARPC_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_SOFARPC_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_SOFARPC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SOFARPC_ENABLED", "DD_INTEGRATION_SOFARPC_ENABLED"]
+      }
+    ],
     "DD_TRACE_SPAN_ATTRIBUTE_SCHEMA": [
       {
         "version": "B",
