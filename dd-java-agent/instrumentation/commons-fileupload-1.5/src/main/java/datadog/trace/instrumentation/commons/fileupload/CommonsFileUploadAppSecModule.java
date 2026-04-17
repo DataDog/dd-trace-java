@@ -114,20 +114,7 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
         if (name == null || name.isEmpty()) {
           continue;
         }
-        String content = "";
-        try {
-          InputStream is = fileItem.getInputStream();
-          byte[] buf = new byte[MAX_FILE_CONTENT_BYTES];
-          int total = 0;
-          int n;
-          while (total < MAX_FILE_CONTENT_BYTES
-              && (n = is.read(buf, total, MAX_FILE_CONTENT_BYTES - total)) != -1) {
-            total += n;
-          }
-          content = new String(buf, 0, total, StandardCharsets.ISO_8859_1);
-        } catch (IOException ignored) {
-        }
-        filesContent.add(content);
+        filesContent.add(readContent(fileItem));
       }
       if (filesContent.isEmpty()) {
         return;
@@ -142,6 +129,22 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
           t = new BlockingException("Blocked request (multipart file upload content)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
+      }
+    }
+
+    static String readContent(FileItem fileItem) {
+      try {
+        InputStream is = fileItem.getInputStream();
+        byte[] buf = new byte[MAX_FILE_CONTENT_BYTES];
+        int total = 0;
+        int n;
+        while (total < MAX_FILE_CONTENT_BYTES
+            && (n = is.read(buf, total, MAX_FILE_CONTENT_BYTES - total)) != -1) {
+          total += n;
+        }
+        return new String(buf, 0, total, StandardCharsets.ISO_8859_1);
+      } catch (IOException ignored) {
+        return "";
       }
     }
   }
