@@ -17,9 +17,6 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.io.IOException;
-import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.function.BiFunction;
@@ -40,6 +37,13 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.commons.fileupload.FileItemContentReader",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseRequest")
@@ -50,8 +54,6 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
-
-    static final int MAX_FILE_CONTENT_BYTES = 4096;
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
@@ -114,7 +116,7 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
         if (name == null || name.isEmpty()) {
           continue;
         }
-        filesContent.add(readContent(fileItem));
+        filesContent.add(FileItemContentReader.readContent(fileItem));
       }
       if (filesContent.isEmpty()) {
         return;
@@ -129,21 +131,6 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
           t = new BlockingException("Blocked request (multipart file upload content)");
           reqCtx.getTraceSegment().effectivelyBlocked();
         }
-      }
-    }
-
-    static String readContent(FileItem fileItem) {
-      try (InputStream is = fileItem.getInputStream()) {
-        byte[] buf = new byte[MAX_FILE_CONTENT_BYTES];
-        int total = 0;
-        int n;
-        while (total < MAX_FILE_CONTENT_BYTES
-            && (n = is.read(buf, total, MAX_FILE_CONTENT_BYTES - total)) != -1) {
-          total += n;
-        }
-        return new String(buf, 0, total, StandardCharsets.ISO_8859_1);
-      } catch (IOException ignored) {
-        return "";
       }
     }
   }
