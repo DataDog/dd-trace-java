@@ -27,6 +27,8 @@ public interface Writable {
 
   void writeBinary(byte[] binary, int offset, int length);
 
+  void writeBinary(long hi, long lo);
+
   /**
    * Start a part of the message containing key-value pairs
    *

@@ -349,13 +349,13 @@ class TraceMapperV1PayloadTest extends DDSpecification {
 
     then:
     assertEquals(2, links.size())
-    assertArrayEquals(DDTraceId.fromHex("11223344556677889900aabbccddeeff").to128BitBytes(), links[0].traceId as byte[])
+    assertArrayEquals(traceIdBytes(DDTraceId.fromHex("11223344556677889900aabbccddeeff")), links[0].traceId as byte[])
     assertEquals(DDSpanId.fromHex("000000000000002a"), links[0].spanId)
     assertEquals("dd=s:1", links[0].tracestate)
     assertEquals(1L, links[0].flags)
     assertEquals(["link.kind": "follows_from", "context_headers": "tracecontext"], links[0].attributes)
 
-    assertArrayEquals(DDTraceId.fromHex("00000000000000000000000000000001").to128BitBytes(), links[1].traceId as byte[])
+    assertArrayEquals(traceIdBytes(DDTraceId.fromHex("00000000000000000000000000000001")), links[1].traceId as byte[])
     assertEquals(DDSpanId.fromHex("0000000000000002"), links[1].spanId)
     assertEquals("", links[1].tracestate)
     assertEquals(0L, links[1].flags)
@@ -846,8 +846,15 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEqualsWithNullAsEmpty(firstSpan.getOrigin(), origin)
     assertEquals(1, chunkAttributes.size())
     assertEqualsWithNullAsEmpty(firstSpan.getLocalRootSpan().getServiceName(), chunkAttributes.get("service"))
-    assertArrayEquals(firstSpan.getTraceId().to128BitBytes(), traceId)
+    assertArrayEquals(traceIdBytes(firstSpan.getTraceId()), traceId)
     assertEquals(expectedSamplingMechanism(firstSpan.getTags()), samplingMechanism)
+  }
+
+  private static byte[] traceIdBytes(DDTraceId traceId) {
+    ByteBuffer.allocate(16)
+      .putLong(traceId.toHighOrderLong())
+      .putLong(traceId.toLong())
+      .array()
   }
 
   private static List<TraceGenerator.PojoSpan> verifySpans(

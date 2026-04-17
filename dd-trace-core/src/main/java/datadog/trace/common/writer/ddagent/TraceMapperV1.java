@@ -13,6 +13,7 @@ import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.sampling.SamplingMechanism;
@@ -97,7 +98,7 @@ public final class TraceMapperV1 implements TraceMapper {
     // spans = 4, a list of spans in this chunk
     encodeSpans(writable, 4, trace);
     // traceID = 6, the ID of the trace to which all spans in this chunk belong
-    encodeBytes(writable, 6, firstSpan.getTraceId().to128BitBytes());
+    encodeTraceId(writable, 6, firstSpan.getTraceId());
     // samplingMechanism = 7, uint32
     encodeInt(writable, 7, parseSamplingMechanism(firstSpanMeta.getTags()));
   }
@@ -184,7 +185,7 @@ public final class TraceMapperV1 implements TraceMapper {
     for (AgentSpanLink link : links) {
       writable.startMap(5);
       // 1: the ID of the trace that this link targets
-      encodeBytes(writable, 1, link.traceId().to128BitBytes());
+      encodeTraceId(writable, 1, link.traceId());
       // 2: the ID of the span that this link targets, fixed64
       encodeLongUnsigned(writable, 2, link.spanId());
       // 3: a collection of attribute string key to value pairs on the link, map<uint32, AnyValue>
@@ -522,9 +523,9 @@ public final class TraceMapperV1 implements TraceMapper {
     writeStreamingString(writable, value);
   }
 
-  private void encodeBytes(Writable writable, int fieldId, byte[] value) {
+  private void encodeTraceId(Writable writable, int fieldId, DDTraceId traceId) {
     writable.writeInt(fieldId);
-    writable.writeBinary(value);
+    writable.writeBinary(traceId.toHighOrderLong(), traceId.toLong());
   }
 
   /** Writes a string using the streaming string table encoding. */
