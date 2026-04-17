@@ -110,5 +110,16 @@ public final class CiVisibilityConfig {
 
   public static final String TEST_SESSION_NAME = "test.session.name";
 
+  /* Bazel support */
+  /** Path to the manifest file that enables reading configuration from local JSON files. */
+  public static final String TEST_OPTIMIZATION_MANIFEST_FILE = "test.optimization.manifest.file";
+
+  /** When true, spans are serialized to JSON files on disk instead of sent over the network. */
+  public static final String TEST_OPTIMIZATION_PAYLOADS_IN_FILES =
+      "test.optimization.payloads.in.files";
+
+  /** Bazel-provided directory where test output files (payloads) are written. */
+  public static final String TEST_UNDECLARED_OUTPUTS_DIR = "TEST_UNDECLARED_OUTPUTS_DIR";
+
   private CiVisibilityConfig() {}
 }

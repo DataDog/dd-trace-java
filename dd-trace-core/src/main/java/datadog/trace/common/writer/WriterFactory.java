@@ -12,8 +12,10 @@ import static datadog.trace.common.writer.ddagent.Prioritization.FAST_LANE;
 
 import datadog.common.container.ServerlessInfo;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.communication.ddagent.DroppingPolicy;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.common.sampling.Sampler;
 import datadog.trace.common.sampling.SingleSpanSampler;
@@ -25,6 +27,8 @@ import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import edu.umd.cs.findbugs.annotations.NonNull;
+import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
@@ -82,6 +86,35 @@ public class WriterFactory {
 
     int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
+
+    // CI Visibility with bazel support wants to write traces into JSON files
+    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+      BazelMode bazelMode = BazelMode.get();
+      Path testsDir = bazelMode.getTestPayloadsDir();
+      Path coverageDir =
+          config.isCiVisibilityCodeCoverageEnabled() ? bazelMode.getCoveragePayloadsDir() : null;
+      if (testsDir != null) {
+        log.info(
+            "[bazel mode] Payloads-in-files enabled, writing to {}", bazelMode.getPayloadsDir());
+
+        PayloadDispatcher dispatcher = getPayloadDispatcher(testsDir, coverageDir);
+
+        TraceProcessingWorker worker =
+            new TraceProcessingWorker(
+                1024,
+                healthMetrics,
+                dispatcher,
+                DroppingPolicy.DISABLED,
+                prioritization,
+                flushIntervalMilliseconds,
+                TimeUnit.MILLISECONDS,
+                singleSpanSampler);
+
+        return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
+      }
+      log.warn(
+          "[bazel mode] Payloads-in-files mode enabled but payload directory not resolved, falling back to default writer");
+    }
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
@@ -172,6 +205,22 @@ public class WriterFactory {
     }
 
     return remoteWriter;
+  }
+
+  @NonNull
+  private static PayloadDispatcher getPayloadDispatcher(Path testsDir, Path coverageDir) {
+    FileBasedPayloadDispatcher testDispatcher =
+        new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
+
+    PayloadDispatcher dispatcher;
+    if (coverageDir != null) {
+      FileBasedPayloadDispatcher covDispatcher =
+          new FileBasedPayloadDispatcher(coverageDir, "coverage", TrackType.CITESTCOV);
+      dispatcher = new CompositePayloadDispatcher(testDispatcher, covDispatcher);
+    } else {
+      dispatcher = testDispatcher;
+    }
+    return dispatcher;
   }
 
   private static RemoteApi createDDIntakeRemoteApi(
