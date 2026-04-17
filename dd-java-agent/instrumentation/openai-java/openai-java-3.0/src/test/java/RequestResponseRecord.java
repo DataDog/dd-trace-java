@@ -1,3 +1,4 @@
+import com.openai.core.ObjectMappers;
 import com.openai.core.http.Headers;
 import com.openai.core.http.HttpRequest;
 import com.openai.core.http.HttpRequestBody;
@@ -10,8 +11,10 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
 import java.security.MessageDigest;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Stream;
 
 public class RequestResponseRecord {
   /**
@@ -33,6 +36,7 @@ public class RequestResponseRecord {
   private static final String END_RESPONSE_BODY = "-- end response body --";
   private static final String KEY_VALUE_SEP = ": ";
   private static final char LINE_SEP = '\n';
+  private static final Object UNPARSEABLE = new Object();
 
   public final int status;
   public final Map<String, String> headers;
@@ -69,6 +73,28 @@ public class RequestResponseRecord {
     Path targetDir = recordSubpath(recordsDir, request);
     Path filePath = targetDir.resolve(filename);
     return filePath.toFile().exists();
+  }
+
+  // TODO: Codex generated patch to pass under arm64, revisit later.
+  public static Path findEquivalentRequestRecord(
+      Path recordsDir, String method, String path, byte[] requestBody) {
+    Path targetDir = recordsDir.resolve(path);
+    if (!Files.isDirectory(targetDir)) {
+      return null;
+    }
+
+    Object requestJson = tryParseJson(new String(requestBody, StandardCharsets.UTF_8));
+    try (Stream<Path> files = Files.list(targetDir)) {
+      return files
+          .filter(Files::isRegularFile)
+          .filter(file -> file.getFileName().toString().endsWith("." + method + ".rec"))
+          .sorted(Comparator.comparing(Path::toString))
+          .filter(file -> requestBodiesEquivalent(requestJson, requestBody, file))
+          .findFirst()
+          .orElse(null);
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
   }
 
   private static ByteArrayOutputStream readRequestBody(HttpRequest request) {
@@ -188,5 +214,52 @@ public class RequestResponseRecord {
 
     byte[] body = bodyBuilder.toString().getBytes(StandardCharsets.UTF_8);
     return new RequestResponseRecord(statusCode, headers, body);
+  }
+
+  // TODO: Codex generated patch to pass under arm64, revisit later.
+  public static String readRecordedRequestBody(Path recFilePath) {
+    StringBuilder bodyBuilder = new StringBuilder();
+
+    try {
+      List<String> lines = Files.readAllLines(recFilePath, StandardCharsets.UTF_8);
+      boolean inRequestBody = false;
+
+      for (String line : lines) {
+        if (line.equals(BEGIN_REQUEST_BODY)) {
+          inRequestBody = true;
+        } else if (line.equals(END_REQUEST_BODY)) {
+          inRequestBody = false;
+        } else if (inRequestBody) {
+          if (bodyBuilder.length() > 0) {
+            bodyBuilder.append(LINE_SEP);
+          }
+          bodyBuilder.append(line);
+        }
+      }
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    return bodyBuilder.toString();
+  }
+
+  private static boolean requestBodiesEquivalent(
+      Object requestJson, byte[] requestBody, Path file) {
+    String recordedRequestBody = readRecordedRequestBody(file);
+    Object recordedRequestJson = tryParseJson(recordedRequestBody);
+
+    if (requestJson != UNPARSEABLE && recordedRequestJson != UNPARSEABLE) {
+      return requestJson.equals(recordedRequestJson);
+    }
+
+    return recordedRequestBody.equals(new String(requestBody, StandardCharsets.UTF_8));
+  }
+
+  private static Object tryParseJson(String requestBody) {
+    try {
+      return ObjectMappers.jsonMapper().readValue(requestBody, Object.class);
+    } catch (Exception e) {
+      return UNPARSEABLE;
+    }
   }
 }

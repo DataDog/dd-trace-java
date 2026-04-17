@@ -1,3 +1,5 @@
+import static datadog.environment.OperatingSystem.isArm64
+
 import com.google.common.base.Charsets
 import com.google.common.base.Strings
 import com.openai.client.OpenAIClient
@@ -67,6 +69,15 @@ abstract class OpenAiTest extends InstrumentationSpecification {
           def subpath = path.substring(API_VERSION.length() + 2)
           def recsDir = RECORDS_DIR.resolve(subpath)
           def recPath = recsDir.resolve(recFile)
+
+          // TODO: Codex generated patch to pass under arm64, revisit later.
+          if (!recPath.toFile().exists()) {
+            recPath = RequestResponseRecord.findEquivalentRequestRecord(
+            RECORDS_DIR,
+            "POST",
+            subpath,
+            requestBody.getBytes(Charsets.UTF_8))
+          }
           if (!recPath.toFile().exists()) {
             throw new RuntimeException("The record file: '" + recFile + "' is NOT found at " + RECORDS_DIR + ". Set OpenAiTest.OPENAI_TOKEN to make a real request and store the record.")
           } else {
