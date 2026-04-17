@@ -48,9 +48,11 @@ dependencies {
   }
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.0'
-  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.0'
-  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.0'
+  // Use 10.0.10+ so jetty-appsec-9.4 applies: _multiParts changed from MultiPartFormInputStream
+  // to MultiParts in 10.0.10 (jetty-appsec-9.4's muzzle requires the MultiParts type).
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-server', version: '10.0.10'
+  testImplementation group: 'org.eclipse.jetty', name: 'jetty-servlet', version: '10.0.10'
+  testImplementation group: 'org.eclipse.jetty.websocket', name: 'websocket-javax-server', version: '10.0.10'
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testImplementation testFixtures(project(":dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0"))
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
