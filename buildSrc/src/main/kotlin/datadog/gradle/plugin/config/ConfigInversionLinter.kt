@@ -1,16 +1,12 @@
 package datadog.gradle.plugin.config
 
-import com.github.javaparser.ParserConfiguration
-import com.github.javaparser.StaticJavaParser
-import com.github.javaparser.ast.CompilationUnit
 import com.github.javaparser.ast.Modifier
-import com.github.javaparser.ast.body.FieldDeclaration
-import com.github.javaparser.ast.body.VariableDeclarator
-import com.github.javaparser.ast.expr.StringLiteralExpr
 import com.github.javaparser.ast.nodeTypes.NodeWithModifiers
 import org.gradle.api.GradleException
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.api.Task
+import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.SourceSet
 import org.gradle.api.tasks.SourceSetContainer
 import org.gradle.kotlin.dsl.getByType
@@ -20,23 +16,29 @@ import java.nio.file.Path
 class ConfigInversionLinter : Plugin<Project> {
   override fun apply(target: Project) {
     val extension = target.extensions.create("supportedTracerConfigurations", SupportedTracerConfigurations::class.java)
-    registerLogEnvVarUsages(target, extension)
-    registerCheckEnvironmentVariablesUsage(target)
-    registerCheckConfigStringsTask(target, extension)
+    val logEnvVarUsages = registerLogEnvVarUsages(target, extension)
+    val checkEnvVarUsage = registerCheckEnvironmentVariablesUsage(target)
+    val checkConfigStrings = registerCheckConfigStringsTask(target, extension)
+
+    target.tasks.register("checkConfigurations") {
+      group = "verification"
+      description = "Runs all config inversion validation checks"
+      dependsOn(logEnvVarUsages, checkEnvVarUsage, checkConfigStrings)
+    }
   }
 }
 
 // Data class for fields from generated class
-private data class LoadedConfigFields(
+internal data class LoadedConfigFields(
   val supported: Set<String>,
   val aliasMapping: Map<String, String> = emptyMap()
 )
 
 // Cache for fields from generated class
-private var cachedConfigFields: LoadedConfigFields? = null
+internal var cachedConfigFields: LoadedConfigFields? = null
 
 // Helper function to load fields from the generated class
-private fun loadConfigFields(
+internal fun loadConfigFields(
   mainSourceSetOutput: org.gradle.api.file.FileCollection,
   generatedClassName: String
 ): LoadedConfigFields {
@@ -61,12 +63,12 @@ private fun loadConfigFields(
 }
 
 /** Registers `logEnvVarUsages` (scan for DD_/OTEL_ tokens and fail if unsupported). */
-private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerConfigurations) {
+private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerConfigurations): TaskProvider<Task> {
   val ownerPath = extension.configOwnerPath
   val generatedFile = extension.className
 
   // token check that uses the generated class instead of JSON
-  target.tasks.register("logEnvVarUsages") {
+  return target.tasks.register("logEnvVarUsages") {
     group = "verification"
     description = "Scan Java files for DD_/OTEL_ tokens and fail if unsupported (using generated constants)"
 
@@ -127,8 +129,8 @@ private fun registerLogEnvVarUsages(target: Project, extension: SupportedTracerC
 }
 
 /** Registers `checkEnvironmentVariablesUsage` (forbid EnvironmentVariables.get(...)). */
-private fun registerCheckEnvironmentVariablesUsage(project: Project) {
-  project.tasks.register("checkEnvironmentVariablesUsage") {
+private fun registerCheckEnvironmentVariablesUsage(project: Project): TaskProvider<Task> {
+  return project.tasks.register("checkEnvironmentVariablesUsage") {
     group = "verification"
     description = "Scans src/main/java for direct usages of EnvironmentVariables.get(...)"
 
@@ -166,19 +168,19 @@ private fun registerCheckEnvironmentVariablesUsage(project: Project) {
 }
 
 // Helper functions for checking Config Strings
-private fun normalize(configValue: String) =
+internal fun normalize(configValue: String) =
   "DD_" + configValue.uppercase().replace("-", "_").replace(".", "_")
 
 // Checking "public" "static" "final"
-private fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
+internal fun NodeWithModifiers<*>.hasModifiers(vararg mods: Modifier.Keyword) =
   mods.all { hasModifier(it) }
 
 /** Registers `checkConfigStrings` to validate config definitions against documented supported configurations. */
-private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations) {
+private fun registerCheckConfigStringsTask(project: Project, extension: SupportedTracerConfigurations): TaskProvider<Task> {
   val ownerPath = extension.configOwnerPath
   val generatedFile = extension.className
 
-  project.tasks.register("checkConfigStrings") {
+  return project.tasks.register("checkConfigStrings") {
     group = "verification"
     description = "Validates that all config definitions in `dd-trace-api/src/main/java/datadog/trace/api/config` exist in `metadata/supported-configurations.json`"
 
@@ -190,61 +192,8 @@ private fun registerCheckConfigStringsTask(project: Project, extension: Supporte
     }
     inputs.files(mainSourceSetOutput)
 
-    doLast {
-      val repoRoot: Path = project.rootProject.projectDir.toPath()
-      val configDir = repoRoot.resolve("dd-trace-api/src/main/java/datadog/trace/api/config").toFile()
-
-      if (!configDir.exists()) {
-        throw GradleException("Config directory not found: ${configDir.absolutePath}")
-      }
-
-      val configFields = loadConfigFields(mainSourceSetOutput.get().get(), generatedFile.get())
-      val supported = configFields.supported
-      val aliasMapping = configFields.aliasMapping
-
-      var parserConfig = ParserConfiguration()
-      parserConfig.setLanguageLevel(ParserConfiguration.LanguageLevel.JAVA_8)
-
-      StaticJavaParser.setConfiguration(parserConfig)
-
-      val violations = buildList {
-        configDir.listFiles()?.forEach { file ->
-          val fileName = file.name
-          val cu: CompilationUnit = StaticJavaParser.parse(file)
-
-          cu.findAll(VariableDeclarator::class.java).forEach { varDecl ->
-            varDecl.parentNode
-              .map { it as? FieldDeclaration }
-              .ifPresent { field ->
-                if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
-                  varDecl.typeAsString == "String") {
-
-                  val fieldName = varDecl.nameAsString
-                  if (fieldName.endsWith("_DEFAULT")) return@ifPresent
-                  val init = varDecl.initializer.orElse(null) ?: return@ifPresent
-
-                  if (init !is StringLiteralExpr) return@ifPresent
-                  val rawValue = init.value
-
-                  val normalized = normalize(rawValue)
-                  if (normalized !in supported && normalized !in aliasMapping) {
-                    val line = varDecl.range.map { it.begin.line }.orElse(1)
-                    add("$fileName:$line -> Config '$rawValue' normalizes to '$normalized' " +
-                        "which is missing from '${extension.jsonFile.get()}'")
-                  }
-                }
-              }
-          }
-        }
-      }
-
-      if (violations.isNotEmpty()) {
-        logger.error("\nFound config definitions not in '${extension.jsonFile.get()}':")
-        violations.forEach { logger.lifecycle(it) }
-        throw GradleException("Undocumented Environment Variables found. Please add the above Environment Variables to '${extension.jsonFile.get()}'.")
-      } else {
-        logger.info("All config strings are present in '${extension.jsonFile.get()}'.")
-      }
-    }
+    doLast("regular-config-check", RegularConfigCheckAction(mainSourceSetOutput, generatedFile, extension))
+    doLast("profiling-config-check", ProfilingConfigCheckAction(mainSourceSetOutput, generatedFile, extension))
   }
 }
+

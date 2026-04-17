@@ -19,6 +19,7 @@ import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -62,6 +63,7 @@ public class WithConfigExtension
   private static Field configInstanceField;
   private static Constructor<?> configConstructor;
 
+  private static volatile boolean configTransformerInstalled = false;
   private static volatile boolean isConfigInstanceModifiable = false;
   private static volatile boolean configModificationFailed = false;
 
@@ -73,11 +75,31 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    installConfigTransformer();
+    /*
+     * Patch config classes to make them modifiable.
+     */
+    // Install config transformer error listener
+    if (!configTransformerInstalled) {
+      installConfigTransformer();
+      configTransformerInstalled = true;
+    }
+    // Make config instance modifiable
     makeConfigInstanceModifiable();
+    // Verify that config class transformation succeeded
     assertFalse(configModificationFailed, "Config class modification failed");
+    if (isConfigInstanceModifiable) {
+      checkConfigTransformation();
+    }
+    /*
+     * Back up config and apply class-level config values.
+     */
     if (originalSystemProperties == null) {
       saveProperties();
+    }
+    // Apply class-level @WithConfig so config is available before @BeforeAll methods
+    applyClassLevelConfig(context);
+    if (isConfigInstanceModifiable) {
+      rebuildConfig();
     }
   }
 
@@ -85,10 +107,10 @@ public class WithConfigExtension
   public void beforeEach(ExtensionContext context) {
     restoreProperties();
     environmentVariables.clear();
+    applyDeclaredConfig(context);
     if (isConfigInstanceModifiable) {
       rebuildConfig();
     }
-    applyDeclaredConfig(context);
   }
 
   @Override
@@ -108,14 +130,29 @@ public class WithConfigExtension
     }
   }
 
-  private void applyDeclaredConfig(ExtensionContext context) {
-    // Class-level @WithConfig annotations (supports composed/meta-annotations)
-    List<WithConfig> classConfigs =
-        AnnotationSupport.findRepeatableAnnotations(
-            context.getRequiredTestClass(), WithConfig.class);
-    for (WithConfig cfg : classConfigs) {
-      applyConfig(cfg);
+  private static void applyDeclaredConfig(ExtensionContext context) {
+    applyClassLevelConfig(context);
+    applyMethodLevelConfig(context);
+  }
+
+  private static void applyClassLevelConfig(ExtensionContext context) {
+    // Walk the entire class hierarchy so annotations on superclasses and apply topmost first, then
+    // subclass overrides.
+    Class<?> testClass = context.getRequiredTestClass();
+    List<Class<?>> hierarchy = new ArrayList<>();
+    for (Class<?> cls = testClass; cls != null; cls = cls.getSuperclass()) {
+      hierarchy.add(cls);
     }
+    for (int i = hierarchy.size() - 1; i >= 0; i--) {
+      List<WithConfig> classConfigs =
+          AnnotationSupport.findRepeatableAnnotations(hierarchy.get(i), WithConfig.class);
+      for (WithConfig cfg : classConfigs) {
+        applyConfig(cfg);
+      }
+    }
+  }
+
+  private static void applyMethodLevelConfig(ExtensionContext context) {
     // Method-level @WithConfig annotations (supports composed/meta-annotations)
     context
         .getTestMethod()
@@ -131,10 +168,20 @@ public class WithConfigExtension
 
   private static void applyConfig(WithConfig cfg) {
     if (cfg.env()) {
-      injectEnvConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setEnvVariable(cfg.key(), cfg.value(), cfg.addPrefix());
     } else {
-      injectSysConfig(cfg.key(), cfg.value(), cfg.addPrefix());
+      setSysProperty(cfg.key(), cfg.value(), cfg.addPrefix());
     }
+  }
+
+  private static void setSysProperty(String name, String value, boolean addPrefix) {
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
+    System.setProperty(prefixedName, value);
+  }
+
+  private static void setEnvVariable(String name, String value, boolean addPrefix) {
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
+    environmentVariables.set(prefixedName, value);
   }
 
   // endregion
@@ -146,9 +193,7 @@ public class WithConfigExtension
   }
 
   public static void injectSysConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
-    System.setProperty(prefixedName, value);
+    setSysProperty(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -157,8 +202,7 @@ public class WithConfigExtension
   }
 
   public static void removeSysConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("dd.") || !addPrefix ? name : "dd." + name;
+    String prefixedName = addPrefix && !name.startsWith("dd.") ? "dd." + name : name;
     System.clearProperty(prefixedName);
     rebuildConfig();
   }
@@ -168,9 +212,7 @@ public class WithConfigExtension
   }
 
   public static void injectEnvConfig(String name, String value, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
-    environmentVariables.set(prefixedName, value);
+    setEnvVariable(name, value, addPrefix);
     rebuildConfig();
   }
 
@@ -179,8 +221,7 @@ public class WithConfigExtension
   }
 
   public static void removeEnvConfig(String name, boolean addPrefix) {
-    checkConfigTransformation();
-    String prefixedName = name.startsWith("DD_") || !addPrefix ? name : "DD_" + name;
+    String prefixedName = addPrefix && !name.startsWith("DD_") ? "DD_" + name : name;
     environmentVariables.removePrefixed(prefixedName);
     rebuildConfig();
   }
@@ -245,7 +286,6 @@ public class WithConfigExtension
 
   private static void rebuildConfig() {
     synchronized (WithConfigExtension.class) {
-      checkConfigTransformation();
       try {
         Object newInstConfig = instConfigConstructor.newInstance();
         instConfigInstanceField.set(null, newInstConfig);

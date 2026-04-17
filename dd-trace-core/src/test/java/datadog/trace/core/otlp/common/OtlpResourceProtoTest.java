@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.common;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
@@ -52,6 +53,9 @@ class OtlpResourceProtoTest {
     for (int i = 0; i < keyValues.length; i += 2) {
       map.put(keyValues[i], keyValues[i + 1]);
     }
+    map.put("telemetry.sdk.name", "datadog");
+    map.put("telemetry.sdk.version", TRACER_VERSION);
+    map.put("telemetry.sdk.language", "java");
     return map;
   }
 
@@ -95,7 +99,7 @@ class OtlpResourceProtoTest {
                 "service.name", "my-service",
                 "region", "us-east",
                 "team", "platform")),
-        // all config values set together
+        // all config values set together; telemetry.sdk.* keys in tags must be ignored
         Arguments.of(
             "service, env, version, and tags all set",
             props(
@@ -118,7 +122,10 @@ class OtlpResourceProtoTest {
                     + "service.version:ignored-version,"
                     + "SERVICE.NAME:ignored-service,"
                     + "DEPLOYMENT.ENVIRONMENT.NAME:ignored-env,"
-                    + "SERVICE.VERSION:ignored-version"),
+                    + "SERVICE.VERSION:ignored-version,"
+                    + "telemetry.sdk.name:ignored-sdk,"
+                    + "telemetry.sdk.version:ignored-version,"
+                    + "telemetry.sdk.language:ignored-language"),
             attrs(
                 "service.name", "my-service",
                 "deployment.environment.name", "staging",
