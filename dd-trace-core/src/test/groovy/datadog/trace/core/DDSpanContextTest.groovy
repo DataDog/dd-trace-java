@@ -6,6 +6,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
@@ -351,5 +352,118 @@ class DDSpanContextTest extends DDCoreSpecification {
       sourceWithoutCommonTags.remove(DDTags.THREAD_NAME)
     }
     assert sourceWithoutCommonTags == comparison
+  }
+
+  def "span kind ordinal constants and SPAN_KIND_VALUES array stay in sync"() {
+    expect: "SPAN_KIND_VALUES array covers all ordinals"
+    DDSpanContext.SPAN_KIND_VALUES.length == DDSpanContext.SPAN_KIND_CUSTOM + 1
+
+    and: "each known ordinal maps to the correct Tags constant"
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_SERVER] == Tags.SPAN_KIND_SERVER
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CLIENT] == Tags.SPAN_KIND_CLIENT
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_PRODUCER] == Tags.SPAN_KIND_PRODUCER
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CONSUMER] == Tags.SPAN_KIND_CONSUMER
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_INTERNAL] == Tags.SPAN_KIND_INTERNAL
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_BROKER] == Tags.SPAN_KIND_BROKER
+
+    and: "UNSET and CUSTOM map to null"
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_UNSET] == null
+    DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CUSTOM] == null
+  }
+
+  def "setSpanKindOrdinal round-trips with SPAN_KIND_VALUES for all known kinds"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    def context = (DDSpanContext) span.context()
+    context.setSpanKindOrdinal(kindString)
+
+    then:
+    context.getSpanKindOrdinal() == expectedOrdinal
+    DDSpanContext.SPAN_KIND_VALUES[expectedOrdinal] == kindString
+
+    cleanup:
+    span.finish()
+
+    where:
+    kindString             | expectedOrdinal
+    Tags.SPAN_KIND_SERVER  | DDSpanContext.SPAN_KIND_SERVER
+    Tags.SPAN_KIND_CLIENT  | DDSpanContext.SPAN_KIND_CLIENT
+    Tags.SPAN_KIND_PRODUCER | DDSpanContext.SPAN_KIND_PRODUCER
+    Tags.SPAN_KIND_CONSUMER | DDSpanContext.SPAN_KIND_CONSUMER
+    Tags.SPAN_KIND_INTERNAL | DDSpanContext.SPAN_KIND_INTERNAL
+    Tags.SPAN_KIND_BROKER  | DDSpanContext.SPAN_KIND_BROKER
+  }
+
+  def "setTag and getTag round-trip for span.kind"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, kindString)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == kindString
+
+    cleanup:
+    span.finish()
+
+    where:
+    kindString << [
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER,
+    ]
+  }
+
+  def "getTag returns null when span.kind is not set"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == null
+
+    cleanup:
+    span.finish()
+  }
+
+  def "setTag then removeTag clears span.kind"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, kindString)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == kindString
+
+    when:
+    ((DDSpan) span).context().removeTag(Tags.SPAN_KIND)
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == null
+
+    cleanup:
+    span.finish()
+
+    where:
+    kindString << [
+      Tags.SPAN_KIND_SERVER,
+      Tags.SPAN_KIND_CLIENT,
+      Tags.SPAN_KIND_PRODUCER,
+      Tags.SPAN_KIND_CONSUMER,
+      Tags.SPAN_KIND_INTERNAL,
+      Tags.SPAN_KIND_BROKER,
+    ]
+  }
+
+  def "setTag with custom span.kind falls back to tag map"() {
+    when:
+    def span = tracer.buildSpan("test", "test").start()
+    span.setTag(Tags.SPAN_KIND, "custom-kind")
+
+    then:
+    span.getTag(Tags.SPAN_KIND) == "custom-kind"
+
+    cleanup:
+    span.finish()
   }
 }

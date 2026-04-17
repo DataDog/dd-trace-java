@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.CONSUMER_GROUP;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS;
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_CLUSTER_ID;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.MESSAGING_DESTINATION_NAME;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
@@ -117,6 +118,7 @@ public class KafkaDecorator extends MessagingClientDecorator {
       final AgentSpan span,
       final ConsumerRecord record,
       String consumerGroup,
+      String clusterId,
       String bootstrapServers) {
     if (record != null) {
       final String topic = record.topic() == null ? "kafka" : record.topic();
@@ -127,7 +129,9 @@ public class KafkaDecorator extends MessagingClientDecorator {
       if (consumerGroup != null) {
         span.setTag(CONSUMER_GROUP, consumerGroup);
       }
-
+      if (clusterId != null) {
+        span.setTag(KAFKA_CLUSTER_ID, clusterId);
+      }
       if (bootstrapServers != null) {
         span.setTag(KAFKA_BOOTSTRAP_SERVERS, bootstrapServers);
       }
@@ -152,7 +156,10 @@ public class KafkaDecorator extends MessagingClientDecorator {
   }
 
   public void onProduce(
-      final AgentSpan span, final ProducerRecord record, final ProducerConfig producerConfig) {
+      final AgentSpan span,
+      final ProducerRecord record,
+      final ProducerConfig producerConfig,
+      final String clusterId) {
     if (record != null) {
       if (record.partition() != null) {
         span.setTag(PARTITION, record.partition());
@@ -162,6 +169,9 @@ public class KafkaDecorator extends MessagingClientDecorator {
             KAFKA_BOOTSTRAP_SERVERS,
             PRODUCER_BOOSTRAP_SERVERS_CACHE.computeIfAbsent(
                 producerConfig, BOOTSTRAP_SERVERS_JOINER));
+      }
+      if (clusterId != null) {
+        span.setTag(KAFKA_CLUSTER_ID, clusterId);
       }
       final String topic = record.topic() == null ? "kafka" : record.topic();
       span.setResourceName(PRODUCER_RESOURCE_NAME_CACHE.computeIfAbsent(topic, PRODUCER_PREFIX));
