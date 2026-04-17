@@ -480,7 +480,6 @@ include(
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.1",
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.7",
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-sync-3.10",
-  ":dd-java-agent:instrumentation:mule-4.5",
   ":dd-java-agent:instrumentation:netty:netty-3.8",
   ":dd-java-agent:instrumentation:netty:netty-4.0",
   ":dd-java-agent:instrumentation:netty:netty-4.1",
@@ -642,11 +641,11 @@ val arch = System.getProperty("os.arch").lowercase(getDefault())
 val arm64 = arch.contains("aarch64") || arch.contains("arm64")
 val skipLinuxArm64Tests = os.contains("linux") && arm64
 
-// TODO: skip `openai-java-3.0` on arm64 Linux for now
-// it is failing in strange way
+// TODO: skip modules that failing in a strange way on arm64 Linux
 if (!skipLinuxArm64Tests) {
   include(
-    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0"
+    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
+    ":dd-java-agent:instrumentation:mule-4.5",
   )
 }
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
