@@ -308,7 +308,7 @@ public final class OtlpTraceProto {
         writeSpanTag(buf, PROCESS_TAGS_KEY, metadata.processTags());
       }
 
-      metadata.getTags().forEach(tagEntry -> writeSpanTag(buf, tagEntry));
+      metadata.getTags().forEach(buf, OtlpTraceProto::writeSpanTag);
 
       // reset for next span
       includeProcessTags = false;
