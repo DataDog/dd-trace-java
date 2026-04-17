@@ -166,8 +166,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   public Timing start(TimerType type) {
     if (IS_PROFILING_QUEUEING_TIME_ENABLED && type == TimerType.QUEUEING) {
       AgentSpan span = AgentTracer.activeSpan();
-      long submittingSpanId =
-          (span instanceof ProfilerContext) ? ((ProfilerContext) span).getSpanId() : 0L;
+      long submittingSpanId = 0L;
+      if (span != null && span.context() instanceof ProfilerContext) {
+        submittingSpanId = ((ProfilerContext) span.context()).getSpanId();
+      }
       return DDPROF.newQueueTimeTracker(submittingSpanId);
     }
     return Timing.NoOp.INSTANCE;
