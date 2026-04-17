@@ -15,6 +15,11 @@ public class SQLCommenter {
   private static final int BUFFER_EXTRA = 4;
   private static final int SQL_COMMENT_OVERHEAD = SPACE_CHARS + COMMENT_DELIMITERS + BUFFER_EXTRA;
 
+  /**
+   * Returns the first non-whitespace word in the SQL string. The result is a substring allocation,
+   * so callers that only need to check prefix/equality should use {@link #firstWordStartsWith} or
+   * {@link #firstWordEqualsIgnoreCase} instead.
+   */
   protected static String getFirstWord(String sql) {
     int beginIndex = 0;
     while (beginIndex < sql.length() && Character.isWhitespace(sql.charAt(beginIndex))) {
@@ -25,6 +30,38 @@ public class SQLCommenter {
       endIndex++;
     }
     return sql.substring(beginIndex, endIndex);
+  }
+
+  /**
+   * Checks if the first non-whitespace word in sql starts with the given prefix, without allocating
+   * a substring.
+   */
+  private static boolean firstWordStartsWith(String sql, String prefix) {
+    int beginIndex = 0;
+    int len = sql.length();
+    while (beginIndex < len && Character.isWhitespace(sql.charAt(beginIndex))) {
+      beginIndex++;
+    }
+    return sql.regionMatches(beginIndex, prefix, 0, prefix.length());
+  }
+
+  /**
+   * Checks if the first non-whitespace word in sql equals the given target (case-insensitive),
+   * without allocating a substring.
+   */
+  private static boolean firstWordEqualsIgnoreCase(String sql, String target) {
+    int beginIndex = 0;
+    int len = sql.length();
+    while (beginIndex < len && Character.isWhitespace(sql.charAt(beginIndex))) {
+      beginIndex++;
+    }
+    int endIndex = beginIndex;
+    while (endIndex < len && !Character.isWhitespace(sql.charAt(endIndex))) {
+      endIndex++;
+    }
+    int wordLen = endIndex - beginIndex;
+    return wordLen == target.length()
+        && sql.regionMatches(true, beginIndex, target, 0, target.length());
   }
 
   public static String inject(
@@ -40,25 +77,25 @@ public class SQLCommenter {
     }
     boolean appendComment = preferAppend;
     if (dbType != null) {
-      final String firstWord = getFirstWord(sql);
+      boolean startsWithBrace = firstWordStartsWith(sql, "{");
 
       // The Postgres JDBC parser doesn't allow SQL comments anywhere in a JDBC
       // callable statements
       // https://github.com/pgjdbc/pgjdbc/blob/master/pgjdbc/src/main/java/org/postgresql/core/Parser.java#L1038
       // TODO: Could we inject the comment after the JDBC has been converted to
       // standard SQL?
-      if (firstWord.startsWith("{") && dbType.startsWith("postgres")) {
+      if (startsWithBrace && dbType.startsWith("postgres")) {
         return sql;
       }
 
       // Append the comment for mysql JDBC callable statements
-      if (firstWord.startsWith("{") && "mysql".equals(dbType)) {
+      if (startsWithBrace && "mysql".equals(dbType)) {
         appendComment = true;
       }
 
       // Both Postgres and MySQL are unhappy with anything before CALL in a stored
       // procedure invocation, but they seem ok with it after so we force append mode
-      if (firstWord.equalsIgnoreCase("call")) {
+      if (firstWordEqualsIgnoreCase(sql, "call")) {
         appendComment = true;
       }
 
@@ -71,8 +108,18 @@ public class SQLCommenter {
       return sql;
     }
 
-    String commentContent =
-        SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, traceParent);
+    // When there are no per-span dynamic fields (traceParent, peerService), use the cached
+    // static comment to avoid redundant URLEncoder.encode() calls and StringBuilder allocations.
+    // This is the common path in DBM "static" propagation mode.
+    boolean hasDynamic =
+        (traceParent != null && !traceParent.isEmpty()) || SharedDBCommenter.hasPeerService();
+    String commentContent;
+    if (!hasDynamic) {
+      commentContent = SharedDBCommenter.buildStaticComment(dbService, hostname, dbName);
+    } else {
+      commentContent =
+          SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, traceParent);
+    }
 
     if (commentContent == null) {
       return sql;
@@ -112,11 +159,6 @@ public class SQLCommenter {
       return false;
     }
 
-    String commentContent = extractCommentContent(sql, appendComment);
-    return SharedDBCommenter.containsTraceComment(commentContent);
-  }
-
-  private static String extractCommentContent(String sql, boolean appendComment) {
     int startIdx;
     int endIdx;
     if (appendComment) {
@@ -127,9 +169,11 @@ public class SQLCommenter {
       endIdx = sql.indexOf(CLOSE_COMMENT);
     }
     if (startIdx != -1 && endIdx != -1 && endIdx > startIdx) {
-      return sql.substring(startIdx + OPEN_COMMENT_LEN, endIdx);
+      // Check for trace comment markers directly in the SQL without allocating a substring.
+      // We search within the bounds [startIdx + OPEN_COMMENT_LEN, endIdx) of the original string.
+      return SharedDBCommenter.containsTraceComment(sql, startIdx + OPEN_COMMENT_LEN, endIdx);
     }
-    return "";
+    return false;
   }
 
   /**
