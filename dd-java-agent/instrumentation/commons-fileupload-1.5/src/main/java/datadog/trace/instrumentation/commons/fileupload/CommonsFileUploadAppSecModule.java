@@ -63,6 +63,13 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (filenamesCallback == null && contentCallback == null) {
+        return;
+      }
 
       List<String> filenames = new ArrayList<>();
       for (FileItem fileItem : fileItems) {
@@ -79,8 +86,6 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       }
 
       // Fire filenames event
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
       if (filenamesCallback != null) {
         Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
@@ -97,8 +102,6 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       }
 
       // Fire content event only if not blocked
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
-          cbp.getCallback(EVENTS.requestFilesContent());
       if (contentCallback == null) {
         return;
       }
