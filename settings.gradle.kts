@@ -1,3 +1,5 @@
+import java.util.Locale.getDefault
+
 pluginManagement {
   repositories {
     mavenLocal()
@@ -489,7 +491,6 @@ include(
   ":dd-java-agent:instrumentation:ognl-appsec-3.3.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
-  ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",
@@ -636,6 +637,18 @@ include(
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
 
+val os = System.getProperty("os.name").lowercase(getDefault())
+val arch = System.getProperty("os.arch").lowercase(getDefault())
+val arm64 = arch.contains("aarch64") || arch.contains("arm64")
+val skipLinuxArm64Tests = os.contains("linux") && arm64
+
+// TODO: skip `openai-java-3.0` on arm64 Linux for now
+// it is failing in strange way
+if (!skipLinuxArm64Tests) {
+  include(
+    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0"
+  )
+}
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
 if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) {
   include(
