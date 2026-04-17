@@ -108,18 +108,8 @@ public class SQLCommenter {
       return sql;
     }
 
-    // When there are no per-span dynamic fields (traceParent, peerService), use the cached
-    // static comment to avoid redundant URLEncoder.encode() calls and StringBuilder allocations.
-    // This is the common path in DBM "static" propagation mode.
-    boolean hasDynamic =
-        (traceParent != null && !traceParent.isEmpty()) || SharedDBCommenter.hasPeerService();
-    String commentContent;
-    if (!hasDynamic) {
-      commentContent = SharedDBCommenter.buildStaticComment(dbService, hostname, dbName);
-    } else {
-      commentContent =
-          SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, traceParent);
-    }
+    String commentContent =
+        SharedDBCommenter.buildComment(dbService, dbType, hostname, dbName, traceParent);
 
     if (commentContent == null) {
       return sql;

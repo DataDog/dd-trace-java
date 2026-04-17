@@ -9,7 +9,6 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
-import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,13 +31,6 @@ public class SharedDBCommenter {
   private static final String DD_VERSION = encode("ddpv");
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
-
-  /**
-   * Cache for static comment strings (those without traceParent or peerService). The key combines
-   * dbService, hostname, dbName, and Config identity to ensure correctness if Config is replaced.
-   */
-  private static final ConcurrentHashMap<StaticCommentKey, String> staticCommentCache =
-      new ConcurrentHashMap<>();
 
   // Pre-computed marker strings for trace comment detection
   private static final String PARENT_SERVICE_EQ = PARENT_SERVICE + "=";
@@ -116,60 +108,6 @@ public class SharedDBCommenter {
     return sb.length() > 0 ? sb.toString() : null;
   }
 
-  /**
-   * Builds the static portion of a database comment that does not change per-span. This includes
-   * parentService, databaseService, hostname, dbName, env, version, and serviceHash. The dynamic
-   * parts (peerService, traceParent) are excluded and must be appended separately.
-   *
-   * <p>Results are cached per (dbService, hostname, dbName, Config) combination to avoid redundant
-   * URLEncoder.encode() calls and StringBuilder work on every query execution.
-   *
-   * @return the static comment prefix, or null if no static fields are set
-   */
-  public static String buildStaticComment(String dbService, String hostname, String dbName) {
-    Config config = Config.get();
-    StaticCommentKey key = new StaticCommentKey(dbService, hostname, dbName, config);
-    String cached = staticCommentCache.get(key);
-    if (cached != null) {
-      return cached;
-    }
-
-    StringBuilder sb = new StringBuilder();
-
-    int initSize = 0;
-    append(sb, PARENT_SERVICE, config.getServiceName(), initSize);
-    append(sb, DATABASE_SERVICE, dbService, initSize);
-    append(sb, DD_HOSTNAME, hostname, initSize);
-    append(sb, DD_DB_NAME, dbName, initSize);
-    // peerService is per-span, skip here
-    append(sb, DD_ENV, config.getEnv(), initSize);
-    append(sb, DD_VERSION, config.getVersion(), initSize);
-    // traceParent is per-span, skip here
-
-    if (config.isDbmInjectSqlBaseHash() && config.isExperimentalPropagateProcessTagsEnabled()) {
-      append(sb, DD_SERVICE_HASH, BaseHash.getBaseHashStr(), initSize);
-    }
-
-    String result = sb.length() > 0 ? sb.toString() : null;
-    if (result != null) {
-      staticCommentCache.putIfAbsent(key, result);
-    }
-    return result;
-  }
-
-  /** Returns true if the current active span has a non-null, non-empty peer service tag. */
-  public static boolean hasPeerService() {
-    AgentSpan span = activeSpan();
-    if (span != null) {
-      Object peerService = span.getTag(Tags.PEER_SERVICE);
-      if (peerService != null) {
-        String str = peerService.toString();
-        return str != null && !str.isEmpty();
-      }
-    }
-    return false;
-  }
-
   private static String getPeerService() {
     AgentSpan span = activeSpan();
     Object peerService = null;
@@ -204,51 +142,5 @@ public class SharedDBCommenter {
       sb.append(COMMA);
     }
     sb.append(key).append(EQUALS).append(QUOTE).append(encodedValue).append(QUOTE);
-  }
-
-  /**
-   * Cache key for static comment lookup. Uses Config identity (rather than individual field values)
-   * to ensure the cache is automatically invalidated if Config is replaced (as happens in tests).
-   * In production, Config is created once, so identity comparison is both correct and cheap.
-   */
-  private static final class StaticCommentKey {
-    private final String dbService;
-    private final String hostname;
-    private final String dbName;
-    private final Config config;
-    private final int hashCode;
-
-    StaticCommentKey(String dbService, String hostname, String dbName, Config config) {
-      this.dbService = dbService;
-      this.hostname = hostname;
-      this.dbName = dbName;
-      this.config = config;
-      int h = 17;
-      h = 31 * h + (dbService != null ? dbService.hashCode() : 0);
-      h = 31 * h + (hostname != null ? hostname.hashCode() : 0);
-      h = 31 * h + (dbName != null ? dbName.hashCode() : 0);
-      h = 31 * h + System.identityHashCode(config);
-      this.hashCode = h;
-    }
-
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (!(o instanceof StaticCommentKey)) return false;
-      StaticCommentKey that = (StaticCommentKey) o;
-      return config == that.config
-          && eq(dbService, that.dbService)
-          && eq(hostname, that.hostname)
-          && eq(dbName, that.dbName);
-    }
-
-    private static boolean eq(String a, String b) {
-      return a == null ? b == null : a.equals(b);
-    }
-
-    @Override
-    public int hashCode() {
-      return hashCode;
-    }
   }
 }
