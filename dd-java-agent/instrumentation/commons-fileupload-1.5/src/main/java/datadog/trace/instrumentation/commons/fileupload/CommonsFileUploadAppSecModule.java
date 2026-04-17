@@ -133,8 +133,7 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
     }
 
     static String readContent(FileItem fileItem) {
-      try {
-        InputStream is = fileItem.getInputStream();
+      try (InputStream is = fileItem.getInputStream()) {
         byte[] buf = new byte[MAX_FILE_CONTENT_BYTES];
         int total = 0;
         int n;
