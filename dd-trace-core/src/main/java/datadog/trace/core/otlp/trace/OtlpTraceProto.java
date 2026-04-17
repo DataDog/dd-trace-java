@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_PARTIAL_VERSION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_TOP_LEVEL;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_WAS_LONG_RUNNING;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
@@ -126,7 +125,7 @@ public final class OtlpTraceProto {
     }
 
     writeTag(buf, 6, VARINT_WIRE_TYPE);
-    writeVarInt(buf, spanKind((CharSequence) span.getTag(SPAN_KIND)));
+    writeVarInt(buf, spanKind(span.context().getSpanKindString()));
 
     writeTag(buf, 7, I64_WIRE_TYPE);
     writeI64(buf, span.getStartTime());
