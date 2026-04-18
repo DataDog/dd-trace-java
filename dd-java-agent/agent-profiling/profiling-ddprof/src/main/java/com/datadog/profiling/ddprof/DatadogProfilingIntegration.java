@@ -119,11 +119,6 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         ctx.getEncodedResourceName());
   }
 
-  // Calibration offset so System.nanoTime() values can be expressed as epoch nanoseconds.
-  // Computed once at class load to keep activation/deactivation overhead minimal.
-  private static final long EPOCH_NANOS_OFFSET =
-      System.currentTimeMillis() * 1_000_000L - System.nanoTime();
-
   @Override
   public void onTaskActivation(ProfilerContext profilerContext, long startTicks) {
     // startTicks captured by TPEHelper is the authoritative start; nothing to do here.
@@ -140,7 +135,11 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     if (durationNanos <= 0) {
       return;
     }
-    long startNanos = startNano + EPOCH_NANOS_OFFSET;
+    // Compute epoch offset fresh each time: avoids cumulative drift between System.nanoTime()
+    // (monotonic, ignores NTP/wall-clock adjustments) and System.currentTimeMillis() over the
+    // JVM lifetime. Residual error is bounded by the 1 ms resolution of currentTimeMillis().
+    long epochOffset = System.currentTimeMillis() * 1_000_000L - endNano;
+    long startNanos = startNano + epochOffset;
     long syntheticSpanId =
         profilerContext.getSpanId() ^ ((long) Thread.currentThread().getId() << 32) ^ startNano;
     DDPROF.recordSpanNodeEvent(
