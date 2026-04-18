@@ -117,7 +117,7 @@ class ConfigCollectorTest extends DDSpecification {
     GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | new Float(DEFAULT_TELEMETRY_HEARTBEAT_INTERVAL).toString()
     CiVisibilityConfig.CIVISIBILITY_GRADLE_SOURCE_SETS         | "main,test"
     IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | DEFAULT_IAST_WEAK_HASH_ALGORITHMS.join(",")
-    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-500"
+    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-600"
   }
 
   def "default null config settings are also collected"() {

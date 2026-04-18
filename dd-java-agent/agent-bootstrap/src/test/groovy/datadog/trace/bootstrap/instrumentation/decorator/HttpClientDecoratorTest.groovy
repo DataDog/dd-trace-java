@@ -200,9 +200,8 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     399    | [status: 399]  | false
     400    | [status: 400]  | true
     499    | [status: 499]  | true
-    500    | [status: 500]  | false
-    500    | [status: 500]  | false
-    500    | [status: 500]  | false
+    500    | [status: 500]  | true
+    599    | [status: 599]  | true
     600    | [status: 600]  | false
     null   | [status: null] | false
     null   | null           | false

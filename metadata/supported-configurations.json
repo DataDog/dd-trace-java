@@ -1613,7 +1613,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "400-499",
+        "default": "400-600",
         "aliases": []
       }
     ],
@@ -6261,7 +6261,7 @@
       {
         "version": "A",
         "type": "string",
-        "default": "400-499",
+        "default": "400-600",
         "aliases": ["DD_HTTP_CLIENT_ERROR_STATUSES"]
       }
     ],

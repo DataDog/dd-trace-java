@@ -369,7 +369,7 @@ abstract class HttpClientTest extends VersionedNamingTestBase {
       trace(size(2)) {
         sortSpansByStart()
         basicSpan(it, "parent")
-        clientSpan(it, span(0), method, false, false, uri, 500, false) // not an error.
+        clientSpan(it, span(0), method, false, false, uri, 500, true)
       }
       server.distributedRequestTrace(it, trace(0).last())
     }

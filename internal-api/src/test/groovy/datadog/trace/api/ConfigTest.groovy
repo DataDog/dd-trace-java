@@ -1122,7 +1122,7 @@ class ConfigTest extends DDSpecification {
     config.requestHeaderTags == [:]
     config.baggageMapping == [:]
     config.httpServerErrorStatuses == toBitSet((500..599))
-    config.httpClientErrorStatuses == toBitSet((400..499))
+    config.httpClientErrorStatuses == toBitSet((400..599))
     config.httpClientSplitByDomain == false
     config.dbClientSplitByInstance == false
     config.dbClientSplitByInstanceTypeSuffix == false

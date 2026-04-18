@@ -414,8 +414,8 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
       sortSpansByStart()
       def traceParent
       trace(2) {
-        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500)
-        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500)
+        clientSpan(it, null, "http.request", "spring-webflux-client", "GET", URI.create(url), 500, true)
+        traceParent = clientSpan(it, span(0), "netty.client.request", "netty-client", "GET", URI.create(url), 500, true)
       }
       trace(2) {
         span {
