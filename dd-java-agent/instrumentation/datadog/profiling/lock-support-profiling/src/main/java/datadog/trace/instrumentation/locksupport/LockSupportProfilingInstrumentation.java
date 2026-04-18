@@ -68,10 +68,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static long[] before(@Advice.Argument(value = 0, optional = true) Object blocker) {
       AgentSpan span = AgentTracer.activeSpan();
-      if (!(span instanceof ProfilerContext)) {
+      if (span == null || !(span.context() instanceof ProfilerContext)) {
         return null;
       }
-      ProfilerContext ctx = (ProfilerContext) span;
+      ProfilerContext ctx = (ProfilerContext) span.context();
       ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
       long startTicks = profiling.getCurrentTicks();
       if (startTicks == 0L) {
@@ -107,10 +107,10 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
         return;
       }
       AgentSpan span = AgentTracer.activeSpan();
-      if (!(span instanceof ProfilerContext)) {
+      if (span == null || !(span.context() instanceof ProfilerContext)) {
         return;
       }
-      State.UNPARKING_SPAN.put(thread, ((ProfilerContext) span).getSpanId());
+      State.UNPARKING_SPAN.put(thread, ((ProfilerContext) span.context()).getSpanId());
     }
   }
 }
