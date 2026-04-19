@@ -75,4 +75,3 @@ org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 empty=annotationProcessor,runtimeClasspath,spotbugsPlugins,testAnnotationProcessor
-
