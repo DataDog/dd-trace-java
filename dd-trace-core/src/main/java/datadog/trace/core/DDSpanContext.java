@@ -160,6 +160,8 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
+  private volatile long executionThreadId = 0;
+  private volatile String executionThreadName = "";
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -385,6 +387,25 @@ public class DDSpanContext
   @Override
   public int getEncodedResourceName() {
     return encodedResourceName;
+  }
+
+  public ProfilingContextIntegration getProfilingContextIntegration() {
+    return profilingContextIntegration;
+  }
+
+  void captureExecutionThread(long threadId, String threadName) {
+    this.executionThreadId = threadId;
+    this.executionThreadName = threadName;
+  }
+
+  @Override
+  public long getExecutionThreadId() {
+    return executionThreadId;
+  }
+
+  @Override
+  public String getExecutionThreadName() {
+    return executionThreadName;
   }
 
   public String getServiceName() {

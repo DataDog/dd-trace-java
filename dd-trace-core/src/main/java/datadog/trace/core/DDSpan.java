@@ -160,6 +160,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
         wrapper.onSpanFinished();
       }
       this.metrics.onSpanFinished();
+      // Capture the execution thread while still on the span's own finishing thread.
+      // CoreTracer.write() is called later from the event loop; the info captured here is the
+      // authoritative source for SpanNode thread attribution (see SpanExecutionThreadEvent).
+      context.captureExecutionThread(
+          Thread.currentThread().getId(), Thread.currentThread().getName());
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
