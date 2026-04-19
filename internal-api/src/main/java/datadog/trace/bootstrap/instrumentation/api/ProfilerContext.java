@@ -21,4 +21,14 @@ public interface ProfilerContext {
   int getEncodedResourceName();
 
   CharSequence getResourceName();
+
+  /** Java thread ID of the thread that finished this span (captured at span finish time). */
+  default long getExecutionThreadId() {
+    return 0;
+  }
+
+  /** Name of the thread that finished this span (captured at span finish time). */
+  default String getExecutionThreadName() {
+    return "";
+  }
 }
