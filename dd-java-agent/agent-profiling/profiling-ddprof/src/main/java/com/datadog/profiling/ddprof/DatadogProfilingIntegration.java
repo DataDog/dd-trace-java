@@ -117,6 +117,18 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         span.getDurationNano(),
         ctx.getEncodedOperationName(),
         ctx.getEncodedResourceName());
+    // Emit the actual execution thread captured in finishAndAddToTrace() so the backend can
+    // correctly attribute each span to the thread that ran it, rather than the event loop thread
+    // that calls CoreTracer.write() and commits the SpanNode event above.
+    long executionThreadId = ctx.getExecutionThreadId();
+    String executionThreadName = ctx.getExecutionThreadName();
+    if (executionThreadId > 0 && executionThreadName != null && !executionThreadName.isEmpty()) {
+      SpanExecutionThreadEvent event = new SpanExecutionThreadEvent();
+      event.spanId = ctx.getSpanId();
+      event.executionThreadId = executionThreadId;
+      event.executionThreadName = executionThreadName;
+      event.commit();
+    }
   }
 
   @Override
