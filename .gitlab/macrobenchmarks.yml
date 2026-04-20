@@ -92,12 +92,6 @@ check-slo-breaches:
       artifacts: true
     - job: otel-latest
       artifacts: true
-    - job: benchmarks-startup
-      artifacts: true
-    - job: benchmarks-load
-      artifacts: true
-    - job: benchmarks-dacapo
-      artifacts: true
   script:
     # macrobenchmarks are located here, files are already in "converted" format
     - export ARTIFACTS_DIR="$(pwd)/platform/artifacts/" && mkdir -p "${ARTIFACTS_DIR}"
