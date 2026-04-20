@@ -132,9 +132,8 @@ public class JUnit4TracingListener extends TracingListener {
   private void lazyStartSuiteIfNeeded(
       TestSuiteDescriptor newSuite, Description description, TestSourceData testSourceData) {
     if (startedSuites.contains(newSuite)) {
-      return; // suite already started normally or by a prior lazy-registration for this same suite
+      return;
     }
-    // Close any previous auto-started suite (typical when Bazel runs multiple classes in one JVM).
     closeAutoStartedSuite();
 
     Class<?> testClass = testSourceData.getTestClass();
