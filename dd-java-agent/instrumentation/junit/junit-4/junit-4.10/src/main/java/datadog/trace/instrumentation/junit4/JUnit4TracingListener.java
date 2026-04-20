@@ -8,8 +8,11 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.bootstrap.ContextStore;
 import java.lang.reflect.Method;
 import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.junit.Ignore;
 import org.junit.runner.Description;
+import org.junit.runner.Result;
 import org.junit.runner.notification.Failure;
 
 public class JUnit4TracingListener extends TracingListener {
@@ -18,6 +21,26 @@ public class JUnit4TracingListener extends TracingListener {
   private static final String FRAMEWORK_VERSION = JUnit4Utils.getVersion();
 
   private final ContextStore<Description, TestExecutionTracker> executionTrackers;
+
+  /**
+   * Suites for which {@code onTestSuiteStart} has been fired (from either the normal
+   * ParentRunner-based flow or via lazy-registration in {@link #testStarted}). Used to keep
+   * lifecycle events idempotent and to know which auto-started suite still needs closing.
+   */
+  private final Set<TestSuiteDescriptor> startedSuites = ConcurrentHashMap.newKeySet();
+
+  /**
+   * Last suite lazy-started from {@link #testStarted} because no {@link #testSuiteStarted} event
+   * was observed for it first. This has been seen under {@code
+   * com.google.testing.junit.runner.BazelTestRunner}, where the suite-start advice in {@code
+   * JUnit4SuiteEventsInstrumentation} does not fire for reasons still to be pinpointed (likely a
+   * classloader or runner-wrapping quirk specific to the Bazel test launcher). Closed when the next
+   * test belongs to a different suite, or when the whole test run finishes.
+   *
+   * <p>TODO: investigate the exact cause under {@code BazelTestRunner} and add a dedicated
+   * instrumentation that emits proper suite-lifecycle events instead of relying on this fallback.
+   */
+  private volatile TestSuiteDescriptor autoStartedSuite;
 
   public JUnit4TracingListener(ContextStore<Description, TestExecutionTracker> executionTrackers) {
     this.executionTrackers = executionTrackers;
@@ -32,6 +55,9 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    if (!startedSuites.add(suiteDescriptor)) {
+      return; // already started (idempotent vs. lazy-registration or duplicate events)
+    }
     Class<?> testClass = description.getTestClass();
     String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
     List<String> categories = JUnit4Utils.getCategories(testClass, null);
@@ -58,6 +84,9 @@ public class JUnit4TracingListener extends TracingListener {
     }
 
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
+    if (!startedSuites.remove(suiteDescriptor)) {
+      return; // never started
+    }
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.JUNIT4)
         .onTestSuiteFinish(suiteDescriptor, null);
@@ -72,6 +101,8 @@ public class JUnit4TracingListener extends TracingListener {
     TestSuiteDescriptor suiteDescriptor = JUnit4Utils.toSuiteDescriptor(description);
     TestDescriptor testDescriptor = JUnit4Utils.toTestDescriptor(description);
     TestSourceData testSourceData = JUnit4Utils.toTestSourceData(description);
+
+    lazyStartSuiteIfNeeded(suiteDescriptor, description, testSourceData);
 
     String testName = JUnit4Utils.getTestName(description, testSourceData.getTestMethod());
     String testParameters = JUnit4Utils.getParameters(description);
@@ -91,6 +122,51 @@ public class JUnit4TracingListener extends TracingListener {
             testSourceData,
             null,
             executionTrackers.get(description));
+  }
+
+  @Override
+  public void testRunFinished(Result result) {
+    closeAutoStartedSuite();
+  }
+
+  private void lazyStartSuiteIfNeeded(
+      TestSuiteDescriptor newSuite, Description description, TestSourceData testSourceData) {
+    if (startedSuites.contains(newSuite)) {
+      return; // suite already started normally or by a prior lazy-registration for this same suite
+    }
+    // Close any previous auto-started suite (typical when Bazel runs multiple classes in one JVM).
+    closeAutoStartedSuite();
+
+    Class<?> testClass = testSourceData.getTestClass();
+    String testSuiteName = JUnit4Utils.getSuiteName(testClass, description);
+    List<String> categories = JUnit4Utils.getCategories(testClass, null);
+    TestEventsHandlerHolder.HANDLERS
+        .get(TestFrameworkInstrumentation.JUNIT4)
+        .onTestSuiteStart(
+            newSuite,
+            testSuiteName,
+            FRAMEWORK_NAME,
+            FRAMEWORK_VERSION,
+            testClass,
+            categories,
+            false,
+            TestFrameworkInstrumentation.JUNIT4,
+            null);
+    startedSuites.add(newSuite);
+    autoStartedSuite = newSuite;
+  }
+
+  private void closeAutoStartedSuite() {
+    TestSuiteDescriptor suite = autoStartedSuite;
+    if (suite == null) {
+      return;
+    }
+    autoStartedSuite = null;
+    if (startedSuites.remove(suite)) {
+      TestEventsHandlerHolder.HANDLERS
+          .get(TestFrameworkInstrumentation.JUNIT4)
+          .onTestSuiteFinish(suite, null);
+    }
   }
 
   @Override
