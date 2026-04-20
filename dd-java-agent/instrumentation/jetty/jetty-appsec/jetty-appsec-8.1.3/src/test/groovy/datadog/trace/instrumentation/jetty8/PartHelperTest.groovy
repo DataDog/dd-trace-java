@@ -91,20 +91,36 @@ class PartHelperTest extends Specification {
     PartHelper.filenameFromPart(p) == 'photo.jpg'
   }
 
-  def "filenameFromPart returns null for empty quoted filename"() {
+  def "filenameFromPart returns empty string for empty quoted filename"() {
     given:
     Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename=""' }
 
     expect:
-    PartHelper.filenameFromPart(p) == null
+    PartHelper.filenameFromPart(p) == ''
   }
 
-  def "filenameFromPart returns null for empty unquoted filename"() {
+  def "filenameFromPart returns empty string for empty unquoted filename"() {
     given:
     Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename=' }
 
     expect:
-    PartHelper.filenameFromPart(p) == null
+    PartHelper.filenameFromPart(p) == ''
+  }
+
+  def "extractFormFields skips part with empty filename"() {
+    given:
+    def parts = [emptyFilenamePart('field')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [:]
+  }
+
+  def "extractFilenames skips empty filename"() {
+    given:
+    def parts = [emptyFilenamePart('field')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == []
   }
 
   def "filenameFromPart preserves semicolons inside a quoted filename"() {
@@ -190,6 +206,13 @@ class PartHelperTest extends Specification {
   private Part filePart(String filename) {
     Part p = Stub(Part)
     p.getHeader('Content-Disposition') >> "form-data; name=\"file\"; filename=\"${filename}\""
+    return p
+  }
+
+  /** Creates a stub Part that has filename="" — a file input submitted with no file chosen. */
+  private Part emptyFilenamePart(String name) {
+    Part p = Stub(Part)
+    p.getHeader('Content-Disposition') >> "form-data; name=\"${name}\"; filename=\"\""
     return p
   }
 }
