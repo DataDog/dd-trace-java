@@ -94,8 +94,7 @@ public class PartHelper {
   }
 
   private static String readPartContent(Part part) {
-    try {
-      InputStream is = part.getInputStream();
+    try (InputStream is = part.getInputStream()) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       byte[] buf = new byte[4096];
       int read;

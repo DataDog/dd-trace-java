@@ -58,10 +58,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty [9.4.10, 10.0) and [10.0.10, 11.0):
+  // Discriminates Jetty [9.4.10, 10.0) + [10.0.0, 11.0):
   //  - _contentParameters + extractContentParameters(void) exist from 9.3+ (excludes 9.2)
-  //  - _multiParts: MultiParts exists in 9.4.10+ and 10.0.10+ (excludes early 9.4.x covered by
-  //    jetty-appsec-9.3, and excludes 10.0.0–10.0.9 where _multiParts is MultiPartFormInputStream)
+  //  - _multiParts field exists from 9.4.10+ (excludes 9.3.x–9.4.9 covered by jetty-appsec-9.3)
+  //    - primary spec: _multiParts: MultiParts   → matches 9.4.10–9.4.x and 10.0.10+
+  //    - OR spec:      _multiParts: MultiPartFormInputStream → matches 10.0.0–10.0.9
   //  - _dispatcherType: Ljavax/servlet/DispatcherType; in the Request bytecode (excludes Jetty 11+
   //    where the field descriptor is Ljakarta/servlet/DispatcherType;). This check is tied to the
   //    Request.class bytecode, NOT just classpath presence, so it works even when both
@@ -72,6 +73,15 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
           .withMethod(new String[0], 0, "extractContentParameters", "V")
           .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
           .withField(new String[0], 0, "_multiParts", "Lorg/eclipse/jetty/server/MultiParts;")
+          .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
+          .or()
+          .withMethod(new String[0], 0, "extractContentParameters", "V")
+          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
+          .withField(
+              new String[0],
+              0,
+              "_multiParts",
+              "Lorg/eclipse/jetty/server/MultiPartFormInputStream;")
           .withField(new String[0], 0, "_dispatcherType", "Ljavax/servlet/DispatcherType;")
           .build();
 
