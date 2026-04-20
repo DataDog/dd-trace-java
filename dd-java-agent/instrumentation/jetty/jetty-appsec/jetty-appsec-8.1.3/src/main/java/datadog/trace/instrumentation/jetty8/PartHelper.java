@@ -74,20 +74,55 @@ public class PartHelper {
   /**
    * Extracts the {@code filename} value from a {@code Content-Disposition} header, or {@code null}
    * if the part has no filename (i.e. it is a plain form field).
+   *
+   * <p>Uses a quote-aware parser so that semicolons inside a quoted filename (e.g. {@code
+   * filename="shell;evil.php"}) are not mistaken for parameter separators.
    */
   static String filenameFromPart(Part part) {
     String cd = part.getHeader("Content-Disposition");
     if (cd == null) {
       return null;
     }
-    for (String token : cd.split(";")) {
-      token = token.trim();
-      if (token.startsWith("filename=")) {
-        String name = token.substring("filename=".length()).trim();
-        if (name.length() >= 2 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
-          name = name.substring(1, name.length() - 1);
+    int len = cd.length();
+    int i = 0;
+    while (i < len) {
+      // Skip separators between parameters
+      while (i < len && (cd.charAt(i) == ';' || cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
+        i++;
+      }
+      if (i >= len) break;
+      // Read parameter name (up to '=' or ';')
+      int nameStart = i;
+      while (i < len && cd.charAt(i) != '=' && cd.charAt(i) != ';') {
+        i++;
+      }
+      boolean isFilename = "filename".equalsIgnoreCase(cd.substring(nameStart, i).trim());
+      if (i >= len || cd.charAt(i) == ';') {
+        // Value-less token (e.g. "form-data") — skip
+        continue;
+      }
+      i++; // skip '='
+      String value;
+      if (i < len && cd.charAt(i) == '"') {
+        i++; // skip opening quote
+        StringBuilder sb = new StringBuilder();
+        while (i < len && cd.charAt(i) != '"') {
+          if (cd.charAt(i) == '\\' && i + 1 < len) {
+            i++; // consume escape backslash, add next char literally
+          }
+          sb.append(cd.charAt(i++));
         }
-        return name.isEmpty() ? null : name;
+        if (i < len) i++; // skip closing quote
+        value = sb.toString();
+      } else {
+        int valueStart = i;
+        while (i < len && cd.charAt(i) != ';') {
+          i++;
+        }
+        value = cd.substring(valueStart, i).trim();
+      }
+      if (isFilename) {
+        return value.isEmpty() ? null : value;
       }
     }
     return null;
