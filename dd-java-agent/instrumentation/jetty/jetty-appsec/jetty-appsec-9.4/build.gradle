@@ -6,6 +6,14 @@ muzzle {
     versions = '[9.4.10,10.0)'
   }
   pass {
+    name = 'early_10_series'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    // _multiParts: MultiPartFormInputStream (before 10.0.10 switched to MultiParts)
+    versions = '[10.0.0,10.0.10)'
+    javaVersion = 11
+  }
+  pass {
     name = '10_series'
     group = 'org.eclipse.jetty'
     module = 'jetty-server'
