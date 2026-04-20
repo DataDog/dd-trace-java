@@ -76,7 +76,7 @@ jobs:
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: true
-      push_to_test_optimization: false # disabled to avoid pushing to Test Optimization while API key is transitioning to system-tests
+      push_to_test_optimization: true
 
   # Ensure the main job is run to completion
   check:
