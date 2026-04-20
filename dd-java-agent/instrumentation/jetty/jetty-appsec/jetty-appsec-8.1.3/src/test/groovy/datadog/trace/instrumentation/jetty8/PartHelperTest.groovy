@@ -107,6 +107,30 @@ class PartHelperTest extends Specification {
     PartHelper.filenameFromPart(p) == null
   }
 
+  def "filenameFromPart preserves semicolons inside a quoted filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename="shell;evil.php"' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == 'shell;evil.php'
+  }
+
+  def "filenameFromPart handles escaped quote inside filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename="file\\"name.txt"' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == 'file"name.txt'
+  }
+
+  def "filenameFromPart handles filename before other parameters"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; filename="first.txt"; name="file"' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == 'first.txt'
+  }
+
   // ── extractFormFields ───────────────────────────────────────────────────────
 
   def "extractFormFields returns empty map for null collection"() {
