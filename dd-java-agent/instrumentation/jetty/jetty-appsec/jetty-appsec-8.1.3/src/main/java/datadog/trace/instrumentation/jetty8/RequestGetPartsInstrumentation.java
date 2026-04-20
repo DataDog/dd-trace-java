@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.function.BiFunction;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.FieldVisitor;
@@ -129,8 +130,12 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before() {
-      return CallDepthThreadLocalMap.incrementCallDepth(Collection.class) == 0;
+    static boolean before(
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            final Object multiPartInputStream) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
+      return callDepth == 0 && multiPartInputStream == null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
