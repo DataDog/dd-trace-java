@@ -8,8 +8,20 @@ apply from: "$rootDir/gradle/java.gradle"
 apply plugin: 'dd-trace-java.call-site-instrumentation'
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('java11Test', 'java11Test')
+
+// java11Test only runs on JDK 11+; the testJvmConstraints plugin reads this property by convention
+ext.java11TestMinJavaVersionForTests = JavaVersion.VERSION_11
+
+tasks.named("compileJava11TestJava", JavaCompile) {
+  configureCompiler(it, 11)
+}
+tasks.named("compileJava11TestGroovy", GroovyCompile) {
+  configureCompiler(it, 11)
+}
 
 dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
   testImplementation group: 'org.apache.tomcat', name: 'tomcat-catalina', version: '9.0.56'
+  java11TestImplementation sourceSets.test.output
 }
