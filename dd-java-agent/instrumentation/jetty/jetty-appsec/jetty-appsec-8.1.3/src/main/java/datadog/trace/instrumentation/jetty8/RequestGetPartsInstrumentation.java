@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -20,9 +21,11 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.function.BiFunction;
+import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
@@ -52,6 +55,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(
+        named("getPart").and(takesArguments(1)).and(takesArgument(0, String.class)),
+        getClass().getName() + "$GetPartAdvice");
   }
 
   @Override
@@ -166,6 +172,84 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       }
 
       // Fire requestFilesFilenames with file-upload filenames extracted from parts
+      List<String> filenames = PartHelper.extractFilenames(parts);
+      if (!filenames.isEmpty()) {
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+            cbp.getCallback(EVENTS.requestFilesFilenames());
+        if (filenamesCallback != null) {
+          Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (t == null) {
+                t = new BlockingException("Blocked request (multipart file upload)");
+                reqCtx.getTraceSegment().effectivelyBlocked();
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  /**
+   * Fires AppSec events for a single-part upload via {@code getPart(String)}, which in Jetty 8.x
+   * does NOT delegate to {@code getParts()} — it calls {@code
+   * _multiPartInputStream.getPart(String)} directly. Without this advice, single-file uploads that
+   * never call the public {@code getParts()} would be missed.
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetPartAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before() {
+      return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Enter boolean proceed,
+        @Advice.Return Part part,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(Part.class);
+      if (!proceed || t != null || part == null) {
+        return;
+      }
+
+      Collection<Part> parts = Collections.singletonList(part);
+
+      // Fire requestBodyProcessed with form-field name→value (if not a file upload)
+      Map<String, List<String>> formFields = PartHelper.extractFormFields(parts);
+      if (!formFields.isEmpty()) {
+        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
+            cbp.getCallback(EVENTS.requestBodyProcessed());
+        if (bodyCallback != null) {
+          Flow<Void> flow = bodyCallback.apply(reqCtx, formFields);
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (t == null) {
+                t = new BlockingException("Blocked request (multipart form field)");
+                reqCtx.getTraceSegment().effectivelyBlocked();
+              }
+            }
+          }
+        }
+      }
+
+      if (t != null) {
+        return;
+      }
+
+      // Fire requestFilesFilenames with file-upload filename (if a file upload)
       List<String> filenames = PartHelper.extractFilenames(parts);
       if (!filenames.isEmpty()) {
         CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
