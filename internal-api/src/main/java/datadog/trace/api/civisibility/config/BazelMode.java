@@ -151,6 +151,14 @@ public class BazelMode {
   }
 
   @Nullable
+  public Path getTelemetryPayloadsDir() {
+    if (payloadsDir == null) {
+      return null;
+    }
+    return payloadsDir.resolve("telemetry");
+  }
+
+  @Nullable
   public Path getSettingsPath() {
     return resolveToptFile(SETTINGS_FILE);
   }
