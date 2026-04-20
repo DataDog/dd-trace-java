@@ -122,7 +122,10 @@ public class PartHelper {
         value = cd.substring(valueStart, i).trim();
       }
       if (isFilename) {
-        return value.isEmpty() ? null : value;
+        // Return empty string (not null) so callers can distinguish "filename present but empty"
+        // from "no filename parameter". extractFormFields() uses != null to skip file parts,
+        // so empty string correctly prevents buffering a file-upload body with filename="".
+        return value;
       }
     }
     return null;
