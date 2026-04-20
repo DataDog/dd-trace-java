@@ -1,0 +1,171 @@
+package datadog.trace.instrumentation.jetty8
+
+import javax.servlet.http.Part
+import spock.lang.Specification
+
+class PartHelperTest extends Specification {
+
+  // ── extractFilenames ────────────────────────────────────────────────────────
+
+  def "extractFilenames returns empty list for null collection"() {
+    expect:
+    PartHelper.extractFilenames(null) == []
+  }
+
+  def "extractFilenames returns empty list for empty collection"() {
+    expect:
+    PartHelper.extractFilenames([]) == []
+  }
+
+  def "extractFilenames returns empty list when no parts have a filename"() {
+    given:
+    def parts = [field('a', 'x'), field('b', 'y')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == []
+  }
+
+  def "extractFilenames extracts filename from a single file part"() {
+    given:
+    def parts = [filePart('photo.jpg')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == ['photo.jpg']
+  }
+
+  def "extractFilenames extracts filenames from multiple file parts"() {
+    given:
+    def parts = [filePart('a.jpg'), filePart('b.png'), filePart('c.pdf')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == ['a.jpg', 'b.png', 'c.pdf']
+  }
+
+  def "extractFilenames skips form-field parts and keeps file parts"() {
+    given:
+    def parts = [field('x', 'v'), filePart('upload.zip'), field('y', 'w')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == ['upload.zip']
+  }
+
+  def "extractFilenames preserves filenames with spaces and special characters"() {
+    given:
+    def parts = [filePart('my file.tar.gz'), filePart('résumé.pdf')]
+
+    expect:
+    PartHelper.extractFilenames(parts) == ['my file.tar.gz', 'résumé.pdf']
+  }
+
+  // ── filenameFromPart ────────────────────────────────────────────────────────
+
+  def "filenameFromPart returns null when Content-Disposition header is absent"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> null }
+
+    expect:
+    PartHelper.filenameFromPart(p) == null
+  }
+
+  def "filenameFromPart returns null when there is no filename parameter"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="field"' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == null
+  }
+
+  def "filenameFromPart extracts unquoted filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename=photo.jpg' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == 'photo.jpg'
+  }
+
+  def "filenameFromPart strips quotes from filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename="photo.jpg"' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == 'photo.jpg'
+  }
+
+  def "filenameFromPart returns null for empty quoted filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename=""' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == null
+  }
+
+  def "filenameFromPart returns null for empty unquoted filename"() {
+    given:
+    Part p = Stub(Part) { getHeader('Content-Disposition') >> 'form-data; name="file"; filename=' }
+
+    expect:
+    PartHelper.filenameFromPart(p) == null
+  }
+
+  // ── extractFormFields ───────────────────────────────────────────────────────
+
+  def "extractFormFields returns empty map for null collection"() {
+    expect:
+    PartHelper.extractFormFields(null) == [:]
+  }
+
+  def "extractFormFields returns empty map for empty collection"() {
+    expect:
+    PartHelper.extractFormFields([]) == [:]
+  }
+
+  def "extractFormFields skips file-upload parts"() {
+    given:
+    def parts = [filePart('evil.php')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [:]
+  }
+
+  def "extractFormFields extracts single form field"() {
+    given:
+    def parts = [field('username', 'alice')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [username: ['alice']]
+  }
+
+  def "extractFormFields groups multiple values under the same name"() {
+    given:
+    def parts = [field('tag', 'foo'), field('tag', 'bar')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [tag: ['foo', 'bar']]
+  }
+
+  def "extractFormFields mixes fields and skips files"() {
+    given:
+    def parts = [field('a', 'x'), filePart('upload.bin'), field('b', 'y')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [a: ['x'], b: ['y']]
+  }
+
+  // ── helpers ─────────────────────────────────────────────────────────────────
+
+  /** Creates a stub Part that looks like a plain form field (no filename). */
+  private Part field(String name, String value) {
+    Part p = Stub(Part)
+    p.getHeader('Content-Disposition') >> "form-data; name=\"${name}\""
+    p.getName() >> name
+    p.getInputStream() >> new ByteArrayInputStream(value.getBytes('UTF-8'))
+    return p
+  }
+
+  /** Creates a stub Part that looks like a file upload with the given filename. */
+  private Part filePart(String filename) {
+    Part p = Stub(Part)
+    p.getHeader('Content-Disposition') >> "form-data; name=\"file\"; filename=\"${filename}\""
+    return p
+  }
+}
