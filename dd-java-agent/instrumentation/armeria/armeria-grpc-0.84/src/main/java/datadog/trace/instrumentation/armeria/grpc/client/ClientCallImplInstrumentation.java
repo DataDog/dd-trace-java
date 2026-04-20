@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.armeria.grpc.client;
 
-import static datadog.context.Context.current;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -14,63 +14,26 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
 import io.grpc.Status;
 import io.grpc.StatusException;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class ClientCallImplInstrumentation extends InstrumenterModule.Tracing
+public final class ClientCallImplInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientCallImplInstrumentation() {
-    super("armeria-grpc-client", "armeria-grpc", "armeria", "grpc-client", "grpc");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("io.grpc.ClientCall", AgentSpan.class.getName());
-  }
-
   @Override
   public String instrumentedType() {
     return "com.linecorp.armeria.internal.client.grpc.ArmeriaClientCall";
-  }
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {
-      new Reference(
-          new String[0],
-          1,
-          "com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer",
-          null,
-          new String[0],
-          new Reference.Field[0],
-          new Reference.Method[0])
-    };
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
   }
 
   @Override
@@ -82,7 +45,10 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
     transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
         getClass().getName() + "$CaptureCallPos2");
-    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvices(
+        named("start").and(isMethod()),
+        getClass().getName() + "$Start",
+        getClass().getName() + "$StartContextPropagationAdvice");
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
         named("request")
@@ -134,7 +100,6 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
       if (null != responseListener && null != headers) {
         span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
         if (null != span) {
-          DECORATE.injectContext(current().with(span), headers, SETTER);
           return activateSpan(span);
         }
       }
@@ -156,6 +121,14 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         span.finish();
         throw error;
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class StartContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(@Advice.Argument(1) Metadata headers) {
+      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
     }
   }
 

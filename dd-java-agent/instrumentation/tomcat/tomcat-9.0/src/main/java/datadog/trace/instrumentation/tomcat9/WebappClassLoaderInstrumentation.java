@@ -20,8 +20,10 @@ import org.apache.tomcat.util.descriptor.web.ContextEnvironment;
 @AutoService(InstrumenterModule.class)
 public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private static final String TOMCAT = "tomcat";
+
   public WebappClassLoaderInstrumentation() {
-    super("tomcat", "tomcat-classloading");
+    super(TOMCAT, "tomcat-classloading");
   }
 
   @Override
@@ -41,7 +43,7 @@ public class WebappClassLoaderInstrumentation extends InstrumenterModule.Tracing
         @Advice.This final WebappClassLoaderBase classLoader,
         @Advice.Argument(0) final WebResourceRoot webResourceRoot) {
       // at this moment we have the context set in this classloader, hence its name
-      final Context context = webResourceRoot.getContext();
+      final Context context = webResourceRoot != null ? webResourceRoot.getContext() : null;
       if (context == null) {
         return;
       }

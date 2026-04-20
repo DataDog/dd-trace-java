@@ -1,0 +1,39 @@
+muzzle {
+  pass {
+    name = "driver-only"
+    group = "org.mongodb"
+    module = "mongo-java-driver"
+    versions = "[3.1,)"
+    assertInverse = true
+  }
+  pass {
+    group = "org.mongodb"
+    module = "mongodb-driver-async"
+    versions = "[3.1,)"
+  }
+  pass {
+    group = "org.mongodb"
+    module = "mongodb-driver-core"
+    versions = "[3.1,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
+
+  implementation(project(':dd-java-agent:instrumentation:mongo:mongo-common')) {
+    transitive = false
+  }
+
+  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
+  testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
+  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
+
+  testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
+  latestDepTestImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '+'
+}

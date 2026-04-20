@@ -24,7 +24,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * during this period.
  */
 @AutoService(InstrumenterModule.class)
-public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.Tracing
+public final class AsyncPropagatingDisableInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public AsyncPropagatingDisableInstrumentation() {

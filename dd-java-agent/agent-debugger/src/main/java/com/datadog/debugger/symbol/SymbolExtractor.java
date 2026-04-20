@@ -5,6 +5,8 @@ import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 
 import com.datadog.debugger.instrumentation.ASMHelper;
+import datadog.trace.agent.tooling.stratum.SourceMap;
+import datadog.trace.agent.tooling.stratum.parser.Parser;
 import datadog.trace.util.Strings;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -28,9 +30,11 @@ import org.objectweb.asm.tree.LabelNode;
 import org.objectweb.asm.tree.LineNumberNode;
 import org.objectweb.asm.tree.LocalVariableNode;
 import org.objectweb.asm.tree.MethodNode;
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class SymbolExtractor {
+  private static final Logger LOGGER = LoggerFactory.getLogger(SymbolExtractor.class);
 
   public static Scope extract(byte[] classFileBuffer, String jarName) {
     ClassNode classNode = parseClassFile(classFileBuffer);
@@ -40,12 +44,25 @@ public class SymbolExtractor {
   private static Scope extractScopes(ClassNode classNode, String jarName) {
     try {
       String sourceFile = extractSourceFile(classNode);
-      List<Scope> methodScopes = extractMethods(classNode, sourceFile);
+      SourceRemapper sourceRemapper = SourceRemapper.NOOP_REMAPPER;
+      if (classNode.sourceDebug != null) {
+        List<SourceMap> sourceMaps = Parser.parse(classNode.sourceDebug);
+        if (sourceMaps.isEmpty()) {
+          throw new IllegalStateException("No source maps found for " + classNode.name);
+        }
+        SourceMap sourceMap = sourceMaps.get(0);
+        sourceRemapper = SourceRemapper.getSourceRemapper(classNode.sourceFile, sourceMap);
+      }
+      List<Scope> methodScopes = extractMethods(classNode, sourceFile, sourceRemapper);
       int classStartLine = Integer.MAX_VALUE;
       int classEndLine = 0;
       for (Scope scope : methodScopes) {
-        classStartLine = Math.min(classStartLine, scope.getStartLine());
-        classEndLine = Math.max(classEndLine, scope.getEndLine());
+        if (scope.getStartLine() > 0) {
+          classStartLine = Math.min(classStartLine, scope.getStartLine());
+        }
+        if (scope.getEndLine() > 0) {
+          classEndLine = Math.max(classEndLine, scope.getEndLine());
+        }
       }
       List<Symbol> fields = extractFields(classNode);
       LanguageSpecifics classSpecifics =
@@ -67,9 +84,8 @@ public class SymbolExtractor {
           .scopes(new ArrayList<>(Collections.singletonList(classScope)))
           .build();
     } catch (Exception ex) {
-      LoggerFactory.getLogger(SymbolExtractor.class)
-          .debug(
-              "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
+      LOGGER.debug(
+          "Extracting scopes for class[{}] in jar[{}] failed: ", classNode.name, jarName, ex);
       return null;
     }
   }
@@ -102,10 +118,11 @@ public class SymbolExtractor {
     return fields;
   }
 
-  private static List<Scope> extractMethods(ClassNode classNode, String sourceFile) {
+  private static List<Scope> extractMethods(
+      ClassNode classNode, String sourceFile, SourceRemapper sourceRemapper) {
     List<Scope> methodScopes = new ArrayList<>();
     for (MethodNode method : classNode.methods) {
-      MethodLineInfo methodLineInfo = extractMethodLineInfo(method);
+      MethodLineInfo methodLineInfo = extractMethodLineInfo(method, sourceRemapper);
       List<Scope> varScopes = new ArrayList<>();
       List<Symbol> methodSymbols = new ArrayList<>();
       int localVarBaseSlot = extractArgs(method, methodSymbols, methodLineInfo.start);
@@ -182,7 +199,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid class access modifiers: {}", bit);
       }
     }
     return results;
@@ -237,8 +254,11 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException(
-              "Invalid access modifiers method[" + methodNode.name + methodNode.desc + "]: " + bit);
+          LOGGER.debug(
+              "Invalid access modifiers method[{}::{}]: {}",
+              classNode.name,
+              methodNode.name + methodNode.desc,
+              bit);
       }
     }
     // if class is an interface && method has code && non-static this is a default method
@@ -289,7 +309,7 @@ public class SymbolExtractor {
           results.add("deprecated");
           break;
         default:
-          throw new IllegalArgumentException("Invalid access modifiers: " + bit);
+          LOGGER.debug("Invalid access modifiers: {}", bit);
       }
     }
     return results;
@@ -370,13 +390,24 @@ public class SymbolExtractor {
       List<Symbol> varSymbols = new ArrayList<>();
       int minLine = Integer.MAX_VALUE;
       for (LocalVariableNode var : entry.getValue()) {
-        int line = monotonicLineMap.get(var.start.getLabel());
+        Integer line = monotonicLineMap.get(var.start.getLabel());
+        if (line == null) {
+          LOGGER.debug(
+              "Cannot find the line for variable {} idx={} in local variables",
+              var.name,
+              var.index);
+          continue;
+        }
         minLine = Math.min(line, minLine);
         varSymbols.add(
             new Symbol(
                 SymbolType.LOCAL, var.name, line, Type.getType(var.desc).getClassName(), null));
       }
-      int endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      Integer endLine = monotonicLineMap.get(entry.getKey().getLabel());
+      if (endLine == null) {
+        LOGGER.debug("Cannot find the line from end label");
+        continue;
+      }
       Scope varScope =
           Scope.builder(ScopeType.LOCAL, sourceFile, minLine, endLine)
               .symbols(varSymbols)
@@ -464,7 +495,8 @@ public class SymbolExtractor {
     return ranges;
   }
 
-  private static MethodLineInfo extractMethodLineInfo(MethodNode methodNode) {
+  private static MethodLineInfo extractMethodLineInfo(
+      MethodNode methodNode, SourceRemapper sourceRemapper) {
     Map<Label, Integer> map = new HashMap<>();
     List<Integer> lineNo = new ArrayList<>();
     Set<Integer> dedupSet = new HashSet<>();
@@ -473,10 +505,11 @@ public class SymbolExtractor {
     while (node != null) {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
-        if (dedupSet.add(lineNumberNode.line)) {
-          lineNo.add(lineNumberNode.line);
+        int newLine = sourceRemapper.remapSourceLine(lineNumberNode.line);
+        if (newLine > 0 && dedupSet.add(newLine)) {
+          lineNo.add(newLine);
         }
-        maxLine = Math.max(lineNumberNode.line, maxLine);
+        maxLine = Math.max(newLine, maxLine);
       }
       if (node.getType() == AbstractInsnNode.LABEL) {
         if (node instanceof LabelNode) {
@@ -487,7 +520,18 @@ public class SymbolExtractor {
       node = node.getNext();
     }
     lineNo.sort(Integer::compareTo);
-    int startLine = lineNo.isEmpty() ? 0 : lineNo.get(0);
+    if (methodNode.name.equals("<init>") && !lineNo.isEmpty()) {
+      // for constructors we are dropping the first line because it is not instrumentable:
+      // it needs to call the super or this before
+      lineNo.remove(0);
+    }
+    int startLine;
+    if (lineNo.isEmpty()) {
+      startLine = 0;
+      maxLine = 0;
+    } else {
+      startLine = lineNo.get(0);
+    }
     List<Scope.LineRange> ranges = buildRanges(lineNo);
     return new MethodLineInfo(startLine, maxLine, map, ranges);
   }

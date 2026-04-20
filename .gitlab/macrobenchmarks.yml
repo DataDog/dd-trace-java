@@ -143,4 +143,4 @@ notify-slo-breaches:
       when: never
     - when: always
   variables:
-    CHANNEL: "apm-java"
+    CHANNEL: "apm-java-ops-bot"

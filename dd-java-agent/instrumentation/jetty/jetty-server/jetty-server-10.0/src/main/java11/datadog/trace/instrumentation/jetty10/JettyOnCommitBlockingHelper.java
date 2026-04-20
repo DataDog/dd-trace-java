@@ -54,7 +54,7 @@ public class JettyOnCommitBlockingHelper {
         BlockingActionHelper.TemplateType type =
             BlockingActionHelper.determineTemplateType(bct, acceptHeader);
         putHeader(fields, "Content-type", BlockingActionHelper.getContentType(type));
-        byte[] template = BlockingActionHelper.getTemplate(type);
+        byte[] template = BlockingActionHelper.getTemplate(type, rba.getSecurityResponseId());
         putHeader(fields, "Content-length", Integer.toString(template.length));
 
         info = new MetaData.Response(request.getHttpVersion(), statusCode, fields, template.length);

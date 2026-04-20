@@ -48,10 +48,6 @@ dependencies {
   }
 }
 
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

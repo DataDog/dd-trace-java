@@ -2,16 +2,17 @@ package datadog.trace.core
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.remoteconfig.ConfigurationPoller
 import datadog.remoteconfig.Product
 import datadog.remoteconfig.state.ParsedConfigKey
 import datadog.remoteconfig.state.ProductListener
 import datadog.trace.api.Config
-import datadog.trace.api.StatsDClient
+import datadog.trace.api.DDTags
 import datadog.trace.api.remoteconfig.ServiceNameCollector
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.sampling.SamplingMechanism
+import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources
 import datadog.trace.common.sampling.AllSampler
 import datadog.trace.common.sampling.PrioritySampler
 import datadog.trace.common.sampling.RateByServiceTraceSampler
@@ -29,7 +30,6 @@ import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
 
 import static datadog.trace.api.config.GeneralConfig.ENV
-import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME
 import static datadog.trace.api.config.GeneralConfig.VERSION
 import static datadog.trace.api.config.TracerConfig.AGENT_UNIX_DOMAIN_SOCKET
@@ -51,79 +51,12 @@ class CoreTracerTest extends DDCoreSpecification {
     tracer.serviceName != ""
     tracer.initialSampler instanceof RateByServiceTraceSampler
     tracer.writer instanceof DDAgentWriter
-    tracer.statsDClient != null && tracer.statsDClient != StatsDClient.NO_OP
 
     cleanup:
     tracer.close()
   }
 
-  def "verify disabling health monitor"() {
-    setup:
-    injectSysConfig(HEALTH_METRICS_ENABLED, "false")
 
-    when:
-    def tracer = CoreTracer.builder().build()
-
-    then:
-    tracer.statsDClient == StatsDClient.NO_OP
-
-    cleanup:
-    tracer.close()
-  }
-
-  def "verify service, env, and version are added as stats tags"() {
-    setup:
-    def expectedSize = 6
-    if (service != null) {
-      injectSysConfig(SERVICE_NAME, service)
-    }
-
-    if (env != null) {
-      injectSysConfig(ENV, env)
-      expectedSize += 1
-    }
-
-    if (version != null) {
-      injectSysConfig(VERSION, version)
-      expectedSize += 1
-    }
-
-    when:
-    def constantTags = CoreTracer.generateConstantTags(new Config())
-
-    then:
-    constantTags.size() == expectedSize
-    assert constantTags.any { it == CoreTracer.LANG_STATSD_TAG + ":java" }
-    assert constantTags.any { it.startsWith(CoreTracer.LANG_VERSION_STATSD_TAG + ":") }
-    assert constantTags.any { it.startsWith(CoreTracer.LANG_INTERPRETER_STATSD_TAG + ":") }
-    assert constantTags.any { it.startsWith(CoreTracer.LANG_INTERPRETER_VENDOR_STATSD_TAG + ":") }
-    assert constantTags.any { it.startsWith(CoreTracer.TRACER_VERSION_STATSD_TAG + ":") }
-
-    if (service == null) {
-      assert constantTags.any { it.startsWith("service:") }
-    } else {
-      assert constantTags.any { it == "service:" + service }
-    }
-
-    if (env != null) {
-      assert constantTags.any { it == "env:" + env }
-    }
-
-    if (version != null) {
-      assert constantTags.any { it == "version:" + version }
-    }
-
-    where:
-    service       | env       | version
-    null          | null      | null
-    "testService" | null      | null
-    "testService" | "staging" | null
-    "testService" | null      | "1"
-    "testService" | "staging" | "1"
-    null          | "staging" | null
-    null          | "staging" | "1"
-    null          | null      | "1"
-  }
 
   def "verify overriding sampler"() {
     setup:
@@ -522,7 +455,7 @@ class CoreTracerTest extends DDCoreSpecification {
   def "test local root service name override"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).serviceName("test").build()
-    tracer.updatePreferredServiceName(preferred)
+    tracer.updatePreferredServiceName(preferred, preferred)
     when:
     def span = tracer.startSpan("", "test")
     span.finish()
@@ -544,7 +477,7 @@ class CoreTracerTest extends DDCoreSpecification {
     setup:
     injectSysConfig(SERVICE_NAME, "dd_service_name")
     injectSysConfig(VERSION, "1.0.0")
-    TagsPostProcessorFactory.withAddBaseService(true)
+    TagsPostProcessorFactory.withAddInternalTags(true)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     when:
@@ -559,7 +492,7 @@ class CoreTracerTest extends DDCoreSpecification {
     span2.finish()
     then:
     span2.getServiceName() == "dd_service_name"
-    span2.getTags()["version"] == "1.0.0"
+    span2.getTags()["version"]?.toString() == "1.0.0"
 
     cleanup:
     tracer?.close()
@@ -638,6 +571,58 @@ class CoreTracerTest extends DDCoreSpecification {
     "service" | "env"  | "service_1"   | "env"
     "service" | "env"  | "service"     | "env_1"
     "service" | "env"  | "service_2"   | "env_2"
+  }
+
+  def "service name source is recorded when using two-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    def child = tracer.buildSpan("child").start()
+    child.finish()
+    span.finish()
+
+    then:
+    [span, child].each {
+      assert span.getServiceName() == "custom-service"
+      assert span.getTag(DDTags.DD_SVC_SRC) == "my-integration"
+    }
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is marked as manual when using one-parameter setServiceName"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.setServiceName("custom-service", "my-integration")
+    span.setServiceName("another")
+    span.finish()
+
+    then:
+    span.getServiceName() == "another"
+    span.getTag(DDTags.DD_SVC_SRC) == ServiceNameSources.MANUAL
+    cleanup:
+    tracer?.close()
+  }
+
+  def "service name source is missing when not explicitly setting the service name"() {
+    setup:
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    when:
+    def span = tracer.buildSpan("operation").start()
+    span.finish()
+
+    then:
+    span.getServiceName() == tracer.serviceName
+    span.getTag(DDTags.DD_SVC_SRC) == null
+    cleanup:
+    tracer?.close()
   }
 }
 

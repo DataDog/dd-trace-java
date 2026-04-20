@@ -1,9 +1,10 @@
 package datadog.smoketest
 
+import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.concurrent.TimeoutException
+import java.util.concurrent.TimeUnit
 import spock.lang.AutoCleanup
 import spock.lang.Shared
 import spock.lang.Specification
@@ -15,6 +16,7 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE')
 
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
@@ -50,7 +52,7 @@ abstract class ProcessManager extends Specification {
 
   // Here for backwards compatibility with single process case
   @Shared
-  def logFilePath = logFilePaths[0]
+  def logFilePath = logFilePaths.length > 0 ? logFilePaths[0] : null
 
   def setup() {
     testedProcesses.each {
@@ -71,13 +73,16 @@ abstract class ProcessManager extends Specification {
     assert Files.isDirectory(Paths.get(buildDirectory))
     assert Files.isRegularFile(Paths.get(shadowJarPath))
 
+    setupTracesConsumer()
     beforeProcessBuilders()
 
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
 
-      processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
-      processBuilder.environment().put("DD_API_KEY", apiKey())
+      Map<String, String> env = processBuilder.environment()
+      env.put("JAVA_HOME", System.getProperty("java.home"))
+      env.put("DD_API_KEY", apiKey())
+      muteNoisyEnvironmentVariables(env)
 
       processBuilder.redirectErrorStream(true)
 
@@ -107,32 +112,45 @@ abstract class ProcessManager extends Specification {
   }
 
   def cleanupSpec() {
+    Throwable firstFailure = null
     testedProcesses.each { tp ->
-      int maxAttempts = 10
+      if (tp == null) {
+        return  // closure continue — skip null slots
+      }
+
       Integer exitValue
-      for (int attempt = 1; attempt <= maxAttempts != null; attempt++) {
-        try {
-          exitValue = tp?.exitValue()
-          break
+      try {
+        exitValue = tp.exitValue()
+      } catch (Throwable ignored) {
+        System.err.println("Destroying instrumented process")
+        tp.destroy()
+
+        if (!tp.waitFor(5, TimeUnit.SECONDS)) {
+          System.err.println("Destroying instrumented process (forced)")
+          tp.destroyForcibly()
+          tp.waitFor(10, TimeUnit.SECONDS)
         }
-        catch (Throwable ignored) {
-          if (attempt == 1) {
-            System.out.println("Destroying instrumented process")
-            tp.destroy()
+
+        try {
+          exitValue = tp.exitValue()
+        } catch (Throwable ignoredAgain) {
+          // Process did not exit even after SIGKILL — record failure but continue
+          // cleaning up any remaining processes before propagating.
+          def failure = new RuntimeException("Instrumented process failed to exit after SIGKILL")
+          if (firstFailure == null) {
+            firstFailure = failure
+          } else {
+            firstFailure.addSuppressed(failure)
           }
-          if (attempt == maxAttempts - 1) {
-            System.out.println("Destroying instrumented process (forced)")
-            tp.destroyForcibly()
-          }
-          sleep 1_000
+          return  // closure continue
         }
       }
 
-      if (exitValue != null) {
-        System.out.println("Instrumented process exited with " + exitValue)
-      } else if (tp != null) {
-        throw new TimeoutException("Instrumented process failed to exit")
-      }
+      System.err.println("Instrumented process exited with " + exitValue)
+    }
+
+    if (firstFailure != null) {
+      throw firstFailure
     }
   }
 
@@ -175,6 +193,14 @@ abstract class ProcessManager extends Specification {
 
     return line.contains("ERROR") || line.contains("ASSERTION FAILED")
     || line.contains("Failed to handle exception in instrumentation")
+  }
+
+  /**
+   * Some variable can be printed in smoke application logs and result into false-positive test result.
+   * @param env environment variables to process.
+   */
+  void muteNoisyEnvironmentVariables(Map<String, String> env) {
+    env.keySet().removeAll(NOISY_ENVIRONMENT_VARIABLES)
   }
 
   /**
@@ -236,6 +262,8 @@ abstract class ProcessManager extends Specification {
   void processTestLogLines(Closure<Boolean> checker) {
     outputThreads.processTestLogLines { return checker(it) }
   }
+
+  protected abstract void setupTracesConsumer()
 
   protected void beforeProcessBuilders() {}
 

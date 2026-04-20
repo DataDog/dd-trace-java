@@ -28,9 +28,7 @@ sourceSets {
 }
 
 configurations {
-  register("instrumentPluginClasspath") {
-    canBeConsumed = true
-    canBeResolved = false
+  consumable("buildTimeInstrumentationToolingPlugins") {
     extendsFrom runtimeElements
   }
 
@@ -39,22 +37,15 @@ configurations {
   }
 }
 
+
 dependencies {
   api(project(':dd-java-agent:agent-bootstrap')) {
     exclude group: 'com.datadoghq', module: 'agent-logging'
   }
-  compileOnly project(':dd-java-agent:agent-jmxfetch')
-  compileOnly project(':dd-java-agent:agent-profiling')
-  compileOnly project(':dd-java-agent:agent-profiling:profiling-controller')
   api group: 'com.blogspot.mydailyjava', name: 'weak-lock-free', version: '0.17'
+  api libs.asm
   api libs.bytebuddy
   api libs.bytebuddyagent
-  implementation group: 'net.java.dev.jna', name: 'jna', version: '5.8.0'
-  implementation group: 'net.java.dev.jna', name: 'jna-platform', version: '5.8.0'
-
-  api project(':dd-trace-core')
-
-  implementation project(':dd-java-agent:agent-crashtracking')
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation libs.bytebuddy
@@ -74,13 +65,6 @@ tasks.named("sourcesJar") { dependsOn 'generateClassNameTries' }
 tasks.named("compileJmhJava") { dependsOn tasks.named("compileTestJava") }
 
 tasks.named("forbiddenApisJmh") {
-  ignoreFailures = true
-}
-
-tasks.named("forbiddenApisTest_java11") {
-  // it will fail due to missing JDK >= 9 classes
-  // java.lang.ClassNotFoundException: java.lang.invoke.StringConcatFactory
-  failOnMissingClasses = false
   ignoreFailures = true
 }
 

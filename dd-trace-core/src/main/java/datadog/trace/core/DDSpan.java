@@ -3,6 +3,7 @@ package datadog.trace.core;
 import static datadog.trace.api.DDTags.TRACE_START_TIME;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_END_TO_END_DURATION_MS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MANUAL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -29,7 +30,6 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -115,7 +115,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    */
   private volatile int longRunningVersion = 0;
 
-  protected final List<AgentSpanLink> links;
+  private static final List<AgentSpanLink> EMPTY = Collections.emptyList();
+  protected volatile List<AgentSpanLink> links;
 
   /**
    * Spans should be constructed using the builder, not by calling the constructor directly.
@@ -143,7 +144,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       context.getTraceCollector().touch(); // external clock: explicitly update lastReferenced
     }
 
-    this.links = links == null ? new CopyOnWriteArrayList<>() : new CopyOnWriteArrayList<>(links);
+    this.links = links == null || links.isEmpty() ? EMPTY : new CopyOnWriteArrayList<>(links);
   }
 
   public boolean isFinished() {
@@ -392,7 +393,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   public final DDSpan setTag(final String tag, final String value) {
     if (value == null || value.isEmpty()) {
       // Remove the tag
-      context.setTag(tag, null);
+      context.removeTag(tag);
     } else {
       context.setTag(tag, value);
     }
@@ -402,6 +403,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public final DDSpan setTag(final String tag, final boolean value) {
     context.setTag(tag, value);
+    return this;
+  }
+
+  @Override
+  public final DDSpan setTag(TagMap.EntryReader entry) {
+    context.setTag(entry);
     return this;
   }
 
@@ -471,6 +478,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public DDSpan setMetric(final CharSequence metric, final double value) {
     context.setMetric(metric, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setMetric(TagMap.EntryReader entry) {
+    context.setMetric(entry);
     return this;
   }
 
@@ -569,8 +582,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public final DDSpan setServiceName(final String serviceName) {
-    context.setServiceName(serviceName);
+    setServiceName(serviceName, MANUAL);
     return this;
+  }
+
+  @Override
+  public void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+    context.setServiceName(serviceName, source);
+  }
+
+  @Override
+  public CharSequence getServiceNameSource() {
+    return context.getServiceNameSource();
   }
 
   @Override
@@ -623,6 +646,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
       int samplingPriority, CharSequence rate, double sampleRate, int samplingMechanism) {
     if (context.setSamplingPriority(samplingPriority, samplingMechanism)) {
       setMetric(rate, sampleRate);
+      if (samplingMechanism == SamplingMechanism.AGENT_RATE
+          || samplingMechanism == SamplingMechanism.LOCAL_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_USER_RULE
+          || samplingMechanism == SamplingMechanism.REMOTE_ADAPTIVE_RULE) {
+        context.getPropagationTags().updateKnuthSamplingRate(sampleRate);
+      }
     }
     return this;
   }
@@ -735,12 +764,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processServiceTags() {
-    context.earlyProcessTags(links);
+    context.earlyProcessTags(this);
   }
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, links);
+    context.processTagsAndBaggage(consumer, longRunningVersion, this);
   }
 
   @Override
@@ -854,10 +883,44 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
+  List<? extends AgentSpanLink> getLinks() {
+    return this.links;
+  }
+
   @Override
   public void addLink(AgentSpanLink link) {
-    if (link != null) {
-      this.links.add(link);
+    if (link == null) {
+      return;
+    }
+
+    // If links are initially null / empty, then the shared placeholder List EMPTY is used.
+    // Bacause EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
+    // owned by this DDSpan
+
+    // Creation of the CopyOnWriteArrayList is done via double checking locking using volatile &
+    // synchronized
+
+    // If before or inside the synchronized block, links no longer points to EMPTY,
+    // then this thread or another thread has already handled the list construction,
+    // so just add to the list
+
+    // If links still points to EMPTY inside the synchronized block, then construct a new
+    // CopyOnWriteArrayList containing the newly added link
+
+    List<AgentSpanLink> links = this.links;
+    if (links != EMPTY) {
+      links.add(link);
+      return;
+    }
+
+    synchronized (this) {
+      links = this.links;
+      if (links != EMPTY) {
+        links.add(link);
+      } else {
+        this.links = new CopyOnWriteArrayList<>(Collections.singletonList(link));
+      }
     }
   }
 
@@ -879,8 +942,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public boolean isOutbound() {
-    Object spanKind = context.getTag(Tags.SPAN_KIND);
-    return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+    byte ordinal = context.getSpanKindOrdinal();
+    return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
   }
 
   @Override

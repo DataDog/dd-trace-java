@@ -43,9 +43,9 @@ dependencies {
   testImplementation group: 'org.testcontainers', name:'mysql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'postgresql', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.testcontainers', name:'mssqlserver', version: libs.versions.testcontainers.get()
-  testImplementation group: 'org.testcontainers', name:'oracle-xe', version: '1.20.4'
+  testImplementation group: 'org.testcontainers', name:'oracle-xe', version: libs.versions.testcontainers.get()
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   // Test pre jdk 1.6 H2
   oldH2TestImplementation(group: 'com.h2database', name: 'h2') {
@@ -101,4 +101,3 @@ tasks.named("latestDepJava11Test", Test) {
     minJavaVersion = JavaVersion.VERSION_11
   }
 }
-

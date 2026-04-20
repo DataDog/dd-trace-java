@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_clients38;
 import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.consumer.OffsetAndMetadata;
@@ -32,11 +33,12 @@ public class DDOffsetCommitCallback implements OffsetCommitCallback {
       String clusterId = null;
 
       if (kafkaConsumerInfo != null) {
-        consumerGroup = kafkaConsumerInfo.getConsumerGroup().get();
-        Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().get();
+        consumerGroup = kafkaConsumerInfo.getConsumerGroup().orElse(null);
+        Metadata consumerMetadata = kafkaConsumerInfo.getmetadata().orElse(null);
         if (consumerMetadata != null) {
-          clusterId =
-              InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+          MetadataState metadataState =
+              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+          clusterId = metadataState != null ? metadataState.clusterId : null;
         }
       }
 

@@ -244,7 +244,7 @@ abstract class Netty38ServerTest extends HttpServerTest<ServerBootstrap> {
     void awaitConnected() {
       while (WsEndpoint.activeSession == null) {
         synchronized (WsEndpoint) {
-          WsEndpoint.wait()
+          WsEndpoint.wait(1000)
         }
       }
     }

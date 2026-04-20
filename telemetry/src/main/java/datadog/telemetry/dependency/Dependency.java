@@ -178,7 +178,7 @@ public final class Dependency {
       groupId = parseGroupId(bundleSymbolicName, fileNameArtifact);
       if (!isValidGroupId(groupId)) {
         groupId = parseGroupId(bundleSymbolicName, bundleName);
-        ;
+
         if (!isValidGroupId(groupId)) {
           groupId = null;
         }

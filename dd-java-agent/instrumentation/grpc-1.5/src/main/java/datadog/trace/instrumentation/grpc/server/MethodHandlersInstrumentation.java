@@ -6,24 +6,16 @@ import static datadog.trace.bootstrap.debugger.DebuggerContext.marker;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
+public class MethodHandlersInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   private static final ElementMatcher<TypeDescription> METHOD_HANDLERS =
       nameEndsWith("$MethodHandlers");
-
-  public MethodHandlersInstrumentation() {
-    super("grpc", "grpc-server", "grpc-server-code-origin");
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -33,11 +25,6 @@ public class MethodHandlersInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return METHOD_HANDLERS;
-  }
-
-  @Override
-  public boolean isEnabled() {
-    return super.isEnabled() && !JavaVirtualMachine.isGraalVM();
   }
 
   @Override

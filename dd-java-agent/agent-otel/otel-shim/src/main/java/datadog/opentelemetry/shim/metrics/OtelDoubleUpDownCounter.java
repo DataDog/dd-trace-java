@@ -1,0 +1,77 @@
+package datadog.opentelemetry.shim.metrics;
+
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder.ofDoubles;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
+
+import datadog.trace.bootstrap.otel.metrics.OtelInstrument;
+import datadog.trace.bootstrap.otel.metrics.OtelInstrumentBuilder;
+import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.DoubleUpDownCounter;
+import io.opentelemetry.api.metrics.DoubleUpDownCounterBuilder;
+import io.opentelemetry.api.metrics.ObservableDoubleMeasurement;
+import io.opentelemetry.api.metrics.ObservableDoubleUpDownCounter;
+import io.opentelemetry.context.Context;
+import java.util.function.Consumer;
+import javax.annotation.ParametersAreNonnullByDefault;
+
+@ParametersAreNonnullByDefault
+final class OtelDoubleUpDownCounter extends OtelInstrument implements DoubleUpDownCounter {
+  OtelDoubleUpDownCounter(OtelMetricStorage storage) {
+    super(storage);
+  }
+
+  @Override
+  public void add(double value) {
+    add(value, Attributes.empty());
+  }
+
+  @Override
+  public void add(double value, Attributes attributes) {
+    storage.recordDouble(value, attributes);
+  }
+
+  @Override
+  public void add(double value, Attributes attributes, Context unused) {
+    add(value, attributes);
+  }
+
+  static final class Builder implements DoubleUpDownCounterBuilder {
+    private final OtelMeter meter;
+    private final OtelInstrumentBuilder builder;
+
+    Builder(OtelMeter meter, OtelInstrumentBuilder builder) {
+      this.meter = meter;
+      this.builder = ofDoubles(builder, UP_DOWN_COUNTER);
+    }
+
+    @Override
+    public DoubleUpDownCounterBuilder setDescription(String description) {
+      builder.setDescription(description);
+      return this;
+    }
+
+    @Override
+    public DoubleUpDownCounterBuilder setUnit(String unit) {
+      builder.setUnit(unit);
+      return this;
+    }
+
+    @Override
+    public DoubleUpDownCounter build() {
+      return new OtelDoubleUpDownCounter(
+          meter.registerStorage(builder, OtelMetricStorage::newDoubleSumStorage));
+    }
+
+    @Override
+    public ObservableDoubleMeasurement buildObserver() {
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newDoubleSumStorage);
+    }
+
+    @Override
+    public ObservableDoubleUpDownCounter buildWithCallback(
+        Consumer<ObservableDoubleMeasurement> callback) {
+      return meter.registerObservableCallback(callback, buildObserver());
+    }
+  }
+}

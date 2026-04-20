@@ -12,6 +12,7 @@ stages:
   - benchmarks
   - macrobenchmarks
   - tests
+  - test-summary
   - exploration-tests
   - ci-visibility-tests
   - generate-signing-key
@@ -25,12 +26,13 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.14.3" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  BUILDER_IMAGE_VERSION_PREFIX: "v25.11-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "v25.05-")
+  BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
+  BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
-  DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/ # the latest "stable" version is LTS v25
+  DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
     description: "Enable profiling of tests"
     value: "false"
@@ -40,6 +42,10 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 40_000_000
 
 # trigger new commit cancel
 workflow:
@@ -61,7 +67,6 @@ workflow:
       - "17"
       - "21"
       - "25"
-      - "26"
       - "semeru11"
       - "oracle8"
       - "zulu8"
@@ -69,7 +74,7 @@ workflow:
       - "ibm8"
       - "zulu11"
       - "semeru17"
-      # - "stable"
+      - "tip"
     CI_SPLIT: ["1/1"]
 
 # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
@@ -109,16 +114,28 @@ default:
 .normalize_node_index: &normalize_node_index
   - if [ "$CI_NO_SPLIT" == "true" ] ; then CI_NODE_INDEX=1; CI_NODE_TOTAL=1; fi # A job uses parallel but doesn't intend to split by index
   - if [ -n "$CI_SPLIT" ]; then CI_NODE_INDEX="${CI_SPLIT%%/*}"; CI_NODE_TOTAL="${CI_SPLIT##*/}"; fi
-  - echo "CI_NODE_TOTAL=${CI_NODE_TOTAL}, CI_NODE_INDEX=$CI_NODE_INDEX"
-  - export NORMALIZED_NODE_TOTAL=${CI_NODE_TOTAL:-1}
-  - ONE_INDEXED_NODE_INDEX=${CI_NODE_INDEX:-1}; export NORMALIZED_NODE_INDEX=$((ONE_INDEXED_NODE_INDEX - 1))
-  - echo "NORMALIZED_NODE_TOTAL=${NORMALIZED_NODE_TOTAL}, NORMALIZED_NODE_INDEX=$NORMALIZED_NODE_INDEX"
+  - echo "CI_NODE_INDEX=$CI_NODE_INDEX, CI_NODE_TOTAL=${CI_NODE_TOTAL}"
 
 .cgroup_info: &cgroup_info
   - source .gitlab/gitlab-utils.sh
   - gitlab_section_start "cgroup-info" "cgroup info"
   - .gitlab/cgroup-info.sh
   - gitlab_section_end "cgroup-info"
+
+.container_info: &container_info
+  - |
+    # Containers and processes are limited to a 1-hour window, and expire after 36 hours
+    if [ -n "$CI_JOB_STARTED_AT" ]; then
+      FROM_EPOCH_MS=$(date -d "$CI_JOB_STARTED_AT" +%s)000
+      TO_EPOCH_MS=$((FROM_EPOCH_MS + 3600000))
+      TIME_PARAMS="from_ts=${FROM_EPOCH_MS}&to_ts=${TO_EPOCH_MS}&"
+    else
+      TIME_PARAMS=""
+    fi
+
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
@@ -130,15 +147,16 @@ default:
     fi
 
 .gradle_build: &gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 2
-    GRADLE_MEM: 3G
-    KUBERNETES_CPU_REQUEST: 8
-    KUBERNETES_MEMORY_REQUEST: 10Gi
-    KUBERNETES_MEMORY_LIMIT: 10Gi
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 4G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -168,6 +186,7 @@ default:
       unprotect: true
   before_script:
     - source .gitlab/gitlab-utils.sh
+    - *container_info
     # Akka token added to SSM from https://account.akka.io/token
     - export ORG_GRADLE_PROJECT_akkaRepositoryToken=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.akka_repo_token --with-decryption --query "Parameter.Value" --out text)
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -184,11 +203,11 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
-    # for weird reasons, gradle will always "chmod 700" the .gradle folder
-    # with Gitlab caching, .gradle is always owned by root and thus gradle's chmod invocation fails
+    # for weird reasons, Gradle will always "chmod 700" the .gradle folder
+    # with Gitlab caching, .gradle is always owned by root and thus Gradle's chmod invocation fails
     # This dance is a hack to have .gradle owned by the Gitlab runner user
     - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
     - cp -r .gradle .gradle-copy
@@ -198,14 +217,18 @@ default:
     - gitlab_section_end "gradle-dance"
   after_script:
     - *cgroup_info
+    - *container_info
 
 # Check and fail early if maven central credentials are incorrect. When a new token is generated
 # on the central publisher portal, it invalidates the old one. This check prevents going further.
 # See https://datadoghq.atlassian.net/wiki/x/Oog5OgE
 maven-central-pre-release-check:
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}base
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
   rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      allow_failure: false
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
       allow_failure: false
@@ -213,11 +236,14 @@ maven-central-pre-release-check:
     - |
       MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
       MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-      # See https://central.sonatype.org/publish/publish-portal-api/
-      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if [ $? -ne 0 ]; then
-        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
+      # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+      # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
+      AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
+      if ! curl --silent --show-error --fail \
+        "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
+        --header "$AUTHORIZATION_HEADER" \
+        > /dev/null; then
+        echo "Failed to authenticate tokens against maven central staging API. Check credentials and see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
         exit 1
       fi
 
@@ -281,10 +307,6 @@ build_tests:
   variables:
     BUILD_CACHE_POLICY: push
     DEPENDENCY_CACHE_POLICY: pull
-    GRADLE_MEM: 4G
-    GRADLE_WORKERS: 3
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
   parallel:
     matrix:
       - GRADLE_TARGET: ":baseTest"
@@ -365,14 +387,18 @@ spotless:
   stage: tests
   needs: []
   variables:
-    # TODO: Latest version of spotless is failing with OOM on CI only.
-    # Setting 8G memory solving this issue, but we need to solve it eventually.
-    GRADLE_MEM: 8G
-    KUBERNETES_MEMORY_REQUEST: 18Gi
-    KUBERNETES_MEMORY_LIMIT: 18Gi
+    GRADLE_MEMORY_MAX: 6G
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
+
+check-instrumentation-naming:
+  extends: .gradle_build
+  stage: tests
+  needs: [ ]
+  script:
+    - ./gradlew --version
+    - ./gradlew checkInstrumentationNaming
 
 config-inversion-linter:
   extends: .gradle_build
@@ -380,11 +406,11 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+    - ./gradlew checkConfigurations
 
 test_published_artifacts:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
   stage: tests
   needs: [ build ]
   variables:
@@ -420,18 +446,23 @@ test_published_artifacts:
   script:
     - *gitlab_base_ref_params
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -PskipSpotless -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew $GRADLE_TARGET -x spotlessCheck $GRADLE_PARAMS -PskipTests -PrunBuildSrcTests -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh --destination ./check_reports --move
+    - .gitlab/collect_results.sh
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./check_reports
+      - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
   retry:
     max: 2
     when:
@@ -444,6 +475,7 @@ test_published_artifacts:
 
 check_build_src:
   extends: .check_job
+  needs: []
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 
@@ -488,18 +520,25 @@ muzzle:
   script:
     - export SKIP_BUILDSCAN="true"
     - ./gradlew --version
-    - ./gradlew :runMuzzle -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS
+    - ./gradlew :runMuzzle -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
+    - *set_datadog_api_keys
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
+    - .gitlab/collect_results.sh
+    - .gitlab/upload_ciapp.sh $CACHE_TYPE
     - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./reports
+      - ./results
       - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
 
 muzzle-dep-report:
   extends: .gradle_build
@@ -512,6 +551,7 @@ muzzle-dep-report:
     - ./gradlew --version
     - ./gradlew generateMuzzleReport muzzleInstrumentationReport $GRADLE_ARGS
   after_script:
+    - *container_info
     - *cgroup_info
     - .gitlab/collect_muzzle_deps.sh
   artifacts:
@@ -537,16 +577,11 @@ muzzle-dep-report:
 
 .test_job:
   extends: .gradle_build
-  image: ghcr.io/datadog/dd-trace-java-docker-build:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
   needs: [ build_tests ]
   stage: tests
   variables:
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
-    KUBERNETES_CPU_REQUEST: 10
-    GRADLE_WORKERS: 4
-    GRADLE_MEM: 3G
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -560,6 +595,10 @@ muzzle-dep-report:
       when: on_success
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *gitlab_base_ref_params
     - >
@@ -568,12 +607,13 @@ muzzle-dep-report:
       export PROFILER_COMMAND="-XX:StartFlightRecording=settings=profile,filename=/tmp/${CI_JOB_NAME_SLUG}.jfr,dumponexit=true";
       fi
     - *prepare_test_env
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEM -Xmx$GRADLE_MEM $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp' -Ddatadog.forkedMaxHeapSize=1024M -Ddatadog.forkedMinHeapSize=128M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX $PROFILER_COMMAND -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -PtaskPartitionCount=$NORMALIZED_NODE_TOTAL -PtaskPartition=$NORMALIZED_NODE_INDEX $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue || $CONTINUE_ON_FAILURE
   after_script:
     - *restore_pretest_env
     - *set_datadog_api_keys
+    - *container_info
     - *cgroup_info
     - source .gitlab/gitlab-utils.sh
     - gitlab_section_start "collect-reports" "Collecting reports"
@@ -582,6 +622,7 @@ muzzle-dep-report:
     - .gitlab/collect_results.sh
     - .gitlab/upload_ciapp.sh $CACHE_TYPE $testJvm
     - gitlab_section_end "collect-reports"
+    - .gitlab/count_tests.sh "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
     - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
     - echo -e "${TEXT_BOLD}${TEXT_YELLOW}See test results in Datadog:${TEXT_CLEAR} https://app.datadoghq.com/ci/test/runs?query=test_level%3Atest%20%40test.service%3Add-trace-java%20%40ci.pipeline.id%3A${CI_PIPELINE_ID}%20%40ci.job.name%3A%22${URL_ENCODED_JOB_NAME}%22"
   artifacts:
@@ -590,6 +631,7 @@ muzzle-dep-report:
       - ./reports.tar
       - ./profiles.tar
       - ./results
+      - './test_counts_*.json'
       - '.gradle/daemon/*/*.out.log'
     reports:
       junit: results/*.xml
@@ -609,7 +651,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.1
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -656,7 +698,7 @@ test_inst:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
-    matrix: *test_matrix_6
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -665,7 +707,7 @@ test_inst_latest:
     CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - testJvm: ["8", "17", "21", "25"] # the latest "stable" version is LTS v25
+      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
@@ -717,7 +759,7 @@ test_debugger:
   variables:
     GRADLE_TARGET: ":debuggerTest"
     CACHE_TYPE: "base"
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "stable" version is LTS v25
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|semeru8)$/ # the latest "tip" version is LTS v25
   parallel:
     matrix: *test_matrix
 
@@ -762,6 +804,30 @@ test_smoke_semeru8_debugger:
     NON_DEFAULT_JVMS: "true"
     testJvm: "semeru8"
 
+aggregate_test_counts:
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: test-summary
+  # Note: No explicit 'needs' or 'dependencies' required
+  # By default, GitLab CI automatically downloads artifacts from ALL jobs in previous stages
+  # This job collects test_counts_*.json files from all test/check jobs via stage ordering
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
+  script:
+    - *set_datadog_api_keys
+    - .gitlab/aggregate_test_counts.sh
+  artifacts:
+    when: always
+    paths:
+      - test_counts_summary.json
+      - test_counts_report.md
+
 deploy_to_profiling_backend:
   stage: publish
   needs: [ build ]
@@ -785,32 +851,6 @@ deploy_to_profiling_backend:
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
-
-trigger_tibco_tests:
-  stage: tests
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
-      when: on_success
-    - when: manual
-      allow_failure: true
-  trigger:
-    project: DataDog/tibco-testing
-    branch: main
-    strategy: depend
-  variables:
-    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
-    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
-    FORCE_TRIGGER: $FORCE_TRIGGER
 
 deploy_to_di_backend:manual:
   stage: publish
@@ -856,6 +896,31 @@ deploy_to_maven_central:
     - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
     - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
     - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID publishToSonatype closeSonatypeStagingRepository -PskipTests $GRADLE_ARGS
+  artifacts:
+    paths:
+      - 'workspace/dd-java-agent/build/libs/*.jar'
+      - 'workspace/dd-trace-api/build/libs/*.jar'
+      - 'workspace/dd-trace-ot/build/libs/*.jar'
+
+deploy_snapshot_with_ddprof_snapshot:
+  extends: .gradle_build
+  stage: publish
+  needs: [ build ]
+  variables:
+    CACHE_TYPE: "lib"
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    # Manual trigger only - for testing with ddprof snapshot versions
+    - when: manual
+      allow_failure: true
+  script:
+    - export MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
+    - export MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PRIVATE_KEY=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_private_key --with-decryption --query "Parameter.Value" --out text)
+    - export GPG_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.signing.gpg_passphrase --with-decryption --query "Parameter.Value" --out text)
+    - echo "Publishing dd-trace-java snapshot with ddprof snapshot dependency"
+    - ./gradlew -PbuildInfo.build.number=$CI_JOB_ID -PddprofUseSnapshot publishToSonatype -PskipTests $GRADLE_ARGS
   artifacts:
     paths:
       - 'workspace/dd-java-agent/build/libs/*.jar'
@@ -984,6 +1049,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
+    SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:

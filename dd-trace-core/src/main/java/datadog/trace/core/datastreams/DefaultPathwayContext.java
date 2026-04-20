@@ -200,10 +200,10 @@ public class DefaultPathwayContext implements PathwayContext {
 
     @Override
     public void accept(String key, String value) {
-      if (PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
+      if (value != null && PROPAGATION_KEY_BASE64.equalsIgnoreCase(key)) {
         try {
           extractedContext = decode(timeSource, serviceNameOverride, value);
-        } catch (IOException ignored) {
+        } catch (Throwable ignored) {
         }
       }
     }

@@ -15,7 +15,7 @@ import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.config.LoggerConfig;
 
 @AutoService(InstrumenterModule.class)
-public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
+public class LoggerConfigInstrumentation extends InstrumenterModule
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public LoggerConfigInstrumentation() {
@@ -24,8 +24,17 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && InstrumenterConfig.get().isAgentlessLogSubmissionEnabled();
+    // this advice applicability is not completely apriori so we need to load every time and do
+    // enablement at runtime.
+    return true;
+  }
+
+  @Override
+  public boolean isEnabled() {
+    final InstrumenterConfig cfg = InstrumenterConfig.get();
+    return super.isEnabled()
+        && ((cfg.isTraceEnabled() && cfg.isAgentlessLogSubmissionEnabled())
+            || cfg.isAppLogsCollectionEnabled());
   }
 
   @Override
@@ -62,10 +71,10 @@ public class LoggerConfigInstrumentation extends InstrumenterModule.Tracing
         }
       }
 
-      DatadogAppender appender = new DatadogAppender("datadog", null);
+      Config config = Config.get();
+      DatadogAppender appender = new DatadogAppender("datadog", null, config);
       appender.start();
 
-      Config config = Config.get();
       Level level = Level.valueOf(config.getAgentlessLogSubmissionLevel());
       loggerConfig.addAppender(appender, level, null);
     }

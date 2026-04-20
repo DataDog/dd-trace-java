@@ -55,6 +55,7 @@ class SpringBootMongoIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   protected Set<String> expectedTraces() {
+    // MongoDB driver creates mongo.query spans as children of repository.operation spans
     return ["[servlet.request[spring.handler[repository.operation[mongo.query]]]]"]
   }
 

@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.9'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   version2_3_23TestImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.23'
 }

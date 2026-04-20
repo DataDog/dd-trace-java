@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.DATABASE_CONNECTION_ID;
 import static datadog.trace.api.gateway.Events.DATABASE_SQL_QUERY_ID;
 import static datadog.trace.api.gateway.Events.EXEC_CMD_ID;
 import static datadog.trace.api.gateway.Events.FILE_LOADED_ID;
+import static datadog.trace.api.gateway.Events.FILE_WRITTEN_ID;
 import static datadog.trace.api.gateway.Events.GRAPHQL_SERVER_REQUEST_MESSAGE_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_METHOD_ID;
 import static datadog.trace.api.gateway.Events.GRPC_SERVER_REQUEST_MESSAGE_ID;
@@ -18,6 +19,7 @@ import static datadog.trace.api.gateway.Events.REQUEST_BODY_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_BODY_START_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_CLIENT_SOCKET_ADDRESS_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_ENDED_ID;
+import static datadog.trace.api.gateway.Events.REQUEST_FILES_FILENAMES_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_DONE_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_HEADER_ID;
 import static datadog.trace.api.gateway.Events.REQUEST_INFERRED_CLIENT_ADDRESS_ID;
@@ -360,6 +362,7 @@ public class InstrumentationGateway {
       case GRAPHQL_SERVER_REQUEST_MESSAGE_ID:
       case REQUEST_BODY_CONVERTED_ID:
       case RESPONSE_BODY_ID:
+      case REQUEST_FILES_FILENAMES_ID:
         return (C)
             new BiFunction<RequestContext, Object, Flow<Void>>() {
               @Override
@@ -445,6 +448,7 @@ public class InstrumentationGateway {
             };
       case DATABASE_SQL_QUERY_ID:
       case FILE_LOADED_ID:
+      case FILE_WRITTEN_ID:
       case SHELL_CMD_ID:
         return (C)
             new BiFunction<RequestContext, String, Flow<Void>>() {

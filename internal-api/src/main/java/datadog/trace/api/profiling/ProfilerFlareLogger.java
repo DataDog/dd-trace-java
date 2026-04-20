@@ -7,10 +7,14 @@ import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.zip.ZipOutputStream;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.slf4j.helpers.FormattingTuple;
 import org.slf4j.helpers.MessageFormatter;
 
 public final class ProfilerFlareLogger implements TracerFlare.Reporter {
+  private static final Logger log = LoggerFactory.getLogger(ProfilerFlareLogger.class);
+
   private static final class Singleton {
     private static final ProfilerFlareLogger INSTANCE = new ProfilerFlareLogger();
   }
@@ -36,6 +40,9 @@ public final class ProfilerFlareLogger implements TracerFlare.Reporter {
    * @return Returns {@literal true} if the message was stored for flare, {@literal false} otherwise
    */
   public boolean log(String msgFormat, Object... args) {
+    // if something is important enough to store in flare, perhaps logging at WARN level is fine
+    log.warn(msgFormat, args);
+
     FormattingTuple ft = MessageFormatter.arrayFormat(msgFormat, args);
     StringBuilder sb =
         new StringBuilder(Instant.now().atZone(ZoneOffset.UTC).toString())

@@ -1,0 +1,20 @@
+plugins {
+  id 'java-test-fixtures'
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
+
+  implementation project(':dd-trace-core')
+
+  testFixturesCompileOnly group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
+  testFixturesCompileOnly(libs.bundles.groovy)
+  testFixturesCompileOnly(libs.bundles.spock)
+  testFixturesImplementation(project(':dd-java-agent:instrumentation-testing'))
+  testFixturesImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
+
+  //testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
+  testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
+}

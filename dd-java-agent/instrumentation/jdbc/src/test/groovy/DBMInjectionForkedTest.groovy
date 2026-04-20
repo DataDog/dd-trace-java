@@ -1,6 +1,11 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.BaseHash
+import datadog.trace.api.DDSpanTypes
+import datadog.trace.api.ProcessTags
+import datadog.trace.api.config.GeneralConfig
 import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import test.TestConnection
 import test.TestPreparedStatement
 import test.TestStatement
@@ -75,5 +80,41 @@ class DBMAppendInjectionForkedTest extends InjectionTest {
 
     then:
     assert statement.sql == "${query} /*${serviceInjection},traceparent='00-00000000000000000000000000000004-0000000000000003-01'*/"
+  }
+}
+
+class DBMBaseHashInjectionForkedTest extends InjectionTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_INJECT_SQL_BASEHASH, "true")
+    injectSysConfig(GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
+  }
+
+  def "base hash tag is set on span and matches the one in the SQL comment"() {
+    setup:
+    ProcessTags.reset()
+    BaseHash.updateBaseHash(123456789L)
+    def connection = new TestConnection(false)
+
+    when:
+    def statement = connection.prepareStatement(query) as TestPreparedStatement
+    statement.execute()
+
+    then:
+    // the same hash should be in the SQL comment
+    assert statement.sql.contains("ddsh='123456789'")
+    // and the base hash should be set on the jdbc span
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "123456789"
+          }
+        }
+      }
+    }
   }
 }

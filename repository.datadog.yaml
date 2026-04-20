@@ -1,4 +1,11 @@
 ---
 schema-version: v1
-kind: mergequeue
-enable: false
+kind: mergequeue # https://datadoghq.atlassian.net/wiki/x/XgUQug
+enable: true
+merge_method: squash
+skip_labels: true
+gitlab_check_enable: true
+branches:
+  master:
+    allow_skip_checks: true
+    require_reason_for_skip_checks: true

@@ -1,7 +1,7 @@
 package datadog.trace.common.writer;
 
 import datadog.communication.ddagent.DroppingPolicy;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.intake.TrackType;

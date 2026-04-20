@@ -46,7 +46,7 @@ abstract class GitCommandValueSource @Inject constructor(
               (exit code: ${result.exitValue})
             Output:
             $output
-            """.trimIndent()
+          """.trimIndent()
         )
       }
     }

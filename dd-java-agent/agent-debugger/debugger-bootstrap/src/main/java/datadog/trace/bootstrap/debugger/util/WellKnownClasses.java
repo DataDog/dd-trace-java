@@ -141,7 +141,6 @@ public class WellKnownClasses {
     } catch (NoSuchMethodException e) {
       getModuleNameMethod = null;
     }
-    ;
   }
 
   private static final Map<String, Function<Object, CapturedContext.CapturedValue>>
@@ -193,7 +192,8 @@ public class WellKnownClasses {
           "java.", // JDK base module
           "com.google.protobuf.", // Google ProtoBuf
           "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil." // fastutil
+          "it.unimi.dsi.fastutil.", // fastutil
+          "org.agrona.collections." // Agrona
           );
 
   private static final List<String> SAFE_MAP_PACKAGES =
@@ -201,7 +201,8 @@ public class WellKnownClasses {
           "java.", // JDK base module
           "com.google.protobuf.", // Google ProtoBuf
           "com.google.common.collect.", // Google Guava
-          "it.unimi.dsi.fastutil." // fastutil
+          "it.unimi.dsi.fastutil.", // fastutil
+          "org.agrona.collections." // Agrona
           );
 
   /**

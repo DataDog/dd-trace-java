@@ -2,7 +2,7 @@
 
 ## The Different Types of Tests
 
-The project leverages different types of test:
+The project leverages different types of tests:
 
 1. The most common ones are **unit tests**.  
    They are intended to test a single isolated feature, and rely on [JUnit 5 framework](https://junit.org/junit5/docs/current/user-guide/) or [Spock 2 framework](https://spockframework.org/spock/docs/).
@@ -24,24 +24,24 @@ The project leverages different types of test:
    They are dedicated to test the java agent (`:dd-java-agent`) behavior against demo applications to prevent any regression. All smoke tests are located into the `:dd-smoke-tests` module. 
 
 6. The last type of test is **system tests**.  
-   They are intended to test behavior consistency between all the client libraries, and rely on [their on GitHub repository](https://github.com/DataDog/system-tests).
+   They are intended to test behavior consistency between all the client libraries, and rely on [their own GitHub repository](https://github.com/DataDog/system-tests).
 
 > [!TIP]
 > Most of the instrumented tests and integration tests are instrumentation tests.
 
 ### Forked Tests
 
-Independently of the type of test, test can be run in another (forked) JVM than the one running Gradle.
+Independent of the type of test, test can be run in another (forked) JVM than the one running Gradle.
 This behavior is implicit when the test class name is suffixed by `ForkedTest` (eg `SomeFeatureForkedTest`).
 This mechanism exists to make sure either java agent state or static data are reset between test runs.
 
 > [!NOTE]
-> Forked tests are not run part of the gradle `test` task.
+> Forked tests are not run as part of the gradle `test` task.
 > In order to run them, you need to use the `forkedTest` task instead.
 
 ### Flaky Tests
 
-If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead into recurrent unexpected errors in continuous integration.
+If a test runs unreliably, or doesn't have a fully deterministic behavior, this will lead to recurrent unexpected errors in continuous integration.
 In order to identify such tests and avoid the continuous integration to fail, they are marked as _flaky_ and must be annotated with the `@Flaky` annotation.
 
 > [!TIP]
@@ -62,25 +62,16 @@ Instead, you can run tests for a specific module (ex. `:dd-java-agent:instrument
 
 ### Running Tests on Another JVM
 
-To run tests on a different JVM than the one used for doing the build, you need two things:
+To run tests on a different JVM than the one used for the build, you can specify it using the `-PtestJvm=` command line option to the Gradle task:
 
-1) An environment variable pointing to the JVM to use on the form `JAVA_[JDKNAME]_HOME`,
-   e.g. `JAVA_ZULU15_HOME`, `JAVA_GRAALVM17_HOME`
-
-2) A command line option to the gradle task on the form `-PtestJvm=[JDKNAME]`,
-   e.g. `-PtestJvm=ZULU15`, `-PtestJvm=GRAALVM17`
-
-> [!NOTE]
-> Please note that the JDK name needs to end with the JDK version, e.g. `11`, `ZULU15`, `ORACLE8`, `GRAALVM17`, etc.
+* `-PtestJvm=X` like `-PtestJvm=8`, `-PtestJvm=25` to run with a specific JDK version,
+* `-PtestJvm=/path/to/jdk` to run with a given JDK,
 
 ### Running System Tests
 
-The system tests are setup to run on continuous integration as pull request check.
-
-If you would like to run them locally, you would have to grab [a local copy of the system tests](https://github.com/DataDog/system-tests), and run them from there.
-You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests. 
-
-In the CI System tests will be run with the pipeline defined [`DataDog/system-tests/blob/main/.github/workflows/system-tests.yml`](https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)
+The system tests are setup to run on continuous integration (CI) as pull request check using [a dedicated workflow]((https://github.com/DataDog/system-tests/blob/main/.github/workflows/system-tests.yml)).
+To run them locally, grab a local copy of [the system tests](https://github.com/DataDog/system-tests) and run them from there.
+You can make them use your development version of `dd-trace-java` by [dropping the built artifacts to the `/binaries` folder](https://github.com/DataDog/system-tests/blob/main/docs/execute/binaries.md#java-library) of your local copy of the system tests.
 
 ### The APM test agent
 
@@ -90,8 +81,7 @@ handling all traces during test runs and performing a number of `Trace Checks`.
 Trace Check results are returned within the `Get APM Test Agent Trace Check Results` step for all instrumentation test jobs.
 Check [trace invariant checks](https://github.com/DataDog/dd-apm-test-agent#trace-invariant-checks) for more information.
 
-The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered,
-ands information on trace checks being performed.
+The APM Test Agent also emits helpful logging, including logging received traces' headers, spans, errors encountered, and information on trace checks being performed.
 
 Logs can be viewed in GitLab within the Test-Agent container step for all instrumentation test suites, e.g. the `test_inst` jobs.
 Read more about [the APM Test Agent](https://github.com/datadog/dd-apm-test-agent#readme).

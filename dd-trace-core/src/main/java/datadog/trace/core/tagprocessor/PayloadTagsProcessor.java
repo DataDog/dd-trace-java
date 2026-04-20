@@ -1,12 +1,13 @@
 package datadog.trace.core.tagprocessor;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.telemetry.LogCollector;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.util.JsonStreamParser;
 import datadog.trace.payloadtags.PayloadTagsData;
@@ -71,7 +72,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     int spanMaxTags = maxTags + unsafeTags.size();
     for (Map.Entry<String, RedactionRules> tagPrefixRedactionRules :
         redactionRulesByTagPrefix.entrySet()) {
@@ -211,7 +212,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     private boolean notRedacted(PathCursor path) {
       if (redactionRules.findMatching(path) != null) {
-        collectedTags.put(path.toString(tagPrefix), REDACTED);
+        collectedTags.set(path.toString(tagPrefix), REDACTED);
         return false;
       }
       return true;
@@ -219,32 +220,32 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     @Override
     public void booleanValue(PathCursor path, boolean value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void stringValue(PathCursor path, String value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void intValue(PathCursor path, int value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void longValue(PathCursor path, long value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void doubleValue(PathCursor path, double value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void nullValue(PathCursor path) {
-      collectedTags.put(path.toString(tagPrefix), null);
+      collectedTags.set(path.toString(tagPrefix), null);
     }
 
     @Override
@@ -256,13 +257,14 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
       if (collectedTags.size() < maxTags) {
         return true;
       }
-      collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+      collectedTags.set(DD_PAYLOAD_TAGS_INCOMPLETE, true);
       return false;
     }
 
     @Override
     public void expandValueFailed(PathCursor path, Exception exception) {
-      log.debug("Failed to expand value at path '{}'", path.toString(""), exception);
+      log.debug(
+          EXCLUDE_TELEMETRY, "Failed to expand value at path '{}'", path.toString(""), exception);
     }
   }
 }

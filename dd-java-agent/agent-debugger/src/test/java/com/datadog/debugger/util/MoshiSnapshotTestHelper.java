@@ -39,6 +39,8 @@ import datadog.trace.bootstrap.debugger.el.DebuggerScript;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
+import java.time.Duration;
+import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -90,11 +92,18 @@ public class MoshiSnapshotTestHelper {
   }
 
   public static class SnapshotJsonFactory implements JsonAdapter.Factory {
+    private final Duration captureTimeOut;
+
+    public SnapshotJsonFactory(Duration captureTimeout) {
+      this.captureTimeOut = captureTimeout;
+    }
+
     @Override
     public JsonAdapter<?> create(Type type, Set<? extends Annotation> set, Moshi moshi) {
       if (Types.equals(type, Snapshot.Captures.class)) {
         return new MoshiSnapshotTestHelper.CapturesAdapter(
             moshi,
+            captureTimeOut,
             new CapturedContextAdapter(
                 moshi, new CapturedValueAdapter(), new CapturedThrowableAdapter(moshi)));
       }
@@ -113,8 +122,9 @@ public class MoshiSnapshotTestHelper {
   }
 
   public static Moshi createMoshiSnapshot() {
+    // By default, for tests we have a capture timeout of 5 seconds
     return new Moshi.Builder()
-        .add(new MoshiSnapshotTestHelper.SnapshotJsonFactory())
+        .add(new MoshiSnapshotTestHelper.SnapshotJsonFactory(Duration.of(5, ChronoUnit.SECONDS)))
         .add(
             DebuggerScript.class,
             new ProbeCondition.ProbeConditionJsonAdapter()) // ProbeDetails in Snapshot
@@ -152,8 +162,9 @@ public class MoshiSnapshotTestHelper {
 
   private static class CapturesAdapter extends MoshiSnapshotHelper.CapturesAdapter {
 
-    public CapturesAdapter(Moshi moshi, JsonAdapter<CapturedContext> capturedContextAdapter) {
-      super(moshi, capturedContextAdapter);
+    public CapturesAdapter(
+        Moshi moshi, Duration captureTimeout, JsonAdapter<CapturedContext> capturedContextAdapter) {
+      super(moshi, captureTimeout, capturedContextAdapter);
     }
 
     @Override
@@ -235,6 +246,9 @@ public class MoshiSnapshotTestHelper {
               capturedContext.addCaptureExpression(value);
             }
             break;
+          case NOT_CAPTURED_REASON:
+            String reason = jsonReader.nextString();
+            throw new IllegalArgumentException("Not captured reason: " + reason);
           default:
             throw new IllegalArgumentException("Unknown field name for Captures object: " + name);
         }

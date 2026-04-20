@@ -1,23 +1,23 @@
 package datadog.trace.util;
 
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 
 /** Wraps input stream to check a maximum allowed size */
-public class SizeCheckedInputStream extends InputStream {
-  private final InputStream in;
+public class SizeCheckedInputStream extends FilterInputStream {
   private final long maxSize;
   private long currentSize;
 
   public SizeCheckedInputStream(InputStream in, long maxSize) {
-    this.in = in;
+    super(in);
     this.maxSize = maxSize;
   }
 
   @Override
   public int read() throws IOException {
     checkSize(1);
-    int v = in.read();
+    int v = super.read();
     if (v != -1) {
       updateCurrentSize(1);
     }
@@ -37,7 +37,7 @@ public class SizeCheckedInputStream extends InputStream {
 
     long safeLen = Math.min(len, maxSize - currentSize);
     checkSize(safeLen);
-    return updateCurrentSize(in.read(b, off, (int) safeLen));
+    return updateCurrentSize(super.read(b, off, (int) safeLen));
   }
 
   private int updateCurrentSize(int delta) {

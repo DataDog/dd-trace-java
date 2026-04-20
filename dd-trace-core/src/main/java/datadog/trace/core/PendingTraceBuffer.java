@@ -6,6 +6,8 @@ import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 import static java.util.Comparator.comparingLong;
 
+import datadog.common.queue.MessagePassingBlockingQueue;
+import datadog.common.queue.Queues;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
 import datadog.trace.api.flare.TracerFlare;
@@ -21,7 +23,6 @@ import java.util.concurrent.atomic.AtomicInteger;
 import java.util.function.Predicate;
 import java.util.zip.ZipOutputStream;
 import org.jctools.queues.MessagePassingQueue;
-import org.jctools.queues.MpscBlockingConsumerArrayQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -53,7 +54,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     boolean writeOnBufferFull();
   }
 
-  private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+  static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -61,7 +62,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     private static final CommandElement DUMP_ELEMENT = new CommandElement();
     private static final CommandElement STAND_IN_ELEMENT = new CommandElement();
 
-    private final MpscBlockingConsumerArrayQueue<Element> queue;
+    private final MessagePassingBlockingQueue<Element> queue;
     private final Thread worker;
     private final TimeSource timeSource;
 
@@ -292,7 +293,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
         Config config,
         SharedCommunicationObjects sharedCommunicationObjects,
         HealthMetrics healthMetrics) {
-      this.queue = new MpscBlockingConsumerArrayQueue<>(bufferSize);
+      this.queue = Queues.mpscBlockingConsumerArrayQueue(bufferSize);
       this.worker = newAgentThread(TRACE_MONITOR, new Worker());
       this.timeSource = timeSource;
       boolean runningSpansEnabled = config.isLongRunningTraceEnabled();
@@ -301,6 +302,11 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               ? new LongRunningTracesTracker(
                   config, bufferSize, sharedCommunicationObjects, healthMetrics)
               : null;
+    }
+
+    // @VisibleForTesting
+    LongRunningTracesTracker getRunningTracesTracker() {
+      return runningTracesTracker;
     }
   }
 

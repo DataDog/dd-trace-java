@@ -1,0 +1,63 @@
+// Configuration for using ddprof snapshot versions
+// When -PddprofUseSnapshot=true is set, this will:
+// 1. Parse the current ddprof version from libs.versions.toml
+// 2. Calculate the next minor snapshot version: X.Y.Z -> X.(Y+1).0-SNAPSHOT
+// 3. Store the snapshot version for use by convention plugins
+// 4. Set the version qualifier property to add "ddprof" to the version
+//    This ensures we don't overwrite the regular SNAPSHOT artifacts
+//    The version will become: X.Y.Z-ddprof-SNAPSHOT instead of X.Y.Z-SNAPSHOT
+
+def ddprofUseSnapshot = project.hasProperty("ddprofUseSnapshot")
+
+if (ddprofUseSnapshot) {
+  def ddprofSnapshotVersion = calculateDdprofSnapshotVersion()
+  logger.lifecycle("Using ddprof snapshot version: ${ddprofSnapshotVersion}")
+
+  // Store the calculated version as an extra property for use in convention plugins
+  rootProject.ext.ddprofSnapshotVersion = ddprofSnapshotVersion
+
+  // Set the version qualifier property that TracerVersionPlugin will read
+  // Note: Users can also explicitly set this via -PtracerVersion.qualifier=ddprof
+  if (!project.hasProperty("tracerVersion.qualifier")) {
+    // Add the qualifier to the version after it has been calculated
+    // This is a workaround since we can't set gradle properties programmatically
+    allprojects {
+      def originalVersion = it.version.toString()
+      if (originalVersion.contains('-SNAPSHOT')) {
+        it.version = originalVersion.replace('-SNAPSHOT', '-ddprof-SNAPSHOT')
+      } else if (originalVersion.contains('-')) {
+        def parts = originalVersion.split('-', 2)
+        it.version = "${parts[0]}-ddprof-${parts[1]}"
+      } else {
+        it.version = "${originalVersion}-ddprof"
+      }
+    }
+  }
+}
+
+def calculateDdprofSnapshotVersion() {
+  // Read the libs.versions.toml file
+  def versionsFile = rootProject.file('gradle/libs.versions.toml')
+  if (!versionsFile.exists()) {
+    throw new GradleException("Could not find gradle/libs.versions.toml")
+  }
+
+  def currentVersion = null
+  versionsFile.eachLine { line ->
+    // Look for the ddprof version line: ddprof = "X.Y.Z"
+    def matcher = line =~ /^\s*ddprof\s*=\s*"([0-9]+)\.([0-9]+)\.([0-9]+)"\s*$/
+    if (matcher) {
+      def major = matcher[0][1]
+      def minor = matcher[0][2]
+      // Increment the minor version
+      def nextMinor = (minor as Integer) + 1
+      currentVersion = "${major}.${nextMinor}.0-SNAPSHOT"
+    }
+  }
+
+  if (currentVersion == null) {
+    throw new GradleException("Could not parse ddprof version from gradle/libs.versions.toml")
+  }
+
+  return currentVersion
+}

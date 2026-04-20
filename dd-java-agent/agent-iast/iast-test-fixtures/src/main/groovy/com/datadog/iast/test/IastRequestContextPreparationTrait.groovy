@@ -5,14 +5,19 @@ import com.datadog.iast.IastSystem
 import com.datadog.iast.model.Range
 import com.datadog.iast.taint.TaintedObject
 import com.datadog.iast.taint.TaintedObjects
-import datadog.trace.api.gateway.*
+import datadog.trace.api.gateway.CallbackProvider
+import datadog.trace.api.gateway.EventType
+import datadog.trace.api.gateway.Events
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.IGSpanInfo
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
-import org.slf4j.Logger
-import org.slf4j.LoggerFactory
-
 import java.util.function.BiFunction
 import java.util.function.Supplier
+import org.slf4j.Logger
+import org.slf4j.LoggerFactory
 
 trait IastRequestContextPreparationTrait {
 
@@ -73,7 +78,9 @@ trait IastRequestContextPreparationTrait {
 
       private static Logger withLogger(final String name) {
         final logger = LoggerFactory.getLogger(name)
-        if (logger instanceof ch.qos.logback.classic.Logger) {
+
+        // Check logger class by name to avoid NoClassDefFoundError at runtime for tests without Logback.
+        if (logger.class.name == "ch.qos.logback.classic.Logger") {
           ((ch.qos.logback.classic.Logger) logger).level = ch.qos.logback.classic.Level.DEBUG
         }
         return logger

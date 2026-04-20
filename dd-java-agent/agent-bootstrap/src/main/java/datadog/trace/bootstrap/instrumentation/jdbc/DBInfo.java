@@ -1,9 +1,11 @@
 package datadog.trace.bootstrap.instrumentation.jdbc;
 
+import datadog.trace.util.HashingUtils;
 import java.util.Objects;
 
-public class DBInfo {
-  public static DBInfo DEFAULT = new Builder().type("database").build();
+public final class DBInfo {
+  public static final DBInfo DEFAULT = new Builder().type("database").build();
+
   private final String type;
   private final String subtype;
   private final boolean fullPropagationSupport;
@@ -15,7 +17,7 @@ public class DBInfo {
   private final Integer port;
   private final String warehouse;
   private final String schema;
-  private String poolName;
+  private volatile String poolName;
 
   DBInfo(
       String type,
@@ -44,7 +46,7 @@ public class DBInfo {
     this.poolName = poolName;
   }
 
-  public static class Builder {
+  public static final class Builder {
     private String type;
     private String subtype;
     // most DBs do support full propagation (inserting trace ID in query comments), so we default to
@@ -191,7 +193,7 @@ public class DBInfo {
   }
 
   public String getDb() {
-    return db;
+    return db != null ? db : instance;
   }
 
   public String getHost() {
@@ -255,17 +257,18 @@ public class DBInfo {
 
   @Override
   public int hashCode() {
-    return Objects.hash(
-        type,
-        subtype,
-        fullPropagationSupport,
-        url,
-        user,
-        instance,
-        db,
-        host,
-        port,
-        warehouse,
-        schema);
+    int hash = 0;
+    hash = HashingUtils.addToHash(hash, type);
+    hash = HashingUtils.addToHash(hash, subtype);
+    hash = HashingUtils.addToHash(hash, fullPropagationSupport);
+    hash = HashingUtils.addToHash(hash, url);
+    hash = HashingUtils.addToHash(hash, user);
+    hash = HashingUtils.addToHash(hash, instance);
+    hash = HashingUtils.addToHash(hash, db);
+    hash = HashingUtils.addToHash(hash, host);
+    hash = HashingUtils.addToHash(hash, port);
+    hash = HashingUtils.addToHash(hash, warehouse);
+    hash = HashingUtils.addToHash(hash, schema);
+    return hash;
   }
 }

@@ -12,9 +12,9 @@
 
 project.dependencyLocking {
   lockAllConfigurations()
-  //lockmode set to LENIENT because there are resolution
-  //errors in the build with an apiguardian dependency.
-  //See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
+  // lockmode set to LENIENT because there are resolution
+  // errors in the build with an apiguardian dependency.
+  // See: https://docs.gradle.org/current/userguide/dependency_locking.html for more info
   lockMode = LockMode.LENIENT
 }
 

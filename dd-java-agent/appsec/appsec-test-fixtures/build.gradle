@@ -4,6 +4,11 @@ apply from: "$rootDir/gradle/version.gradle"
 dependencies {
   api project(':dd-java-agent:appsec')
   api project(':dd-java-agent:instrumentation-testing')
+
+  compileOnly(libs.junit.jupiter)
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }
 
 configurations.named('api') {

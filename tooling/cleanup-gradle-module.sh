@@ -33,7 +33,7 @@ find "$ROOT_DIR" -type d | sort -r | while read -r dir; do
   # Check if the directory contains only a 'build' directory
   if [ -d "$dir/build" ]; then
     # List all items except 'build'
-    OTHERS=$(find "$dir" -mindepth 1 -maxdepth 1 ! -name 'build')
+    OTHERS=$(find "$dir" -mindepth 1 -maxdepth 1 ! -name 'build' ! -name '.*')
     if [ -z "$OTHERS" ]; then
       if [[ $BACKUP_MODE -eq 1 ]]; then
         # Move to backup dir, preserving relative path

@@ -1,3 +1,16 @@
+diff --git a/pom.xml b/pom.xml
+index 7c1510841..c539f5978 100644
+--- a/pom.xml
++++ b/pom.xml
+@@ -9,7 +9,7 @@
+   <parent>
+     <groupId>com.fasterxml.jackson</groupId>
+     <artifactId>jackson-base</artifactId>
+-    <version>2.16.3-SNAPSHOT</version>
++    <version>2.16.2</version>
+   </parent>
+   <groupId>com.fasterxml.jackson.core</groupId>
+   <artifactId>jackson-databind</artifactId>
 diff --git forkSrcPrefix/src/test/java/com/fasterxml/jackson/databind/misc/ThreadSafety1759Test.java forkDstPrefix/src/test/java/com/fasterxml/jackson/databind/misc/ThreadSafety1759Test.java
 index 68c52b600550268242d16614e6143104ce37961d..29f453c8c0e07d139edd095d1614dd287aa5d283 100644
 --- forkSrcPrefix/src/test/java/com/fasterxml/jackson/databind/misc/ThreadSafety1759Test.java

@@ -11,7 +11,7 @@ public class TestJspWriterSuite {
     this.writer = writer;
   }
 
-  public void printlnTest(char x[]) throws IOException {
+  public void printlnTest(char[] x) throws IOException {
     writer.println(x);
   }
 
@@ -19,7 +19,7 @@ public class TestJspWriterSuite {
     writer.println(x);
   }
 
-  public void printTest(char s[]) throws IOException {
+  public void printTest(char[] s) throws IOException {
     writer.print(s);
   }
 
@@ -27,7 +27,7 @@ public class TestJspWriterSuite {
     writer.print(s);
   }
 
-  public void write(char s[]) throws IOException {
+  public void write(char[] s) throws IOException {
     writer.write(s);
   }
 

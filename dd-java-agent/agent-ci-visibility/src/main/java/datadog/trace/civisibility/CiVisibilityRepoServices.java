@@ -159,10 +159,15 @@ public class CiVisibilityRepoServices {
     String targetSha = environment.get(Constants.DDCI_PULL_REQUEST_TARGET_SHA);
     String sourceSha = environment.get(Constants.DDCI_PULL_REQUEST_SOURCE_SHA);
     String mergeBase = null;
-    try {
-      mergeBase = gitClient.getMergeBase(targetSha, sourceSha);
-    } catch (Exception ignored) {
+
+    if (!Constants.DDCI_LEGACY_KIND.equals(environment.get(Constants.DDCI_REQUEST_KIND))) {
+      // legacy mode doesn't set a valid target sha to compute the merge base
+      try {
+        mergeBase = gitClient.getMergeBase(targetSha, sourceSha);
+      } catch (Exception ignored) {
+      }
     }
+
     PullRequestInfo ddCiInfo =
         new PullRequestInfo(
             null,

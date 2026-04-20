@@ -334,7 +334,7 @@ public class DataStreamsTags {
       }
     }
 
-    // hashable tags are 0-4
+    // hashable tags are 0-6: bus, direction, exchange, topic, type, subscription, kafkaClusterId
     for (int i = 0; i < 7; i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {
@@ -343,9 +343,9 @@ public class DataStreamsTags {
       }
     }
 
-    // aggregation tags are 5-7
+    // aggregation tags are 7-11: datasetName, datasetNamespace, isManual, group, consumerGroup
     this.aggregationHash = this.hash;
-    for (int i = 7; i < 10; i++) {
+    for (int i = 7; i < 12; i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
@@ -354,9 +354,9 @@ public class DataStreamsTags {
       }
     }
 
-    // the rest are values
+    // values are 12-13: partition, hasRoutingKey
     this.completeHash = aggregationHash;
-    for (int i = 10; i < this.size(); i++) {
+    for (int i = 12; i < this.size(); i++) {
       String tag = this.tagByIndex(i);
       if (tag != null) {
         this.nonNullSize++;
@@ -370,6 +370,8 @@ public class DataStreamsTags {
     return 14;
   }
 
+  // WARNING: DO NOT REORDER! Indices 0-6 are hash tags, 7-11 are aggregation tags, 12-13 are
+  // values. Reordering breaks hashing!
   public String tagByIndex(int index) {
     switch (index) {
       case 0:
@@ -385,21 +387,21 @@ public class DataStreamsTags {
       case 5:
         return this.subscription;
       case 6:
-        return this.datasetName;
-      case 7:
-        return this.datasetNamespace;
-      case 8:
-        return this.isManual;
-      case 9:
-        return this.group;
-      case 10:
-        return this.consumerGroup;
-      case 11:
-        return this.hasRoutingKey;
-      case 12:
         return this.kafkaClusterId;
-      case 13:
+      case 7:
+        return this.datasetName;
+      case 8:
+        return this.datasetNamespace;
+      case 9:
+        return this.isManual;
+      case 10:
+        return this.group;
+      case 11:
+        return this.consumerGroup;
+      case 12:
         return this.partition;
+      case 13:
+        return this.hasRoutingKey;
       default:
         return null;
     }

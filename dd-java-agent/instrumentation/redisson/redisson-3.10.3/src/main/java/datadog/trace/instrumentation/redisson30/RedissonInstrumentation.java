@@ -17,7 +17,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.CompletionStage;
 import net.bytebuddy.asm.Advice;
-import org.redisson.api.RFuture;
+import org.redisson.api.RTransaction;
 import org.redisson.client.RedisConnection;
 import org.redisson.client.protocol.CommandData;
 import org.redisson.client.protocol.CommandsData;
@@ -86,9 +86,9 @@ public final class RedissonInstrumentation extends InstrumenterModule.Tracing
       }
     }
 
-    public static void muzzleCheck(final RFuture<?> future) {
+    public static void muzzleCheck(final RTransaction b) {
       // added on 3.10.3
-      future.onComplete(null);
+      b.getBuckets();
     }
   }
 

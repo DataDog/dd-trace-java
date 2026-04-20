@@ -20,7 +20,7 @@ public class BooleanValueExpressionAdapter implements ValueExpression<BooleanVal
       throw new EvaluationException(
           "Boolean expression returning null", PrettyPrintVisitor.print(this));
     }
-    return new BooleanValue(result);
+    return new BooleanValue(result, ValueType.OBJECT);
   }
 
   @Override

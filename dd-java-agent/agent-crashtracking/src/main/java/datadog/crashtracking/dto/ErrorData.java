@@ -10,14 +10,22 @@ public final class ErrorData {
   public final String kind;
   public final String message;
 
+  @Json(name = "thread_name")
+  public final String threadName;
+
   @Json(name = "source_type")
-  public final String sourceType = "crashtracking";
+  public final String sourceType = "Crashtracking";
 
   public final StackTrace stack;
 
   public ErrorData(String kind, String message, StackTrace stack) {
+    this(kind, message, null, stack);
+  }
+
+  public ErrorData(String kind, String message, String threadName, StackTrace stack) {
     this.kind = kind;
     this.message = message;
+    this.threadName = threadName;
     this.stack = stack;
   }
 
@@ -33,12 +41,13 @@ public final class ErrorData {
     return isCrash == errorData.isCrash
         && Objects.equals(kind, errorData.kind)
         && Objects.equals(message, errorData.message)
+        && Objects.equals(threadName, errorData.threadName)
         && Objects.equals(sourceType, errorData.sourceType)
         && Objects.equals(stack, errorData.stack);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(isCrash, kind, message, sourceType, stack);
+    return Objects.hash(isCrash, kind, message, threadName, sourceType, stack);
   }
 }

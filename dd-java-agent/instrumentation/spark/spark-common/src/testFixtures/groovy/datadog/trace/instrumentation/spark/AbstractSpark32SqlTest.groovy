@@ -1,0 +1,1652 @@
+package datadog.trace.instrumentation.spark
+
+import datadog.trace.agent.test.InstrumentationSpecification
+import groovy.json.JsonSlurper
+import org.apache.spark.sql.SparkSession
+
+abstract class AbstractSpark32SqlTest extends InstrumentationSpecification {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.spark.enabled", "true")
+    injectSysConfig("dd.integration.spark-openlineage.enabled", "true")
+    injectSysConfig("dd.data.jobs.experimental_features.enabled", "true")
+  }
+
+  def "compute a GROUP BY sql query plan"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .getOrCreate()
+
+    def df = AbstractSpark24SqlTest.generateSampleDataframe(sparkSession)
+    df.createOrReplaceTempView("test")
+
+    sparkSession.sql("""
+      SELECT string_col, avg(double_col)
+      FROM test
+      GROUP BY string_col
+      ORDER BY avg(double_col) DESC
+    """).show()
+    sparkSession.stop()
+
+    def firstStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "nodeId_1",
+        "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+        "meta": {
+          "_dd.unparsed" : "any",
+          "outputPartitioning" : {
+            "HashPartitioning" : {
+              "numPartitions" : 2,
+              "expressions" : [ "string_col#0" ]
+            }
+          },
+          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+        },
+        "metrics": [
+          {
+            "data size": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle bytes written": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle records written": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+            "sum": 3,
+            "type": "sum"
+          },
+          {
+            "shuffle write time": "any",
+            "sum": "any",
+            "type": "nsTiming"
+          }
+        ],
+        "children": [
+          {
+            "node": "WholeStageCodegen (1)",
+            "nodeId": "nodeId_2",
+            "meta": {"_dd.unparsed": "any"},
+            "metrics": [
+              {
+                "duration": "any",
+                "sum": "any",
+                "type": "timing"
+              }
+            ],
+            "children": [
+              {
+                "node": "HashAggregate",
+                "nodeId": "nodeId_3",
+                "nodeDetailString": "(keys=[string_col#0], functions=[partial_avg(double_col#1)])",
+                "meta": {
+                  "_dd.unparsed" : "any",
+                  "aggregateAttributes" : [ "sum#15", "count#16L" ],
+                  "aggregateExpressions" : [ "partial_avg(double_col#1)" ],
+                  "groupingExpressions" : [ "string_col#0" ],
+                  "initialInputBufferOffset" : 0,
+                  "isStreaming" : false,
+                  "numShufflePartitions" : "none",
+                  "requiredChildDistributionExpressions" : "none",
+                  "resultExpressions" : [ "string_col#0", "sum#17", "count#18L" ]
+                },
+                "metrics": [
+                  {
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "avg hash probe bucket list iters": "any",
+                    "sum": "any",
+                    "type": "average"
+                  },
+                  {
+                    "time in aggregation build": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "number of output rows": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+                    "sum": 3,
+                    "type": "sum"
+                  },
+                  {
+                    "peak memory": "any",
+                    "sum": "any",
+                    "type": "size"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "LocalTableScan",
+                    "nodeId": "nodeId_4",
+                    "nodeDetailString": "[string_col#0, double_col#1]",
+                    "meta": {
+                      "output" : [ "string_col#0", "double_col#1" ],
+                      "rows" : [ ]
+                    },
+                    "metrics": [
+                      {
+                        "number of output rows": "CgkJCCGEEEII8T8SZBJgAAAAAAAA8D8AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAPA/GAAaAA==",
+                        "sum": 3,
+                        "type": "sum"
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def secondStagePlan = """
+      {
+        "node": "WholeStageCodegen (2)",
+        "nodeId": "nodeId_5",
+        "meta": {"_dd.unparsed": "any"},
+        "metrics": [
+          {
+            "duration": "any",
+            "sum": "any",
+            "type": "timing"
+          }
+        ],
+        "children": [
+          {
+            "node": "HashAggregate",
+            "nodeId": "nodeId_6",
+            "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
+            "meta": {
+              "_dd.unparsed" : "any",
+              "aggregateAttributes" : [ "avg(double_col#1)#4" ],
+              "aggregateExpressions" : [ "avg(double_col#1)" ],
+              "groupingExpressions" : [ "string_col#0" ],
+              "initialInputBufferOffset" : 1,
+              "isStreaming" : false,
+              "numShufflePartitions" : "none",
+              "requiredChildDistributionExpressions" : [ "string_col#0" ],
+              "resultExpressions" : [ "string_col#0", "avg(double_col#1)#4 AS avg(double_col)#5" ]
+            },
+            "metrics": [
+              {
+                "number of sort fallback tasks": "any",
+                "sum": "any",
+                "type": "sum"
+              },
+              {
+                "avg hash probe bucket list iters": "any",
+                "sum": "any",
+                "type": "average"
+              },
+              {
+                "time in aggregation build": "any",
+                "sum": "any",
+                "type": "timing"
+              },
+              {
+                "spill size": "any",
+                "sum": "any",
+                "type": "size"
+              },
+              {
+                "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+                "sum": 2.0,
+                "type": "sum"
+              },
+              {
+                "peak memory": "any",
+                "sum": "any",
+                "type": "size"
+              }
+            ],
+            "children": [
+              {
+                "node": "InputAdapter",
+                "nodeId": "nodeId_7",
+                "meta": {"_dd.unparsed": "any"},
+                "children": [
+                  {
+                    "node": "AQEShuffleRead",
+                    "nodeId": "nodeId_8",
+                    "nodeDetailString": "coalesced",
+                    "meta": {
+                      "_dd.unparsed" : "any",
+                      "partitionSpecs" : [ "CoalescedPartitionSpec(0,2,Some(186))" ]
+                    },
+                    "metrics": [],
+                    "children": [
+                      {
+                        "node": "ShuffleQueryStage",
+                        "nodeId": "nodeId_9",
+                        "nodeDetailString": "0",
+                        "meta": {
+                          "_dd.unparsed": "any", 
+                          "id": 0
+                        },
+                        "children": [
+                          {
+                            "node": "Exchange",
+                            "nodeId": "nodeId_1",
+                            "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+                            "meta": {
+                              "_dd.unparsed" : "any",
+                              "outputPartitioning" : {
+                                "HashPartitioning" : {
+                                  "numPartitions" : 2,
+                                  "expressions" : [ "string_col#0" ]
+                                }
+                              },
+                              "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                            },
+                            "metrics": [
+                              {
+                                "records read": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YIhoA",
+                                "sum": 3.0,
+                                "type": "sum"
+                              },
+                              {
+                                "remote bytes read to disk": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "fetch wait time": "any",
+                                "sum": "any",
+                                "type": "timing"
+                              },
+                              {
+                                "shuffle bytes written": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "data size": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "local bytes read": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "shuffle write time": "any",
+                                "sum": "any",
+                                "type": "nsTiming"
+                              },
+                              {
+                                "remote bytes read": "any",
+                                "sum": "any",
+                                "type": "size"
+                              },
+                              {
+                                "local blocks read": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "remote blocks read": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "shuffle records written": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              },
+                              {
+                                "number of partitions": "any",
+                                "sum": "any",
+                                "type": "sum"
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def thirdStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "nodeId_10",
+        "nodeDetailString": "rangepartitioning(avg(double_col)#5 DESC NULLS LAST, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d67]",
+        "meta": {
+          "_dd.unparsed" : "any",
+          "outputPartitioning" : {
+            "RangePartitioning" : {
+              "ordering" : [ "avg(double_col)#5 DESC NULLS LAST" ],
+              "numPartitions" : 2
+            }
+          },
+          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+        },
+        "metrics": [
+          {
+            "data size": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle bytes written": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle records written": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+            "sum": 2.0,
+            "type": "sum"
+          },
+          {
+            "shuffle write time": "any",
+            "sum": "any",
+            "type": "nsTiming"
+          }
+        ],
+        "children": [
+          {
+            "node": "WholeStageCodegen (2)",
+            "nodeId": "nodeId_5",
+            "meta": {"_dd.unparsed": "any"},
+            "metrics": [
+              {
+                "duration": "any",
+                "sum": "any",
+                "type": "timing"
+              }
+            ],
+            "children": [
+              {
+                "node": "HashAggregate",
+                "nodeId": "nodeId_6",
+                "nodeDetailString": "(keys\\u003d[string_col#0], functions\\u003d[avg(double_col#1)])",
+                "meta": {
+                  "_dd.unparsed" : "any",
+                  "aggregateAttributes" : [ "avg(double_col#1)#4" ],
+                  "aggregateExpressions" : [ "avg(double_col#1)" ],
+                  "groupingExpressions" : [ "string_col#0" ],
+                  "initialInputBufferOffset" : 1,
+                  "isStreaming" : false,
+                  "numShufflePartitions" : "none",
+                  "requiredChildDistributionExpressions" : [ "string_col#0" ],
+                  "resultExpressions" : [ "string_col#0", "avg(double_col#1)#4 AS avg(double_col)#5" ]
+                },
+                "metrics": [
+                  {
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "avg hash probe bucket list iters": "any",
+                    "sum": "any",
+                    "type": "average"
+                  },
+                  {
+                    "time in aggregation build": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "number of output rows": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "peak memory": "any",
+                    "sum": "any",
+                    "type": "size"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "InputAdapter",
+                    "nodeId": "nodeId_7",
+                    "meta": {"_dd.unparsed": "any"},
+                    "children": [
+                      {
+                        "node": "AQEShuffleRead",
+                        "nodeId": "nodeId_8",
+                        "nodeDetailString": "coalesced",
+                        "meta": {
+                          "_dd.unparsed" : "any",
+                          "partitionSpecs" : [ "CoalescedPartitionSpec(0,2,Some(186))" ]
+                        },
+                        "metrics": [],
+                        "children": [
+                          {
+                            "node": "ShuffleQueryStage",
+                            "nodeId": "nodeId_9",
+                            "nodeDetailString": "0",
+                            "meta": {
+                              "_dd.unparsed": "any", 
+                              "id": 0
+                            },
+                            "children": [
+                              {
+                                "node": "Exchange",
+                                "nodeId": "nodeId_1",
+                                "nodeDetailString": "hashpartitioning(string_col#0, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d38]",
+                                "meta": {
+                                  "_dd.unparsed" : "any",
+                                  "outputPartitioning" : {
+                                    "HashPartitioning" : {
+                                      "numPartitions" : 2,
+                                      "expressions" : [ "string_col#0" ]
+                                    }
+                                  },
+                                  "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                                },
+                                "metrics": [
+                                  {
+                                    "records read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote bytes read to disk": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "fetch wait time": "any",
+                                    "sum": "any",
+                                    "type": "timing"
+                                  },
+                                  {
+                                    "shuffle bytes written": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "data size": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "shuffle write time": "any",
+                                    "sum": "any",
+                                    "type": "nsTiming"
+                                  },
+                                  {
+                                    "remote bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "shuffle records written": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "number of partitions": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def fourthStagePlan = """
+      {
+        "node": "WholeStageCodegen (3)",
+        "nodeId": "nodeId_11",
+        "meta": {"_dd.unparsed": "any"},
+        "metrics": [
+          {
+            "duration": "any",
+            "sum": "any",
+            "type": "timing"
+          }
+        ],
+        "children": [
+          {
+            "node": "Project",
+            "nodeId": "nodeId_12",
+            "nodeDetailString": "[string_col#0, cast(avg(double_col)#5 as string) AS avg(double_col)#12]",
+            "meta": {
+              "_dd.unparsed" : "any",
+              "projectList" : [ "string_col#0", "cast(avg(double_col)#5 as string) AS avg(double_col)#12" ]
+            },
+            "children": [
+              {
+                "node": "Sort",
+                "nodeId": "nodeId_13",
+                "nodeDetailString": "[avg(double_col)#5 DESC NULLS LAST], true, 0",
+                "meta": {
+                  "_dd.unparsed" : "any",
+                  "global" : true,
+                  "sortOrder" : [ "avg(double_col)#5 DESC NULLS LAST" ],
+                  "testSpillFrequency" : 0
+                },
+                "metrics": [
+                  {
+                    "peak memory": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "sort time": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "InputAdapter",
+                    "nodeId": "nodeId_7",
+                    "meta": {"_dd.unparsed": "any"},
+                    "children": [
+                      {
+                        "node": "AQEShuffleRead",
+                        "nodeId": "nodeId_8",
+                        "nodeDetailString": "coalesced",
+                        "meta": {
+                          "_dd.unparsed" : "any",
+                          "partitionSpecs" : [ "CoalescedPartitionSpec(0,2,Some(152))" ]
+                        },
+                        "metrics": [],
+                        "children": [
+                          {
+                            "node": "ShuffleQueryStage",
+                            "nodeId": "nodeId_14",
+                            "nodeDetailString": "1",
+                            "meta": {
+                              "_dd.unparsed": "any", 
+                              "id": 1
+                            },
+                            "children": [
+                              {
+                                "node": "Exchange",
+                                "nodeId": "nodeId_10",
+                                "nodeDetailString": "rangepartitioning(avg(double_col)#5 DESC NULLS LAST, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d67]",
+                                "meta": {
+                                  "_dd.unparsed" : "any",
+                                  "outputPartitioning" : {
+                                    "RangePartitioning" : {
+                                      "ordering" : [ "avg(double_col)#5 DESC NULLS LAST" ],
+                                      "numPartitions" : 2
+                                    }
+                                  },
+                                  "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                                },
+                                "metrics": [
+                                  {
+                                    "records read": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YFhoA",
+                                    "sum": 2.0,
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote bytes read to disk": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "fetch wait time": "any",
+                                    "sum": "any",
+                                    "type": "timing"
+                                  },
+                                  {
+                                    "shuffle bytes written": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "data size": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "shuffle write time": "any",
+                                    "sum": "any",
+                                    "type": "nsTiming"
+                                  },
+                                  {
+                                    "remote bytes read": "any",
+                                    "sum": "any",
+                                    "type": "size"
+                                  },
+                                  {
+                                    "local blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "remote blocks read": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "shuffle records written": "CgkJCCGEEEII8T8SABoAIQAAAAAAAPA/",
+                                    "sum": 0.0,
+                                    "type": "sum"
+                                  },
+                                  {
+                                    "number of partitions": "any",
+                                    "sum": "any",
+                                    "type": "sum"
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+
+    expect:
+    def actualPlans = [] as List<String>
+    assertTraces(1) {
+      trace(10) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[4]"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(4))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(6))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[0]"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(8))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
+        }
+      }
+    }
+
+    assertStringSQLPlanEqualsWithConsistentNodeIds(
+      [firstStagePlan, secondStagePlan, thirdStagePlan, fourthStagePlan],
+      [actualPlans[3], actualPlans[2], actualPlans[1], actualPlans[0]],
+      ["firstStagePlan", "secondStagePlan", "thirdStagePlan", "fourthStagePlan"]
+      )
+  }
+
+  def "compute a JOIN sql query plan"() {
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.sql.autoBroadcastJoinThreshold", "-1")
+      .getOrCreate()
+
+    def df = AbstractSpark24SqlTest.generateSampleDataframe(sparkSession)
+    df.createOrReplaceTempView("test")
+
+    sparkSession.sql("""
+      SELECT *
+      FROM test a
+      JOIN test b ON a.string_col = b.string_col
+      WHERE a.double_col > 1.2
+    """).count()
+
+    sparkSession.stop()
+
+    def firstStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "any",
+        "nodeDetailString": "hashpartitioning(string_col#28, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d119]",
+        "meta": {
+          "_dd.unparsed" : "any",
+          "outputPartitioning" : {
+            "HashPartitioning" : {
+              "numPartitions" : 2,
+              "expressions" : [ "string_col#28" ]
+            }
+          },
+          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+        },
+        "metrics": [
+          {
+            "data size": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle bytes written": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle records written": "any",
+            "sum": "any",
+            "type": "sum"
+          },
+          {
+            "shuffle write time": "any",
+            "sum": "any",
+            "type": "nsTiming"
+          }
+        ],
+        "children": [
+          {
+            "node": "LocalTableScan",
+            "nodeId": "any",
+            "nodeDetailString": "[string_col#28]",
+            "meta": {
+              "output" : [ "string_col#28" ],
+              "rows" : [ ]
+            },
+            "metrics": [
+              {
+                "number of output rows": "any",
+                "sum": "any",
+                "type": "sum"
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def secondStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "any",
+        "nodeDetailString": "hashpartitioning(string_col#32, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d120]",
+        "meta": {
+          "_dd.unparsed" : "any",
+          "outputPartitioning" : {
+            "HashPartitioning" : {
+              "numPartitions" : 2,
+              "expressions" : [ "string_col#32" ]
+            }
+          },
+          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+        },
+        "metrics": [
+          {
+            "data size": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle bytes written": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle records written": "any",
+            "sum": "any",
+            "type": "sum"
+          },
+          {
+            "shuffle write time": "any",
+            "sum": "any",
+            "type": "nsTiming"
+          }
+        ],
+        "children": [
+          {
+            "node": "LocalTableScan",
+            "nodeId": "any",
+            "nodeDetailString": "[string_col#32]",
+            "meta": {
+              "output" : [ "string_col#32" ],
+              "rows" : [ ]
+            },
+            "metrics": [
+              {
+                "number of output rows": "any",
+                "sum": "any",
+                "type": "sum"
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def thirdStagePlan = """
+      {
+        "node": "Exchange",
+        "nodeId": "nodeId_5",
+        "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
+        "meta": {
+          "_dd.unparsed" : "any",
+          "outputPartitioning" : "SinglePartition",
+          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+        },
+        "metrics": [
+          {
+            "data size": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle bytes written": "any",
+            "sum": "any",
+            "type": "size"
+          },
+          {
+            "shuffle records written": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YABoA",
+            "sum": 1,
+            "type": "sum"
+          },
+          {
+            "shuffle write time": "any",
+            "sum": "any",
+            "type": "nsTiming"
+          }
+        ],
+        "children": [
+          {
+            "node": "WholeStageCodegen (3)",
+            "nodeId": "nodeId_6",
+            "meta": {"_dd.unparsed": "any"},
+            "metrics": [
+              {
+                "duration": "any",
+                "sum": "any",
+                "type": "timing"
+              }
+            ],
+            "children": [
+              {
+                "node": "HashAggregate",
+                "nodeId": "nodeId_7",
+                "nodeDetailString": "(keys\\u003d[], functions\\u003d[partial_count(1)])",
+                "meta": {
+                  "_dd.unparsed" : "any",
+                  "aggregateAttributes" : [ "count#45L" ],
+                  "aggregateExpressions" : [ "partial_count(1)" ],
+                  "groupingExpressions" : [ ],
+                  "initialInputBufferOffset" : 0,
+                  "isStreaming" : false,
+                  "numShufflePartitions" : "none",
+                  "requiredChildDistributionExpressions" : "none",
+                  "resultExpressions" : [ "count#46L" ]
+                },
+                "metrics": [
+                  {
+                    "number of sort fallback tasks": "any",
+                    "sum": "any",
+                    "type": "sum"
+                  },
+                  {
+                    "avg hash probe bucket list iters": "any",
+                    "sum": "any",
+                    "type": "average"
+                  },
+                  {
+                    "time in aggregation build": "any",
+                    "sum": "any",
+                    "type": "timing"
+                  },
+                  {
+                    "spill size": "any",
+                    "sum": "any",
+                    "type": "size"
+                  },
+                  {
+                    "number of output rows": "CgkJCCGEEEII8T8SDBIIAAAAAAAA8D8YABoA",
+                    "sum": 1,
+                    "type": "sum"
+                  },
+                  {
+                    "peak memory": "any",
+                    "sum": "any",
+                    "type": "size"
+                  }
+                ],
+                "children": [
+                  {
+                    "node": "Project",
+                    "nodeId": "nodeId_8",
+                    "meta": {
+                      "_dd.unparsed" : "any",
+                      "projectList" : [ ]
+                    },
+                    "children": [
+                      {
+                        "node": "SortMergeJoin",
+                        "nodeId": "nodeId_9",
+                        "nodeDetailString": "[string_col#28], [string_col#32], Inner",
+                        "meta": {
+                          "_dd.unparsed" : "any",
+                          "condition" : "none",
+                          "isSkewJoin" : false,
+                          "joinType" : "Inner",
+                          "leftKeys" : [ "string_col#28" ],
+                          "rightKeys" : [ "string_col#32" ]
+                        },
+                        "metrics": [
+                          {
+                            "number of output rows": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          }
+                        ],
+                        "children": [
+                          {
+                            "node": "InputAdapter",
+                            "nodeId": "nodeId_10",
+                            "meta": {"_dd.unparsed": "any"},
+                            "children": [
+                              {
+                                "node": "WholeStageCodegen (1)",
+                                "nodeId": "nodeId_11",
+                                "meta": {"_dd.unparsed": "any"},
+                                "metrics": [
+                                  {
+                                    "duration": "any",
+                                    "sum": "any",
+                                    "type": "timing"
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "node": "Sort",
+                                    "nodeId": "nodeId_12",
+                                    "nodeDetailString": "[string_col#28 ASC NULLS FIRST], false, 0",
+                                    "meta": {
+                                      "_dd.unparsed" : "any",
+                                      "global" : false,
+                                      "sortOrder" : [ "string_col#28 ASC NULLS FIRST" ],
+                                      "testSpillFrequency" : 0
+                                    },
+                                    "metrics": [
+                                      {
+                                        "peak memory": "any",
+                                        "sum": "any",
+                                        "type": "size"
+                                      },
+                                      {
+                                        "sort time": "any",
+                                        "sum": "any",
+                                        "type": "timing"
+                                      },
+                                      {
+                                        "spill size": "any",
+                                        "sum": "any",
+                                        "type": "size"
+                                      }
+                                    ],
+                                    "children": [
+                                      {
+                                        "node": "InputAdapter",
+                                        "nodeId": "nodeId_10",
+                                        "meta": {"_dd.unparsed": "any"},
+                                        "children": [
+                                          {
+                                            "node": "AQEShuffleRead",
+                                            "nodeId": "nodeId_13",
+                                            "nodeDetailString": "coalesced",
+                                            "meta": {
+                                              "_dd.unparsed" : "any",
+                                              "partitionSpecs" : [ "CoalescedPartitionSpec(0,2,Some(144))" ]
+                                            },
+                                            "metrics": [],
+                                            "children": [
+                                              {
+                                                "node": "ShuffleQueryStage",
+                                                "nodeId": "nodeId_14",
+                                                "nodeDetailString": "0",
+                                                "meta": {
+                                                  "_dd.unparsed": "any", 
+                                                  "id": 0
+                                                },
+                                                "children": [
+                                                  {
+                                                    "node": "Exchange",
+                                                    "nodeId": "nodeId_1",
+                                                    "nodeDetailString": "hashpartitioning(string_col#28, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d119]",
+                                                    "meta": {
+                                                      "_dd.unparsed" : "any",
+                                                      "outputPartitioning" : {
+                                                        "HashPartitioning" : {
+                                                          "numPartitions" : 2,
+                                                          "expressions" : [ "string_col#28" ]
+                                                        }
+                                                      },
+                                                      "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                                                    },
+                                                    "metrics": [
+                                                      {
+                                                        "records read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote bytes read to disk": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "fetch wait time": "any",
+                                                        "sum": "any",
+                                                        "type": "timing"
+                                                      },
+                                                      {
+                                                        "shuffle bytes written": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "data size": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "shuffle write time": "any",
+                                                        "sum": "any",
+                                                        "type": "nsTiming"
+                                                      },
+                                                      {
+                                                        "remote bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "shuffle records written": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "number of partitions": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          },
+                          {
+                            "node": "InputAdapter",
+                            "nodeId": "nodeId_10",
+                            "meta": {"_dd.unparsed": "any"},
+                            "children": [
+                              {
+                                "node": "WholeStageCodegen (2)",
+                                "nodeId": "nodeId_15",
+                                "meta": {"_dd.unparsed": "any"},
+                                "metrics": [
+                                  {
+                                    "duration": "any",
+                                    "sum": "any",
+                                    "type": "timing"
+                                  }
+                                ],
+                                "children": [
+                                  {
+                                    "node": "Sort",
+                                    "nodeId": "nodeId_16",
+                                    "nodeDetailString": "[string_col#32 ASC NULLS FIRST], false, 0",
+                                    "meta": {
+                                      "_dd.unparsed" : "any",
+                                      "global" : false,
+                                      "sortOrder" : [ "string_col#32 ASC NULLS FIRST" ],
+                                      "testSpillFrequency" : 0
+                                    },
+                                    "metrics": [
+                                      {
+                                        "peak memory": "any",
+                                        "sum": "any",
+                                        "type": "size"
+                                      },
+                                      {
+                                        "sort time": "any",
+                                        "sum": "any",
+                                        "type": "timing"
+                                      },
+                                      {
+                                        "spill size": "any",
+                                        "sum": "any",
+                                        "type": "size"
+                                      }
+                                    ],
+                                    "children": [
+                                      {
+                                        "node": "InputAdapter",
+                                        "nodeId": "nodeId_10",
+                                        "meta": {"_dd.unparsed": "any"},
+                                        "children": [
+                                          {
+                                            "node": "AQEShuffleRead",
+                                            "nodeId": "nodeId_13",
+                                            "nodeDetailString": "coalesced",
+                                            "meta": {
+                                              "_dd.unparsed" : "any",
+                                              "partitionSpecs" : [ "CoalescedPartitionSpec(0,2,Some(160))" ]
+                                            },
+                                            "metrics": [],
+                                            "children": [
+                                              {
+                                                "node": "ShuffleQueryStage",
+                                                "nodeId": "nodeId_17",
+                                                "nodeDetailString": "1",
+                                                "meta": {
+                                                  "_dd.unparsed": "any", 
+                                                  "id": 1
+                                                },
+                                                "children": [
+                                                  {
+                                                    "node": "Exchange",
+                                                    "nodeId": "nodeId_3",
+                                                    "nodeDetailString": "hashpartitioning(string_col#32, 2), ENSURE_REQUIREMENTS, [plan_id\\u003d120]",
+                                                    "meta": {
+                                                      "_dd.unparsed" : "any",
+                                                      "outputPartitioning" : {
+                                                        "HashPartitioning" : {
+                                                          "numPartitions" : 2,
+                                                          "expressions" : [ "string_col#32" ]
+                                                        }
+                                                      },
+                                                      "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                                                    },
+                                                    "metrics": [
+                                                      {
+                                                        "records read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote bytes read to disk": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "fetch wait time": "any",
+                                                        "sum": "any",
+                                                        "type": "timing"
+                                                      },
+                                                      {
+                                                        "shuffle bytes written": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "data size": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "shuffle write time": "any",
+                                                        "sum": "any",
+                                                        "type": "nsTiming"
+                                                      },
+                                                      {
+                                                        "remote bytes read": "any",
+                                                        "sum": "any",
+                                                        "type": "size"
+                                                      },
+                                                      {
+                                                        "local blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "remote blocks read": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "shuffle records written": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      },
+                                                      {
+                                                        "number of partitions": "any",
+                                                        "sum": "any",
+                                                        "type": "sum"
+                                                      }
+                                                    ]
+                                                  }
+                                                ]
+                                              }
+                                            ]
+                                          }
+                                        ]
+                                      }
+                                    ]
+                                  }
+                                ]
+                              }
+                            ]
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+    def fourthStagePlan = """
+      {
+        "node": "WholeStageCodegen (4)",
+        "nodeId": "nodeId_18",
+        "meta": {"_dd.unparsed": "any"},
+        "metrics": [
+          {
+            "duration": "any",
+            "sum": "any",
+            "type": "timing"
+          }
+        ],
+        "children": [
+          {
+            "node": "HashAggregate",
+            "nodeId": "nodeId_19",
+            "nodeDetailString": "(keys\\u003d[], functions\\u003d[count(1)])",
+            "meta": {
+              "_dd.unparsed" : "any",
+              "aggregateAttributes" : [ "count(1)#42L" ],
+              "aggregateExpressions" : [ "count(1)" ],
+              "groupingExpressions" : [ ],
+              "initialInputBufferOffset" : 0,
+              "isStreaming" : false,
+              "numShufflePartitions" : "none",
+              "requiredChildDistributionExpressions" : [ ],
+              "resultExpressions" : [ "count(1)#42L AS count#43L" ]
+            },
+            "metrics": [
+              {
+                "time in aggregation build": "any",
+                "sum": "any",
+                "type": "timing"
+              },
+              {
+                "number of output rows": "any",
+                "sum": "any",
+                "type": "sum"
+              }
+            ],
+            "children": [
+              {
+                "node": "InputAdapter",
+                "nodeId": "nodeId_10",
+                "meta": {"_dd.unparsed": "any"},
+                "children": [
+                  {
+                    "node": "ShuffleQueryStage",
+                    "nodeId": "nodeId_20",
+                    "nodeDetailString": "2",
+                    "meta": {
+                      "_dd.unparsed": "any", 
+                      "id": 2
+                    },
+                    "children": [
+                      {
+                        "node": "Exchange",
+                        "nodeId": "nodeId_5",
+                        "nodeDetailString": "SinglePartition, ENSURE_REQUIREMENTS, [plan_id\\u003d230]",
+                        "meta": {
+                          "_dd.unparsed" : "any",
+                          "outputPartitioning" : "SinglePartition",
+                          "shuffleOrigin" : "ENSURE_REQUIREMENTS"
+                        },
+                        "metrics": [
+                          {
+                            "records read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "remote bytes read to disk": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "fetch wait time": "any",
+                            "sum": "any",
+                            "type": "timing"
+                          },
+                          {
+                            "shuffle bytes written": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "data size": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "local bytes read": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "shuffle write time": "any",
+                            "sum": "any",
+                            "type": "nsTiming"
+                          },
+                          {
+                            "remote bytes read": "any",
+                            "sum": "any",
+                            "type": "size"
+                          },
+                          {
+                            "local blocks read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "remote blocks read": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "shuffle records written": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          },
+                          {
+                            "number of partitions": "any",
+                            "sum": "any",
+                            "type": "sum"
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      }
+    """
+
+    expect:
+    def actualPlans = [] as List<String>
+    assertTraces(1) {
+      trace(10) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+        }
+        span {
+          operationName "spark.sql"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(2))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[4]"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(4))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert ["[0, 1]", "[1, 0]"].contains(span.tags["_dd.spark.sql_parent_stage_ids"])
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(6))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
+        }
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          childOf(span(1))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(8))
+          actualPlans.add(span.tags["_dd.spark.sql_plan"].toString())
+          assert span.tags["_dd.spark.physical_plan"] == null
+          assert span.tags["_dd.spark.sql_parent_stage_ids"] == "[]"
+        }
+      }
+    }
+    assertStringSQLPlanEqualsWithConsistentNodeIds(
+      [firstStagePlan, secondStagePlan, thirdStagePlan, fourthStagePlan],
+      [actualPlans[3], actualPlans[2], actualPlans[1], actualPlans[0]],
+      ["firstStagePlan", "secondStagePlan", "thirdStagePlan", "fourthStagePlan"]
+      )
+  }
+
+  static assertStringSQLPlanEqualsWithConsistentNodeIds(List<String> expectedPlans, List<String> actualPlans, List<String> names) {
+    def jsonSlurper = new JsonSlurper()
+
+    def actualToNormalized = [:]
+    def nodeIdCounter = 1
+
+    expectedPlans.eachWithIndex {
+      it, i -> {
+        def expectedParsed = jsonSlurper.parseText(it)
+        def actualParsed = jsonSlurper.parseText(actualPlans[i])
+
+        // Extract all nodeIds from actual plans and create mapping
+        extractNodeIds(actualParsed).each {
+          nodeId ->
+          if (nodeId != null && nodeId != "any" && !actualToNormalized.containsKey(nodeId)) {
+            actualToNormalized[nodeId] = "nodeId_${nodeIdCounter++}"
+          }
+        }
+
+        def normalizedActual = normalizeNodeIds(actualParsed, actualToNormalized)
+
+        // Normalize environment-dependent column ref IDs (#N, #NL) and plan_id values
+        // which vary across test runs and environments
+        def normalizedExpected = normalizeColumnRefs(expectedParsed)
+        normalizedActual = normalizeColumnRefs(normalizedActual)
+
+        AbstractSpark24SqlTest.assertSQLPlanEquals(normalizedExpected, normalizedActual, names[i])
+      }
+    }
+  }
+
+  private static Set<Object> extractNodeIds(Object plan) {
+    Set<Object> nodeIds = new LinkedHashSet<>()
+    if (plan instanceof Map) {
+      if (plan.containsKey("nodeId")) {
+        nodeIds.add(plan.nodeId)
+      }
+
+      if (plan.containsKey("children") && plan.children != null) {
+        def sorted = plan.children.sort { it.node }
+        sorted.each { child ->
+          nodeIds.addAll(extractNodeIds(child))
+        }
+      }
+    }
+
+    return nodeIds
+  }
+
+  private static Object normalizeNodeIds(Object plan, Map<Object, String> nodeIdMapping) {
+    if (plan instanceof Map) {
+      def nodeId = plan["nodeId"]
+      def children = plan["children"]
+      if (nodeId != null)  {
+        plan["nodeId"] = nodeIdMapping[nodeId]
+      }
+      if (children != null) {
+        plan["children"] = children.collect { normalizeNodeIds(it, nodeIdMapping) }
+      }
+
+      plan.each { key, value ->
+        if (key != "nodeId" && key != "children") {
+          plan[key] = value
+        }
+      }
+      return plan
+    }
+    return plan
+  }
+
+  private static Object normalizeColumnRefs(Object plan) {
+    if (plan instanceof String) {
+      return plan.replaceAll(/#\d+L?/, '#N').replaceAll(/plan_id=\d+/, 'plan_id=N')
+    } else if (plan instanceof List) {
+      return plan.collect { normalizeColumnRefs(it) }
+    } else if (plan instanceof Map) {
+      return plan.collectEntries { k, v -> [k, normalizeColumnRefs(v)] }
+    }
+    return plan
+  }
+}

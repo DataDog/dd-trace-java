@@ -12,9 +12,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.context.TraceScope;
@@ -28,8 +26,7 @@ import software.amazon.awssdk.core.internal.http.pipeline.stages.MakeAsyncHttpRe
  * Separate instrumentation class to close aws request scope right after request has been submitted
  * for execution for Sync clients.
  */
-@AutoService(InstrumenterModule.class)
-public final class AwsHttpClientInstrumentation extends AbstractAwsClientInstrumentation
+public final class AwsHttpClientInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   @Override

@@ -13,7 +13,7 @@ tasks.named("compileJava") {
 addTestSuiteForDir('latestDepTest', 'test')
 
 dependencies {
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation libs.guava
   testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'

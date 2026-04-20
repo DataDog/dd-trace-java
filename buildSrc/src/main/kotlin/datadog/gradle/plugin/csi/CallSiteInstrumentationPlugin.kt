@@ -143,9 +143,11 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       outputs.dir(output)
 
       // JavaExec configuration
-      javaLauncher.set(javaToolchains.launcherFor {
-        languageVersion.set(csiExtension.javaVersion)
-      })
+      javaLauncher.set(
+        javaToolchains.launcherFor {
+          languageVersion.set(csiExtension.javaVersion)
+        }
+      )
 
       jvmArgumentProviders.add({ csiExtension.jvmArgs.get() })
       classpath(pluginJarFile)
@@ -186,14 +188,7 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
       dependsOn(mainCompileTask)
     }
 
-    // Workaround for instrument plugin modifying compile tasks
-    project.pluginManager.withPlugin("dd-trace-java.instrument") {
-      callSiteGeneratorTask.configure {
-        dependsOn("instrumentJava")
-      }
-    }
-
-    // make all sourcesets' class tasks depend on call site generator
+    // make all sourceSets class tasks depend on call site generator
     val sourceSets = project.sourceSets
     sourceSets.named(MAIN_SOURCE_SET_NAME) {
       project.tasks.named(classesTaskName) {
@@ -228,9 +223,13 @@ abstract class CallSiteInstrumentationPlugin : Plugin<Project> {
     }
 
   private fun String.capitalize(): String = replaceFirstChar {
-    if (it.isLowerCase()) it.titlecase(
-      Locale.getDefault()
-    ) else it.toString()
+    if (it.isLowerCase()) {
+      it.titlecase(
+        Locale.getDefault()
+      )
+    } else {
+      it.toString()
+    }
   }
 
   private val Project.sourceSets: SourceSetContainer

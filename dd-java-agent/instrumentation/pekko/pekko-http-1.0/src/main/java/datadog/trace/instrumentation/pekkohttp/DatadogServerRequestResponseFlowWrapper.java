@@ -82,7 +82,7 @@ public class DatadogServerRequestResponseFlowWrapper
               }
 
               @Override
-              public void onUpstreamFailure(final Throwable ex) throws Exception, Exception {
+              public void onUpstreamFailure(final Throwable ex) throws Exception {
                 // We will not receive any more requests from the server and TCP layer so stop
                 // sending them
                 fail(requestOutlet, ex);

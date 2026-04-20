@@ -7,7 +7,9 @@ import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
@@ -56,30 +58,37 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
   }
 
   @Override
-  public TestSuiteImpl testSuiteStart(
+  public ManualApiTestSuite testSuiteStart(
       String testSuiteName,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized) {
-    return new TestSuiteImpl(
-        span.context(),
-        moduleName,
-        testSuiteName,
-        null,
-        testClass,
-        startTime,
-        parallelized,
-        InstrumentationType.MANUAL_API,
-        TestFrameworkInstrumentation.OTHER,
-        config,
-        metricCollector,
-        testDecorator,
-        sourcePathResolver,
-        codeowners,
-        linesResolver,
-        coverageStoreFactory,
-        executionResults,
-        Collections.emptyList(),
-        tagsPropagator::propagateCiVisibilityTags);
+    TestSuiteImpl suite =
+        new TestSuiteImpl(
+            span.context(),
+            moduleName,
+            testSuiteName,
+            null,
+            testClass,
+            startTime,
+            parallelized,
+            InstrumentationType.MANUAL_API,
+            TestFrameworkInstrumentation.OTHER, // for metric purposes, framework is OTHER
+            config,
+            metricCollector,
+            testDecorator,
+            sourcePathResolver,
+            codeowners,
+            linesResolver,
+            coverageStoreFactory,
+            executionResults,
+            ConfigurationErrors.NONE,
+            Collections.emptyList(),
+            tagsPropagator::propagateCiVisibilityTags);
+
+    String frameworkName = testDecorator.component().toString();
+    suite.setTag(Tags.TEST_FRAMEWORK, frameworkName);
+
+    return new ManualApiTestSuite(suite, frameworkName);
   }
 }

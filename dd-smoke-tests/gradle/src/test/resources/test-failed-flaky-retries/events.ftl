@@ -532,6 +532,7 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "runtime.version" : ${content_meta_runtime_version},
       "span.kind" : "test",
+      "test.final_status" : "fail",
       "test.framework" : "junit4",
       "test.framework_version" : "4.10",
       "test.has_failed_all_retries" : "true",

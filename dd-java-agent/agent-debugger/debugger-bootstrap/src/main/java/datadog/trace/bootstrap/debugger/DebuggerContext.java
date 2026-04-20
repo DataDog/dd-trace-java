@@ -67,7 +67,7 @@ public class DebuggerContext {
     COUNT,
     GAUGE,
     HISTOGRAM,
-    DISTRIBUTION;
+    DISTRIBUTION
   }
 
   public interface MetricForwarder {

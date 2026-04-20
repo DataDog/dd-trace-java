@@ -50,8 +50,8 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'com.github.etaty', name: 'rediscala_2.11', version: '1.8.0'
 
-  testImplementation project(':dd-java-agent:instrumentation:scala-promise:scala-promise-2.10')
-  testImplementation project(':dd-java-agent:instrumentation:scala-concurrent')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-2.10')
+  testImplementation project(':dd-java-agent:instrumentation:scala:scala-concurrent-2.8')
 
   testImplementation group: 'com.github.etaty', name: 'rediscala_2.11', version: '1.8.0'
   testImplementation group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3'

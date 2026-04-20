@@ -1,4 +1,6 @@
 import datadog.trace.api.datastreams.DataStreamsTags
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -1047,6 +1049,127 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
     producer?.close()
   }
 
+  def "test producer DSM transaction tracking extracts transaction id from headers"() {
+    setup:
+    if (!isDataStreamsEnabled()) {
+      return
+    }
+
+    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
+
+    // Configure a DSM transaction extractor for KAFKA_PRODUCE_HEADERS
+    def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
+    extractorsByTypeField.setAccessible(true)
+    def oldExtractorsByType = extractorsByTypeField.get(TEST_DATA_STREAMS_MONITORING)
+
+    def extractor = new DataStreamsTransactionExtractor() {
+        String getName() {
+          return "kafka-produce-test"
+        }
+        DataStreamsTransactionExtractor.Type getType() {
+          return DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS
+        }
+        String getValue() {
+          return "x-transaction-id"
+        }
+      }
+    def extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type)
+    extractorsByType.put(DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS, [extractor])
+    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, extractorsByType)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-transaction-id", "txn-123".getBytes(StandardCharsets.UTF_8)))
+
+    when:
+    def record = new ProducerRecord(SHARED_TOPIC, 0, null, "test-dsm-transaction", headers)
+    producer.send(record).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def producedSpan = TEST_WRITER[0][0]
+    producedSpan.getTag(Tags.DSM_TRANSACTION_ID) == "txn-123"
+    producedSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-produce-test"
+
+    cleanup:
+    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
+    producer?.close()
+  }
+
+  def "test consumer DSM transaction tracking extracts transaction id from headers"() {
+    setup:
+    if (!isDataStreamsEnabled()) {
+      return
+    }
+
+    injectEnvConfig("DD_DATA_STREAMS_ENABLED", "true")
+
+    // Configure a DSM transaction extractor for KAFKA_CONSUME_HEADERS
+    def extractorsByTypeField = TEST_DATA_STREAMS_MONITORING.getClass().getDeclaredField("extractorsByType")
+    extractorsByTypeField.setAccessible(true)
+    def oldExtractorsByType = extractorsByTypeField.get(TEST_DATA_STREAMS_MONITORING)
+
+    def extractor = new DataStreamsTransactionExtractor() {
+      String getName() {
+        return "kafka-consume-test"
+      }
+      DataStreamsTransactionExtractor.Type getType() {
+        return DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS
+      }
+      String getValue() {
+        return "x-transaction-id"
+      }
+    }
+    def extractorsByType = new EnumMap<>(DataStreamsTransactionExtractor.Type)
+    extractorsByType.put(DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS, [extractor])
+    extractorsByTypeField.set(TEST_DATA_STREAMS_MONITORING, extractorsByType)
+
+    def kafkaPartition = 0
+    def consumerProperties = KafkaTestUtils.consumerProps("sender", "false", embeddedKafka)
+    consumerProperties.put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
+    def consumer = new KafkaConsumer<String, String>(consumerProperties)
+
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<>(senderProps, new StringSerializer(), new StringSerializer())
+
+    consumer.assign(Arrays.asList(new TopicPartition(SHARED_TOPIC, kafkaPartition)))
+
+    def headers = new RecordHeaders()
+    headers.add(new RecordHeader("x-transaction-id", "txn-456".getBytes(StandardCharsets.UTF_8)))
+
+    when:
+    def record = new ProducerRecord(SHARED_TOPIC, kafkaPartition, null, "test-dsm-consume-transaction", headers)
+    producer.send(record).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    def pollResult = KafkaTestUtils.getRecords(consumer)
+    def recs = pollResult.records(new TopicPartition(SHARED_TOPIC, kafkaPartition)).iterator()
+    recs.hasNext()
+    recs.next().value() == "test-dsm-consume-transaction"
+    !recs.hasNext()
+
+    // The consume span is created by TracingIterator when iterating over records
+    // Find the consumer span with the DSM transaction tags
+    TEST_WRITER.waitForTraces(2)
+    def allTraces = TEST_WRITER.toArray() as List<List<DDSpan>>
+    def consumerSpan = allTraces.collectMany {
+      it
+    }.find {
+      it.getTag(Tags.DSM_TRANSACTION_ID) == "txn-456"
+    }
+    consumerSpan != null
+    consumerSpan.getTag(Tags.DSM_TRANSACTION_ID) == "txn-456"
+    consumerSpan.getTag(Tags.DSM_TRANSACTION_CHECKPOINT) == "kafka-consume-test"
+
+    cleanup:
+    extractorsByTypeField?.set(TEST_DATA_STREAMS_MONITORING, oldExtractorsByType)
+    consumer?.close()
+    producer?.close()
+  }
+
   def containerProperties() {
     try {
       // Different class names for test and latestDepTest.
@@ -1057,12 +1180,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def producerSpan(
-    TraceAssert trace,
-    Map<String, ?> config,
-    DDSpan parentSpan = null,
-    boolean partitioned = true,
-    boolean tombstone = false,
-    String schema = null
+  TraceAssert trace,
+  Map<String, ?> config,
+  DDSpan parentSpan = null,
+  boolean partitioned = true,
+  boolean tombstone = false,
+  String schema = null
   ) {
     trace.span {
       serviceName service()
@@ -1076,14 +1199,15 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
+      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ProducerConfig.BOOTSTRAP_SERVERS_CONFIG)
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
-        if (partitioned) {
-          "$InstrumentationTags.PARTITION" { it >= 0 }
-        }
+        "$InstrumentationTags.PARTITION" { it >= 0 }
+        "$InstrumentationTags.OFFSET" { it >= 0 }
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         if (tombstone) {
           "$InstrumentationTags.TOMBSTONE" true
         }
@@ -1098,14 +1222,19 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
           }
         }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
+        if (isV0) {
+          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
+          // this is a buggy behaviour that could not be easily fixed.
+          serviceNameSource "java-kafka"
+        }
         defaultTags()
       }
     }
   }
 
   def queueSpan(
-    TraceAssert trace,
-    DDSpan parentSpan = null
+  TraceAssert trace,
+  DDSpan parentSpan = null
   ) {
     trace.span {
       serviceName splitByDestination() ? "$SHARED_TOPIC" : serviceForTimeInQueue()
@@ -1128,12 +1257,12 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def consumerSpan(
-    TraceAssert trace,
-    Map<String, Object> config,
-    DDSpan parentSpan = null,
-    Range offset = 0..0,
-    boolean tombstone = false,
-    boolean distributedRootSpan = !hasQueueSpan()
+  TraceAssert trace,
+  Map<String, Object> config,
+  DDSpan parentSpan = null,
+  Range offset = 0..0,
+  boolean tombstone = false,
+  boolean distributedRootSpan = !hasQueueSpan()
   ) {
     trace.span {
       serviceName service()
@@ -1147,6 +1276,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
       } else {
         parent()
       }
+      final boolean isV0 = version() == 0
       tags {
         "$Tags.COMPONENT" "java-kafka"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
@@ -1154,6 +1284,7 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         "$InstrumentationTags.OFFSET" { offset.containsWithinBounds(it as int) }
         "$InstrumentationTags.CONSUMER_GROUP" "sender"
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" config.get(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG)
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
         "$InstrumentationTags.RECORD_END_TO_END_DURATION_MS" { it >= 0 }
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$SHARED_TOPIC"
@@ -1163,18 +1294,23 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
         if ({ isDataStreamsEnabled() }) {
           "$DDTags.PATHWAY_HASH" { String }
         }
+        if (isV0) {
+          // in v0 the service name is always set to DD_SERVICE while it should just be unset as v1
+          // this is a buggy behaviour that could not be easily fixed.
+          serviceNameSource "java-kafka"
+        }
         defaultTags(distributedRootSpan)
       }
     }
   }
 
   def pollSpan(
-    TraceAssert trace,
-    int recordCount = 1,
-    DDSpan parentSpan = null,
-    Range offset = 0..0,
-    boolean tombstone = false,
-    boolean distributedRootSpan = !hasQueueSpan()
+  TraceAssert trace,
+  int recordCount = 1,
+  DDSpan parentSpan = null,
+  Range offset = 0..0,
+  boolean tombstone = false,
+  boolean distributedRootSpan = !hasQueueSpan()
   ) {
     trace.span {
       serviceName Config.get().getServiceName()
@@ -1363,5 +1499,13 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
   @Override
   boolean isDataStreamsEnabled() {
     return false
+  }
+}
+
+class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

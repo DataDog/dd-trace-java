@@ -30,6 +30,7 @@ import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.Where;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.ClassFileLines;
+import com.datadog.debugger.util.JvmLanguage;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
@@ -118,7 +119,15 @@ public class CapturedContextInstrumenter extends Instrumenter {
       int till = sourceLine.getTill();
 
       boolean isSingleLine = from == till;
-
+      if (isSingleLine) {
+        List<MethodNode> methods = classFileLines.getMethodsByLine(from);
+        if (methods.size() == 1 && "<init>".equals(methods.get(0).name)) {
+          if (from == classFileLines.getMethodStart(methodNode)) {
+            reportError("Cannot instrument the first line of a constructor");
+            return false;
+          }
+        }
+      }
       LabelNode beforeLabel = classFileLines.getLineLabel(from);
       // single line N capture translates to line range (N, N+1)
       LabelNode afterLabel = classFileLines.getLineLabel(till + (isSingleLine ? 1 : 0));

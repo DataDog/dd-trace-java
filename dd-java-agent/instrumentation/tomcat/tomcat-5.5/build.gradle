@@ -90,10 +90,6 @@ dependencies {
 
   implementation project(':dd-java-agent:instrumentation:tomcat:tomcat-common')
 
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
-
   // Required jars for embedded tomcat:
   testImplementation group: 'tomcat', name: 'catalina', version: tomcatVersion
   testImplementation group: 'tomcat', name: 'tomcat-coyote', version: tomcatVersion
@@ -136,6 +132,14 @@ dependencies {
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0'))
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-7.0'))
   latestDepTestRuntimeOnly(project(':dd-java-agent:instrumentation:tomcat:tomcat-9.0'))
+}
+
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure IastServlet2Instrumentation applies (requires no javax.servlet.AsyncEvent)
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
 }
 
 tasks.withType(Test).configureEach {

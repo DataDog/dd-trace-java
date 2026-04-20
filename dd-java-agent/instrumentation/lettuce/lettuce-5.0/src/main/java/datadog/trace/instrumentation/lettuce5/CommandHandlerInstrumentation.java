@@ -23,7 +23,7 @@ import net.bytebuddy.asm.Advice;
  * io.lettuce.core.protocol.AsyncCommand} during decoding.
  */
 @AutoService(InstrumenterModule.class)
-public class CommandHandlerInstrumentation extends InstrumenterModule.Profiling
+public class CommandHandlerInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CommandHandlerInstrumentation() {

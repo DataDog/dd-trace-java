@@ -3,8 +3,8 @@ package datadog.gradle.plugin.muzzle
 import org.gradle.api.Action
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.newInstance
-import javax.inject.Inject
 import java.util.Locale
+import javax.inject.Inject
 
 /**
  * Muzzle extension containing all pass and fail directives.

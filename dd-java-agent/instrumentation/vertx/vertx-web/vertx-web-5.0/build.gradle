@@ -40,16 +40,16 @@ dependencies {
   testImplementation project(':dd-java-agent:instrumentation:netty:netty-4.1')
   testImplementation project(':dd-java-agent:instrumentation:vertx:vertx-web:vertx-web-4.0')
 
-  testImplementation project(':dd-java-agent:instrumentation:trace-annotation')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation project(':dd-java-agent:agent-iast:iast-test-fixtures')
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   testImplementation group: 'io.vertx', name: 'vertx-web', version: vertxVersion
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: vertxVersion
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '+'

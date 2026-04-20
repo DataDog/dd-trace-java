@@ -1,7 +1,7 @@
 package datadog.trace.agent.test.datastreams;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 
 // TODO Ideally, DDAgentFeaturesDiscovery would be an interface to create a proper testable stubs
 public class MockFeaturesDiscovery extends DDAgentFeaturesDiscovery {

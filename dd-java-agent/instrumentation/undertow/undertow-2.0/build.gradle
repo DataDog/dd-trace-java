@@ -32,7 +32,7 @@ addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
 dependencies {
   compileOnly group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
-  implementation project(':dd-java-agent:instrumentation:undertow')
+  implementation project(':dd-java-agent:instrumentation:undertow:undertow-common')
 
   testImplementation group: 'io.undertow', name: 'undertow-servlet', version: '2.0.0.Final'
   testImplementation group: 'io.undertow', name: 'undertow-websockets-jsr', version: '2.0.0.Final'

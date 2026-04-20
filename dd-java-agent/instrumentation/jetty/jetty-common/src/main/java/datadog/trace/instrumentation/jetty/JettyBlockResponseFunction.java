@@ -19,9 +19,10 @@ public class JettyBlockResponseFunction implements BlockResponseFunction {
       TraceSegment segment,
       int statusCode,
       BlockingContentType templateType,
-      Map<String, String> extraHeaders) {
+      Map<String, String> extraHeaders,
+      String securityResponseId) {
     Response response = request.getResponse();
     return JettyBlockingHelper.block(
-        segment, request, response, statusCode, templateType, extraHeaders);
+        segment, request, response, statusCode, templateType, extraHeaders, securityResponseId);
   }
 }

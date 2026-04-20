@@ -35,6 +35,7 @@ public class ConfigManager {
     final String reportUUID;
     final boolean agentless;
     final boolean sendToErrorTracking;
+    final boolean extendedInfoEnabled;
 
     StoredConfig(
         String reportUUID,
@@ -45,7 +46,8 @@ public class ConfigManager {
         String processTags,
         String runtimeId,
         boolean agentless,
-        boolean sendToErrorTracking) {
+        boolean sendToErrorTracking,
+        boolean extendedInfoEnabled) {
       this.service = service;
       this.env = env;
       this.version = version;
@@ -55,6 +57,11 @@ public class ConfigManager {
       this.reportUUID = reportUUID;
       this.agentless = agentless;
       this.sendToErrorTracking = sendToErrorTracking;
+      this.extendedInfoEnabled = extendedInfoEnabled;
+    }
+
+    public CrashUploaderSettings toCrashUploaderSettings() {
+      return new CrashUploaderSettings(extendedInfoEnabled);
     }
 
     public static class Builder {
@@ -67,6 +74,7 @@ public class ConfigManager {
       String reportUUID;
       boolean agentless;
       boolean sendToErrorTracking;
+      boolean extendedInfoEnabled;
 
       public Builder(Config config) {
         // get sane defaults
@@ -77,6 +85,7 @@ public class ConfigManager {
         this.reportUUID = RandomUtils.randomUUID().toString();
         this.agentless = config.isCrashTrackingAgentless();
         this.sendToErrorTracking = config.isCrashTrackingErrorsIntakeEnabled();
+        this.extendedInfoEnabled = config.isCrashTrackingExtendedInfoEnabled();
       }
 
       public Builder service(String service) {
@@ -119,6 +128,11 @@ public class ConfigManager {
         return this;
       }
 
+      public Builder extendedInfoEnabled(boolean extendedInfoEnabled) {
+        this.extendedInfoEnabled = extendedInfoEnabled;
+        return this;
+      }
+
       // @VisibleForTesting
       Builder reportUUID(String reportUUID) {
         this.reportUUID = reportUUID;
@@ -135,7 +149,8 @@ public class ConfigManager {
             processTags,
             runtimeId,
             agentless,
-            sendToErrorTracking);
+            sendToErrorTracking,
+            extendedInfoEnabled);
       }
     }
   }
@@ -194,6 +209,8 @@ public class ConfigManager {
       writeEntry(bw, "java_home", SystemProperties.get("java.home"));
       writeEntry(bw, "agentless", Boolean.toString(config.isCrashTrackingAgentless()));
       writeEntry(bw, "upload_to_et", Boolean.toString(config.isCrashTrackingErrorsIntakeEnabled()));
+      writeEntry(
+          bw, "extended_info", Boolean.toString(config.isCrashTrackingExtendedInfoEnabled()));
 
       Runtime.getRuntime()
           .addShutdownHook(
@@ -256,6 +273,9 @@ public class ConfigManager {
             break;
           case "upload_to_et":
             cfgBuilder.sendToErrorTracking(Boolean.parseBoolean(value));
+            break;
+          case "extended_info":
+            cfgBuilder.extendedInfoEnabled(Boolean.parseBoolean(value));
             break;
           default:
             // ignore

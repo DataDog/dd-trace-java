@@ -93,37 +93,40 @@ class VertxPostgresSqlClientForkedTest extends InstrumentationSpecification {
 
   AsyncResult<RowSet<Row>> queryCursorWithHandler(Cursor cursor) {
     def latch = new CountDownLatch(1)
-    AsyncResult<RowSet<Row>> result = null
+    AsyncResult<RowSet<Row>> asyncResult = null
     cursor.read(0) { rowSetAR ->
       runUnderTrace("handler") {
-        result = rowSetAR
+        asyncResult = rowSetAR
       }
       latch.countDown()
     }
     assert latch.await(10, TimeUnit.SECONDS)
-    return result
+    assert asyncResult?.succeeded() : "Failed to read cursor: ${asyncResult?.cause()}"
+    return asyncResult
   }
 
   SqlConnection connection(Pool pool) {
     def latch = new CountDownLatch(1)
-    SqlConnection result = null
+    AsyncResult<SqlConnection> asyncResult = null
     pool.getConnection({ connectionAR ->
-      result = connectionAR.result()
+      asyncResult = connectionAR
       latch.countDown()
     })
     assert latch.await(10, TimeUnit.SECONDS)
-    return result
+    assert asyncResult?.succeeded() : "Failed to get connection: ${asyncResult?.cause()}"
+    return asyncResult.result()
   }
 
   PreparedStatement prepare(SqlConnection connection, String sql) {
     def latch = new CountDownLatch(1)
-    PreparedStatement result = null
+    AsyncResult<PreparedStatement> asyncResult = null
     connection.prepare(sql, { statementAR ->
-      result = statementAR.result()
+      asyncResult = statementAR
       latch.countDown()
     })
     assert latch.await(10, TimeUnit.SECONDS)
-    return result
+    assert asyncResult?.succeeded() : "Failed to prepare statement: ${asyncResult?.cause()}"
+    return asyncResult.result()
   }
 
   void checkDBSpan(TraceAssert ta, DDSpan parent, String resource, String operation, TestDBInfo info, boolean prepared = false) {

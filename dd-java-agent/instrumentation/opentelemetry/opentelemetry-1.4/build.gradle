@@ -18,6 +18,9 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-otel:otel-shim')
 
+  muzzleBootstrap project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   testImplementation group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'

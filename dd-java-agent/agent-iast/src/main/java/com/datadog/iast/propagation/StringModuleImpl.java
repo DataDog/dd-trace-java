@@ -401,9 +401,8 @@ public class StringModuleImpl implements StringModule {
       }
     }
     Range[] newRanges = new Range[rangesSelf.length - skippedRanges];
-    for (int i = 0; i < newRanges.length; i++) {
-      newRanges[i] = rangesSelf[i];
-    }
+    System.arraycopy(rangesSelf, 0, newRanges, 0, newRanges.length);
+
     if (null != adjustedRange) {
       newRanges[newRanges.length - 1] = adjustedRange;
     }

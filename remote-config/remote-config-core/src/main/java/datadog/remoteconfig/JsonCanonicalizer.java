@@ -85,7 +85,7 @@ public class JsonCanonicalizer {
   private static void serialize(ByteArrayOutputStream os, Map<String, Object> map) {
     os.write('{');
 
-    boolean first[] = new boolean[] {true};
+    boolean[] first = new boolean[] {true};
     map.entrySet().stream()
         // the canonical json spec only says "keys are lexicographically sorted"
         .sorted((e1, e2) -> String.CASE_INSENSITIVE_ORDER.compare(e1.getKey(), e2.getKey()))

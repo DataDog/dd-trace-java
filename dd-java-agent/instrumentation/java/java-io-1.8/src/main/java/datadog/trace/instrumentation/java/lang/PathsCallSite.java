@@ -13,7 +13,7 @@ import javax.annotation.Nullable;
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
 @CallSite(
     spi = {IastCallSites.class, RaspCallSites.class},
-    helpers = FileLoadedRaspHelper.class)
+    helpers = FileIORaspHelper.class)
 public class PathsCallSite {
 
   @CallSite.Before(
@@ -31,6 +31,23 @@ public class PathsCallSite {
   public static void beforeGet(@CallSite.Argument @Nullable final URI uri) {
     if (uri != null) {
       iastCallback(uri);
+      raspCallback(uri);
+    }
+  }
+
+  // Java 11+: Path.of — equivalent to Paths.get but defined on the Path interface
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.of(java.lang.String, java.lang.String[])")
+  public static void beforeOf(
+      @CallSite.Argument @Nullable final String first,
+      @CallSite.Argument @Nullable final String[] more) {
+    if (first != null && more != null) {
+      raspCallback(first, more);
+    }
+  }
+
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.of(java.net.URI)")
+  public static void beforeOfUri(@CallSite.Argument @Nullable final URI uri) {
+    if (uri != null) {
       raspCallback(uri);
     }
   }
@@ -58,10 +75,10 @@ public class PathsCallSite {
   }
 
   private static void raspCallback(String first, String[] more) {
-    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(first, more);
+    FileIORaspHelper.INSTANCE.beforeFileLoaded(first, more);
   }
 
   private static void raspCallback(URI uri) {
-    FileLoadedRaspHelper.INSTANCE.beforeFileLoaded(uri);
+    FileIORaspHelper.INSTANCE.beforeFileLoaded(uri);
   }
 }

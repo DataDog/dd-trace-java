@@ -19,11 +19,11 @@ public class TestPrintWriterSuite {
     pw.write(s);
   }
 
-  public void write(char buf[], int off, int len) {
+  public void write(char[] buf, int off, int len) {
     pw.write(buf, off, len);
   }
 
-  public void write(char buf[]) {
+  public void write(char[] buf) {
     pw.write(buf);
   }
 
@@ -43,7 +43,7 @@ public class TestPrintWriterSuite {
     return pw.printf(l, format, args);
   }
 
-  public void println(char x[]) {
+  public void println(char[] x) {
     pw.println(x);
   }
 
@@ -51,7 +51,7 @@ public class TestPrintWriterSuite {
     pw.println(x);
   }
 
-  public void print(char s[]) {
+  public void print(char[] s) {
     pw.print(s);
   }
 

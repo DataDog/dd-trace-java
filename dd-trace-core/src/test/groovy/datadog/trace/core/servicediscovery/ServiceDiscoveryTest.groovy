@@ -19,15 +19,16 @@ class ServiceDiscoveryTest extends DDCoreSpecification {
     String serviceVersion = "1.1.1"
     UTF8BytesString processTags = UTF8BytesString.create("key1:val1,key2:val2")
     String containerID = "containerID"
+    boolean appLogsCollectionEnabled = true
 
     when:
-    byte[] out = ServiceDiscovery.encodePayload(tracerVersion, hostname, runtimeID, service, env, serviceVersion, processTags, containerID)
+    byte[] out = ServiceDiscovery.encodePayload(tracerVersion, hostname, appLogsCollectionEnabled, runtimeID, service, env, serviceVersion, processTags, containerID)
     MapValue map = MessagePack.newDefaultUnpacker(out).unpackValue().asMapValue()
 
     then:
-    map.size() == 10
+    map.size() == 11
     and:
-    map.toString() == '{"schema_version":2,"tracer_language":"java","tracer_version":"1.2.3","hostname":"test-host","runtime_id":"rid-123","service_name":"orders","service_env":"prod","service_version":"1.1.1","process_tags":"key1:val1,key2:val2","container_id":"containerID"}'
+    map.toString() == '{"schema_version":2,"tracer_language":"java","tracer_version":"1.2.3","hostname":"test-host","logs_collected":true,"runtime_id":"rid-123","service_name":"orders","service_env":"prod","service_version":"1.1.1","process_tags":"key1:val1,key2:val2","container_id":"containerID"}'
   }
 
   def "encodePayload only required fields"() {
@@ -36,13 +37,13 @@ class ServiceDiscoveryTest extends DDCoreSpecification {
     String hostname = "my_host"
 
     when:
-    byte[] out = ServiceDiscovery.encodePayload(tracerVersion, hostname, null, null, null, null, null, null)
+    byte[] out = ServiceDiscovery.encodePayload(tracerVersion, hostname, false, null, null, null, null, null, null)
     MapValue map = MessagePack.newDefaultUnpacker(out).unpackValue().asMapValue()
 
     then:
-    map.size() == 4
+    map.size() == 5
     and:
-    map.toString() == '{"schema_version":2,"tracer_language":"java","tracer_version":"1.2.3","hostname":"my_host"}'
+    map.toString() == '{"schema_version":2,"tracer_language":"java","tracer_version":"1.2.3","hostname":"my_host","logs_collected":false}'
   }
   def "generateFileName"() {
     when:

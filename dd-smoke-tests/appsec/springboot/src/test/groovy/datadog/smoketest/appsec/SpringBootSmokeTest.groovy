@@ -5,6 +5,7 @@ import datadog.trace.agent.test.utils.OkHttpUtils
 import datadog.trace.test.util.ThreadUtils
 import groovy.json.JsonSlurper
 import okhttp3.FormBody
+import okhttp3.HttpUrl
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -210,6 +211,26 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           on_match    : ['block']
         ],
         [
+          id          : '__test_file_upload_block',
+          name        : 'test rule to block on malicious file upload filename',
+          tags        : [
+            type      : 'unrestricted-file-upload',
+            category  : 'attack_attempt',
+            confidence: '1',
+          ],
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'server.request.body.filenames']],
+                regex : '\\.(?:jsp|php|asp|aspx)$',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
           id  : "apiA-100-001",
           name: "API 10 tag rule on request headers",
           tags: [
@@ -222,7 +243,7 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
                 inputs: [
                   [
                     address : "server.io.net.request.headers",
-                    key_path: ["Witness"]
+                    key_path: ["witness"]
                   ]
                 ],
                 list: ["pwq3ojtropiw3hjtowir"]
@@ -558,6 +579,38 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
   }
 
+  void 'block request based on malicious file upload filename'() {
+    when:
+    String url = "http://localhost:${httpPort}/upload"
+    def requestBody = new okhttp3.MultipartBody.Builder()
+      .setType(okhttp3.MultipartBody.FORM)
+      .addFormDataPart('file', 'exploit.jsp',
+      RequestBody.create(MediaType.parse('application/octet-stream'), 'webshell content'))
+      .build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    responseBodyStr.contains("blocked")
+    response.code() == 403
+
+    when:
+    waitForTraceCount(1) == 1
+
+    then:
+    rootSpans.size() == 1
+    forEachRootSpanTrigger {
+      assert it['rule']['id'] in ['__test_file_upload_block', 'crs-944-140']
+    }
+    rootSpans.each {
+      assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
+    }
+  }
+
   void 'rasp reports stacktrace on sql injection'() {
     when:
     String url = "http://localhost:${httpPort}/sqli/query?id=' OR 1=1 --"
@@ -609,7 +662,9 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
 
     then:
     response.code() == 403
-    responseBodyStr == '{"errors":[{"title":"You\'ve been blocked","detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."}]}\n'
+    responseBodyStr.contains('"title":"You\'ve been blocked"')
+    responseBodyStr.contains('"detail":"Sorry, you cannot access this page. Please contact the customer service team. Security provided by Datadog."')
+    responseBodyStr.contains('"security_response_id":')
 
     when:
     waitForTraceCount(1)
@@ -709,6 +764,39 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     'paths'    | _
     'file'    | _
     'path'    | _
+  }
+
+  void 'rasp blocks on LFI write'() {
+    when:
+    String url = "http://localhost:${httpPort}/lfi/fileoutputstream?path=." + URLEncoder.encode("../../../etc/passwd", StandardCharsets.UTF_8.name())
+    def request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    response.code() == 403
+    responseBodyStr.contains('You\'ve been blocked')
+
+    when:
+    waitForTraceCount(1)
+
+    then:
+    def rootSpan = findFirstMatchingSpan('fileoutputstream')
+    assert rootSpan != null, 'root span not found'
+    assert rootSpan.meta.get('appsec.blocked') == 'true', 'appsec.blocked is not set'
+    assert rootSpan.meta.get('_dd.appsec.json') != null, '_dd.appsec.json is not set'
+    def trigger = null
+    for (t in rootSpan.triggers) {
+      if (t['rule']['id'] == 'rasp-930-100') {
+        trigger = t
+        break
+      }
+    }
+    assert trigger != null, 'test trigger not found'
+    rootSpan.span.metaStruct == null
   }
 
   def findFirstMatchingSpan(String resource) {
@@ -1022,12 +1110,32 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     variant << httpClientDownstreamAnalysisVariants()
   }
 
-  private RootSpan assertDownstreamTrace() {
-    waitForTraceCount(2) // original + echo
+  void 'API Security downstream response redirect'() {
+    when:
+    final url =HttpUrl.parse("http://localhost:${httpPort}/api_security/http_client/${variant}")
+      .newBuilder()
+      .addQueryParameter('redirect', 'true')
+      .build()
+    final request = new Request.Builder()
+      .url(url)
+      .get()
+      .build()
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+    assertDownstreamTrace(2)
+
+    where:
+    variant << httpClientDownstreamAnalysisVariants()
+  }
+
+  private RootSpan assertDownstreamTrace(int downstreamCount = 1) {
+    waitForTraceCount(downstreamCount + 1) // original one plus all downstream requests
 
     final rootSpans = this.rootSpans.toList()
     final span = rootSpans.find { it.getSpan().resource.contains('/api_security/http_client') }
-    span.metrics['_dd.appsec.downstream_request'] == 1
+    assert span.metrics['_dd.appsec.downstream_request'] == downstreamCount
 
     return span
   }

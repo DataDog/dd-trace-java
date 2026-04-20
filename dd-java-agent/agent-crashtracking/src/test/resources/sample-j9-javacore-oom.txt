@@ -1,0 +1,52 @@
+0SECTION       TITLE subcomponent dump routine
+NULL           ===============================
+1TICHARSET     UTF-8
+1TISIGINFO     Dump Event "systhrow" (00040000) Detail "java/lang/OutOfMemoryError" received
+1TIDATETIME    Date: 2024/09/15 at 10:30:45:789
+1TIPREPSTATE   Prep State: 0
+1TIPREPINFO    GC exclusive mode
+NULL           ------------------------------------------------------------------------
+0SECTION       GPINFO subcomponent dump routine
+NULL           ================================
+2XHOSLEVEL     OS Level         : Linux 5.15.0-generic
+2XHCPUS        Processors -
+3XHCPUARCH       Architecture   : amd64
+3XHNUMCPUS       How Many       : 8
+3XHNUMASUP     NUMA is either not supported or has been disabled by user
+NULL           ------------------------------------------------------------------------
+0SECTION       ENVINFO subcomponent dump routine
+NULL           =================================
+1CIPROCESSID   Process ID: 54321
+1CIJAVAVERSION JRE 17.0.6 Linux amd64-64
+NULL           ------------------------------------------------------------------------
+0SECTION       THREADS subcomponent dump routine
+NULL           =================================
+1XMPOOLINFO    Current total pooled threads: 12
+1XMPOOLTOTAL   Live threads: 12, Daemon threads: 10
+NULL
+1XMCURTHDINFO  Current thread: "worker-thread-1" (J9VMThread:0x0000000002345678)
+NULL
+3XMTHREADINFO      "worker-thread-1" J9VMThread:0x0000000002345678, omrthread_t:0x000000000BCDEFA0, java/lang/Thread:0x00000000DEADBEEF, state:R, prio=5
+3XMJAVALTHREAD            (java/lang/Thread getId:0x10, isDaemon:true)
+3XMTHREADINFO1            Native Thread ID: 0x5A5A, Native Priority: 0x5
+3XMTHREADINFO2            (native stack address range from:0x00007F9B8428E000, to:0x00007F9B842CE000, size:0x40000)
+3XMCPUTIME               CPU usage total: 45.678901234 secs, user: 44.000000000 secs, system: 1.678901234 secs
+3XMHEAPALLOC             Heap bytes allocated since last GC cycle=999999999 (0x3B9AC9FF)
+3XMTHREADINFO3           Java callstack:
+4XESTACKTRACE                at java/util/ArrayList.grow(ArrayList.java:265)
+4XESTACKTRACE                at java/util/ArrayList.ensureCapacityInternal(ArrayList.java:227)
+4XESTACKTRACE                at java/util/ArrayList.add(ArrayList.java:458)
+4XESTACKTRACE                at com/example/MemoryHog.consumeMemory(MemoryHog.java:88)
+4XESTACKTRACE                at com/example/WorkerTask.run(WorkerTask.java:25)
+4XESTACKTRACE                at java/lang/Thread.run(Thread.java:833)
+NULL
+3XMTHREADINFO      "main" J9VMThread:0x0000000001234567, state:CW, prio=5
+3XMJAVALTHREAD            (java/lang/Thread getId:0x1, isDaemon:false)
+NULL           ------------------------------------------------------------------------
+0SECTION       MEMINFO subcomponent dump routine
+NULL           =================================
+1STHEAPTYPE    Object Memory
+1STHEAPTOTAL   Total memory: 268435456 (0x10000000)
+1STHEAPINUSE   Total memory in use: 268435456 (0x10000000)
+1STHEAPFREE    Total memory free: 0 (0x0)
+NULL           ------------------------------------------------------------------------

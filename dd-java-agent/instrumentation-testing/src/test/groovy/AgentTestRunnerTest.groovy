@@ -1,5 +1,6 @@
 import com.google.common.reflect.ClassPath
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.BootstrapClasspathSetupListener
 import datadog.trace.api.GlobalTracer
 import datadog.trace.api.Platform
@@ -26,6 +27,8 @@ class AgentTestRunnerTest extends InstrumentationSpecification {
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     injectSysConfig(TRACE_CLASSES_EXCLUDE, "config.exclude.packagename.*, config.exclude.SomeClass,config.exclude.SomeClass\$NestedClass")
   }

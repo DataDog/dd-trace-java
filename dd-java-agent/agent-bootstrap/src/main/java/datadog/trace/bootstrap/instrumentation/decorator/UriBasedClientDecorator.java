@@ -19,7 +19,7 @@ public abstract class UriBasedClientDecorator extends ClientDecorator {
     if (null != host && !host.isEmpty()) {
       span.setTag(Tags.PEER_HOSTNAME, host);
       if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
-        span.setServiceName(host);
+        span.setServiceName(host, component());
       }
       if (port > 0) {
         setPeerPort(span, port);

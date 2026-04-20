@@ -57,6 +57,7 @@ internal object MuzzleVersionUtils {
           v.contains("public_draft") ||
           v.contains("-cr") ||
           v.contains("-preview") ||
+          v.contains("redhat") || // redhat releases often cause ArtifactNotFoundException
           skipVersions.contains(v) ||
           END_NMN_PATTERN.matches(v) ||
           GIT_SHA_PATTERN.matches(v))
@@ -67,7 +68,7 @@ internal object MuzzleVersionUtils {
   /**
    * Select a random set of versions to test
    */
-  private val RANGE_COUNT_LIMIT = 25
+  internal val RANGE_COUNT_LIMIT = 25
 
   /**
    * Select a random set of versions to test, limiting the range for efficiency.

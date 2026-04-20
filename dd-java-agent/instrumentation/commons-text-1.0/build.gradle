@@ -17,7 +17,7 @@ dependencies {
 
   testImplementation group: 'org.apache.commons', name: 'commons-text', version: '1.0'
 
-  testRuntimeOnly project(':dd-java-agent:instrumentation:iast-instrumenter')
+  testRuntimeOnly project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter')
 
   latestDepTestImplementation group: 'org.apache.commons', name: 'commons-text', version: '+'
 }

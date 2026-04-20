@@ -2,6 +2,7 @@ package datadog.trace.bootstrap;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.Config.isExplicitlyDisabled;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_STARTUP_LOGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_COMMAND_PATTERN;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
@@ -23,9 +24,9 @@ import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
+import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.Platform;
-import datadog.trace.api.StatsDClientManager;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
 import datadog.trace.api.config.AppSecConfig;
@@ -47,6 +48,7 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.git.EmbeddedGitInfoBuilder;
 import datadog.trace.api.git.GitInfoProvider;
+import datadog.trace.api.intake.Intake;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.scopemanager.ScopeListener;
 import datadog.trace.bootstrap.benchmark.StaticEventLogger;
@@ -129,6 +131,7 @@ public class Agent {
     CODE_ORIGIN(TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED, false),
     DATA_JOBS(GeneralConfig.DATA_JOBS_ENABLED, false),
     AGENTLESS_LOG_SUBMISSION(GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED, false),
+    APP_LOGS_COLLECTION(GeneralConfig.APP_LOGS_COLLECTION_ENABLED, false),
     LLMOBS(LlmObsConfig.LLMOBS_ENABLED, false),
     LLMOBS_AGENTLESS(LlmObsConfig.LLMOBS_AGENTLESS_ENABLED, false),
     FEATURE_FLAGGING(FeatureFlaggingConfig.FLAGGING_PROVIDER_ENABLED, false);
@@ -190,6 +193,7 @@ public class Agent {
   private static boolean codeOriginEnabled = false;
   private static boolean distributedDebuggerEnabled = false;
   private static boolean agentlessLogSubmissionEnabled = false;
+  private static boolean appLogsCollectionEnabled = false;
   private static boolean featureFlaggingEnabled = false;
 
   private static void safelySetContextClassLoader(ClassLoader classLoader) {
@@ -275,6 +279,7 @@ public class Agent {
     exceptionReplayEnabled = isFeatureEnabled(AgentFeature.EXCEPTION_REPLAY);
     codeOriginEnabled = isFeatureEnabled(AgentFeature.CODE_ORIGIN);
     agentlessLogSubmissionEnabled = isFeatureEnabled(AgentFeature.AGENTLESS_LOG_SUBMISSION);
+    appLogsCollectionEnabled = isFeatureEnabled(AgentFeature.APP_LOGS_COLLECTION);
     llmObsEnabled = isFeatureEnabled(AgentFeature.LLMOBS);
     featureFlaggingEnabled = isFeatureEnabled(AgentFeature.FEATURE_FLAGGING);
 
@@ -659,6 +664,7 @@ public class Agent {
         throw new UndeclaredThrowableException(e);
       }
 
+      installDatadogMeter(initTelemetry);
       installDatadogTracer(initTelemetry, scoClass, sco);
       maybeInstallLogsIntake(scoClass, sco);
       maybeStartIast(instrumentation);
@@ -789,6 +795,29 @@ public class Agent {
         StaticEventLogger.end("BytebuddyAgent");
       }
     }
+  }
+
+  private static synchronized void installDatadogMeter(InitializationTelemetry initTelemetry) {
+    if (AGENT_CLASSLOADER == null) {
+      throw new IllegalStateException("Datadog agent should have been started already");
+    }
+
+    StaticEventLogger.begin("AgentMeter");
+
+    try {
+      // Install AgentMeter, StatsDClient and Monitoring
+      final Class<?> tracerInstallerClass =
+          AGENT_CLASSLOADER.loadClass("datadog.trace.agent.tooling.MeterInstaller");
+      final Method installMeterMethod = tracerInstallerClass.getMethod("installMeter");
+      installMeterMethod.invoke(null);
+    } catch (final FatalAgentMisconfigurationError ex) {
+      throw ex;
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while installing the Datadog meter", ex);
+      initTelemetry.onFatalError(ex);
+    }
+
+    StaticEventLogger.end("AgentMeter");
   }
 
   private static synchronized void installDatadogTracer(
@@ -978,7 +1007,7 @@ public class Agent {
 
   private static StatsDClientManager statsDClientManager() throws Exception {
     final Class<?> statsdClientManagerClass =
-        AGENT_CLASSLOADER.loadClass("datadog.communication.monitor.DDAgentStatsDClientManager");
+        AGENT_CLASSLOADER.loadClass("datadog.metrics.impl.statsd.DDAgentStatsDClientManager");
     final Method statsDClientManagerMethod =
         statsdClientManagerClass.getMethod("statsDClientManager");
     return (StatsDClientManager) statsDClientManagerMethod.invoke(null);
@@ -1131,15 +1160,16 @@ public class Agent {
   }
 
   private static void maybeInstallLogsIntake(Class<?> scoClass, Object sco) {
-    if (agentlessLogSubmissionEnabled) {
+    if (agentlessLogSubmissionEnabled || appLogsCollectionEnabled) {
       StaticEventLogger.begin("Logs Intake");
 
       try {
         final Class<?> logsIntakeSystemClass =
             AGENT_CLASSLOADER.loadClass("datadog.trace.logging.intake.LogsIntakeSystem");
         final Method logsIntakeInstallerMethod =
-            logsIntakeSystemClass.getMethod("install", scoClass);
-        logsIntakeInstallerMethod.invoke(null, sco);
+            logsIntakeSystemClass.getMethod("install", scoClass, Intake.class);
+        logsIntakeInstallerMethod.invoke(
+            null, sco, agentlessLogSubmissionEnabled ? Intake.LOGS : Intake.EVENT_PLATFORM);
       } catch (final Throwable e) {
         log.warn("Not installing Logs Intake subsystem", e);
       }
@@ -1248,10 +1278,6 @@ public class Agent {
   }
 
   private static void initializeCrashTracking(boolean delayed, boolean checkNative) {
-    if (JavaVirtualMachine.isJ9()) {
-      // TODO currently crash tracking is supported only for HotSpot based JVMs
-      return;
-    }
     log.debug("Initializing crashtracking");
     try {
       Class<?> clz = AGENT_CLASSLOADER.loadClass("datadog.crashtracking.Initializer");
@@ -1428,11 +1454,6 @@ public class Agent {
     startDebuggerAgent(inst, scoClass, sco);
   }
 
-  private static boolean isExplicitlyDisabled(String booleanKey) {
-    return Config.get().configProvider().isSet(booleanKey)
-        && !Config.get().configProvider().getBoolean(booleanKey);
-  }
-
   private static synchronized void startDebuggerAgent(
       Instrumentation inst, Class<?> scoClass, Object sco) {
     StaticEventLogger.begin("Debugger");
@@ -1456,9 +1477,15 @@ public class Agent {
 
   private static void configureLogger() {
     setSystemPropertyDefault(SIMPLE_LOGGER_SHOW_DATE_TIME_PROPERTY, "true");
-    setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
-    String simpleLoggerJsonEnabled = SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY);
-    if (simpleLoggerJsonEnabled != null && simpleLoggerJsonEnabled.equalsIgnoreCase("true")) {
+
+    String logFormatJson = ddGetProperty("dd.log.format.json");
+    if (null != logFormatJson) {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, logFormatJson);
+    } else {
+      setSystemPropertyDefault(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY, "false");
+    }
+
+    if (Boolean.parseBoolean(SystemProperties.get(SIMPLE_LOGGER_JSON_ENABLED_PROPERTY))) {
       setSystemPropertyDefault(
           SIMPLE_LOGGER_DATE_TIME_FORMAT_PROPERTY, SIMPLE_LOGGER_DATE_TIME_FORMAT_JSON_DEFAULT);
     } else {
@@ -1470,9 +1497,12 @@ public class Agent {
     if (isDebugMode()) {
       logLevel = "DEBUG";
     } else {
-      logLevel = ddGetProperty("dd.log.level");
+      logLevel = ddGetProperty("dd.trace.log.level");
       if (null == logLevel) {
-        logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        logLevel = ddGetProperty("dd.log.level");
+        if (null == logLevel) {
+          logLevel = EnvironmentVariables.get("OTEL_LOG_LEVEL");
+        }
       }
     }
 

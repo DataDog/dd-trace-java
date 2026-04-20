@@ -1023,7 +1023,7 @@ public final class TagMapFuzzTest {
       assertEquals(expectedEntry.getValue(), actualEntry.getValue());
     }
 
-    for (TagMap.Entry actualEntry : actual) {
+    for (TagMap.EntryReader actualEntry : actual) {
       Object expectedValue = expected.get(actualEntry.tag());
       assertEquals(expectedValue, actualEntry.objectValue());
     }
@@ -1378,7 +1378,7 @@ public final class TagMapFuzzTest {
 
     @Override
     public void verifyTestMap(TagMap expectedMap) {
-      for (TagMap.Entry entry : this.tagMap) {
+      for (TagMap.EntryReader entry : this.tagMap) {
         assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
       }
     }
@@ -1417,7 +1417,7 @@ public final class TagMapFuzzTest {
       // ledger may contain multiple updates of the same key
       // easier to produce a TagMap and check against it
 
-      for (TagMap.Entry entry : this.ledger.buildImmutable()) {
+      for (TagMap.EntryReader entry : this.ledger.buildImmutable()) {
         assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
       }
     }

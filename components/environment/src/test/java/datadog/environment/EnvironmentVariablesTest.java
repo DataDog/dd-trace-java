@@ -11,7 +11,7 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class EnvironmentVariablesTest {
-  private static final String EXISTING_ENV_VAR = "JAVA_8_HOME";
+  private static final String EXISTING_ENV_VAR = "PATH";
   private static final String MISSING_ENV_VAR = "UNDEFINED_ENV_VAR";
   private static final String DEFAULT_VALUE = "DEFAULT";
 

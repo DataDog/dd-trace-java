@@ -53,6 +53,7 @@ abstract class ParseV2SupportedConfigurationsTask  @Inject constructor(
     // Parse supportedConfigurations key to into a V2 format
     val supported: Map<String, List<SupportedConfigurationItem>> = supportedRaw.mapValues { (_, configList) ->
       configList.map { configMap ->
+        @Suppress("UNCHECKED_CAST")
         SupportedConfigurationItem(
           configMap["version"] as? String,
           configMap["type"] as? String,

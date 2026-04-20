@@ -1,16 +1,17 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -22,22 +23,10 @@ import io.grpc.Status;
 import io.grpc.StatusException;
 import java.net.InetSocketAddress;
 import java.net.SocketAddress;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public final class ClientCallImplInstrumentation extends InstrumenterModule.Tracing
+public final class ClientCallImplInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientCallImplInstrumentation() {
-    super("grpc", "grpc-client");
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("io.grpc.ClientCall", AgentSpan.class.getName());
-  }
 
   @Override
   public String instrumentedType() {
@@ -47,7 +36,10 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvices(
+        named("start").and(isMethod()),
+        getClass().getName() + "$Start",
+        getClass().getName() + "$StartContextPropagationAdvice");
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
         named("request")
@@ -59,15 +51,6 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         named("sendMessage").and(isMethod()), getClass().getName() + "$SendMessage");
     transformer.applyAdvice(
         named("closeObserver").and(takesArguments(3)), getClass().getName() + "$CloseObserver");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".GrpcClientDecorator",
-      packageName + ".GrpcClientDecorator$1",
-      packageName + ".GrpcInjectAdapter"
-    };
   }
 
   public static final class Capture {
@@ -90,7 +73,6 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         @Advice.Local("$$ddSpan") AgentSpan span) {
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
-        DECORATE.injectContext(span, headers, SETTER);
         return activateSpan(span);
       }
       return null;
@@ -111,6 +93,18 @@ public final class ClientCallImplInstrumentation extends InstrumenterModule.Trac
         span.finish();
         throw error;
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class StartContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(@Advice.Argument(1) Metadata headers) {
+      AgentSpan span = activeSpan();
+      if (span == null) {
+        return;
+      }
+      DECORATE.injectContext(span, headers, SETTER);
     }
   }
 

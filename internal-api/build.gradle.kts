@@ -1,4 +1,3 @@
-import com.github.spotbugs.snom.SpotBugsTask
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 import groovy.lang.Closure
 
@@ -28,10 +27,6 @@ tasks.named<CheckForbiddenApis>("forbiddenApisMain") {
   failOnMissingClasses = false
 }
 
-tasks.named<SpotBugsTask>("spotbugsMain") {
-  extraArgs.add("-noClassOk")
-}
-
 val minimumBranchCoverage by extra(0.7)
 val minimumInstructionCoverage by extra(0.8)
 
@@ -41,11 +36,7 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.ClassloaderConfigurationOverrides.Lazy",
     // Interface
     "datadog.trace.api.EndpointTracker",
-    // Noop implementation
-    "datadog.trace.api.NoOpStatsDClient",
     "datadog.trace.api.Platform",
-    // Interface
-    "datadog.trace.api.StatsDClient",
     // Noop implementation
     "datadog.trace.api.TraceSegment.NoOp",
     "datadog.trace.api.WithGlobalTracer.1",
@@ -206,7 +197,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.cache.FixedSizeCache.IdentityHash",
     "datadog.trace.api.cache.FixedSizeWeakKeyCache",
     // Interface with default method
-    "datadog.trace.api.StatsDClientManager",
     "datadog.trace.api.iast.Taintable",
     "datadog.trace.api.Stateful",
     "datadog.trace.api.Stateful.1",
@@ -273,7 +263,6 @@ dependencies {
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))
-  api(project(":components:yaml"))
   api(project(":utils:config-utils"))
   api(project(":utils:time-utils"))
 

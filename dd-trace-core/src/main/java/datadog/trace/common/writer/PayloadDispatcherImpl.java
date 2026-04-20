@@ -1,11 +1,11 @@
 package datadog.trace.common.writer;
 
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;
@@ -111,13 +111,22 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       mapper.reset();
       if (response.success()) {
         if (log.isDebugEnabled()) {
-          log.debug("Successfully sent {} traces to the API", messageCount);
+          log.debug(
+              "Successfully sent {} traces of size {} bytes to the API {}",
+              messageCount,
+              sizeInBytes,
+              mapper.endpoint());
         }
         healthMetrics.onSend(messageCount, sizeInBytes, response);
       } else {
         if (log.isDebugEnabled()) {
           log.debug(
-              "Failed to send {} traces of size {} bytes to the API", messageCount, sizeInBytes);
+              "Failed to send {} traces of size {} bytes to the API {} status {} response {}",
+              messageCount,
+              sizeInBytes,
+              mapper.endpoint(),
+              response.status(),
+              response.response());
         }
         healthMetrics.onFailedSend(messageCount, sizeInBytes, response);
       }

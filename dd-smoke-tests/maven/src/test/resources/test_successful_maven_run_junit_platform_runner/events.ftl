@@ -351,6 +351,7 @@
       "runtime.vendor" : ${content_meta_runtime_vendor},
       "runtime.version" : ${content_meta_runtime_version},
       "span.kind" : "test",
+      "test.final_status" : "pass",
       "test.framework" : "spock",
       "test.framework_version" : "2.4.0-M6-groovy-4.0",
       "test.module" : "Maven Smoke Tests Project maven-surefire-plugin default-test",

@@ -4,4 +4,7 @@ description = 'appsec-smoke-tests'
 
 dependencies {
   api project(':dd-smoke-tests')
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }

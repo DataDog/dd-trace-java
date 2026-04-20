@@ -4,4 +4,7 @@ description = 'Mock Datadog backend used by smoke tests.'
 dependencies {
   implementation project(':dd-smoke-tests')
   api project(':dd-java-agent:agent-ci-visibility:civisibility-test-fixtures')
+
+  compileOnly(libs.bundles.groovy)
+  compileOnly(libs.bundles.spock)
 }

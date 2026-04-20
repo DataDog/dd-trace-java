@@ -29,6 +29,7 @@ public class ServiceDiscovery {
           ServiceDiscovery.encodePayload(
               TracerVersion.TRACER_VERSION,
               config.getHostName(),
+              config.isAppLogsCollectionEnabled(),
               config.getRuntimeId(),
               config.getServiceName(),
               config.getEnv(),
@@ -50,6 +51,7 @@ public class ServiceDiscovery {
   static byte[] encodePayload(
       String tracerVersion,
       String hostname,
+      boolean appLogsCollectionEnabled,
       String runtimeID,
       String service,
       String env,
@@ -59,7 +61,7 @@ public class ServiceDiscovery {
     GrowableBuffer buffer = new GrowableBuffer(1024);
     MsgPackWriter writer = new MsgPackWriter(buffer);
 
-    int mapElements = 4;
+    int mapElements = 5;
     mapElements += (runtimeID != null && !runtimeID.isEmpty()) ? 1 : 0;
     mapElements += (service != null && !service.isEmpty()) ? 1 : 0;
     mapElements += (env != null && !env.isEmpty()) ? 1 : 0;
@@ -80,6 +82,9 @@ public class ServiceDiscovery {
 
     writer.writeUTF8("hostname".getBytes(ISO_8859_1));
     writer.writeUTF8(hostname.getBytes(ISO_8859_1));
+
+    writer.writeUTF8("logs_collected".getBytes(ISO_8859_1));
+    writer.writeBoolean(appLogsCollectionEnabled);
 
     if (runtimeID != null && !runtimeID.isEmpty()) {
       writer.writeUTF8("runtime_id".getBytes(ISO_8859_1));

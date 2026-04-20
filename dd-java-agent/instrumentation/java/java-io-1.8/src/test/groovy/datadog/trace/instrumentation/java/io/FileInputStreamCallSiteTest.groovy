@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.io
 
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
-import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
+import datadog.trace.instrumentation.java.lang.FileIORaspHelper
 import foo.bar.TestFileInputStreamSuite
 
 class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
@@ -22,8 +22,8 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void  'test RASP new file input stream with path'() {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
     final path = newFile('test_rasp.txt').toString()
 
     when:
@@ -31,5 +31,18 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
 
     then:
     1 * helper.beforeFileLoaded(path)
+  }
+
+  void 'test RASP new file input stream with file'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final file = newFile('test_rasp_file.txt')
+
+    when:
+    TestFileInputStreamSuite.newFileInputStream(file)
+
+    then:
+    1 * helper.beforeFileLoaded(file.path)
   }
 }

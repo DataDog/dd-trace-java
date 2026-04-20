@@ -1,6 +1,6 @@
 package datadog.opentracing
 
-import datadog.trace.api.StatsDClient
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer

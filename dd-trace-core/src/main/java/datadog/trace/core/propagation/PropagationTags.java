@@ -57,6 +57,8 @@ public abstract class PropagationTags {
    */
   public abstract void updateTraceSamplingPriority(int samplingPriority, int samplingMechanism);
 
+  public abstract void forceKeep(int samplingMechanism);
+
   public abstract int getSamplingPriority();
 
   public abstract void updateTraceOrigin(CharSequence origin);
@@ -127,6 +129,16 @@ public abstract class PropagationTags {
   public abstract void updateDebugPropagation(String value);
 
   public abstract String getDebugPropagation();
+
+  /**
+   * Updates the Knuth sampling rate (_dd.p.ksr) propagated tag. This records the sampling rate that
+   * was applied when making an agent-based or rule-based sampling decision. The rate is formatted
+   * with up to 6 significant digits and no trailing zeros, matching the Go/Python reference
+   * implementations (%.6g format).
+   *
+   * @param rate the sampling rate value
+   */
+  public abstract void updateKnuthSamplingRate(double rate);
 
   public HashMap<String, String> createTagMap() {
     HashMap<String, String> result = new HashMap<>();

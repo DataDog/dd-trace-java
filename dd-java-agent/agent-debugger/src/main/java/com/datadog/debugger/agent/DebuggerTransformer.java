@@ -5,6 +5,7 @@ import static java.util.Collections.singletonList;
 import static java.util.stream.Collectors.toList;
 
 import com.datadog.debugger.el.ProbeCondition;
+import com.datadog.debugger.instrumentation.ASMHelper;
 import com.datadog.debugger.instrumentation.DiagnosticMessage;
 import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
@@ -24,6 +25,8 @@ import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.ClassFileLines;
 import com.datadog.debugger.util.DebuggerMetrics;
+import com.datadog.debugger.util.SpringHelper;
+import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
 import datadog.trace.agent.tooling.AgentStrategies;
 import datadog.trace.api.Config;
@@ -61,8 +64,10 @@ import org.objectweb.asm.ClassVisitor;
 import org.objectweb.asm.ClassWriter;
 import org.objectweb.asm.MethodVisitor;
 import org.objectweb.asm.Opcodes;
+import org.objectweb.asm.Type;
 import org.objectweb.asm.commons.JSRInlinerAdapter;
 import org.objectweb.asm.tree.ClassNode;
+import org.objectweb.asm.tree.FieldNode;
 import org.objectweb.asm.tree.MethodNode;
 import org.objectweb.asm.tree.analysis.Analyzer;
 import org.objectweb.asm.tree.analysis.AnalyzerException;
@@ -79,7 +84,7 @@ import org.slf4j.LoggerFactory;
 public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
-  private static final String INSTRUMENTATION_FAILS = "Instrumentation fails for %s";
+  private static final String INSTRUMENTATION_FAILS = "Instrumentation failed for %s: %s";
   private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
@@ -90,8 +95,20 @@ public class DebuggerTransformer implements ClassFileTransformer {
           SpanDecorationProbe.class,
           SpanProbe.class);
   private static final String JAVA_IO_TMPDIR = "java.io.tmpdir";
-
+  private static final boolean JAVA_AT_LEAST_19 = JavaVirtualMachine.isJavaVersionAtLeast(19);
   public static Path DUMP_PATH = Paths.get(SystemProperties.get(JAVA_IO_TMPDIR), "debugger");
+  private static final String[] SKIPPED_PACKAGES =
+      new String[] {
+        "com/datadog/debugger/agent/",
+        "com/datadog/debugger/codeorigin/",
+        "com/datadog/debugger/exception/",
+        "com/datadog/debugger/instrumentation/",
+        "com/datadog/debugger/probe/",
+        "com/datadog/debugger/sink/",
+        "com/datadog/debugger/symbol/",
+        "com/datadog/debugger/uploader/",
+        "com/datadog/debugger/util/"
+      };
 
   private final Config config;
   private final TransformerDefinitionMatcher definitionMatcher;
@@ -258,6 +275,12 @@ public class DebuggerTransformer implements ClassFileTransformer {
         return null;
       }
       ClassNode classNode = parseClassFile(classFilePath, classfileBuffer);
+      if (!checkMethodParameters(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
+      if (!checkRecordTypeAnnotation(classNode, definitions, fullyQualifiedClassName)) {
+        return null;
+      }
       boolean transformed =
           performInstrumentation(loader, fullyQualifiedClassName, definitions, classNode);
       if (transformed) {
@@ -271,9 +294,85 @@ public class DebuggerTransformer implements ClassFileTransformer {
           "type {} matched but no transformation for definitions: {}", classFilePath, definitions);
     } catch (Throwable ex) {
       LOGGER.warn("Cannot transform: ", ex);
-      reportInstrumentationFails(definitions, fullyQualifiedClassName);
+      reportInstrumentationFails(definitions, fullyQualifiedClassName, ex.toString());
     }
     return null;
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8240908), classes compiled with
+   * method parameters (javac -parameters) strip this attribute once retransformed
+   * Spring 6/Spring boot 3 rely exclusively on this attribute and may throw an exception
+   * if no attribute found.
+   * Note: Even if the attribute is preserved when transforming at load time, the fact that we have
+   * instrumented the class, we will retransform for removing the instrumentation and then the
+   * attribute is stripped. That's why we are preventing it even at load time.
+   */
+  private boolean checkMethodParameters(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
+    if (JAVA_AT_LEAST_19) {
+      // bug is fixed since JDK19, no need to perform check
+      return true;
+    }
+    boolean isRecord = ASMHelper.isRecord(classNode);
+    // capping scanning of methods to 100 to avoid generated class with thousand of methods
+    // assuming that in those first 100 methods there is at least one with at least one parameter
+    for (int methodIdx = 0; methodIdx < classNode.methods.size() && methodIdx < 100; methodIdx++) {
+      MethodNode methodNode = classNode.methods.get(methodIdx);
+      int argumentCount = Type.getArgumentCount(methodNode.desc);
+      if (argumentCount == 0) {
+        continue;
+      }
+      if (isRecord && methodNode.name.equals("<init>")) {
+        // skip record constructors, cannot rely on them because of the canonical one
+        // use the equals method for this
+        continue;
+      }
+      if (methodNode.parameters != null
+          && !methodNode.parameters.isEmpty()
+          && SpringHelper.isSpringUsingOnlyMethodParameters(DebuggerAgent.getInstrumentation())) {
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
+            "Method Parameters attribute detected, instrumentation not supported");
+        return false;
+      } else {
+        // we found at leat a method with one parameter if name is not present we can stop there
+        break;
+      }
+    }
+    return true;
+  }
+
+  /*
+   * Because of this bug (https://bugs.openjdk.org/browse/JDK-8376185), when a record using a type
+   * annotation is retransformed, the internal JVM representation of this record is corrupted
+   * and lead to exception in best cases but in JVM crashes in worst cases.
+   * Note: the bug happens only at retransform time and not instrumenting at load time. But the
+   * fact we have already instrumented the record at load time, will prevent us to remove the
+   * instrumentation because it needs a retransformation and will lead to corruption of the record
+   */
+  private boolean checkRecordTypeAnnotation(
+      ClassNode classNode, List<ProbeDefinition> definitions, String fullyQualifiedClassName) {
+    if (!ASMHelper.isRecord(classNode)) {
+      return true;
+    }
+    if (classNode.fields == null || classNode.fields.isEmpty()) {
+      return true;
+    }
+    for (FieldNode field : classNode.fields) {
+      if ((field.visibleTypeAnnotations != null && !field.visibleTypeAnnotations.isEmpty())
+          || (field.invisibleTypeAnnotations != null
+              && !field.invisibleTypeAnnotations.isEmpty())) {
+        reportInstrumentationFails(
+            definitions,
+            fullyQualifiedClassName,
+            "Instrumentation of a record with type annotation is not supported");
+        return false;
+      }
+    }
+    // no type annotation for components, not a problem
+    return true;
   }
 
   private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
@@ -284,6 +383,16 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (classFilePath == null) {
       // in case of anonymous classes
       return true;
+    }
+    if (classFilePath.startsWith("com/datadog/debugger/")) {
+      // skip classes/packages that are part of debugger agent to avoid
+      // LinkageError: attempted duplicate class definition
+      // while retransforming a class used by instrumentation
+      for (int i = 0; i < SKIPPED_PACKAGES.length; i++) {
+        if (classFilePath.startsWith(SKIPPED_PACKAGES[i])) {
+          return true;
+        }
+      }
     }
     return false;
   }
@@ -370,6 +479,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
             .where(methodInfo.getClassNode().name, methodInfo.getMethodNode().name)
             .captureSnapshot(false)
             .build();
+    probe.initSamplers();
     probes.add(probe);
   }
 
@@ -491,7 +601,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       classNode.accept(visitor);
     } catch (Throwable t) {
       LOGGER.error("Cannot write classfile for class: {} Exception: ", classFilePath, t);
-      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath));
+      reportInstrumentationFails(definitions, Strings.getClassName(classFilePath), t.toString());
       return null;
     }
     byte[] data = writer.toByteArray();
@@ -615,8 +725,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     // on a separate class files because probe was set on an inner/top-level class
   }
 
-  private void reportInstrumentationFails(List<ProbeDefinition> definitions, String className) {
-    String msg = String.format(INSTRUMENTATION_FAILS, className);
+  private void reportInstrumentationFails(
+      List<ProbeDefinition> definitions, String className, String errorMsg) {
+    String msg = String.format(INSTRUMENTATION_FAILS, className, errorMsg);
     reportErrorForAllProbes(definitions, msg);
   }
 
@@ -781,6 +892,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
     ProbeCondition probeCondition = null;
+    List<LogProbe.CaptureExpression> captureExpressions = null;
     Where where = capturedContextProbes.get(0).getWhere();
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
@@ -792,6 +904,8 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
+        // captureExpressions = mergeCaptureExpressions(captureExpressions,
+        // logProbe.getCaptureExpressions());
         if (probeCondition == null) {
           probeCondition = logProbe.getProbeCondition();
         }
@@ -835,6 +949,19 @@ public class DebuggerTransformer implements ClassFileTransformer {
         Math.max(current.getMaxCollectionSize(), newCapture.getMaxCollectionSize()),
         Math.max(current.getMaxLength(), newCapture.getMaxLength()),
         Math.max(current.getMaxFieldCount(), newCapture.getMaxFieldCount()));
+  }
+
+  private static List<LogProbe.CaptureExpression> mergeCaptureExpressions(
+      List<LogProbe.CaptureExpression> captureExpressions,
+      List<LogProbe.CaptureExpression> newCaptureExpressions) {
+    if (captureExpressions == null) {
+      return newCaptureExpressions;
+    }
+    if (newCaptureExpressions == null) {
+      return captureExpressions;
+    }
+    captureExpressions.addAll(newCaptureExpressions);
+    return captureExpressions;
   }
 
   private InstrumentationResult.Status preCheckInstrumentation(
@@ -917,7 +1044,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       LOGGER.debug("Generated bytecode len: {}", data.length);
       Path classFilePath = dumpClassFile(className, data);
       if (classFilePath != null) {
-        LOGGER.debug("Instrumented class saved as: {}", classFilePath.toString());
+        LOGGER.debug("Instrumented class saved as: {}", classFilePath);
       }
     }
   }
@@ -926,7 +1053,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (config.isDynamicInstrumentationClassFileDumpEnabled()) {
       Path classFilePath = dumpClassFile(className + "_orig", classfileBuffer);
       if (classFilePath != null) {
-        LOGGER.debug("Original class saved as: {}", classFilePath.toString());
+        LOGGER.debug("Original class saved as: {}", classFilePath);
       }
     }
   }

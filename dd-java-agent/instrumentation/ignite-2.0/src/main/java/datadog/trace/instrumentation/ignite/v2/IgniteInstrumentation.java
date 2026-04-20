@@ -8,31 +8,17 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collection;
-import java.util.Collections;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 
-@AutoService(InstrumenterModule.class)
-public class IgniteInstrumentation extends InstrumenterModule.Tracing
+public final class IgniteInstrumentation
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-
-  public IgniteInstrumentation() {
-    super("ignite");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
 
   @Override
   public String hierarchyMarkerType() {
@@ -42,11 +28,6 @@ public class IgniteInstrumentation extends InstrumenterModule.Tracing
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
     return implementsInterface(named(hierarchyMarkerType()));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.apache.ignite.IgniteCache", "org.apache.ignite.Ignite");
   }
 
   @Override
@@ -78,8 +59,9 @@ public class IgniteInstrumentation extends InstrumenterModule.Tracing
         @Advice.This Ignite that,
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final IgniteCache<?, ?> cache) {
-
-      InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      if (cache != null) {
+        InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      }
     }
   }
 
@@ -91,8 +73,10 @@ public class IgniteInstrumentation extends InstrumenterModule.Tracing
         @Advice.Thrown final Throwable throwable,
         @Advice.Return final Collection<IgniteCache<?, ?>> caches) {
 
-      for (IgniteCache<?, ?> cache : caches) {
-        InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+      if (caches != null) {
+        for (IgniteCache<?, ?> cache : caches) {
+          InstrumentationContext.get(IgniteCache.class, Ignite.class).put(cache, that);
+        }
       }
     }
   }

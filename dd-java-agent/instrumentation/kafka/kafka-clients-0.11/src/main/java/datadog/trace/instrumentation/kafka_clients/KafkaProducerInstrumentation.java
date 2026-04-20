@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.datastreams.DataStreamsContext.fromTagsWithoutCheckpoint;
@@ -15,7 +16,9 @@ import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_P
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static java.util.Collections.singletonMap;
+import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -27,9 +30,11 @@ import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.Config;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.StatsPoint;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -38,6 +43,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -83,24 +90,38 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       packageName + ".KafkaProducerCallback",
       "datadog.trace.instrumentation.kafka_common.StreamingContext",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.Utils",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
       packageName + ".AvroSchemaExtractor",
     };
   }
 
   @Override
   public Map<String, String> contextStore() {
-    return singletonMap("org.apache.kafka.clients.Metadata", "java.lang.String");
+    return singletonMap(
+        "org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
+        isConstructor()
+            .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerConfig")))
+            .and(takesArgument(1, named("org.apache.kafka.common.serialization.Serializer")))
+            .and(takesArgument(2, named("org.apache.kafka.common.serialization.Serializer"))),
+        KafkaProducerInstrumentation.class.getName() + "$ProducerConstructorAdvice");
+
+    transformer.applyAdvices(
         isMethod()
             .and(isPublic())
             .and(named("send"))
             .and(takesArgument(0, named("org.apache.kafka.clients.producer.ProducerRecord")))
             .and(takesArgument(1, named("org.apache.kafka.clients.producer.Callback"))),
-        KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice");
+        KafkaProducerInstrumentation.class.getName() + "$ProducerAdvice",
+        KafkaProducerInstrumentation.class.getName() + "$ContextPropagationAdvice");
 
     transformer.applyAdvice(
         isMethod()
@@ -115,13 +136,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
-        @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
         @Advice.FieldValue("producerConfig") ProducerConfig producerConfig,
         @Advice.FieldValue("sender") Sender sender,
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
         @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-      String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+      MetadataState metadataState =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      String clusterId = metadataState != null ? metadataState.clusterId : null;
 
       // Set cluster ID for Schema Registry instrumentation
       if (clusterId != null) {
@@ -145,7 +167,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         callbackParentSpan = localActiveSpan;
       }
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+      PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
@@ -153,6 +175,34 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         span.setTag(InstrumentationTags.TOMBSTONE, true);
       }
 
+      return activateSpan(span);
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void stopSpan(
+        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
+      // Clear cluster ID from Schema Registry instrumentation
+      ClusterIdHolder.clear();
+
+      PRODUCER_DECORATE.onError(scope, throwable);
+      PRODUCER_DECORATE.beforeFinish(scope);
+      scope.close();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.FieldValue("apiVersions") final ApiVersions apiVersions,
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.Argument(value = 0, readOnly = false) ProducerRecord record) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      MetadataState metadataState =
+          InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+      String clusterId = metadataState != null ? metadataState.clusterId : null;
       TextMapInjectAdapterInterface setter = NoopTextMapInjectAdapter.NOOP_SETTER;
       // Do not inject headers for batch versions below 2
       // This is how similar check is being done in Kafka client itself:
@@ -202,18 +252,28 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       if (TIME_IN_QUEUE_ENABLED) {
         setter.injectTimeInQueue(record.headers());
       }
-      return activateSpan(span);
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.KAFKA_PRODUCE_HEADERS,
+              record.headers(),
+              DSM_TRANSACTION_SOURCE_READER);
     }
+  }
 
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void stopSpan(
-        @Advice.Enter final AgentScope scope, @Advice.Thrown final Throwable throwable) {
-      // Clear cluster ID from Schema Registry instrumentation
-      ClusterIdHolder.clear();
-
-      PRODUCER_DECORATE.onError(scope, throwable);
-      PRODUCER_DECORATE.beforeFinish(scope);
-      scope.close();
+  public static class ProducerConstructorAdvice {
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void captureConfiguration(
+        @Advice.FieldValue("metadata") Metadata metadata,
+        @Advice.Argument(0) ProducerConfig producerConfig) {
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .putIfAbsent(metadata, MetadataState::new);
+      if (Config.get().isDataStreamsEnabled()) {
+        KafkaConfigHelper.storePendingProducerConfig(
+            state, KafkaConfigHelper.extractProducerConfig(producerConfig));
+      }
     }
   }
 

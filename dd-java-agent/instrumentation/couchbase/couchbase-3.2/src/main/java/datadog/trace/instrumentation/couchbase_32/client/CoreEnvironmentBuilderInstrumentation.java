@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.couchbase_32.client;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -23,6 +25,8 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
       packageName + ".DatadogRequestSpan",
       packageName + ".DatadogRequestSpan$1",
       packageName + ".DatadogRequestTracer",
+      packageName + ".DelegatingRequestSpan",
+      packageName + ".DelegatingRequestTracer"
     };
   }
 
@@ -39,5 +43,8 @@ public class CoreEnvironmentBuilderInstrumentation extends InstrumenterModule.Tr
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), packageName + ".CoreEnvironmentBuilderAdvice");
+    transformer.applyAdvice(
+        isMethod().and(named("requestTracer")),
+        packageName + ".CoreEnvironmentBuilderRequestTracerAdvice");
   }
 }

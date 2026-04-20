@@ -3,13 +3,16 @@ package datadog.trace.instrumentation.akka.concurrent;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.checkpointActiveForRollback;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.rollbackActiveToCheckpoint;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import akka.dispatch.Envelope;
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils;
@@ -18,7 +21,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AkkaActorCellInstrumentation extends InstrumenterModule.Tracing
+public class AkkaActorCellInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaActorCellInstrumentation() {
@@ -54,24 +57,34 @@ public class AkkaActorCellInstrumentation extends InstrumenterModule.Tracing
    */
   public static class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AgentScope enter(@Advice.Argument(value = 0) Envelope envelope) {
+    public static Context enter(
+        @Advice.Argument(value = 0) Envelope envelope,
+        @Advice.Local("taskScope") AgentScope taskScope) {
 
       // do this before checkpointing, as the envelope's task scope may already be active
-      AgentScope taskScope =
+      taskScope =
           AdviceUtils.startTaskScope(
               InstrumentationContext.get(Envelope.class, State.class), envelope);
 
-      // remember the currently active scope so we can roll back to this point
-      checkpointActiveForRollback();
-
-      return taskScope;
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        // remember the currently active scope so we can roll back to this point
+        checkpointActiveForRollback();
+        return null;
+      } else {
+        return getCurrentContext().swap();
+      }
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void exit(@Advice.Enter AgentScope taskScope) {
+    public static void exit(
+        @Advice.Local("taskScope") AgentScope taskScope, @Advice.Enter Context checkpointContext) {
 
-      // Clean up any leaking scopes from akka-streams/akka-http etc.
-      rollbackActiveToCheckpoint();
+      if (checkpointContext == null) {
+        // Clean up any leaking scopes from akka-streams/akka-http etc.
+        rollbackActiveToCheckpoint();
+      } else {
+        checkpointContext.swap();
+      }
 
       // close envelope's task scope if we previously started it
       if (taskScope != null) {

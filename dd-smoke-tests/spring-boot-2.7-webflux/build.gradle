@@ -11,11 +11,13 @@ def appBuildDir = "$buildDir/application"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
-// define the task that builds the quarkus project
+// define the task that builds the project
 tasks.register('webfluxBuild', Exec) {
   workingDir "$appDir"
-  environment.JAVA_HOME = System.getenv("JAVA_8_HOME")
-  environment += ["GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'"]
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
   commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }

@@ -1,9 +1,9 @@
 package datadog.trace.core.test
 
 
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
-import datadog.trace.api.StatsDClient
 import datadog.trace.api.datastreams.NoopPathwayContext
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration
@@ -45,7 +45,7 @@ abstract class DDCoreSpecification extends DDSpecification {
 
   @Override
   void setupSpec() {
-    TagsPostProcessorFactory.withAddBaseService(false)
+    TagsPostProcessorFactory.withAddInternalTags(false)
     TagsPostProcessorFactory.withAddRemoteHostname(false)
   }
 
@@ -93,6 +93,7 @@ abstract class DDCoreSpecification extends DDSpecification {
       DDTraceId.ONE,
       1,
       DDSpanId.ZERO,
+      null,
       null,
       "fakeService",
       "fakeOperation",

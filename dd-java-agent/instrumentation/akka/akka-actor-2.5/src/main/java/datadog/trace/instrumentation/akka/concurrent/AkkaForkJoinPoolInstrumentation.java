@@ -19,7 +19,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaForkJoinPoolInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType,
         Instrumenter.ForConfiguredType,
         Instrumenter.HasMethodAdvice {

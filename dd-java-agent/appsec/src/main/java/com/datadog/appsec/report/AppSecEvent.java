@@ -21,6 +21,9 @@ public class AppSecEvent {
   @com.squareup.moshi.Json(name = "stack_id")
   private String stackId;
 
+  @com.squareup.moshi.Json(name = "security_response_id")
+  private String securityResponseId;
+
   public Rule getRule() {
     return rule;
   }
@@ -35,6 +38,10 @@ public class AppSecEvent {
 
   public String getStackId() {
     return stackId;
+  }
+
+  public String getSecurityResponseId() {
+    return securityResponseId;
   }
 
   @Override
@@ -58,6 +65,10 @@ public class AppSecEvent {
     sb.append("stackId");
     sb.append('=');
     sb.append(((this.stackId == null) ? "<null>" : this.stackId));
+    sb.append(',');
+    sb.append("securityResponseId");
+    sb.append('=');
+    sb.append(((this.securityResponseId == null) ? "<null>" : this.securityResponseId));
     if (sb.charAt((sb.length() - 1)) == ',') {
       sb.setCharAt((sb.length() - 1), ']');
     } else {
@@ -73,6 +84,9 @@ public class AppSecEvent {
     result = ((result * 31) + ((this.ruleMatches == null) ? 0 : this.ruleMatches.hashCode()));
     result = ((result * 31) + ((this.spanId == null) ? 0 : this.spanId.hashCode()));
     result = ((result * 31) + ((this.stackId == null) ? 0 : this.stackId.hashCode()));
+    result =
+        ((result * 31)
+            + ((this.securityResponseId == null) ? 0 : this.securityResponseId.hashCode()));
     return result;
   }
 
@@ -88,7 +102,8 @@ public class AppSecEvent {
     return ((Objects.equals(this.rule, rhs.rule))
         && (Objects.equals(this.ruleMatches, rhs.ruleMatches))
         && (Objects.equals(this.spanId, rhs.spanId))
-        && (Objects.equals(this.stackId, rhs.stackId)));
+        && (Objects.equals(this.stackId, rhs.stackId))
+        && (Objects.equals(this.securityResponseId, rhs.securityResponseId)));
   }
 
   public static class Builder {
@@ -123,6 +138,11 @@ public class AppSecEvent {
 
     public Builder withStackId(String stackId) {
       this.instance.stackId = stackId;
+      return this;
+    }
+
+    public Builder withSecurityResponseId(String securityResponseId) {
+      this.instance.securityResponseId = securityResponseId;
       return this;
     }
   }

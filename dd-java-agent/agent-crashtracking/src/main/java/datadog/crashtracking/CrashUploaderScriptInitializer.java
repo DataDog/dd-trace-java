@@ -31,6 +31,11 @@ public final class CrashUploaderScriptInitializer {
 
   // @VisibleForTests
   static void initialize(String onErrorVal, String onErrorFile) {
+    initialize(onErrorVal, onErrorFile, null);
+  }
+
+  // @VisibleForTests
+  static void initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
@@ -56,7 +61,11 @@ public final class CrashUploaderScriptInitializer {
       return;
     }
 
-    writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    if (javacorePath != null && !javacorePath.isEmpty()) {
+      writeConfigToPath(scriptPath, "agent", agentJar, "javacore_path", javacorePath);
+    } else {
+      writeConfigToPath(scriptPath, "agent", agentJar, "hs_err", onErrorFile);
+    }
   }
 
   private static boolean copyCrashUploaderScript(

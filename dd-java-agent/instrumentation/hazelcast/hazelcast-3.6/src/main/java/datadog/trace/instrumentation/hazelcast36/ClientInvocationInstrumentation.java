@@ -6,37 +6,16 @@ import static datadog.trace.instrumentation.hazelcast36.HazelcastConstants.HAZEL
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import com.hazelcast.client.impl.HazelcastClientInstanceImpl;
 import com.hazelcast.client.proxy.ClientMapProxy;
 import com.hazelcast.client.spi.impl.ClientNonSmartInvocationServiceImpl;
 import com.hazelcast.spi.discovery.DiscoveryStrategy;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
 
-@AutoService(InstrumenterModule.class)
-public class ClientInvocationInstrumentation extends InstrumenterModule.Tracing
+public final class ClientInvocationInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ClientInvocationInstrumentation() {
-    super("hazelcast_legacy");
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".HazelcastConstants",
-      packageName + ".DistributedObjectDecorator",
-      packageName + ".DistributedObjectDecorator$1"
-    };
-  }
 
   @Override
   public String instrumentedType() {

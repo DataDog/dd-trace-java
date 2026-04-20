@@ -33,8 +33,8 @@ class ExpressionTest {
 
   private static Stream<Arguments> literalExpressions() {
     return Stream.of(
-        Arguments.of(new BooleanValue(true), true),
-        Arguments.of(new NumericValue(15.8d), 15.8d),
+        Arguments.of(new BooleanValue(true, ValueType.BOOLEAN), true),
+        Arguments.of(new NumericValue(15.8d, ValueType.DOUBLE), 15.8d),
         Arguments.of(new StringValue("Hello world"), "Hello world"));
   }
 

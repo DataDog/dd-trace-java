@@ -2,13 +2,16 @@ package datadog.trace.api;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_RASP_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_CIVISIBILITY_ENABLED;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RESOLVER_RESET_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_RUM_ENABLED;
@@ -20,13 +23,16 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANNOTATION_ASYNC;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_METHODS;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_USM_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.API_SECURITY_ENDPOINT_COLLECTION_ENABLED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_ENABLED;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_RASP_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.AGENTLESS_LOG_SUBMISSION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.APP_LOGS_COLLECTION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.DATA_JOBS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.INTERNAL_EXIT_ON_FAILURE;
 import static datadog.trace.api.config.GeneralConfig.TELEMETRY_ENABLED;
@@ -36,6 +42,7 @@ import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ENABLED;
@@ -46,6 +53,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN_TASK_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
@@ -54,7 +62,9 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.JAX_RS_ADDITIO
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_POOL_WAITING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.JDBC_PREPARED_STATEMENT_CLASS_NAME;
+import static datadog.trace.api.config.TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_METHODS;
+import static datadog.trace.api.config.TraceInstrumentationConfig.MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_CONFIG;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_CACHE_DIR;
 import static datadog.trace.api.config.TraceInstrumentationConfig.RESOLVER_NAMES_ARE_UNIQUE;
@@ -76,7 +86,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTOR
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXECUTORS_ALL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_EXTENSIONS_PATH;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_METHODS;
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_ENABLED;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_NATIVE_METHODS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_PEKKO_SCHEDULER_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_THREAD_POOL_EXECUTORS_EXCLUDE;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED;
@@ -86,6 +96,7 @@ import static datadog.trace.api.config.UsmConfig.USM_ENABLED;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.ProfilingEnablement;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl;
 import datadog.trace.api.telemetry.ConfigInversionMetricCollectorProvider;
@@ -134,6 +145,7 @@ public class InstrumenterConfig {
   private final boolean integrationsEnabled;
 
   private final boolean codeOriginEnabled;
+  private final boolean codeOriginInterfaceSupport;
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean metricsOtelEnabled;
@@ -141,6 +153,7 @@ public class InstrumenterConfig {
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
   private final ProductActivation iastActivation;
+  private final boolean appSecRaspEnabled;
   private final boolean iastFullyDisabled;
   private final boolean usmEnabled;
   private final boolean telemetryEnabled;
@@ -194,7 +207,9 @@ public class InstrumenterConfig {
   private final String traceAnnotations;
   private final boolean traceAnnotationAsync;
   private final Map<String, Set<String>> traceMethods;
+  private final Map<String, Set<String>> traceNativeMethods;
   private final Map<String, Set<String>> measureMethods;
+  private final Map<String, Set<String>> measureNativeMethods;
 
   private final boolean internalExitOnFailure;
 
@@ -205,6 +220,9 @@ public class InstrumenterConfig {
 
   private final boolean agentlessLogSubmissionEnabled;
   private final boolean apiSecurityEndpointCollectionEnabled;
+
+  private final boolean appLogsCollectionEnabled;
+  private final boolean legacyContextManagerEnabled;
 
   static {
     // Bind telemetry collector to config module before initializing ConfigProvider
@@ -231,7 +249,11 @@ public class InstrumenterConfig {
 
     codeOriginEnabled =
         configProvider.getBoolean(
-            CODE_ORIGIN_FOR_SPANS_ENABLED, DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED);
+            CODE_ORIGIN_FOR_SPANS_ENABLED, getDefaultCodeOriginForSpanEnabled());
+    codeOriginInterfaceSupport =
+        configProvider.getBoolean(
+            CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT,
+            DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT);
     traceEnabled = configProvider.getBoolean(TRACE_ENABLED, DEFAULT_TRACE_ENABLED);
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
@@ -242,6 +264,8 @@ public class InstrumenterConfig {
             configProvider.getString(PROFILING_ENABLED, String.valueOf(PROFILING_ENABLED_DEFAULT)));
     rumEnabled = configProvider.getBoolean(RUM_ENABLED, DEFAULT_RUM_ENABLED);
     dataJobsEnabled = configProvider.getBoolean(DATA_JOBS_ENABLED, DEFAULT_DATA_JOBS_ENABLED);
+
+    appSecRaspEnabled = configProvider.getBoolean(APPSEC_RASP_ENABLED, DEFAULT_APPSEC_RASP_ENABLED);
 
     if (!Platform.isNativeImageBuilder()) {
       ciVisibilityEnabled =
@@ -332,9 +356,15 @@ public class InstrumenterConfig {
     traceMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(TRACE_METHODS, DEFAULT_TRACE_METHODS));
+    traceNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(TRACE_NATIVE_METHODS, DEFAULT_TRACE_NATIVE_METHODS));
     measureMethods =
         MethodFilterConfigParser.parse(
             configProvider.getString(MEASURE_METHODS, DEFAULT_MEASURE_METHODS));
+    measureNativeMethods =
+        MethodFilterConfigParser.parse(
+            configProvider.getString(MEASURE_NATIVE_METHODS, DEFAULT_MEASURE_NATIVE_METHODS));
     internalExitOnFailure = configProvider.getBoolean(INTERNAL_EXIT_ON_FAILURE, false);
 
     this.additionalJaxRsAnnotations =
@@ -351,10 +381,19 @@ public class InstrumenterConfig {
         configProvider.getBoolean(
             API_SECURITY_ENDPOINT_COLLECTION_ENABLED,
             DEFAULT_API_SECURITY_ENDPOINT_COLLECTION_ENABLED);
+
+    appLogsCollectionEnabled =
+        configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
+
+    legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
   }
 
   public boolean isCodeOriginEnabled() {
     return codeOriginEnabled;
+  }
+
+  public boolean isCodeOriginInterfaceSupport() {
+    return codeOriginInterfaceSupport;
   }
 
   public boolean isTriageEnabled() {
@@ -420,6 +459,14 @@ public class InstrumenterConfig {
 
   public boolean isCiVisibilityEnabled() {
     return ciVisibilityEnabled;
+  }
+
+  public boolean isRaspEnabled() {
+    return getAppSecActivation() == ProductActivation.FULLY_ENABLED && isAppSecRaspEnabled();
+  }
+
+  public boolean isAppSecRaspEnabled() {
+    return appSecRaspEnabled;
   }
 
   public ProductActivation getAppSecActivation() {
@@ -623,6 +670,18 @@ public class InstrumenterConfig {
     return traceMethods;
   }
 
+  public Map<String, Set<String>> getTraceNativeMethods() {
+    return traceNativeMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureMethods() {
+    return measureMethods;
+  }
+
+  public Map<String, Set<String>> getMeasureNativeMethods() {
+    return measureNativeMethods;
+  }
+
   public boolean isMethodMeasured(Method method) {
     if (this.measureMethods.isEmpty()) {
       return false;
@@ -658,12 +717,28 @@ public class InstrumenterConfig {
     return apiSecurityEndpointCollectionEnabled;
   }
 
+  public boolean isAppLogsCollectionEnabled() {
+    return appLogsCollectionEnabled;
+  }
+
+  public boolean isLegacyContextManagerEnabled() {
+    return legacyContextManagerEnabled;
+  }
+
   // This has to be placed after all other static fields to give them a chance to initialize
   private static final InstrumenterConfig INSTANCE =
       new InstrumenterConfig(
           Platform.isNativeImageBuilder()
               ? ConfigProvider.withoutCollector()
               : ConfigProvider.getInstance());
+
+  public static boolean getDefaultCodeOriginForSpanEnabled() {
+    if (JavaVirtualMachine.isJavaVersionAtLeast(21)) {
+      // activate by default Code Origin only for JDK21+
+      return true;
+    }
+    return false;
+  }
 
   public static InstrumenterConfig get() {
     return INSTANCE;
@@ -752,8 +827,14 @@ public class InstrumenterConfig {
         + ", traceMethods='"
         + traceMethods
         + '\''
+        + ", traceNativeMethods='"
+        + traceNativeMethods
+        + '\''
         + ", measureMethods= '"
         + measureMethods
+        + '\''
+        + ", measureNativeMethods= '"
+        + measureNativeMethods
         + '\''
         + ", internalExitOnFailure="
         + internalExitOnFailure
@@ -769,6 +850,8 @@ public class InstrumenterConfig {
         + dataJobsEnabled
         + ", apiSecurityEndpointCollectionEnabled="
         + apiSecurityEndpointCollectionEnabled
+        + ", legacyContextManagerEnabled="
+        + legacyContextManagerEnabled
         + '}';
   }
 }

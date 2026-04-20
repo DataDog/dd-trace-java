@@ -1,10 +1,13 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
+import com.couchbase.client.core.cnc.RequestSpan
+import com.couchbase.client.core.cnc.RequestTracer
 import com.couchbase.client.core.env.TimeoutConfig
 import com.couchbase.client.core.error.CouchbaseException
 import com.couchbase.client.core.error.DocumentNotFoundException
 import com.couchbase.client.core.error.ParsingFailureException
+import com.couchbase.client.core.msg.RequestContext
 import com.couchbase.client.java.Bucket
 import com.couchbase.client.java.Cluster
 import com.couchbase.client.java.ClusterOptions
@@ -19,10 +22,13 @@ import datadog.trace.api.DDTags
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
+import java.time.Instant
+import java.util.concurrent.CopyOnWriteArrayList
 import org.slf4j.Logger
 import org.slf4j.LoggerFactory
 import org.testcontainers.couchbase.BucketDefinition
 import org.testcontainers.couchbase.CouchbaseContainer
+import reactor.core.publisher.Mono
 import spock.lang.Shared
 
 import java.time.Duration
@@ -394,6 +400,69 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
     }
   }
 
+  def "check basic spans with custom request tracer"() {
+    setup:
+    def customTracer = new TestRequestTracer()
+
+    ClusterEnvironment environmentWithCustomTracer = ClusterEnvironment.builder()
+      .timeoutConfig(TimeoutConfig.kvTimeout(Duration.ofSeconds(10)))
+      .requestTracer(customTracer)
+      .build()
+
+    def connectionString = "couchbase://${couchbase.host}:${couchbase.bootstrapCarrierDirectPort},${couchbase.host}:${couchbase.bootstrapHttpDirectPort}=manager"
+
+    Cluster localCluster = Cluster.connect(
+      connectionString,
+      ClusterOptions
+      .clusterOptions(couchbase.username, couchbase.password)
+      .environment(environmentWithCustomTracer)
+      )
+    Bucket localBucket = localCluster.bucket(BUCKET)
+    localBucket.waitUntilReady(Duration.ofSeconds(30))
+    def collection = localBucket.defaultCollection()
+
+    when:
+    collection.get("data 0")
+
+    then:
+    assertTraces(1) {
+      sortSpansByStart()
+      trace(2) {
+        assertCouchbaseCall(it, "get", [
+          'db.couchbase.collection' : '_default',
+          'db.couchbase.document_id': { String },
+          'db.couchbase.retries'    : { Long },
+          'db.couchbase.scope'      : '_default',
+          'db.couchbase.service'    : 'kv',
+          'db.name'                 : BUCKET,
+          'db.operation'            : 'get'
+        ])
+        assertCouchbaseDispatchCall(it, span(0), [
+          'db.couchbase.collection'     : '_default',
+          'db.couchbase.document_id'    : { String },
+          'db.couchbase.scope'          : '_default',
+          'db.name'                     : BUCKET
+        ])
+      }
+    }
+
+    and: "custom tracer also saw spans"
+    customTracer.spans.size() > 0
+    customTracer.spans*.ended.every { it == true }
+
+    cleanup:
+    try {
+      localCluster?.disconnect()
+    } catch (Throwable t) {
+      LOGGER.debug("Unable to properly disconnect localCluster in custom tracer test", t)
+    }
+    try {
+      environmentWithCustomTracer?.shutdown()
+    } catch (Throwable t) {
+      LOGGER.debug("Unable to properly shutdown environmentWithCustomTracer", t)
+    }
+  }
+
   void assertCouchbaseCall(TraceAssert trace, String name, Map<String, Serializable> extraTags, boolean internal = false, Throwable ex = null) {
     assertCouchbaseCall(trace, name, extraTags, null, internal, ex)
   }
@@ -452,6 +521,75 @@ abstract class CouchbaseClient32Test extends VersionedNamingTestBase {
       allExtraTags.putAll(extraTags)
     }
     assertCouchbaseCall(trace, 'dispatch_to_server', allExtraTags, parentSpan, true, null)
+  }
+
+  static class TestRequestTracer implements RequestTracer {
+
+    final List<TestRequestSpan> spans = new CopyOnWriteArrayList<>()
+
+    @Override
+    RequestSpan requestSpan(String requestName, RequestSpan parent) {
+      def span = new TestRequestSpan(requestName, parent)
+      spans.add(span)
+      return span
+    }
+
+    @Override
+    Mono<Void> start() {
+      return Mono.empty()
+    }
+
+    @Override
+    Mono<Void> stop(Duration timeout) {
+      return Mono.empty()
+    }
+  }
+
+  static class TestRequestSpan implements RequestSpan {
+
+    final String name
+    final RequestSpan parent
+    final Map<String, Object> attributes = new LinkedHashMap<>()
+    final List<String> events = []
+    volatile boolean ended = false
+
+    TestRequestSpan(String name, RequestSpan parent) {
+      this.name = name
+      this.parent = parent
+    }
+
+    @Override
+    void end() {
+      ended = true
+    }
+
+    @Override
+    void attribute(String key, String value) {
+      attributes.put(key, value)
+    }
+
+    @Override
+    void attribute(String key, boolean value) {
+      attributes.put(key, value)
+    }
+
+    @Override
+    void attribute(String key, long value) {
+      attributes.put(key, value)
+    }
+
+    @Override
+    void event(String name, Instant timestamp) {
+      events.add(name)
+    }
+
+    @Override
+    void status(StatusCode status) {
+    }
+
+    @Override
+    void requestContext(RequestContext requestContext) {
+    }
   }
 }
 

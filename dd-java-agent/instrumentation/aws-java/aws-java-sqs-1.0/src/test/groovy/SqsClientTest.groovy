@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
+import datadog.trace.api.config.TraceInstrumentationConfig
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
@@ -136,6 +137,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             if ({ isDataStreamsEnabled() }) {
               "$DDTags.PATHWAY_HASH" { String }
             }
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -258,6 +260,100 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
 
     assert messages[0].messageAttributes.containsKey("my_key") // what we set initially
     assert messages[0].messageAttributes.containsKey("_datadog") // what was injected
+
+    cleanup:
+    client.shutdown()
+  }
+
+  def "APM trace context is injected into _datadog message attribute on send"() {
+    setup:
+    def client = AmazonSQSClientBuilder.standard()
+    .withEndpointConfiguration(endpoint)
+    .withCredentials(credentialsProvider)
+    .build()
+    def queueUrl = client.createQueue('somequeue').queueUrl
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace('parent', {
+      client.sendMessage(queueUrl, 'sometext')
+    })
+    def messages = client.receiveMessage(queueUrl).messages
+    messages.forEach {/* consume to create message spans */ }
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
+    then:
+    def sendSpan
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, 'parent')
+        span {
+          serviceName expectedService("SQS", "SendMessage")
+          operationName expectedOperation("SQS", "SendMessage")
+          resourceName "SQS.SendMessage"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.HTTP_URL" "http://localhost:${address.port}/"
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.PEER_PORT" address.port
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
+            "aws.endpoint" "http://localhost:${address.port}"
+            "aws.operation" "SendMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            serviceNameSource("java-aws-sdk")
+            defaultTags()
+          }
+        }
+        sendSpan = span(1)
+      }
+      trace(1) {
+        span {
+          serviceName expectedService("SQS", "ReceiveMessage")
+          operationName expectedOperation("SQS", "ReceiveMessage")
+          resourceName "SQS.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "AmazonSQS"
+            "aws_service" "sqs"
+            "aws.operation" "ReceiveMessageRequest"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    def ddAttr = messages[0].messageAttributes['_datadog']
+    ddAttr != null
+    ddAttr.dataType == 'String'
+    ddAttr.stringValue.contains('"x-datadog-trace-id"')
+    ddAttr.stringValue.contains(sendSpan.traceId.toString())
+    ddAttr.stringValue.contains('"x-datadog-parent-id"')
+    ddAttr.stringValue.contains(Long.toUnsignedString(sendSpan.spanId))
 
     cleanup:
     client.shutdown()
@@ -410,6 +506,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "SendMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -477,6 +574,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.operation" "DeleteMessageRequest"
             "aws.agent" "java-aws-sdk"
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -723,4 +821,10 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   }
 }
 
-
+class SqsClientV0ContextSwapForkedTest extends SqsClientV0Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}

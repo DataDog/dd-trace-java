@@ -1,10 +1,8 @@
 package datadog.trace.civisibility.execution;
 
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.ExecutionAggregation;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
 import datadog.trace.api.civisibility.execution.TestStatus;
-import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
-import javax.annotation.Nullable;
 
 /** Regular test case execution with no alterations. */
 public class Regular implements TestExecutionPolicy {
@@ -15,7 +13,8 @@ public class Regular implements TestExecutionPolicy {
 
   @Override
   public ExecutionOutcome registerExecution(TestStatus status, long durationMillis) {
-    return RegularExecutionOutcome.INSTANCE;
+    return new ExecutionOutcomeImpl(
+        false, true, ExecutionAggregation.NONE.withExecution(status), null, status);
   }
 
   @Override
@@ -26,40 +25,6 @@ public class Regular implements TestExecutionPolicy {
   @Override
   public boolean suppressFailures() {
     return false;
-  }
-
-  private static final class RegularExecutionOutcome
-      implements TestExecutionHistory.ExecutionOutcome {
-
-    static final TestExecutionHistory.ExecutionOutcome INSTANCE = new RegularExecutionOutcome();
-
-    private RegularExecutionOutcome() {}
-
-    @Override
-    public boolean failureSuppressed() {
-      return false;
-    }
-
-    @Override
-    public boolean lastExecution() {
-      return false;
-    }
-
-    @Override
-    public boolean failedAllRetries() {
-      return false;
-    }
-
-    @Override
-    public boolean succeededAllRetries() {
-      return false;
-    }
-
-    @Nullable
-    @Override
-    public RetryReason retryReason() {
-      return null;
-    }
   }
 
   @Override

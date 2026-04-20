@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.liberty20;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentSpan.fromContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.liberty20.HttpInboundServiceContextImplInstrumentation.REQUEST_MSG_TYPE;
 import static datadog.trace.instrumentation.liberty20.LibertyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
@@ -18,6 +20,7 @@ import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.ClassloaderConfigurationOverrides;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
@@ -70,7 +73,7 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("invokeFilters"))
             .and(takesArgument(0, named("javax.servlet.ServletRequest")))
@@ -79,7 +82,36 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
             .and(takesArgument(3, named("com.ibm.wsspi.webcontainer.RequestProcessor")))
             .and(takesArgument(4, EnumSet.class))
             .and(takesArgument(5, named("com.ibm.wsspi.http.HttpInboundConnection"))),
+        LibertyServerInstrumentation.class.getName() + "$ContextTrackingAdvice",
         LibertyServerInstrumentation.class.getName() + "$HandleRequestAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
+  public static class ContextTrackingAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.Local("parentScope") ContextScope parentScope,
+        @Advice.Argument(0) ServletRequest req) {
+      if (!(req instanceof SRTServletRequest)) {
+        return;
+      }
+      SRTServletRequest request = (SRTServletRequest) req;
+      try {
+        if (request.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+          return; // skip re-entry
+        }
+      } catch (NullPointerException e) {
+      }
+      Context parentContext = DECORATE.extract(request);
+      request.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+      if (parentScope != null) parentScope.close();
+    }
   }
 
   @SuppressFBWarnings("DCN_NULLPOINTER_EXCEPTION")
@@ -104,8 +136,9 @@ public final class LibertyServerInstrumentation extends InstrumenterModule.Traci
       } catch (NullPointerException e) {
       }
 
-      final Context parentContext = DECORATE.extract(request);
-      request.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      Object parentContextObj = request.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+      final Context parentContext =
+          (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
       final Context context = DECORATE.startSpan(request, parentContext);
       scope = context.attach();
       final AgentSpan span = fromContext(context);

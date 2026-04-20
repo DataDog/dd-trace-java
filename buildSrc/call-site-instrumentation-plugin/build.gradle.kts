@@ -1,8 +1,7 @@
 plugins {
   java
-  groovy
-  id("com.diffplug.spotless") version "8.1.0"
-  id("com.gradleup.shadow") version "8.3.6"
+  id("com.diffplug.spotless") version "8.4.0"
+  id("com.gradleup.shadow") version "8.3.9"
 }
 
 java {
@@ -17,7 +16,7 @@ spotless {
     target("src/**/*.java")
     // ignore embedded test projects
     targetExclude("src/test/resources/**")
-    googleJavaFormat("1.32.0")
+    googleJavaFormat("1.35.0")
   }
 }
 
@@ -31,11 +30,12 @@ dependencies {
   implementation("org.freemarker", "freemarker", "2.3.30")
   implementation(libs.asm)
   implementation(libs.asm.tree)
-  implementation("com.github.javaparser", "javaparser-symbol-solver-core", "3.24.4")
+  implementation(libs.javaparser.symbol.solver)
 
   testImplementation(libs.bytebuddy)
-  testImplementation(libs.groovy)
-  testImplementation(libs.bundles.spock)
+  testImplementation(libs.bundles.junit5)
+  testRuntimeOnly(libs.junit.platform.launcher)
+  testImplementation(libs.bundles.mockito)
   testImplementation("javax.servlet", "javax.servlet-api", "3.0.1")
   testImplementation(libs.spotbugs.annotations)
 }

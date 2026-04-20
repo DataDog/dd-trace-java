@@ -181,7 +181,8 @@ public class LibertyDecorator
         TraceSegment segment,
         int statusCode,
         BlockingContentType bct,
-        Map<String, String> extraHeaders) {
+        Map<String, String> extraHeaders,
+        String securityResponseId) {
       if (!(request instanceof SRTServletRequest)) {
         log.warn("Can't block; request not of type SRTServletRequest");
         return false;
@@ -192,7 +193,13 @@ public class LibertyDecorator
         return false;
       }
       ServletBlockingHelper.commitBlockingResponse(
-          segment, request, (HttpServletResponse) response, statusCode, bct, extraHeaders);
+          segment,
+          request,
+          (HttpServletResponse) response,
+          statusCode,
+          bct,
+          extraHeaders,
+          securityResponseId);
 
       return true;
     }

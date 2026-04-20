@@ -18,6 +18,14 @@ muzzle {
 apply plugin: 'java-test-fixtures'
 apply from: "$rootDir/gradle/java.gradle"
 
+// Exclude servlet 3.x API (coming from dd-java-agent:testing) to ensure servlet 2.x instrumentation applies
+configurations.testImplementation {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+configurations.testRuntimeOnly {
+  exclude group: 'javax.servlet', module: 'javax.servlet-api'
+}
+
 dependencies {
   compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.0.0.v20130308'
 
@@ -26,10 +34,7 @@ dependencies {
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing')) {
     exclude group: 'org.eclipse.jetty', module: 'jetty-server'
   }
-  // Don't want to conflict with jetty from the test server.
-  testImplementation(project(':dd-java-agent:instrumentation-testing')) {
-    exclude group: 'org.eclipse.jetty', module: 'jetty-server'
-  }
+
   testImplementation project(':dd-java-agent:instrumentation:jetty:jetty-util-9.4.31')
 
   String jetty9Version = '9.0.0.v20130308'
@@ -46,4 +51,6 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testFixturesImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
+
+  testFixturesCompileOnly(libs.bundles.groovy)
 }

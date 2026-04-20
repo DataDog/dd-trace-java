@@ -49,10 +49,6 @@ tasks.withType(AbstractCompile).configureEach {
   options.compilerArgs.addAll(['-Xlint:all,-processing,-options,-path'/*, '-Werror'*/])
 }
 
-tasks.named("forbiddenApisMain") {
-  failOnMissingClasses = false
-}
-
 idea {
   module {
     jdkName = '11'

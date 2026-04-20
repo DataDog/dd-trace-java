@@ -9,6 +9,7 @@ def buildDirectoryFiles = project.layout.buildDirectory.asFileTree
 
 spotless {
   if (rootProject.hasProperty('skipSpotless')) {
+    project.logger.quiet("Retiring 'skipSpotless' property, prefer '-x spotlessCheck' or '-x spotlessApply' to exclude spotless tasks.")
     // Spotless in JDK 8 uses an older eclipse formatter, and it has a (flaky) bug crashing check_profiling.
     // We disable it in CI, since we have a job dedicated to spotless anyway.
     enforceCheck false
@@ -21,8 +22,8 @@ spotless {
       target 'src/**/*.java'
       // ignore embedded test projects and everything in build dir, e.g. generated sources
       targetExclude('src/test/resources/**', buildDirectoryFiles)
-      // This is the last Google Java Format version that supports Java 8
-      googleJavaFormat('1.32.0')
+      tableTestFormatter('1.1.1')
+      googleJavaFormat('1.35.0')
     }
   }
 

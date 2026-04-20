@@ -7,8 +7,6 @@ import static datadog.trace.instrumentation.ignite.v2.cache.IgniteCacheDecorator
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -18,22 +16,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.lang.IgniteFuture;
 
-@AutoService(InstrumenterModule.class)
-public class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrumentation {
-
-  public IgniteCacheAsyncInstrumentation() {
-    super();
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".IgniteQueryInfo",
-      packageName + ".IgniteQueryInfo$1",
-      packageName + ".IgniteCacheDecorator",
-      packageName + ".SpanFinishingCallback",
-    };
-  }
+public final class IgniteCacheAsyncInstrumentation extends AbstractIgniteCacheInstrumentation {
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {

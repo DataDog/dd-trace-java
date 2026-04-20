@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.instrumentation.netty40.AttributeKeys.ANALYZED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.BLOCKED_RESPONSE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty40.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty40.server.NettyHttpServerDecorator.DECORATE;
 
@@ -28,11 +29,10 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     Channel channel = ctx.channel();
     if (!(msg instanceof HttpRequest)) {
       final Context storedContext = channel.attr(CONTEXT_ATTRIBUTE_KEY).get();
-      final AgentSpan span = spanFromContext(storedContext);
-      if (span == null) {
+      if (storedContext == null) {
         ctx.fireChannelRead(msg); // superclass does not throw
       } else {
-        try (final ContextScope scope = span.attach()) {
+        try (final ContextScope scope = storedContext.attach()) {
           ctx.fireChannelRead(msg); // superclass does not throw
         }
       }
@@ -41,7 +41,9 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
 
     final HttpRequest request = (HttpRequest) msg;
     final HttpHeaders headers = request.headers();
-    final Context parentContext = DECORATE.extract(headers);
+    final Context storedParentContext = channel.attr(PARENT_CONTEXT_ATTRIBUTE_KEY).getAndRemove();
+    final Context parentContext =
+        storedParentContext != null ? storedParentContext : DECORATE.extract(headers);
     final Context context = DECORATE.startSpan(headers, parentContext);
 
     try (final ContextScope ignored = context.attach()) {

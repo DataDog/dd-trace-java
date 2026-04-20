@@ -44,10 +44,6 @@ addTestSuiteExtendingForDir('ee10LatestDepForkedTest', 'ee10LatestDepTest', 'tes
   }
 }
 
-tasks.named("forbiddenApisMain_java17") {
-  failOnMissingClasses = false
-}
-
 tasks.withType(GroovyCompile).configureEach {
   configureCompiler(it, 17)
 }
@@ -75,9 +71,9 @@ dependencies {
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0'))
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:javax-websocket-1.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:websocket:jakarta-websocket-2.0')
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10")
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11")
-  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-10.0")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-11.0")
+  testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:jetty-websocket:jetty-websocket-12.0")
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
   testRuntimeOnly project(':dd-java-agent:instrumentation:jetty:jetty-server:jetty-server-9.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0')
@@ -90,6 +86,8 @@ dependencies {
   latestDepTestImplementation ("org.eclipse.jetty:jetty-session:12.+") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  // Jetty 12.1.6+ requires SLF4J 2.0+ for fluent logging API
+  latestDepTestImplementation 'org.slf4j:slf4j-api:2.0.+'
 
   ee8TestImplementation group: 'org.eclipse.jetty.ee8', name: 'jetty-ee8-servlet', version: '12.0.0' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'

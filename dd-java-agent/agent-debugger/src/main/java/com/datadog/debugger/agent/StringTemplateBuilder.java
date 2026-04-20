@@ -54,10 +54,10 @@ public class StringTemplateBuilder {
                   sb, segment.getParsedExpr().getDsl(), result.getValue(), status, limits);
             }
           } catch (EvaluationException ex) {
-            status.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-            String msg =
-                ex instanceof RedactedException ? Redaction.REDACTED_VALUE : ex.getMessage();
-            sb.append('{').append(msg).append('}');
+            handleException(status, ex, ex.getExpr(), sb);
+          } catch (Exception ex) {
+            // catch all for unexpected exceptions
+            handleException(status, ex, segment.getExpr(), sb);
           }
           if (!status.getErrors().isEmpty()) {
             status.setLogTemplateErrors(true);
@@ -66,5 +66,12 @@ public class StringTemplateBuilder {
       }
     }
     return sb.toString();
+  }
+
+  private static void handleException(
+      LogProbe.LogStatus status, Exception ex, String expr, StringBuilder sb) {
+    status.addError(new EvaluationError(expr, ex.getMessage()));
+    String msg = ex instanceof RedactedException ? Redaction.REDACTED_VALUE : ex.getMessage();
+    sb.append('{').append(msg).append('}');
   }
 }

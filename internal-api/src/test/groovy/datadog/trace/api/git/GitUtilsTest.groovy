@@ -153,6 +153,12 @@ class GitUtilsTest extends Specification {
     "mixed.Case-123_Test"        | true
     "./relative/path"            | true
     "multiple/levels/of/nesting" | true
+    "/absolute/path"             | true  // absolute paths allowed
+    "/home/user/workspace"       | true  // typical CI workspace
+    "../parent/path"             | false // path traversal at start
+    "path/../other"              | false // path traversal in middle
+    "path/to/.."                 | false // path traversal at end
+    "../../etc/passwd"           | false // multiple path traversal
     ""                           | false // empty
     "   "                        | false // whitespace only
     "path with spaces"           | false // contains spaces

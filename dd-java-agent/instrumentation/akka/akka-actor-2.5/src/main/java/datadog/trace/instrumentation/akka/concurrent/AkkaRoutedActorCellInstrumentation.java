@@ -18,7 +18,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.Tracing
+public class AkkaRoutedActorCellInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaRoutedActorCellInstrumentation() {

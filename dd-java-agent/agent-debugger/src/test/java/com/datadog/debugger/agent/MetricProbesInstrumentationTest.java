@@ -400,6 +400,25 @@ public class MetricProbesInstrumentationTest {
   }
 
   @Test
+  public void methodSyntheticReturnLenGaugeMetric() throws IOException, URISyntaxException {
+    final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot32";
+    String METRIC_NAME = "syn_gauge";
+    MetricProbe metricProbe =
+        createMetricBuilder(METRIC_ID, METRIC_NAME, GAUGE)
+            .where(CLASS_NAME, "processArg", "(String)")
+            .valueScript(new ValueScript(DSL.len(DSL.ref("@return")), "len(@return)"))
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    MetricForwarderListener listener = installMetricProbes(metricProbe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.on(testClass).call("main", "foobar").get();
+    assertEquals(42, result);
+    assertTrue(listener.gauges.containsKey(METRIC_NAME));
+    assertEquals(6, listener.gauges.get(METRIC_NAME).longValue());
+    assertArrayEquals(new String[] {METRIC_PROBEID_TAG}, listener.lastTags);
+  }
+
+  @Test
   public void methodSyntheticReturnInvalidType() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot06";
     final String INHERITED_CLASS_NAME = CLASS_NAME + "$Inherited";

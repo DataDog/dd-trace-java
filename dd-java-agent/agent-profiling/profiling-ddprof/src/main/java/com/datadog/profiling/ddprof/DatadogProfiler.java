@@ -22,7 +22,6 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameConte
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isWallClockProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.omitLineNumbers;
-import static com.datadog.profiling.ddprof.DatadogProfilerConfig.useJvmtiWallclockSampler;
 import static com.datadog.profiling.utils.ProfilingMode.ALLOCATION;
 import static com.datadog.profiling.utils.ProfilingMode.CPU;
 import static com.datadog.profiling.utils.ProfilingMode.MEMLEAK;
@@ -304,11 +303,14 @@ public final class DatadogProfiler {
         cmd.append('~');
       }
       cmd.append(getWallInterval(configProvider)).append('m');
+      // ddprof quirk: if filter parameter is omitted, it defaults to "0" (enabled),
+      // not empty string (disabled). When enabled without tracing, no threads are added
+      // to the filter, resulting in zero samples. We must explicitly pass filter= (empty)
+      // to disable filtering and sample all threads.
       if (getWallContextFilter(configProvider)) {
         cmd.append(",filter=0");
-      }
-      if (useJvmtiWallclockSampler(configProvider)) {
-        cmd.append(",wallsampler=jvmti");
+      } else {
+        cmd.append(",filter=");
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));

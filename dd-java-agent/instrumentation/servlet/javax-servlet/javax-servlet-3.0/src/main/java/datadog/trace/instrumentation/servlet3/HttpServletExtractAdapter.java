@@ -1,7 +1,10 @@
 package datadog.trace.instrumentation.servlet3;
 
+import static java.util.Collections.emptyEnumeration;
+import static java.util.Collections.enumeration;
+
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
-import java.util.Collections;
+import java.util.Collection;
 import java.util.Enumeration;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -41,7 +44,8 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
 
     @Override
     Enumeration<String> getHeaderNames(HttpServletResponse response) {
-      return Collections.enumeration(response.getHeaderNames());
+      final Collection<String> headerNames = response.getHeaderNames();
+      return headerNames != null ? enumeration(headerNames) : emptyEnumeration();
     }
 
     @Override

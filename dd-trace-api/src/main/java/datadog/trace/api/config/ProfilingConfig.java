@@ -119,10 +119,6 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.context.filter";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER_DEFAULT = true;
 
-  public static final String PROFILING_DATADOG_PROFILER_WALL_JVMTI =
-      "profiling.experimental.ddprof.wall.jvmti";
-  public static final boolean PROFILING_DATADOG_PROFILER_WALL_JVMTI_DEFAULT = false;
-
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
 
@@ -263,6 +259,14 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DETAILED_DEBUG_LOGGING = "profiling.detailed.debug.logging";
   public static final boolean PROFILING_DETAILED_DEBUG_LOGGING_DEFAULT = false;
+
+  public static final String PROFILING_SCRUB_ENABLED = "profiling.scrub.enabled";
+  public static final boolean PROFILING_SCRUB_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_SCRUB_FAIL_OPEN = "profiling.scrub.fail-open";
+  public static final boolean PROFILING_SCRUB_FAIL_OPEN_DEFAULT = false;
+
+  public static final String PROFILING_SCRUB_EXCLUDE_EVENTS = "profiling.scrub.exclude-events";
 
   private ProfilingConfig() {}
 }

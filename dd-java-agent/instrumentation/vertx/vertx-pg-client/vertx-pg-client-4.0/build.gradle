@@ -42,6 +42,14 @@ dependencies {
   testImplementation group: 'org.testcontainers', name: 'postgresql', version: libs.versions.testcontainers.get()
 
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-pg-client', version: '4.+'
+  latestDepTestImplementation group: 'com.ongres.scram', name: 'scram-client', version: '3.2'
+}
+
+configurations.named("latestDepTestRuntimeClasspath") {
+  exclude group: 'com.ongres.scram', module: 'client'
+}
+configurations.named("latestDepForkedTestRuntimeClasspath") {
+  exclude group: 'com.ongres.scram', module: 'client'
 }
 
 tasks.withType(Test).configureEach {

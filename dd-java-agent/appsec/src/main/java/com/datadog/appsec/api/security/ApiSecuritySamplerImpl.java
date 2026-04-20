@@ -57,10 +57,26 @@ public class ApiSecuritySamplerImpl implements ApiSecuritySampler {
 
   @Override
   public boolean preSampleRequest(final @Nonnull AppSecRequestContext ctx) {
-    final String route = ctx.getRoute();
+    String route = ctx.getRoute();
+
+    // If route is absent, use http.endpoint as fallback (RFC-1076)
     if (route == null) {
-      return false;
+      // Don't sample blocked requests - they represent attacks, not valid API endpoints
+      if (ctx.isWafBlocked()) {
+        return false;
+      }
+      final int statusCode = ctx.getResponseStatus();
+      // Don't use endpoint for 404 responses as a failsafe
+      if (statusCode == 404) {
+        return false;
+      }
+      // Try to get or compute the endpoint
+      route = ctx.getOrComputeEndpoint();
+      if (route == null) {
+        return false;
+      }
     }
+
     final String method = ctx.getMethod();
     if (method == null) {
       return false;

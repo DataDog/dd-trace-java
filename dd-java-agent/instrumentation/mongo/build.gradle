@@ -1,5 +1,0 @@
-apply from: "$rootDir/gradle/java.gradle"
-
-dependencies {
-  testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
-}

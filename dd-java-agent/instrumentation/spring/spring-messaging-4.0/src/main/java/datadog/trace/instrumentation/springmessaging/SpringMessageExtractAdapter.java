@@ -10,6 +10,7 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.Function;
 import org.springframework.messaging.Message;
+import org.springframework.messaging.MessageHeaders;
 
 public final class SpringMessageExtractAdapter
     implements AgentPropagation.ContextVisitor<Message<?>> {
@@ -33,7 +34,12 @@ public final class SpringMessageExtractAdapter
 
   @Override
   public void forEachKey(Message<?> carrier, AgentPropagation.KeyClassifier classifier) {
-    for (Map.Entry<String, ?> header : carrier.getHeaders().entrySet()) {
+    final MessageHeaders messageHeaders = carrier.getHeaders();
+    if (messageHeaders == null || messageHeaders.isEmpty()) {
+      return;
+    }
+
+    for (Map.Entry<String, ?> header : messageHeaders.entrySet()) {
       Object headerValue = header.getValue();
       if ("_datadog".equals(header.getKey())) {
         if (headerValue instanceof String) {

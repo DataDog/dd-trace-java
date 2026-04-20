@@ -9,8 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -20,17 +18,7 @@ import org.apache.ignite.Ignite;
 import org.apache.ignite.IgniteCache;
 import org.apache.ignite.cache.query.Query;
 
-@AutoService(InstrumenterModule.class)
 public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheInstrumentation {
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".IgniteQueryInfo",
-      packageName + ".IgniteQueryInfo$1",
-      packageName + ".IgniteCacheDecorator",
-    };
-  }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {

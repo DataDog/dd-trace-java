@@ -4,11 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.iast.IastContext;
@@ -22,13 +20,8 @@ import net.bytebuddy.asm.Advice;
 import org.apache.commons.fileupload.FileItem;
 import org.apache.commons.fileupload.FileItemIterator;
 
-@AutoService(InstrumenterModule.class)
-public class ServletFileUploadInstrumentation extends InstrumenterModule.Iast
+public class ServletFileUploadInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ServletFileUploadInstrumentation() {
-    super("commons-fileupload", "servlet");
-  }
 
   @Override
   public String instrumentedType() {

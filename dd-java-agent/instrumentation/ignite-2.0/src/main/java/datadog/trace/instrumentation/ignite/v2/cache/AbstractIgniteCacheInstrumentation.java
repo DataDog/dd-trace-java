@@ -1,25 +1,9 @@
 package datadog.trace.instrumentation.ignite.v2.cache;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
-import java.util.Collections;
-import java.util.Map;
 
-public abstract class AbstractIgniteCacheInstrumentation extends InstrumenterModule.Tracing
+public abstract class AbstractIgniteCacheInstrumentation
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
-
-  public AbstractIgniteCacheInstrumentation() {
-    super("ignite");
-  }
-
-  public AbstractIgniteCacheInstrumentation(String instrumentationName, String... additionalNames) {
-    super(instrumentationName, additionalNames);
-  }
-
-  @Override
-  protected boolean defaultEnabled() {
-    return false;
-  }
 
   @Override
   public String[] knownMatchingTypes() {
@@ -29,10 +13,5 @@ public abstract class AbstractIgniteCacheInstrumentation extends InstrumenterMod
       "org.apache.ignite.internal.processors.cache.GatewayProtectedCacheProxy",
       "org.apache.ignite.IgniteCache"
     };
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return Collections.singletonMap("org.apache.ignite.IgniteCache", "org.apache.ignite.Ignite");
   }
 }

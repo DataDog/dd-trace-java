@@ -16,9 +16,11 @@ import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.datadog.profiling.controller.ControllerContext;
 import com.datadog.profiling.controller.jfr.JfpUtilsTest;
+import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
+import java.util.EnumSet;
 import java.util.Properties;
 import jdk.jfr.Recording;
 import org.junit.jupiter.api.BeforeAll;
@@ -94,6 +96,8 @@ public class OpenJdkControllerTest {
   public void testHeapProfilerIsStillOverriddenThroughConfig() throws Exception {
     Properties props = getConfigProperties();
     props.put(PROFILING_HEAP_ENABLED, "true");
+    // Disable ddprof so OldObjectSample is not proactively disabled
+    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "false");
 
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
@@ -102,10 +106,11 @@ public class OpenJdkControllerTest {
         ((OpenJdkRecordingData)
                 controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
             .getRecording()) {
-      if (!isOldObjectSampleAvailable()) {
-        assertEquals(
-            true, Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
-      }
+      // On JVMs where OldObjectSample is not available (e.g. Java 8), explicitly enabling heap
+      // profiling has no effect — the event cannot be safely enabled.
+      assertEquals(
+          isOldObjectSampleAvailable(),
+          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
     }
   }
 
@@ -231,6 +236,43 @@ public class OpenJdkControllerTest {
         assertTrue(
             Boolean.parseBoolean(recording.getSettings().get("jdk.NativeMethodSample#enabled")));
       }
+    }
+  }
+
+  @Test
+  public void testOldObjectSampleDisabledWhenDdprofMemleakActive() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_DATADOG_PROFILER_ENABLED, "true");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    ControllerContext context = new ControllerContext();
+    context.setDatadogProfilerEnabled(true);
+    context.setDatadogProfilingModes(EnumSet.of(ProfilingMode.MEMLEAK));
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData) controller.createRecording(TEST_NAME, context.snapshot()).stop())
+            .getRecording()) {
+      assertFalse(Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")));
+    }
+  }
+
+  @Test
+  public void testUnifiedFlagDisabledTurnsOffOldObjectSample() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_HEAP_ENABLED, "false");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    RecordingData data =
+        controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop();
+    assertTrue(data instanceof OpenJdkRecordingData);
+    try (final Recording recording = ((OpenJdkRecordingData) data).getRecording()) {
+      assertFalse(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.OldObjectSample#enabled")),
+          "OldObjectSample should be disabled when unified live heap flag is false");
     }
   }
 
