@@ -114,6 +114,9 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" TOPIC
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" { String }
+        "$InstrumentationTags.PARTITION" { it >= 0 }
+        "$InstrumentationTags.OFFSET" { it >= 0 }
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         defaultTags()
       }
@@ -133,6 +136,7 @@ class KafkaBatchListenerCoroutineTest extends InstrumentationSpecification {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         "$InstrumentationTags.MESSAGING_DESTINATION_NAME" TOPIC
         "$InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS" { String }
+        "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
         peerServiceFrom(InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS)
         "$InstrumentationTags.CONSUMER_GROUP" CONSUMER_GROUP
         "$InstrumentationTags.OFFSET" offset

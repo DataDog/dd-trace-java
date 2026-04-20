@@ -1,5 +1,7 @@
 package datadog.trace.util;
 
+import java.nio.charset.StandardCharsets;
+
 /**
  * Calculates the FNV 64 bit hash. Longs should be treated as though they were unsigned
  *
@@ -15,11 +17,11 @@ public class FNV64Hash {
   }
 
   public static long generateHash(String data, Version version) {
-    return generateHash(data.getBytes(), version);
+    return generateHash(data.getBytes(StandardCharsets.UTF_8), version);
   }
 
   public static long continueHash(long currentHash, String data, Version version) {
-    return continueHash(currentHash, data.getBytes(), version);
+    return continueHash(currentHash, data.getBytes(StandardCharsets.UTF_8), version);
   }
 
   public static long generateHash(byte[] data, Version version) {

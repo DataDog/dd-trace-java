@@ -8,6 +8,7 @@ import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 
 /** Special lightweight pre-main class that skips installation on incompatible JVMs. */
 public class AgentPreCheck {
@@ -189,7 +190,7 @@ public class AgentPreCheck {
         OutputStream out = null;
         try {
           out = process.getOutputStream();
-          out.write(payload.getBytes());
+          out.write(payload.getBytes(StandardCharsets.UTF_8));
         } finally {
           if (out != null) {
             out.close();
