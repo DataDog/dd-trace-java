@@ -1170,6 +1170,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
 
     response.body().contentLength() < 1 || redirectHasBody()
+    response.close()
 
     and:
     assertTraces(1) {
@@ -1840,6 +1841,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == 301
     response.header('location') == 'https://www.google.com/'
     !handlerRan
+    response.close()
 
     when:
     TEST_WRITER.waitForTraces(1)
@@ -2121,6 +2123,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
     response.code() == 301
     response.header("Location") == 'https://www.google.com/'
+    response.close()
     TEST_WRITER.waitForTraces(1)
     def trace = TEST_WRITER.get(0)
 
