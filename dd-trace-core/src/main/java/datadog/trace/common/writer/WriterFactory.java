@@ -27,9 +27,9 @@ import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import edu.umd.cs.findbugs.annotations.NonNull;
 import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
+import javax.annotation.Nonnull;
 import okhttp3.HttpUrl;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -207,7 +207,7 @@ public class WriterFactory {
     return remoteWriter;
   }
 
-  @NonNull
+  @Nonnull
   private static PayloadDispatcher getPayloadDispatcher(Path testsDir, Path coverageDir) {
     FileBasedPayloadDispatcher testDispatcher =
         new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
