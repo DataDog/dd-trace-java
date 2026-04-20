@@ -296,7 +296,6 @@ import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLE
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_MANIFEST_FILE;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_PAYLOADS_IN_FILES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
-import static datadog.trace.api.config.CiVisibilityConfig.TEST_UNDECLARED_OUTPUTS_DIR;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_ERRORS_INTAKE_ENABLED;
@@ -1133,7 +1132,6 @@ public class Config {
   private final boolean ciVisibilityFailedTestReplayEnabled;
   private final String testOptimizationManifestFile;
   private final boolean testOptimizationPayloadsInFiles;
-  private final String testUndeclaredOutputsDir;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -2588,7 +2586,6 @@ public class Config {
     testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
     testOptimizationPayloadsInFiles =
         configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
-    testUndeclaredOutputsDir = System.getenv(TEST_UNDECLARED_OUTPUTS_DIR);
 
     remoteConfigEnabled =
         configProvider.getBoolean(
@@ -4360,10 +4357,6 @@ public class Config {
 
   public boolean isTestOptimizationPayloadsInFiles() {
     return testOptimizationPayloadsInFiles;
-  }
-
-  public String getTestUndeclaredOutputsDir() {
-    return testUndeclaredOutputsDir;
   }
 
   public String getGitPullRequestBaseBranch() {

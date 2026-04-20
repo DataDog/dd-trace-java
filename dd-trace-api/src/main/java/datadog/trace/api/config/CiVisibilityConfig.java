@@ -118,8 +118,5 @@ public final class CiVisibilityConfig {
   public static final String TEST_OPTIMIZATION_PAYLOADS_IN_FILES =
       "test.optimization.payloads.in.files";
 
-  /** Bazel-provided directory where test output files (payloads) are written. */
-  public static final String TEST_UNDECLARED_OUTPUTS_DIR = "TEST_UNDECLARED_OUTPUTS_DIR";
-
   private CiVisibilityConfig() {}
 }

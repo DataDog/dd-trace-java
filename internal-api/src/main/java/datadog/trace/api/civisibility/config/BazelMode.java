@@ -75,7 +75,8 @@ public class BazelMode {
     }
 
     payloadFilesEnabled = config.isTestOptimizationPayloadsInFiles();
-    String undeclaredOutputsDir = config.getTestUndeclaredOutputsDir();
+    // TEST_UNDECLARED_OUTPUTS_DIR is a Bazel-provided env var, not a DD configuration
+    String undeclaredOutputsDir = ConfigHelper.env("TEST_UNDECLARED_OUTPUTS_DIR");
     if (payloadFilesEnabled) {
       if (Strings.isNotBlank(undeclaredOutputsDir)) {
         Path resolved = null;
