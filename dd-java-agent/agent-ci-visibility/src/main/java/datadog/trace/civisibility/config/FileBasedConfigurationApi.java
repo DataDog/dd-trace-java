@@ -1,19 +1,15 @@
 package datadog.trace.civisibility.config;
 
-import com.squareup.moshi.FromJson;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
 import java.nio.file.Path;
-import java.util.Base64;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -68,7 +64,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
             .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
             .add(TestManagementSettings.JsonAdapter.INSTANCE)
-            .add(MetaDtoJsonAdapter.INSTANCE)
+            .add(MetaDto.JsonAdapter.INSTANCE)
             .build();
 
     settingsAdapter = moshi.adapter(SettingsEnvelope.class);
@@ -248,29 +244,28 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     Map<String, Collection<TestFQN>> disabled = new HashMap<>();
     Map<String, Collection<TestFQN>> attemptToFix = new HashMap<>();
 
-    if (dto.modules != null) {
-      for (Map.Entry<String, TestManagementTestsDto.Suites> moduleEntry : dto.modules.entrySet()) {
-        String moduleName = moduleEntry.getKey();
-        Map<String, TestManagementTestsDto.Tests> suites = moduleEntry.getValue().getSuites();
+    for (Map.Entry<String, TestManagementTestsDto.Suites> moduleEntry :
+        dto.getModules().entrySet()) {
+      String moduleName = moduleEntry.getKey();
+      Map<String, TestManagementTestsDto.Tests> suites = moduleEntry.getValue().getSuites();
 
-        for (Map.Entry<String, TestManagementTestsDto.Tests> suiteEntry : suites.entrySet()) {
-          String suiteName = suiteEntry.getKey();
-          Map<String, TestManagementTestsDto.Properties> tests = suiteEntry.getValue().getTests();
+      for (Map.Entry<String, TestManagementTestsDto.Tests> suiteEntry : suites.entrySet()) {
+        String suiteName = suiteEntry.getKey();
+        Map<String, TestManagementTestsDto.Properties> tests = suiteEntry.getValue().getTests();
 
-          for (Map.Entry<String, TestManagementTestsDto.Properties> testEntry : tests.entrySet()) {
-            String testName = testEntry.getKey();
-            TestManagementTestsDto.Properties props = testEntry.getValue();
-            TestFQN fqn = new TestFQN(suiteName, testName);
+        for (Map.Entry<String, TestManagementTestsDto.Properties> testEntry : tests.entrySet()) {
+          String testName = testEntry.getKey();
+          TestManagementTestsDto.Properties props = testEntry.getValue();
+          TestFQN fqn = new TestFQN(suiteName, testName);
 
-            if (props.isQuarantined()) {
-              quarantined.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
-            }
-            if (props.isDisabled()) {
-              disabled.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
-            }
-            if (props.isAttemptToFix()) {
-              attemptToFix.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
-            }
+          if (props.isQuarantined()) {
+            quarantined.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
+          }
+          if (props.isDisabled()) {
+            disabled.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
+          }
+          if (props.isAttemptToFix()) {
+            attemptToFix.computeIfAbsent(moduleName, k -> new HashSet<>()).add(fqn);
           }
         }
       }
@@ -321,90 +316,5 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     String id;
     String type;
     TestIdentifierJson attributes;
-  }
-
-  static final class MetaDto {
-    final String correlationId;
-    final Map<String, BitSet> coverage;
-
-    MetaDto(String correlationId, Map<String, BitSet> coverage) {
-      this.correlationId = correlationId;
-      this.coverage = coverage;
-    }
-  }
-
-  static final class MetaDtoJsonAdapter {
-    static final MetaDtoJsonAdapter INSTANCE = new MetaDtoJsonAdapter();
-
-    @SuppressWarnings("unchecked")
-    @FromJson
-    public MetaDto fromJson(Map<String, Object> json) {
-      if (json == null) {
-        return null;
-      }
-
-      Map<String, BitSet> coverage;
-      Map<String, String> encodedCoverage = (Map<String, String>) json.get("coverage");
-      if (encodedCoverage != null) {
-        coverage = new HashMap<>();
-        for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
-          String relativeSourceFilePath = e.getKey();
-          String normalizedPath =
-              relativeSourceFilePath.startsWith(File.separator)
-                  ? relativeSourceFilePath.substring(1)
-                  : relativeSourceFilePath;
-          byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
-          coverage.put(normalizedPath, BitSet.valueOf(decodedLines));
-        }
-      } else {
-        coverage = null;
-      }
-
-      return new MetaDto((String) json.get("correlation_id"), coverage);
-    }
-
-    @ToJson
-    public Map<String, Object> toJson(MetaDto metaDto) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
-  static final class TestManagementTestsDto {
-    Map<String, Suites> modules;
-
-    static final class Properties {
-      Map<String, Boolean> properties;
-
-      boolean isQuarantined() {
-        return properties != null
-            && properties.getOrDefault(TestSetting.QUARANTINED.asString(), false);
-      }
-
-      boolean isDisabled() {
-        return properties != null
-            && properties.getOrDefault(TestSetting.DISABLED.asString(), false);
-      }
-
-      boolean isAttemptToFix() {
-        return properties != null
-            && properties.getOrDefault(TestSetting.ATTEMPT_TO_FIX.asString(), false);
-      }
-    }
-
-    static final class Tests {
-      Map<String, Properties> tests;
-
-      Map<String, Properties> getTests() {
-        return tests != null ? tests : Collections.emptyMap();
-      }
-    }
-
-    static final class Suites {
-      Map<String, Tests> suites;
-
-      Map<String, Tests> getSuites() {
-        return suites != null ? suites : Collections.emptyMap();
-      }
-    }
   }
 }
