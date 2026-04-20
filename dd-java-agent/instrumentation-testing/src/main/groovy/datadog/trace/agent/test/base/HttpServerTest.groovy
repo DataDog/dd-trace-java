@@ -1210,6 +1210,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     if (bubblesResponse()) {
       assert response.body().string().contains(ERROR.body)
       assert response.code() == ERROR.status
+    } else {
+      response.close()
     }
 
     and:
@@ -1239,7 +1241,6 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     }
   }
 
-  @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
   def "test exception"() {
     setup:
     def method = "GET"
@@ -1255,6 +1256,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     response.code() == EXCEPTION.status
     if (testExceptionBody()) {
       assert response.body().string() == EXCEPTION.body
+    } else {
+      response.close()
     }
 
     and:
@@ -1299,6 +1302,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
 
     expect:
     response.code() == NOT_FOUND.status
+    response.close()
 
     and:
     assertTraces(1) {
