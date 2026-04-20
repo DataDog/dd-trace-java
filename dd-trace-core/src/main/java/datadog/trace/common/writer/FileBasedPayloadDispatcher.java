@@ -243,14 +243,16 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.name("content");
     w.beginObject();
 
+    // trace/span/parent ids are unsigned 64-bit integers; emit as raw JSON numbers
+    // (value(long) would reinterpret ids >= 2^63 as negative signed longs).
     if (traceId != null) {
-      w.name("trace_id").value(Long.toUnsignedString(traceId));
+      w.name("trace_id").jsonValue(Long.toUnsignedString(traceId));
     }
     if (spanId != null) {
-      w.name("span_id").value(Long.toUnsignedString(spanId));
+      w.name("span_id").jsonValue(Long.toUnsignedString(spanId));
     }
     if (parentId != null) {
-      w.name("parent_id").value(Long.toUnsignedString(parentId));
+      w.name("parent_id").jsonValue(Long.toUnsignedString(parentId));
     }
     if (testSessionId != null) {
       w.name(Tags.TEST_SESSION_ID).value(testSessionId.toLong());

@@ -102,6 +102,10 @@ class FileBasedPayloadDispatcherTest {
     assertEquals(456L, content.get(Tags.TEST_MODULE_ID).asLong());
     assertEquals(789L, content.get(Tags.TEST_SUITE_ID).asLong());
     assertEquals("corr-1", content.get(Tags.ITR_CORRELATION_ID).asText());
+    // trace/span/parent ids must be JSON numbers (backend schema rejects strings)
+    assertTrue(content.get("trace_id").isNumber(), "trace_id should be a JSON number");
+    assertTrue(content.get("span_id").isNumber(), "span_id should be a JSON number");
+    assertTrue(content.get("parent_id").isNumber(), "parent_id should be a JSON number");
   }
 
   @Test
