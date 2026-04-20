@@ -2,13 +2,11 @@ package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
 import java.io.IOException;
-import java.lang.reflect.ParameterizedType;
 import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.Collection;
@@ -70,11 +68,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     settingsAdapter = moshi.adapter(SettingsEnvelope.class);
     knownTestsAdapter = moshi.adapter(KnownTestsEnvelope.class);
     testManagementAdapter = moshi.adapter(TestManagementEnvelope.class);
-
-    ParameterizedType testIdentifiersType =
-        Types.newParameterizedTypeWithOwner(
-            FileBasedConfigurationApi.class, TestIdentifiersEnvelope.class);
-    testIdentifiersAdapter = moshi.adapter(testIdentifiersType);
+    testIdentifiersAdapter = moshi.adapter(TestIdentifiersEnvelope.class);
   }
 
   @Override
@@ -277,8 +271,6 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     result.put(TestSetting.ATTEMPT_TO_FIX, attemptToFix);
     return result;
   }
-
-  // --- DTOs ---
 
   // Settings envelope: { "data": { "attributes": CiVisibilitySettings } }
   static final class SettingsEnvelope {
