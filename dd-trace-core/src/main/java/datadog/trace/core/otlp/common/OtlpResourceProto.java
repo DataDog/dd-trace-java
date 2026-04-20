@@ -1,5 +1,6 @@
 package datadog.trace.core.otlp.common;
 
+import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
@@ -26,7 +27,10 @@ public final class OtlpResourceProto {
               "version",
               "service.name",
               "deployment.environment.name",
-              "service.version"));
+              "service.version",
+              "telemetry.sdk.name",
+              "telemetry.sdk.version",
+              "telemetry.sdk.language"));
 
   public static final byte[] RESOURCE_MESSAGE = buildResourceMessage(Config.get());
 
@@ -44,6 +48,9 @@ public final class OtlpResourceProto {
     if (!version.isEmpty()) {
       writeResourceAttribute(buf, "service.version", version);
     }
+    writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
+    writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
+    writeResourceAttribute(buf, "telemetry.sdk.language", "java");
 
     config
         .getGlobalTags()

@@ -426,6 +426,71 @@ class AdviceGeneratorTest extends BaseCsiPluginTest {
         });
   }
 
+  /**
+   * Captures two of three arguments positionally. Before the fix, Stream.sorted() without a
+   * comparator threw ClassCastException (ArgumentSpecification is not Comparable). The parameters
+   * TreeMap is keyed by advice-parameter index, so the stream is already in the correct order —
+   * sorted() must not be called. The reversed case verifies that parameterIndices follows the
+   * advice signature order, not the pointcut index order.
+   */
+  @CallSite(spi = CallSites.class)
+  public static class MultiplePartialArgumentsBeforeAdvice {
+    /** Captures args 0 and 1 in the same order as the pointcut. */
+    @CallSite.Before(
+        "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+    public static void before(
+        @CallSite.Argument(0) java.util.Locale locale, @CallSite.Argument(1) String format) {}
+
+    /**
+     * Captures the same two args but with their advice positions reversed. parameterIndices must be
+     * {1, 0} (advice order), not {0, 1} (pointcut index order).
+     */
+    @CallSite.Before(
+        "java.lang.String java.lang.String.format(java.util.Locale, java.lang.String, java.lang.Object[])")
+    public static void beforeReversed(
+        @CallSite.Argument(1) String format, @CallSite.Argument(0) java.util.Locale locale) {}
+  }
+
+  @Test
+  void multiplePartialArgumentsWithBeforeAdvice() {
+    CallSiteSpecification spec =
+        buildClassSpecification(MultiplePartialArgumentsBeforeAdvice.class);
+    AdviceGenerator generator = buildAdviceGenerator(buildDir);
+
+    CallSiteResult result = generator.generate(spec);
+
+    assertNoErrors(result);
+    CallSiteAssert asserter = assertCallSites(result.getFile());
+    // In-order capture: {0, 1} matches both advice and pointcut order
+    asserter.advices(
+        0,
+        advice -> {
+          advice.pointcut(
+              "java/lang/String",
+              "format",
+              "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+          advice.statements(
+              "int[] parameterIndices = new int[] { 0, 1 };",
+              "handler.dupParameters(descriptor, parameterIndices, null);",
+              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"before\", \"(Ljava/util/Locale;Ljava/lang/String;)V\");",
+              "handler.method(opcode, owner, name, descriptor, isInterface);");
+        });
+    // Reversed capture: {1, 0} follows the advice signature, not the pointcut index order {0, 1}
+    asserter.advices(
+        1,
+        advice -> {
+          advice.pointcut(
+              "java/lang/String",
+              "format",
+              "(Ljava/util/Locale;Ljava/lang/String;[Ljava/lang/Object;)Ljava/lang/String;");
+          advice.statements(
+              "int[] parameterIndices = new int[] { 1, 0 };",
+              "handler.dupParameters(descriptor, parameterIndices, null);",
+              "handler.advice(\"datadog/trace/plugin/csi/impl/AdviceGeneratorTest$MultiplePartialArgumentsBeforeAdvice\", \"beforeReversed\", \"(Ljava/lang/String;Ljava/util/Locale;)V\");",
+              "handler.method(opcode, owner, name, descriptor, isInterface);");
+        });
+  }
+
   @CallSite(spi = CallSites.class)
   public static class SuperTypeReturnAdvice {
     @CallSite.After("void java.lang.StringBuilder.<init>(java.lang.String)")

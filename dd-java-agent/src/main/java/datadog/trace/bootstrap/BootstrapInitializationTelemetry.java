@@ -8,6 +8,7 @@ import datadog.trace.bootstrap.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.Closeable;
 import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -319,7 +320,7 @@ public abstract class BootstrapInitializationTelemetry {
 
       // Run forwarder and mute tracing for subprocesses executed in by dd-java-agent.
       try (final Closeable ignored = muteTracing()) {
-        byte[] payload = telemetry.toString().getBytes();
+        byte[] payload = telemetry.toString().getBytes(StandardCharsets.UTF_8);
 
         Process process = builder.start();
         try (OutputStream out = process.getOutputStream()) {
