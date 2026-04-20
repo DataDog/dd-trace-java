@@ -158,10 +158,10 @@ class BazelModeTest {
     return config;
   }
 
-  private static Path writeManifest(Path dir, String content) throws IOException {
+  private static Path writeManifest(Path dir, String version) throws IOException {
     Files.createDirectories(dir);
     Path manifest = dir.resolve("manifest.txt");
-    Files.write(manifest, content.getBytes(StandardCharsets.UTF_8));
+    Files.write(manifest, ("version=" + version).getBytes(StandardCharsets.UTF_8));
     return manifest;
   }
 

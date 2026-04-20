@@ -195,10 +195,16 @@ public class BazelMode {
         LOGGER.warn("[bazel mode] Manifest file is empty: {}", manifestPath);
         return false;
       }
-      // manifest.txt first line should contain the version number
+      // manifest.txt first line has the shape `version=<int>`
       String trimmed = firstLine.trim();
+      int separatorIdx = trimmed.indexOf('=');
+      if (separatorIdx < 0 || !"version".equals(trimmed.substring(0, separatorIdx).trim())) {
+        LOGGER.warn("[bazel mode] Could not parse manifest version from line: '{}'", trimmed);
+        return false;
+      }
+      String versionValue = trimmed.substring(separatorIdx + 1).trim();
       try {
-        int version = Integer.parseInt(trimmed);
+        int version = Integer.parseInt(versionValue);
         if (version == SUPPORTED_MANIFEST_VERSION) {
           return true;
         }
