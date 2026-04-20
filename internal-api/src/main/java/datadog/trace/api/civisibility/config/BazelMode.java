@@ -1,7 +1,7 @@
 package datadog.trace.api.civisibility.config;
 
-import datadog.environment.EnvironmentVariables;
 import datadog.trace.api.Config;
+import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -226,7 +226,7 @@ public class BazelMode {
         return directPath;
       }
 
-      String runfilesDir = EnvironmentVariables.get("RUNFILES_DIR");
+      String runfilesDir = ConfigHelper.env("RUNFILES_DIR");
       if (Strings.isNotBlank(runfilesDir)) {
         Path candidate = Paths.get(runfilesDir, rlocation);
         if (Files.exists(candidate)) {
@@ -238,7 +238,7 @@ public class BazelMode {
         }
       }
 
-      String manifestFile = EnvironmentVariables.get("RUNFILES_MANIFEST_FILE");
+      String manifestFile = ConfigHelper.env("RUNFILES_MANIFEST_FILE");
       if (Strings.isNotBlank(manifestFile)) {
         Path resolved = lookupInRunfilesManifest(Paths.get(manifestFile), rlocation);
         if (resolved != null) {
@@ -249,7 +249,7 @@ public class BazelMode {
         }
       }
 
-      String testSrcDir = EnvironmentVariables.get("TEST_SRCDIR");
+      String testSrcDir = ConfigHelper.env("TEST_SRCDIR");
       if (Strings.isNotBlank(testSrcDir)) {
         Path candidate = Paths.get(testSrcDir, rlocation);
         if (Files.exists(candidate)) {
