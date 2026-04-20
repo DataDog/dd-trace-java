@@ -109,6 +109,9 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       }
       List<String> filesContent = new ArrayList<>();
       for (FileItem fileItem : fileItems) {
+        if (filesContent.size() >= FileItemContentReader.MAX_FILES_TO_INSPECT) {
+          break;
+        }
         if (fileItem.isFormField()) {
           continue;
         }

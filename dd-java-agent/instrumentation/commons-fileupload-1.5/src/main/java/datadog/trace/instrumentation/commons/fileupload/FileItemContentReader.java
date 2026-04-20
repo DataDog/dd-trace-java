@@ -8,6 +8,7 @@ import org.apache.commons.fileupload.FileItem;
 /** Helper class injected into the application classloader by the AppSec instrumentation. */
 public final class FileItemContentReader {
   public static final int MAX_CONTENT_BYTES = 4096;
+  public static final int MAX_FILES_TO_INSPECT = 25;
 
   public static String readContent(FileItem fileItem) {
     try (InputStream is = fileItem.getInputStream()) {
