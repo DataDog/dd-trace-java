@@ -434,6 +434,7 @@ include(
   ":dd-java-agent:instrumentation:jetty:jetty-util-9.4.31",
   ":dd-java-agent:instrumentation:jms:jakarta-jms-3.0",
   ":dd-java-agent:instrumentation:jms:javax-jms-1.1",
+  ":dd-java-agent:instrumentation:jms:javax-jms-1.1-gen",
   ":dd-java-agent:instrumentation:jose-jwt-4.0",
   ":dd-java-agent:instrumentation:jsp-2.3",
   ":dd-java-agent:instrumentation:junit:junit-4:junit-4-cucumber-5.4",

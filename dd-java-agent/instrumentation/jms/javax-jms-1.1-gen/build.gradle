@@ -1,0 +1,23 @@
+muzzle {
+  pass {
+    group = "javax.jms"
+    module = 'javax.jms-api'
+    versions = "[1.1-rev-1,)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
+
+  testImplementation group: 'javax.jms', name: 'javax.jms-api', version: '2.0.1'
+  testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.16.7'
+
+  latestDepTestImplementation group: 'javax.jms', name: 'javax.jms-api', version: '+'
+  latestDepTestImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.+'
+}
