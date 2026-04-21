@@ -769,12 +769,14 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
-    processTagsAndBaggage(consumer, true);
+    processTagsAndBaggage(consumer);
   }
 
   @Override
-  public void processTagsAndBaggage(final MetadataConsumer consumer, boolean spanLinksAsTag) {
-    context.processTagsAndBaggage(consumer, longRunningVersion, this, spanLinksAsTag);
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+    context.processTagsAndBaggage(
+        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
   }
 
   @Override

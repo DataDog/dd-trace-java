@@ -1663,6 +1663,12 @@ class TraceMapperV1PayloadTest extends DDSpecification {
       processTagsAndBaggageCount++
       super.processTagsAndBaggage(consumer)
     }
+
+    @Override
+    void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+      processTagsAndBaggageCount++
+      super.processTagsAndBaggage(consumer, injectLinksAsTags, injectBaggageAsTags)
+    }
   }
 
   private static class ByteArrayChannel implements WritableByteChannel {

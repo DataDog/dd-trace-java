@@ -1173,10 +1173,17 @@ public class DDSpanContext
   }
 
   void processTagsAndBaggage(
+      final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    processTagsAndBaggage(
+        consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  void processTagsAndBaggage(
       final MetadataConsumer consumer,
       int longRunningVersion,
       DDSpan restrictedSpan,
-      boolean spanLinksAsTag) {
+      boolean injectLinksAsTags,
+      boolean injectBaggageAsTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
     // links
     // This is a compromise to avoid...
@@ -1187,7 +1194,7 @@ public class DDSpanContext
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
       // Links
-      if (injectLinksAsTags || spanLinksAsTag) {
+      if (injectLinksAsTags) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.set(SPAN_LINKS, linksTag);
