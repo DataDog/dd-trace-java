@@ -188,6 +188,51 @@ class DDSpanTest extends DDCoreSpecification {
     writer.size() == 1
   }
 
+  def "phasedFinish captures execution thread for SpanExecutionThread attribution"() {
+    // Regression test: phasedFinish() was missing a captureExecutionThread() call, so spans
+    // finished via phasedFinish()+publish() had executionThreadId=0 and no SpanExecutionThread
+    // event was emitted. They fell back to the event-loop thread (wrong attribution).
+    setup:
+    def span = tracer.buildSpan("test").start()
+
+    when:
+    def currentThreadId = Thread.currentThread().id
+    def currentThreadName = Thread.currentThread().name
+    span.phasedFinish()
+
+    then: "execution thread is captured on the finishing thread"
+    span.context().executionThreadId == currentThreadId
+    span.context().executionThreadName == currentThreadName
+    // Verify the guard in DatadogProfilingIntegration.onSpanFinished() would pass:
+    span.context().executionThreadId > 0
+    span.context().executionThreadName != null && !span.context().executionThreadName.isEmpty()
+
+    cleanup:
+    span.publish()
+  }
+
+  def "first-write-wins: prior captureExecutionThread is not overwritten by phasedFinish"() {
+    // Regression test: onTaskActivation() captures the worker thread first; a subsequent
+    // phasedFinish() call from an event loop callback must not overwrite it.
+    setup:
+    def span = tracer.buildSpan("test").start()
+    long workerThreadId = 42L
+    String workerThreadName = "worker-thread-42"
+
+    when: "worker thread captures first (simulating onTaskActivation)"
+    span.context().captureExecutionThread(workerThreadId, workerThreadName)
+
+    and: "phasedFinish is called from a different thread (simulating event loop callback)"
+    span.phasedFinish()
+
+    then: "worker thread attribution is preserved — not overwritten by phasedFinish"
+    span.context().executionThreadId == workerThreadId
+    span.context().executionThreadName == workerThreadName
+
+    cleanup:
+    span.publish()
+  }
+
   def "starting with a timestamp disables nanotime"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)

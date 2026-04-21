@@ -9,6 +9,11 @@ public interface ProfilerContext {
    */
   long getRootSpanId();
 
+  /**
+   * @return the span id of the parent span, or 0 if this is the root
+   */
+  long getParentSpanId();
+
   int getEncodedOperationName();
 
   CharSequence getOperationName();
@@ -16,4 +21,20 @@ public interface ProfilerContext {
   int getEncodedResourceName();
 
   CharSequence getResourceName();
+
+  /** Java thread ID of the thread that finished this span (captured at span finish time). */
+  default long getExecutionThreadId() {
+    return 0;
+  }
+
+  /** Name of the thread that finished this span (captured at span finish time). */
+  default String getExecutionThreadName() {
+    return "";
+  }
+
+  /**
+   * Records the execution thread for this span. First-write-wins: once set by a worker thread (via
+   * {@code onTaskActivation}), subsequent calls from e.g. a Netty event loop callback are ignored.
+   */
+  default void captureExecutionThread(long threadId, String threadName) {}
 }

@@ -7,6 +7,9 @@ import datadog.trace.api.GenericClassValue;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -25,6 +28,8 @@ public final class TPEHelper {
   private static final Set<String> excludedClasses;
   // A ThreadLocal to store the Scope between beforeExecute and afterExecute if wrapping is not used
   private static final ThreadLocal<AgentScope> threadLocalScope;
+  // Stores System.nanoTime() at task activation so onTaskDeactivation can compute duration
+  private static final ThreadLocal<Long> threadLocalActivationNano;
 
   private static final ClassValue<Boolean> WRAP =
       GenericClassValue.of(
@@ -42,8 +47,10 @@ public final class TPEHelper {
     excludedClasses = config.getTraceThreadPoolExecutorsExclude();
     if (useWrapping) {
       threadLocalScope = null;
+      threadLocalActivationNano = null;
     } else {
       threadLocalScope = new ThreadLocal<>();
+      threadLocalActivationNano = new ThreadLocal<>();
     }
   }
 
@@ -82,7 +89,18 @@ public final class TPEHelper {
     if (task == null || exclude(RUNNABLE, task)) {
       return null;
     }
-    return AdviceUtils.startTaskScope(contextStore, task);
+    AgentScope scope = AdviceUtils.startTaskScope(contextStore, task);
+    if (scope != null && threadLocalActivationNano != null) {
+      long startNano = System.nanoTime();
+      threadLocalActivationNano.set(startNano);
+      AgentSpan span = scope.span();
+      if (span != null && span.context() instanceof ProfilerContext) {
+        AgentTracer.get()
+            .getProfilingContext()
+            .onTaskActivation((ProfilerContext) span.context(), startNano);
+      }
+    }
+    return scope;
   }
 
   public static void setThreadLocalScope(AgentScope scope, Runnable task) {
@@ -112,7 +130,23 @@ public final class TPEHelper {
     if (task == null || exclude(RUNNABLE, task)) {
       return;
     }
-    AdviceUtils.endTaskScope(scope);
+    try {
+      if (scope != null && threadLocalActivationNano != null) {
+        Long startNano = threadLocalActivationNano.get();
+        // noinspection ThreadLocalSetWithNull
+        threadLocalActivationNano.set(null);
+        if (startNano != null) {
+          AgentSpan span = scope.span();
+          if (span != null && span.context() instanceof ProfilerContext) {
+            AgentTracer.get()
+                .getProfilingContext()
+                .onTaskDeactivation((ProfilerContext) span.context(), startNano);
+          }
+        }
+      }
+    } finally {
+      AdviceUtils.endTaskScope(scope);
+    }
   }
 
   public static void cancelTask(ContextStore<Runnable, State> contextStore, Runnable task) {

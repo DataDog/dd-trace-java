@@ -332,13 +332,19 @@ public final class DatadogProfiler {
     return cmdString;
   }
 
-  public void recordTraceRoot(long rootSpanId, String endpoint, String operation) {
-    if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
+  public void recordTraceRoot(
+      long rootSpanId, long parentSpanId, long startTicks, String endpoint, String operation) {
+    if (!profiler.recordTraceRoot(
+        rootSpanId, parentSpanId, startTicks, endpoint, operation, MAX_NUM_ENDPOINTS)) {
       log.debug(
           "Endpoint event not written because more than {} distinct endpoints have been encountered."
               + " This avoids excessive memory overhead.",
           MAX_NUM_ENDPOINTS);
     }
+  }
+
+  public long getCurrentTicks() {
+    return profiler.getCurrentTicks();
   }
 
   public int operationNameOffset() {
@@ -447,12 +453,40 @@ public final class DatadogProfiler {
     profiler.recordSetting(name, value, unit);
   }
 
-  public QueueTimeTracker newQueueTimeTracker() {
-    return new QueueTimeTracker(this, profiler.getCurrentTicks());
+  public QueueTimeTracker newQueueTimeTracker(long submittingSpanId) {
+    return new QueueTimeTracker(this, profiler.getCurrentTicks(), submittingSpanId);
   }
 
   boolean shouldRecordQueueTimeEvent(long startMillis) {
     return System.currentTimeMillis() - startMillis >= queueTimeThresholdMillis;
+  }
+
+  void recordTaskBlockEvent(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
+    if (profiler != null) {
+      long endTicks = profiler.getCurrentTicks();
+      profiler.recordTaskBlock(startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+    }
+  }
+
+  public void recordSpanNodeEvent(
+      long spanId,
+      long parentSpanId,
+      long rootSpanId,
+      long startNanos,
+      long durationNanos,
+      int encodedOperation,
+      int encodedResource) {
+    if (profiler != null) {
+      profiler.recordSpanNode(
+          spanId,
+          parentSpanId,
+          rootSpanId,
+          startNanos,
+          durationNanos,
+          encodedOperation,
+          encodedResource);
+    }
   }
 
   void recordQueueTimeEvent(
@@ -461,7 +495,8 @@ public final class DatadogProfiler {
       Class<?> scheduler,
       Class<?> queueType,
       int queueLength,
-      Thread origin) {
+      Thread origin,
+      long submittingSpanId) {
     if (profiler != null) {
       // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
       // we avoid doing this unless we are absolutely certain we will record the event
@@ -469,7 +504,14 @@ public final class DatadogProfiler {
       if (taskType != null) {
         long endTicks = profiler.getCurrentTicks();
         profiler.recordQueueTime(
-            startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
+            startTicks,
+            endTicks,
+            taskType,
+            scheduler,
+            queueType,
+            queueLength,
+            origin,
+            submittingSpanId);
       }
     }
   }

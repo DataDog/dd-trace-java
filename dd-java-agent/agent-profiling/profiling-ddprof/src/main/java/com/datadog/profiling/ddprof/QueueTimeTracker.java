@@ -9,6 +9,7 @@ public class QueueTimeTracker implements QueueTiming {
   private final Thread origin;
   private final long startTicks;
   private final long startMillis;
+  private final long submittingSpanId;
   private WeakReference<Object> weakTask;
   // FIXME this can be eliminated by altering the instrumentation
   //  since it is known when the item is polled from the queue
@@ -16,11 +17,12 @@ public class QueueTimeTracker implements QueueTiming {
   private Class<?> queue;
   private int queueLength;
 
-  public QueueTimeTracker(DatadogProfiler profiler, long startTicks) {
+  public QueueTimeTracker(DatadogProfiler profiler, long startTicks, long submittingSpanId) {
     this.profiler = profiler;
     this.origin = Thread.currentThread();
     this.startTicks = startTicks;
     this.startMillis = System.currentTimeMillis();
+    this.submittingSpanId = submittingSpanId;
   }
 
   @Override
@@ -49,7 +51,8 @@ public class QueueTimeTracker implements QueueTiming {
     Object task = this.weakTask.get();
     if (task != null) {
       // indirection reduces shallow size of the tracker instance
-      profiler.recordQueueTimeEvent(startTicks, task, scheduler, queue, queueLength, origin);
+      profiler.recordQueueTimeEvent(
+          startTicks, task, scheduler, queue, queueLength, origin, submittingSpanId);
     }
   }
 

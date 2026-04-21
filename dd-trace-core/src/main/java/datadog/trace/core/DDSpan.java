@@ -9,6 +9,7 @@ import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.NANOSECONDS;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
@@ -160,6 +161,18 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
         wrapper.onSpanFinished();
       }
       this.metrics.onSpanFinished();
+      // Capture the execution thread while still on the span's own finishing thread.
+      // CoreTracer.write() is called later from the event loop; the info captured here is the
+      // authoritative source for SpanNode thread attribution (see SpanExecutionThreadEvent).
+      // Virtual threads have their own stable thread ID that does NOT match any carrier thread
+      // lane in the JFR timeline. Emitting a SpanExecutionThreadEvent with a virtual thread ID
+      // would override the SpanNode's EVENT_THREAD (carrier OS tid) with a value that cannot be
+      // matched, producing worse attribution. Skip capture for virtual threads so the backend
+      // falls back to the SpanNode's EVENT_THREAD — the best available carrier-thread attribution.
+      if (!ThreadSupport.isVirtual()) {
+        context.captureExecutionThread(
+            Thread.currentThread().getId(), Thread.currentThread().getName());
+      }
       TraceCollector.PublishState publishState = context.getTraceCollector().onPublish(this);
       log.debug("Finished span ({}): {}", publishState, this);
     } else {
@@ -255,6 +268,16 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+      // Mirror finishAndAddToTrace(): capture the execution thread while still on the span's
+      // own finishing thread so that SpanExecutionThreadEvent is emitted correctly.
+      // Without this, phasedFinish() spans (e.g. Netty HTTP-client) have executionThreadId=0
+      // and fall back to the event-loop thread that calls CoreTracer.write().
+      // Skip virtual threads — their ID does not match any carrier thread lane in the JFR
+      // timeline (same reasoning as finishAndAddToTrace).
+      if (!ThreadSupport.isVirtual()) {
+        context.captureExecutionThread(
+            Thread.currentThread().getId(), Thread.currentThread().getName());
+      }
       log.debug("Finished span (PHASED): {}", this);
       return true;
     } else {

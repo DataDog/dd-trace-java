@@ -6,6 +6,9 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import java.util.concurrent.RunnableFuture;
 
 public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
@@ -44,7 +47,23 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
   @Override
   public void run() {
     try (AgentScope scope = activate()) {
-      delegate.run();
+      long startNano = 0L;
+      ProfilerContext profilerCtx = null;
+      if (scope != null) {
+        AgentSpan span = scope.span();
+        if (span != null && span.context() instanceof ProfilerContext) {
+          profilerCtx = (ProfilerContext) span.context();
+          startNano = System.nanoTime();
+          AgentTracer.get().getProfilingContext().onTaskActivation(profilerCtx, startNano);
+        }
+      }
+      try {
+        delegate.run();
+      } finally {
+        if (profilerCtx != null) {
+          AgentTracer.get().getProfilingContext().onTaskDeactivation(profilerCtx, startNano);
+        }
+      }
     }
   }
 
