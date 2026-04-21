@@ -536,7 +536,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -560,7 +560,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
@@ -670,7 +670,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -694,7 +694,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
               "dd.instrumentation" true
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               peerServiceFrom(Tags.DB_INSTANCE)
@@ -843,7 +843,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -867,7 +867,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
