@@ -106,6 +106,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public void parkEnter(long spanId, long rootSpanId) {
+    DDPROF.parkEnter(spanId, rootSpanId);
+  }
+
+  @Override
+  public void parkExit(long blocker, long unblockingSpanId) {
+    DDPROF.parkExit(blocker, unblockingSpanId);
+  }
+
+  @Override
   public void onSpanFinished(AgentSpan span) {
     if (span == null || !(span.context() instanceof ProfilerContext)) return;
     ProfilerContext ctx = (ProfilerContext) span.context();

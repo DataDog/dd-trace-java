@@ -52,6 +52,26 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
       long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {}
 
   /**
+   * Called when the current thread is about to park (LockSupport.park* entry).
+   * Implementations set an atomic flag in ProfiledThread to suppress wall-clock signals
+   * during the park interval, and record the start tick for off-CPU interval emission.
+   *
+   * @param spanId the span ID active at park entry, or 0 if no active span
+   * @param rootSpanId the local root span ID active at park entry, or 0 if no active span
+   */
+  default void parkEnter(long spanId, long rootSpanId) {}
+
+  /**
+   * Called when the current thread has returned from park (LockSupport.park* exit).
+   * Implementations clear the park flag and emit a TaskBlock JFR event if the park duration
+   * exceeds the configured threshold and a span context was active.
+   *
+   * @param blocker identity hash code of the blocking object, or 0 if none
+   * @param unblockingSpanId the span ID of the thread that called unpark(), or 0 if unknown
+   */
+  default void parkExit(long blocker, long unblockingSpanId) {}
+
+  /**
    * Emits a SpanNode event when a span finishes, recording its identity, timing, and encoding.
    *
    * @param span the finished span

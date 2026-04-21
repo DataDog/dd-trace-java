@@ -469,6 +469,18 @@ public final class DatadogProfiler {
     }
   }
 
+  void parkEnter(long spanId, long rootSpanId) {
+    if (profiler != null) {
+      profiler.parkEnter(spanId, rootSpanId);
+    }
+  }
+
+  void parkExit(long blocker, long unblockingSpanId) {
+    if (profiler != null) {
+      profiler.parkExit(blocker, unblockingSpanId);
+    }
+  }
+
   public void recordSpanNodeEvent(
       long spanId,
       long parentSpanId,

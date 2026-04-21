@@ -67,19 +67,25 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static long[] before(@Advice.Argument(value = 0, optional = true) Object blocker) {
-      AgentSpan span = AgentTracer.activeSpan();
-      if (span == null || !(span.context() instanceof ProfilerContext)) {
-        return null;
-      }
-      ProfilerContext ctx = (ProfilerContext) span.context();
       ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
-      long startTicks = profiling.getCurrentTicks();
-      if (startTicks == 0L) {
-        // profiler not active
+      if (profiling == null) {
         return null;
       }
+      // Always call parkEnter for signal suppression, even without an active span.
+      // spanId/rootSpanId = 0 when no active span — no JFR event will be emitted at exit for
+      // zero-span intervals (the native code filters those out by duration threshold and span
+      // check).
+      long spanId = 0L;
+      long rootSpanId = 0L;
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span != null && span.context() instanceof ProfilerContext) {
+        ProfilerContext ctx = (ProfilerContext) span.context();
+        spanId = ctx.getSpanId();
+        rootSpanId = ctx.getRootSpanId();
+      }
+      profiling.parkEnter(spanId, rootSpanId);
       long blockerHash = blocker != null ? System.identityHashCode(blocker) : 0L;
-      return new long[] {startTicks, ctx.getSpanId(), ctx.getRootSpanId(), blockerHash};
+      return new long[] {blockerHash, spanId, rootSpanId};
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -87,15 +93,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       if (state == null) {
         return;
       }
+      ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
+      if (profiling == null) {
+        return;
+      }
       Long unblockingSpanId = State.UNPARKING_SPAN.remove(Thread.currentThread());
-      AgentTracer.get()
-          .getProfilingContext()
-          .recordTaskBlock(
-              state[0],
-              state[1],
-              state[2],
-              state[3],
-              unblockingSpanId != null ? unblockingSpanId : 0L);
+      // parkExit clears the flag in ProfiledThread and emits a TaskBlock JFR event if the park
+      // duration exceeds the configured threshold and span context was active.
+      profiling.parkExit(state[0], unblockingSpanId != null ? unblockingSpanId : 0L);
     }
   }
 
