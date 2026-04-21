@@ -31,4 +31,10 @@ public interface ProfilerContext {
   default String getExecutionThreadName() {
     return "";
   }
+
+  /**
+   * Records the execution thread for this span. First-write-wins: once set by a worker thread (via
+   * {@code onTaskActivation}), subsequent calls from e.g. a Netty event loop callback are ignored.
+   */
+  default void captureExecutionThread(long threadId, String threadName) {}
 }

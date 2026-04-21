@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -133,7 +134,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void onTaskActivation(ProfilerContext profilerContext, long startTicks) {
-    // startTicks captured by TPEHelper is the authoritative start; nothing to do here.
+    // Capture the worker thread as the execution thread at the moment a task starts executing.
+    // Using first-write-wins semantics in DDSpanContext.captureExecutionThread() means this
+    // worker-thread attribution is protected: if phasedFinish() is later called from a Netty
+    // event loop callback (a different, wrong thread), it becomes a no-op.
+    if (profilerContext != null && !ThreadSupport.isVirtual()) {
+      Thread t = Thread.currentThread();
+      profilerContext.captureExecutionThread(t.getId(), t.getName());
+    }
   }
 
   @Override

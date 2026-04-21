@@ -211,6 +211,28 @@ class DDSpanTest extends DDCoreSpecification {
     span.publish()
   }
 
+  def "first-write-wins: prior captureExecutionThread is not overwritten by phasedFinish"() {
+    // Regression test: onTaskActivation() captures the worker thread first; a subsequent
+    // phasedFinish() call from an event loop callback must not overwrite it.
+    setup:
+    def span = tracer.buildSpan("test").start()
+    long workerThreadId = 42L
+    String workerThreadName = "worker-thread-42"
+
+    when: "worker thread captures first (simulating onTaskActivation)"
+    span.context().captureExecutionThread(workerThreadId, workerThreadName)
+
+    and: "phasedFinish is called from a different thread (simulating event loop callback)"
+    span.phasedFinish()
+
+    then: "worker thread attribution is preserved — not overwritten by phasedFinish"
+    span.context().executionThreadId == workerThreadId
+    span.context().executionThreadName == workerThreadName
+
+    cleanup:
+    span.publish()
+  }
+
   def "starting with a timestamp disables nanotime"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)
