@@ -106,21 +106,19 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      List<String> filenames = new ArrayList<>();
-      for (String key : attachment) {
-        for (FormData.FormValue formValue : attachment.get(key)) {
-          if (formValue.isFile()) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (filenamesCb != null) {
+        List<String> filenames = new ArrayList<>();
+        for (String key : attachment) {
+          for (FormData.FormValue formValue : attachment.get(key)) {
             String filename = formValue.getFileName();
             if (filename != null && !filename.isEmpty()) {
               filenames.add(filename);
             }
           }
         }
-      }
-      if (!filenames.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCb != null) {
+        if (!filenames.isEmpty()) {
           Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
           Flow.Action filenamesAction = filenamesFlow.getAction();
           if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
