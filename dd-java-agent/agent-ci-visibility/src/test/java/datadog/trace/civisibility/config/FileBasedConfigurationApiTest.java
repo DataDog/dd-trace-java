@@ -25,12 +25,6 @@ import java.util.Map;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 
-/**
- * Tests {@link FileBasedConfigurationApi} against the same response fixtures used by the HTTP
- * variant ({@code ConfigurationApiImplTest}). Sharing the {@code *-response.ftl} templates keeps
- * both code paths aligned — any change to the backend payload shape only needs to be reflected in
- * one place.
- */
 class FileBasedConfigurationApiTest {
 
   private static final String FIXTURE_DIR = "/datadog/trace/civisibility/config/";
@@ -224,8 +218,6 @@ class FileBasedConfigurationApiTest {
 
     assertThrowsIO(() -> api.getSettings(ENV));
   }
-
-  // --- helpers ---
 
   private static Path renderToFile(
       Path dir, String templateName, String outputName, Map<String, Object> data)

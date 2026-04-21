@@ -113,8 +113,6 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     // no-op
   }
 
-  // -- Test event serialization (mirrors CiTestCycleMapperV1.map) --
-
   @Override
   public void addTrace(List<? extends CoreSpan<?>> trace) {
     if (trace.isEmpty()) {
@@ -137,8 +135,6 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
       }
     }
   }
-
-  // -- Coverage event serialization (mirrors CiTestCovMapperV2.map) --
 
   @Override
   public void flush() {
@@ -189,8 +185,6 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
   public Collection<RemoteApi> getApis() {
     return Collections.emptyList();
   }
-
-  // -- Tag writing --
 
   private String serializeTestEvent(CoreSpan<?> span) {
     DDTraceId testSessionId = span.getTag(Tags.TEST_SESSION_ID);
@@ -321,8 +315,6 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     w.endObject();
     return w.toString();
   }
-
-  // -- File I/O --
 
   private void ensureOutputDir() throws IOException {
     if (!Files.exists(outputDir)) {

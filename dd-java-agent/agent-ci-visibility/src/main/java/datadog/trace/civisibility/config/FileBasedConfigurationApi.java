@@ -24,10 +24,7 @@ import org.slf4j.LoggerFactory;
 /**
  * Implements {@link ConfigurationApi} by reading JSON files from disk instead of making HTTP
  * requests. Each file is expected to contain the same JSON envelope structure that the backend API
- * returns.
- *
- * <p>Paths that are {@code null} are treated as absent — the corresponding method returns a safe
- * default (e.g. {@link CiVisibilitySettings#DEFAULT} or an empty collection).
+ * returns. Used in Bazel mode.
  */
 public class FileBasedConfigurationApi implements ConfigurationApi {
 
@@ -287,7 +284,6 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     DataDto<TestManagementTestsDto> data;
   }
 
-  // Shared single-item data wrapper
   static final class DataDto<T> {
     String id;
     String type;
