@@ -83,9 +83,11 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
+      BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (bodyCallback == null && filenamesCb == null) {
         return;
       }
       FormData attachment = exchange.getAttachment(FORM_DATA);
@@ -93,21 +95,23 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, new FormDataMap(attachment));
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (for MultiPartUploadHandler/parseBlocking)");
+      if (bodyCallback != null) {
+        Flow<Void> flow = bodyCallback.apply(reqCtx, new FormDataMap(attachment));
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            if (t == null) {
+              t =
+                  new BlockingException(
+                      "Blocked request (for MultiPartUploadHandler/parseBlocking)");
+            }
           }
         }
       }
 
-      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
       if (filenamesCb != null) {
         List<String> filenames = new ArrayList<>();
         for (String key : attachment) {
