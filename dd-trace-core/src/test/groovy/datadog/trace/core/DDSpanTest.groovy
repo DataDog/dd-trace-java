@@ -188,6 +188,29 @@ class DDSpanTest extends DDCoreSpecification {
     writer.size() == 1
   }
 
+  def "phasedFinish captures execution thread for SpanExecutionThread attribution"() {
+    // Regression test: phasedFinish() was missing a captureExecutionThread() call, so spans
+    // finished via phasedFinish()+publish() had executionThreadId=0 and no SpanExecutionThread
+    // event was emitted. They fell back to the event-loop thread (wrong attribution).
+    setup:
+    def span = tracer.buildSpan("test").start()
+
+    when:
+    def currentThreadId = Thread.currentThread().id
+    def currentThreadName = Thread.currentThread().name
+    span.phasedFinish()
+
+    then: "execution thread is captured on the finishing thread"
+    span.context().executionThreadId == currentThreadId
+    span.context().executionThreadName == currentThreadName
+    // Verify the guard in DatadogProfilingIntegration.onSpanFinished() would pass:
+    span.context().executionThreadId > 0
+    span.context().executionThreadName != null && !span.context().executionThreadName.isEmpty()
+
+    cleanup:
+    span.publish()
+  }
+
   def "starting with a timestamp disables nanotime"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)

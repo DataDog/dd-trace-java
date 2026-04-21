@@ -260,6 +260,12 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
     // Flip the negative bit of the result to allow verifying that publish() is only called once.
     if (DURATION_NANO_UPDATER.compareAndSet(this, 0, Math.max(1, durationNano) | Long.MIN_VALUE)) {
+      // Mirror finishAndAddToTrace(): capture the execution thread while still on the span's
+      // own finishing thread so that SpanExecutionThreadEvent is emitted correctly.
+      // Without this, phasedFinish() spans (e.g. Netty HTTP-client) have executionThreadId=0
+      // and fall back to the event-loop thread that calls CoreTracer.write().
+      context.captureExecutionThread(
+          Thread.currentThread().getId(), Thread.currentThread().getName());
       log.debug("Finished span (PHASED): {}", this);
       return true;
     } else {
