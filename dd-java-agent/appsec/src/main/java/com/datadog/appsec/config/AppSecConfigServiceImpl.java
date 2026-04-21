@@ -422,7 +422,7 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
       } else {
         subscribeConfigurationPoller();
       }
-    } else {
+    } else if (!tracerConfig.isAwsServerless()) {
       log.info("Remote config is disabled; AppSec will not be able to use it");
     }
   }

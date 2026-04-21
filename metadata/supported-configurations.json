@@ -11249,6 +11249,14 @@
         "aliases": []
       }
     ],
+    "DD_WRITER_LINKS_INJECT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_WRITER_TYPE": [
       {
         "version": "A",
