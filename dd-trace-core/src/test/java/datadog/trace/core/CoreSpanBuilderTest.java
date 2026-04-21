@@ -419,18 +419,15 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertTrue(span.getLinks().isEmpty());
   }
 
-  static Stream<TagContext> tagContextShouldPopulateDefaultSpanDetailsArguments() {
-    return Stream.of(
-        new TagContext(null, TagMap.fromMap(Collections.<String, Object>emptyMap())),
-        new TagContext(
-            "some-origin",
-            TagMap.fromMap(Collections.<String, Object>singletonMap("asdf", "qwer"))));
-  }
-
-  @ParameterizedTest
-  @MethodSource("tagContextShouldPopulateDefaultSpanDetailsArguments")
-  void tagContextShouldPopulateDefaultSpanDetails(TagContext tagContext) {
+  @TableTest({
+    "scenario      | origin      | tagMap      ",
+    "empty tag map |             | [:]         ",
+    "some origin   | some-origin | [asdf: qwer]"
+  })
+  void tagContextShouldPopulateDefaultSpanDetails(
+      String scenario, String origin, Map<String, String> tagMap) {
     Thread thread = Thread.currentThread();
+    TagContext tagContext = new TagContext(origin, TagMap.fromMap(tagMap));
     DDSpan span = (DDSpan) tracer.buildSpan("test", "op name").asChildOf(tagContext).start();
 
     assertNotEquals(DDTraceId.ZERO, span.getTraceId());
@@ -462,8 +459,14 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
         arguments("a:1,b-c:d", buildStringMap("a", "1", "b-c", "d")));
   }
 
-  @ParameterizedTest
-  @MethodSource("globalSpanTagsPopulatedOnEachSpanArguments")
+  @TableTest({
+    "scenario          | tagString   | tags          ",
+    "empty             | ''          | [:]           ",
+    "column            | is:val:id   | [is: 'val:id']",
+    "single            | a:x         | [a: x]        ",
+    "same multi-values | a:a,a:b,a:c | [a: c]        ",
+    "multi values      | a:1,b-c:d   | [a: 1, b-c: d]"
+  })
   void globalSpanTagsPopulatedOnEachSpan(String tagString, Map<String, String> tags) {
     injectSysConfig("dd.trace.span.tags", tagString);
     CoreTracer customTracer = tracerBuilder().writer(writer).build();

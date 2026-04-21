@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
@@ -45,15 +46,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
-import java.util.stream.Stream;
 import okhttp3.HttpUrl;
 import okhttp3.OkHttpClient;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
@@ -61,7 +58,7 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
 
   @BeforeAll
   static void checkJvm() {
-    Assumptions.assumeFalse(
+    assumeFalse(
         JavaVirtualMachine.isOracleJDK8(),
         "Oracle JDK 1.8 did not merge the fix in JDK-8058322, leading to the JVM failing to"
             + " correctly extract method parameters without args, when the code is compiled on a"
@@ -118,8 +115,11 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
-  @ParameterizedTest
-  @MethodSource("verifyMappingConfigsOnTracerArguments")
+  @TableTest({
+    "scenario       | mapString             | map         ",
+    "duplicate keys | a:one, a:two, a:three | [a: three]  ",
+    "empty value    | a:b,c:d,e:            | [a: b, c: d]"
+  })
   void verifyMappingConfigsOnTracer(String scenario, String mapString, Map<String, String> map) {
     injectSysConfig(TracerConfig.SERVICE_MAPPING, mapString);
     injectSysConfig(TracerConfig.SPAN_TAGS, mapString);
@@ -134,14 +134,11 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
-  static Stream<Object[]> verifyMappingConfigsOnTracerArguments() {
-    return Stream.of(
-        new Object[] {"duplicate keys", "a:one, a:two, a:three", buildStringMap("a", "three")},
-        new Object[] {"empty value", "a:b,c:d,e:", buildStringMap("a", "b", "c", "d")});
-  }
-
-  @ParameterizedTest
-  @MethodSource("verifyBaggageMappingConfigsOnTracerArguments")
+  @TableTest({
+    "scenario       | mapString             | map         ",
+    "duplicate keys | a:one, a:two, a:three | [a: three]  ",
+    "empty value    | a:b,c:d,e:            | [a: b, c: d]"
+  })
   void verifyBaggageMappingConfigsOnTracer(
       String scenario, String mapString, Map<String, String> map) {
     injectSysConfig(TracerConfig.BAGGAGE_MAPPING, mapString);
@@ -151,12 +148,6 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
-  }
-
-  static Stream<Object[]> verifyBaggageMappingConfigsOnTracerArguments() {
-    return Stream.of(
-        new Object[] {"duplicate keys", "a:one, a:two, a:three", buildStringMap("a", "three")},
-        new Object[] {"empty value", "a:b,c:d,e:", buildStringMap("a", "b", "c", "d")});
   }
 
   @Test
@@ -353,8 +344,15 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
-  @ParameterizedTest
-  @MethodSource("verifyConfigurationPollingWithCustomTagsArguments")
+  @TableTest({
+    "scenario      | json                                                               | expectedValue     ",
+    "a:b c:d e:f   | '{\"lib_config\":{\"tracing_tags\": [\"a:b\", \"c:d\", \"e:f\"]}}' | [a: b, c: d, e: f]",
+    "empty and c:d | '{\"lib_config\":{\"tracing_tags\": [\"\", \"c:d\", \"\"]}}'       | [c: d]            ",
+    ":b c: e:f     | '{\"lib_config\":{\"tracing_tags\": [\":b\", \"c:\", \"e:f\"]}}'   | [e: f]            ",
+    ": c: e:f      | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"e:f\"]}}'    | [e: f]            ",
+    ": c: empty    | '{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"\"]}}'       | [:]               ",
+    "empty array   | '{\"lib_config\":{\"tracing_tags\": []}}'                          | [:]               "
+  })
   void verifyConfigurationPollingWithCustomTags(
       String scenario, String json, Map<String, String> expectedValue) throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
@@ -395,40 +393,22 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
-  static Stream<Object[]> verifyConfigurationPollingWithCustomTagsArguments() {
-    return Stream.of(
-        new Object[] {
-          "a:b c:d e:f",
-          "{\"lib_config\":{\"tracing_tags\": [\"a:b\", \"c:d\", \"e:f\"]}}",
-          buildStringMap("a", "b", "c", "d", "e", "f")
-        },
-        new Object[] {
-          "empty and c:d",
-          "{\"lib_config\":{\"tracing_tags\": [\"\", \"c:d\", \"\"]}}",
-          buildStringMap("c", "d")
-        },
-        new Object[] {
-          ":b c: e:f",
-          "{\"lib_config\":{\"tracing_tags\": [\":b\", \"c:\", \"e:f\"]}}",
-          buildStringMap("e", "f")
-        },
-        new Object[] {
-          ": c: e:f",
-          "{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"e:f\"]}}",
-          buildStringMap("e", "f")
-        },
-        new Object[] {
-          ": c: empty",
-          "{\"lib_config\":{\"tracing_tags\": [\":\", \"c:\", \"\"]}}",
-          Collections.emptyMap()
-        },
-        new Object[] {
-          "empty array", "{\"lib_config\":{\"tracing_tags\": []}}", Collections.emptyMap()
-        });
-  }
-
-  @ParameterizedTest
-  @MethodSource("verifyConfigurationPollingWithTracingEnabledArguments")
+  @TableTest({
+    "scenario                     |  json                                           | expectedValue ",
+    "tracing disabled             | '{\"lib_config\":{\"tracing_enabled\": false}}' | false         ",
+    "tracing enabled              | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true          ",
+    "action with tracing disabled | '{\"action\": \"enable\", \"lib_config\":                       ",
+    "{\"tracing_sampling_rate\": null,                                                              ",
+    " \"log_injection_enabled\": null,                                                              ",
+    "\"tracing_header_tags\": null,                                                                 ",
+    " \"runtime_metrics_enabled\": null,                                                            ",
+    "\"tracing_debug\": null,                                                                       ",
+    " \"tracing_service_mapping\": null,                                                            ",
+    "\"tracing_sampling_rules\": null,                                                              ",
+    " \"span_sampling_rules\": null,                                                                ",
+    "\"data_streams_enabled\": null,                                                                ",
+    " \"tracing_enabled\": false}}'             | false                                             "
+  })
   void verifyConfigurationPollingWithTracingEnabled(
       String scenario, String json, boolean expectedValue) throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
@@ -460,22 +440,6 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     } finally {
       tracer.close();
     }
-  }
-
-  static Stream<Object[]> verifyConfigurationPollingWithTracingEnabledArguments() {
-    return Stream.of(
-        new Object[] {"tracing disabled", "{\"lib_config\":{\"tracing_enabled\": false}}", false},
-        new Object[] {"tracing enabled", "{\"lib_config\":{\"tracing_enabled\": true}}", true},
-        new Object[] {
-          "action with tracing disabled",
-          "{\"action\": \"enable\", \"lib_config\": {\"tracing_sampling_rate\": null,"
-              + " \"log_injection_enabled\": null, \"tracing_header_tags\": null,"
-              + " \"runtime_metrics_enabled\": null, \"tracing_debug\": null,"
-              + " \"tracing_service_mapping\": null, \"tracing_sampling_rules\": null,"
-              + " \"span_sampling_rules\": null, \"data_streams_enabled\": null,"
-              + " \"tracing_enabled\": false}}",
-          false
-        });
   }
 
   @TableTest({
