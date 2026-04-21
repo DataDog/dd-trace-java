@@ -320,6 +320,11 @@ class TraceGenerator {
     }
 
     @Override
+    void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+      consumer.accept(metadata)
+    }
+
+    @Override
     PojoSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {
       return this
     }
