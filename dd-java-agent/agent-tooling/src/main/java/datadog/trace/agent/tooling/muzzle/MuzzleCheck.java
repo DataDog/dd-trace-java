@@ -31,32 +31,8 @@ public class MuzzleCheck implements ElementMatcher<ClassLoader> {
     boolean muzzleMatches = muzzle().matches(classLoader);
     if (muzzleMatches) {
       InstrumenterState.applyInstrumentation(classLoader, instrumentationId);
-      if (instrumentationClass.contains("spark") || instrumentationClass.contains("Spark")) {
-        System.err.println(
-            "[DD-SPARK-DEBUG] MuzzleCheck PASSED: "
-                + InstrumenterState.describe(instrumentationId)
-                + " classloader="
-                + classLoader);
-      }
     } else {
       InstrumenterState.blockInstrumentation(classLoader, instrumentationId);
-      if (instrumentationClass.contains("spark") || instrumentationClass.contains("Spark")) {
-        final List<Reference.Mismatch> mismatches =
-            muzzle.getMismatchedReferenceSources(classLoader);
-        System.err.println(
-            "[DD-SPARK-DEBUG] MuzzleCheck FAILED: "
-                + InstrumenterState.describe(instrumentationId)
-                + " classloader="
-                + classLoader);
-        for (final Reference.Mismatch mismatch : mismatches) {
-          System.err.println(
-              "[DD-SPARK-DEBUG] MuzzleCheck mismatch: "
-                  + InstrumenterState.describe(instrumentationId)
-                  + " muzzle.mismatch=\""
-                  + mismatch
-                  + "\"");
-        }
-      }
       if (log.isDebugEnabled()) {
         final List<Reference.Mismatch> mismatches =
             muzzle.getMismatchedReferenceSources(classLoader);

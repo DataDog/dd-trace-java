@@ -144,19 +144,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   public static class SparkSqlFailureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
-      if (throwable != null) {
-        System.err.println(
-            "[DD-SPARK-DEBUG] SparkSqlFailureAdvice.exit: thread="
-                + Thread.currentThread().getName()
-                + ", throwable="
-                + throwable.getClass().getName()
-                + ": "
-                + throwable.getMessage()
-                + ", listenerNull="
-                + (AbstractDatadogSparkListener.listener == null));
-        if (AbstractDatadogSparkListener.listener != null) {
-          AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
-        }
+      if (throwable != null && AbstractDatadogSparkListener.listener != null) {
+        AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
       }
     }
   }
@@ -164,19 +153,8 @@ public abstract class AbstractSparkInstrumentation extends InstrumenterModule.Tr
   public static class QueryExecutionFailureAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void exit(@Advice.Thrown Throwable throwable) {
-      if (throwable != null) {
-        System.err.println(
-            "[DD-SPARK-DEBUG] QueryExecutionFailureAdvice.exit: thread="
-                + Thread.currentThread().getName()
-                + ", throwable="
-                + throwable.getClass().getName()
-                + ": "
-                + throwable.getMessage()
-                + ", listenerNull="
-                + (AbstractDatadogSparkListener.listener == null));
-        if (AbstractDatadogSparkListener.listener != null) {
-          AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
-        }
+      if (throwable != null && AbstractDatadogSparkListener.listener != null) {
+        AbstractDatadogSparkListener.listener.onSqlFailure(throwable);
       }
     }
   }

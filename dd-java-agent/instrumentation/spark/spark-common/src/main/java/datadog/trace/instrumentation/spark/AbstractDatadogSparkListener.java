@@ -173,17 +173,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
             AgentThreadFactory.newAgentThread(
                 AgentThreadFactory.AgentThread.DATA_JOBS_MONITORING_SHUTDOWN_HOOK,
                 () -> {
-                  System.err.println(
-                      "[DD-SPARK-DEBUG] shutdownHook: applicationEnded="
-                          + applicationEnded
-                          + ", lastJobFailed="
-                          + lastJobFailed
-                          + ", lastSqlFailed="
-                          + lastSqlFailed
-                          + ", thread="
-                          + Thread.currentThread().getName());
                   if (!applicationEnded) {
-                    System.err.println("[DD-SPARK-DEBUG] shutdownHook: calling finishApplication");
+                    log.info("Finishing application trace from shutdown hook");
                     finishApplication(System.currentTimeMillis(), null, 0, null);
                   }
                 }));
@@ -328,18 +319,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
    * has an error signal even when no job/stage/task events fire.
    */
   public synchronized void onSqlFailure(Throwable throwable) {
-    System.err.println(
-        "[DD-SPARK-DEBUG] onSqlFailure: applicationEnded="
-            + applicationEnded
-            + ", throwable="
-            + throwable.getClass().getName()
-            + ": "
-            + throwable.getMessage()
-            + ", thread="
-            + Thread.currentThread().getName());
-
     if (applicationEnded) {
-      System.err.println("[DD-SPARK-DEBUG] onSqlFailure: skipping because applicationEnded=true");
       return;
     }
     lastSqlFailed = true;
@@ -348,19 +328,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     StringWriter sw = new StringWriter();
     throwable.printStackTrace(new PrintWriter(sw));
     lastSqlFailedStackTrace = sw.toString();
-
-    System.err.println("[DD-SPARK-DEBUG] onSqlFailure: lastSqlFailed set to true");
   }
 
   @Override
   public void onApplicationEnd(SparkListenerApplicationEnd applicationEnd) {
-    System.err.println(
-        "[DD-SPARK-DEBUG] onApplicationEnd: finishTraceOnApplicationEnd="
-            + finishTraceOnApplicationEnd
-            + ", applicationEnded="
-            + applicationEnded
-            + ", thread="
-            + Thread.currentThread().getName());
+    log.info(
+        "Received spark application end event, finish trace on this event: {}",
+        finishTraceOnApplicationEnd);
     notifyOl(x -> openLineageSparkListener.onApplicationEnd(x), applicationEnd);
 
     if (finishTraceOnApplicationEnd) {
@@ -372,29 +346,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   // the signature of this function is changed
   public synchronized void finishApplication(
       long time, Throwable throwable, int exitCode, String msg) {
-    System.err.println(
-        "[DD-SPARK-DEBUG] finishApplication: thread="
-            + Thread.currentThread().getName()
-            + ", applicationEnded="
-            + applicationEnded
-            + ", throwable="
-            + (throwable != null
-                ? throwable.getClass().getName() + ": " + throwable.getMessage()
-                : "null")
-            + ", exitCode="
-            + exitCode
-            + ", msg="
-            + msg
-            + ", lastJobFailed="
-            + lastJobFailed
-            + ", lastSqlFailed="
-            + lastSqlFailed
-            + ", jobCount="
-            + jobCount);
+    log.info("Finishing spark application trace");
 
     if (applicationEnded) {
-      System.err.println(
-          "[DD-SPARK-DEBUG] finishApplication: skipping because applicationEnded=true (duplicate call)");
       return;
     }
     applicationEnded = true;
@@ -407,12 +361,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     initApplicationSpanIfNotInitialized();
 
-    String errorDecision;
     if (throwable != null) {
-      errorDecision = "throwable";
       applicationSpan.addThrowable(throwable);
     } else if (exitCode != 0) {
-      errorDecision = "exitCode=" + exitCode;
       applicationSpan.setError(true);
       applicationSpan.setTag(
           DDTags.ERROR_TYPE, "Spark Application Failed with exit code " + exitCode);
@@ -421,21 +372,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       applicationSpan.setTag(DDTags.ERROR_MSG, errorMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, msg);
     } else if (lastJobFailed) {
-      errorDecision = "lastJobFailed";
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastJobFailedMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, lastJobFailedStackTrace);
     } else if (lastSqlFailed) {
-      errorDecision = "lastSqlFailed";
       applicationSpan.setError(true);
       applicationSpan.setTag(DDTags.ERROR_TYPE, "Spark SQL Failed");
       applicationSpan.setTag(DDTags.ERROR_MSG, lastSqlFailedMessage);
       applicationSpan.setTag(DDTags.ERROR_STACK, lastSqlFailedStackTrace);
-    } else {
-      errorDecision = "none (SUCCESS)";
     }
-    System.err.println("[DD-SPARK-DEBUG] finishApplication: errorDecision=" + errorDecision);
 
     applicationMetrics.setSpanMetrics(applicationSpan);
     applicationSpan.setMetric("spark.max_executor_count", maxExecutorCount);
@@ -540,13 +486,6 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
-    System.err.println(
-        "[DD-SPARK-DEBUG] onJobStart: jobId="
-            + jobStart.jobId()
-            + ", stageCount="
-            + getStageCount(jobStart)
-            + ", thread="
-            + Thread.currentThread().getName());
     jobCount++;
     if (jobSpans.size() > MAX_COLLECTION_SIZE) {
       return;
@@ -605,22 +544,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onJobEnd(SparkListenerJobEnd jobEnd) {
-    System.err.println(
-        "[DD-SPARK-DEBUG] onJobEnd: jobId="
-            + jobEnd.jobId()
-            + ", result="
-            + jobEnd.jobResult().getClass().getSimpleName()
-            + ", lastJobFailed="
-            + lastJobFailed
-            + ", lastSqlFailed="
-            + lastSqlFailed
-            + ", thread="
-            + Thread.currentThread().getName());
-
     AgentSpan jobSpan = jobSpans.remove(jobEnd.jobId());
     if (jobSpan == null) {
-      System.err.println(
-          "[DD-SPARK-DEBUG] onJobEnd: no span found for jobId=" + jobEnd.jobId() + ", skipping");
       return;
     }
 

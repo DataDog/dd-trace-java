@@ -94,13 +94,6 @@ public class Spark212Instrumentation extends AbstractSparkInstrumentation {
       AbstractDatadogSparkListener.listener =
           new DatadogSpark212Listener(
               sparkContext.getConf(), sparkContext.applicationId(), sparkContext.version());
-      System.err.println(
-          "[DD-SPARK-DEBUG] listener registered: class="
-              + AbstractDatadogSparkListener.listener.getClass().getName()
-              + ", appId="
-              + sparkContext.applicationId()
-              + ", thread="
-              + Thread.currentThread().getName());
       sparkContext.listenerBus().addToSharedQueue(AbstractDatadogSparkListener.listener);
     }
   }
