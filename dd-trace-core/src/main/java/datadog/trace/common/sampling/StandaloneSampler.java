@@ -53,6 +53,10 @@ public class StandaloneSampler implements Sampler, PrioritySampler {
     this.lastSampleTime = new AtomicLong(clock.millis() - RATE_IN_MILLISECONDS);
   }
 
+  List<StandaloneProduct> getActiveProducts() {
+    return activeProducts;
+  }
+
   @Override
   public <T extends CoreSpan<T>> boolean sample(final T span) {
     // Priority sampling sends all traces to the core agent, including traces marked dropped,

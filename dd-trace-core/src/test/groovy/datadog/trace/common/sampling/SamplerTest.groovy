@@ -2,95 +2,34 @@ package datadog.trace.common.sampling
 
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Unroll
 
 class SamplerTest extends DDSpecification {
 
-  void "test that StandaloneSampler is selected when apm tracing disabled and appsec enabled"() {
+  @Unroll
+  def 'sampler selection: apmEnabled=#apmEnabled llmobs=#llmobs appsec=#appsec iast=#iast sca=#sca → #expectedType.simpleName with activeProducts=#expectedProducts'() {
     setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.appsec.enabled", "true")
-    Config config = new Config()
+    if (!apmEnabled) injectSysConfig("dd.apm.tracing.enabled", "false")
+    if (llmobs)      injectSysConfig("dd.llmobs.enabled", "true")
+    if (appsec)      injectSysConfig("dd.appsec.enabled", "true")
+    if (iast)        injectSysConfig("dd.iast.enabled", "true")
+    if (sca)         injectSysConfig("dd.appsec.sca.enabled", "true")
 
     when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null)
 
     then:
-    sampler instanceof StandaloneSampler
-  }
+    expectedType.isInstance(sampler)
+    expectedProducts == null || (sampler as StandaloneSampler).getActiveProducts() == expectedProducts
 
-  void "test that StandaloneSampler is selected when apm tracing disabled and iast enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.iast.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof StandaloneSampler
-  }
-
-  void "test that StandaloneSampler is selected when apm tracing disabled and sca enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.appsec.sca.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof StandaloneSampler
-  }
-
-  void "test that StandaloneSampler is selected when apm tracing disabled and llmobs enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.llmobs.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof StandaloneSampler
-  }
-
-  void "test that StandaloneSampler is selected when apm tracing disabled and both llmobs and asm enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.llmobs.enabled", "true")
-    System.setProperty("dd.appsec.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof StandaloneSampler
-  }
-
-  void "test that ForcePrioritySampler with SAMPLER_DROP is selected when apm tracing disabled and no other products enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof ForcePrioritySampler
-  }
-
-  void "test that StandaloneSampler is not selected when apm tracing enabled"() {
-    setup:
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    !(sampler instanceof StandaloneSampler)
+    where:
+    apmEnabled | llmobs | appsec | iast  | sca   || expectedType              | expectedProducts
+    true       | false  | false  | false | false || RateByServiceTraceSampler | null
+    false      | true   | false  | false | false || StandaloneSampler         | [StandaloneProduct.LLMOBS]
+    false      | false  | true   | false | false || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | false  | false  | true  | false || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | false  | false  | false | true  || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | true   | true   | false | false || StandaloneSampler         | [StandaloneProduct.LLMOBS, StandaloneProduct.ASM]
+    false      | false  | false  | false | false || ForcePrioritySampler      | null
   }
 }

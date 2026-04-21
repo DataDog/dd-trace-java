@@ -74,7 +74,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     setup:
     def current = new AtomicLong(System.currentTimeMillis())
     final Clock clock = Mock(Clock) {
-      millis() >> { current.get() }
+      millis() >> {
+        current.get()
+      }
     }
     def sampler = new StandaloneSampler([StandaloneProduct.ASM], clock)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
@@ -84,7 +86,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span1)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 1000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 1000)
+    }
     span1.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     span1.context().getPropagationTags().createTagMap().get("_dd.p.dm") == "-5"
 
@@ -93,7 +97,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span2)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 1000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 1000)
+    }
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
     !span2.context().getPropagationTags().createTagMap().containsKey("_dd.p.dm")
 
@@ -102,7 +108,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span3)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 60000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 60000)
+    }
     span3.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
     span3.context().getPropagationTags().createTagMap().get("_dd.p.dm") == "-5"
 
@@ -150,11 +158,33 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     tracer.close()
   }
 
+  void "LLMOBS+ASM: span with both LLMOBS and ASM bits set is kept with DEFAULT mechanism (LLMOBS wins)"() {
+    setup:
+    def sampler = new StandaloneSampler([StandaloneProduct.LLMOBS, StandaloneProduct.ASM], Clock.systemUTC())
+    def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
+
+    when:
+    def span = tracer.buildSpan("testInstrumentation", "waf-llm-request").start()
+    def scope = tracer.activateSpan(span)
+    tracer.getTraceSegment().setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.LLMOBS | ProductTraceSource.ASM)
+    sampler.setSamplingPriority(span)
+    scope.close()
+
+    then:
+    span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+    span.context().getPropagationTags().createTagMap().get("_dd.p.dm") == "-0"
+
+    cleanup:
+    tracer.close()
+  }
+
   void "LLMOBS+ASM: APM-only spans are rate-limited with APPSEC mechanism"() {
     setup:
     def current = new AtomicLong(System.currentTimeMillis())
     final Clock clock = Mock(Clock) {
-      millis() >> { current.get() }
+      millis() >> {
+        current.get()
+      }
     }
     def sampler = new StandaloneSampler([StandaloneProduct.LLMOBS, StandaloneProduct.ASM], clock)
     def tracer = tracerBuilder().writer(writer).sampler(sampler).build()
@@ -164,7 +194,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span1)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 1000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 1000)
+    }
     span1.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     when: "second APM span within the same minute"
@@ -172,7 +204,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span2)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 1000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 1000)
+    }
     span2.getSamplingPriority() == PrioritySampling.SAMPLER_DROP
 
     when: "third APM span after 1 minute"
@@ -180,7 +214,9 @@ class StandaloneSamplerTest extends DDCoreSpecification {
     sampler.setSamplingPriority(span3)
 
     then:
-    1 * clock.millis() >> { current.updateAndGet(v -> v + 60000) }
+    1 * clock.millis() >> {
+      current.updateAndGet(v -> v + 60000)
+    }
     span3.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
 
     cleanup:
