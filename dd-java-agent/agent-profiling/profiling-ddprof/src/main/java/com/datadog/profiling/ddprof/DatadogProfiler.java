@@ -353,8 +353,7 @@ public final class DatadogProfiler {
     return contextSetter.offsetOf(attribute);
   }
 
-  public void setSpanContext(
-      long rootSpanId, long spanId, long traceIdHigh, long traceIdLow) {
+  public void setSpanContext(long rootSpanId, long spanId, long traceIdHigh, long traceIdLow) {
     debugLogging(rootSpanId);
     try {
       profiler.setContext(rootSpanId, spanId, traceIdHigh, traceIdLow);
