@@ -1187,7 +1187,7 @@ public class DDSpanContext
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
       // Links
-      if (injectLinksAsTags) {
+      if (injectLinksAsTags || spanLinksAsTag) {
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.set(SPAN_LINKS, linksTag);
