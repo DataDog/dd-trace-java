@@ -57,7 +57,7 @@ public abstract class RecordingData implements ProfilingSnapshot {
    * @throws IllegalStateException if the recording has already been released
    */
   @Nonnull
-  public final RecordingData retain() {
+  public final synchronized RecordingData retain() {
     if (released) {
       throw new IllegalStateException("Cannot retain released RecordingData");
     }
@@ -82,17 +82,21 @@ public abstract class RecordingData implements ProfilingSnapshot {
    * <p>Please don't forget to call release when done streaming...
    */
   public final void release() {
-    if (released) {
-      return; // Already released, no-op
+    boolean shouldRelease = false;
+    synchronized (this) {
+      if (released) {
+        return;
+      }
+      int remaining = refCount.decrementAndGet();
+      if (remaining == 0) {
+        released = true;
+        shouldRelease = true;
+      } else if (remaining < 0) {
+        throw new IllegalStateException("RecordingData over-released");
+      }
     }
-
-    int remaining = refCount.decrementAndGet();
-    if (remaining == 0) {
-      released = true;
+    if (shouldRelease) {
       doRelease();
-    } else if (remaining < 0) {
-      // Should never happen, but guard against it
-      throw new IllegalStateException("RecordingData over-released");
     }
   }
 
