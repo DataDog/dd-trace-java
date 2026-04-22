@@ -53,8 +53,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_E
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_STACKDEPTH_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALLTIME_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_ENABLED;
 
 import com.datadog.profiling.controller.ProfilingSupport;
@@ -124,7 +124,7 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
-    if (!configProvider.getBoolean(PROFILING_WALL_ENABLED, PROFILING_WALL_ENABLED_DEFAULT)) {
+    if (!configProvider.getBoolean(PROFILING_WALLTIME_ENABLED, PROFILING_WALLTIME_ENABLED_DEFAULT)) {
       return false;
     }
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);

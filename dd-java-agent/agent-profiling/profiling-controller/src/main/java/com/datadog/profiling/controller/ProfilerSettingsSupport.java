@@ -153,7 +153,7 @@ public abstract class ProfilerSettingsSupport {
             ProfilingConfig.PROFILING_CPU_ENABLED, ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT);
     wallProfilingEnabled =
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_WALL_ENABLED, ProfilingConfig.PROFILING_WALL_ENABLED_DEFAULT);
+            ProfilingConfig.PROFILING_WALLTIME_ENABLED, ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT);
     exceptionProfilingEnabled =
         configProvider.getBoolean(
             ProfilingConfig.PROFILING_EXCEPTION_ENABLED,

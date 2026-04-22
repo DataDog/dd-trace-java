@@ -14,7 +14,7 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_IO_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALL_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_WALLTIME_ENABLED;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -379,7 +379,7 @@ public class OpenJdkControllerTest {
   @Test
   public void testWallGateDoesNotDisableTimelineEvents() throws Exception {
     Properties props = getConfigProperties();
-    props.put(PROFILING_WALL_ENABLED, "false");
+    props.put(PROFILING_WALLTIME_ENABLED, "false");
 
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
     OpenJdkController controller = new OpenJdkController(configProvider);

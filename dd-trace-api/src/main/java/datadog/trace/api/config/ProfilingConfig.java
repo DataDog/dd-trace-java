@@ -27,8 +27,8 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_CPU_ENABLED = "profiling.cpu.enabled";
   public static final boolean PROFILING_CPU_ENABLED_DEFAULT = true;
-  public static final String PROFILING_WALL_ENABLED = "profiling.walltime.enabled";
-  public static final boolean PROFILING_WALL_ENABLED_DEFAULT = true;
+  public static final String PROFILING_WALLTIME_ENABLED = "profiling.walltime.enabled";
+  public static final boolean PROFILING_WALLTIME_ENABLED_DEFAULT = true;
   public static final String PROFILING_EXCEPTION_ENABLED = "profiling.exception.enabled";
   public static final boolean PROFILING_EXCEPTION_ENABLED_DEFAULT = true;
   public static final String PROFILING_IO_ENABLED = "profiling.io.enabled";
