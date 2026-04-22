@@ -63,7 +63,7 @@ class FileItemContentReaderTest extends Specification {
     result == ['content']
   }
 
-  void 'readContents skips files with null or empty name'() {
+  void 'readContents includes file parts with empty or null name'() {
     given:
     def items = [
       fileItem('content-no-name', null),
@@ -75,7 +75,7 @@ class FileItemContentReaderTest extends Specification {
     def result = FileItemContentReader.readContents(items)
 
     then:
-    result == ['content-named']
+    result == ['content-no-name', 'content-empty-name', 'content-named']
   }
 
   void 'readContents stops after MAX_FILES_TO_INSPECT files'() {

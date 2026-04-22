@@ -83,12 +83,12 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
           filenames.add(name);
         }
       }
-      if (filenames.isEmpty()) {
+      if (filenames.isEmpty() && contentCallback == null) {
         return;
       }
 
       // Fire filenames event
-      if (filenamesCallback != null) {
+      if (filenamesCallback != null && !filenames.isEmpty()) {
         Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {

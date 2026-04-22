@@ -21,10 +21,6 @@ public final class FileItemContentReader {
       if (fileItem.isFormField()) {
         continue;
       }
-      String name = fileItem.getName();
-      if (name == null || name.isEmpty()) {
-        continue;
-      }
       result.add(readContent(fileItem));
     }
     return result;
