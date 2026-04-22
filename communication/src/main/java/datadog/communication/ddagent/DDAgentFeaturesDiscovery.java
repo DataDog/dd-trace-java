@@ -182,13 +182,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           newState.traceEndpoint,
           newState.metricsEndpoint,
           newState.supportsDropping,
           newState.supportsLongRunning,
           newState.dataStreamsEndpoint,
           newState.configEndpoint,
+          newState.debuggerLogEndpoint,
+          newState.debuggerSnapshotEndpoint,
+          newState.debuggerDiagnosticsEndpoint,
           newState.evpProxyEndpoint,
           newState.telemetryProxyEndpoint);
     }

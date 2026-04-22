@@ -98,12 +98,16 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
   void testExceptionReplayEnablementFailure() throws Exception {
-    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=false"); // enabled by default
+    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=true"); // enabled by default
     additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
     appUrl = startAppAndAndGetUrl();
     waitForSpecificLine(appUrl, "Failed to init common component for debugger agent");
+    probeMockDispatcher.setDispatcher(this::datadogAgentDispatch);
+    setConfigOverrides(createConfigOverrides(true, true));
+    waitForFeatureStarted(appUrl, "Dynamic Instrumentation");
+    waitForFeatureStarted(appUrl, "Exception Replay");
   }
 
   private MockResponse noEndpointDispatch(RecordedRequest request) {
