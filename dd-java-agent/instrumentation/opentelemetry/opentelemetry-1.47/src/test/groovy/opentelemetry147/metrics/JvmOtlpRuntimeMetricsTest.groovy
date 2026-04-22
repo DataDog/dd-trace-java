@@ -28,38 +28,51 @@ class JvmOtlpRuntimeMetricsTest extends InstrumentationSpecification {
     injectSysConfig("dd.metrics.otel.enabled", "true")
   }
 
-  def "JVM runtime metrics are registered and produce data points"() {
+  def "registers exactly 18 OTel-named JVM runtime metrics"() {
     when:
     JvmOtlpRuntimeMetrics.start()
     def collector = new MetricCollector()
     OtelMetricRegistry.INSTANCE.collectMetrics(collector)
 
     then:
-    // OtelInstrumentDescriptor.name is UTF8BytesString, convert to String for comparison
     def names = collector.metricNames.collect { it.toString() }
-    // Memory (5 metrics, all UpDownCounter per spec)
-    "jvm.memory.used" in names
-    "jvm.memory.committed" in names
-    "jvm.memory.limit" in names
-    "jvm.memory.init" in names
-    "jvm.memory.used_after_last_gc" in names
-    // Buffers (3 metrics, UpDownCounter per spec)
-    "jvm.buffer.memory.used" in names
-    "jvm.buffer.memory.limit" in names
-    "jvm.buffer.count" in names
-    // Threads (1 metric, UpDownCounter per spec)
-    "jvm.thread.count" in names
-    // Classes (3 metrics: loaded/unloaded are Counter, count is UpDownCounter per spec)
-    "jvm.class.loaded" in names
-    "jvm.class.count" in names
-    "jvm.class.unloaded" in names
-    // CPU (4 metrics per spec)
-    "jvm.cpu.time" in names
-    "jvm.cpu.count" in names
-    "jvm.cpu.recent_utilization" in names
-    "jvm.system.cpu.utilization" in names
-    // NOT included: jvm.gc.duration (spec requires Histogram, JMX can't produce it)
-    // NOT included: jvm.gc.count (not in OTel spec)
+
+    def expectedMetrics = [
+      // Memory (5 metrics)
+      "jvm.memory.used",
+      "jvm.memory.committed",
+      "jvm.memory.limit",
+      "jvm.memory.init",
+      "jvm.memory.used_after_last_gc",
+      // Buffers (3 metrics)
+      "jvm.buffer.memory.used",
+      "jvm.buffer.memory.limit",
+      "jvm.buffer.count",
+      // Threads (1 metric)
+      "jvm.thread.count",
+      // Classes (3 metrics)
+      "jvm.class.loaded",
+      "jvm.class.count",
+      "jvm.class.unloaded",
+      // CPU (4 metrics)
+      "jvm.cpu.time",
+      "jvm.cpu.count",
+      "jvm.cpu.recent_utilization",
+      "jvm.system.cpu.utilization",
+      // File descriptors (2 metrics)
+      "jvm.file_descriptor.count",
+      "jvm.file_descriptor.limit",
+    ]
+
+    for (metric in expectedMetrics) {
+      assert metric in names : "Expected metric '${metric}' not found. Got: ${names.sort()}"
+    }
+
+    names.size() == 18
+
+    // No DD-proprietary names should be present
+    def ddNames = names.findAll { it.startsWith("jvm.heap_memory") || it.startsWith("jvm.thread_count") }
+    ddNames.isEmpty()
   }
 
   def "jvm.memory.used has heap and non_heap type attributes"() {
