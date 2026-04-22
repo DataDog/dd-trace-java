@@ -34,7 +34,7 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         return dataFetcher.get(environment);
       }
     } else {
-      final AgentSpan fieldSpan = startSpan("graphql.field", this.requestSpan.context());
+      final AgentSpan fieldSpan = startSpan("graphql", "graphql.field", this.requestSpan.context());
       DECORATE.afterStart(fieldSpan);
       String parentType = GraphQLTypeUtil.simplePrint(environment.getParentType());
       String fieldName = environment.getField().getName();

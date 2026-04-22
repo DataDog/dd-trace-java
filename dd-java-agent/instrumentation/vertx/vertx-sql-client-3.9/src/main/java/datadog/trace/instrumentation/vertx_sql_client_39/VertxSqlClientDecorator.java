@@ -75,7 +75,7 @@ public class VertxSqlClientDecorator extends DatabaseClientDecorator<DBInfo> {
   public <T> AgentSpan startAndDecorateSpanForStatement(
       T query, ContextStore<T, Pair> contextStore, boolean prepared) {
     CharSequence component = prepared ? VERTX_PREPARED_STATEMENT : VERTX_STATEMENT;
-    AgentSpan span = startSpan(DATABASE_QUERY);
+    AgentSpan span = startSpan("vertx", DATABASE_QUERY);
     if (null == span) {
       return null;
     }

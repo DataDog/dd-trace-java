@@ -51,7 +51,7 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan onEnter() {
       if (CallDepthThreadLocalMap.getCallDepth(PoolWaitingDecorator.class) > 0) {
-        AgentSpan span = startSpan(POOL_WAITING);
+        AgentSpan span = startSpan("jdbc", POOL_WAITING);
         DECORATE.afterStart(span);
         span.setResourceName("dbcp2.waiting");
         return span;

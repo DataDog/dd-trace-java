@@ -26,7 +26,7 @@ public class RequestFilterHelper {
 
       if (span == null) {
         parent = activeSpan();
-        span = startSpan(JAKARTA_RS_REQUEST_ABORT);
+        span = startSpan("jakarta-rs", JAKARTA_RS_REQUEST_ABORT);
 
         final AgentScope scope = activateSpan(span);
 

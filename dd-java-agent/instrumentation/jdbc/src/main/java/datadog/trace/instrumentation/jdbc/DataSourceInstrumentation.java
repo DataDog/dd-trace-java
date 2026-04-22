@@ -64,7 +64,7 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(DATABASE_CONNECTION);
+      final AgentSpan span = startSpan("jdbc-datasource", DATABASE_CONNECTION);
       DECORATE.afterStart(span);
 
       span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));

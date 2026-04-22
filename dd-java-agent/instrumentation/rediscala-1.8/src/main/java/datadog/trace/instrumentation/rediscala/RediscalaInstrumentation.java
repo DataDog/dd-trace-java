@@ -84,7 +84,7 @@ public final class RediscalaInstrumentation extends InstrumenterModule.Tracing
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.Argument(0) final RedisCommand cmd) {
-      final AgentSpan span = startSpan(RediscalaClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("rediscala", RediscalaClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onStatement(span, DECORATE.className(cmd.getClass()));
       return activateSpan(span);

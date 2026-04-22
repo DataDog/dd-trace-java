@@ -81,7 +81,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return null;
       }
 
-      final AgentSpan span = startSpan(IgniteCacheDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("ignite", IgniteCacheDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onIgnite(
           span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
@@ -122,7 +122,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return null;
       }
 
-      final AgentSpan span = startSpan(IgniteCacheDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("ignite", IgniteCacheDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onIgnite(
           span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));
@@ -162,7 +162,7 @@ public final class IgniteCacheSyncInstrumentation extends AbstractIgniteCacheIns
         return null;
       }
 
-      final AgentSpan span = startSpan(IgniteCacheDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("ignite", IgniteCacheDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onIgnite(
           span, InstrumentationContext.get(IgniteCache.class, Ignite.class).get(that));

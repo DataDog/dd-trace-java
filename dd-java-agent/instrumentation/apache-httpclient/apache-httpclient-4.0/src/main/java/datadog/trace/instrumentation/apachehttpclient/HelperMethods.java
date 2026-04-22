@@ -35,7 +35,7 @@ public class HelperMethods {
   }
 
   private static AgentScope activateHttpSpan(final HttpUriRequest request) {
-    final AgentSpan span = startSpan(HTTP_REQUEST);
+    final AgentSpan span = startSpan("httpclient", HTTP_REQUEST);
     final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);

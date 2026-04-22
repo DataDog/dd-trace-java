@@ -80,7 +80,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
-      AgentSpan span = startSpan(SPRING_INBOUND);
+      AgentSpan span = startSpan("spring-messaging", SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);

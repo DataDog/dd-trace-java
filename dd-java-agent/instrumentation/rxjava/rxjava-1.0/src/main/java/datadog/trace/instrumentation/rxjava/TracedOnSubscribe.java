@@ -30,7 +30,8 @@ public class TracedOnSubscribe<T> implements Observable.OnSubscribe<T> {
 
   @Override
   public void call(final Subscriber<? super T> subscriber) {
-    final AgentSpan span = startSpan(operationName, parent != null ? parent.context() : null);
+    final AgentSpan span =
+        startSpan("rxjava", operationName, parent != null ? parent.context() : null);
     afterStart(span);
 
     try (final AgentScope scope = activateSpan(span)) {

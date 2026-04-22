@@ -22,7 +22,7 @@ public class LettuceAsyncCommandsAdvice {
       @Advice.Argument(0) final RedisCommand command,
       @Advice.This final AbstractRedisAsyncCommands thiz) {
 
-    final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan("lettuce", LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(
         span,

@@ -67,7 +67,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
-    final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    final AgentSpan span = startSpan("grpc", GRPC_SERVER, spanContext).setMeasured(true);
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
@@ -143,7 +143,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onMessage(final ReqT message) {
       final AgentSpan msgSpan =
-          startSpan(GRPC_MESSAGE, this.span.context())
+          startSpan("grpc", GRPC_MESSAGE, this.span.context())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (AgentScope scope = activateSpan(msgSpan)) {

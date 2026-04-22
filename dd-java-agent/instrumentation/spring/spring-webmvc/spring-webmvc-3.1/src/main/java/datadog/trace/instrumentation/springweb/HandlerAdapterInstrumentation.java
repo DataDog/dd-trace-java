@@ -104,7 +104,7 @@ public final class HandlerAdapterInstrumentation extends InstrumenterModule.Trac
         return ((Context) existingContext).attach();
       }
 
-      final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+      final AgentSpan span = startSpan("spring-web", DECORATE.spanName()).setMeasured(true);
       DECORATE.afterStart(span);
       DECORATE.onHandle(span, handler);
 

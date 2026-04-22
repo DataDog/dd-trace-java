@@ -67,7 +67,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
         return null;
       }
 
-      final AgentSpan span = startSpan(SERVLET_RESPONSE);
+      final AgentSpan span = startSpan("servlet", SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
       span.setResourceName(DECORATE.spanNameForMethod(HttpServletResponse.class, method));

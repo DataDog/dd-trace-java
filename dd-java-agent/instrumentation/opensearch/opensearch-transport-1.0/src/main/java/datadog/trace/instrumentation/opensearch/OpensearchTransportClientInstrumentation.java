@@ -70,7 +70,7 @@ public class OpensearchTransportClientInstrumentation extends InstrumenterModule
         @Advice.Argument(value = 2, readOnly = false)
             ActionListener<ActionResponse> actionListener) {
 
-      final AgentSpan span = startSpan(OPERATION_NAME);
+      final AgentSpan span = startSpan("opensearch", OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
 

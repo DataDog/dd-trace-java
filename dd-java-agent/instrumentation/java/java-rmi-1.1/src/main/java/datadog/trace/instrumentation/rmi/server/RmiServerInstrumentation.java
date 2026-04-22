@@ -57,9 +57,9 @@ public final class RmiServerInstrumentation extends InstrumenterModule.Tracing
 
       final AgentSpan span;
       if (context == null) {
-        span = startSpan(RMI_REQUEST);
+        span = startSpan("rmi", RMI_REQUEST);
       } else {
-        span = startSpan(RMI_REQUEST, context);
+        span = startSpan("rmi", RMI_REQUEST, context);
       }
 
       span.setResourceName(DECORATE.spanNameForMethod(method));

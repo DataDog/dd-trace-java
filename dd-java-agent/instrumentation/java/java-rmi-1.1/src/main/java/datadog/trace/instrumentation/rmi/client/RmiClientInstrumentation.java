@@ -56,7 +56,7 @@ public final class RmiClientInstrumentation extends InstrumenterModule.Tracing
       if (activeSpan() == null) {
         return null;
       }
-      final AgentSpan span = startSpan(RMI_INVOKE);
+      final AgentSpan span = startSpan("rmi", RMI_INVOKE);
       DECORATE.afterStart(span);
       DECORATE.onMethodInvocation(span, method);
       return activateSpan(span);

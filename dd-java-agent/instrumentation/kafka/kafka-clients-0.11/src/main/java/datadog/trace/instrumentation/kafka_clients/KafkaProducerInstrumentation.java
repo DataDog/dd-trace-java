@@ -160,10 +160,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       final AgentSpan callbackParentSpan;
 
       if (extractedContext != null) {
-        span = startSpan(KAFKA_PRODUCE, extractedContext);
+        span = startSpan("kafka", KAFKA_PRODUCE, extractedContext);
         callbackParentSpan = span;
       } else {
-        span = startSpan(KAFKA_PRODUCE);
+        span = startSpan("kafka", KAFKA_PRODUCE);
         callbackParentSpan = localActiveSpan;
       }
       PRODUCER_DECORATE.afterStart(span);

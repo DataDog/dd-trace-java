@@ -68,7 +68,7 @@ public final class ClientInvocationInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast-sdk", SPAN_NAME);
       DECORATE.onHazelcastInstance(
           span, InstrumentationContext.get(ClientInvocation.class, String.class).get(that));
       DECORATE.afterStart(span);

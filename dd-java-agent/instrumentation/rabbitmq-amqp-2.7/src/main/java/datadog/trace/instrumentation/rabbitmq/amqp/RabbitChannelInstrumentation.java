@@ -129,7 +129,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span = startSpan(OPERATION_AMQP_COMMAND);
+      final AgentSpan span = startSpan("rabbitmq", OPERATION_AMQP_COMMAND);
       span.setResourceName(method);
       CLIENT_DECORATE.setPeerPort(span, connection.getPort());
       CLIENT_DECORATE.afterStart(span);
@@ -166,7 +166,7 @@ public class RabbitChannelInstrumentation extends InstrumenterModule.Tracing
 
       final Connection connection = channel.getConnection();
 
-      final AgentSpan span = startSpan(OPERATION_AMQP_OUTBOUND);
+      final AgentSpan span = startSpan("rabbitmq", OPERATION_AMQP_OUTBOUND);
       PRODUCER_DECORATE.setPeerPort(span, connection.getPort());
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onPeerConnection(span, connection.getAddress());

@@ -280,12 +280,13 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       long timeInQueueStart = SR_GETTER.extractTimeInQueueStart(record);
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-        span = startSpan(KAFKA_CONSUME);
+        span = startSpan("kafka-streams", KAFKA_CONSUME);
       } else {
-        queueSpan = startSpan(KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        queueSpan =
+            startSpan("kafka-streams", KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-        span = startSpan(KAFKA_CONSUME, queueSpan.context());
+        span = startSpan("kafka-streams", KAFKA_CONSUME, queueSpan.context());
         BROKER_DECORATE.beforeFinish(queueSpan);
         // The queueSpan will be finished after inner span has been activated to ensure that
         // spans are written out together by TraceStructureWriter when running in strict mode
@@ -344,12 +345,13 @@ public class KafkaStreamTaskInstrumentation extends InstrumenterModule.Tracing
           InstrumentationContext.get(StreamTask.class, StreamTaskContext.class).get(task);
       long timeInQueueStart = PR_GETTER.extractTimeInQueueStart(record);
       if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-        span = startSpan(KAFKA_CONSUME);
+        span = startSpan("kafka-streams", KAFKA_CONSUME);
       } else {
-        queueSpan = startSpan(KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
+        queueSpan =
+            startSpan("kafka-streams", KAFKA_DELIVER, MILLISECONDS.toMicros(timeInQueueStart));
         BROKER_DECORATE.afterStart(queueSpan);
         BROKER_DECORATE.onTimeInQueue(queueSpan, record);
-        span = startSpan(KAFKA_CONSUME, queueSpan.context());
+        span = startSpan("kafka-streams", KAFKA_CONSUME, queueSpan.context());
         BROKER_DECORATE.beforeFinish(queueSpan);
         // The queueSpan will be finished after inner span has been activated to ensure that
         // spans are written out together by TraceStructureWriter when running in strict mode

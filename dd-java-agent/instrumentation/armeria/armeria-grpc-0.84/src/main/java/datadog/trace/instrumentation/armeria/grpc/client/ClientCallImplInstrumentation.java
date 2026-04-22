@@ -211,7 +211,8 @@ public final class ClientCallImplInstrumentation
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
-            startSpan(GRPC_MESSAGE).setTag("message.type", clientSpan.getTag("response.type"));
+            startSpan("armeria-grpc-client", GRPC_MESSAGE)
+                .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
       }

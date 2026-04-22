@@ -104,13 +104,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               extractContextAndGetSpanContext(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !TIME_IN_QUEUE_ENABLED) {
-            span = startSpan(operationName, spanContext);
+            span = startSpan("kafka", operationName, spanContext);
           } else {
             queueSpan =
-                startSpan(KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
+                startSpan(
+                    "kafka", KAFKA_DELIVER, spanContext, MILLISECONDS.toMicros(timeInQueueStart));
             BROKER_DECORATE.afterStart(queueSpan);
             BROKER_DECORATE.onTimeInQueue(queueSpan, val);
-            span = startSpan(operationName, queueSpan.context());
+            span = startSpan("kafka", operationName, queueSpan.context());
             BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
@@ -136,7 +137,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             }
           }
         } else {
-          span = startSpan(operationName, null);
+          span = startSpan("kafka", operationName, null);
         }
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);

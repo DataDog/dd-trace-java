@@ -43,7 +43,7 @@ public class RedisSubscriptionSubscribeAdvice {
     if (parentSpan != null) {
       parentScope = activateSpan(parentSpan);
     }
-    AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
+    AgentSpan span = startSpan("lettuce", LettuceClientDecorator.OPERATION_NAME);
     InstrumentationContext.get(RedisCommand.class, AgentSpan.class).put(subscriptionCommand, span);
     DECORATE.afterStart(span);
     if (state != null && state.connection != null) {

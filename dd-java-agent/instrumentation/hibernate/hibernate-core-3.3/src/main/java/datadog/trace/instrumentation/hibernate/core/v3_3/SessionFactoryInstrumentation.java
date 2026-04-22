@@ -57,7 +57,7 @@ public final class SessionFactoryInstrumentation extends AbstractHibernateInstru
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void openSession(@Advice.Return final Object session) {
 
-      final AgentSpan span = startSpan(HIBERNATE_SESSION);
+      final AgentSpan span = startSpan("hibernate-core", HIBERNATE_SESSION);
       DECORATOR.afterStart(span);
       DECORATOR.onConnection(span, session);
 
