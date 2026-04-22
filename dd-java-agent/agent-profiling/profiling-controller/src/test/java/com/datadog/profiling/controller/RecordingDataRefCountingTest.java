@@ -139,9 +139,7 @@ public class RecordingDataRefCountingTest {
 
     // Cannot release before any retain
     assertThrows(
-        IllegalStateException.class,
-        data::release,
-        "Should throw when releasing with refcount=0");
+        IllegalStateException.class, data::release, "Should throw when releasing with refcount=0");
   }
 
   @Test
@@ -154,9 +152,7 @@ public class RecordingDataRefCountingTest {
 
     // Cannot retain after full release
     assertThrows(
-        IllegalStateException.class,
-        data::retain,
-        "Should throw when retaining after release");
+        IllegalStateException.class, data::retain, "Should throw when retaining after release");
   }
 
   @Test

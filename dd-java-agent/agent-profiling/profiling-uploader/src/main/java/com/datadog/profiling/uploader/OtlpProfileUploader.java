@@ -27,12 +27,12 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_URL_DEFAUL
 import com.datadog.profiling.otel.JfrToOtlpConverter;
 import datadog.common.version.VersionInfo;
 import datadog.communication.http.OkHttpUtils;
+import datadog.logging.IOLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingDataListener;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.TempLocationManager;
 import java.io.ByteArrayOutputStream;
@@ -217,7 +217,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     converter.reset();
 
     // Prefer file-based parsing if available (more efficient)
-    Path jfrFile = data.getFile();
+    Path jfrFile = data.getPath();
     if (jfrFile != null) {
       converter.addFile(jfrFile, data.getStart(), data.getEnd());
     } else {
