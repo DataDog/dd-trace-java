@@ -405,6 +405,16 @@ public class DDSpanContext
   }
 
   @Override
+  public long getTraceIdHigh() {
+    return traceId.toHighOrderLong();
+  }
+
+  @Override
+  public long getTraceIdLow() {
+    return traceId.toLong();
+  }
+
+  @Override
   public int getEncodedOperationName() {
     return encodedOperationName;
   }
