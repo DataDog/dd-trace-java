@@ -26,7 +26,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
@@ -46,9 +45,8 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
-        && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
   }
 
   @Override
@@ -156,7 +154,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         return null;
       }
 
-      TestEventsHandlerHolder.setExecutionHistory(testDescriptor, executionPolicy);
+      TestEventsHandlerHolder.setExecutionTracker(testDescriptor, executionPolicy);
 
       ThrowableCollectorFactoryWrapper factory =
           (ThrowableCollectorFactoryWrapper) taskHandle.getThrowableCollectorFactory();
@@ -190,7 +188,7 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
         taskHandle.setTestDescriptor(retryDescriptor);
         taskHandle.setNode((Node<?>) retryDescriptor);
         taskHandle.getListener().dynamicTestRegistered(retryDescriptor);
-        TestEventsHandlerHolder.setExecutionHistory(retryDescriptor, executionPolicy);
+        TestEventsHandlerHolder.setExecutionTracker(retryDescriptor, executionPolicy);
 
         // restore parent context, since the reference is overwritten with null after execution
         taskHandle.setParentContext(parentContext);

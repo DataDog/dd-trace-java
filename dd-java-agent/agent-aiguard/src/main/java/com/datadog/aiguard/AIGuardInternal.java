@@ -16,6 +16,7 @@ import datadog.trace.api.aiguard.AIGuard;
 import datadog.trace.api.aiguard.AIGuard.AIGuardAbortError;
 import datadog.trace.api.aiguard.AIGuard.AIGuardClientError;
 import datadog.trace.api.aiguard.AIGuard.Action;
+import datadog.trace.api.aiguard.AIGuard.ContentPart;
 import datadog.trace.api.aiguard.AIGuard.Evaluation;
 import datadog.trace.api.aiguard.AIGuard.Message;
 import datadog.trace.api.aiguard.AIGuard.Options;
@@ -27,6 +28,7 @@ import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
 import java.lang.reflect.Type;
@@ -67,9 +69,12 @@ public class AIGuardInternal implements Evaluator {
   static final String ACTION_TAG = "ai_guard.action";
   static final String REASON_TAG = "ai_guard.reason";
   static final String BLOCKED_TAG = "ai_guard.blocked";
+  static final String EVENT_TAG = "ai_guard.event";
   static final String META_STRUCT_TAG = "ai_guard";
   static final String META_STRUCT_MESSAGES = "messages";
   static final String META_STRUCT_CATEGORIES = "attack_categories";
+  static final String META_STRUCT_SDS = "sds";
+  static final String META_STRUCT_TAG_PROBS = "tag_probs";
 
   public static void install() {
     final Config config = Config.get();
@@ -136,16 +141,37 @@ public class AIGuardInternal implements Evaluator {
     boolean contentTruncated = false;
     for (int i = messages.size() - size; i < messages.size(); i++) {
       final Message source = messages.get(i);
-      String content = source.getContent();
-      if (content != null && content.length() > maxContent) {
-        contentTruncated = true;
-        content = content.substring(0, maxContent);
-      }
+
       List<ToolCall> toolCalls = source.getToolCalls();
       if (toolCalls != null) {
         toolCalls = new ArrayList<>(toolCalls);
       }
-      result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
+
+      List<ContentPart> contentParts = source.getContentParts();
+      if (contentParts != null) {
+        final List<ContentPart> truncatedParts = new ArrayList<>(contentParts.size());
+        for (final ContentPart part : contentParts) {
+          if (part.getType() == ContentPart.Type.TEXT
+              && part.getText() != null
+              && part.getText().length() > maxContent) {
+            contentTruncated = true;
+            final String text = part.getText().substring(0, maxContent);
+            truncatedParts.add(ContentPart.text(text));
+          } else {
+            truncatedParts.add(part);
+          }
+        }
+
+        result.add(
+            new Message(source.getRole(), truncatedParts, toolCalls, source.getToolCallId()));
+      } else {
+        String content = source.getContent();
+        if (content != null && content.length() > maxContent) {
+          contentTruncated = true;
+          content = content.substring(0, maxContent);
+        }
+        result.add(new Message(source.getRole(), content, toolCalls, source.getToolCallId()));
+      }
     }
     if (contentTruncated) {
       WafMetricCollector.get().aiGuardTruncated(CONTENT);
@@ -181,6 +207,9 @@ public class AIGuardInternal implements Evaluator {
   }
 
   private boolean isBlockingEnabled(final Options options, final Object isBlockingEnabled) {
+    if (isBlockingEnabled == null) {
+      return false;
+    }
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
@@ -196,6 +225,11 @@ public class AIGuardInternal implements Evaluator {
       builder.asChildOf(parent.context());
     }
     final AgentSpan span = builder.start();
+    final AgentSpan localRootSpan = span.getLocalRootSpan();
+    if (localRootSpan != null) {
+      localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
+      localRootSpan.setTag(EVENT_TAG, true);
+    }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
       if (isToolCall(last)) {
@@ -225,6 +259,10 @@ public class AIGuardInternal implements Evaluator {
         final String reason = (String) result.get("reason");
         @SuppressWarnings("unchecked")
         final List<String> tags = (List<String>) result.get("tags");
+        @SuppressWarnings("unchecked")
+        final List<?> sdsFindings = (List<?>) result.get("sds_findings");
+        @SuppressWarnings("unchecked")
+        final Map<String, Number> tagProbs = (Map<String, Number>) result.get("tag_probs");
         span.setTag(ACTION_TAG, action);
         if (reason != null) {
           span.setTag(REASON_TAG, reason);
@@ -232,14 +270,20 @@ public class AIGuardInternal implements Evaluator {
         if (tags != null && !tags.isEmpty()) {
           metaStruct.put(META_STRUCT_CATEGORIES, tags);
         }
+        if (tagProbs != null && !tagProbs.isEmpty()) {
+          metaStruct.put(META_STRUCT_TAG_PROBS, tagProbs);
+        }
+        if (sdsFindings != null && !sdsFindings.isEmpty()) {
+          metaStruct.put(META_STRUCT_SDS, sdsFindings);
+        }
         final boolean shouldBlock =
             isBlockingEnabled(options, result.get("is_blocking_enabled")) && action != Action.ALLOW;
         WafMetricCollector.get().aiGuardRequest(action, shouldBlock);
         if (shouldBlock) {
           span.setTag(BLOCKED_TAG, true);
-          throw new AIGuardAbortError(action, reason, tags);
+          throw new AIGuardAbortError(action, reason, tags, tagProbs, sdsFindings);
         }
-        return new Evaluation(action, reason, tags);
+        return new Evaluation(action, reason, tags, tagProbs, sdsFindings);
       }
     } catch (AIGuardAbortError e) {
       span.addThrowable(e);
@@ -333,10 +377,43 @@ public class AIGuardInternal implements Evaluator {
     public void toJson(final JsonWriter writer, final Message value) throws IOException {
       writer.beginObject();
       writeValue(writer, "role", value.getRole());
-      writeValue(writer, "content", value.getContent());
+
+      if (value.getContentParts() != null) {
+        writeContentParts(writer, "content", value.getContentParts());
+      } else {
+        writeValue(writer, "content", value.getContent());
+      }
+
       writeArray(writer, "tool_calls", value.getToolCalls());
       writeValue(writer, "tool_call_id", value.getToolCallId());
       writer.endObject();
+    }
+
+    private void writeContentParts(
+        final JsonWriter writer, final String name, final List<ContentPart> contentParts)
+        throws IOException {
+      writer.name(name);
+      writer.beginArray();
+      for (final ContentPart part : contentParts) {
+        writer.beginObject();
+
+        writer.name("type");
+        writer.value(part.getType().toString());
+
+        if (part.getType() == ContentPart.Type.TEXT) {
+          writer.name("text");
+          writer.value(part.getText());
+        } else if (part.getType() == ContentPart.Type.IMAGE_URL) {
+          writer.name("image_url");
+          writer.beginObject();
+          writer.name("url");
+          writer.value(part.getImageUrl().getUrl());
+          writer.endObject();
+        }
+
+        writer.endObject();
+      }
+      writer.endArray();
     }
 
     private void writeValue(final JsonWriter writer, final String name, final Object value)

@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -75,7 +76,7 @@ public class SetValue implements CollectionValue<Object>, ValueExpression<SetVal
       if (WellKnownClasses.isSafe((Collection<?>) setHolder)) {
         Set<?> set = (Set<?>) setHolder;
         key = key instanceof Value ? ((Value<?>) key).getValue() : key;
-        return Value.of(set.contains(key));
+        return Value.of(set.contains(key), ValueType.BOOLEAN);
       }
       throw new UnsupportedOperationException(
           "Unsupported Set class: " + setHolder.getClass().getTypeName());

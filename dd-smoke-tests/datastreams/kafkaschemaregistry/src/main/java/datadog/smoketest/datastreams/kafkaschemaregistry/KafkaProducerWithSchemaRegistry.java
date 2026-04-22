@@ -48,7 +48,7 @@ public class KafkaProducerWithSchemaRegistry {
         new org.apache.kafka.clients.producer.KafkaProducer<>(properties);
 
     Duration duration = Duration.newBuilder().setSeconds(10).build();
-    log.info("duration is " + duration.getSeconds());
+    log.info("duration is {}", duration.getSeconds());
 
     try {
       for (int i = 1; i <= 20; i++) {

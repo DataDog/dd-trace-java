@@ -68,6 +68,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
     "datadog.yaml",
     "datadog.instrument",
     "datadog.appsec.api",
+    "datadog.metrics.api",
     "datadog.trace.api",
     "datadog.trace.bootstrap",
     "datadog.trace.config.inversion",
@@ -85,9 +86,10 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
 
   static {
     TEST_BOOTSTRAP_PREFIXES =
-        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2);
-    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "org.slf4j";
-    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "ch.qos.logback";
+        Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3);
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "datadog.logging";
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "org.slf4j";
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2] = "ch.qos.logback";
 
     ByteBuddyAgent.install();
     setupBootstrapClasspath();

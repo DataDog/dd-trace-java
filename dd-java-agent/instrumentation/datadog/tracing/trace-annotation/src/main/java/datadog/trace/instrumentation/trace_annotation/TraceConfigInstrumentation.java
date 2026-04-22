@@ -37,17 +37,12 @@ import net.bytebuddy.matcher.ElementMatcher;
  * super class.
  */
 @AutoService(InstrumenterModule.class)
-public class TraceConfigInstrumentation extends InstrumenterModule {
+public class TraceConfigInstrumentation extends InstrumenterModule.Tracing {
   private final Map<String, Set<String>> classMethodsToTrace;
 
   public TraceConfigInstrumentation() {
     super("trace", "trace-config");
     classMethodsToTrace = InstrumenterConfig.get().getTraceMethods();
-  }
-
-  @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(TargetSystem.TRACING);
   }
 
   @Override

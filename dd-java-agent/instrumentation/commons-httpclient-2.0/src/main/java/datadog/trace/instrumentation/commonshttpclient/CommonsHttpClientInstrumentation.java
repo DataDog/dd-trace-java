@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.commonshttpclient;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -15,6 +16,7 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -44,12 +46,13 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("executeMethod"))
             .and(takesArguments(3))
             .and(takesArgument(1, named("org.apache.commons.httpclient.HttpMethod"))),
-        CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice");
+        CommonsHttpClientInstrumentation.class.getName() + "$ExecAdvice",
+        CommonsHttpClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
   }
 
   public static class ExecAdvice {
@@ -67,7 +70,6 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
 
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, httpMethod);
-        DECORATE.injectContext(getCurrentContext().with(span), httpMethod, SETTER);
 
         return scope;
       } catch (BlockingException e) {
@@ -96,6 +98,14 @@ public class CommonsHttpClientInstrumentation extends InstrumenterModule.Tracing
         span.finish();
         CallDepthThreadLocalMap.reset(HttpClient.class);
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(1) final HttpMethod httpMethod) {
+      DECORATE.injectContext(getCurrentContext(), httpMethod, SETTER);
     }
   }
 }

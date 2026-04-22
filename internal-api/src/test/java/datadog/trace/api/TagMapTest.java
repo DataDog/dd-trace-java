@@ -787,7 +787,7 @@ public class TagMapTest {
     TagMap map = createTagMap(mapType, size);
 
     Set<String> keys = new HashSet<>();
-    for (TagMap.Entry entry : map) {
+    for (TagMap.EntryReader entry : map) {
       // makes sure that each key is visited once and only once
       assertTrue(keys.add(entry.tag()));
     }
@@ -1064,7 +1064,12 @@ public class TagMapTest {
     assertEquals(size, count(map));
     assertEquals(size, map.keySet().size());
     assertEquals(size, map.values().size());
+
     assertEquals(size, count(map.keySet()));
+    assertEquals(size, count(map.tagIterator()));
+
+    assertEquals(size, count(map.values().iterator()));
+    assertEquals(size, count(map.valueIterator()));
     assertEquals(size, count(map.values()));
   }
 

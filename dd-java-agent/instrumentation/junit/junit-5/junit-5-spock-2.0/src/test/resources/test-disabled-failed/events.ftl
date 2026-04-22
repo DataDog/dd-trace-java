@@ -118,6 +118,7 @@
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
       "test.codeowners" : "[\"owner1\",\"owner2\"]",
+      "test.final_status" : "skip",
       "test.framework" : "spock",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "junit-5-spock-2.0",

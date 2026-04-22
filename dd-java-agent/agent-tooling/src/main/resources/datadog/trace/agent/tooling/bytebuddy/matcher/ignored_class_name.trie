@@ -32,6 +32,7 @@
 0 com.sun.jersey.api.client.*
 0 com.sun.messaging.*
 1 datadog.instrument.*
+1 datadog.metrics.*
 1 datadog.opentracing.*
 1 datadog.slf4j.*
 1 datadog.trace.*
@@ -43,6 +44,10 @@
 1 io.opentelemetry.javaagent.*
 1 java.*
 0 java.lang.ClassLoader
+0 jdk.internal.foreign.abi.AbstractLinker
+0 jdk.internal.loader.NativeLibrary
+0 jdk.internal.loader.RawNativeLibraries$*
+0 jdk.internal.loader.NativeLibraries$*
 # allow exception profiling instrumentation
 0 java.lang.Exception
 0 java.lang.Error

@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampleAvailable;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -492,6 +493,86 @@ class JFRBasedProfilingIntegrationTest {
   }
 
   @Test
+  @DisplayName("Test wallclock profiling without tracing")
+  public void testWallclockProfilingWithoutTracing(final TestInfo testInfo) throws Exception {
+    Assumptions.assumeTrue(OperatingSystem.isLinux());
+    // TODO: Exclude the test on Oracle JDK 8 - the JMC parser in the test runner
+    //       is having troubles reading the generated JFR file; however, when downloaded
+    //       and opened locally, JMC will read it just fine.
+    //       We will need to investigate the root cause, but now we need to unblock the master
+    // builds
+    Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
+    testWithRetry(
+        () -> {
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        profilingServer.getPort(),
+                        tracingServer.getPort(),
+                        VALID_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        false,
+                        true,
+                        "on",
+                        0,
+                        logFilePath,
+                        false)
+                    .start();
+
+            Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+
+            final RecordedRequest request = retrieveRequest();
+            assertNotNull(request);
+
+            final List<FileItem> items =
+                FileUpload.parse(
+                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+
+            FileItem rawJfr = items.get(1);
+            assertEquals("main.jfr", rawJfr.getName());
+
+            assertFalse(logHasErrors(logFilePath));
+            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+            eventStream = decompressStream("on", eventStream);
+            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+            assertTrue(events.hasItems());
+
+            IItemCollection wallclockSamples =
+                events.apply(ItemFilters.type("datadog.MethodSample"));
+            assertTrue(
+                wallclockSamples.hasItems(), "Expected wallclock samples when tracing is disabled");
+
+            // Verify span context is not present
+            for (IItemIterable event : wallclockSamples) {
+              IMemberAccessor<IQuantity, IItem> rootSpanIdAccessor =
+                  LOCAL_ROOT_SPAN_ID.getAccessor(event.getType());
+              IMemberAccessor<IQuantity, IItem> spanIdAccessor =
+                  SPAN_ID.getAccessor(event.getType());
+              for (IItem sample : event) {
+                assertEquals(
+                    0,
+                    rootSpanIdAccessor.getMember(sample).longValue(),
+                    "rootSpanId should be 0 when tracing is disabled");
+                assertEquals(
+                    0,
+                    spanIdAccessor.getMember(sample).longValue(),
+                    "spanId should be 0 when tracing is disabled");
+              }
+            }
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+            }
+            targetProcess = null;
+          }
+        },
+        testInfo,
+        3);
+  }
+
+  @Test
   @DisplayName("Test shutdown")
   @Disabled("https://github.com/DataDog/dd-trace-java/pull/5213")
   void testShutdown(final TestInfo testInfo) throws Exception {
@@ -620,6 +701,8 @@ class JFRBasedProfilingIntegrationTest {
       assertEquals(
           JavaVirtualMachine.isJavaVersionAtLeast(11),
           events.apply(ItemFilters.type("datadog.ObjectSample")).hasItems());
+      // Check live heap events
+      // ddprof is active — jdk.OldObjectSample should NOT be present since ddprof takes over
       // TODO ddprof (async) profiler seems to be having some issues with stack depth limit and
       // native frames
     } else {
@@ -633,6 +716,12 @@ class JFRBasedProfilingIntegrationTest {
           assertNotNull(stackTrace);
           assertTrue(stackTrace.getFrames().size() <= STACK_DEPTH_LIMIT);
         }
+      }
+      // Check JFR live heap events
+      if (isOldObjectSampleAvailable()) {
+        assertTrue(
+            events.apply(ItemFilters.type("jdk.OldObjectSample")).hasItems(),
+            "Expected jdk.OldObjectSample events on JFR-only mode with supported JVM");
       }
     }
 
@@ -771,7 +860,8 @@ class JFRBasedProfilingIntegrationTest {
         asyncProfilerEnabled,
         withCompression,
         exitDelay,
-        logFilePath);
+        logFilePath,
+        true);
   }
 
   private static ProcessBuilder createProcessBuilder(
@@ -785,50 +875,61 @@ class JFRBasedProfilingIntegrationTest {
       final boolean asyncProfilerEnabled,
       final String withCompression,
       final int exitDelay,
-      final Path logFilePath) {
+      final Path logFilePath,
+      final boolean tracingEnabled,
+      final String... extraProperties) {
     final String templateOverride =
         JFRBasedProfilingIntegrationTest.class
             .getClassLoader()
             .getResource("overrides.jfp")
             .getFile();
 
-    final List<String> command =
-        Arrays.asList(
-            javaPath(),
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-            "-javaagent:" + agentShadowJar(),
-            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-            "-Ddd.trace.agent.port=" + tracerPort,
-            "-Ddd.service.name=smoke-test-java-app",
-            "-Ddd.env=smoketest",
-            "-Ddd.version=99",
-            "-Ddd.profiling.enabled=true",
-            "-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT,
-            "-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled,
-            "-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled,
-            "-Ddd.profiling.agentless=" + (apiKey != null),
-            "-Ddd.profiling.start-delay=" + profilingStartDelaySecs,
-            "-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs,
-            "-Ddd.profiling.url=http://localhost:" + profilerPort,
-            "-Ddd.profiling.hotspots.enabled=true",
-            "-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled,
-            "-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS,
-            "-Ddd.profiling.debug.dump_path=/tmp/dd-profiler",
-            "-Ddd.profiling.queueing.time.enabled=true",
-            "-Ddd.profiling.queueing.time.threshold.millis=0",
-            "-Ddd.profiling.debug.upload.compression=" + withCompression,
-            "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-Ddd.profiling.context.attributes=foo,bar",
-            "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
-            "-XX:+IgnoreUnrecognizedVMOptions",
-            "-XX:+UnlockCommercialFeatures",
-            "-XX:+FlightRecorder",
-            "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride,
-            "-Ddd.jmxfetch.start-delay=" + jmxFetchDelaySecs,
-            "-jar",
-            profilingShadowJar(),
-            Integer.toString(exitDelay));
+    final List<String> command = new java.util.ArrayList<>();
+    command.add(javaPath());
+    command.add("-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"));
+    command.add("-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"));
+    command.add("-javaagent:" + agentShadowJar());
+    command.add("-XX:ErrorFile=/tmp/hs_err_pid%p.log");
+    command.add("-Ddd.trace.agent.port=" + tracerPort);
+    command.add("-Ddd.service.name=smoke-test-java-app");
+    command.add("-Ddd.env=smoketest");
+    command.add("-Ddd.version=99");
+    command.add("-Ddd.trace.enabled=" + tracingEnabled);
+    command.add("-Ddd.profiling.enabled=true");
+    command.add("-Ddd.profiling.stackdepth=" + STACK_DEPTH_LIMIT);
+    command.add("-Ddd.profiling.ddprof.enabled=" + asyncProfilerEnabled);
+    command.add("-Ddd.profiling.ddprof.alloc.enabled=" + asyncProfilerEnabled);
+    if (!tracingEnabled && asyncProfilerEnabled) {
+      command.add("-Ddd.profiling.ddprof.wall.enabled=true");
+    }
+    command.add("-Ddd.profiling.agentless=" + (apiKey != null));
+    command.add("-Ddd.profiling.start-delay=" + profilingStartDelaySecs);
+    command.add("-Ddd.profiling.upload.period=" + profilingUploadPeriodSecs);
+    command.add("-Ddd.profiling.url=http://localhost:" + profilerPort);
+    command.add("-Ddd.profiling.hotspots.enabled=true");
+    command.add("-Ddd.profiling.endpoint.collection.enabled=" + endpointCollectionEnabled);
+    command.add("-Ddd.profiling.upload.timeout=" + PROFILING_UPLOAD_TIMEOUT_SECONDS);
+    command.add("-Ddd.profiling.debug.dump_path=/tmp/dd-profiler");
+    if (tracingEnabled) {
+      command.add("-Ddd.profiling.queueing.time.enabled=true");
+      command.add("-Ddd.profiling.queueing.time.threshold.millis=0");
+      command.add("-Ddd.profiling.context.attributes=foo,bar");
+    }
+    command.add("-Ddd.profiling.debug.upload.compression=" + withCompression);
+    for (String extra : extraProperties) {
+      command.add(extra);
+    }
+    command.add("-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug");
+    command.add("-Dorg.slf4j.simpleLogger.defaultLogLevel=debug");
+    command.add("-XX:+IgnoreUnrecognizedVMOptions");
+    command.add("-XX:+UnlockCommercialFeatures");
+    command.add("-XX:+FlightRecorder");
+    command.add(
+        "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride);
+    command.add("-Ddd.jmxfetch.start-delay=" + jmxFetchDelaySecs);
+    command.add("-jar");
+    command.add(profilingShadowJar());
+    command.add(Integer.toString(exitDelay));
     final ProcessBuilder processBuilder = new ProcessBuilder(command);
     processBuilder.directory(new File(buildDirectory()));
 
@@ -880,5 +981,105 @@ class JFRBasedProfilingIntegrationTest {
 
   public static boolean isJavaVersionAtLeast24() {
     return JavaVirtualMachine.isJavaVersionAtLeast(24);
+  }
+
+  @Test
+  @DisplayName("Test JFR scrubbing")
+  void testJfrScrubbing(final TestInfo testInfo) throws Exception {
+    Assumptions.assumeFalse(JavaVirtualMachine.isJ9());
+    // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable
+    Assumptions.assumeFalse(JavaVirtualMachine.isOracleJDK8());
+
+    testWithRetry(
+        () -> {
+          try {
+            targetProcess =
+                createProcessBuilder(
+                        profilingServer.getPort(),
+                        tracingServer.getPort(),
+                        VALID_API_KEY,
+                        0,
+                        PROFILING_START_DELAY_SECONDS,
+                        PROFILING_UPLOAD_PERIOD_SECONDS,
+                        ENDPOINT_COLLECTION_ENABLED,
+                        true,
+                        "on",
+                        0,
+                        logFilePath,
+                        true,
+                        "-Ddd.profiling.scrub.enabled=true")
+                    .start();
+
+            final RecordedRequest request = retrieveRequest();
+            assertNotNull(request);
+
+            final List<FileItem> items =
+                FileUpload.parse(
+                    request.getBody().readByteArray(), request.getHeader("Content-Type"));
+
+            FileItem rawJfr =
+                items.stream()
+                    .filter(i -> "main.jfr".equals(i.getName()))
+                    .findFirst()
+                    .orElseThrow(() -> new AssertionError("main.jfr not found in upload"));
+
+            assertFalse(logHasErrors(logFilePath));
+            InputStream eventStream = new ByteArrayInputStream(rawJfr.get());
+            eventStream = decompressStream("on", eventStream);
+            IItemCollection events = JfrLoaderToolkit.loadEvents(eventStream);
+            assertTrue(events.hasItems());
+
+            // Verify that system properties are scrubbed
+            IItemCollection systemPropertyEvents =
+                events.apply(ItemFilters.type(JdkTypeIDs.SYSTEM_PROPERTIES));
+            assertTrue(
+                systemPropertyEvents.hasItems(),
+                "Expected jdk.InitialSystemProperty events in recording");
+            {
+              IAttribute<String> valueAttr = attr("value", "value", "value", PLAIN_TEXT);
+              for (IItemIterable event : systemPropertyEvents) {
+                IMemberAccessor<String, IItem> valueAccessor =
+                    valueAttr.getAccessor(event.getType());
+                for (IItem item : event) {
+                  String value = valueAccessor.getMember(item);
+                  if (value != null && !value.isEmpty()) {
+                    // Scrubbed values should contain only 'x' characters
+                    assertTrue(
+                        value.chars().allMatch(c -> c == 'x'),
+                        "System property value should be scrubbed: " + value);
+                  }
+                }
+              }
+            }
+
+            // Verify that JVM arguments are scrubbed
+            IItemCollection jvmInfoEvents = events.apply(ItemFilters.type("jdk.JVMInformation"));
+            assertTrue(jvmInfoEvents.hasItems(), "Expected jdk.JVMInformation events in recording");
+            {
+              IAttribute<String> jvmArgsAttr =
+                  attr("jvmArguments", "jvmArguments", "jvmArguments", PLAIN_TEXT);
+              for (IItemIterable event : jvmInfoEvents) {
+                IMemberAccessor<String, IItem> jvmArgsAccessor =
+                    jvmArgsAttr.getAccessor(event.getType());
+                for (IItem item : event) {
+                  String jvmArgs = jvmArgsAccessor.getMember(item);
+                  if (jvmArgs != null && !jvmArgs.isEmpty()) {
+                    // Scrubbed values should contain only 'x' characters
+                    assertTrue(
+                        jvmArgs.chars().allMatch(c -> c == 'x'),
+                        "JVM arguments should be scrubbed: " + jvmArgs);
+                  }
+                }
+              }
+            }
+          } finally {
+            if (targetProcess != null) {
+              targetProcess.destroyForcibly();
+            }
+            targetProcess = null;
+          }
+        },
+        testInfo,
+        3);
   }
 }

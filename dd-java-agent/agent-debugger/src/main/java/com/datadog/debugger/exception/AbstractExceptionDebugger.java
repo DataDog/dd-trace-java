@@ -160,6 +160,11 @@ public abstract class AbstractExceptionDebugger implements DebuggerContext.Excep
       int[] mapping = createThrowableMapping(currentEx, t);
       StackTraceElement[] innerTrace = currentEx.getStackTrace();
       int currentIdx = innerTrace.length - snapshot.getStack().size();
+      if (currentIdx < 0) {
+        // This means the innerTrace was truncated by the underlying environment.
+        // This is known to happen in AWS Lambda, but may also happen elsewhere.
+        currentIdx = i;
+      }
       if (!sanityCheckSnapshotAssignment(snapshot, innerTrace, currentIdx)) {
         continue;
       }

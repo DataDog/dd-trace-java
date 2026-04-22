@@ -15,7 +15,6 @@ import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import java.util.Collection;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -38,8 +37,8 @@ public class JUnit5CucumberSkipInstrumentation extends InstrumenterModule.CiVisi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
+  public boolean isEnabled() {
+    return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
             || Config.get().isCiVisibilityTestManagementEnabled());
   }

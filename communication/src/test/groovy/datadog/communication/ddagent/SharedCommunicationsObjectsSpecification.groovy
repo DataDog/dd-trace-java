@@ -1,6 +1,6 @@
 package datadog.communication.ddagent
 
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl

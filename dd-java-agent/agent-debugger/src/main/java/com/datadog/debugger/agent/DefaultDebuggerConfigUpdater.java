@@ -1,5 +1,7 @@
 package com.datadog.debugger.agent;
 
+import static datadog.trace.api.Config.isExplicitlyDisabled;
+
 import datadog.trace.api.Config;
 import datadog.trace.api.config.DebuggerConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
@@ -65,11 +67,6 @@ class DefaultDebuggerConfigUpdater implements DebuggerConfigUpdater {
   @Override
   public boolean isDistributedDebuggerEnabled() {
     return DebuggerAgent.distributedDebuggerEnabled.get();
-  }
-
-  private static boolean isExplicitlyDisabled(String booleanKey) {
-    return Config.get().configProvider().isSet(booleanKey)
-        && !Config.get().configProvider().getBoolean(booleanKey);
   }
 
   private static void startOrStopFeature(

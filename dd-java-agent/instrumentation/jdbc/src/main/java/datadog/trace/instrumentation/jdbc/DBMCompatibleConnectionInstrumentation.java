@@ -17,6 +17,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import java.sql.Connection;
@@ -78,10 +79,7 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.propagation.W3CTraceParent",
-      packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
     };
   }
 
@@ -121,13 +119,13 @@ public class DBMCompatibleConnectionInstrumentation extends AbstractConnectionIn
         return null;
       }
       final String inputSql = sql;
+      final AgentSpan activeSpan = activeSpan();
       final DBInfo dbInfo =
           JDBCDecorator.parseDBInfo(
               connection, InstrumentationContext.get(Connection.class, DBInfo.class));
       String dbService = DECORATE.getDbService(dbInfo);
       if (dbService != null) {
-        dbService =
-            traceConfig(activeSpan()).getServiceMapping().getOrDefault(dbService, dbService);
+        dbService = traceConfig(activeSpan).getServiceMapping().getOrDefault(dbService, dbService);
       }
 
       boolean append =

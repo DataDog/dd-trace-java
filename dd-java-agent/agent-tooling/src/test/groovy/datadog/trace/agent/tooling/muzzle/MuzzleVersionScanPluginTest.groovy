@@ -2,6 +2,7 @@ package datadog.trace.agent.tooling.muzzle
 
 import datadog.trace.agent.tooling.Instrumenter
 import datadog.trace.agent.tooling.InstrumenterModule
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import net.bytebuddy.matcher.ElementMatcher
 
@@ -19,6 +20,10 @@ import static datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.Some
 import static datadog.trace.agent.tooling.muzzle.TestInstrumentationClasses.ValidHelperInst
 
 class MuzzleVersionScanPluginTest extends DDSpecification {
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   def "test assertInstrumentationMuzzled advice"() {
     setup:

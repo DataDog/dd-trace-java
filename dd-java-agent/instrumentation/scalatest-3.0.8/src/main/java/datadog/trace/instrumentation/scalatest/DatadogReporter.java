@@ -6,7 +6,7 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.scalatest.execution.SuppressedTestFailedException;
@@ -170,7 +170,7 @@ public class DatadogReporter {
         categories,
         new TestSourceData(testClass, null, null),
         null,
-        context.getExecutionHistory(testIdentifier));
+        context.getExecutionTracker(testIdentifier));
   }
 
   private static void onTestSuccess(TestSucceeded event) {
@@ -189,10 +189,10 @@ public class DatadogReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
-    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
+    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
   }
 
   private static void onTestFailure(TestFailed event) {
@@ -212,11 +212,11 @@ public class DatadogReporter {
         new TestDescriptor(testSuiteName, testClass, testName, testParameters, testQualifier);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
 
     TestEventsHandler<TestSuiteDescriptor, TestDescriptor> eventHandler = context.getEventHandler();
     eventHandler.onTestFailure(testDescriptor, throwable);
-    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
+    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
   }
 
   private static void onTestIgnore(TestIgnored event) {
@@ -247,7 +247,7 @@ public class DatadogReporter {
         categories,
         new TestSourceData(testClass, null, null),
         reason != null ? reason.getDescription() : null,
-        context.popExecutionHistory(skippableTest));
+        context.popExecutionTracker(skippableTest));
   }
 
   private static void onTestCancel(TestCanceled event) {
@@ -275,9 +275,9 @@ public class DatadogReporter {
     }
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
 
-    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
+    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
   }
 
   private static void onTestPending(TestPending event) {
@@ -300,8 +300,8 @@ public class DatadogReporter {
     eventHandler.onTestSkip(testDescriptor, reason);
 
     TestIdentifier testIdentifier = new TestIdentifier(testSuiteName, testName, null);
-    TestExecutionHistory executionHistory = context.popExecutionHistory(testIdentifier);
+    TestExecutionTracker executionTracker = context.popExecutionTracker(testIdentifier);
 
-    eventHandler.onTestFinish(testDescriptor, null, executionHistory);
+    eventHandler.onTestFinish(testDescriptor, null, executionTracker);
   }
 }

@@ -25,7 +25,7 @@ import net.bytebuddy.asm.Advice;
  * datadog.trace.instrumentation.java.concurrent.forkjoin.JavaForkJoinTaskInstrumentation}
  */
 @AutoService(InstrumenterModule.class)
-public class ConsumerTaskInstrumentation extends InstrumenterModule.Tracing
+public class ConsumerTaskInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public ConsumerTaskInstrumentation() {
     super(EXECUTOR_INSTRUMENTATION_NAME, "consumer-task");

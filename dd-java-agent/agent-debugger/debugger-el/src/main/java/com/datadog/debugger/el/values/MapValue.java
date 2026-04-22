@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -73,7 +74,9 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
     if (mapHolder instanceof Map) {
       if (WellKnownClasses.isSafe((Map<?, ?>) mapHolder)) {
         Map<?, ?> map = (Map<?, ?>) mapHolder;
-        return map.keySet().stream().map(Value::of).collect(Collectors.toSet());
+        return map.keySet().stream()
+            .map(obj -> Value.of(obj, ValueType.OBJECT))
+            .collect(Collectors.toSet());
       }
       throw new UnsupportedOperationException(
           "Unsupported Map class: " + mapHolder.getClass().getTypeName());
@@ -95,7 +98,7 @@ public final class MapValue implements CollectionValue<Object>, ValueExpression<
         Map<?, ?> map = (Map<?, ?>) mapHolder;
         key = key instanceof Value ? ((Value<?>) key).getValue() : key;
         Object value = map.get(key);
-        return value != null ? Value.of(value) : Value.nullValue();
+        return value != null ? Value.of(value, ValueType.OBJECT) : Value.nullValue();
       }
       throw new UnsupportedOperationException(
           "Unsupported Map class: " + mapHolder.getClass().getTypeName());

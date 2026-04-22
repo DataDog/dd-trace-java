@@ -19,6 +19,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
 
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
 
   private static final Class<?> JAVAX_SERVLET_EXCEPTION_CLS =
       findClassIfExists("javax.servlet.ServletException");
@@ -81,6 +82,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   @Override
   protected int status(final Response response) {
     return response.getStatus();
+  }
+
+  @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeaders().get(key);
   }
 
   public AgentSpan onResponse(AgentSpan span, HttpChannelState channel) {

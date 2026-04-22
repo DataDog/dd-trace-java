@@ -7,9 +7,11 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.INSTRUMENTATION_TIME_MS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.*;
 
+import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -22,7 +24,6 @@ import datadog.trace.bootstrap.instrumentation.decorator.DatabaseClientDecorator
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBQueryInfo;
 import datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser;
-import datadog.trace.core.propagation.W3CTraceParent;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.sql.Connection;
@@ -54,6 +55,9 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   public static final String DD_INSTRUMENTATION_PREFIX = "_DD_";
 
   public static final String DBM_PROPAGATION_MODE = Config.get().getDbmPropagationMode();
+  private static final boolean DBM_INJECT_SQL_BASE_HASH = Config.get().isDbmInjectSqlBaseHash();
+  private static final boolean PROPAGATE_PROCESS_TAGS =
+      Config.get().isExperimentalPropagateProcessTagsEnabled();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
           || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
@@ -201,11 +205,18 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   }
 
   public String getDbService(final DBInfo dbInfo) {
-    String dbService = null;
-    if (null != dbInfo) {
-      dbService = dbService(dbInfo.getType(), dbInstance(dbInfo));
+    if (null == dbInfo) {
+      return null;
     }
-    return dbService;
+    // For Oracle, the URL parser sets instance (SID/service name) but never db.
+    // Without this, dddbs defaults to the generic type string "oracle" which breaks
+    // DBM trace correlation. Other databases (e.g. SQL Server) rely on the type-based
+    // service name for DBM correlation and must not be changed here.
+    if ("oracle".equals(dbInfo.getType()) && dbInfo.getInstance() != null) {
+      String service = dbClientService(dbInfo.getInstance());
+      return service != null ? service : dbInfo.getInstance();
+    }
+    return dbService(dbInfo.getType(), dbInstance(dbInfo));
   }
 
   public static DBInfo parseDBInfoFromConnection(final Connection connection) {
@@ -244,6 +255,16 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
 
   public AgentSpan onPreparedStatement(AgentSpan span, DBQueryInfo dbQueryInfo) {
     return withQueryInfo(span, dbQueryInfo, JDBC_PREPARED_STATEMENT);
+  }
+
+  /**
+   * Sets the base hash tag on the span if DBM hash injection is enabled. This is necessary so that
+   * the span (tags) and the query can be matched in the backend.
+   */
+  public void withBaseHash(AgentSpan span) {
+    if (INJECT_COMMENT && DBM_INJECT_SQL_BASE_HASH && PROPAGATE_PROCESS_TAGS) {
+      span.setTag(Tags.BASE_HASH, BaseHash.getBaseHashStr());
+    }
   }
 
   private AgentSpan withQueryInfo(AgentSpan span, DBQueryInfo info, CharSequence component) {
@@ -388,7 +409,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
   protected void postProcessServiceAndOperationName(
       AgentSpan span, DatabaseClientDecorator.NamingEntry namingEntry) {
     if (namingEntry.getService() != null) {
-      span.setServiceName(namingEntry.getService());
+      span.setServiceName(namingEntry.getService(), component());
     }
     span.setOperationName(namingEntry.getOperation());
   }

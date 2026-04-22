@@ -5,7 +5,7 @@ import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
-import datadog.communication.monitor.Monitoring
+import datadog.metrics.api.Monitoring
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
@@ -116,7 +116,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   def startTestAgentContainer() {
     //noinspection GrDeprecatedAPIUsage Use FixedHostPortGenericContainer against deprecation because we need to know the exposed to configure the tracer at start
-    def agentContainer = new FixedHostPortGenericContainer("ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.27.1")
+    def agentContainer = new FixedHostPortGenericContainer("registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0")
       .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
       .withEnv("ENABLED_CHECKS", "trace_count_header,meta_tracer_version_header,trace_content_length")
       .waitingFor(Wait.forHttp("/test/traces"))
@@ -152,7 +152,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
     @Override
     String getTraceEndpoint() {
-      return V4_ENDPOINT
+      return V04_ENDPOINT
     }
 
     @Override

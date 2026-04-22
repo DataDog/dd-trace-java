@@ -13,6 +13,7 @@ import com.datadog.debugger.el.values.CollectionValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
 import com.datadog.debugger.el.values.SetValue;
+import datadog.trace.bootstrap.debugger.CapturedContext.CapturedValue;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.el.ValueReferences;
 import java.util.ArrayList;
@@ -50,7 +51,8 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       try {
         for (int i = 0; i < len; i++) {
           Object value = materialized.get(i).getValue();
-          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, value);
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
           if (filterExpression.evaluate(valueRefResolver)) {
             filtered.add(value);
           }
@@ -66,10 +68,12 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       try {
         for (Value<?> key : materialized.getKeys()) {
           Value<?> value = key.isUndefined() ? Value.undefinedValue() : materialized.get(key);
-          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, key);
-          valueRefResolver.addExtension(ValueReferences.VALUE_EXTENSION_NAME, value);
+          valueRefResolver.addExtension(ValueReferences.KEY_EXTENSION_NAME, CapturedValue.of(key));
           valueRefResolver.addExtension(
-              ValueReferences.ITERATOR_EXTENSION_NAME, new MapValue.Entry(key, value));
+              ValueReferences.VALUE_EXTENSION_NAME, CapturedValue.of(value));
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME,
+              CapturedValue.of(new MapValue.Entry(key, value)));
           if (filterExpression.evaluate(valueRefResolver)) {
             filtered.put(key.getValue(), value.getValue());
           }
@@ -86,7 +90,8 @@ public final class FilterCollectionExpression implements ValueExpression<Collect
       Set<?> setHolder = checkSupportedSet(materialized, this);
       try {
         for (Object value : setHolder) {
-          valueRefResolver.addExtension(ValueReferences.ITERATOR_EXTENSION_NAME, value);
+          valueRefResolver.addExtension(
+              ValueReferences.ITERATOR_EXTENSION_NAME, CapturedValue.of(value));
           if (filterExpression.evaluate(valueRefResolver)) {
             filtered.add(value);
           }

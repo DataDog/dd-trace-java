@@ -38,7 +38,8 @@ public class GraphQLJavaInstrumentation extends InstrumenterModule.Tracing
       "datadog.trace.instrumentation.graphqljava.State",
       packageName + ".GraphQLInstrumentation",
       "datadog.trace.instrumentation.graphqljava.GraphQLQuerySanitizer",
-      "datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher"
+      "datadog.trace.instrumentation.graphqljava.InstrumentedDataFetcher",
+      "datadog.trace.instrumentation.graphqljava.AsyncExceptionUnwrapper"
     };
   }
 

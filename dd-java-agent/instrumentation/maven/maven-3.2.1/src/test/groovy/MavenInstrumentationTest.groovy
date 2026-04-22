@@ -2,6 +2,7 @@ import datadog.trace.api.config.CiVisibilityConfig
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import org.apache.maven.cli.MavenCli
 import org.codehaus.plexus.util.FileUtils
+import org.slf4j.MDC
 import spock.lang.TempDir
 
 import java.nio.file.Path
@@ -18,6 +19,14 @@ class MavenInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   @Override
   def setup() {
+    // Workaround for maven-surefire 3.5.5 bug (https://github.com/apache/maven-surefire/pull/3241):
+    // ThreadedStreamConsumer$Pumper.run() calls MDC.setContextMap(MDC.getCopyOfContextMap()),
+    // but LogbackMDCAdapter.getCopyOfContextMap() returns null when MDC is uninitialized,
+    // and LogbackMDCAdapter.setContextMap(null) throws NPE via HashMap.putAll(null).
+    // Pre-initializing MDC ensures getCopyOfContextMap() returns an empty map instead of null.
+    MDC.put("_init", "true")
+    MDC.remove("_init")
+
     System.setProperty("maven.multiModuleProjectDirectory", projectFolder.toAbsolutePath().toString())
     givenMavenProjectFiles((String) specificationContext.currentIteration.dataVariables.testcaseName)
     givenMavenDependenciesAreLoaded()

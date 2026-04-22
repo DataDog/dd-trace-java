@@ -39,7 +39,7 @@ import net.bytebuddy.matcher.ElementMatcher;
  * ForkJoinPool}: JVM, Akka, Scala, Netty to name a few. This class handles Akka version.
  */
 @AutoService(InstrumenterModule.class)
-public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaForkJoinTaskInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice, ExcludeFilterProvider {
 
   public AkkaForkJoinTaskInstrumentation() {

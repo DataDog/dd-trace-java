@@ -19,8 +19,16 @@ configurations {
 def includedAgentDir = project.layout.buildDirectory.dir("generated/included")
 def includedJarFileTree = fileTree(includedAgentDir)
 
+def pomPropertiesDir = project.layout.buildDirectory.dir("generated/maven-metadata")
+def pomPropertiesFileTree = fileTree(pomPropertiesDir)
+
 tasks.named("processResources") {
   dependsOn(includedJarFileTree)
+  dependsOn(pomPropertiesFileTree)
+}
+
+tasks.named("sourcesJar") {
+  dependsOn(pomPropertiesFileTree)
 }
 
 sourceSets {
@@ -33,7 +41,7 @@ sourceSets {
   "main_java11" {
     java.srcDirs "${project.projectDir}/src/main/java11"
   }
-  main.resources.srcDir(includedAgentDir)
+  main.resources.srcDirs(includedAgentDir, pomPropertiesDir)
 }
 
 def java6CompileTask = tasks.named("compileMain_java6Java") {
@@ -102,6 +110,9 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // patch JFFI loading mechanism to maintain isolation
     exclude '**/com/kenai/jffi/Init.class'
     relocate('com.kenai.jffi.Init', 'com.kenai.jffi.PatchInit')
+    // patch OkHttp to avoid premain provider lookup
+    exclude '**/okhttp3/internal/platform/Platform.class'
+    relocate('okhttp3.internal.platform.Platform', 'datadog.okhttp3.internal.platform.PatchPlatform')
     // use dd-instrument-java's embedded copy of asm
     relocate('org.objectweb.asm', 'datadog.instrument.asm')
 
@@ -145,8 +156,15 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     // Prevents conflict with other instances, but doesn't relocate instrumentation
     if (!projectName.equals('instrumentation')) {
       relocate 'org.snakeyaml.engine', 'datadog.snakeyaml.engine'
+      relocate 'org.yaml.snakeyaml.Yaml', 'datadog.trace.agent.jmxfetch.LegacyYaml'
       relocate 'okhttp3', 'datadog.okhttp3'
       relocate 'okio', 'datadog.okio'
+
+      // embed an extra copy of our otel-shim for drop-in/extension support
+      // extensions are remapped to avoid classpath conflicts; use same mapping here
+      relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
+      relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'
+      relocate 'datadog.opentelemetry.shim', 'datadog.trace.bootstrap.otel.shim'
     }
 
     if (!project.hasProperty("disableShadowRelocate") || !disableShadowRelocate) {
@@ -154,8 +172,8 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
       relocate 'datadog.trace.common', 'datadog.trace.agent.common'
       relocate 'datadog.trace.core', 'datadog.trace.agent.core'
       relocate 'datadog.opentracing', 'datadog.trace.agent.ot'
-      // shadow things in internal API that has slf4j in the API and is accessed from core
-      relocate 'datadog.trace.relocate', 'datadog.trace.agent.relocate'
+      // shadow logging-utils that has slf4j in the API and is accessed from core
+      relocate 'datadog.logging', 'datadog.trace.agent.logging'
     }
   }
 }
@@ -213,7 +231,7 @@ def includeSubprojShadowJar(Project includedProjectJar, String destinationDir, F
 }
 
 includeSubprojShadowJar(project(':dd-java-agent:instrumentation'), 'inst', includedJarFileTree)
-includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':dd-java-agent:agent-jmxfetch'), 'jmxfetch', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-profiling'), 'profiling', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:appsec'), 'appsec', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-aiguard'), 'aiguard', includedJarFileTree)
@@ -223,7 +241,9 @@ includeSubprojShadowJar(project(':dd-java-agent:agent-ci-visibility'), 'ci-visib
 includeSubprojShadowJar(project(':dd-java-agent:agent-llmobs'), 'llm-obs', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:agent-logs-intake'), 'logs-intake', includedJarFileTree)
 includeSubprojShadowJar(project(':dd-java-agent:cws-tls'), 'cws-tls', includedJarFileTree)
-includeSubprojShadowJar(project(':products:feature-flagging:agent'), 'feature-flagging', includedJarFileTree)
+// Include metrics-lib directly (metrics-agent classes stay in bootstrap via agent-bootstrap)
+includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', includedJarFileTree)
+includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
   it.configurations = [project.configurations.sharedShadowInclude]
@@ -240,7 +260,10 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':internal-api'))
     exclude(project(':components:context'))
     exclude(project(':utils:config-utils'))
+    exclude(project(':utils:logging-utils'))
     exclude(project(':utils:time-utils'))
+    exclude(project(':products:metrics:metrics-api'))
+    exclude(project(':products:metrics:metrics-agent'))
     exclude(dependency('org.slf4j::'))
     // use dd-instrument-java's embedded copy of asm
     exclude(dependency('org.ow2.asm:asm:'))
@@ -310,6 +333,14 @@ def generateAgentJarIndex = tasks.register('generateAgentJarIndex', JavaExec) {
 }
 sourceSets.main.resources.srcDir(generateAgentJarIndex)
 
+def generatePomProperties = tasks.register('generatePomProperties', WriteProperties) {
+  destinationFile = pomPropertiesDir.map { it.file("META-INF/maven/com.datadoghq/dd-java-agent/pom.properties") }
+  property("groupId", "com.datadoghq")
+  property("artifactId", "dd-java-agent")
+  property("version", project.providers.provider { project.version.toString() })
+}
+pomPropertiesFileTree.builtBy(generatePomProperties)
+
 subprojects { Project subProj ->
   // Don't need javadoc task run for internal projects.
   subProj.tasks.withType(Javadoc).configureEach { enabled = false }
@@ -355,7 +386,9 @@ dependencies {
   shadowInclude project(path: ':dd-java-agent:agent-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-debugger:debugger-bootstrap')
   shadowInclude project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
-  shadowInclude project(path: ':products:feature-flagging:bootstrap')
+  // embed an extra copy of our otel-shim for drop-in/extension support
+  shadowInclude project(path: ':dd-java-agent:agent-otel:otel-shim')
+  shadowInclude project(path: ':products:feature-flagging:feature-flagging-bootstrap')
 
   // Includes for the shared internal shadow jar
   sharedShadowInclude deps.shared
@@ -366,6 +399,7 @@ dependencies {
     // do not bring along slf4j and dependent subprojects
     // (which are loaded on the bootstrap cl)
   }
+  sharedShadowInclude group: 'com.datadoghq', name: 'sketches-java', version: '0.8.3'
   sharedShadowInclude project(':telemetry'), {
     transitive = false
     // do not bring along slf4j and dependent subprojects
@@ -389,7 +423,13 @@ dependencies {
   sharedShadowInclude project(':utils:socket-utils'), {
     transitive = false
   }
+  sharedShadowInclude project(':utils:queue-utils'), {
+    transitive = false
+  }
   sharedShadowInclude project(':utils:version-utils'), {
+    transitive = false
+  }
+  sharedShadowInclude project(':utils:logging-utils'), {
     transitive = false
   }
   sharedShadowInclude project(':dd-java-agent:agent-crashtracking'), {
@@ -428,7 +468,7 @@ tasks.register('checkAgentJarSize') {
   doLast {
     // Arbitrary limit to prevent unintentional increases to the agent jar size
     // Raise or lower as required
-    assert tasks.named("shadowJar", ShadowJar).get().archiveFile.get().getAsFile().length() <= 32 * 1024 * 1024
+    assert tasks.named("shadowJar", ShadowJar).get().archiveFile.get().getAsFile().length() <= 33 * 1024 * 1024
   }
 
   dependsOn "shadowJar"

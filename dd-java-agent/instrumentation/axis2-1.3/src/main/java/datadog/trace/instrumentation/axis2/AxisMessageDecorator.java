@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.axis2;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes.SOAP;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.HTTP_CLIENT_SPLIT_BY_DOMAIN;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.cache.DDCache;
@@ -117,7 +118,7 @@ public class AxisMessageDecorator extends BaseDecorator {
         if (null != host && !host.isEmpty()) {
           span.setTag(Tags.PEER_HOSTNAME, host);
           if (Config.get().isHttpClientSplitByDomain() && host.charAt(0) >= 'A') {
-            span.setServiceName(host);
+            span.setServiceName(host, HTTP_CLIENT_SPLIT_BY_DOMAIN);
           }
           if (port > 0) {
             setPeerPort(span, port);

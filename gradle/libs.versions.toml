@@ -7,8 +7,8 @@ forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.36.0"
-dogstatsd = "4.4.3"
+ddprof = "1.41.0"
+dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
 # Languages
@@ -30,7 +30,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9.1"
-byte-buddy = "1.18.3"
+byte-buddy = "1.18.8"
 instrument-java = "0.0.3"
 
 # Benchmarks
@@ -38,9 +38,10 @@ jmh = "1.37"
 
 # Profiling
 jmc = "8.1.0"
+jafar = "0.16.0"
 
 # Web & Network
-jnr-unixsocket = "0.38.22"
+jnr-unixsocket = "0.38.24"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
@@ -51,24 +52,27 @@ cafe_crypto = "0.1.0"
 commons = "3.2"
 guava = "[16.0,20.0]" # Last version to support Java 7
 javaparser = "3.24.4"
-jctools = "3.3.0"
+jctools = "4.0.6"
 lz4 = "1.7.1"
 
 # Logging
 slf4j = "1.7.30"
-logback = "1.2.13"
+logback = "1.2.13" # required by Java 8 modules.
 
 # JSON
 jackson = "2.20.0"
 moshi = "1.11.0"
 
 # Testing
+assertj = "3.27.7"
 junit4 = "4.13.2"
 junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-4.0"
-testcontainers = "1.21.3"
+json-unit = "2.40.1"
+tabletest = "1.2.1"
+testcontainers = "1.21.4"
 
 [libraries]
 # Build
@@ -114,6 +118,8 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
+jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
+jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
 okio = { module = "com.datadoghq.okio:okio", version.ref = "okio" }
@@ -124,12 +130,12 @@ cafe-crypto-ed25519 = { module = "cafe.cryptography:ed25519-elisabeth", version.
 cafe-crypto-curve25519 = { module = "cafe.cryptography:curve25519-elisabeth", version.ref = "cafe_crypto" }
 
 # Common utils
-aircompressor = { module = "io.airlift:aircompressor", version = "2.0.2"} # aircompressor v3 requires Java 22
+aircompressor = { module = "io.airlift:aircompressor", version = "2.0.3"} # aircompressor v3 requires Java 22
 commons-math = { module = "org.apache.commons:commons-math3", version.ref = "commons" }
 guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
-jctools = { module = "org.jctools:jctools-core", version.ref = "jctools" }
+jctools = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
 lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
 
 # Logging
@@ -145,6 +151,8 @@ jackson-databind = {module = "com.fasterxml.jackson.core:jackson-databind", vers
 moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
 # Testing
+assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }
@@ -156,6 +164,7 @@ objenesis = { module = "org.objenesis:objenesis", version = "3.3" } # Used by Sp
 spock-core = { module = "org.spockframework:spock-core", version.ref = "spock" }
 spock-junit4 = { module = "org.spockframework:spock-junit4", version.ref = "spock" }
 spock-spring = { module = "org.spockframework:spock-spring", version.ref = "spock" }
+tabletest = { module = "org.tabletest:tabletest-junit", version.ref = "tabletest" }
 testcontainers = { module = "org.testcontainers:testcontainers", version.ref = "testcontainers" }
 testcontainers-localstack = { module = "org.testcontainers:localstack", version.ref = "testcontainers" }
 

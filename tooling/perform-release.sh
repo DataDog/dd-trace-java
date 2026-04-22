@@ -71,22 +71,35 @@ else
     echo "✅ All commits since the last release are merge commits."
 fi
 
-# Get the next release version
+# Get the next version to release
 VERSION=$(echo "$LAST_RELEASE_TAG" | grep -E '^v[0-9]+\.[0-9]+\.[0-9]+$' | sed 's/^v//' || true)
 if [ -z "$VERSION" ]; then
     echo "❌ Unable to determine the next release version from the last release tag: $LAST_RELEASE_TAG"
     exit 1
 fi
 if [ "$MINOR_RELEASE" = true ]; then
-    NEXT_RELEASE_VERSION=$(echo "$VERSION" | awk -F. '{printf "v%d.%d.0", $1, $2 + 1}')
+    NEXT_VERSION=$(echo "$VERSION" | awk -F. '{printf "%d.%d.0", $1, $2 + 1}')
 else
-    NEXT_RELEASE_VERSION=$(echo "$VERSION" | awk -F. '{printf "v%d.%d.%d", $1, $2, $3 + 1}')
+    NEXT_VERSION=$(echo "$VERSION" | awk -F. '{printf "%d.%d.%d", $1, $2, $3 + 1}')
 fi
-echo "ℹ️ Next release version: $NEXT_RELEASE_VERSION"
+echo "ℹ️ Next version to release: $NEXT_VERSION"
+
+# Check milestone exists
+if ! gh api "repos/{owner}/{repo}/milestones" --paginate --jq ".[].title" | grep -qx "$NEXT_VERSION"; then
+    echo "❌ Milestone '$NEXT_VERSION' does not exist. Please reach out to the guild before performing a release."
+    exit 1
+fi
+echo "✅ GitHub milestone for $NEXT_VERSION exists."
 
 # Create and push the release tag
-echo "ℹ️ The release tag will be created and pushed. No abort is possible after this point."
+NEXT_RELEASE_TAG="v$NEXT_VERSION"
+echo "ℹ️ The release tag $NEXT_RELEASE_TAG will be created and pushed. No abort is possible after this point."
 confirmOrAbort
-git tag -a -s -m "Release $NEXT_RELEASE_VERSION" "$NEXT_RELEASE_VERSION"
-git push "$REMOTE" "$NEXT_RELEASE_VERSION" --no-verify
-echo "✅ Release tag $NEXT_RELEASE_VERSION created and pushed to $REMOTE."
+git tag -a -s -m "Release $NEXT_RELEASE_TAG" "$NEXT_RELEASE_TAG"
+if ! git push "$REMOTE" "$NEXT_RELEASE_TAG" --no-verify; then
+    echo "❌ Unable to push the release tag to $REMOTE."
+    echo "ℹ️ Deleting the created local tag."
+    git tag -d "$NEXT_RELEASE_TAG"
+    exit 1
+fi
+echo "✅ Release tag $NEXT_RELEASE_TAG created and pushed to $REMOTE."

@@ -1,6 +1,7 @@
 name: Run system tests
 
 on:
+  merge_group:
   pull_request:
   workflow_dispatch:
   schedule:
@@ -23,13 +24,13 @@ jobs:
       group: APM Larger Runners
     steps:
       - name: Checkout repository
-        uses: actions/checkout@8e8c483db84b4bee98b60c0593521ed34d9990e8 # 6.0.1
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
         with:
           submodules: 'recursive'
           fetch-depth: 0
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@8b402f58fbc84540c8b491a91e594a4576fec3d7 # v5.0.2
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -52,7 +53,7 @@ jobs:
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Upload artifact
-        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a
         with:
           name: binaries
           path: workspace/dd-java-agent/build/libs/
@@ -61,8 +62,7 @@ jobs:
     needs:
     - build
     # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned for releases only
-    secrets: inherit
+    uses: DataDog/system-tests/.github/workflows/system-tests.yml@main # system tests are pinned on release branches only
     permissions:
       contents: read
       id-token: write
@@ -70,12 +70,16 @@ jobs:
     with:
       library: java
        # If you change the following comment, update the pattern in the update_system_test_reference.sh script to match.
-      ref: main # system tests are pinned for releases only
+      ref: "main" # system tests are pinned on release branches only
       binaries_artifact: binaries
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
       skip_empty_scenarios: true
+      push_to_test_optimization: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # Ensure the main job is run to completion
   check:

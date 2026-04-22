@@ -41,6 +41,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.io.ByteStreams;
 import datadog.common.version.VersionInfo;
 import datadog.environment.JavaVirtualMachine;
+import datadog.logging.IOLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.ProcessTags;
@@ -49,7 +50,6 @@ import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
 import datadog.trace.api.profiling.RecordingType;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
-import datadog.trace.relocate.api.IOLogger;
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import datadog.trace.util.PidHelper;
 import delight.fileupload.FileUpload;
@@ -828,6 +828,9 @@ public class ProfileUploaderTest {
   @ValueSource(booleans = {true, false})
   public void testRequestWithProcessTags(boolean processTagsEnabled) throws Exception {
     when(config.isExperimentalPropagateProcessTagsEnabled()).thenReturn(processTagsEnabled);
+    if (processTagsEnabled) {
+      when(config.isServiceNameSetByUser()).thenReturn(true);
+    }
     ProcessTags.reset(config);
     uploader =
         new ProfileUploader(

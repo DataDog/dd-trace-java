@@ -202,7 +202,8 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
     void awaitConnected() {
       while (WsEndpoint.activeSession == null) {
         synchronized (WsEndpoint) {
-          WsEndpoint.wait()
+          // this can be racy so we need to wait with timeout and retry
+          WsEndpoint.wait(1_000)
         }
       }
     }

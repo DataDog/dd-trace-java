@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -10,6 +11,7 @@ import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPER
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -39,6 +41,7 @@ public final class MessagesAvailableInstrumentation
     }
   }
 
+  @AppliesOn(CONTEXT_TRACKING)
   public static final class Capture {
     @Advice.OnMethodExit
     public static void capture(@Advice.This Runnable task) {

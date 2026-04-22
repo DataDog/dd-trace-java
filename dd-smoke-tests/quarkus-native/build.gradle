@@ -4,6 +4,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   testImplementation project(':dd-smoke-tests')
+  testImplementation libs.bundles.jmc
 }
 // Check 'testJvm' gradle command parameter is GraalVM (e.g., -PtestJvm=graalvm21),
 // if not nothing is done
@@ -40,7 +41,8 @@ if (testGraalvmVersion >= 17) {
       "-PappBuildDir=$appBuildDir",
       "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}",
       "-Dquarkus.native.additional-build-args=-J-javaagent:${project(':dd-java-agent').tasks.shadowJar.archiveFile.get()}," +
-      "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]',-march=native"
+      "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'," +
+      "-J-Ddd.profiling.enabled=true,-march=native"
       )
     outputs.cacheIf { true }
     outputs.dir(appBuildDir)
@@ -68,6 +70,7 @@ if (testGraalvmVersion >= 17) {
 
   tasks.withType(Test).configureEach {
     jvmArgs "-Ddatadog.smoketest.quarkus.native.executable=$appBuildDir/quarkus-native-smoketest--runner"
+    jvmArgs "-Ddd.profiling.enabled=true"
   }
 } else {
   tasks.withType(Test).configureEach {

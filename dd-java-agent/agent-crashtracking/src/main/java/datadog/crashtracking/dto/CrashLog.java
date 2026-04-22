@@ -10,10 +10,10 @@ import java.util.Objects;
 public final class CrashLog {
   private static final int VERSION = 0;
 
-  private static final JsonAdapter<CrashLog> ADAPTER;
+  public static final JsonAdapter<CrashLog> ADAPTER;
 
   static {
-    Moshi moshi = new Moshi.Builder().add(new SemanticVersion.SemanticVersionAdapter()).build();
+    Moshi moshi = new Moshi.Builder().add(new DynamicLibs.JsonAdapter()).build();
     ADAPTER = moshi.adapter(CrashLog.class);
   }
 
@@ -39,6 +39,14 @@ public final class CrashLog {
   @Json(name = "sig_info")
   public final SigInfo sigInfo;
 
+  public final Experimental experimental;
+
+  /**
+   * Useful files for triage and debugging (e.g. {@code /proc/self/maps}, {@code
+   * dynamic_libraries}).
+   */
+  public final DynamicLibs files;
+
   public CrashLog(
       String uuid,
       boolean incomplete,
@@ -49,6 +57,32 @@ public final class CrashLog {
       ProcInfo procInfo,
       SigInfo sigInfo,
       String dataSchemaVersion) {
+    this(
+        uuid,
+        incomplete,
+        timestamp,
+        error,
+        metadata,
+        osInfo,
+        procInfo,
+        sigInfo,
+        dataSchemaVersion,
+        null,
+        null);
+  }
+
+  public CrashLog(
+      String uuid,
+      boolean incomplete,
+      String timestamp,
+      ErrorData error,
+      Metadata metadata,
+      OSInfo osInfo,
+      ProcInfo procInfo,
+      SigInfo sigInfo,
+      String dataSchemaVersion,
+      Experimental experimental,
+      DynamicLibs files) {
     this.uuid = uuid != null ? uuid : RandomUtils.randomUUID().toString();
     this.incomplete = incomplete;
     this.timestamp = timestamp;
@@ -58,6 +92,8 @@ public final class CrashLog {
     this.procInfo = procInfo;
     this.sigInfo = sigInfo;
     this.dataSchemaVersion = dataSchemaVersion;
+    this.experimental = experimental;
+    this.files = files;
   }
 
   public String toJson() {
@@ -85,7 +121,9 @@ public final class CrashLog {
         && Objects.equals(osInfo, crashLog.osInfo)
         && Objects.equals(procInfo, crashLog.procInfo)
         && Objects.equals(sigInfo, crashLog.sigInfo)
-        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
+        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion)
+        && Objects.equals(experimental, crashLog.experimental)
+        && Objects.equals(files, crashLog.files);
   }
 
   @Override
@@ -100,7 +138,9 @@ public final class CrashLog {
         procInfo,
         sigInfo,
         version,
-        dataSchemaVersion);
+        dataSchemaVersion,
+        experimental,
+        files);
   }
 
   public boolean equalsForTest(Object o) {
@@ -119,6 +159,8 @@ public final class CrashLog {
         && Objects.equals(error, crashLog.error)
         && Objects.equals(procInfo, crashLog.procInfo)
         && Objects.equals(sigInfo, crashLog.sigInfo)
-        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion);
+        && Objects.equals(dataSchemaVersion, crashLog.dataSchemaVersion)
+        && Objects.equals(experimental, crashLog.experimental)
+        && Objects.equals(files, crashLog.files);
   }
 }

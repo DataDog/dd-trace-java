@@ -17,7 +17,6 @@ import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation
 import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
 import datadog.trace.instrumentation.junit4.TestEventsHandlerHolder;
 import datadog.trace.util.Strings;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -34,8 +33,8 @@ public class JUnit4TestSorterInstrumentation extends InstrumenterModule.CiVisibi
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().getCiVisibilityTestOrder() != null;
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

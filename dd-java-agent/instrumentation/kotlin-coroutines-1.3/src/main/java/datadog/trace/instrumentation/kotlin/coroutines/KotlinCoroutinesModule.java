@@ -7,7 +7,7 @@ import java.util.Arrays;
 import java.util.List;
 
 @AutoService(InstrumenterModule.class)
-public class KotlinCoroutinesModule extends InstrumenterModule.Tracing {
+public class KotlinCoroutinesModule extends InstrumenterModule.ContextTracking {
   public KotlinCoroutinesModule() {
     super("kotlin_coroutine");
   }

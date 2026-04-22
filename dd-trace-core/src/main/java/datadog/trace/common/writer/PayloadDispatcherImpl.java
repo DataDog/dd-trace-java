@@ -1,11 +1,11 @@
 package datadog.trace.common.writer;
 
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;

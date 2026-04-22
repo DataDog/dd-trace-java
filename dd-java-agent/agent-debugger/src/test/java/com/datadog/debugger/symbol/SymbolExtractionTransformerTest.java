@@ -2,32 +2,40 @@ package com.datadog.debugger.symbol;
 
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
+import static java.util.stream.Collectors.toSet;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.when;
 import static utils.InstrumentationTestHelper.compileAndLoadClass;
 
+import com.datadog.debugger.agent.CapturedSnapshotTest;
+import com.datadog.debugger.agent.KotlinHelper;
 import com.datadog.debugger.sink.SymbolSink;
 import com.datadog.debugger.util.ClassNameFiltering;
 import datadog.trace.api.Config;
+import java.io.File;
 import java.io.IOException;
+import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URISyntaxException;
+import java.net.URL;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.function.Supplier;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.joor.Reflect;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.DisabledIf;
-import org.junit.jupiter.api.condition.EnabledOnJre;
+import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
 import org.mockito.Mockito;
 
@@ -47,15 +55,21 @@ class SymbolExtractionTransformerTest {
               "org.omg.",
               "org.joor.",
               "com.datadog.debugger.")
-          .collect(Collectors.toSet());
+          .collect(toSet());
 
   private Instrumentation instr = ByteBuddyAgent.install();
+  private ClassFileTransformer currentTransformer;
   private Config config;
 
   @BeforeEach
   public void setUp() {
     config = Mockito.mock(Config.class);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
+  }
+
+  @AfterEach
+  public void tearDown() {
+    instr.removeTransformer(currentTransformer);
   }
 
   @Test
@@ -66,14 +80,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction01.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 2, 20, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 2, 2, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "2-2");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 20, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 4, 20, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "4-15", "17-17", "19-20");
@@ -135,14 +149,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction02";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction02.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-6");
@@ -166,14 +180,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction03";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction03.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 28, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "4-4");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 28, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 28, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "6-21", "23-24", "27-28");
@@ -237,14 +251,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction04";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction04.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 18, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 18, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 18, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-12", "14-15", "18-18");
@@ -312,14 +326,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction05";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction05.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 15, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 15, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 15, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-15");
@@ -361,14 +375,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction06";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction06.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 13, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 13, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-11", "13-13");
@@ -410,14 +424,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction07";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction07.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 10, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 10, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 10, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-10");
@@ -445,14 +459,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction08";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction08.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 11, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 11, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-5", "7-9", "11-11");
@@ -482,12 +496,12 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction09";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction09.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 23, SOURCE_FILE, 6, 2);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 23, SOURCE_FILE, 6, 2);
     assertSymbol(
         classScope.getSymbols().get(0),
         SymbolType.STATIC_FIELD,
@@ -501,8 +515,8 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         0);
     assertScope(
-        classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 5, 17, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "5-5", "17-17");
+        classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 17, 17, SOURCE_FILE, 0, 0);
+    assertLineRanges(classScope.getScopes().get(0), "17-17");
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 14, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "8-10", "14-14");
@@ -581,15 +595,15 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction10";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction10.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock, 2);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock, 2, TRANSFORMER_EXCLUDES);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     assertEquals(2, symbolSinkMock.jarScopes.get(0).getScopes().size());
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 6, SOURCE_FILE, 2, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 3, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-3");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 5, 6, SOURCE_FILE, 2, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 5, 6, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "5-6");
@@ -604,7 +618,7 @@ class SymbolExtractionTransformerTest {
         "com.datadog.debugger.symboltest.SymbolExtraction10$Inner",
         5);
     Scope innerClassScope = symbolSinkMock.jarScopes.get(0).getScopes().get(1);
-    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 9, 13, SOURCE_FILE, 2, 1);
+    assertScope(innerClassScope, ScopeType.CLASS, CLASS_NAME + "$Inner", 10, 13, SOURCE_FILE, 2, 1);
     assertSymbol(
         innerClassScope.getSymbols().get(0),
         SymbolType.FIELD,
@@ -612,8 +626,8 @@ class SymbolExtractionTransformerTest {
         Integer.TYPE.getTypeName(),
         0);
     assertScope(
-        innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 9, 10, SOURCE_FILE, 0, 0);
-    assertLineRanges(innerClassScope.getScopes().get(0), "9-10");
+        innerClassScope.getScopes().get(0), ScopeType.METHOD, "<init>", 10, 10, SOURCE_FILE, 0, 0);
+    assertLineRanges(innerClassScope.getScopes().get(0), "10-10");
     Scope addToMethod = innerClassScope.getScopes().get(1);
     assertScope(addToMethod, ScopeType.METHOD, "addTo", 12, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(addToMethod, "12-13");
@@ -637,16 +651,16 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction11";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction11.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 3, 11, SOURCE_FILE, 2, 1);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 4, 11, SOURCE_FILE, 2, 1);
     assertSymbol(
         classScope.getSymbols().get(0), SymbolType.FIELD, "field1", Integer.TYPE.getTypeName(), 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 3, 4, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "3-4");
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 4, 4, SOURCE_FILE, 0, 0);
+    assertLineRanges(classScope.getScopes().get(0), "4-4");
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 6, 11, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "6-9", "11-11");
@@ -674,14 +688,14 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction12";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction12.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", 1).get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
-    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 20, SOURCE_FILE, 7, 0);
-    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 6, 6, SOURCE_FILE, 0, 0);
-    assertLineRanges(classScope.getScopes().get(0), "6-6");
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 8, 20, SOURCE_FILE, 7, 0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    assertFalse(classScope.getScopes().get(0).hasInjectibleLines());
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 8, 13, SOURCE_FILE, 1, 1);
     assertLineRanges(mainMethodScope, "8-13");
@@ -755,8 +769,8 @@ class SymbolExtractionTransformerTest {
   public void symbolExtraction13() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction13";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
@@ -819,8 +833,8 @@ class SymbolExtractionTransformerTest {
   public void symbolExtraction14() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction14";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
@@ -900,7 +914,7 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
-  @EnabledOnJre({JRE.JAVA_17, JRE.JAVA_21, JRE.JAVA_24})
+  @EnabledForJreRange(min = JRE.JAVA_17, max = JRE.JAVA_25)
   @DisabledIf(
       value = "datadog.environment.JavaVirtualMachine#isJ9",
       disabledReason = "Flaky on J9 JVMs")
@@ -908,8 +922,8 @@ class SymbolExtractionTransformerTest {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction15";
     final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction15.java";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME, "17");
     Reflect.on(testClass).call("main", "1").get();
     Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
@@ -922,21 +936,21 @@ class SymbolExtractionTransformerTest {
         null,
         null);
     Scope initMethodScope = classScope.getScopes().get(0);
-    assertScope(initMethodScope, ScopeType.METHOD, "<init>", 10, 10, SOURCE_FILE, 0, 3);
+    assertScope(initMethodScope, ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 3);
     assertSymbol(
         initMethodScope.getSymbols().get(0),
         SymbolType.ARG,
         "firstName",
         String.class.getTypeName(),
-        10);
+        0);
     assertSymbol(
         initMethodScope.getSymbols().get(1),
         SymbolType.ARG,
         "lastName",
         String.class.getTypeName(),
-        10);
+        0);
     assertSymbol(
-        initMethodScope.getSymbols().get(2), SymbolType.ARG, "age", Integer.TYPE.getTypeName(), 10);
+        initMethodScope.getSymbols().get(2), SymbolType.ARG, "age", Integer.TYPE.getTypeName(), 0);
     Scope mainMethodScope = classScope.getScopes().get(1);
     assertScope(mainMethodScope, ScopeType.METHOD, "main", 13, 13, SOURCE_FILE, 0, 1);
     Scope toStringMethodScope = classScope.getScopes().get(2);
@@ -954,6 +968,93 @@ class SymbolExtractionTransformerTest {
   }
 
   @Test
+  @EnabledForJreRange(max = JRE.JAVA_25)
+  @DisabledIf(
+      value = "datadog.environment.JavaVirtualMachine#isJ9",
+      disabledReason = "Flaky on J9 JVMs")
+  public void symbolExtraction16() throws IOException, URISyntaxException {
+    final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction16";
+    final String SOURCE_FILE = SYMBOL_PACKAGE_DIR + "SymbolExtraction16.kt";
+    SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
+    Set<String> additionalExcludedPackages =
+        Stream.of(
+                "org.jetbrains.",
+                "kotlin.",
+                "kotlinx.",
+                "org.junit.",
+                "io.vavr.",
+                "com.intellij.",
+                "gnu.trove.")
+            .collect(toSet());
+    currentTransformer = createTransformer(symbolSinkMock, additionalExcludedPackages);
+    instr.addTransformer(currentTransformer);
+    URL resource = CapturedSnapshotTest.class.getResource("/" + SOURCE_FILE);
+    assertNotNull(resource);
+    List<File> filesToDelete = new ArrayList<>();
+    try {
+      Class<?> testClass =
+          KotlinHelper.compileAndLoad(CLASS_NAME, resource.getFile(), filesToDelete);
+      Object companion = Reflect.onClass(testClass).get("Companion");
+      int result = Reflect.on(companion).call("main", "").get();
+      assertEquals(48, result);
+    } finally {
+      filesToDelete.forEach(File::delete);
+    }
+    assertEquals(2, symbolSinkMock.jarScopes.size());
+    Scope classScope = symbolSinkMock.jarScopes.get(0).getScopes().get(0);
+    assertScope(classScope, ScopeType.CLASS, CLASS_NAME, 6, 23, SOURCE_FILE, 5, 1);
+    assertLangSpecifics(
+        classScope.getLanguageSpecifics(),
+        asList("public", "final"),
+        asList("@kotlin.Metadata"),
+        "java.lang.Object",
+        null,
+        null);
+    assertSymbol(
+        classScope.getSymbols().get(0),
+        SymbolType.STATIC_FIELD,
+        "Companion",
+        CLASS_NAME + "$Companion",
+        0);
+    assertScope(classScope.getScopes().get(0), ScopeType.METHOD, "<init>", 0, 0, SOURCE_FILE, 0, 0);
+    Scope f1MethodScope = classScope.getScopes().get(1);
+    assertScope(f1MethodScope, ScopeType.METHOD, "f1", 6, 6, SOURCE_FILE, 0, 1);
+    assertSymbol(
+        f1MethodScope.getSymbols().get(0), SymbolType.ARG, "value", Integer.TYPE.getTypeName(), 6);
+    Scope f2MethodScope = classScope.getScopes().get(2);
+    assertScope(f2MethodScope, ScopeType.METHOD, "f2", 10, 17, SOURCE_FILE, 3, 1);
+    assertLineRanges(f2MethodScope, "10-10", "12-12", "14-14", "16-17");
+    Scope f3MethodScope = classScope.getScopes().get(3);
+    assertScope(f3MethodScope, ScopeType.METHOD, "f3", 21, 23, SOURCE_FILE, 1, 1);
+    assertLineRanges(f3MethodScope, "21-23");
+    assertScope(
+        classScope.getScopes().get(4), ScopeType.METHOD, "<clinit>", 0, 0, SOURCE_FILE, 0, 0);
+
+    Scope companionClassScope = symbolSinkMock.jarScopes.get(1).getScopes().get(0);
+    assertScope(
+        companionClassScope, ScopeType.CLASS, CLASS_NAME + "$Companion", 28, 29, SOURCE_FILE, 3, 0);
+    assertLangSpecifics(
+        classScope.getLanguageSpecifics(),
+        asList("public", "final"),
+        asList("@kotlin.Metadata"),
+        "java.lang.Object",
+        null,
+        null);
+    assertScope(
+        companionClassScope.getScopes().get(0),
+        ScopeType.METHOD,
+        "<init>",
+        0,
+        0,
+        SOURCE_FILE,
+        0,
+        0);
+    Scope mainMethodScope = companionClassScope.getScopes().get(1);
+    assertScope(mainMethodScope, ScopeType.METHOD, "main", 28, 29, SOURCE_FILE, 1, 1);
+    assertLineRanges(mainMethodScope, "28-29");
+  }
+
+  @Test
   public void filterOutClassesFromExcludedPackages() throws IOException, URISyntaxException {
     config = Mockito.mock(Config.class);
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
@@ -961,11 +1062,11 @@ class SymbolExtractionTransformerTest {
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
     ClassNameFiltering classNameFiltering =
         new ClassNameFiltering(Collections.singleton(EXCLUDED_PACKAGE));
-    SymbolExtractionTransformer transformer =
+    currentTransformer =
         new SymbolExtractionTransformer(
             new SymbolAggregator(classNameFiltering, emptyList(), symbolSinkMock, 1),
             classNameFiltering);
-    instr.addTransformer(transformer);
+    instr.addTransformer(currentTransformer);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     Reflect.on(testClass).call("main", "1").get();
     assertFalse(
@@ -981,8 +1082,8 @@ class SymbolExtractionTransformerTest {
   public void duplicateClassThroughDifferentClassLoader() throws IOException, URISyntaxException {
     final String CLASS_NAME = SYMBOL_PACKAGE + "SymbolExtraction01";
     SymbolSinkMock symbolSinkMock = new SymbolSinkMock(config);
-    SymbolExtractionTransformer transformer = createTransformer(symbolSinkMock);
-    instr.addTransformer(transformer);
+    currentTransformer = createTransformer(symbolSinkMock);
+    instr.addTransformer(currentTransformer);
     for (int i = 0; i < 10; i++) {
       // compile and load the class in a specific ClassLoader each time
       Class<?> testClass = compileAndLoadClass(CLASS_NAME);
@@ -1069,16 +1170,23 @@ class SymbolExtractionTransformerTest {
   }
 
   private SymbolExtractionTransformer createTransformer(SymbolSink symbolSink) {
-    return createTransformer(symbolSink, 1);
+    return createTransformer(symbolSink, 1, TRANSFORMER_EXCLUDES);
   }
 
   private SymbolExtractionTransformer createTransformer(
-      SymbolSink symbolSink, int symbolFlushThreshold) {
+      SymbolSinkMock symbolSinkMock, Set<String> additionalExcludedPackages) {
+    Set<String> excludedPackages = new HashSet<>(TRANSFORMER_EXCLUDES);
+    excludedPackages.addAll(additionalExcludedPackages);
+    return createTransformer(symbolSinkMock, 1, excludedPackages);
+  }
+
+  private SymbolExtractionTransformer createTransformer(
+      SymbolSink symbolSink, int symbolFlushThreshold, Set<String> excludedPackages) {
     return createTransformer(
         symbolSink,
         symbolFlushThreshold,
         new ClassNameFiltering(
-            TRANSFORMER_EXCLUDES, Collections.singleton(SYMBOL_PACKAGE), Collections.emptySet()));
+            excludedPackages, Collections.singleton(SYMBOL_PACKAGE), Collections.emptySet()));
   }
 
   private SymbolExtractionTransformer createTransformer(

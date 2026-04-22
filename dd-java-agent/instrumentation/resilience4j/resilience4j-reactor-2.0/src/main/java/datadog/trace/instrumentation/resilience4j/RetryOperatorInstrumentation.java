@@ -4,9 +4,9 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
+import datadog.context.Context;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.github.resilience4j.retry.Retry;
 import net.bytebuddy.asm.Advice;
 import org.reactivestreams.Publisher;
@@ -39,7 +39,7 @@ public class RetryOperatorInstrumentation
               result,
               RetryDecorator.DECORATE,
               retry,
-              InstrumentationContext.get(Publisher.class, AgentSpan.class)::put);
+              InstrumentationContext.get(Publisher.class, Context.class)::put);
     }
   }
 }

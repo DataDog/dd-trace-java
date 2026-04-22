@@ -6,9 +6,9 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Counter;
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
+import datadog.metrics.api.Counter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
 import datadog.trace.api.Config;
 import datadog.trace.common.writer.Payload;
 import datadog.trace.common.writer.RemoteApi;
@@ -122,15 +122,18 @@ public class DDAgentApi extends RemoteApi {
       try (final Recording recording = sendPayloadTimer.start();
           final okhttp3.Response response = httpClient.newCall(request).execute()) {
         handleAgentChange(response.header(DATADOG_AGENT_STATE));
+
+        String responseString = getResponseBody(response);
+
         if (response.code() != 200) {
           agentErrorCounter.incrementErrorCount(response.message(), payload.traceCount());
           countAndLogFailedSend(payload.traceCount(), sizeInBytes, response, null);
-          return Response.failed(response.code());
+          return Response.failed(response.code(), responseString);
         }
+
         countAndLogSuccessfulSend(payload.traceCount(), sizeInBytes);
-        String responseString = null;
+
         try {
-          responseString = getResponseBody(response);
           if (!"".equals(responseString) && !"OK".equalsIgnoreCase(responseString)) {
             final Map<String, Map<String, Number>> parsedResponse =
                 RESPONSE_ADAPTER.fromJson(responseString);

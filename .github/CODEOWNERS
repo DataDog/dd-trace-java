@@ -45,17 +45,20 @@
 /internal-api/src/test/groovy/datadog/trace/api/sampling        @DataDog/apm-sdk-capabilities-java
 
 # @DataDog/apm-serverless
-/dd-trace-core/src/main/java/datadog/trace/lambda/              @DataDog/apm-serverless
-/dd-trace-core/src/test/groovy/datadog/trace/lambda/            @DataDog/apm-serverless
-**/InferredProxy*.java                                          @DataDog/apm-serverless
-**/InferredProxy*.groovy                                        @DataDog/apm-serverless
+/dd-java-agent/instrumentation/aws-java/aws-java-lambda-handler-1.2/    @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions/                         @DataDog/apm-serverless
+/dd-java-agent/instrumentation/azure-functions-1.2.2/                   @DataDog/apm-serverless
+/dd-trace-core/src/main/java/datadog/trace/lambda/                      @DataDog/apm-serverless
+/dd-trace-core/src/test/groovy/datadog/trace/lambda/                    @DataDog/apm-serverless
+/utils/container-utils/                                                 @DataDog/apm-serverless
+**/InferredProxy*.java                                                  @DataDog/apm-serverless
+**/InferredProxy*.groovy                                                @DataDog/apm-serverless
 
 # @DataDog/apm-lang-platform-java
-/.circleci/                             @DataDog/apm-lang-platform-java
 /.github/                               @DataDog/apm-lang-platform-java
 /benchmark/                             @DataDog/apm-lang-platform-java
 /components/                            @DataDog/apm-lang-platform-java
-/dd-java-agent/instrumentation/java-*/  @DataDog/apm-lang-platform-java
+/dd-java-agent/instrumentation/java/    @DataDog/apm-lang-platform-java
 /dd-smoke-tests/concurrent/             @DataDog/apm-lang-platform-java
 /dd-smoke-tests/lib-injection/          @DataDog/apm-lang-platform-java
 /metadata/                              @DataDog/apm-lang-platform-java
@@ -80,7 +83,7 @@
 /dd-smoke-tests/iast-propagation/                               @DataDog/asm-java
 /dd-smoke-tests/iast-util/                                      @DataDog/asm-java
 /dd-smoke-tests/spring-security/                                @DataDog/asm-java
-/dd-java-agent/instrumentation/commons-fileupload/              @DataDog/asm-java
+/dd-java-agent/instrumentation/commons-fileupload-1.5/          @DataDog/asm-java
 /dd-java-agent/instrumentation/spring/spring-security/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/aiguard/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
@@ -98,26 +101,26 @@
 **/*Waf*.java                                                   @DataDog/asm-java
 **/*Waf*.groovy                                                 @DataDog/asm-java
 
-# @DataDog/ci-app-libraries-java
-/dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/cucumber-5.4/        @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/karate/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/selenium/            @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle/              @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/gradle-testing/      @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/maven                @DataDog/ci-app-libraries-java
-/dd-java-agent/instrumentation/weaver-0.9/          @DataDog/ci-app-libraries-java
-/dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries-java
-/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries-java
-/dd-smoke-tests/maven/                              @DataDog/ci-app-libraries-java
-/internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries-java
-**/civisibility/                                    @DataDog/ci-app-libraries-java
-**/CiVisibility*.java                               @DataDog/ci-app-libraries-java
-**/CiVisibility*.groovy                             @DataDog/ci-app-libraries-java
+# @DataDog/ci-app-libraries
+/dd-java-agent/agent-ci-visibility/                 @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/cucumber-5.4/        @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/jacoco-0.8.9/        @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/junit                @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/karate-1.0/          @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/scalatest-3.0.8/     @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/selenium-3.13/       @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/testng/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/gradle/              @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/gradle-testing-5.1/  @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/maven                @DataDog/ci-app-libraries
+/dd-java-agent/instrumentation/weaver-0.9/          @DataDog/ci-app-libraries
+/dd-smoke-tests/gradle/                             @DataDog/ci-app-libraries
+/dd-smoke-tests/junit-console/                      @DataDog/ci-app-libraries
+/dd-smoke-tests/maven/                              @DataDog/ci-app-libraries
+/internal-api/src/main/java/datadog/trace/api/git/  @DataDog/ci-app-libraries
+**/civisibility/                                    @DataDog/ci-app-libraries
+**/CiVisibility*.java                               @DataDog/ci-app-libraries
+**/CiVisibility*.groovy                             @DataDog/ci-app-libraries
 
 # @DataDog/debugger-java (Live Debugger)
 /dd-java-agent/agent-debugger/                                  @DataDog/debugger-java
@@ -130,24 +133,24 @@
 /dd-java-agent/instrumentation/spark/           @DataDog/data-jobs-monitoring
 
 # @DataDog/data-streams-monitoring
-/dd-java-agent/testing/src/main/groovy/datadog/trace/agent/test/datastreams  @DataDog/data-streams-monitoring
-/dd-trace-core/src/main/java/datadog/trace/core/datastreams                  @DataDog/data-streams-monitoring
-/dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                @DataDog/data-streams-monitoring
-/internal-api/src/main/java/datadog/trace/api/datastreams                    @DataDog/data-streams-monitoring
-/dd-smoke-tests/datastreams/                                                 @DataDog/data-streams-monitoring
-/internal-api/src/test/groovy/datadog/trace/api/datastreams                  @DataDog/data-streams-monitoring
-**/datastreams/                                                              @DataDog/data-streams-monitoring
-**/DataStreams*                                                              @DataDog/data-streams-monitoring
-**/dsmTest/**                                                                @DataDog/data-streams-monitoring
+/dd-java-agent/instrumentation-testing/src/main/groovy/datadog/trace/agent/test/datastreams @DataDog/data-streams-monitoring
+/dd-trace-core/src/main/java/datadog/trace/core/datastreams                                 @DataDog/data-streams-monitoring
+/dd-trace-core/src/test/groovy/datadog/trace/core/datastreams                               @DataDog/data-streams-monitoring
+/internal-api/src/main/java/datadog/trace/api/datastreams                                   @DataDog/data-streams-monitoring
+/dd-smoke-tests/datastreams/                                                                @DataDog/data-streams-monitoring
+/internal-api/src/test/groovy/datadog/trace/api/datastreams                                 @DataDog/data-streams-monitoring
+**/datastreams/                                                                             @DataDog/data-streams-monitoring
+**/DataStreams*                                                                             @DataDog/data-streams-monitoring
+**/dsmTest/**                                                                               @DataDog/data-streams-monitoring
 
 /dd-java-agent/instrumentation/armeria/armeria-grpc-0.84/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/avro/                            @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/avro-1.11.3/                     @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/aws-java/aws-java-sns-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/aws-java/aws-java-sns-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/aws-java/aws-java-sqs-1.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/aws-java/aws-java-sqs-2.0/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/confluent-schema-registry/       @DataDog/data-streams-monitoring @DataDog/apm-idm-java
-/dd-java-agent/instrumentation/google-pubsub/                   @DataDog/data-streams-monitoring @DataDog/apm-idm-java
+/dd-java-agent/instrumentation/google-pubsub-1.116/             @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/grpc-1.5/                        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/kafka/kafka-clients-0.11/        @DataDog/data-streams-monitoring @DataDog/apm-idm-java
 /dd-java-agent/instrumentation/kafka/kafka-clients-3.8/         @DataDog/data-streams-monitoring @DataDog/apm-idm-java
@@ -183,10 +186,12 @@
 /dd-trace-core/src/test/groovy/datadog/trace/llmobs/  @DataDog/ml-observability
 
 # @DataDog/database-monitoring
-datadog/trace/bootstrap/instrumentation/dbm  @DataDog/database-monitoring @DataDog/apm-idm-java
+/dd-java-agent/agent-bootstrap/src/main/java/datadog/trace/bootstrap/instrumentation/dbm/   @DataDog/database-monitoring @DataDog/apm-idm-java
+/dd-java-agent/agent-bootstrap/src/test/groovy/datadog/trace/bootstrap/instrumentation/dbm/ @DataDog/database-monitoring @DataDog/apm-idm-java
 
 # @DataDog/rum
 /internal-api/src/main/java/datadog/trace/api/rum/   @DataDog/rum
 /internal-api/src/test/groovy/datadog/trace/api/rum/ @DataDog/rum
+/dd-smoke-tests/rum/                                 @DataDog/rum
 /telemetry/src/main/java/datadog/telemetry/rum/      @DataDog/rum
 /telemetry/src/test/groovy/datadog/telemetry/rum/    @DataDog/rum

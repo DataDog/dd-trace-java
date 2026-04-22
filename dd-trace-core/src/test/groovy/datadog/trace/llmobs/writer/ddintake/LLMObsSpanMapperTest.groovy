@@ -4,6 +4,7 @@ import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.trace.api.DDTags
 import datadog.trace.api.llmobs.LLMObs
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -27,7 +28,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
 
     // Create a real LLMObs span using the tracer
-    def llmSpan = tracer.buildSpan("chat-completion")
+    def llmSpan = tracer.buildSpan("openai.request")
+      .withResourceName("createCompletion")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-4")
       .withTag("_ml_obs_tag.model_provider", "openai")
@@ -38,17 +40,42 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
 
-    def inputMessages = [LLMObs.LLMMessage.from("user", "Hello, what's the weather like?")]
+    def toolCall = LLMObs.ToolCall.from("get_weather", "function_call", "call_123", [location: "San Francisco"])
+    def toolResult = LLMObs.ToolResult.from("get_weather", "function_call_output", "call_123", '{"temperature":"72F"}')
+    def inputMessages = [
+      LLMObs.LLMMessage.from("user", "Hello, what's the weather like?"),
+      LLMObs.LLMMessage.from("assistant", null, [toolCall], [toolResult])
+    ]
     def outputMessages = [LLMObs.LLMMessage.from("assistant", "I'll help you check the weather.")]
-    llmSpan.setTag("_ml_obs_tag.input", inputMessages)
+    llmSpan.setTag("_ml_obs_tag.input", [
+      messages: inputMessages,
+      prompt: [
+        id: "prompt_123",
+        version: "1",
+        variables: [city: "San Francisco"],
+        chat_template: [[role: "user", content: "Hello, what's the weather like in {{city}}?"]]
+      ]
+    ])
     llmSpan.setTag("_ml_obs_tag.output", outputMessages)
     llmSpan.setTag("_ml_obs_tag.metadata", [temperature: 0.7, max_tokens: 100])
+    llmSpan.setTag("_ml_obs_tag.tool_definitions", [
+      [
+        name: "get_weather",
+        description: "Get weather by city",
+        schema: [type: "object", properties: [city: [type: "string"]]]
+      ]
+    ])
+    llmSpan.setError(true)
+    llmSpan.setTag(DDTags.ERROR_MSG, "boom")
+    llmSpan.setTag(DDTags.ERROR_TYPE, "java.lang.IllegalStateException")
+    llmSpan.setTag(DDTags.ERROR_STACK, "stacktrace")
 
     llmSpan.finish()
 
     def trace = [llmSpan]
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+    // Keep all formatted spans in a single flush for this assertion.
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
 
     when:
     packer.format(trace, mapper)
@@ -95,17 +122,51 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     result["spans"].size() == 1
 
     def spanData = result["spans"][0]
-    spanData["name"] == "chat-completion"
+    spanData["name"] == "OpenAI.createCompletion"
     spanData.containsKey("span_id")
     spanData.containsKey("trace_id")
     spanData.containsKey("start_ns")
     spanData.containsKey("duration")
-    spanData["error"] == 0
+    spanData.containsKey("_dd")
+    spanData["_dd"]["span_id"] == spanData["span_id"]
+    spanData["_dd"]["trace_id"] == spanData["trace_id"]
+    spanData["_dd"]["apm_trace_id"] == spanData["trace_id"]
 
     spanData.containsKey("meta")
     spanData["meta"]["span.kind"] == "llm"
-    spanData["meta"].containsKey("input.messages")
-    spanData["meta"].containsKey("output.messages")
+    spanData["meta"].containsKey("error")
+    spanData["meta"]["error"]["message"] == "boom"
+    spanData["meta"]["error"]["type"] == "java.lang.IllegalStateException"
+    spanData["meta"]["error"]["stack"] == "stacktrace"
+    spanData["meta"].containsKey("input")
+    spanData["meta"]["input"].containsKey("messages")
+    spanData["meta"]["input"]["messages"][0].containsKey("content")
+    spanData["meta"]["input"]["messages"][0]["content"] == "Hello, what's the weather like?"
+    spanData["meta"]["input"]["messages"][0].containsKey("role")
+    spanData["meta"]["input"]["messages"][0]["role"] == "user"
+    spanData["meta"]["input"]["messages"][1]["role"] == "assistant"
+    !spanData["meta"]["input"]["messages"][1].containsKey("content")
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["name"] == "get_weather"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["type"] == "function_call"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["tool_id"] == "call_123"
+    spanData["meta"]["input"]["messages"][1]["tool_calls"][0]["arguments"] == [location: "San Francisco"]
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["name"] == "get_weather"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["type"] == "function_call_output"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["tool_id"] == "call_123"
+    spanData["meta"]["input"]["messages"][1]["tool_results"][0]["result"] == '{"temperature":"72F"}'
+    spanData["meta"]["input"]["prompt"]["id"] == "prompt_123"
+    spanData["meta"]["input"]["prompt"]["version"] == "1"
+    spanData["meta"]["input"]["prompt"]["variables"] == [city: "San Francisco"]
+    spanData["meta"]["input"]["prompt"]["chat_template"] == [[role: "user", content: "Hello, what's the weather like in {{city}}?"]]
+    spanData["meta"].containsKey("output")
+    spanData["meta"]["output"].containsKey("messages")
+    spanData["meta"]["output"]["messages"][0].containsKey("content")
+    spanData["meta"]["output"]["messages"][0]["content"] == "I'll help you check the weather."
+    spanData["meta"]["output"]["messages"][0].containsKey("role")
+    spanData["meta"]["output"]["messages"][0]["role"] == "assistant"
+    spanData["meta"]["tool_definitions"][0]["name"] == "get_weather"
+    spanData["meta"]["tool_definitions"][0]["description"] == "Get weather by city"
+    spanData["meta"]["tool_definitions"][0]["schema"] == [type: "object", properties: [city: [type: "string"]]]
     spanData["meta"].containsKey("metadata")
 
     spanData.containsKey("metrics")
@@ -137,7 +198,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     def trace = [regularSpan1, regularSpan2]
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+    // Keep all formatted spans in a single flush for this assertion.
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
 
     when:
     packer.format(trace, mapper)
@@ -181,7 +243,8 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     def trace1 = [llmSpan1, llmSpan2]
     def trace2 = [llmSpan3]
     CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
-    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(1024, sink))
+    // Keep all formatted spans in a single flush for this assertion.
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
 
     when:
     packer.format(trace1, mapper)

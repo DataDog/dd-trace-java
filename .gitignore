@@ -50,12 +50,17 @@ out/
 ##########
 .cursor
 
+# Claude Code local custom settings #
+#####################################
+.claude/*.local.*
+
 # Vim #
 #######
 *.sw[nop]
 
 # Others #
 ##########
+/dumps
 /logs/*
 /bin
 /out

@@ -158,7 +158,11 @@ public class SymbolAggregator {
     while (!jarsToScanQueue.isEmpty()) {
       String jarPath = jarsToScanQueue.poll();
       LOGGER.debug("Scanning queued jar: {}", jarPath);
-      scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      try {
+        scanJar(SymDBReport.NO_OP, Paths.get(jarPath), baos, buffer);
+      } catch (Exception ex) {
+        LOGGER.debug("Failed to scan jar {}", jarPath, ex);
+      }
     }
   }
 
@@ -281,6 +285,8 @@ public class SymbolAggregator {
       parseClass(symDBReport, jarEntry.getName(), baos.toByteArray(), jarPath.toString());
     } catch (IOException ex) {
       symDBReport.addIOException(jarPath.toString(), ex);
+      LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
+    } catch (Exception ex) {
       LOGGER.debug("Exception during parsing jarEntry class: {}", jarEntry.getName(), ex);
     }
   }

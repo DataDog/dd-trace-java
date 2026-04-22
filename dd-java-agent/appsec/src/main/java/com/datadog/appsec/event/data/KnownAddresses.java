@@ -141,6 +141,9 @@ public interface KnownAddresses {
   /** The representation of opened file on the filesystem */
   Address<String> IO_FS_FILE = new Address<>("server.io.fs.file");
 
+  /** The representation of a file being written on the filesystem */
+  Address<String> IO_FS_FILE_WRITE = new Address<>("server.io.fs.file_write");
+
   /** The database type (ex: mysql, postgresql, sqlite) */
   Address<String> DB_TYPE = new Address<>("server.db.system");
 
@@ -240,6 +243,8 @@ public interface KnownAddresses {
         return IO_NET_RESPONSE_BODY;
       case "server.io.fs.file":
         return IO_FS_FILE;
+      case "server.io.fs.file_write":
+        return IO_FS_FILE_WRITE;
       case "server.db.system":
         return DB_TYPE;
       case "server.db.statement":

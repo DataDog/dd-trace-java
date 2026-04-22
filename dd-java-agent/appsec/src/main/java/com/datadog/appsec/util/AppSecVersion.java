@@ -1,5 +1,7 @@
 package com.datadog.appsec.util;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.environment.SystemProperties;
 import java.io.BufferedReader;
 import java.io.InputStreamReader;
@@ -18,7 +20,7 @@ public class AppSecVersion {
     try (final BufferedReader br =
         new BufferedReader(
             new InputStreamReader(
-                AppSecVersion.class.getResourceAsStream("/appsec.version"), "UTF-8"))) {
+                AppSecVersion.class.getResourceAsStream("/appsec.version"), UTF_8))) {
       final StringBuilder sb = new StringBuilder();
 
       for (int c = br.read(); c != -1; c = br.read()) {

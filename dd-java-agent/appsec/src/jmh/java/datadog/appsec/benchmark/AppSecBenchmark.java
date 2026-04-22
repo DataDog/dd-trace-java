@@ -7,7 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;

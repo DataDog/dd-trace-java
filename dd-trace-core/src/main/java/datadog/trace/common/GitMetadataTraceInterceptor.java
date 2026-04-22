@@ -1,6 +1,5 @@
 package datadog.trace.common;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.api.interceptor.AbstractTraceInterceptor;
@@ -30,8 +29,7 @@ public class GitMetadataTraceInterceptor extends AbstractTraceInterceptor {
     String ciWorkspacePath = (String) firstSpan.getTag(Tags.CI_WORKSPACE_PATH);
 
     GitInfo gitInfo = GitInfoProvider.INSTANCE.getGitInfo(ciWorkspacePath);
-    firstSpan.setTag(DDTags.INTERNAL_GIT_REPOSITORY_URL, gitInfo.getRepositoryURL());
-    firstSpan.setTag(DDTags.INTERNAL_GIT_COMMIT_SHA, gitInfo.getCommit().getSha());
+    gitInfo.addTags(firstSpan);
 
     return trace;
   }

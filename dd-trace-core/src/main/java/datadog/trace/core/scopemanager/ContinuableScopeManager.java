@@ -1,6 +1,7 @@
 package datadog.trace.core.scopemanager;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_ASYNC_PROPAGATING;
+import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopSpan;
 import static datadog.trace.core.scopemanager.ContinuableScope.CONTEXT;
@@ -14,6 +15,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.context.Context;
 import datadog.context.ContextManager;
 import datadog.context.ContextScope;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.scopemanager.ExtendedScopeListener;
@@ -25,7 +27,6 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.Iterator;
 import java.util.List;
@@ -57,6 +58,8 @@ public final class ContinuableScopeManager implements ContextManager {
   private final int depthLimit;
   final HealthMetrics healthMetrics;
   private final ProfilingContextIntegration profilingContextIntegration;
+  private final boolean profilingEnabled;
+  private final boolean hasDepthLimit;
 
   /**
    * Constructor with NOOP Profiling and HealthMetrics implementations.
@@ -80,12 +83,15 @@ public final class ContinuableScopeManager implements ContextManager {
       final ProfilingContextIntegration profilingContextIntegration,
       final HealthMetrics healthMetrics) {
     this.depthLimit = depthLimit == 0 ? Integer.MAX_VALUE : depthLimit;
+    this.hasDepthLimit = this.depthLimit < Integer.MAX_VALUE;
     this.strictMode = strictMode;
     this.scopeListeners = new CopyOnWriteArrayList<>();
     this.extendedScopeListeners = new CopyOnWriteArrayList<>();
     this.healthMetrics = healthMetrics;
     this.tlsScopeStack = new ScopeStackThreadLocal(profilingContextIntegration);
     this.profilingContextIntegration = profilingContextIntegration;
+    this.profilingEnabled =
+        !(profilingContextIntegration instanceof ProfilingContextIntegration.NoOp);
 
     ContextManager.register(this);
   }
@@ -134,11 +140,13 @@ public final class ContinuableScopeManager implements ContextManager {
     }
 
     // DQH - This check could go before the check above, since depth limit checking is fast
-    final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
-      healthMetrics.onScopeStackOverflow();
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+    if (hasDepthLimit) {
+      final int currentDepth = scopeStack.depth();
+      if (depthLimit <= currentDepth) {
+        healthMetrics.onScopeStackOverflow();
+        log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+        return noopScope();
+      }
     }
 
     assert span != null;
@@ -169,11 +177,13 @@ public final class ContinuableScopeManager implements ContextManager {
     }
 
     // DQH - This check could go before the check above, since depth limit checking is fast
-    final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
-      healthMetrics.onScopeStackOverflow();
-      log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
-      return noopScope();
+    if (hasDepthLimit) {
+      final int currentDepth = scopeStack.depth();
+      if (depthLimit <= currentDepth) {
+        healthMetrics.onScopeStackOverflow();
+        log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
+        return noopScope();
+      }
     }
 
     assert context != null;
@@ -248,6 +258,13 @@ public final class ContinuableScopeManager implements ContextManager {
       if (finishSpan && span != null) {
         span.finishWithEndToEnd();
       }
+    } else if (top != null) {
+      log.debug(
+          SEND_TELEMETRY,
+          "Scope found at top of stack has source {} when we expect {}. Current span at the top of the stack {}.",
+          top.source(),
+          ITERATION,
+          top.span());
     }
   }
 
@@ -255,7 +272,7 @@ public final class ContinuableScopeManager implements ContextManager {
     ScopeStack scopeStack = scopeStack();
 
     final int currentDepth = scopeStack.depth();
-    if (depthLimit <= currentDepth) {
+    if (hasDepthLimit && depthLimit <= currentDepth) {
       healthMetrics.onScopeStackOverflow();
       log.debug("Scope depth limit exceeded ({}).  Returning NoopScope.", currentDepth);
       return noopScope();
@@ -333,6 +350,9 @@ public final class ContinuableScopeManager implements ContextManager {
   }
 
   private Stateful createScopeState(Context context) {
+    if (!profilingEnabled) {
+      return Stateful.DEFAULT;
+    }
     // currently this just manages things the profiler has to do per scope, but could be expanded
     // to encapsulate other scope lifecycle activities
     // FIXME DDSpanContext is always a ProfilerContext anyway...

@@ -25,6 +25,12 @@ public interface DataStreamsCheckpointer {
   void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier);
 
   /**
+   * @param transactionId Transaction ID to track.
+   * @param checkpointName Unique checkpoint name.
+   */
+  void trackTransaction(String transactionId, String checkpointName);
+
+  /**
    * @param type The type of the checkpoint, usually the streaming technology being used. Examples:
    *     kafka, kinesis, sns etc.
    * @param target The destination to which the data is being sent. For instance: topic, exchange or
@@ -45,5 +51,8 @@ public interface DataStreamsCheckpointer {
     @Override
     public void setProduceCheckpoint(
         String type, String target, DataStreamsContextCarrier carrier) {}
+
+    @Override
+    public void trackTransaction(String transactionId, String checkpointName) {}
   }
 }

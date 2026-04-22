@@ -1,12 +1,12 @@
 package datadog.trace.agent.test.assertions;
 
 import static java.util.function.Function.identity;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.core.DDSpan;
 import java.util.Comparator;
 import java.util.List;
 import java.util.function.Function;
-import org.opentest4j.AssertionFailedError;
 
 /**
  * This class is a helper class to verify traces structure.
@@ -87,11 +87,19 @@ public final class TraceAssertions {
     int traceCount = traces.size();
     if (opts.ignoredAdditionalTraces) {
       if (traceCount < expectedTraceCount) {
-        throw new AssertionFailedError("Not enough of traces", expectedTraceCount, traceCount);
+        assertionFailure()
+            .message("Not enough of traces")
+            .expected(expectedTraceCount)
+            .actual(traceCount)
+            .buildAndThrow();
       }
     } else {
       if (traceCount != expectedTraceCount) {
-        throw new AssertionFailedError("Invalid number of traces", expectedTraceCount, traceCount);
+        assertionFailure()
+            .message("Invalid number of traces")
+            .expected(expectedTraceCount)
+            .actual(traceCount)
+            .buildAndThrow();
       }
     }
     if (opts.sorter != null) {

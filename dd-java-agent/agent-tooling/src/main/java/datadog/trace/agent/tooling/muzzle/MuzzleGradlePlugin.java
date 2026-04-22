@@ -17,7 +17,7 @@ import net.bytebuddy.dynamic.DynamicType;
 /**
  * Byte-Buddy gradle plugin which creates muzzle-references at compile time.
  *
- * @see "buildSrc/src/main/groovy/InstrumentPlugin.groovy"
+ * @see datadog.gradle.plugin.instrument.BuildTimeInstrumentationPlugin
  */
 public class MuzzleGradlePlugin extends Plugin.ForElementMatcher {
   static {

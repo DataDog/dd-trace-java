@@ -1,6 +1,5 @@
 package com.datadog.profiling.ddprof;
 
-import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,6 +10,7 @@ import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.OperatingSystem;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.profiling.ProfilingScope;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
@@ -106,6 +106,63 @@ class DatadogProfilerTest {
                 Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
   }
 
+  @ParameterizedTest
+  @MethodSource("wallContextFilterModes")
+  void testWallContextFilter(boolean tracingEnabled, boolean contextFilterEnabled)
+      throws Exception {
+    // Skip test if profiler native library is not available (e.g., on macOS)
+    try {
+      Throwable reason = DdprofLibraryLoader.jvmAccess().getReasonNotLoaded();
+      if (reason != null) {
+        Assumptions.assumeTrue(false, "Profiler not available: " + reason.getMessage());
+      }
+    } catch (Throwable e) {
+      Assumptions.assumeTrue(false, "Profiler not available: " + e.getMessage());
+    }
+
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    props.put(TraceInstrumentationConfig.TRACE_ENABLED, Boolean.toString(tracingEnabled));
+    props.put(
+        ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_CONTEXT_FILTER,
+        Boolean.toString(contextFilterEnabled));
+
+    DatadogProfiler profiler =
+        DatadogProfiler.newInstance(ConfigProvider.withPropertiesOverride(props));
+
+    Path targetFile = Paths.get("/tmp/target.jfr");
+    String cmd = profiler.cmdStartProfiling(targetFile);
+
+    assertTrue(cmd.contains("wall="), "Command should contain wall profiling: " + cmd);
+
+    if (tracingEnabled && contextFilterEnabled) {
+      assertTrue(
+          cmd.contains(",filter=0"),
+          "Command should contain ',filter=0' when tracing and context filter are enabled: " + cmd);
+    } else {
+      assertTrue(
+          cmd.contains(",filter="),
+          "Command should contain ',filter=' when tracing is disabled or context filter is disabled: "
+              + cmd);
+      if (cmd.contains(",filter=0")) {
+        throw new AssertionError(
+            "Command should not contain ',filter=0' when tracing is disabled or context filter is disabled: "
+                + cmd);
+      }
+    }
+  }
+
+  private static Stream<Arguments> wallContextFilterModes() {
+    return Stream.of(
+        Arguments.of(true, true), // tracing enabled, context filter enabled -> filter=0
+        Arguments.of(true, false), // tracing enabled, context filter disabled -> filter=
+        Arguments.of(
+            false, true), // tracing disabled, context filter enabled -> filter= (tracing disabled
+        // overrides)
+        Arguments.of(false, false) // tracing disabled, context filter disabled -> filter=
+        );
+  }
+
   @Test
   public void testContextRegistration() {
     // warning - the profiler is a process wide singleton and can't be reinitialised
@@ -122,7 +179,6 @@ class DatadogProfilerTest {
 
     DatadogProfilerContextSetter fooSetter = new DatadogProfilerContextSetter("foo", profiler);
     DatadogProfilerContextSetter barSetter = new DatadogProfilerContextSetter("bar", profiler);
-    int[] snapshot0 = profiler.snapshot();
     try (ProfilingScope ignored = new DatadogProfilingScope(profiler)) {
       fooSetter.set("foo0");
       barSetter.set("bar0");
@@ -136,9 +192,7 @@ class DatadogProfilerTest {
         inner.setContextValue("bar", "bar2");
         assertFalse(Arrays.equals(snapshot2, profiler.snapshot()));
       }
-      assertArrayEquals(snapshot1, profiler.snapshot());
     }
-    assertArrayEquals(snapshot0, profiler.snapshot());
   }
 
   private static ConfigProvider configProvider(

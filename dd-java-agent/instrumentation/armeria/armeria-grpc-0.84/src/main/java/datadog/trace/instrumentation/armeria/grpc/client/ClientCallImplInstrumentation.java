@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.armeria.grpc.client;
 
-import static datadog.context.Context.current;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
@@ -15,10 +15,12 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.grpc.ClientCall;
 import io.grpc.Metadata;
 import io.grpc.MethodDescriptor;
@@ -43,7 +45,10 @@ public final class ClientCallImplInstrumentation
     transformer.applyAdvice(
         isConstructor().and(takesArgument(2, named("io.grpc.MethodDescriptor"))),
         getClass().getName() + "$CaptureCallPos2");
-    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvices(
+        named("start").and(isMethod()),
+        getClass().getName() + "$Start",
+        getClass().getName() + "$StartContextPropagationAdvice");
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
         named("request")
@@ -95,7 +100,6 @@ public final class ClientCallImplInstrumentation
       if (null != responseListener && null != headers) {
         span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
         if (null != span) {
-          DECORATE.injectContext(current().with(span), headers, SETTER);
           return activateSpan(span);
         }
       }
@@ -117,6 +121,14 @@ public final class ClientCallImplInstrumentation
         span.finish();
         throw error;
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class StartContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(@Advice.Argument(1) Metadata headers) {
+      DECORATE.injectContext(Java8BytecodeBridge.getCurrentContext(), headers, SETTER);
     }
   }
 

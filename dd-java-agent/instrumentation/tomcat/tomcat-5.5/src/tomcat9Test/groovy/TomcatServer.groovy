@@ -90,7 +90,7 @@ class TomcatServer implements WebsocketServer {
     synchronized (WsEndpoint) {
       try {
         while (WsEndpoint.activeSession == null) {
-          WsEndpoint.wait()
+          WsEndpoint.wait(1000)
         }
       } catch (InterruptedException _) {
         Thread.currentThread().interrupt()

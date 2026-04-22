@@ -13,6 +13,8 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -54,7 +56,6 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extends ServerDecorator {
 
   private static final Logger log = LoggerFactory.getLogger(HttpServerDecorator.class);
-  private static final int UNSET_PORT = 0;
 
   public static final String DD_CONTEXT_ATTRIBUTE = "datadog.context";
   public static final String DD_DISPATCH_SPAN_ATTRIBUTE = "datadog.span.dispatch";
@@ -79,6 +80,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   private final boolean traceClientIpResolverEnabled =
       Config.get().isTraceClientIpResolverEnabled();
 
+  private final String primaryInstrumentationName;
+
+  protected HttpServerDecorator() {
+    String[] instrumentationNames = instrumentationNames();
+    this.primaryInstrumentationName =
+        instrumentationNames != null && instrumentationNames.length > 0
+            ? instrumentationNames[0]
+            : DEFAULT_INSTRUMENTATION_NAME;
+  }
+
+  protected final String primaryInstrumentationName() {
+    return primaryInstrumentationName;
+  }
+
   protected abstract AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter();
 
   protected abstract AgentPropagation.ContextVisitor<RESPONSE> responseGetter();
@@ -94,6 +109,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   protected abstract int peerPort(CONNECTION connection);
 
   protected abstract int status(RESPONSE response);
+
+  protected String getRequestHeader(REQUEST request, String key) {
+    // This method was not marked as abstract in order to avoid changing all server instrumentation
+    // at once.
+    // Instead, only ones required (by DSM specifically) have it implemented.
+    // This can change in the future.
+    return null;
+  }
 
   protected String requestedSessionId(REQUEST request) {
     return null;
@@ -143,11 +166,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
-    String[] instrumentationNames = instrumentationNames();
-    String instrumentationName =
-        instrumentationNames != null && instrumentationNames.length > 0
-            ? instrumentationNames[0]
-            : DEFAULT_INSTRUMENTATION_NAME;
+    String instrumentationName = primaryInstrumentationName();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
     extracted = callIGCallbackStart(extracted);
@@ -155,6 +174,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     extracted = startInferredProxySpan(parentContext, extracted);
     AgentSpan span =
         tracer().startSpan(instrumentationName, spanName(), extracted).setMeasured(true);
+    // Register service-entry span with inferred proxy span (if present) so that premature
+    // finish calls from child spans (e.g., Spring MVC handler) are deferred until the
+    // service-entry span finishes (after the response status is known).
+    registerServiceEntrySpanInInferredProxy(parentContext, span);
+    // Reset service name inherited from inferred proxy parent: the inferred span uses the
+    // gateway domain name as service name, but the service-entry span should identify
+    // the application (configured DD_SERVICE), not the upstream gateway.
+    resetServiceNameIfUnderInferredProxy(parentContext, span);
     // Apply RequestBlockingAction if any
     Flow<Void> flow = callIGCallbackRequestHeaders(span, carrier);
     if (flow.getAction() instanceof RequestBlockingAction) {
@@ -173,6 +200,30 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     return span.start(extracted);
   }
+
+  private void registerServiceEntrySpanInInferredProxy(
+      Context parentContext, AgentSpan serviceEntrySpan) {
+    InferredProxySpan inferredProxy = InferredProxySpan.fromContext(parentContext);
+    if (inferredProxy != null) {
+      inferredProxy.registerServiceEntrySpan(serviceEntrySpan);
+    }
+  }
+
+  private void resetServiceNameIfUnderInferredProxy(Context parentContext, AgentSpan span) {
+    if (InferredProxySpan.fromContext(parentContext) != null) {
+      span.setServiceName(Config.get().getServiceName());
+    }
+  }
+
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
 
   public AgentSpan onRequest(
       final AgentSpan span,
@@ -326,6 +377,13 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
 
+    AgentTracer.get()
+        .getDataStreamsMonitoring()
+        .trackTransaction(
+            span,
+            DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS,
+            request,
+            DSM_TRANSACTION_SOURCE_READER);
     return span;
   }
 
@@ -550,16 +608,24 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   protected void finishInferredProxySpan(Context context) {
-    InferredProxySpan span;
-    if ((span = InferredProxySpan.fromContext(context)) != null) {
-      span.finish();
+    InferredProxySpan inferredProxySpan;
+    if ((inferredProxySpan = InferredProxySpan.fromContext(context)) != null) {
+      inferredProxySpan.finish(AgentSpan.fromContext(context));
     }
   }
 
   private void onRequestEndForInstrumentationGateway(@Nonnull final AgentSpan span) {
-    if (span.getLocalRootSpan() != span) {
+    AgentSpan localRoot = span.getLocalRootSpan();
+
+    // Check if the local root is an inferred proxy span
+    boolean hasInferredProxyParent =
+        localRoot != span && localRoot.getTag("_dd.inferred_span") != null;
+
+    // Only proceed if this is the root span OR if we have an inferred proxy parent
+    if (localRoot != span && !hasInferredProxyParent) {
       return;
     }
+
     CallbackProvider cbp = tracer().getUniversalCallbackProvider();
     RequestContext requestContext = span.getRequestContext();
     if (cbp != null && requestContext != null) {

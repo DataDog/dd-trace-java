@@ -66,7 +66,7 @@ abstract class CiVisibilityTestUtils {
 
   // ignored tags on assertion and fixture build
   static final List<String> IGNORED_TAGS = LibraryCapability.values().toList().stream().map(c -> "content.meta.['${c.asTag()}']").collect(Collectors.toList()) +
-  ["content.meta.['_dd.integration']"]
+  ["content.meta.['_dd.integration']", "content.meta.['_dd.svc_src']"]
 
   static final List<DynamicPath> COVERAGE_DYNAMIC_PATHS = [path("test_session_id"), path("test_suite_id"), path("span_id"),]
 

@@ -1,29 +1,62 @@
 package datadog.crashtracking.dto;
 
+import com.squareup.moshi.Json;
 import java.util.Objects;
 
 public class SigInfo {
-  public final int number;
+  @Json(name = "si_signo")
+  public final Integer number;
+
+  @Json(name = "si_code")
+  public final Integer code;
+
+  @Json(name = "si_signo_human_readable")
   public final String name;
+
+  @Json(name = "si_code_human_readable")
+  public final String action;
+
+  @Json(name = "si_addr")
   public final String address;
 
-  public SigInfo(int number, String name, String address) {
+  @Json(name = "si_pid")
+  public final Integer pid;
+
+  @Json(name = "si_uid")
+  public final Integer uid;
+
+  public SigInfo(
+      Integer number,
+      String name,
+      Integer code,
+      String action,
+      String address,
+      Integer pid,
+      Integer uid) {
     this.number = number;
     this.name = name;
     this.address = address;
+    this.code = code;
+    this.action = action;
+    this.pid = pid;
+    this.uid = uid;
   }
 
   @Override
   public boolean equals(Object o) {
     if (!(o instanceof SigInfo)) return false;
     SigInfo sigInfo = (SigInfo) o;
-    return number == sigInfo.number
+    return Objects.equals(number, sigInfo.number)
         && Objects.equals(name, sigInfo.name)
-        && Objects.equals(address, sigInfo.address);
+        && Objects.equals(address, sigInfo.address)
+        && Objects.equals(code, sigInfo.code)
+        && Objects.equals(action, sigInfo.action)
+        && Objects.equals(pid, sigInfo.pid)
+        && Objects.equals(uid, sigInfo.uid);
   }
 
   @Override
   public int hashCode() {
-    return Objects.hash(number, name, address);
+    return Objects.hash(number, name, address, code, action, pid, uid);
   }
 }

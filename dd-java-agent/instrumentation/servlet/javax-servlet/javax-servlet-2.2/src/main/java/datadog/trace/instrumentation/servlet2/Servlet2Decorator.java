@@ -70,6 +70,11 @@ public class Servlet2Decorator
   }
 
   @Override
+  protected String getRequestHeader(final HttpServletRequest request, String key) {
+    return request.getHeader(key);
+  }
+
+  @Override
   protected int status(final Integer status) {
     return status;
   }
