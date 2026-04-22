@@ -22,10 +22,7 @@ dependencies {
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
   testImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '2.0.0'
-  // `tyrus 2.3.0-M1` pulls `grizzly 5.0.0`, whose POM imports a missing `grizzly-bom 5.0.0-SNAPSHOT`.
-  // See issue: https://github.com/eclipse-ee4j/glassfish-grizzly/issues/2278
-  // This fix must be revisited once correct version of `grizzly-bom` will be released.
-  latestDepTestImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '2.2.+'
+  latestDepTestImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '+'
 }
 
 tasks.named('latestDepTest', Test) {
