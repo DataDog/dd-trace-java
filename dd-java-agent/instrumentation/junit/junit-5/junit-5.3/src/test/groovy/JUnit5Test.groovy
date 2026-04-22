@@ -30,6 +30,7 @@ import org.example.TestSkipped
 import org.example.TestSkippedClass
 import org.example.TestSkippedNested
 import org.example.TestSucceed
+import org.example.TestSucceedAndFieldInitResource
 import org.example.TestSucceedAndSkipped
 import org.example.TestSucceedExpectedException
 import org.example.TestSucceedNested
@@ -112,6 +113,20 @@ class JUnit5Test extends CiVisibilityInstrumentationTest {
     "test-itr-unskippable"                       | [TestSucceedUnskippable]      | [new TestIdentifier("org.example.TestSucceedUnskippable", "test_succeed", null)]
     "test-itr-unskippable-suite"                 | [TestSucceedUnskippableSuite] | [new TestIdentifier("org.example.TestSucceedUnskippableSuite", "test_succeed", null)]
     "test-itr-unskippable-not-skipped"           | [TestSucceedUnskippable]      | []
+  }
+
+  def "test ITR does not construct skipped test class"() {
+    given:
+    TestSucceedAndFieldInitResource.CONSTRUCTOR_INVOCATIONS.set(0)
+    givenSkippableTests([
+      new TestIdentifier("org.example.TestSucceedAndFieldInitResource", "test_skippable", null)
+    ])
+
+    when:
+    runTests([TestSucceedAndFieldInitResource])
+
+    then:
+    TestSucceedAndFieldInitResource.CONSTRUCTOR_INVOCATIONS.get() == 1
   }
 
   def "test flaky retries #testcaseName"() {
