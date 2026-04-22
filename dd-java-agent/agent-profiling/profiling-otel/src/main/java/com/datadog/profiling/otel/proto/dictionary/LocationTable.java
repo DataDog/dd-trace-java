@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Location deduplication table for OTLP profiles. Index 0 is reserved for the null/unset location.
@@ -19,6 +18,7 @@ public final class LocationTable {
     final int functionIndex;
     final long line;
     final long column;
+    private final int hash;
 
     LocationKey(int mappingIndex, long address, int functionIndex, long line, long column) {
       this.mappingIndex = mappingIndex;
@@ -26,6 +26,12 @@ public final class LocationTable {
       this.functionIndex = functionIndex;
       this.line = line;
       this.column = column;
+      int h = mappingIndex;
+      h = 31 * h + Long.hashCode(address);
+      h = 31 * h + functionIndex;
+      h = 31 * h + Long.hashCode(line);
+      h = 31 * h + Long.hashCode(column);
+      this.hash = h;
     }
 
     @Override
@@ -42,7 +48,7 @@ public final class LocationTable {
 
     @Override
     public int hashCode() {
-      return Objects.hash(mappingIndex, address, functionIndex, line, column);
+      return hash;
     }
   }
 

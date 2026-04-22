@@ -20,7 +20,9 @@ import com.datadog.profiling.otel.proto.dictionary.StringTable;
 import datadog.json.JsonWriter;
 import datadog.trace.api.profiling.RecordingData;
 import io.jafar.parser.api.Control;
+import io.jafar.parser.api.ParsingContext;
 import io.jafar.parser.api.TypedJafarParser;
+import io.jafar.parser.impl.ParsingContextImpl;
 import java.io.IOException;
 import java.io.InputStream;
 import java.nio.file.Files;
@@ -117,6 +119,8 @@ public final class JfrToOtlpConverter {
   private final List<SampleData> lockSamples = new ArrayList<>();
 
   private final Set<PathEntry> pathEntries = new HashSet<>();
+  private final ProtobufEncoder protoEncoder = new ProtobufEncoder(64 * 1024);
+  private final ParsingContext parsingContext = new ParsingContextImpl();
 
   // Profile metadata
   private long startTimeNanos;
@@ -346,7 +350,7 @@ public final class JfrToOtlpConverter {
   }
 
   private void parseJfrEvents(Path jfrFile) throws IOException {
-    try (TypedJafarParser parser = TypedJafarParser.open(jfrFile)) {
+    try (TypedJafarParser parser = TypedJafarParser.open(jfrFile, parsingContext)) {
       // Register handlers for each event type
       parser.handle(ExecutionSample.class, this::handleExecutionSample);
       parser.handle(MethodSample.class, this::handleMethodSample);
@@ -564,7 +568,8 @@ public final class JfrToOtlpConverter {
   }
 
   private byte[] encodeProfilesData() throws IOException {
-    ProtobufEncoder encoder = new ProtobufEncoder(64 * 1024);
+    ProtobufEncoder encoder = protoEncoder;
+    encoder.reset();
 
     // ProfilesData message
     // Field 1: resource_profiles (repeated)
