@@ -216,40 +216,145 @@ public final class AgentBootstrap {
     return false;
   }
 
-  private static boolean isJdkTool() {
+  /**
+   * Returns {@code true} if the JVM is running a JDK diagnostic/development tool rather than a user
+   * application, in which case the agent should abort early.
+   *
+   * <p><b>How to discover new entries when a tool is missed:</b>
+   *
+   * <ol>
+   *   <li>Build a minimal javaagent JAR whose {@code premain} prints {@code
+   *       System.getProperty("jdk.module.main")} and {@code System.getProperty("sun.java.command")}
+   *       then calls {@code System.exit(0)}.
+   *   <li>For <b>JDK 9+ tools</b>, inject it via {@code JAVA_TOOL_OPTIONS}:
+   *       <pre>JAVA_TOOL_OPTIONS="-javaagent:/path/to/agent.jar" $JAVA_HOME/bin/&lt;tool&gt;</pre>
+   *       The value of {@code jdk.module.main} is the module name to add to the first switch.
+   *   <li>For <b>JDK 8 tools</b> (or non-modular IBM/OpenJ9 tools), inject the same way; the value
+   *       of {@code sun.java.command} (up to the first space) is the main-class name to add to the
+   *       second switch.
+   * </ol>
+   *
+   * <p>Native binaries (e.g. {@code jitserver}, {@code asprof}) report both properties as {@code
+   * null} and are automatically ignored — no switch entry needed for them.
+   */
+  static boolean isJdkTool() {
     String moduleMain = SystemProperties.get("jdk.module.main");
-    if (null != moduleMain && !moduleMain.isEmpty() && moduleMain.charAt(0) == 'j') {
-      switch (moduleMain) {
-        case "java.base": // keytool
-        case "java.corba":
-        case "java.desktop":
-        case "java.rmi":
-        case "java.scripting":
-        case "java.security.jgss":
-        case "jdk.aot":
-        case "jdk.compiler":
-        case "jdk.dev":
-        case "jdk.hotspot.agent":
-        case "jdk.httpserver":
-        case "jdk.jartool":
-        case "jdk.javadoc":
-        case "jdk.jcmd":
-        case "jdk.jconsole":
-        case "jdk.jdeps":
-        case "jdk.jdi":
-        case "jdk.jfr":
-        case "jdk.jlink":
-        case "jdk.jpackage":
-        case "jdk.jshell":
-        case "jdk.jstatd":
-        case "jdk.jvmstat.rmi":
-        case "jdk.pack":
-        case "jdk.pack200":
-        case "jdk.policytool":
-        case "jdk.rmic":
-        case "jdk.scripting.nashorn.shell":
-        case "jdk.xml.bind":
-        case "jdk.xml.ws":
+    if (null != moduleMain && !moduleMain.isEmpty()) {
+      char firstChar = moduleMain.charAt(0);
+      if (firstChar == 'j') {
+        // Standard JDK 9+ module-based tools (module names start with 'java.' or 'jdk.')
+        switch (moduleMain) {
+          case "java.base": // keytool
+          case "java.corba":
+          case "java.desktop":
+          case "java.rmi":
+          case "java.scripting":
+          case "java.security.jgss":
+          case "jdk.aot":
+          case "jdk.compiler":
+          case "jdk.dev":
+          case "jdk.hotspot.agent":
+          case "jdk.httpserver":
+          case "jdk.jartool":
+          case "jdk.javadoc":
+          case "jdk.jcmd":
+          case "jdk.jconsole":
+          case "jdk.jdeps":
+          case "jdk.jdi":
+          case "jdk.jfr":
+          case "jdk.jlink":
+          case "jdk.jpackage":
+          case "jdk.jshell":
+          case "jdk.jstatd":
+          case "jdk.jvmstat.rmi":
+          case "jdk.pack":
+          case "jdk.pack200":
+          case "jdk.policytool":
+          case "jdk.rmic":
+          case "jdk.scripting.nashorn.shell":
+          case "jdk.xml.bind":
+          case "jdk.xml.ws":
+            return true;
+        }
+      } else if (firstChar == 'o') {
+        // OpenJ9 / Semeru 11+ module-based tools (module names start with 'openj9.')
+        switch (moduleMain) {
+          case "openj9.dtfj": // jextract, jpackcore
+          case "openj9.dtfjview": // jdmpview
+          case "openj9.traceformat": // traceformat
+            return true;
+        }
+      }
+    }
+    // Handles JDK 8 tools (IBM J9 and standard JDK 8 vendors)
+    // jdk.module.main is only set for JDK 9+ module-based tools (already handled above)
+    String command = SystemProperties.get("sun.java.command");
+    if (null != command && !command.isEmpty()) {
+      // substring on first space
+      int firstSpace = command.indexOf(' ');
+      String mainClass = firstSpace > 0 ? command.substring(0, firstSpace) : command;
+      switch (mainClass) {
+        // IBM J9 JDK 8 specific tool main classes
+        case "com.ibm.crypto.tools.KeyTool": // keytool
+        case "com.ibm.security.krb5.internal.tools.Kinit": // kinit
+        case "com.ibm.security.krb5.internal.tools.Klist": // klist
+        case "com.ibm.security.krb5.internal.tools.Ktab": // ktab
+        case "com.ibm.jvm.dtfjview.DTFJView": // jdmpview
+        case "com.ibm.jvm.j9.dump.extract.Main": // jextract
+        case "com.ibm.gsk.ikeyman.Ikeyman": // ikeyman
+        case "com.ibm.gsk.ikeyman.ikeycmd": // ikeycmd
+        case "com.ibm.CosNaming.TransientNameServer": // tnameserv
+        case "com.ibm.idl.toJavaPortable.Compile": // idlj
+        // OpenJ9 / Semeru 8 specific tool main classes (OpenJ9 reimplementation of HotSpot tools)
+        case "openj9.tools.attach.diagnostics.tools.Jcmd": // jcmd
+        case "openj9.tools.attach.diagnostics.tools.Jps": // jps
+        case "openj9.tools.attach.diagnostics.tools.Jstat": // jstat
+        case "openj9.tools.attach.diagnostics.tools.Jmap": // jmap
+        case "openj9.tools.attach.diagnostics.tools.Jstack": // jstack
+        case "com.ibm.jvm.TraceFormat": // traceformat
+        // Standard JDK 8 tool main classes (shared by IBM J9 and Oracle/OpenJDK 8)
+        case "sun.tools.jar.Main": // jar
+        case "com.sun.tools.javac.Main": // javac
+        case "com.sun.tools.javadoc.Main": // javadoc
+        case "com.sun.tools.javap.Main": // javap
+        case "com.sun.tools.javah.Main": // javah
+        case "sun.security.tools.keytool.Main": // keytool (Oracle/OpenJDK 8)
+        case "sun.security.tools.jarsigner.Main": // jarsigner
+        case "sun.security.tools.policytool.PolicyTool": // policytool
+        case "com.sun.tools.example.debug.tty.TTY": // jdb
+        case "com.sun.tools.jdeps.Main": // jdeps
+        case "sun.rmi.rmic.Main": // rmic
+        case "sun.rmi.registry.RegistryImpl": // rmiregistry
+        case "sun.rmi.server.Activation": // rmid
+        case "com.sun.tools.extcheck.Main": // extcheck
+        case "sun.tools.serialver.SerialVer": // serialver
+        case "sun.tools.native2ascii.Main": // native2ascii
+        case "com.sun.tools.internal.ws.WsGen": // wsgen
+        case "com.sun.tools.internal.ws.WsImport": // wsimport
+        case "com.sun.tools.internal.xjc.Driver": // xjc
+        case "com.sun.tools.internal.jxc.SchemaGenerator": // schemagen
+        case "com.sun.tools.script.shell.Main": // jrunscript
+        case "jdk.nashorn.tools.Shell": // jjs (Nashorn JS shell, JDK 8)
+        case "sun.tools.jconsole.JConsole": // jconsole
+        case "sun.applet.Main": // appletviewer
+        case "com.sun.corba.se.impl.naming.cosnaming.TransientNameServer": // tnameserv
+        // (Oracle/OpenJDK 8)
+        case "com.sun.tools.corba.se.idl.toJavaPortable.Compile": // idlj (Oracle/OpenJDK 8)
+        case "com.sun.corba.se.impl.activation.ORBD": // orbd
+        case "com.sun.corba.se.impl.activation.ServerTool": // servertool
+        case "sun.tools.jps.Jps": // jps
+        case "sun.tools.jstack.JStack": // jstack
+        case "sun.tools.jmap.JMap": // jmap
+        case "sun.tools.jinfo.JInfo": // jinfo
+        case "com.sun.tools.hat.Main": // jhat
+        case "sun.tools.jstat.Jstat": // jstat
+        case "sun.tools.jstatd.Jstatd": // jstatd
+        case "sun.tools.jcmd.JCmd": // jcmd
+        case "jdk.jfr.internal.tool.Main": // jfr, backported to OpenJDK 8 in 8u262 (JEP 328
+        // backport, July 2020)
+        case "sun.jvm.hotspot.jdi.SADebugServer": // jsadebugd
+        case "sun.jvm.hotspot.HSDB": // hsdb (HotSpot SA GUI debugger, JDK 8)
+        case "sun.jvm.hotspot.CLHSDB": // clhsdb (HotSpot SA command-line debugger, JDK 8)
           return true;
       }
     }

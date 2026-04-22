@@ -47,7 +47,6 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
-  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;

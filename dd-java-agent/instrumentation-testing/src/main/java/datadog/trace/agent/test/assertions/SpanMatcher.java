@@ -10,6 +10,7 @@ import static datadog.trace.agent.test.assertions.Matchers.matches;
 import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.core.DDSpanAccessor.spanLinks;
 import static java.time.Duration.ofNanos;
+import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
@@ -322,7 +323,7 @@ public final class SpanMatcher {
           if (matcher == null) {
             uncheckedTagNames.add(key);
           } else {
-            assertValue(matcher, value, "Unexpected " + key + " tag value.");
+            assertValue(matcher, value, "Unexpected " + key + " tag value");
           }
         });
     // Remove matchers that accept missing tags
@@ -344,10 +345,18 @@ public final class SpanMatcher {
    * It might evolve into partial link collection testing, matching links using TID/SIP.
    */
   private void assertSpanLinks(List<AgentSpanLink> links) {
+    // Check if links should be asserted at all
+    if (this.linkMatchers == null) {
+      return;
+    }
     int linkCount = links == null ? 0 : links.size();
-    int expectedLinkCount = this.linkMatchers == null ? 0 : this.linkMatchers.length;
+    int expectedLinkCount = this.linkMatchers.length;
     if (linkCount != expectedLinkCount) {
-      throw new AssertionFailedError("Unexpected span link count", expectedLinkCount, linkCount);
+      assertionFailure()
+          .message("Unexpected span link count")
+          .expected(expectedLinkCount)
+          .actual(linkCount)
+          .buildAndThrow();
     }
     for (int i = 0; i < expectedLinkCount; i++) {
       SpanLinkMatcher linkMatcher = this.linkMatchers[expectedLinkCount];
