@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 
 /**
  * Function deduplication table for OTLP profiles. Index 0 is reserved for the null/unset function.
@@ -18,12 +17,18 @@ public final class FunctionTable {
     final int systemNameIndex;
     final int filenameIndex;
     final long startLine;
+    private final int hash;
 
     FunctionKey(int nameIndex, int systemNameIndex, int filenameIndex, long startLine) {
       this.nameIndex = nameIndex;
       this.systemNameIndex = systemNameIndex;
       this.filenameIndex = filenameIndex;
       this.startLine = startLine;
+      int h = nameIndex;
+      h = 31 * h + systemNameIndex;
+      h = 31 * h + filenameIndex;
+      h = 31 * h + Long.hashCode(startLine);
+      this.hash = h;
     }
 
     @Override
@@ -39,7 +44,7 @@ public final class FunctionTable {
 
     @Override
     public int hashCode() {
-      return Objects.hash(nameIndex, systemNameIndex, filenameIndex, startLine);
+      return hash;
     }
   }
 
