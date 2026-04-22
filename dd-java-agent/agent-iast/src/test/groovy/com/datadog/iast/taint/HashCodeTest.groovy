@@ -1,6 +1,7 @@
 package com.datadog.iast.taint
 
 import datadog.trace.test.util.DDSpecification
+import groovy.transform.CompileStatic
 import spock.lang.IgnoreIf
 import spock.lang.Shared
 
@@ -51,6 +52,7 @@ class HashCodeTest extends DDSpecification {
     }
   }
 
+  @CompileStatic
   private static List<Integer> genHashCodes(final int n) {
     (1..n).collect {
       System.identityHashCode(Double.toString(Math.random()))

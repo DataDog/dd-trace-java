@@ -65,7 +65,6 @@ dependencies {
 
 configurations.named("testRuntimeOnly") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
-  exclude group: 'org.codehaus.groovy', module: 'groovy-servlet'
 }
 configurations.named("webappRuntimeClasspath") {
   exclude group: 'ch.qos.logback', module: 'logback-classic'
