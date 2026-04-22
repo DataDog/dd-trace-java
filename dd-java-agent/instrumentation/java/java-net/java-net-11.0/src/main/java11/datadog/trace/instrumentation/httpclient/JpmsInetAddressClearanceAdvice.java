@@ -14,8 +14,6 @@ public class JpmsInetAddressClearanceAdvice {
       // The code of this advice is inlined into the constructor of InetAddress (java.base),
       // so it will work. Moving the same call to a helper class won't.
       InetAddress.class.getModule().addOpens("java.net", HostNameResolver.class.getModule());
-      // Now that java.net is open for deep reflection, initialize the HostNameResolver handles
-      HostNameResolver.tryInitialize();
     }
   }
 }

@@ -18,6 +18,8 @@ class JpmsInetAddressForkedTest extends InstrumentationSpecification {
    */
   def "instrumentation opens java.net so hostname is resolved correctly when IP is shared"() {
     given:
+    // emulate an early initialisation
+    HostNameResolver.hostName(null, "192.0.2.1")
     def ip = [192, 0, 2, 1] as byte[]  // TEST-NET, will never appear in real DNS cache
     def addr1 = InetAddress.getByAddress("service1.example.com", ip)
     // Warm the IP→hostname cache with service1's hostname

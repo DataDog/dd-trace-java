@@ -7,47 +7,41 @@ import java.lang.invoke.MethodHandle;
 import java.net.InetAddress;
 
 public final class HostNameResolver {
-  private static volatile MethodHandle HOLDER_GET;
-  private static volatile MethodHandle HOSTNAME_GET;
+  private static final MethodHandle HOLDER_GET;
+  private static final MethodHandle HOSTNAME_GET;
 
   private static final DDCache<String, String> HOSTNAME_CACHE = DDCaches.newFixedSizeCache(64);
 
-  private HostNameResolver() {}
+  static {
+    MethodHandle holderTmp = null, hostnameTmp = null;
+    try {
+      final ClassLoader cl = HostNameResolver.class.getClassLoader();
+      final MethodHandles methodHandles = new MethodHandles(cl);
+      // forces the JPMS opener for this class to get executed
+      InetAddress.getLocalHost();
 
-  public static void tryInitialize() {
-    if (HOLDER_GET != null) {
-      return; // fast path: already initialized
-    }
-    synchronized (HostNameResolver.class) {
-      if (HOLDER_GET != null) {
-        return; // double-check: another thread just succeeded
+      final Class<?> holderClass =
+          Class.forName("java.net.InetAddress$InetAddressHolder", false, cl);
+      holderTmp = methodHandles.method(InetAddress.class, "holder");
+      if (holderTmp != null) {
+        hostnameTmp = methodHandles.method(holderClass, "getHostName");
       }
-      MethodHandle holderTmp = null, hostnameTmp = null;
-      try {
-        final ClassLoader cl = HostNameResolver.class.getClassLoader();
-        final MethodHandles methodHandles = new MethodHandles(cl);
-
-        final Class<?> holderClass =
-            Class.forName("java.net.InetAddress$InetAddressHolder", false, cl);
-        holderTmp = methodHandles.method(InetAddress.class, "holder");
-        if (holderTmp != null) {
-          hostnameTmp = methodHandles.method(holderClass, "getHostName");
-        }
-      } catch (Throwable ignored) {
-        holderTmp = null;
-      }
-      // volatile writes ensure visibility to other threads
+    } catch (Throwable ignored) {
+      holderTmp = null;
+    } finally {
       if (holderTmp != null && hostnameTmp != null) {
+        HOLDER_GET = holderTmp;
         HOSTNAME_GET = hostnameTmp;
-        HOLDER_GET = holderTmp; // written last: signals successful initialization
+      } else {
+        HOLDER_GET = null;
+        HOSTNAME_GET = null;
       }
     }
   }
 
+  private HostNameResolver() {}
+
   static String getAlreadyResolvedHostName(InetAddress address) {
-    if (HOLDER_GET == null) {
-      tryInitialize();
-    }
     if (HOLDER_GET == null) {
       return null;
     }
@@ -67,6 +61,9 @@ public final class HostNameResolver {
   }
 
   public static String hostName(InetAddress address, String ip) {
+    if (address == null) {
+      return null;
+    }
     final String alreadyResolved = getAlreadyResolvedHostName(address);
     if (alreadyResolved != null) {
       return alreadyResolved;
