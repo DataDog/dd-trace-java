@@ -75,11 +75,11 @@ public final class CrashUploaderScriptInitializer {
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, false);
-      scriptDirectory.setWritable(true, false);
-      if (!scriptDirectory.setReadable(true, false)
-          || !scriptDirectory.setWritable(true, false)
-          || !scriptDirectory.setExecutable(true, false)) {
+      boolean permissionFailure = false;
+      permissionFailure |= !scriptDirectory.setReadable(true, false);
+      permissionFailure |= !scriptDirectory.setWritable(true, false);
+      permissionFailure |= !scriptDirectory.setExecutable(true, false);
+      if (permissionFailure) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to set permissions on crash tracking script folder {}. {}",
