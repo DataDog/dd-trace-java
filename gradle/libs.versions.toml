@@ -38,7 +38,7 @@ jmh = "1.37"
 
 # Profiling
 jmc = "9.1.1"
-jafar = "0.21.1"
+jafar = "0.21.3"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
