@@ -63,7 +63,7 @@ public abstract class AbstractBenchmark<C extends AbstractBenchmark.BenchmarkCon
     if (Config.get().getIastActivation() == ProductActivation.FULLY_ENABLED) {
       tagContext.withRequestContextDataIast(context.getIastContext());
     }
-    span = AgentTracer.startSpan("benchmark", tagContext);
+    span = AgentTracer.startSpan("iast", "benchmark", tagContext);
     scope = AgentTracer.activateSpan(span);
   }
 

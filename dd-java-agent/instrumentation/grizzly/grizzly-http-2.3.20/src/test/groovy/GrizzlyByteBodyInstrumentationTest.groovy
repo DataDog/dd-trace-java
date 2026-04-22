@@ -40,7 +40,7 @@ class GrizzlyByteBodyInstrumentationTest extends InstrumentationSpecification {
     1 * attributeHolder.setAttribute('datadog.intercepted_request_body', Boolean.TRUE)
 
     TagContext ctx = new TagContext().withRequestContextDataAppSec(new Object())
-    def agentSpan = AgentTracer.startSpan('test-span', ctx)
+    def agentSpan = AgentTracer.startSpan('test', 'test-span', ctx)
     this.scope = AgentTracer.activateSpan(agentSpan)
 
     ss.registerCallback(EVENTS.requestBodyStart(), { RequestContext reqContext, StoredBodySupplier sup ->

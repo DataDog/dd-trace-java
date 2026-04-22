@@ -143,7 +143,7 @@ class AxisEngineTest extends InstrumentationSpecification {
 
   def "test send"() {
     when:
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       def message1 = testMessage()
@@ -170,7 +170,7 @@ class AxisEngineTest extends InstrumentationSpecification {
     when:
     def message = testMessage()
     message.setProperty(TRIGGER_PAUSE, true)
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       AxisEngine.send(message)
@@ -201,7 +201,7 @@ class AxisEngineTest extends InstrumentationSpecification {
     when:
     def message = testMessage()
     message.setProperty(TRIGGER_FAIL, true)
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       try {
@@ -224,7 +224,7 @@ class AxisEngineTest extends InstrumentationSpecification {
 
   def "test sendFault"() {
     when:
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     def faultMessage = createFaultMessageContext(testMessage(), new Exception('internal error'))
     activateSpan(span0).withCloseable {
@@ -243,7 +243,7 @@ class AxisEngineTest extends InstrumentationSpecification {
 
   def "test receive"() {
     when:
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       def message1 = testMessage()
@@ -271,7 +271,7 @@ class AxisEngineTest extends InstrumentationSpecification {
     injectSysConfig("trace.axis.promote.resource-name", "true")
     when:
     // emulates AxisServlet behaviour
-    AgentSpan span0 = startSpan("servlet.request")
+    AgentSpan span0 = startSpan("test", "servlet.request")
     span0.setServiceName("testSpan")
     span0.setResourceName("POST /some/context/services/TestService")
     activateSpan(span0).withCloseable {
@@ -306,7 +306,7 @@ class AxisEngineTest extends InstrumentationSpecification {
     when:
     def message = testMessage()
     message.setProperty(TRIGGER_PAUSE, true)
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       AxisEngine.receive(message)
@@ -337,7 +337,7 @@ class AxisEngineTest extends InstrumentationSpecification {
     when:
     def message = testMessage()
     message.setProperty(TRIGGER_FAIL, true)
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       try {
