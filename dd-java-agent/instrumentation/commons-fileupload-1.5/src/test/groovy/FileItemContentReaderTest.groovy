@@ -2,7 +2,7 @@ import datadog.trace.instrumentation.commons.fileupload.FileItemContentReader
 import org.apache.commons.fileupload.FileItem
 import spock.lang.Specification
 
-class CommonsFileUploadAppSecModuleTest extends Specification {
+class FileItemContentReaderTest extends Specification {
 
   void 'readContent truncates at MAX_CONTENT_BYTES'() {
     given:
@@ -41,10 +41,7 @@ class CommonsFileUploadAppSecModuleTest extends Specification {
 
   void 'readContents returns content for each non-form file with a name'() {
     given:
-    def items = [
-      fileItem('content-a', 'file-a.txt'),
-      fileItem('content-b', 'file-b.txt'),
-    ]
+    def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
 
     when:
     def result = FileItemContentReader.readContents(items)
