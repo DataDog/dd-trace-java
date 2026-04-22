@@ -9,7 +9,6 @@ import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
 import org.gradle.wrapper.Download
 import org.gradle.wrapper.GradleUserHomeLookup
@@ -205,8 +204,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       def install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir))
 
       def configuration = new WrapperConfiguration()
-      def distribution = new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion))
-      configuration.setDistribution(distribution)
+      configuration.setDistribution(new URI("https://services.gradle.org/distributions/gradle-${gradleVersion}-bin.zip"))
       configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
 
       // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA

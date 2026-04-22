@@ -11,7 +11,7 @@ rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 apply from: "$sharedConfigDirectory/repositories.gradle"
 
 if (hasProperty('appBuildDir')) {
-  buildDir = property('appBuildDir')
+  layout.buildDirectory.set(file(property('appBuildDir') as String))
 }
 
 version = ""

@@ -1,5 +1,5 @@
 plugins {
-  id 'com.google.protobuf' version '0.9.4'
+  id 'com.google.protobuf' version '0.9.5'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -32,12 +32,4 @@ protobuf {
 dependencies {
   compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
-}
-
-sourceSets {
-  test {
-    java {
-      srcDir layout.buildDirectory.dir("generated/source/proto/test/java").get().asFile
-    }
-  }
 }

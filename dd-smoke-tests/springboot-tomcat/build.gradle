@@ -2,8 +2,11 @@ import org.springframework.boot.gradle.tasks.bundling.BootWar
 
 plugins {
   id 'war'
-  id 'org.springframework.boot' version '2.5.12'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
 }
+
+ext['spring-boot.version'] = '2.5.12'
 
 ext {
   serverName = 'tomcat'
@@ -43,6 +46,9 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
+def serverInstallDir = layout.buildDirectory.dir("server")
+def tomcatDir = serverInstallDir.map { it.dir("apache-${serverName}-${serverVersion}") }
+
 tasks.register("unzip", Copy) {
   def zipFileNamePrefix = "tomcat"
   def serverZipTree = providers.provider {
@@ -57,7 +63,7 @@ tasks.register("unzip", Copy) {
   }
 
   from serverZipTree
-  into layout.buildDirectory
+  into serverInstallDir
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
@@ -79,10 +85,6 @@ tasks.named('javadocJar') {
 }
 
 tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
   dependsOn 'unzip'
 }
 
@@ -119,7 +121,7 @@ tasks.withType(Test).configureEach {
         def bootWarTask = tasks.named('bootWar', BootWar).get()
         return [
           "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
-          "-Ddatadog.smoketest.tomcatDir=${layout.buildDirectory.get()}/apache-${serverName}-${serverVersion}"
+          "-Ddatadog.smoketest.tomcatDir=${tomcatDir.get().asFile}"
         ]
       }
     })

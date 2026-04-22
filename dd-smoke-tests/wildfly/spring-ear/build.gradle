@@ -11,7 +11,7 @@ apply from: "$sharedConfigDirectory/repositories.gradle"
 apply plugin: 'ear'
 
 if (hasProperty('appBuildDir')) {
-  buildDir = property('appBuildDir')
+  layout.buildDirectory.set(file(property('appBuildDir') as String))
 }
 
 version = ""

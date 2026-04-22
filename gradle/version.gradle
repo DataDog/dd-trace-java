@@ -12,12 +12,13 @@ abstract class WriteVersionNumberFile extends DefaultTask {
     // Set conventions (defaults)
     this.version.convention(project.provider { project.version.toString() })
     this.gitHash.convention(project.provider {
-      def stdout = new ByteArrayOutputStream()
-      project.exec {
-        commandLine 'git', 'rev-parse', '--short', 'HEAD'
-        standardOutput = stdout
-      }
-      return stdout.toString().trim()
+      new ProcessBuilder('git', 'rev-parse', '--short', 'HEAD')
+        .redirectErrorStream(true)
+        .start()
+        .with { process ->
+          process.waitFor()
+          process.inputStream.text.trim()
+        }
     })
     this.outputDirectory.convention(project.layout.buildDirectory.dir("generated/version"))
   }

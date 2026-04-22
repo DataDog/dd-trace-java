@@ -3,3 +3,11 @@
 // To ensure compatibility the versions are set explicitly here.
 ext['junit-jupiter.version'] = libs.versions.junit5.get()
 ext['junit-platform.version'] = libs.versions.junit.platform.get()
+
+if (project.ext.has('spring-boot.version')) {
+  dependencyManagement {
+    imports {
+      mavenBom "org.springframework.boot:spring-boot-dependencies:${project.ext['spring-boot.version']}"
+    }
+  }
+}
