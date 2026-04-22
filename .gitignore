@@ -93,3 +93,4 @@ mise*.local.toml
 
 # Exclude kotlin build files
 .kotlin
+.worktrees/
