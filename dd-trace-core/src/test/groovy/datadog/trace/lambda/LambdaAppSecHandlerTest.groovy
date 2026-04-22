@@ -28,8 +28,12 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
   @Shared
   def originalAppSecActive
 
+  @Shared
+  AgentTracer.TracerAPI originalTracer
+
   def setupSpec() {
     originalAppSecActive = ActiveSubsystems.APPSEC_ACTIVE
+    originalTracer = AgentTracer.get()
   }
 
   def cleanupSpec() {
@@ -1438,7 +1442,6 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
   }
 
   def cleanup() {
-    // Reset tracer after each test
-    AgentTracer.forceRegister(null)
+    AgentTracer.forceRegister(originalTracer)
   }
 }
