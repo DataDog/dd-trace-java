@@ -88,6 +88,11 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBlocking() {
     true
   }

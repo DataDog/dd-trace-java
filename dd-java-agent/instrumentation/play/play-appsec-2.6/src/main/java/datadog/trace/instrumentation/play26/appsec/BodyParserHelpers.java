@@ -126,19 +126,22 @@ public class BodyParserHelpers {
       }
     }
 
-    Seq<?> files = data.files();
-    if (files != null && !files.isEmpty()) {
-      try {
-        handleMultipartFilenames(files);
-      } catch (Exception e) {
-        handleException(e, "Error handling multipartFormData filenames");
+    try {
+      // Use reflection to avoid a hard binary reference to files():Lscala/collection/Seq; —
+      // in Scala 2.13 (Play 2.7+) the return type became scala.collection.immutable.Seq,
+      // which would cause muzzle to disable the whole instrumentation for Play 2.7.
+      Object files = data.getClass().getMethod("files").invoke(data);
+      if (files instanceof scala.collection.Iterable) {
+        handleMultipartFilenames(((scala.collection.Iterable<?>) files).iterator());
       }
+    } catch (Exception e) {
+      handleException(e, "Error handling multipartFormData filenames");
     }
 
     return data;
   }
 
-  private static void handleMultipartFilenames(Seq<?> files) {
+  private static void handleMultipartFilenames(Iterator<?> iterator) {
     AgentSpan span = activeSpan();
     if (span == null) {
       return;
@@ -149,7 +152,6 @@ public class BodyParserHelpers {
     }
 
     List<String> filenames = new ArrayList<>();
-    Iterator<?> iterator = files.iterator();
     while (iterator.hasNext()) {
       MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
       String filename = part.filename();
