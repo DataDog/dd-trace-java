@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.httpclient
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason = "--illegal-access=deny is only enforced from java 16", value = {
+  !JavaVirtualMachine.isJavaVersionAtLeast(16)
+})
 class JpmsInetAddressDisabledForkedTest extends InstrumentationSpecification {
 
   @Override
