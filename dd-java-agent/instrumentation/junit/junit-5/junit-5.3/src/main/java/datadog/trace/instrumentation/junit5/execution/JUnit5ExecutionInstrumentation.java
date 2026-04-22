@@ -11,9 +11,11 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.agent.tooling.muzzle.ReferenceProvider;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
@@ -28,6 +30,7 @@ import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import org.junit.platform.engine.TestDescriptor;
+import org.junit.platform.engine.TestTag;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
 import org.junit.platform.engine.support.hierarchical.Node;
@@ -46,7 +49,9 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
 
   @Override
   public boolean isEnabled() {
-    return super.isEnabled() && Config.get().isCiVisibilityExecutionPoliciesEnabled();
+    return super.isEnabled()
+        && (Config.get().isCiVisibilityExecutionPoliciesEnabled()
+            || Config.get().isCiVisibilityTestSkippingEnabled());
   }
 
   @Override
@@ -146,6 +151,26 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
       TestIdentifier testIdentifier = TestDataFactory.createTestIdentifier(testDescriptor);
       TestSourceData testSource = TestDataFactory.createTestSourceData(testDescriptor);
       Collection<String> testTags = JUnitPlatformUtils.getTags(testDescriptor);
+
+      // skip before prepare() so the test-class instance is never constructed
+      SkipReason skipReason =
+          TestEventsHandlerHolder.HANDLERS.get(framework).skipReason(testIdentifier);
+      if (skipReason != null) {
+        boolean unskippable = false;
+        if (skipReason == SkipReason.ITR) {
+          for (TestTag tag : testDescriptor.getTags()) {
+            if (CIConstants.Tags.ITR_UNSKIPPABLE_TAG.equals(tag.getName())) {
+              unskippable = true;
+              break;
+            }
+          }
+        }
+        if (!unskippable) {
+          taskHandle.getListener().executionSkipped(testDescriptor, skipReason.getDescription());
+          return Boolean.TRUE;
+        }
+      }
+
       TestExecutionPolicy executionPolicy =
           TestEventsHandlerHolder.HANDLERS
               .get(framework)
