@@ -41,7 +41,7 @@ subprojects { Project subProj ->
     dependsOn agentTaskRef
 
     // Tests depend on this to know where to run things and what agent jar to use
-    jvmArgs "-Ddatadog.smoketest.builddir=${buildDir}"
+    jvmArgs "-Ddatadog.smoketest.builddir=${subProj.layout.buildDirectory.get().asFile}"
     jvmArgumentProviders.add(new CommandLineArgumentProvider() {
         @Override
         Iterable<String> asArguments() {

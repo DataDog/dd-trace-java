@@ -7,7 +7,7 @@ dependencies {
 
 def appDir = "$projectDir/application"
 def jarName = "demo-open-liberty-app.jar"
-def jarPath = "$buildDir/application/target/${jarName}"
+def jarPath = "${layout.buildDirectory.get().asFile}/application/target/${jarName}"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
@@ -19,7 +19,11 @@ tasks.register('mvnStage', Exec) {
     "JAVA_HOME": getLazyJavaHomeFor(8)
   ]
 
-  List<String> mvnArgs = ["$rootDir/${mvnwCommand}", "-Dtarget.dir=${buildDir}/application/target", "package"]
+  List<String> mvnArgs = [
+    "$rootDir/${mvnwCommand}",
+    "-Dtarget.dir=${layout.buildDirectory.get().asFile}/application/target",
+    "package"
+  ]
 
   // Specify caches folder on CI.
   if (providers.environmentVariable("CI").isPresent()) {

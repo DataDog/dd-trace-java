@@ -37,7 +37,7 @@ dependencies {
 sourceSets {
   test {
     java {
-      srcDir "$buildDir/generated/source/proto/test/java"
+      srcDir layout.buildDirectory.dir("generated/source/proto/test/java").get().asFile
     }
   }
 }

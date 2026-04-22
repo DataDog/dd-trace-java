@@ -34,7 +34,7 @@ tasks.withType(Test).configureEach {
     Directory specificJDKHome = metadata.installationPath
     def jlinkExecutable = specificJDKHome.file("bin/jlink")
     def jdkModulesPath = specificJDKHome.dir("jmods")
-    def generatedImageDir = "${buildDir}/${it.name}image"
+    def generatedImageDir = "${project.layout.buildDirectory.get().asFile}/${it.name}image"
 
     delete generatedImageDir
 

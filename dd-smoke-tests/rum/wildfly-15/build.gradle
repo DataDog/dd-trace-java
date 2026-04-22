@@ -50,7 +50,7 @@ dependencies {
 }
 
 def appDir = "$projectDir/rum-ear"
-def appBuildDir = "$buildDir/rm-ear"
+def appBuildDir = "${layout.buildDirectory.get().asFile}/rm-ear"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the quarkus project
@@ -118,7 +118,7 @@ tasks.withType(Jar).configureEach {
   dependsOn 'unzip'
 }
 
-def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
+def wildflyDir = "${layout.buildDirectory.get().asFile}/${serverName}-${serverVersion}"
 
 tasks.register("deploy", Copy) {
   dependsOn 'unzip'

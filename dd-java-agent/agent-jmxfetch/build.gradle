@@ -100,10 +100,10 @@ tasks.register('copyMetricConfigs', CopyMetricConfigsTask) {
   group = 'Build Setup'
   description = 'Copy metrics.yaml files from integrations-core into resources'
   inputDirectory = file("$projectDir/integrations-core")
-  outputDirectory = file("$buildDir/integrations-core-resources")
+  outputDirectory = layout.buildDirectory.dir("integrations-core-resources").get().asFile
 }
 
 tasks.named("processResources", ProcessResources) {
   dependsOn 'copyMetricConfigs'
-  from("$buildDir/integrations-core-resources")
+  from(layout.buildDirectory.dir("integrations-core-resources"))
 }

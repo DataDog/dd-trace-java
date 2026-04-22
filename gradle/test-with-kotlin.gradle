@@ -24,7 +24,7 @@ project.pluginManager.withPlugin('kotlin') {
     def dirsToCreate = ["classes/kotlin/main"]
     doFirst {
       dirsToCreate.forEach {
-        new File(project.buildDir, it).mkdirs()
+        new File(project.layout.buildDirectory.get().asFile, it).mkdirs()
       }
     }
 

@@ -4,7 +4,7 @@ def configureClassNameTrieTask(exec, sourceSetName) {
   def trieFiles = fileTree(dir: "src/${sourceSetName}/resources", include: '**/*.trie')
   def trieDir = trieFiles.dir.toPath()
 
-  def javaDir = buildDir.toPath().resolve("generated/sources/tries/java/${sourceSetName}")
+  def javaDir = project.layout.buildDirectory.get().asFile.toPath().resolve("generated/sources/tries/java/${sourceSetName}")
   sourceSets."$sourceSetName".java.srcDirs += [javaDir]
 
   // declare expected output path(s) so we can support incremental builds
