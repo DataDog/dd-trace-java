@@ -157,8 +157,11 @@ tasks.register<Exec>("validateOtlp") {
 
     // Run profcheck in Docker with volume mount
     commandLine(
-      "docker", "run", "--rm",
-      "-v", "$parentDir:/data:ro",
+      "docker",
+      "run",
+      "--rm",
+      "-v",
+      "$parentDir:/data:ro",
       "profcheck:latest",
       "/data/$fileName"
     )
