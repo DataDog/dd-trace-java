@@ -4,10 +4,16 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
+    ref: 'main'
 
 stages:
   - build
   - publish
+  # These benchmarks are intended to replace the legacy benchmarks in the future
+  - java-spring-petclinic-parallel
+  - java-spring-petclinic-parallel-slo
   - shared-pipeline
   - benchmarks
   - macrobenchmarks
@@ -406,7 +412,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+    - ./gradlew checkConfigurations
 
 test_published_artifacts:
   extends: .gradle_build

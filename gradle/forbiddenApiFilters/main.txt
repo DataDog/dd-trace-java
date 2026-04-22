@@ -7,6 +7,9 @@ java.lang.String#split(java.lang.String,int)
 java.lang.String#replaceAll(java.lang.String,java.lang.String)
 java.lang.String#replaceFirst(java.lang.String,java.lang.String)
 
+# uses the platform's default charset, which may not be UTF-8
+java.lang.String#getBytes()
+
 # can initialize java.util.logging when ACCP is installed, prefer RandomUtils instead
 java.util.UUID#randomUUID()
 

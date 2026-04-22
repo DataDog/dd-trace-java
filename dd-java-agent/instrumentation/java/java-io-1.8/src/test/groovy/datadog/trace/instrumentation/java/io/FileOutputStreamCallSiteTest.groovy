@@ -60,4 +60,30 @@ class FileOutputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     then:
     1 * helper.beforeFileWritten(path)
   }
+
+  void 'test RASP new file output stream with file'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final file = newFile('test_rasp_file_1.txt')
+
+    when:
+    TestFileOutputStreamSuite.newFileOutputStream(file)
+
+    then:
+    1 * helper.beforeFileWritten(file.path)
+  }
+
+  void 'test RASP new file output stream with file and append'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final file = newFile('test_rasp_file_2.txt')
+
+    when:
+    TestFileOutputStreamSuite.newFileOutputStream(file, false)
+
+    then:
+    1 * helper.beforeFileWritten(file.path)
+  }
 }
