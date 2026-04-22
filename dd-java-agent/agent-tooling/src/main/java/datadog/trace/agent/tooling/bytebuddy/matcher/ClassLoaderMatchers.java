@@ -54,6 +54,9 @@ public final class ClassLoaderMatchers {
       case "com.alibaba.fastjson.util.ASMClassLoader":
       case "datadog.trace.bootstrap.DatadogClassLoader":
       case "datadog.trace.bootstrap.InstrumentationClassLoader":
+      case "org.drools.core.common.ProjectClassLoader":
+      case "org.drools.core.common.ProjectClassLoader$IBMClassLoader":
+      case "org.drools.core.rule.JavaDialectRuntimeData$PackageClassLoader":
         return true;
     }
     if (CHECK_EXCLUDES) {
