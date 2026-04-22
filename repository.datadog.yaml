@@ -10,7 +10,6 @@ merge_method: squash
 gitlab_check_enable: true
 # Do not add merge queue status labels on the PR - they may cause race condition errors with existing label checks
 skip_labels: true
-gitlab_check_enable: true
 branches:
   master:
     allow_skip_checks: true
