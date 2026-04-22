@@ -32,4 +32,17 @@ class FileInputStreamCallSiteTest extends BaseIoRaspCallSiteTest {
     then:
     1 * helper.beforeFileLoaded(path)
   }
+
+  void 'test RASP new file input stream with file'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final file = newFile('test_rasp_file.txt')
+
+    when:
+    TestFileInputStreamSuite.newFileInputStream(file)
+
+    then:
+    1 * helper.beforeFileLoaded(file.path)
+  }
 }
