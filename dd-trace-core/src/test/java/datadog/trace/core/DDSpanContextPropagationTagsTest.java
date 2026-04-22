@@ -9,21 +9,20 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
-import java.util.HashMap;
+import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.tabletest.junit.TableTest;
+import org.tabletest.junit.TypeConverter;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(TableTestTypeConverters.class)
 public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
 
   private ListWriter writer;
@@ -35,8 +34,14 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     tracer = tracerBuilder().writer(writer).build();
   }
 
-  @ParameterizedTest()
-  @MethodSource("updateSpanPropagationTagsArguments")
+  @TableTest({
+    "scenario                        | priority     | header                              | newPriority  | newMechanism | newHeader                           | tagMap                                  ",
+    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.dm: -4, _dd.p.usr: 123]          ",
+    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                       | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.usr: 123]                        ",
+    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
+    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
+    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.usr: 123]                        "
+  })
   void updateSpanPropagationTags(
       String scenario,
       int priority,
@@ -61,53 +66,14 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     assertEquals(tagMap, dd.createTagMap());
   }
 
-  static Stream<Arguments> updateSpanPropagationTagsArguments() {
-    return Stream.of(
-        arguments(
-            "UNSET->USER_KEEP",
-            UNSET,
-            "_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "UNSET->SAMPLER_DROP",
-            UNSET,
-            "_dd.p.usr=123",
-            SAMPLER_DROP,
-            DEFAULT,
-            "_dd.p.usr=123",
-            buildMap("_dd.p.usr", "123")),
-        // decision has already been made, propagate as-is
-        arguments(
-            "SAMPLER_KEEP->USER_KEEP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "9bf3439f2f-1", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP->USER_DROP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            USER_DROP,
-            MANUAL,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "9bf3439f2f-1", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP->USER_KEEP no dm",
-            SAMPLER_KEEP,
-            "_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.usr=123",
-            buildMap("_dd.p.usr", "123")));
-  }
-
-  @ParameterizedTest
-  @MethodSource("updateTracePropagationTagsArguments")
+  @TableTest({
+    "scenario                        | priority     | header                              | newPriority  | newMechanism | rootHeader                          | rootTagMap                              ",
+    "UNSET->USER_KEEP                | UNSET        | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.dm=-4,_dd.p.usr=123           | [_dd.p.dm: -4, _dd.p.usr: 123]          ",
+    "UNSET->SAMPLER_DROP             | UNSET        | _dd.p.usr=123                       | SAMPLER_DROP | DEFAULT      | _dd.p.usr=123                       | [_dd.p.usr: 123]                        ",
+    "SAMPLER_KEEP->USER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_KEEP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
+    "SAMPLER_KEEP->USER_DROP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | USER_DROP    | MANUAL       | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | [_dd.p.dm: 9bf3439f2f-1, _dd.p.usr: 123]",
+    "SAMPLER_KEEP->USER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | USER_KEEP    | MANUAL       | _dd.p.usr=123                       | [_dd.p.usr: 123]                        "
+  })
   void updateTracePropagationTags(
       String scenario,
       int priority,
@@ -133,53 +99,12 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     assertEquals(rootTagMap, ddRoot.createTagMap());
   }
 
-  static Stream<Arguments> updateTracePropagationTagsArguments() {
-    return Stream.of(
-        arguments(
-            "UNSET->USER_KEEP",
-            UNSET,
-            "_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "UNSET->SAMPLER_DROP",
-            UNSET,
-            "_dd.p.usr=123",
-            SAMPLER_DROP,
-            DEFAULT,
-            "_dd.p.usr=123",
-            buildMap("_dd.p.usr", "123")),
-        // decision has already been made, propagate as-is
-        arguments(
-            "SAMPLER_KEEP->USER_KEEP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "9bf3439f2f-1", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP->USER_DROP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            USER_DROP,
-            MANUAL,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "9bf3439f2f-1", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP->USER_KEEP no dm",
-            SAMPLER_KEEP,
-            "_dd.p.usr=123",
-            USER_KEEP,
-            MANUAL,
-            "_dd.p.usr=123",
-            buildMap("_dd.p.usr", "123")));
-  }
-
-  @ParameterizedTest
-  @MethodSource("forceKeepSpanPropagationTagsArguments")
+  @TableTest({
+    "scenario             | priority     | header                              | newHeader                 | tagMap                        ",
+    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
+    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
+    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]"
+  })
   void forceKeepSpanPropagationTags(
       String scenario, int priority, String header, String newHeader, Map<String, String> tagMap) {
     PropagationTags propagationTags =
@@ -198,30 +123,12 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     assertEquals(tagMap, dd.createTagMap());
   }
 
-  static Stream<Arguments> forceKeepSpanPropagationTagsArguments() {
-    return Stream.of(
-        arguments(
-            "UNSET",
-            UNSET,
-            "_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP no dm",
-            SAMPLER_KEEP,
-            "_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")));
-  }
-
-  @ParameterizedTest
-  @MethodSource("forceKeepTracePropagationTagsArguments")
+  @TableTest({
+    "scenario             | priority     | header                              | newHeader                 | tagMap                        ",
+    "UNSET                | UNSET        | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
+    "SAMPLER_KEEP with dm | SAMPLER_KEEP | _dd.p.dm=9bf3439f2f-1,_dd.p.usr=123 | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]",
+    "SAMPLER_KEEP no dm   | SAMPLER_KEEP | _dd.p.usr=123                       | _dd.p.dm=-4,_dd.p.usr=123 | [_dd.p.dm: -4, _dd.p.usr: 123]"
+  })
   void forceKeepTracePropagationTags(
       String scenario,
       int priority,
@@ -245,33 +152,28 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     assertEquals(rootTagMap, ddRoot.createTagMap());
   }
 
-  static Stream<Arguments> forceKeepTracePropagationTagsArguments() {
-    return Stream.of(
-        arguments(
-            "UNSET",
-            UNSET,
-            "_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP with dm",
-            SAMPLER_KEEP,
-            "_dd.p.dm=9bf3439f2f-1,_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")),
-        arguments(
-            "SAMPLER_KEEP no dm",
-            SAMPLER_KEEP,
-            "_dd.p.usr=123",
-            "_dd.p.dm=-4,_dd.p.usr=123",
-            buildMap("_dd.p.dm", "-4", "_dd.p.usr", "123")));
-  }
-
-  private static Map<String, String> buildMap(String... keyValues) {
-    Map<String, String> map = new HashMap<>();
-    for (int i = 0; i < keyValues.length; i += 2) {
-      map.put(keyValues[i], keyValues[i + 1]);
+  @TypeConverter
+  public static int toInt(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null");
     }
-    return map;
+    switch (value) {
+      case "UNSET":
+        return UNSET;
+      case "SAMPLER_KEEP":
+        return SAMPLER_KEEP;
+      case "SAMPLER_DROP":
+        return SAMPLER_DROP;
+      case "USER_DROP":
+        return USER_DROP;
+      case "USER_KEEP":
+        return USER_KEEP;
+      case "MANUAL":
+        return MANUAL;
+      case "DEFAULT":
+        return DEFAULT;
+      default:
+        throw new IllegalArgumentException("Value is invalid for " + value);
+    }
   }
 }

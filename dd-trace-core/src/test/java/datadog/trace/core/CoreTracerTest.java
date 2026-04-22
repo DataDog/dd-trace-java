@@ -393,21 +393,25 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
     }
   }
 
+  static final String ACTION_JSON =
+      "'{\"action\": \"enable\", \"lib_config\":"
+          + "{\"tracing_sampling_rate\": null,"
+          + " \"log_injection_enabled\": null, "
+          + "\"tracing_header_tags\": null,"
+          + " \"runtime_metrics_enabled\": null,"
+          + "\"tracing_debug\": null,"
+          + " \"tracing_service_mapping\": null,"
+          + "\"tracing_sampling_rules\": null,"
+          + " \"span_sampling_rules\": null,"
+          + "\"data_streams_enabled\": null,"
+          + " \"tracing_enabled\": false}}'";
+
   @TableTest({
     "scenario                     |  json                                           | expectedValue ",
     "tracing disabled             | '{\"lib_config\":{\"tracing_enabled\": false}}' | false         ",
     "tracing enabled              | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true          ",
-    "action with tracing disabled | '{\"action\": \"enable\", \"lib_config\":                       ",
-    "{\"tracing_sampling_rate\": null,                                                              ",
-    " \"log_injection_enabled\": null,                                                              ",
-    "\"tracing_header_tags\": null,                                                                 ",
-    " \"runtime_metrics_enabled\": null,                                                            ",
-    "\"tracing_debug\": null,                                                                       ",
-    " \"tracing_service_mapping\": null,                                                            ",
-    "\"tracing_sampling_rules\": null,                                                              ",
-    " \"span_sampling_rules\": null,                                                                ",
-    "\"data_streams_enabled\": null,                                                                ",
-    " \"tracing_enabled\": false}}'             | false                                             "
+    "action with tracing disabled |                                                                 ",
+    "                            | false                                                            "
   })
   void verifyConfigurationPollingWithTracingEnabled(
       String scenario, String json, boolean expectedValue) throws Exception {
