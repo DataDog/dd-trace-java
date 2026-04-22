@@ -68,7 +68,7 @@ public final class FilterInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(SERVLET_FILTER);
+      final AgentSpan span = startSpan("servlet", SERVLET_FILTER);
       DECORATE.afterStart(span);
 
       // Here we use "this" instead of "the method target" to distinguish abstract filter instances.

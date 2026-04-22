@@ -67,7 +67,7 @@ public class Elasticsearch6TransportClientInstrumentation extends InstrumenterMo
         @Advice.Argument(value = 2, readOnly = false)
             ActionListener<ActionResponse> actionListener) {
 
-      final AgentSpan span = startSpan(OPERATION_NAME);
+      final AgentSpan span = startSpan("elasticsearch", OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, action.getClass(), actionRequest.getClass());
 

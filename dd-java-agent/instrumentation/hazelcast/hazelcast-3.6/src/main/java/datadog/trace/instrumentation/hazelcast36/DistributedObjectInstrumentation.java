@@ -197,7 +197,7 @@ public final class DistributedObjectInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast-sdk", SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 
@@ -256,7 +256,7 @@ public final class DistributedObjectInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast-sdk", SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

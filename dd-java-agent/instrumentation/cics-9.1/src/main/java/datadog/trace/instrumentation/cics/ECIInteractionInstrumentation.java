@@ -36,7 +36,7 @@ public final class ECIInteractionInstrumentation
         return null;
       }
 
-      AgentSpan span = startSpan(ECI_EXECUTE_OPERATION);
+      AgentSpan span = startSpan("cics", ECI_EXECUTE_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onECIInteraction(span, (ECIInteractionSpec) spec);
 

@@ -78,7 +78,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(startSpan("spymemcached", MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -107,7 +107,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(startSpan("spymemcached", MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -136,7 +136,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      return activateSpan(startSpan(MemcacheClientDecorator.OPERATION_NAME));
+      return activateSpan(startSpan("spymemcached", MemcacheClientDecorator.OPERATION_NAME));
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
@@ -165,7 +165,7 @@ public final class MemcachedClientInstrumentation extends InstrumenterModule.Tra
       if (CallDepthThreadLocalMap.incrementCallDepth(MemcachedClient.class) > 0) {
         return null;
       }
-      final AgentSpan span = startSpan(MemcacheClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("spymemcached", MemcacheClientDecorator.OPERATION_NAME);
       return new SyncCompletionListener(span, methodName);
     }
 

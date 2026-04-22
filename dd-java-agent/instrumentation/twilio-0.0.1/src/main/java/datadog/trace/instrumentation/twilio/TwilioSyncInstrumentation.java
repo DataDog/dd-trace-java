@@ -85,7 +85,7 @@ public class TwilioSyncInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan(TWILIO_SDK);
+      final AgentSpan span = startSpan("twilio-sdk", TWILIO_SDK);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, that, methodName);
 

@@ -34,7 +34,7 @@ public final class InstrumentationPoints {
 
   public static AgentScope beforeCommand(
       final RedisCommand<?, ?, ?> command, final RedisURI redisURI) {
-    final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan("lettuce", LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     DECORATE.onCommand(span, command);
@@ -73,7 +73,7 @@ public final class InstrumentationPoints {
   }
 
   public static AgentScope beforeConnect(final RedisURI redisURI) {
-    final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan("lettuce", LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, redisURI);
     span.setResourceName(DECORATE.resourceNameForConnection(redisURI));

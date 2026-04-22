@@ -59,7 +59,7 @@ public final class ClientListenerInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan(SPAN_NAME);
+      final AgentSpan span = startSpan("hazelcast-sdk", SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, null, correlationId);
 

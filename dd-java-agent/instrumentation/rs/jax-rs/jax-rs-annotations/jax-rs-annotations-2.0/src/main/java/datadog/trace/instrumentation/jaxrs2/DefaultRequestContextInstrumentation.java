@@ -31,7 +31,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
 
       if (context.getProperty(JaxRsAnnotationsDecorator.ABORT_HANDLED) == null) {
         final AgentSpan parent = activeSpan();
-        final AgentSpan span = startSpan(JAX_RS_REQUEST_ABORT);
+        final AgentSpan span = startSpan("jax-rs", JAX_RS_REQUEST_ABORT);
 
         // Save spans so a more specific instrumentation can run later
         context.setProperty(JaxRsAnnotationsDecorator.ABORT_PARENT, parent);

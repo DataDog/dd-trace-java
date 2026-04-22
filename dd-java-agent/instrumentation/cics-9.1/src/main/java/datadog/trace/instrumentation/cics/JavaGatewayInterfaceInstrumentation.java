@@ -53,7 +53,7 @@ public final class JavaGatewayInterfaceInstrumentation
       }
 
       // Not inside execute() - create a new span
-      final AgentSpan span = startSpan(GATEWAY_FLOW_OPERATION);
+      final AgentSpan span = startSpan("cics", GATEWAY_FLOW_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, strAddress, port, ipGateway);
       return activateSpan(span);

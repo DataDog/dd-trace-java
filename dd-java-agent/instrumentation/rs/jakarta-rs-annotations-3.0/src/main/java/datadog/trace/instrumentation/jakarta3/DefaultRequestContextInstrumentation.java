@@ -31,7 +31,7 @@ public class DefaultRequestContextInstrumentation extends AbstractRequestContext
 
       if (context.getProperty(JakartaRsAnnotationsDecorator.ABORT_HANDLED) == null) {
         final AgentSpan parent = activeSpan();
-        final AgentSpan span = startSpan(JAKARTA_RS_REQUEST_ABORT);
+        final AgentSpan span = startSpan("jakarta-rs", JAKARTA_RS_REQUEST_ABORT);
 
         // Save spans so a more specific instrumentation can run later
         context.setProperty(JakartaRsAnnotationsDecorator.ABORT_PARENT, parent);

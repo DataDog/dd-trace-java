@@ -75,7 +75,7 @@ public final class WebServiceInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      AgentSpan span = startSpan(JAKARTA_WS_REQUEST);
+      AgentSpan span = startSpan("jakarta-ws", JAKARTA_WS_REQUEST);
       span.setMeasured(true);
       DECORATE.onJakartaWsSpan(span, thiz.getClass(), method);
       DECORATE.afterStart(span);

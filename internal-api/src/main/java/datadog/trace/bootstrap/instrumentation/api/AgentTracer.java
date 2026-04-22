@@ -25,27 +25,12 @@ import java.util.Map;
 import javax.annotation.Nonnull;
 
 public class AgentTracer {
-  private static final String DEFAULT_INSTRUMENTATION_NAME = "datadog";
-
-  // Implicit parent
-  /** Deprecated. Use {@link #startSpan(String, CharSequence)} instead. */
-  @Deprecated
-  public static AgentSpan startSpan(final CharSequence spanName) {
-    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
-  }
 
   /**
    * @see TracerAPI#startSpan(String, CharSequence)
    */
   public static AgentSpan startSpan(final String instrumentationName, final CharSequence spanName) {
     return get().startSpan(instrumentationName, spanName);
-  }
-
-  // Implicit parent
-  /** Deprecated. Use {@link #startSpan(String, CharSequence, long)} instead. */
-  @Deprecated
-  public static AgentSpan startSpan(final CharSequence spanName, final long startTimeMicros) {
-    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, startTimeMicros);
   }
 
   /**
@@ -56,13 +41,6 @@ public class AgentTracer {
     return get().startSpan(instrumentationName, spanName, startTimeMicros);
   }
 
-  // Explicit parent
-  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpanContext)} instead. */
-  @Deprecated
-  public static AgentSpan startSpan(final CharSequence spanName, final AgentSpanContext parent) {
-    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent);
-  }
-
   /**
    * @see TracerAPI#startSpan(String, CharSequence, AgentSpanContext)
    */
@@ -71,14 +49,6 @@ public class AgentTracer {
       final CharSequence spanName,
       final AgentSpanContext parent) {
     return get().startSpan(instrumentationName, spanName, parent);
-  }
-
-  // Explicit parent
-  /** Deprecated. Use {@link #startSpan(String, CharSequence, AgentSpanContext, long)} instead. */
-  @Deprecated
-  public static AgentSpan startSpan(
-      final CharSequence spanName, final AgentSpanContext parent, final long startTimeMicros) {
-    return startSpan(DEFAULT_INSTRUMENTATION_NAME, spanName, parent, startTimeMicros);
   }
 
   /**
@@ -379,12 +349,12 @@ public class AgentTracer {
     /** Deprecated. Use {@link #buildSpan(String, CharSequence)} instead. */
     @Deprecated
     default SpanBuilder buildSpan(CharSequence spanName) {
-      return buildSpan(DEFAULT_INSTRUMENTATION_NAME, spanName);
+      return buildSpan("datadog", spanName);
     }
 
     @Deprecated
     default SpanBuilder singleSpanBuilder(CharSequence spanName) {
-      return singleSpanBuilder(DEFAULT_INSTRUMENTATION_NAME, spanName);
+      return singleSpanBuilder("datadog", spanName);
     }
 
     /**

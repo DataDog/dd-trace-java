@@ -102,7 +102,7 @@ public class ApacheHttpAsyncClientInstrumentation
       }
 
       final AgentScope.Continuation parentContinuation = captureActiveSpan();
-      final AgentSpan clientSpan = startSpan(HTTP_REQUEST);
+      final AgentSpan clientSpan = startSpan("httpasyncclient", HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
       futureCallback =

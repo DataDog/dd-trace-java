@@ -21,7 +21,7 @@ public class ChannelAcceptAdvice {
     if (request == null || nettySpan == null) {
       return null;
     }
-    final AgentSpan span = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan span = startSpan("micronaut", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(span);
     request.setAttribute(SPAN_ATTRIBUTE, span);
     request.setAttribute(PARENT_SPAN_ATTRIBUTE, nettySpan);

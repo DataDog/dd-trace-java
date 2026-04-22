@@ -44,7 +44,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         AgentSpan parentSpan = activeSpan();
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
-        span = startSpan(INSTRUMENTATION_NAME);
+        span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));

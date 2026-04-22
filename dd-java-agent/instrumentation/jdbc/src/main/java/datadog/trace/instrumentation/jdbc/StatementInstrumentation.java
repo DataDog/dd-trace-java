@@ -100,13 +100,13 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // we then force that pre-determined span ID for the span covering the actual query
             span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
           } else if (isOracle) {
-            span = startSpan(DATABASE_QUERY);
+            span = startSpan("jdbc", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
           } else {
-            span = startSpan(DATABASE_QUERY);
+            span = startSpan("jdbc", DATABASE_QUERY);
           }
         } else {
-          span = startSpan(DATABASE_QUERY);
+          span = startSpan("jdbc", DATABASE_QUERY);
         }
 
         DECORATE.afterStart(span);

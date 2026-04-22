@@ -66,7 +66,7 @@ public class ProcessInstrumentation extends AbstractTibcoInstrumentation
         }
       }
       try (AgentScope maybeScope = parentSpan != null ? activateSpan(parentSpan) : null) {
-        AgentSpan span = startSpan(TibcoDecorator.TIBCO_PROCESS_OPERATION);
+        AgentSpan span = startSpan("tibco_bw", TibcoDecorator.TIBCO_PROCESS_OPERATION);
         TibcoDecorator.DECORATE.afterStart(span);
         if (appName != null) {
           AgentSpan root = span.getLocalRootSpan();

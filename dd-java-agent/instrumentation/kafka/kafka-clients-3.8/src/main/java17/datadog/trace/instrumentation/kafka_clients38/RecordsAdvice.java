@@ -38,7 +38,7 @@ public class RecordsAdvice {
     }
 
     if (traceConfig().isDataStreamsEnabled()) {
-      final AgentSpan span = startSpan(KAFKA_POLL);
+      final AgentSpan span = startSpan("kafka", KAFKA_POLL);
       return activateSpan(span);
     }
     return null;

@@ -62,7 +62,7 @@ public final class ResourceInstrumentation extends InstrumenterModule.Tracing
         @Advice.Argument(0) final AnnotationInfo annotationInfo) {
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan(RESTLET_HTTP_OPERATION_NAME);
+      final AgentSpan span = startSpan("restlet-http", RESTLET_HTTP_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onRestletSpan(span, parent, serverResource, annotationInfo.getJavaMethod());
       DECORATE.afterStart(span);

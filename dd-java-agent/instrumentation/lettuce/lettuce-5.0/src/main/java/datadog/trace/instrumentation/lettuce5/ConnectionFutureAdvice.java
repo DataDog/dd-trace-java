@@ -15,7 +15,7 @@ import net.bytebuddy.asm.Advice;
 public class ConnectionFutureAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static AgentScope onEnter(@Advice.Argument(1) final RedisURI redisUri) {
-    final AgentSpan span = startSpan(LettuceClientDecorator.OPERATION_NAME);
+    final AgentSpan span = startSpan("lettuce", LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     span.setResourceName(DECORATE.resourceNameForConnection(redisUri));
     DECORATE.onConnection(span, redisUri);

@@ -88,7 +88,7 @@ public final class HikariConcurrentBagInstrumentation extends InstrumenterModule
         @Advice.Thrown final Throwable throwable) {
       if (HikariBlockedTracker.wasBlocked()) {
         final AgentSpan span =
-            startSpan(POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
+            startSpan("jdbc", POOL_WAITING, TimeUnit.MILLISECONDS.toMicros(startTimeMillis));
         DECORATE.afterStart(span);
         DECORATE.onError(span, throwable);
         span.setResourceName("hikari.waiting");

@@ -30,7 +30,7 @@ public class JDOTransactionInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(
         @Advice.Origin("datanucleus.transaction.#m") final String operationName) {
-      final AgentSpan span = startSpan(operationName);
+      final AgentSpan span = startSpan("datanucleus", operationName);
 
       DECORATE.afterStart(span);
 

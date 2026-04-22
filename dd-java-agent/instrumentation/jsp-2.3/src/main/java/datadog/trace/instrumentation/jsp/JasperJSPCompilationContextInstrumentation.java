@@ -48,7 +48,7 @@ public final class JasperJSPCompilationContextInstrumentation extends Instrument
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter() {
-      final AgentSpan span = startSpan(JSP_COMPILE);
+      final AgentSpan span = startSpan("jsp", JSP_COMPILE);
       DECORATE.afterStart(span);
       return activateSpan(span);
     }

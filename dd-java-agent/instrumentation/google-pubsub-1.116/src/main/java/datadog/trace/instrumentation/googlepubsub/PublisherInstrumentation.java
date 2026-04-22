@@ -42,7 +42,7 @@ public final class PublisherInstrumentation
   public static final class Wrap {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope before(@Advice.This Publisher publisher) {
-      final AgentSpan span = startSpan(PUBSUB_PRODUCE);
+      final AgentSpan span = startSpan("google-pubsub", PUBSUB_PRODUCE);
 
       final CharSequence topicName = PRODUCER_DECORATE.extractTopic(publisher.getTopicNameString());
       PRODUCER_DECORATE.afterStart(span);

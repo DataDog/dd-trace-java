@@ -252,7 +252,7 @@ public class TracingSession implements Session {
   }
 
   private AgentScope startSpanWithScope(final String query) {
-    final AgentSpan span = startSpan(OPERATION_NAME);
+    final AgentSpan span = startSpan("cassandra", OPERATION_NAME);
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, session);
     DECORATE.onStatement(span, query);

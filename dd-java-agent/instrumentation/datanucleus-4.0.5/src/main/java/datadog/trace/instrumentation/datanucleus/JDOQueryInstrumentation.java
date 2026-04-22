@@ -56,8 +56,8 @@ public class JDOQueryInstrumentation
 
       final AgentSpan span =
           methodName.startsWith("execute")
-              ? startSpan(DATANUCLEUS_QUERY_EXECUTE)
-              : startSpan(DATANUCLEUS_QUERY_DELETE);
+              ? startSpan("datanucleus", DATANUCLEUS_QUERY_EXECUTE)
+              : startSpan("datanucleus", DATANUCLEUS_QUERY_DELETE);
 
       DECORATE.afterStart(span);
 
