@@ -79,6 +79,7 @@ public final class OtlpProfileUploader implements RecordingDataListener {
   private final boolean enabled;
   private final boolean includeOriginalPayload;
   private final String otlpUrl;
+  private final String resolvedOtlpUrl;
   private final boolean compressionEnabled;
 
   public OtlpProfileUploader(final Config config, final ConfigProvider configProvider) {
@@ -147,6 +148,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
         parsedUrl = HttpUrl.parse("http://localhost:4318/v1/profiles");
       }
     }
+    this.resolvedOtlpUrl =
+        parsedUrl != null ? parsedUrl.toString() : "http://localhost:4318/v1/profiles";
 
     this.client =
         OkHttpUtils.buildHttpClient(
@@ -220,20 +223,19 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     Path jfrFile = data.getPath();
     if (jfrFile != null) {
       converter.addFile(jfrFile, data.getStart(), data.getEnd());
-    } else {
-      // Fallback: save stream to temp file in managed temp directory
-      Path tempDir = TempLocationManager.getInstance().getTempDir();
-      Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
-      try {
-        Files.copy(data.getStream(), temp);
-        converter.addFile(temp, data.getStart(), data.getEnd());
-      } finally {
-        Files.deleteIfExists(temp);
-      }
+      return converter.convert(JfrToOtlpConverter.Kind.PROTO);
     }
 
-    // Convert to OTLP protobuf
-    return converter.convert(JfrToOtlpConverter.Kind.PROTO);
+    // Fallback: save stream to temp file in managed temp directory
+    Path tempDir = TempLocationManager.getInstance().getTempDir();
+    Path temp = Files.createTempFile(tempDir, "dd-otlp-", ".jfr");
+    try {
+      Files.copy(data.getStream(), temp);
+      converter.addFile(temp, data.getStart(), data.getEnd());
+      return converter.convert(JfrToOtlpConverter.Kind.PROTO);
+    } finally {
+      Files.deleteIfExists(temp);
+    }
   }
 
   /**
@@ -267,25 +269,8 @@ public final class OtlpProfileUploader implements RecordingDataListener {
     return requestBuilder.build();
   }
 
-  /**
-   * Get OTLP endpoint URL. If not configured, derives from agent URL using standard OTLP port/path.
-   *
-   * @return OTLP endpoint URL
-   */
   private String getOtlpEndpointUrl() {
-    if (!otlpUrl.isEmpty()) {
-      return otlpUrl;
-    }
-
-    // Derive from agent URL: http://agent:8126 → http://agent:4318/v1/profiles
-    String agentUrl = Config.get().getFinalProfilingUrl();
-    HttpUrl parsed = HttpUrl.parse(agentUrl);
-    if (parsed != null) {
-      return parsed.newBuilder().port(4318).encodedPath("/v1/profiles").build().toString();
-    }
-
-    // Fallback
-    return "http://localhost:4318/v1/profiles";
+    return resolvedOtlpUrl;
   }
 
   /**

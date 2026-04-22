@@ -60,51 +60,6 @@ public class ProfilingAgent {
   private static volatile OtlpProfileUploader otlpUploader;
   private static volatile DataDumper dumper;
 
-  /**
-   * Handle recording data upload to both JFR and OTLP uploaders.
-   *
-   * @param type Recording type
-   * @param data Recording data (will be retained for each uploader)
-   * @param sync Whether to upload synchronously
-   */
-  private static void handleRecordingData(RecordingType type, RecordingData data, boolean sync) {
-    // Retain once for each uploader
-    if (otlpUploader != null) {
-      data.retain(); // For OTLP uploader
-    }
-    data.retain(); // For JFR uploader
-
-    // Upload to both (if OTLP enabled)
-    if (otlpUploader != null) {
-      otlpUploader.upload(type, data, sync, null);
-    }
-    uploader.upload(type, data, sync);
-  }
-
-  /**
-   * Handle recording data upload with debug dump, JFR, and OTLP uploaders.
-   *
-   * @param type Recording type
-   * @param data Recording data (will be retained for each handler)
-   * @param sync Whether to upload synchronously
-   */
-  private static void handleRecordingDataWithDump(
-      RecordingType type, RecordingData data, boolean sync) {
-    // Retain once for each handler
-    data.retain(); // For dumper
-    if (otlpUploader != null) {
-      data.retain(); // For OTLP uploader
-    }
-    data.retain(); // For JFR uploader
-
-    // Process in all handlers
-    dumper.onNewData(type, data, sync);
-    if (otlpUploader != null) {
-      otlpUploader.upload(type, data, sync, null);
-    }
-    uploader.upload(type, data, sync);
-  }
-
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
 
@@ -224,7 +179,12 @@ public class ProfilingAgent {
           listener =
               (type, data, sync) -> {
                 data.retain(); // downstream listener gets original refcount slot
-                otlp.upload(type, data, sync, null);
+                try {
+                  otlp.upload(type, data, sync, null);
+                } catch (Exception e) {
+                  data.release();
+                  throw e;
+                }
                 downstream.onNewData(type, data, sync);
               };
         }

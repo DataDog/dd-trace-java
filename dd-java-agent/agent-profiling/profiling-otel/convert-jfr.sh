@@ -278,8 +278,12 @@ FAT_JAR=$(ensure_fat_jar)
 
 # Run conversion using fat jar and capture output
 # Suppress SLF4J warnings (it defaults to NOP logger which is fine for CLI)
-CONVERTER_OUTPUT=$(java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" 2>&1 | grep -vE "^SLF4J:|SLF4JServiceProvider")
-CONVERTER_EXIT=${PIPESTATUS[0]}
+# Use a temp file to capture output so the java process exit code is not masked by grep
+_CONVERTER_TMP=$(mktemp)
+java -jar "$FAT_JAR" "${CONVERTER_ARGS[@]}" >"$_CONVERTER_TMP" 2>&1
+CONVERTER_EXIT=$?
+CONVERTER_OUTPUT=$(grep -vE "^SLF4J:|SLF4JServiceProvider" "$_CONVERTER_TMP")
+rm -f "$_CONVERTER_TMP"
 
 if [ $CONVERTER_EXIT -eq 0 ]; then
     # Extract output file (last argument)

@@ -559,7 +559,8 @@ public final class JfrToOtlpConverter {
     if (startTimeTicks == 0) {
       return 0;
     }
-    return ctl.chunkInfo().asInstant(startTimeTicks).toEpochMilli() * 1_000_000L;
+    Instant instant = ctl.chunkInfo().asInstant(startTimeTicks);
+    return instant.getEpochSecond() * 1_000_000_000L + instant.getNano();
   }
 
   private byte[] encodeProfilesData() throws IOException {
