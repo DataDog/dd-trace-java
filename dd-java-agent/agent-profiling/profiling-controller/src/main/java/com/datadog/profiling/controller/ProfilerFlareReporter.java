@@ -147,7 +147,8 @@ public final class ProfilerFlareReporter implements TracerFlare.Reporter {
         sb,
         "Wall Profiling Enabled",
         configProvider.getBoolean(
-            ProfilingConfig.PROFILING_WALLTIME_ENABLED, ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT),
+            ProfilingConfig.PROFILING_WALLTIME_ENABLED,
+            ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT),
         ProfilingConfig.PROFILING_WALLTIME_ENABLED_DEFAULT);
     appendConfig(
         sb,

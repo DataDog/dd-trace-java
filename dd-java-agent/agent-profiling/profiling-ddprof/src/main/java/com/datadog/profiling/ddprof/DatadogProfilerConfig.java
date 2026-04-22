@@ -124,7 +124,8 @@ public class DatadogProfilerConfig {
   }
 
   public static boolean isWallClockProfilerEnabled(ConfigProvider configProvider) {
-    if (!configProvider.getBoolean(PROFILING_WALLTIME_ENABLED, PROFILING_WALLTIME_ENABLED_DEFAULT)) {
+    if (!configProvider.getBoolean(
+        PROFILING_WALLTIME_ENABLED, PROFILING_WALLTIME_ENABLED_DEFAULT)) {
       return false;
     }
     boolean isUltraMinimal = getBoolean(configProvider, PROFILING_ULTRA_MINIMAL, false);
