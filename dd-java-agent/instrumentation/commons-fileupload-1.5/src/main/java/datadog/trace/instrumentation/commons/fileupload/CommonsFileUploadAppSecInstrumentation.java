@@ -24,10 +24,10 @@ import net.bytebuddy.asm.Advice;
 import org.apache.commons.fileupload.FileItem;
 
 @AutoService(InstrumenterModule.class)
-public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
+public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public CommonsFileUploadAppSecModule() {
+  public CommonsFileUploadAppSecInstrumentation() {
     super("commons-fileupload");
   }
 
@@ -107,20 +107,7 @@ public class CommonsFileUploadAppSecModule extends InstrumenterModule.AppSec
       if (contentCallback == null) {
         return;
       }
-      List<String> filesContent = new ArrayList<>();
-      for (FileItem fileItem : fileItems) {
-        if (filesContent.size() >= FileItemContentReader.MAX_FILES_TO_INSPECT) {
-          break;
-        }
-        if (fileItem.isFormField()) {
-          continue;
-        }
-        String name = fileItem.getName();
-        if (name == null || name.isEmpty()) {
-          continue;
-        }
-        filesContent.add(FileItemContentReader.readContent(fileItem));
-      }
+      List<String> filesContent = FileItemContentReader.readContents(fileItems);
       if (filesContent.isEmpty()) {
         return;
       }

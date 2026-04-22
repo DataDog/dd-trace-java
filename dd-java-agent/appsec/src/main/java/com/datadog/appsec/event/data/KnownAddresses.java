@@ -75,10 +75,9 @@ public interface KnownAddresses {
       new Address<>("server.request.body.combined_file_size");
 
   /**
-   * Contains the content of each uploaded file in a multipart/form-data request. Each entry in the
-   * list corresponds positionally to {@link #REQUEST_FILES_FILENAMES}. Content is truncated to a
-   * maximum size to avoid excessive memory usage. Available only on inspected multipart/form-data
-   * requests.
+   * Contains the content of each uploaded file in a multipart/form-data request. Content is
+   * truncated per file and only the first files are inspected. Available only on inspected
+   * multipart/form-data requests.
    */
   Address<List<String>> REQUEST_FILES_CONTENT = new Address<>("server.request.body.files_content");
 
