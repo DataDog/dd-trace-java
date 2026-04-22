@@ -57,6 +57,15 @@ public class TestFilesSuite {
     return Files.newBufferedWriter(path, options);
   }
 
+  public static Path copyPathToPath(
+      final Path source, final Path target, final CopyOption... options) throws IOException {
+    return Files.copy(source, target, options);
+  }
+
+  public static long copyToStream(final Path source, final OutputStream out) throws IOException {
+    return Files.copy(source, out);
+  }
+
   public static Path move(final Path source, final Path target, final CopyOption... options)
       throws IOException {
     return Files.move(source, target);

@@ -102,6 +102,35 @@ class FilesCallSiteTest extends BaseIoRaspCallSiteTest {
     1 * helper.beforeFileWritten(path.toString())
   }
 
+  void 'test RASP Files.copy path to path fires beforeFileLoaded on source and beforeFileWritten on target'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final source = newFile('test_rasp_copy_src.txt').toPath()
+    final target = temporaryFolder.resolve('test_rasp_copy_path_dst.txt')
+
+    when:
+    TestFilesSuite.copyPathToPath(source, target)
+
+    then:
+    1 * helper.beforeFileLoaded(source.toString())
+    1 * helper.beforeFileWritten(target.toString())
+  }
+
+  void 'test RASP Files.copy path to OutputStream fires beforeFileLoaded on source'() {
+    setup:
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
+    final source = newFile('test_rasp_copy_stream_src.txt').toPath()
+
+    when:
+    TestFilesSuite.copyToStream(source, new ByteArrayOutputStream())
+
+    then:
+    1 * helper.beforeFileLoaded(source.toString())
+    0 * helper.beforeFileWritten(_)
+  }
+
   void 'test RASP Files.move'() {
     setup:
     final helper = Mock(FileIORaspHelper)
