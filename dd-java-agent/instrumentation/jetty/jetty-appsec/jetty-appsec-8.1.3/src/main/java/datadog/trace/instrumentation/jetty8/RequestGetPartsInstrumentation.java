@@ -1,30 +1,21 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.BlockResponseFunction;
-import datadog.trace.api.gateway.CallbackProvider;
-import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.List;
-import java.util.Map;
-import java.util.function.BiFunction;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -34,6 +25,7 @@ import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
 import net.bytebuddy.matcher.ElementMatcher;
+import net.bytebuddy.utility.OpenedClassReader;
 
 @AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
@@ -93,7 +85,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     final boolean[] foundGetParameters;
 
     public ClassLoaderMatcherClassVisitor(boolean[] foundField, boolean[] foundGetParameters) {
-      super(Opcodes.ASM9);
+      super(OpenedClassReader.ASM_API);
       this.foundField = foundField;
       this.foundGetParameters = foundGetParameters;
     }
@@ -111,7 +103,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       if (name.equals("getParts") && "()Ljava/util/Collection;".equals(descriptor)) {
-        return new MethodVisitor(Opcodes.ASM9) {
+        return new MethodVisitor(OpenedClassReader.ASM_API) {
           @Override
           public void visitMethodInsn(
               int opcode, String owner, String name, String descriptor, boolean isInterface) {
@@ -148,55 +140,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-
-      // Fire requestBodyProcessed with form-field name→values extracted from parts
-      Map<String, List<String>> formFields = PartHelper.extractFormFields(parts);
-      if (!formFields.isEmpty()) {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
-            cbp.getCallback(EVENTS.requestBodyProcessed());
-        if (bodyCallback != null) {
-          Flow<Void> flow = bodyCallback.apply(reqCtx, formFields);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (multipart form fields)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
-            }
-          }
-        }
-      }
-
-      if (t != null) {
-        return;
-      }
-
-      // Fire requestFilesFilenames with file-upload filenames extracted from parts
-      List<String> filenames = PartHelper.extractFilenames(parts);
-      if (!filenames.isEmpty()) {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCallback != null) {
-          Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (multipart file upload)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
-            }
-          }
-        }
+      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      if (t == null) {
+        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
       }
     }
   }
@@ -224,57 +170,10 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       if (!proceed || t != null || part == null) {
         return;
       }
-
       Collection<Part> parts = Collections.singletonList(part);
-
-      // Fire requestBodyProcessed with form-field name→value (if not a file upload)
-      Map<String, List<String>> formFields = PartHelper.extractFormFields(parts);
-      if (!formFields.isEmpty()) {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
-            cbp.getCallback(EVENTS.requestBodyProcessed());
-        if (bodyCallback != null) {
-          Flow<Void> flow = bodyCallback.apply(reqCtx, formFields);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (multipart form field)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
-            }
-          }
-        }
-      }
-
-      if (t != null) {
-        return;
-      }
-
-      // Fire requestFilesFilenames with file-upload filename (if a file upload)
-      List<String> filenames = PartHelper.extractFilenames(parts);
-      if (!filenames.isEmpty()) {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCallback != null) {
-          Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (multipart file upload)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
-            }
-          }
-        }
+      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      if (t == null) {
+        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
       }
     }
   }
