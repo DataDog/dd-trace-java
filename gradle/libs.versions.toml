@@ -2,7 +2,7 @@
 # NOTE: Ranges for some versions are needed to allow instrumentation tests to specify the desired version.
 
 # Build
-develocity = "4.2.2"
+develocity = "4.4.1"
 forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 

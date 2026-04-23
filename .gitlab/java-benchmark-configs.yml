@@ -1,0 +1,21 @@
+# Ensure the tracer artifact publish finishes before the benchmark jobs start.
+linux-java-spring-petclinic-parallel:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-insecure-bank-load-parallel:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-spring-petclinic-load-parallel:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-insecure-bank-startup-parallel:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-spring-petclinic-startup-parallel:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-dacapo-parallel-1:
+  needs: ["publish-artifacts-to-s3"]
+
+linux-java-dacapo-parallel-2:
+  needs: ["publish-artifacts-to-s3"]
