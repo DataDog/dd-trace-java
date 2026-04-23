@@ -44,7 +44,7 @@ public class AbstractClusterInstrumentation
         @Advice.This AbstractCluster self, @Advice.Argument(0) SofaRequest request) {
       ConsumerConfig config = self.getConsumerConfig();
       String protocol = config != null ? config.getProtocol() : null;
-      AgentSpan span = startSpan(SOFA_RPC_CLIENT);
+      AgentSpan span = startSpan("sofarpc", SOFA_RPC_CLIENT);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       if (protocol != null) {
