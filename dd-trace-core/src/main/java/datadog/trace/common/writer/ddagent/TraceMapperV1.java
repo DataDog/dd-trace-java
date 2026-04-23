@@ -50,6 +50,7 @@ public final class TraceMapperV1 implements TraceMapper {
   static final int VALUE_TYPE_ARRAY = 6;
 
   // Span kind OTEL values
+  static final int SPAN_KIND_UNSPECIFIED = 0;
   static final int SPAN_KIND_INTERNAL = 1;
   static final int SPAN_KIND_SERVER = 2;
   static final int SPAN_KIND_CLIENT = 3;
@@ -82,6 +83,11 @@ public final class TraceMapperV1 implements TraceMapper {
 
   @Override
   public void map(List<? extends CoreSpan<?>> trace, Writable writable) {
+    if (trace.isEmpty()) {
+      // Do nothing if no spans in the trace
+      return;
+    }
+
     CoreSpan<?> firstSpan = trace.get(0);
     firstSpan.processTagsAndBaggage(spanMetadata, false, false);
     Metadata firstSpanMeta = spanMetadata.metadata;
@@ -104,9 +110,6 @@ public final class TraceMapperV1 implements TraceMapper {
   }
 
   private Map<String, Object> buildChunkAttributes(List<? extends CoreSpan<?>> trace) {
-    if (trace.isEmpty()) {
-      return emptyMap();
-    }
     CoreSpan<?> localRoot = trace.get(0).getLocalRootSpan();
     CharSequence service = localRoot == null ? null : localRoot.getServiceName();
     if (service == null) {
@@ -238,7 +241,7 @@ public final class TraceMapperV1 implements TraceMapper {
       return false;
     }
     Map<?, ?> eventMap = (Map<?, ?>) event;
-    return asLong(eventMap.get("time_unix_nano")) != null && eventMap.get("name") != null;
+    return eventMap.get("name") != null && asLong(eventMap.get("time_unix_nano")) != null;
   }
 
   private void encodeEventAttributes(Writable writable, int fieldId, Map<?, ?> attrs) {
@@ -545,7 +548,7 @@ public final class TraceMapperV1 implements TraceMapper {
   /** Converts a span kind string to its OTEL uint32 value. */
   static int getSpanKindValue(CharSequence spanKind) {
     if (spanKind == null) {
-      return SPAN_KIND_INTERNAL;
+      return SPAN_KIND_UNSPECIFIED;
     }
 
     switch (spanKind.toString()) {

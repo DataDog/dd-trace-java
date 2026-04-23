@@ -90,6 +90,8 @@ public final class ConfigDefaults {
 
   // TODO: forced to use 1.0 for testing only, rollback to "0.4" before merging to master;
   static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V1_0.asConfigValue();
+  // TODO: static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION =
+  // ProtocolVersion.V0_4.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 

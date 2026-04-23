@@ -78,7 +78,7 @@ class TraceMapperV1PayloadTest extends DDSpecification {
 
   def "test span kind value conversion"() {
     expect:
-    TraceMapperV1.getSpanKindValue(null) == TraceMapperV1.SPAN_KIND_INTERNAL
+    TraceMapperV1.getSpanKindValue(null) == TraceMapperV1.SPAN_KIND_UNSPECIFIED
     TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_INTERNAL) == TraceMapperV1.SPAN_KIND_INTERNAL
     TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_SERVER) == TraceMapperV1.SPAN_KIND_SERVER
     TraceMapperV1.getSpanKindValue(Tags.SPAN_KIND_CLIENT) == TraceMapperV1.SPAN_KIND_CLIENT

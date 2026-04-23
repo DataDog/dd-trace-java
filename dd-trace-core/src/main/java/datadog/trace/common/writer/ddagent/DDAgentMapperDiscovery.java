@@ -47,6 +47,7 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
 
       default:
         traceMapper = new TraceMapperV0_4();
+        break;
     }
   }
 

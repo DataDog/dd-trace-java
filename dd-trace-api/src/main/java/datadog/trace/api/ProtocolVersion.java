@@ -63,7 +63,7 @@ public enum ProtocolVersion {
 
   public static ProtocolVersion fromTraceEndpoint(String endpoint) {
     if (endpoint == null) {
-      return null;
+      return V0_4;
     }
 
     String normalized = endpoint.toLowerCase(Locale.ROOT);
