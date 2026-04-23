@@ -23,10 +23,14 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
     }
     AgentScope.Continuation continuation = captureActiveSpan();
     if (continuation != noopContinuation()) {
+      // Capture TSC ticks at submission time so the queue-wait interval can be emitted
+      // as a TaskBlock event when the task actually starts executing on the worker thread.
+      // Returns 0 when the profiler is inactive; the guard in run() skips emission then.
+      long submissionTicks = AgentTracer.get().getProfilingContext().getCurrentTicks();
       if (task instanceof Comparable) {
-        return new ComparableRunnable(task, continuation);
+        return new ComparableRunnable(task, continuation, submissionTicks);
       }
-      return new Wrapper<>(task, continuation);
+      return new Wrapper<>(task, continuation, submissionTicks);
     }
     // don't wrap unless there is scope to propagate
     return task;
@@ -38,10 +42,12 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
 
   protected final T delegate;
   private final AgentScope.Continuation continuation;
+  private final long submissionTicks;
 
-  public Wrapper(T delegate, AgentScope.Continuation continuation) {
+  public Wrapper(T delegate, AgentScope.Continuation continuation, long submissionTicks) {
     this.delegate = delegate;
     this.continuation = continuation;
+    this.submissionTicks = submissionTicks;
   }
 
   @Override
@@ -53,6 +59,14 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
         AgentSpan span = scope.span();
         if (span != null && span.context() instanceof ProfilerContext) {
           profilerCtx = (ProfilerContext) span.context();
+          // Emit a zero-blocker TaskBlock covering the queue wait (submission → activation).
+          // submissionTicks == 0 means the profiler was inactive at wrap time; skip then.
+          if (submissionTicks > 0) {
+            AgentTracer.get()
+                .getProfilingContext()
+                .recordTaskBlock(
+                    submissionTicks, profilerCtx.getSpanId(), profilerCtx.getRootSpanId(), 0L, 0L);
+          }
           startNano = System.nanoTime();
           AgentTracer.get().getProfilingContext().onTaskActivation(profilerCtx, startNano);
         }

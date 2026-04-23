@@ -393,9 +393,15 @@ public class DDSpanContext
     return profilingContextIntegration;
   }
 
-  void captureExecutionThread(long threadId, String threadName) {
-    this.executionThreadId = threadId;
-    this.executionThreadName = threadName;
+  @Override
+  public void captureExecutionThread(long threadId, String threadName) {
+    // First-write-wins: onTaskActivation() fires before any finish path (phasedFinish /
+    // finishAndAddToTrace), so the worker thread captured there is protected from being
+    // overwritten by a later callback on the event loop thread.
+    if (this.executionThreadId == 0) {
+      this.executionThreadId = threadId;
+      this.executionThreadName = threadName;
+    }
   }
 
   @Override

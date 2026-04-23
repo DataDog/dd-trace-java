@@ -7,14 +7,20 @@ import jdk.jfr.Name;
 import jdk.jfr.StackTrace;
 
 /**
- * Pure-Java JFR event that records the actual execution thread for each span. Emitted from {@code
- * DatadogProfilingIntegration.onSpanFinished()} using the thread information captured in {@code
- * DDSpan.finishAndAddToTrace()} — on the span's own finishing thread, not from the event loop that
- * calls {@code CoreTracer.write()}.
+ * Pure-Java JFR event that records the actual execution thread for each span.
  *
- * <p>The profiling backend ({@code CausalDagExtractor}) reads this event to override the incorrect
- * {@code EVENT_THREAD} on {@code datadog.SpanNode} events (which are emitted at trace completion
- * from the event loop thread, causing all DAG nodes to appear as event-loop threads).
+ * <p>The {@code executionThreadId} and {@code executionThreadName} fields are captured on the
+ * span's own finishing thread in {@code DDSpan.finishAndAddToTrace()} / {@code phasedFinish()},
+ * using first-write-wins semantics so that an earlier {@code onTaskActivation()} call on a worker
+ * thread takes precedence over a later event-loop callback. The JFR event itself is committed
+ * later, from inside {@code CoreTracer.write()} (called on the {@code dd-trace-monitor} drain
+ * thread or the span-finishing thread), so the JFR {@code EVENT_THREAD} is unrelated to the span's
+ * actual execution thread.
+ *
+ * <p>The profiling backend ({@code CausalDagExtractor}) reads the {@code executionThreadId} /
+ * {@code executionThreadName} fields — not the JFR {@code EVENT_THREAD} — to override the incorrect
+ * thread attribution on {@code datadog.SpanNode} events, which are always emitted from the
+ * event-loop thread that calls {@code CoreTracer.write()}.
  */
 @Name("datadog.SpanExecutionThread")
 @Label("Span Execution Thread")

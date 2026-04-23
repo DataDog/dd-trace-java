@@ -90,9 +90,14 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(@Advice.Enter long[] state) {
+      // Always drain the map entry before any early return. If we returned first, a stale
+      // unblocking-span ID placed by a prior unpark() would persist and be incorrectly
+      // attributed to the next TaskBlock event emitted on this thread.
+      Long unblockingSpanId = State.UNPARKING_SPAN.remove(Thread.currentThread());
       if (state == null) {
         return;
       }
+
       ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
       if (profiling == null) {
         return;

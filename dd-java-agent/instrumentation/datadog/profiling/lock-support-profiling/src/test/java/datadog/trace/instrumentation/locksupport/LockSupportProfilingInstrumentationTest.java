@@ -142,12 +142,33 @@ class LockSupportProfilingInstrumentationTest {
 
   /**
    * When {@code ParkAdvice.before} returns {@code null} (profiler not active or no active span),
-   * {@code ParkAdvice.after} must be a no-op and must not throw.
+   * {@code ParkAdvice.after} must not throw and must not leave entries in {@code UNPARKING_SPAN}.
+   * It does call {@code remove(currentThread)}, but on an empty map that is a no-op.
    */
   @Test
   void parkAdvice_after_null_state_isNoOp() {
-    // Should not throw and should not touch State.UNPARKING_SPAN
     LockSupportProfilingInstrumentation.ParkAdvice.after(null);
     assertTrue(State.UNPARKING_SPAN.isEmpty());
+  }
+
+  /**
+   * Regression test for stale-entry misattribution.
+   *
+   * <p>If {@code unpark(t)} is called (inserting an entry into {@code UNPARKING_SPAN}) and thread
+   * {@code t} then parks without an active span ({@code state == null}), the entry must still be
+   * drained. Without the fix, it would linger and be incorrectly attributed to the next {@code
+   * TaskBlock} emitted on that thread.
+   */
+  @Test
+  void stale_entry_is_drained_when_park_fires_without_active_span() {
+    Thread t = Thread.currentThread();
+    State.UNPARKING_SPAN.put(t, 99L);
+
+    // Simulate park() returning with no active span (state == null)
+    LockSupportProfilingInstrumentation.ParkAdvice.after(null);
+
+    assertNull(
+        State.UNPARKING_SPAN.get(t),
+        "Stale UNPARKING_SPAN entry must be drained even when state is null");
   }
 }

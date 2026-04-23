@@ -80,21 +80,21 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   /**
    * Called when a span context continuation activates on a worker thread (task execution start).
-   * Implementations record the start tick so a synthetic SpanNode can be emitted at deactivation.
+   * Implementations record the start time so a synthetic SpanNode can be emitted at deactivation.
    *
    * @param profilerContext the activated span context
-   * @param startTicks TSC tick at activation (from {@link #getCurrentTicks()})
+   * @param startNano wall-clock nanoseconds at activation ({@code System.nanoTime()})
    */
-  default void onTaskActivation(ProfilerContext profilerContext, long startTicks) {}
+  default void onTaskActivation(ProfilerContext profilerContext, long startNano) {}
 
   /**
    * Called when a span context continuation deactivates on a worker thread (task execution end).
    * Implementations emit a lightweight synthetic SpanNode covering the worker thread interval.
    *
    * @param profilerContext the deactivated span context
-   * @param startTicks TSC tick recorded at {@link #onTaskActivation}
+   * @param startNano wall-clock nanoseconds recorded at {@link #onTaskActivation}
    */
-  default void onTaskDeactivation(ProfilerContext profilerContext, long startTicks) {}
+  default void onTaskDeactivation(ProfilerContext profilerContext, long startNano) {}
 
   String name();
 

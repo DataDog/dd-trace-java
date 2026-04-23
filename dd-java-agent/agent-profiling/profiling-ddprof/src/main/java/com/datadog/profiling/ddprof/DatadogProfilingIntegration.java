@@ -1,5 +1,6 @@
 package com.datadog.profiling.ddprof;
 
+import datadog.environment.ThreadSupport;
 import datadog.trace.api.EndpointTracker;
 import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.ProfilingContextAttribute;
@@ -143,16 +144,22 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
   @Override
   public void onTaskActivation(ProfilerContext profilerContext, long startTicks) {
-    // startTicks captured by TPEHelper is the authoritative start; nothing to do here.
+    // Capture the worker thread as the execution thread at the moment a task starts executing.
+    // Using first-write-wins semantics in DDSpanContext.captureExecutionThread() means this
+    // worker-thread attribution is protected: if phasedFinish() is later called from a Netty
+    // event loop callback (a different, wrong thread), it becomes a no-op.
+    if (profilerContext != null && !ThreadSupport.isVirtual()) {
+      Thread t = Thread.currentThread();
+      profilerContext.captureExecutionThread(t.getId(), t.getName());
+    }
   }
 
   @Override
-  public void onTaskDeactivation(ProfilerContext profilerContext, long startTicks) {
+  public void onTaskDeactivation(ProfilerContext profilerContext, long startNano) {
     if (profilerContext == null) {
       return;
     }
     long endNano = System.nanoTime();
-    long startNano = startTicks; // startTicks carries nanoTime at activation (see TPEHelper)
     long durationNanos = endNano - startNano;
     if (durationNanos <= 0) {
       return;
@@ -162,6 +169,13 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     // JVM lifetime. Residual error is bounded by the 1 ms resolution of currentTimeMillis().
     long epochOffset = System.currentTimeMillis() * 1_000_000L - endNano;
     long startNanos = startNano + epochOffset;
+    // Thread.currentThread().getId() returns the virtual thread's JVM-assigned ID when called
+    // inside a virtual thread — that is intentional: it contributes uniqueness to the synthetic
+    // span ID without affecting thread attribution.  The native profiler captures the OS thread
+    // ID (ProfiledThread::currentTid()) for EVENT_THREAD, which is always the ForkJoin carrier
+    // thread that is physically executing the virtual thread at this point.  The resulting
+    // SpanNode is therefore attributed to the carrier in JFR, making it visible in the critical
+    // path as a ForkJoin worker rather than disappearing into the unattributed lane.
     long syntheticSpanId =
         profilerContext.getSpanId() ^ ((long) Thread.currentThread().getId() << 32) ^ startNano;
     DDPROF.recordSpanNodeEvent(
@@ -172,6 +186,22 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         durationNanos,
         profilerContext.getEncodedOperationName(),
         profilerContext.getEncodedResourceName());
+    // Emit a SpanExecutionThread event so CausalDagExtractor can override the native
+    // profiler's OS-tid-based EVENT_THREAD attribution with the Java thread ID used by the
+    // JFR timeline.  Without this, the critical path segment for the synthetic span may land
+    // in a non-existent row (invisible) or a row whose thread-activity intervals don't match
+    // (arrow over blank space).  This mirrors what onSpanFinished() does for real spans.
+    // Skip for virtual threads: Thread.currentThread() returns the virtual thread object
+    // (whose JVM-assigned ID has no JFR timeline lane). For virtual threads the native
+    // profiler's EVENT_THREAD already resolves to the ForkJoin carrier via CPOOL and must
+    // not be overridden.
+    if (!ThreadSupport.isVirtual()) {
+      SpanExecutionThreadEvent syntheticThreadEvent = new SpanExecutionThreadEvent();
+      syntheticThreadEvent.spanId = syntheticSpanId;
+      syntheticThreadEvent.executionThreadId = Thread.currentThread().getId();
+      syntheticThreadEvent.executionThreadName = Thread.currentThread().getName();
+      syntheticThreadEvent.commit();
+    }
   }
 
   public void clearContext() {

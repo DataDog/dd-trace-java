@@ -30,6 +30,10 @@ public final class TPEHelper {
   private static final ThreadLocal<AgentScope> threadLocalScope;
   // Stores System.nanoTime() at task activation so onTaskDeactivation can compute duration
   private static final ThreadLocal<Long> threadLocalActivationNano;
+  // Stores the ProfilerContext captured at task activation so onTaskDeactivation can always be
+  // called even when scope.span() returns null at afterExecute time (e.g. because a nested
+  // ForkJoinTask instrumentation closed the outer scope before afterExecute fires).
+  private static final ThreadLocal<ProfilerContext> threadLocalProfilerContext;
 
   private static final ClassValue<Boolean> WRAP =
       GenericClassValue.of(
@@ -48,9 +52,11 @@ public final class TPEHelper {
     if (useWrapping) {
       threadLocalScope = null;
       threadLocalActivationNano = null;
+      threadLocalProfilerContext = null;
     } else {
       threadLocalScope = new ThreadLocal<>();
       threadLocalActivationNano = new ThreadLocal<>();
+      threadLocalProfilerContext = new ThreadLocal<>();
     }
   }
 
@@ -95,9 +101,14 @@ public final class TPEHelper {
       threadLocalActivationNano.set(startNano);
       AgentSpan span = scope.span();
       if (span != null && span.context() instanceof ProfilerContext) {
-        AgentTracer.get()
-            .getProfilingContext()
-            .onTaskActivation((ProfilerContext) span.context(), startNano);
+        ProfilerContext profilerContext = (ProfilerContext) span.context();
+        // Store the context so endScope can still call onTaskDeactivation if scope.span()
+        // returns null at afterExecute time (e.g. a nested ForkJoinTask instrumentation closes
+        // the outer scope before afterExecute fires for CompletableFuture$AsyncRun tasks).
+        if (threadLocalProfilerContext != null) {
+          threadLocalProfilerContext.set(profilerContext);
+        }
+        AgentTracer.get().getProfilingContext().onTaskActivation(profilerContext, startNano);
       }
     }
     return scope;
@@ -135,12 +146,25 @@ public final class TPEHelper {
         Long startNano = threadLocalActivationNano.get();
         // noinspection ThreadLocalSetWithNull
         threadLocalActivationNano.set(null);
+        // Retrieve and clear the stored profiler context.
+        ProfilerContext storedCtx =
+            threadLocalProfilerContext != null ? threadLocalProfilerContext.get() : null;
+        // noinspection ThreadLocalSetWithNull
+        if (threadLocalProfilerContext != null) {
+          threadLocalProfilerContext.set(null);
+        }
         if (startNano != null) {
+          // Prefer the live span's context, fall back to the one stored at startScope() time.
+          // The fallback handles the case where a nested ForkJoinTask instrumentation (e.g. for
+          // CompletableFuture$AsyncRun) closes the outer scope before afterExecute fires,
+          // causing scope.span() to return null and silently skipping onTaskDeactivation.
           AgentSpan span = scope.span();
-          if (span != null && span.context() instanceof ProfilerContext) {
-            AgentTracer.get()
-                .getProfilingContext()
-                .onTaskDeactivation((ProfilerContext) span.context(), startNano);
+          ProfilerContext ctx =
+              (span != null && span.context() instanceof ProfilerContext)
+                  ? (ProfilerContext) span.context()
+                  : storedCtx;
+          if (ctx != null) {
+            AgentTracer.get().getProfilingContext().onTaskDeactivation(ctx, startNano);
           }
         }
       }
@@ -154,5 +178,50 @@ public final class TPEHelper {
       return;
     }
     AdviceUtils.cancelTask(contextStore, task);
+  }
+
+  /**
+   * Called at the start of a virtual-thread task (from {@code TaskRunnerInstrumentation}) after the
+   * scope has been activated. Stores the activation timestamp and notifies the profiling
+   * integration. Unlike {@link #startScope}, this method takes no task parameter and performs no
+   * exclude-filter check, because the task ({@code ThreadPerTaskExecutor$TaskRunner}) is an
+   * internal JDK class that must never be excluded.
+   */
+  public static void onVirtualThreadTaskStart(AgentScope scope) {
+    if (scope == null || threadLocalActivationNano == null) {
+      return;
+    }
+    long startNano = System.nanoTime();
+    threadLocalActivationNano.set(startNano);
+    AgentSpan span = scope.span();
+    if (span != null && span.context() instanceof ProfilerContext) {
+      AgentTracer.get()
+          .getProfilingContext()
+          .onTaskActivation((ProfilerContext) span.context(), startNano);
+    }
+  }
+
+  /**
+   * Called at the end of a virtual-thread task (from {@code TaskRunnerInstrumentation}) before the
+   * scope is closed. Reads the activation timestamp stored by {@link #onVirtualThreadTaskStart} and
+   * notifies the profiling integration so a synthetic {@code SpanNode} JFR event covering the
+   * task's execution is emitted.
+   */
+  public static void onVirtualThreadTaskEnd(AgentScope scope) {
+    if (scope == null || threadLocalActivationNano == null) {
+      return;
+    }
+    Long startNano = threadLocalActivationNano.get();
+    // noinspection ThreadLocalSetWithNull
+    threadLocalActivationNano.set(null);
+    if (startNano == null) {
+      return;
+    }
+    AgentSpan span = scope.span();
+    if (span != null && span.context() instanceof ProfilerContext) {
+      AgentTracer.get()
+          .getProfilingContext()
+          .onTaskDeactivation((ProfilerContext) span.context(), startNano);
+    }
   }
 }
