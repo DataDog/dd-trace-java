@@ -66,7 +66,9 @@ class ClassLoaderMatchersTest extends DDSpecification {
     loaderName << [
       "org.drools.core.common.ProjectClassLoader",
       "org.drools.core.common.ProjectClassLoader\$IBMClassLoader",
-      "org.drools.core.rule.JavaDialectRuntimeData\$PackageClassLoader",
+      "org.drools.core.rule.PackageClassLoader",
+      "org.drools.wiring.dynamic.PackageClassLoader",
+      "org.drools.core.rule.JavaDialectRuntimeData\$PackageClassLoader"
     ]
   }
 
