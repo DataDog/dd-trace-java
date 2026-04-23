@@ -67,6 +67,73 @@ public final class JfrToOtlpConverter {
     JSON_PRETTY
   }
 
+  /**
+   * Open-addressing long→int hash map. Eliminates boxing overhead of {@code HashMap<Long,Integer>}
+   * for the stack-trace and frame caches.
+   */
+  private static final class LongIntMap {
+    private static final long EMPTY = Long.MIN_VALUE;
+    private static final int INITIAL_CAPACITY = 1024; // power of 2
+
+    private long[] keys;
+    private int[] values;
+    private int mask;
+
+    LongIntMap() {
+      keys = new long[INITIAL_CAPACITY];
+      values = new int[INITIAL_CAPACITY];
+      mask = INITIAL_CAPACITY - 1;
+      java.util.Arrays.fill(keys, EMPTY);
+    }
+
+    int get(long key) {
+      int slot = (int) (mix(key) & mask);
+      while (keys[slot] != EMPTY) {
+        if (keys[slot] == key) return values[slot];
+        slot = (slot + 1) & mask;
+      }
+      return -1;
+    }
+
+    void put(long key, int value) {
+      if (size * 2 >= keys.length) rehash();
+      int slot = (int) (mix(key) & mask);
+      while (keys[slot] != EMPTY && keys[slot] != key) {
+        slot = (slot + 1) & mask;
+      }
+      if (keys[slot] == EMPTY) size++;
+      keys[slot] = key;
+      values[slot] = value;
+    }
+
+    void clear() {
+      java.util.Arrays.fill(keys, EMPTY);
+      size = 0;
+    }
+
+    private int size;
+
+    private void rehash() {
+      long[] oldKeys = keys;
+      int[] oldValues = values;
+      keys = new long[oldKeys.length * 2];
+      values = new int[oldKeys.length * 2];
+      mask = keys.length - 1;
+      java.util.Arrays.fill(keys, EMPTY);
+      size = 0;
+      for (int i = 0; i < oldKeys.length; i++) {
+        if (oldKeys[i] != EMPTY) put(oldKeys[i], oldValues[i]);
+      }
+    }
+
+    private static long mix(long key) {
+      key ^= key >>> 33;
+      key *= 0xff51afd7ed558ccdL;
+      key ^= key >>> 33;
+      return key;
+    }
+  }
+
   private static final class PathEntry {
     final Path path;
     final boolean ephemeral;
@@ -109,8 +176,16 @@ public final class JfrToOtlpConverter {
   private final AttributeTable attributeTable = new AttributeTable();
 
   // Stack trace cache: maps (stackTraceId + chunkId) → stack index
-  // This avoids redundant frame processing for duplicate stack traces
-  private final java.util.Map<Long, Integer> stackTraceCache = new java.util.HashMap<>();
+  private final LongIntMap stackTraceCache = new LongIntMap();
+
+  // Frame cache: maps (methodId + chunkId + lineNumber) → locationIndex
+  private final LongIntMap frameCache = new LongIntMap();
+
+  // Per-type attribute index arrays, lazily initialized once per conversion session and shared
+  // across all samples of the same type to avoid per-sample allocation.
+  private int[] cpuAttrIndices;
+  private int[] wallAttrIndices;
+  private int[] lockAttrIndices;
 
   // Sample collectors by profile type
   private final List<SampleData> cpuSamples = new ArrayList<>();
@@ -287,6 +362,10 @@ public final class JfrToOtlpConverter {
     linkTable.reset();
     attributeTable.reset();
     stackTraceCache.clear();
+    frameCache.clear();
+    cpuAttrIndices = null;
+    wallAttrIndices = null;
+    lockAttrIndices = null;
     cpuSamples.clear();
     wallSamples.clear();
     allocSamples.clear();
@@ -372,8 +451,8 @@ public final class JfrToOtlpConverter {
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
-    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
-    cpuSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, attributeIndices));
+    if (cpuAttrIndices == null) cpuAttrIndices = new int[] {getSampleTypeAttributeIndex("cpu")};
+    cpuSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, cpuAttrIndices));
   }
 
   private void handleMethodSample(MethodSample event, Control ctl) {
@@ -384,8 +463,8 @@ public final class JfrToOtlpConverter {
     int linkIndex = extractLinkIndex(event.spanId(), event.localRootSpanId());
     long timestamp = convertTimestamp(event.startTime(), ctl);
 
-    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("wall")};
-    wallSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, attributeIndices));
+    if (wallAttrIndices == null) wallAttrIndices = new int[] {getSampleTypeAttributeIndex("wall")};
+    wallSamples.add(new SampleData(stackIndex, linkIndex, 1, timestamp, wallAttrIndices));
   }
 
   private void handleObjectSample(ObjectSample event, Control ctl) {
@@ -446,8 +525,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
-    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, attributeIndices));
+    if (lockAttrIndices == null) lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, lockAttrIndices));
   }
 
   private void handleMonitorWait(JavaMonitorWait event, Control ctl) {
@@ -458,8 +537,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    int[] attributeIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
-    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, attributeIndices));
+    if (lockAttrIndices == null) lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, lockAttrIndices));
   }
 
   private JfrStackTrace safeGetStackTrace(java.util.function.Supplier<JfrStackTrace> supplier) {
@@ -479,8 +558,8 @@ public final class JfrToOtlpConverter {
     long cacheKey = stackTraceId ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32);
 
     // Check cache first - avoid resolving stack trace if cached
-    Integer cachedIndex = stackTraceCache.get(cacheKey);
-    if (cachedIndex != null) {
+    int cachedIndex = stackTraceCache.get(cacheKey);
+    if (cachedIndex != -1) {
       return cachedIndex;
     }
 
@@ -499,7 +578,7 @@ public final class JfrToOtlpConverter {
 
     int[] locationIndices = new int[frames.length];
     for (int i = 0; i < frames.length; i++) {
-      locationIndices[i] = convertFrame(frames[i]);
+      locationIndices[i] = convertFrame(frames[i], ctl);
     }
 
     int stackIndex = stackTable.intern(locationIndices);
@@ -507,7 +586,7 @@ public final class JfrToOtlpConverter {
     return stackIndex;
   }
 
-  private int convertFrame(JfrStackFrame frame) {
+  private int convertFrame(JfrStackFrame frame, Control ctl) {
     if (frame == null) {
       return 0;
     }
@@ -517,16 +596,25 @@ public final class JfrToOtlpConverter {
       return 0;
     }
 
-    // Get class and method names
+    int lineNumber = frame.lineNumber();
+    long methodId = frame.methodId();
+
+    // Cache key mirrors the stackTraceCache pattern: tag methodId with chunk identity
+    // so per-chunk CP indices don't collide across chunks.
+    long cacheKey =
+        methodId ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32) ^ (lineNumber * 1000003L);
+    int cached = frameCache.get(cacheKey);
+    if (cached != -1) {
+      return cached;
+    }
+
+    // Cache miss — full processing
     String methodName = method.name();
     JfrClass type = method.type();
     String className = type != null ? type.name() : null;
 
-    // Get line number
-    int lineNumber = frame.lineNumber();
     long line = Math.max(lineNumber, 0);
 
-    // Build full name
     String fullName;
     if (className != null && !className.isEmpty()) {
       fullName = className + "." + (methodName != null ? methodName : "");
@@ -534,16 +622,14 @@ public final class JfrToOtlpConverter {
       fullName = methodName != null ? methodName : "";
     }
 
-    // Intern strings
     int nameIndex = stringTable.intern(fullName);
     int classNameIndex = stringTable.intern(className);
     int methodNameIndex = stringTable.intern(methodName);
-
-    // Intern function
     int functionIndex = functionTable.intern(nameIndex, methodNameIndex, classNameIndex, 0);
+    int locationIndex = locationTable.intern(0, 0, functionIndex, line, 0);
 
-    // Create location entry
-    return locationTable.intern(0, 0, functionIndex, line, 0);
+    frameCache.put(cacheKey, locationIndex);
+    return locationIndex;
   }
 
   private int extractLinkIndex(long spanId, long localRootSpanId) {
@@ -725,12 +811,11 @@ public final class JfrToOtlpConverter {
     encoder.writeVarintField(OtlpProtoFields.Sample.LINK_INDEX, sample.linkIndex);
 
     // Field 4: values (packed)
-    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, new long[] {sample.value});
+    encoder.writePackedVarintField(OtlpProtoFields.Sample.VALUES, sample.value);
 
     // Field 5: timestamps_unix_nano (packed)
     if (sample.timestampNanos > 0) {
-      encoder.writePackedFixed64Field(
-          OtlpProtoFields.Sample.TIMESTAMPS_UNIX_NANO, new long[] {sample.timestampNanos});
+      encoder.writePackedFixed64Field(OtlpProtoFields.Sample.TIMESTAMPS_UNIX_NANO, sample.timestampNanos);
     }
   }
 

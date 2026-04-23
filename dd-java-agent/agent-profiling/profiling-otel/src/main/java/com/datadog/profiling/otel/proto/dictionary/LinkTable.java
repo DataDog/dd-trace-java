@@ -2,9 +2,7 @@ package com.datadog.profiling.otel.proto.dictionary;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
  * Link deduplication table for OTLP profiles. Index 0 is reserved for the null/unset link. A link
@@ -12,29 +10,75 @@ import java.util.Map;
  */
 public final class LinkTable {
 
-  /** Wrapper for trace/span ID pair to use as HashMap key. */
-  private static final class LinkKey {
-    final byte[] traceId;
-    final byte[] spanId;
-    private final int hashCode;
+  /** Open-addressing map keyed on two longs (traceIdLow, spanId). */
+  private static final class LongLongToIntMap {
+    private static final long EMPTY = Long.MIN_VALUE;
+    private long[] keys1;
+    private long[] keys2;
+    private int[] values;
+    private int mask;
+    private int size;
 
-    LinkKey(byte[] traceId, byte[] spanId) {
-      this.traceId = traceId;
-      this.spanId = spanId;
-      this.hashCode = 31 * Arrays.hashCode(traceId) + Arrays.hashCode(spanId);
+    LongLongToIntMap(int initialCapacity) {
+      int cap = Integer.highestOneBit(Math.max(initialCapacity * 2, 16) - 1) << 1;
+      keys1 = new long[cap];
+      keys2 = new long[cap];
+      values = new int[cap];
+      Arrays.fill(keys1, EMPTY);
+      mask = cap - 1;
     }
 
-    @Override
-    public boolean equals(Object o) {
-      if (this == o) return true;
-      if (o == null || getClass() != o.getClass()) return false;
-      LinkKey that = (LinkKey) o;
-      return Arrays.equals(traceId, that.traceId) && Arrays.equals(spanId, that.spanId);
+    int get(long k1, long k2) {
+      int slot = (int) (mix(k1 ^ k2) & mask);
+      while (keys1[slot] != EMPTY) {
+        if (keys1[slot] == k1 && keys2[slot] == k2) return values[slot];
+        slot = (slot + 1) & mask;
+      }
+      return -1;
     }
 
-    @Override
-    public int hashCode() {
-      return hashCode;
+    void put(long k1, long k2, int value) {
+      if (size * 2 >= mask) resize();
+      int slot = (int) (mix(k1 ^ k2) & mask);
+      while (keys1[slot] != EMPTY) {
+        if (keys1[slot] == k1 && keys2[slot] == k2) {
+          values[slot] = value;
+          return;
+        }
+        slot = (slot + 1) & mask;
+      }
+      keys1[slot] = k1;
+      keys2[slot] = k2;
+      values[slot] = value;
+      size++;
+    }
+
+    void clear() {
+      Arrays.fill(keys1, EMPTY);
+      size = 0;
+    }
+
+    private void resize() {
+      long[] oldKeys1 = keys1;
+      long[] oldKeys2 = keys2;
+      int[] oldValues = values;
+      int newCap = (mask + 1) * 2;
+      keys1 = new long[newCap];
+      keys2 = new long[newCap];
+      values = new int[newCap];
+      Arrays.fill(keys1, EMPTY);
+      mask = newCap - 1;
+      size = 0;
+      for (int i = 0; i < oldKeys1.length; i++) {
+        if (oldKeys1[i] != EMPTY) put(oldKeys1[i], oldKeys2[i], oldValues[i]);
+      }
+    }
+
+    private static long mix(long key) {
+      key ^= key >>> 33;
+      key *= 0xff51afd7ed558ccdL;
+      key ^= key >>> 33;
+      return key;
     }
   }
 
@@ -53,11 +97,11 @@ public final class LinkTable {
   private static final byte[] EMPTY_SPAN_ID = new byte[8];
 
   private final List<LinkEntry> links;
-  private final Map<LinkKey, Integer> linkToIndex;
+  private final LongLongToIntMap linkToIndex;
 
   public LinkTable() {
     links = new ArrayList<>();
-    linkToIndex = new HashMap<>();
+    linkToIndex = new LongLongToIntMap(16);
     // Index 0 is reserved for null/unset link
     links.add(new LinkEntry(EMPTY_TRACE_ID, EMPTY_SPAN_ID));
   }
@@ -74,22 +118,21 @@ public final class LinkTable {
     if (traceId == null || spanId == null) {
       return 0;
     }
-    if (isAllZeros(traceId) && isAllZeros(spanId)) {
+    // Extract key longs from byte arrays (traceId lower 64 bits = bytes 8-15)
+    long traceIdLow = bytesToLong(traceId, 8);
+    long spanIdLong = bytesToLong(spanId, 0);
+    if (traceIdLow == 0 && spanIdLong == 0) {
       return 0;
     }
 
-    LinkKey key = new LinkKey(traceId, spanId);
-    Integer existing = linkToIndex.get(key);
-    if (existing != null) {
-      return existing;
-    }
+    int cached = linkToIndex.get(traceIdLow, spanIdLong);
+    if (cached != -1) return cached;
 
     int index = links.size();
-    // Make defensive copies
     byte[] traceIdCopy = Arrays.copyOf(traceId, traceId.length);
     byte[] spanIdCopy = Arrays.copyOf(spanId, spanId.length);
     links.add(new LinkEntry(traceIdCopy, spanIdCopy));
-    linkToIndex.put(new LinkKey(traceIdCopy, spanIdCopy), index);
+    linkToIndex.put(traceIdLow, spanIdLong, index);
     return index;
   }
 
@@ -106,29 +149,37 @@ public final class LinkTable {
       return 0;
     }
 
+    int cached = linkToIndex.get(traceIdLow, spanId);
+    if (cached != -1) return cached;
+
+    // Cache miss — allocate byte arrays only once per unique link
     byte[] traceIdBytes = new byte[16];
-    // Put trace ID in lower 64 bits (big-endian)
+    long tmp = traceIdLow;
     for (int i = 15; i >= 8; i--) {
-      traceIdBytes[i] = (byte) (traceIdLow & 0xFF);
-      traceIdLow >>>= 8;
+      traceIdBytes[i] = (byte) (tmp & 0xFF);
+      tmp >>>= 8;
     }
 
     byte[] spanIdBytes = new byte[8];
+    tmp = spanId;
     for (int i = 7; i >= 0; i--) {
-      spanIdBytes[i] = (byte) (spanId & 0xFF);
-      spanId >>>= 8;
+      spanIdBytes[i] = (byte) (tmp & 0xFF);
+      tmp >>>= 8;
     }
 
-    return intern(traceIdBytes, spanIdBytes);
+    int index = links.size();
+    links.add(new LinkEntry(traceIdBytes, spanIdBytes));
+    linkToIndex.put(traceIdLow, spanId, index);
+    return index;
   }
 
-  private static boolean isAllZeros(byte[] bytes) {
-    for (byte b : bytes) {
-      if (b != 0) {
-        return false;
-      }
+  private static long bytesToLong(byte[] bytes, int offset) {
+    if (bytes.length < offset + 8) return 0;
+    long v = 0;
+    for (int i = offset; i < offset + 8; i++) {
+      v = (v << 8) | (bytes[i] & 0xFF);
     }
-    return true;
+    return v;
   }
 
   /**
