@@ -30,8 +30,8 @@ public class TelemetryRouter {
   }
 
   /**
-   * Single-client constructor used for Bazel file-based telemetry. Feature discovery and
-   * client-switching logic are skipped.
+   * Single-client constructor used for CiVis' Bazel mode file-based telemetry. Feature discovery
+   * and client-switching logic are skipped.
    */
   public TelemetryRouter(TelemetryClient singleClient) {
     this.ddAgentFeaturesDiscovery = null;

@@ -97,7 +97,7 @@ public class WriterFactory {
         log.info(
             "[bazel mode] Payloads-in-files enabled, writing to {}", bazelMode.getPayloadsDir());
 
-        PayloadDispatcher dispatcher = getPayloadDispatcher(testsDir, coverageDir);
+        PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
 
         TraceProcessingWorker worker =
             new TraceProcessingWorker(
@@ -208,7 +208,8 @@ public class WriterFactory {
   }
 
   @Nonnull
-  private static PayloadDispatcher getPayloadDispatcher(Path testsDir, Path coverageDir) {
+  private static PayloadDispatcher createCiVisBazelPayloadDispatcher(
+      Path testsDir, Path coverageDir) {
     FileBasedPayloadDispatcher testDispatcher =
         new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
 
