@@ -53,8 +53,8 @@ public class ProviderProxyInvokerInstrumentation
       AgentSpanContext parentContext = extractContextAndGetSpanContext(request, GETTER);
       AgentSpan span =
           parentContext != null
-              ? startSpan(SOFA_RPC_SERVER, parentContext)
-              : startSpan(SOFA_RPC_SERVER);
+              ? startSpan("sofarpc", SOFA_RPC_SERVER, parentContext)
+              : startSpan("sofarpc", SOFA_RPC_SERVER);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       span.setTag("sofarpc.protocol", protocol);

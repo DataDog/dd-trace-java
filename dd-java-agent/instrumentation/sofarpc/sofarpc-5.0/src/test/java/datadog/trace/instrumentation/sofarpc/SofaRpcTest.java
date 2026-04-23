@@ -93,7 +93,7 @@ public class SofaRpcTest extends AbstractInstrumentationTest {
   void clientAndServerSpansForBoltCall() throws InterruptedException, TimeoutException {
     String serviceUniqueName = GreeterService.class.getName() + ":1.0";
 
-    AgentSpan callerSpan = startSpan("caller");
+    AgentSpan callerSpan = startSpan("test", "caller");
     AgentScope callerScope = activateSpan(callerSpan);
     String reply;
     try {
