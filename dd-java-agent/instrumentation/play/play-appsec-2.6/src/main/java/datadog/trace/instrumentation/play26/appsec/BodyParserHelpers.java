@@ -142,11 +142,14 @@ public class BodyParserHelpers {
   }
 
   private static void handleMultipartFilenames(Iterator<?> iterator) {
-    if (!isAppsecActiveForRequest()) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
       return;
     }
-    AgentSpan span = activeSpan();
     RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+      return;
+    }
 
     List<String> filenames = new ArrayList<>();
     while (iterator.hasNext()) {
