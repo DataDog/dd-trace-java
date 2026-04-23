@@ -7,7 +7,8 @@ dependencies {
 
 def appDir = "$projectDir/application"
 def jarName = "demo-open-liberty-app.jar"
-def jarPath = "${layout.buildDirectory.get().asFile}/application/target/${jarName}"
+def appTargetDir = layout.buildDirectory.dir("application/target")
+def jarPath = appTargetDir.map { it.file(jarName).asFile.absolutePath }
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
@@ -21,7 +22,7 @@ tasks.register('mvnStage', Exec) {
 
   List<String> mvnArgs = [
     "$rootDir/${mvnwCommand}",
-    "-Dtarget.dir=${layout.buildDirectory.get().asFile}/application/target",
+    "-Dtarget.dir=${appTargetDir.get().asFile.absolutePath}",
     "package"
   ]
 
@@ -34,7 +35,7 @@ tasks.register('mvnStage', Exec) {
 
   inputs.dir "$appDir/src"
   inputs.file "$appDir/pom.xml"
-  outputs.file jarPath
+  outputs.file appTargetDir.map { it.file(jarName) }
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -46,7 +47,12 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 
 // compiled dir of the packaged spring boot app with embedded openliberty
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.openliberty.jar.path=${jarPath}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return ["-Ddatadog.smoketest.openliberty.jar.path=${jarPath.get()}"]
+      }
+    })
 }
 
 

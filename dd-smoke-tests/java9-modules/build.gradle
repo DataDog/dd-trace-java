@@ -34,7 +34,7 @@ tasks.withType(Test).configureEach {
     Directory specificJDKHome = metadata.installationPath
     def jlinkExecutable = specificJDKHome.file("bin/jlink")
     def jdkModulesPath = specificJDKHome.dir("jmods")
-    def generatedImageDir = "${project.layout.buildDirectory.get().asFile}/${it.name}image"
+    def generatedImageDir = project.layout.buildDirectory.dir("${it.name}image").get().asFile
 
     delete generatedImageDir
 
@@ -42,10 +42,10 @@ tasks.withType(Test).configureEach {
     exec {
       commandLine jlinkExecutable, '--no-man-pages', '--no-header-files',
       '--add-modules', 'java.instrument,datadog.smoketest.moduleapp',
-      "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir
+      "--module-path", "${jdkModulesPath}:" + jar.archiveFile.get().toString(), "--output", generatedImageDir.absolutePath
     }
 
-    it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir}"
+    it.jvmArgs "-Ddatadog.smoketest.module.image=${generatedImageDir.absolutePath}"
   }
 }
 

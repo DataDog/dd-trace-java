@@ -50,7 +50,7 @@ dependencies {
 }
 
 def appDir = "$projectDir/rum-ear"
-def appBuildDir = "${layout.buildDirectory.get().asFile}/rm-ear"
+def appBuildDir = layout.buildDirectory.dir("rm-ear")
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 // define the task that builds the quarkus project
@@ -60,7 +60,9 @@ tasks.register('earBuild', Exec) {
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
     "JAVA_HOME": getLazyJavaHomeFor(17)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4",
+    "-PappBuildDir=${appBuildDir.get().asFile.absolutePath}",
+    "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get().asFile.absolutePath}"
 
   outputs.cacheIf { true }
 
@@ -121,15 +123,20 @@ tasks.withType(Jar).configureEach {
   dependsOn 'unzip'
 }
 
-def wildflyDir = "${layout.buildDirectory.get().asFile}/${serverName}-${serverVersion}"
+def wildflyDir = layout.buildDirectory.dir("${serverName}-${serverVersion}")
 
 tasks.register("deploy", Copy) {
   dependsOn 'unzip'
-  from "${appBuildDir}/libs/wildfly-rum-ear-smoketest.ear"
-  into "${wildflyDir}/standalone/deployments"
+  from appBuildDir.map { it.file("libs/wildfly-rum-ear-smoketest.ear").asFile }
+  into wildflyDir.map { it.dir("standalone/deployments").asFile }
 }
 
 tasks.withType(Test).configureEach {
   dependsOn 'deploy'
-  jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return ["-Ddatadog.smoketest.wildflyDir=${wildflyDir.get().asFile.absolutePath}"]
+      }
+    })
 }

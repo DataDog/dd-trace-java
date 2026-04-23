@@ -4,12 +4,12 @@ def configureClassNameTrieTask(exec, sourceSetName) {
   def trieFiles = fileTree(dir: "src/${sourceSetName}/resources", include: '**/*.trie')
   def trieDir = trieFiles.dir.toPath()
 
-  def javaDir = project.layout.buildDirectory.get().asFile.toPath().resolve("generated/sources/tries/java/${sourceSetName}")
+  def javaDir = project.layout.buildDirectory.dir("generated/sources/tries/java/${sourceSetName}")
   sourceSets."$sourceSetName".java.srcDirs += [javaDir]
 
   // declare expected output path(s) so we can support incremental builds
   def javaFiles = trieFiles.collect {
-    file(javaDir.resolve(trieDir.relativize(it.toPath())).resolveSibling(
+    file(javaDir.get().asFile.toPath().resolve(trieDir.relativize(it.toPath())).resolveSibling(
       it.name.capitalize().replaceAll('_([a-z])') {
         it[1].toUpperCase()
       }
@@ -22,7 +22,7 @@ def configureClassNameTrieTask(exec, sourceSetName) {
   exec.outputs.files(javaFiles)
   exec.mainClass = 'datadog.instrument.utils.ClassNameTrie$JavaGenerator'
   exec.classpath = sourceSets."$sourceSetName".compileClasspath
-  exec.args = [trieDir, javaDir] + trieFiles
+  exec.args = [trieDir, javaDir.get().asFile.toPath()] + trieFiles
 }
 
 tasks.register('generateClassNameTries', JavaExec) {

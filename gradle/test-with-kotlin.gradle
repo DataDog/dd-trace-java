@@ -24,7 +24,7 @@ project.pluginManager.withPlugin('kotlin') {
     def dirsToCreate = ["classes/kotlin/main"]
     doFirst {
       dirsToCreate.forEach {
-        new File(project.layout.buildDirectory.get().asFile, it).mkdirs()
+        project.layout.buildDirectory.dir(it).get().asFile.mkdirs()
       }
     }
 
@@ -44,4 +44,3 @@ project.pluginManager.withPlugin('kotlin') {
     compileOnly libs.kotlin
   }
 }
-
