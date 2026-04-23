@@ -358,7 +358,7 @@ public final class DatadogProfiler {
     try {
       profiler.setContext(rootSpanId, spanId, traceIdHigh, traceIdLow);
     } catch (Throwable e) {
-      log.debug("Failed to clear context", e);
+      log.debug("Failed to set context", e);
     }
   }
 
@@ -367,7 +367,7 @@ public final class DatadogProfiler {
     try {
       profiler.setContext(0L, 0L, 0L, 0L);
     } catch (Throwable e) {
-      log.debug("Failed to set context", e);
+      log.debug("Failed to clear context", e);
     }
   }
 
