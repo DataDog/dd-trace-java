@@ -11,16 +11,22 @@ import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
 import groovy.transform.stc.SimpleType
+import java.util.concurrent.ConcurrentHashMap
 import java.util.regex.Pattern
 
 class TagsAssert {
+  // Populated by the InstrumentationSpecification spy; keyed by span ID.
+  static final Map<Long, String> INSTRUMENTATION_NAMES = new ConcurrentHashMap<>()
+
   private final long spanParentId
+  private final long spanId
   private final Map<String, Object> tags
   private final String serviceName
   private final Set<String> assertedTags = new TreeSet<>()
 
   private TagsAssert(DDSpan span) {
     this.spanParentId = span.parentId
+    this.spanId = span.spanId
     this.tags = span.tags
     this.serviceName = span.getServiceName()
   }
@@ -106,6 +112,11 @@ class TagsAssert {
     }
     if (assertedTags.add(DDTags.DD_INTEGRATION) && tags[Tags.COMPONENT] != null) {
       assert tags[Tags.COMPONENT].toString() == tags[DDTags.DD_INTEGRATION].toString()
+    }
+    String capturedInstrumentationName = INSTRUMENTATION_NAMES.remove(spanId)
+    if (capturedInstrumentationName != null && capturedInstrumentationName != "test" && tags[DDTags.DD_INTEGRATION] != null) {
+      assert tags[DDTags.DD_INTEGRATION].toString() == capturedInstrumentationName :
+      "DD_INTEGRATION '${tags[DDTags.DD_INTEGRATION]}' != instrumentationName '${capturedInstrumentationName}' passed to startSpan()"
     }
 
     assert tags["thread.name"] != null

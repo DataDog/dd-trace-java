@@ -33,6 +33,7 @@ import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
 import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -405,8 +406,11 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
-    TEST_TRACER.startSpan(*_) >> {
+    TEST_TRACER.startSpan(*_) >> { Object[] args ->
       AgentSpan agentSpan = callRealMethod()
+      if (args.length > 0 && args[0] instanceof String) {
+        TagsAssert.INSTRUMENTATION_NAMES[agentSpan.spanId] = (String) args[0]
+      }
       if (!enabledFinishTimingChecks) {
         return agentSpan
       }

@@ -3,6 +3,7 @@ package datadog.trace.agent.test.utils
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.AgentScope
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.decorator.BaseDecorator
 import datadog.trace.core.DDSpan
 
@@ -44,7 +45,7 @@ class TraceUtils {
   }
 
   static <T> T runUnderTrace(final String rootOperationName, final boolean inheritCurrent, final boolean async, final Callable<T> r) {
-    final AgentSpan span = inheritCurrent ? startSpan(rootOperationName) : startSpan(rootOperationName, null)
+    final AgentSpan span = inheritCurrent ? startSpan("test", rootOperationName) : startSpan("test", rootOperationName, (AgentSpanContext) null)
     DECORATOR.afterStart(span)
 
     AgentScope scope = activateSpan(span)
