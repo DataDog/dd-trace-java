@@ -909,7 +909,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],
@@ -1107,7 +1107,7 @@
     ],
     "DD_DATA_STREAMS_TRANSACTION_EXTRACTORS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -2227,7 +2227,7 @@
     ],
     "DD_TRACE_LOG_LEVEL": [
       {
-        "version": "A",
+        "version": "D",
         "type": "string",
         "default": null,
         "aliases": ["DD_LOG_LEVEL"]
@@ -2371,7 +2371,7 @@
     ],
     "DD_OTLP_TRACES_ENDPOINT": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -2379,7 +2379,7 @@
     ],
     "DD_OTLP_TRACES_HEADERS": [
       {
-        "version": "A",
+        "version": "B",
         "type": "map",
         "default": null,
         "aliases": []
@@ -2387,7 +2387,7 @@
     ],
     "DD_OTLP_TRACES_PROTOCOL": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": "HTTP_PROTOBUF",
         "aliases": []
@@ -9889,6 +9889,30 @@
         "aliases": ["DD_TRACE_INTEGRATION_SOCKET_ENABLED", "DD_INTEGRATION_SOCKET_ENABLED"]
       }
     ],
+    "DD_TRACE_SOFARPC_ANALYTICS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": ["DD_SOFARPC_ANALYTICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SOFARPC_ANALYTICS_SAMPLE_RATE": [
+      {
+        "version": "A",
+        "type": "decimal",
+        "default": "1.0",
+        "aliases": ["DD_SOFARPC_ANALYTICS_SAMPLE_RATE"]
+      }
+    ],
+    "DD_TRACE_SOFARPC_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SOFARPC_ENABLED", "DD_INTEGRATION_SOFARPC_ENABLED"]
+      }
+    ],
     "DD_TRACE_SPAN_ATTRIBUTE_SCHEMA": [
       {
         "version": "B",
@@ -11115,7 +11139,7 @@
     ],
     "DD_TRACE_WEBSOCKET_ENABLED": [
       {
-        "version": "B",
+        "version": "C",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_WEBSOCKET_ENABLED", "DD_INTEGRATION_WEBSOCKET_ENABLED"]
