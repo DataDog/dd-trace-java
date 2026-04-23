@@ -5,9 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import io.undertow.server.handlers.form.FormData;
 import io.undertow.util.HeaderMap;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.Field;
+import java.lang.reflect.Proxy;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayDeque;
@@ -101,59 +101,27 @@ class FormDataMapTest {
     Map<String, Deque<FormData.FormValue>> values =
         (Map<String, Deque<FormData.FormValue>>) valuesField.get(fd);
 
+    // Use a Proxy so this compiles against undertow 2.0 and also works against 2.2.x,
+    // which added getCharset(), getFileItem(), isFileItem(), and isBigField() to the interface.
     FormData.FormValue inMemory =
-        new FormData.FormValue() {
-          @Override
-          public String getValue() {
-            return "";
-          }
-
-          @Override
-          public boolean isFile() {
-            return false;
-          }
-
-          @Override
-          public String getFileName() {
-            return filename;
-          }
-
-          @Override
-          public Path getPath() {
-            return null;
-          }
-
-          @Override
-          public File getFile() {
-            return null;
-          }
-
-          @Override
-          public HeaderMap getHeaders() {
-            return null;
-          }
-
-          // Methods added in undertow 2.2.x
-          @Override
-          public String getCharset() {
-            return null;
-          }
-
-          @Override
-          public FormData.FileItem getFileItem() {
-            return null;
-          }
-
-          @Override
-          public boolean isFileItem() {
-            return false;
-          }
-
-          @Override
-          public boolean isBigField() {
-            return false;
-          }
-        };
+        (FormData.FormValue)
+            Proxy.newProxyInstance(
+                FormData.FormValue.class.getClassLoader(),
+                new Class<?>[] {FormData.FormValue.class},
+                (proxy, method, args) -> {
+                  switch (method.getName()) {
+                    case "getValue":
+                      return "";
+                    case "isFile":
+                    case "isFileItem":
+                    case "isBigField":
+                      return false;
+                    case "getFileName":
+                      return filename;
+                    default:
+                      return null;
+                  }
+                });
 
     Deque<FormData.FormValue> deque = new ArrayDeque<>();
     deque.add(inMemory);
