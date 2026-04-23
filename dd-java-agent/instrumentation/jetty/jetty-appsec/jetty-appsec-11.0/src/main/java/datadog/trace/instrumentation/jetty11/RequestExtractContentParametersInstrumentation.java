@@ -20,7 +20,6 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import jakarta.servlet.http.Part;
 import java.util.Collection;
-import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -157,29 +156,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      List<String> filenames = MultipartHelper.extractFilenames(parts);
-      if (filenames.isEmpty()) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (multipart file upload)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
+      t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
     }
   }
 
@@ -205,29 +182,7 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      List<String> filenames = MultipartHelper.extractFilenames(parts);
-      if (filenames.isEmpty()) {
-        return;
-      }
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, List<String>, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null) {
-        return;
-      }
-      Flow<Void> flow = callback.apply(reqCtx, filenames);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (multipart file upload)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
-        }
-      }
+      t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
     }
   }
 }
