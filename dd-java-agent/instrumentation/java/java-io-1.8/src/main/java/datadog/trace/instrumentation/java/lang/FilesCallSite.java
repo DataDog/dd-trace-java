@@ -44,10 +44,30 @@ public class FilesCallSite {
   }
 
   @CallSite.Before(
+      "java.nio.file.Path java.nio.file.Files.copy(java.nio.file.Path, java.nio.file.Path, java.nio.file.CopyOption[])")
+  public static void beforeCopyPathToPath(
+      @CallSite.Argument(0) @Nullable final Path source,
+      @CallSite.Argument(1) @Nullable final Path target) {
+    if (source != null) {
+      FileIORaspHelper.INSTANCE.beforeFileLoaded(source.toString());
+    }
+    if (target != null) {
+      FileIORaspHelper.INSTANCE.beforeFileWritten(target.toString());
+    }
+  }
+
+  @CallSite.Before(
       "java.nio.file.Path java.nio.file.Files.move(java.nio.file.Path, java.nio.file.Path, java.nio.file.CopyOption[])")
   public static void beforeMove(@CallSite.Argument(1) @Nullable final Path target) {
     if (target != null) {
       FileIORaspHelper.INSTANCE.beforeFileWritten(target.toString());
+    }
+  }
+
+  @CallSite.Before("long java.nio.file.Files.copy(java.nio.file.Path, java.io.OutputStream)")
+  public static void beforeCopyToStream(@CallSite.Argument(0) @Nullable final Path source) {
+    if (source != null) {
+      FileIORaspHelper.INSTANCE.beforeFileLoaded(source.toString());
     }
   }
 

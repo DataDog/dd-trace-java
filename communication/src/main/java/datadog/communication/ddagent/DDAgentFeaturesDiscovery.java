@@ -4,6 +4,7 @@ import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
@@ -17,6 +18,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.metrics.api.Recording;
 import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
@@ -50,6 +52,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   public static final String V03_ENDPOINT = "v0.3/traces";
   public static final String V04_ENDPOINT = "v0.4/traces";
   public static final String V05_ENDPOINT = "v0.5/traces";
+  public static final String V1_ENDPOINT = "v1.0/traces";
 
   public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
   public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
@@ -72,7 +75,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
-  private final String[] traceEndpoints;
+  private final ProtocolVersion protocolVersion;
   private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
   private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
@@ -107,15 +110,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       OkHttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
-      boolean enableV05Traces,
+      ProtocolVersion protocolVersion,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
-    this.traceEndpoints =
-        enableV05Traces
-            ? new String[] {V05_ENDPOINT, V04_ENDPOINT, V03_ENDPOINT}
-            : new String[] {V04_ENDPOINT, V03_ENDPOINT};
+    this.protocolVersion = protocolVersion != null ? protocolVersion : V0_4;
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -173,10 +173,10 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       // don't want to rewire the traces pipeline
       if (null == newState.traceEndpoint) {
-        newState.traceEndpoint = probeTracesEndpoint(newState, traceEndpoints);
+        newState.traceEndpoint = probeTracesEndpoint(newState, protocolVersion.endpointsToProbe());
       } else if (newState.state == null || newState.state.isEmpty()) {
         // Still need to probe so that state is correctly assigned
-        probeTracesEndpoint(newState, new String[] {newState.traceEndpoint});
+        probeTracesEndpoint(newState, singletonList(newState.traceEndpoint));
       }
     }
 
@@ -194,7 +194,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     }
   }
 
-  private String probeTracesEndpoint(State newState, String[] endpoints) {
+  private String probeTracesEndpoint(State newState, List<String> endpoints) {
     for (String candidate : endpoints) {
       try (Response response =
           client
@@ -253,7 +253,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       // This is done outside of the loop to set metricsEndpoint to null if not found
       newState.metricsEndpoint = foundMetricsEndpoint;
 
-      for (String endpoint : traceEndpoints) {
+      for (String endpoint : protocolVersion.endpointsToProbe()) {
         if (containsEndpoint(endpoints, endpoint)) {
           newState.traceEndpoint = endpoint;
           break;
