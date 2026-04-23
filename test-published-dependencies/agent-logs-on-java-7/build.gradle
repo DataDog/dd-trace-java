@@ -22,6 +22,7 @@ dependencies {
   agent("com.datadoghq:dd-java-agent:$version")
   testImplementation(platform("org.junit:junit-bom:5.9.2"))
   testImplementation('org.junit.jupiter:junit-jupiter')
+  testRuntimeOnly('org.junit.platform:junit-platform-launcher')
 }
 
 tasks.named("test", Test) {

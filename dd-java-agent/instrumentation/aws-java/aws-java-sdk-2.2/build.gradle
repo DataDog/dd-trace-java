@@ -88,3 +88,9 @@ dependencies {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
+
+['payloadTaggingTest', 'latestPayloadTaggingTest'].each { taskName ->
+  tasks.named(taskName, Test) {
+    failOnNoDiscoveredTests = false
+  }
+}
