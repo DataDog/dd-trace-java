@@ -474,7 +474,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   def createAgentApi(String url) {
     HttpUrl agentUrl = HttpUrl.get(url)
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true, false)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 }
