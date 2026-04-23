@@ -12,16 +12,57 @@ dependencies {
 def appDir = "$projectDir/application"
 def appBuildDir = "$buildDir/application"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradleCommand = isWindows ? 'gradle.bat' : 'gradle'
+def gradleJavaHome = getLazyJavaHomeFor(17)
+def javaExecutable = isWindows ? "java.exe" : "java"
+def gradleJavaExecutable = new Object() {
+    @Override
+    String toString() {
+      return "${gradleJavaHome}/bin/${javaExecutable}"
+    }
+  }
+def quarkusGradleWrapperDir = layout.buildDirectory.dir("quarkus-gradle-wrapper")
+def quarkusGradleWrapperJar =
+  quarkusGradleWrapperDir.map { it.file("gradle/wrapper/gradle-wrapper.jar") }
+def quarkusGradleWrapperJarPath = new Object() {
+    @Override
+    String toString() {
+      return quarkusGradleWrapperJar.get().asFile.absolutePath
+    }
+  }
+def quarkusGradleWrapperProperties =
+  quarkusGradleWrapperDir.map { it.file("gradle/wrapper/gradle-wrapper.properties") }
+
+def quarkusGradleWrapperJarTask = tasks.register("quarkusGradleWrapperJar", Copy) {
+  from "$rootDir/gradle/wrapper/gradle-wrapper.jar"
+  into quarkusGradleWrapperDir.map { it.dir("gradle/wrapper") }
+}
+
+def quarkusGradleWrapperPropertiesTask = tasks.register("quarkusGradleWrapperProperties", WriteProperties) {
+  destinationFile = quarkusGradleWrapperProperties
+  property "distributionBase", "GRADLE_USER_HOME"
+  property "distributionPath", "wrapper/dists"
+  property "distributionUrl", "https://services.gradle.org/distributions/gradle-8.14.4-bin.zip"
+  property "zipStoreBase", "GRADLE_USER_HOME"
+  property "zipStorePath", "wrapper/dists"
+}
 
 // define the task that builds the quarkus project
 tasks.register('quarkusBuild', Exec) {
   workingDir "$appDir"
   environment += [
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
+    "JAVA_HOME": gradleJavaHome
   ]
-  commandLine gradleCommand, "build", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine gradleJavaExecutable,
+    "-Dorg.gradle.appname=${isWindows ? 'gradlew.bat' : 'gradlew'}",
+    "-classpath",
+    quarkusGradleWrapperJarPath,
+    "org.gradle.wrapper.GradleWrapperMain",
+    "build",
+    "--no-daemon",
+    "--max-workers=4",
+    "-PappBuildDir=$appBuildDir",
+    "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
 
@@ -39,6 +80,8 @@ tasks.register('quarkusBuild', Exec) {
 evaluationDependsOn ':dd-trace-api'
 
 tasks.named("quarkusBuild", Exec) {
+  dependsOn quarkusGradleWrapperJarTask
+  dependsOn quarkusGradleWrapperPropertiesTask
   dependsOn project(':dd-trace-api').tasks.named("jar")
 }
 

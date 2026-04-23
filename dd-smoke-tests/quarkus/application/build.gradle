@@ -15,6 +15,11 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
+
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")
   implementation 'io.quarkus:quarkus-resteasy'

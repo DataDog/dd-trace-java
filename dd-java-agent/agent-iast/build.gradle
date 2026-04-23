@@ -118,7 +118,7 @@ tasks.named("forbiddenApisJmh") {
 sourceSets {
   test {
     java {
-      srcDirs += [layout.buildDirectory.dir("generated/source/proto/test/java").get().asFile]
+      srcDir tasks.named("generateTestProto").map { "${it.outputBaseDir}/java" }
     }
   }
 }
