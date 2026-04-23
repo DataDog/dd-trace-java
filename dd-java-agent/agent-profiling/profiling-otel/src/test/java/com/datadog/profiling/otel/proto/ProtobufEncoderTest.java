@@ -153,8 +153,8 @@ class ProtobufEncoderTest {
         nested -> {
           // empty message
         });
-    // Empty nested messages are not written
-    assertEquals(0, encoder.size());
+    // Empty nested messages write tag + zero length (required for OTLP index-0 sentinels)
+    assertArrayEquals(new byte[] {0x0A, 0x00}, encoder.toByteArray());
   }
 
   @Test

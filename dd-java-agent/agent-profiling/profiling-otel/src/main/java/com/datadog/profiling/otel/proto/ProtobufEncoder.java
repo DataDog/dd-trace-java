@@ -1,10 +1,10 @@
 package com.datadog.profiling.otel.proto;
 
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
 import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
 
 /**
  * Low-level protobuf encoder without external dependencies. Implements the protobuf wire format for
@@ -18,101 +18,76 @@ public final class ProtobufEncoder {
   public static final int WIRETYPE_LENGTH_DELIMITED = 2;
   public static final int WIRETYPE_FIXED32 = 5;
 
-  private final ByteArrayOutputStream buffer;
+  private byte[] buf;
+  private int size;
+  // Lazily initialized child encoder, reused across writeNestedMessage / writePackedVarintField
+  // calls to avoid per-call allocation. Nesting is always sequential, so one child per depth level
+  // (forming a chain) is safe.
+  private ProtobufEncoder child;
 
   public ProtobufEncoder() {
-    this.buffer = new ByteArrayOutputStream(4096);
+    this.buf = new byte[4096];
   }
 
   public ProtobufEncoder(int initialCapacity) {
-    this.buffer = new ByteArrayOutputStream(initialCapacity);
+    this.buf = new byte[initialCapacity];
   }
 
   /** Resets the encoder for reuse. */
   public void reset() {
-    buffer.reset();
+    size = 0;
   }
 
-  /**
-   * Writes a field tag (field number + wire type).
-   *
-   * @param fieldNumber the field number
-   * @param wireType the wire type
-   */
+  private void resize(int needed) {
+    buf = Arrays.copyOf(buf, Math.max(buf.length * 2, size + needed));
+  }
+
   public void writeTag(int fieldNumber, int wireType) {
     writeVarint((fieldNumber << 3) | wireType);
   }
 
-  /**
-   * Writes a varint (variable-length integer).
-   *
-   * @param value the value to write
-   */
   public void writeVarint(long value) {
+    if (size + 10 > buf.length) resize(10);
     while ((value & ~0x7FL) != 0) {
-      buffer.write((int) ((value & 0x7F) | 0x80));
+      buf[size++] = (byte) ((value & 0x7F) | 0x80);
       value >>>= 7;
     }
-    buffer.write((int) value);
+    buf[size++] = (byte) value;
   }
 
-  /**
-   * Writes a signed varint using ZigZag encoding.
-   *
-   * @param value the signed value to write
-   */
   public void writeSignedVarint(long value) {
     writeVarint((value << 1) ^ (value >> 63));
   }
 
-  /**
-   * Writes a fixed 64-bit value (little-endian).
-   *
-   * @param value the value to write
-   */
   public void writeFixed64(long value) {
-    buffer.write((int) (value & 0xFF));
-    buffer.write((int) ((value >> 8) & 0xFF));
-    buffer.write((int) ((value >> 16) & 0xFF));
-    buffer.write((int) ((value >> 24) & 0xFF));
-    buffer.write((int) ((value >> 32) & 0xFF));
-    buffer.write((int) ((value >> 40) & 0xFF));
-    buffer.write((int) ((value >> 48) & 0xFF));
-    buffer.write((int) ((value >> 56) & 0xFF));
+    if (size + 8 > buf.length) resize(8);
+    buf[size    ] = (byte)  (value        & 0xFF);
+    buf[size + 1] = (byte) ((value >>  8) & 0xFF);
+    buf[size + 2] = (byte) ((value >> 16) & 0xFF);
+    buf[size + 3] = (byte) ((value >> 24) & 0xFF);
+    buf[size + 4] = (byte) ((value >> 32) & 0xFF);
+    buf[size + 5] = (byte) ((value >> 40) & 0xFF);
+    buf[size + 6] = (byte) ((value >> 48) & 0xFF);
+    buf[size + 7] = (byte) ((value >> 56) & 0xFF);
+    size += 8;
   }
 
-  /**
-   * Writes a fixed 32-bit value (little-endian).
-   *
-   * @param value the value to write
-   */
   public void writeFixed32(int value) {
-    buffer.write(value & 0xFF);
-    buffer.write((value >> 8) & 0xFF);
-    buffer.write((value >> 16) & 0xFF);
-    buffer.write((value >> 24) & 0xFF);
+    if (size + 4 > buf.length) resize(4);
+    buf[size    ] = (byte)  (value        & 0xFF);
+    buf[size + 1] = (byte) ((value >>  8) & 0xFF);
+    buf[size + 2] = (byte) ((value >> 16) & 0xFF);
+    buf[size + 3] = (byte) ((value >> 24) & 0xFF);
+    size += 4;
   }
 
-  /**
-   * Writes raw bytes.
-   *
-   * @param bytes the bytes to write
-   */
   public void writeBytes(byte[] bytes) {
     writeVarint(bytes.length);
-    try {
-      buffer.write(bytes);
-    } catch (IOException e) {
-      // ByteArrayOutputStream doesn't throw IOException
-      throw new RuntimeException(e);
-    }
+    if (size + bytes.length > buf.length) resize(bytes.length);
+    System.arraycopy(bytes, 0, buf, size, bytes.length);
+    size += bytes.length;
   }
 
-  /**
-   * Writes a string as length-delimited UTF-8 bytes.
-   *
-   * @param value the string to write
-   */
   public void writeString(String value) {
     if (value == null || value.isEmpty()) {
       writeVarint(0);
@@ -123,37 +98,30 @@ public final class ProtobufEncoder {
   }
 
   /**
-   * Writes a nested message. The message is first written to a temporary buffer to compute its
-   * length, then written as a length-delimited field.
+   * Writes a nested message as a length-delimited field. The child encoder is reused to avoid
+   * allocation; content is copied directly into this encoder's buffer without an intermediate
+   * {@code toByteArray()} copy.
    *
-   * @param fieldNumber the field number
-   * @param writer the message writer
+   * <p>Empty messages are always written (tag + zero length): required for OTLP dictionary tables
+   * where index 0 is the null/unset sentinel.
    */
   public void writeNestedMessage(int fieldNumber, MessageWriter writer) {
-    // Write to temporary buffer to get length
-    ProtobufEncoder nested = new ProtobufEncoder();
-    writer.write(nested);
-    byte[] messageBytes = nested.toByteArray();
+    if (child == null) {
+      child = new ProtobufEncoder();
+    } else {
+      child.reset();
+    }
+    writer.write(child);
 
-    // ALWAYS write the message, even if empty (length 0)
-    // This is REQUIRED for OTLP dictionary tables where index 0 must be present
     writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
-    writeVarint(messageBytes.length);
-    if (messageBytes.length > 0) {
-      try {
-        buffer.write(messageBytes);
-      } catch (IOException e) {
-        throw new RuntimeException(e);
-      }
+    writeVarint(child.size);
+    if (child.size > 0) {
+      if (size + child.size > buf.length) resize(child.size);
+      System.arraycopy(child.buf, 0, buf, size, child.size);
+      size += child.size;
     }
   }
 
-  /**
-   * Writes a varint field.
-   *
-   * @param fieldNumber the field number
-   * @param value the value
-   */
   public void writeVarintField(int fieldNumber, long value) {
     if (value != 0) {
       writeTag(fieldNumber, WIRETYPE_VARINT);
@@ -161,12 +129,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a signed varint field (ZigZag encoded).
-   *
-   * @param fieldNumber the field number
-   * @param value the signed value
-   */
   public void writeSignedVarintField(int fieldNumber, long value) {
     if (value != 0) {
       writeTag(fieldNumber, WIRETYPE_VARINT);
@@ -174,12 +136,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a fixed64 field.
-   *
-   * @param fieldNumber the field number
-   * @param value the value
-   */
   public void writeFixed64Field(int fieldNumber, long value) {
     if (value != 0) {
       writeTag(fieldNumber, WIRETYPE_FIXED64);
@@ -187,12 +143,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a fixed32 field.
-   *
-   * @param fieldNumber the field number
-   * @param value the value
-   */
   public void writeFixed32Field(int fieldNumber, int value) {
     if (value != 0) {
       writeTag(fieldNumber, WIRETYPE_FIXED32);
@@ -200,12 +150,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a string field.
-   *
-   * @param fieldNumber the field number
-   * @param value the string value
-   */
   public void writeStringField(int fieldNumber, String value) {
     if (value != null && !value.isEmpty()) {
       writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
@@ -213,12 +157,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a bytes field.
-   *
-   * @param fieldNumber the field number
-   * @param value the bytes value
-   */
   public void writeBytesField(int fieldNumber, byte[] value) {
     if (value != null && value.length > 0) {
       writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
@@ -226,14 +164,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a bytes field from an InputStream without loading entire content into memory.
-   *
-   * @param fieldNumber the field number
-   * @param inputStream the input stream containing bytes to write (will be closed after writing)
-   * @param length the number of bytes to read from the stream
-   * @throws IOException if reading from stream fails
-   */
   public void writeBytesField(int fieldNumber, InputStream inputStream, long length)
       throws IOException {
     if (inputStream == null || length == 0) {
@@ -243,7 +173,6 @@ public final class ProtobufEncoder {
     writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
     writeVarint(length);
 
-    // Stream bytes directly to buffer
     byte[] chunk = new byte[8192];
     long remaining = length;
     try {
@@ -253,7 +182,9 @@ public final class ProtobufEncoder {
         if (read < 0) {
           throw new IOException("Unexpected end of stream");
         }
-        buffer.write(chunk, 0, read);
+        if (size + read > buf.length) resize(read);
+        System.arraycopy(chunk, 0, buf, size, read);
+        size += read;
         remaining -= read;
       }
     } finally {
@@ -261,12 +192,6 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a boolean field (as varint 0 or 1).
-   *
-   * @param fieldNumber the field number
-   * @param value the boolean value
-   */
   public void writeBoolField(int fieldNumber, boolean value) {
     if (value) {
       writeTag(fieldNumber, WIRETYPE_VARINT);
@@ -274,71 +199,63 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Writes a packed repeated int32/int64 field.
-   *
-   * @param fieldNumber the field number
-   * @param values the values
-   */
   public void writePackedVarintField(int fieldNumber, int[] values) {
     if (values == null || values.length == 0) {
       return; // Empty packed arrays are omitted per protobuf3 spec
     }
-
-    // Calculate packed size
-    ProtobufEncoder temp = new ProtobufEncoder();
+    if (child == null) {
+      child = new ProtobufEncoder();
+    } else {
+      child.reset();
+    }
     for (int value : values) {
-      temp.writeVarint(value);
+      child.writeVarint(value);
     }
-    byte[] packed = temp.toByteArray();
-
     writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
-    writeVarint(packed.length);
-    try {
-      buffer.write(packed);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    writeVarint(child.size);
+    if (size + child.size > buf.length) resize(child.size);
+    System.arraycopy(child.buf, 0, buf, size, child.size);
+    size += child.size;
   }
 
-  /**
-   * Writes a packed repeated int64 field.
-   *
-   * @param fieldNumber the field number
-   * @param values the values
-   */
   public void writePackedVarintField(int fieldNumber, long[] values) {
     if (values == null || values.length == 0) {
       return;
     }
-
-    // Calculate packed size
-    ProtobufEncoder temp = new ProtobufEncoder();
+    if (child == null) {
+      child = new ProtobufEncoder();
+    } else {
+      child.reset();
+    }
     for (long value : values) {
-      temp.writeVarint(value);
+      child.writeVarint(value);
     }
-    byte[] packed = temp.toByteArray();
-
     writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
-    writeVarint(packed.length);
-    try {
-      buffer.write(packed);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    writeVarint(child.size);
+    if (size + child.size > buf.length) resize(child.size);
+    System.arraycopy(child.buf, 0, buf, size, child.size);
+    size += child.size;
   }
 
-  /**
-   * Writes a packed repeated fixed64 field.
-   *
-   * @param fieldNumber the field number
-   * @param values the values
-   */
+  /** Single-value variant — avoids {@code new long[]{value}} allocation at call site. */
+  public void writePackedVarintField(int fieldNumber, long value) {
+    if (child == null) {
+      child = new ProtobufEncoder();
+    } else {
+      child.reset();
+    }
+    child.writeVarint(value);
+    writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
+    writeVarint(child.size);
+    if (size + child.size > buf.length) resize(child.size);
+    System.arraycopy(child.buf, 0, buf, size, child.size);
+    size += child.size;
+  }
+
   public void writePackedFixed64Field(int fieldNumber, long[] values) {
     if (values == null || values.length == 0) {
       return;
     }
-
     writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
     writeVarint(values.length * 8L);
     for (long value : values) {
@@ -346,32 +263,23 @@ public final class ProtobufEncoder {
     }
   }
 
-  /**
-   * Returns the encoded bytes.
-   *
-   * @return the encoded protobuf bytes
-   */
+  /** Single-value variant — avoids {@code new long[]{value}} allocation at call site. */
+  public void writePackedFixed64Field(int fieldNumber, long value) {
+    writeTag(fieldNumber, WIRETYPE_LENGTH_DELIMITED);
+    writeVarint(8);
+    writeFixed64(value);
+  }
+
   public byte[] toByteArray() {
-    return buffer.toByteArray();
+    return Arrays.copyOf(buf, size);
   }
 
-  /**
-   * Writes the encoded bytes to the given output stream.
-   *
-   * @param out the output stream
-   * @throws IOException if an I/O error occurs
-   */
   public void writeTo(OutputStream out) throws IOException {
-    buffer.writeTo(out);
+    out.write(buf, 0, size);
   }
 
-  /**
-   * Returns the current size of the encoded data.
-   *
-   * @return the size in bytes
-   */
   public int size() {
-    return buffer.size();
+    return size;
   }
 
   /** Functional interface for writing nested messages. */

@@ -27,6 +27,18 @@ jmh {
       "-XX:+DebugNonSafepoints"
     )
   }
+
+  // async-profiler CPU flamegraph
+  // Usage: ./gradlew jmh -PjmhAsyncProfiler=/path/to/libasyncProfiler.dylib
+  // Output: /tmp/jmh-async-profile.html
+  if (project.hasProperty("jmhAsyncProfiler")) {
+    val lib = project.property("jmhAsyncProfiler") as String
+    jvmArgs = listOf(
+      "-XX:+UnlockDiagnosticVMOptions",
+      "-XX:+DebugNonSafepoints",
+      "-agentpath:$lib=start,event=cpu,file=/tmp/jmh-async-profile.html,flamegraph"
+    )
+  }
 }
 
 // OTLP validation tests removed - use profcheck validation instead (see validateOtlp task below)
