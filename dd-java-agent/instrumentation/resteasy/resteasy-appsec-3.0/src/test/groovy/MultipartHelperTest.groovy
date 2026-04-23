@@ -70,4 +70,33 @@ class MultipartHelperTest extends Specification {
       'form-data; fileName="report.php"',
     ]
   }
+
+  def "handles MIME linear whitespace (tab) after semicolon"() {
+    expect:
+    MultipartHelper.filenameFromContentDisposition(cd) == expected
+
+    where:
+    cd                                                        | expected
+    'form-data; name="f";\tfilename="evil.php"'              | 'evil.php'
+    'form-data;\tfilename="evil.php"'                        | 'evil.php'
+    'form-data; name="f";\t\tfilename="evil.php"'            | 'evil.php'
+  }
+
+  def "handles optional whitespace around the equals sign"() {
+    expect:
+    MultipartHelper.filenameFromContentDisposition(cd) == expected
+
+    where:
+    cd                                                        | expected
+    'form-data; filename ="report.php"'                      | 'report.php'
+    'form-data; filename= "report.php"'                      | 'report.php'
+    'form-data; filename = "report.php"'                     | 'report.php'
+    'form-data; filename\t=\t"report.php"'                   | 'report.php'
+    'form-data; name="f";\tfilename\t=\t"evil.php"'          | 'evil.php'
+  }
+
+  def "does not match filename* extended parameter as filename"() {
+    expect:
+    MultipartHelper.filenameFromContentDisposition("form-data; filename*=UTF-8''evil.php") == null
+  }
 }

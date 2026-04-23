@@ -51,7 +51,12 @@ public final class MultipartHelper {
     return filenames;
   }
 
-  // Quote-aware: semicolons inside quoted filenames (e.g. filename="a;b.php") are not separators
+  // Quote-aware: semicolons inside quoted filenames (e.g. filename="a;b.php") are not separators.
+  // Outer loop: i advances to each ';' (skipping quoted strings to avoid treating their contents
+  // as delimiters), then past MIME linear whitespace (SP/HT) to the start of the parameter name.
+  // j is a lookahead used only to find '=' after optional whitespace without committing i until
+  // the parameter is confirmed to be "filename"; this avoids confusing "filename*" (RFC 5987) or
+  // other "filename"-prefixed parameter names with the plain "filename" parameter.
   public static String filenameFromContentDisposition(String cd) {
     if (cd == null) return null;
     int i = 0;
@@ -69,24 +74,29 @@ public final class MultipartHelper {
       }
       if (i >= len) break;
       i++;
-      while (i < len && cd.charAt(i) == ' ') i++;
-      if (cd.regionMatches(true, i, "filename=", 0, 9)) {
-        i += 9;
-        if (i >= len) return null;
-        if (cd.charAt(i) == '"') {
-          i++;
-          StringBuilder sb = new StringBuilder();
-          while (i < len && cd.charAt(i) != '"') {
-            if (cd.charAt(i) == '\\' && i + 1 < len) i++; // unescape
-            sb.append(cd.charAt(i++));
+      while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+      if (cd.regionMatches(true, i, "filename", 0, 8)) {
+        int j = i + 8;
+        while (j < len && (cd.charAt(j) == ' ' || cd.charAt(j) == '\t')) j++;
+        if (j < len && cd.charAt(j) == '=') {
+          i = j + 1;
+          while (i < len && (cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) i++;
+          if (i >= len) return null;
+          if (cd.charAt(i) == '"') {
+            i++;
+            StringBuilder sb = new StringBuilder();
+            while (i < len && cd.charAt(i) != '"') {
+              if (cd.charAt(i) == '\\' && i + 1 < len) i++; // unescape
+              sb.append(cd.charAt(i++));
+            }
+            String name = sb.toString();
+            return name.isEmpty() ? null : name;
+          } else {
+            int start = i;
+            while (i < len && cd.charAt(i) != ';') i++;
+            String name = cd.substring(start, i).trim();
+            return name.isEmpty() ? null : name;
           }
-          String name = sb.toString();
-          return name.isEmpty() ? null : name;
-        } else {
-          int start = i;
-          while (i < len && cd.charAt(i) != ';') i++;
-          String name = cd.substring(start, i).trim();
-          return name.isEmpty() ? null : name;
         }
       }
     }
