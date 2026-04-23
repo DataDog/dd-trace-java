@@ -390,7 +390,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   private String tailProcessLog(int lines) {
     try {
       def logFile = new File(logFilePath)
-      if (!logFile.exists()) return "(log file does not exist: ${logFilePath})"
+      if (!logFile.exists()) {
+        return "(log file does not exist: ${logFilePath})"
+      }
       def allLines = logFile.readLines()
       def tail = allLines.size() > lines ? allLines[-lines..-1] : allLines
       return tail.join("\n")
