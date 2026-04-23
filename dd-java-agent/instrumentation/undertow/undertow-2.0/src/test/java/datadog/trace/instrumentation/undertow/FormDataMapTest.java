@@ -132,6 +132,27 @@ class FormDataMapTest {
           public HeaderMap getHeaders() {
             return null;
           }
+
+          // Methods added in undertow 2.2.x
+          @Override
+          public String getCharset() {
+            return null;
+          }
+
+          @Override
+          public FormData.FileItem getFileItem() {
+            return null;
+          }
+
+          @Override
+          public boolean isFileItem() {
+            return false;
+          }
+
+          @Override
+          public boolean isBigField() {
+            return false;
+          }
         };
 
     Deque<FormData.FormValue> deque = new ArrayDeque<>();
