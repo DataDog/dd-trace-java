@@ -112,7 +112,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      if (filenamesCb != null) {
+      if (filenamesCb != null && t == null) {
         List<String> filenames = new ArrayList<>();
         for (String key : attachment) {
           for (FormData.FormValue formValue : attachment.get(key)) {
@@ -125,7 +125,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         if (!filenames.isEmpty()) {
           Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
           Flow.Action filenamesAction = filenamesFlow.getAction();
-          if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+          if (filenamesAction instanceof Flow.Action.RequestBlockingAction) {
             Flow.Action.RequestBlockingAction rba =
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
