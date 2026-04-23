@@ -6,6 +6,8 @@ import datadog.trace.test.agent.decoder.DecodedTrace
 
 abstract class AbstractApmTracingDisabledSmokeTest extends AbstractServerSmokeTest {
 
+  protected abstract String traceAgentProtocolVersion()
+
   @Override
   File createTemporaryFile(int processIndex) {
     return null
@@ -32,6 +34,7 @@ abstract class AbstractApmTracingDisabledSmokeTest extends AbstractServerSmokeTe
     List<String> command = []
     command.add(javaPath())
     command.addAll(defaultJavaProperties)
+    command.add("-Ddd.trace.agent.protocol.version=${traceAgentProtocolVersion()}".toString())
     command.addAll(properties)
     command.addAll((String[]) ['-jar', springBootShadowJar, "--server.port=${port}"])
     ProcessBuilder processBuilder = new ProcessBuilder(command)
@@ -57,12 +60,16 @@ abstract class AbstractApmTracingDisabledSmokeTest extends AbstractServerSmokeTe
     }
   }
 
+  protected Object samplingPriority(DecodedTrace trace) {
+    return trace.spans[0].metrics['_sampling_priority_v1']
+  }
+
   protected checkRootSpanPrioritySampling(DecodedTrace trace, byte priority) {
-    return trace.spans[0].metrics['_sampling_priority_v1'] == priority
+    return samplingPriority(trace) == priority
   }
 
   protected isSampledBySampler(DecodedTrace trace) {
-    def samplingPriority = trace.spans[0].metrics['_sampling_priority_v1']
+    def samplingPriority = samplingPriority(trace)
     return samplingPriority == PrioritySampling.SAMPLER_KEEP || samplingPriority == PrioritySampling.SAMPLER_DROP
   }
 

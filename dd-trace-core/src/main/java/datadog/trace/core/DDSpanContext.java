@@ -1184,6 +1184,16 @@ public class DDSpanContext
 
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    processTagsAndBaggage(
+        consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  void processTagsAndBaggage(
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan,
+      boolean injectLinksAsTags,
+      boolean injectBaggageAsTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
     // links
     // This is a compromise to avoid...
@@ -1226,7 +1236,8 @@ public class DDSpanContext
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,
-              ProcessTags.getTagsForSerialization()));
+              ProcessTags.getTagsForSerialization(),
+              restrictedSpan.getLinks()));
     }
   }
 

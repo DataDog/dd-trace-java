@@ -87,7 +87,8 @@ public final class ConfigDefaults {
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V0_4.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
