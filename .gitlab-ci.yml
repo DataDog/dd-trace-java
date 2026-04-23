@@ -4,10 +4,29 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-load-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-startup-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-dacapo-parallel.yml'
+    ref: 'main'
+  - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
   - build
   - publish
+  # These benchmarks are intended to replace the legacy benchmarks in the future
+  - java-spring-petclinic-parallel
+  - java-spring-petclinic-parallel-slo
+  - java-startup-parallel
+  - java-load-parallel
+  - java-dacapo-parallel
   - shared-pipeline
   - benchmarks
   - macrobenchmarks

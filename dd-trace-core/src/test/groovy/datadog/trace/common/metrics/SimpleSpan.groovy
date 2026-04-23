@@ -223,6 +223,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   void processTagsAndBaggage(MetadataConsumer consumer) {}
 
   @Override
+  void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {}
+
+  @Override
   SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {
     return this
   }
