@@ -21,8 +21,10 @@ class BuildTimeInstrumentationPluginTest {
       id 'dd-trace-java.build-time-instrumentation'
     }
 
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     repositories {
       mavenCentral()
@@ -76,8 +78,10 @@ class BuildTimeInstrumentationPluginTest {
         id 'dd-trace-java.build-time-instrumentation'
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()
@@ -121,8 +125,10 @@ class BuildTimeInstrumentationPluginTest {
         id 'dd-trace-java.build-time-instrumentation'
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()

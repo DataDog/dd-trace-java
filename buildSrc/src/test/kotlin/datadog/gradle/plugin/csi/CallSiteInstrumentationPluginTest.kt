@@ -18,8 +18,10 @@ class CallSiteInstrumentationPluginTest {
       id 'dd-trace-java.call-site-instrumentation'
     }
 
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     csi {
       suffix = 'CallSite'
