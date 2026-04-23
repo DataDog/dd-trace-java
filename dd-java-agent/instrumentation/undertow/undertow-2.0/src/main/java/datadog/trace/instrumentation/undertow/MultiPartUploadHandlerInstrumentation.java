@@ -102,8 +102,9 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
           Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            if (t == null) {
+            boolean success =
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            if (success && t == null) {
               t =
                   new BlockingException(
                       "Blocked request (for MultiPartUploadHandler/parseBlocking)");
@@ -130,8 +131,10 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              t = new BlockingException("Blocked request (multipart file upload)");
+              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (success) {
+                t = new BlockingException("Blocked request (multipart file upload)");
+              }
             }
           }
         }
