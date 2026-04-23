@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +57,21 @@ public class BodyParserHelpers {
   public static final int MAX_CONVERSION_DEPTH = 10;
   private static final Logger log = LoggerFactory.getLogger(BodyParserHelpers.class);
   public static final int MAX_RECURSION = 15;
+
+  // Cached via reflection to avoid embedding a hard binary reference to
+  // files():Lscala/collection/Seq; — the return type changed to
+  // Lscala/collection/immutable/Seq; in Scala 2.13 (Play 2.7+), which would
+  // cause muzzle to disable the instrumentation for Play 2.7.
+  private static final Method MULTIPART_FILES_METHOD;
+
+  static {
+    Method m = null;
+    try {
+      m = MultipartFormData.class.getMethod("files");
+    } catch (Exception ignored) {
+    }
+    MULTIPART_FILES_METHOD = m;
+  }
 
   private static JFunction1<
           scala.collection.immutable.Map<String, Seq<String>>,
@@ -127,12 +143,11 @@ public class BodyParserHelpers {
     }
 
     try {
-      // Use reflection to avoid a hard binary reference to files():Lscala/collection/Seq; —
-      // in Scala 2.13 (Play 2.7+) the return type became scala.collection.immutable.Seq,
-      // which would cause muzzle to disable the whole instrumentation for Play 2.7.
-      Object files = data.getClass().getMethod("files").invoke(data);
-      if (files instanceof scala.collection.Iterable) {
-        handleMultipartFilenames(((scala.collection.Iterable<?>) files).iterator());
+      if (MULTIPART_FILES_METHOD != null) {
+        Object files = MULTIPART_FILES_METHOD.invoke(data);
+        if (files instanceof scala.collection.Iterable) {
+          handleMultipartFilenames(((scala.collection.Iterable<?>) files).iterator());
+        }
       }
     } catch (Exception e) {
       handleException(e, "Error handling multipartFormData filenames");
