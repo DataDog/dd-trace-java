@@ -1036,6 +1036,17 @@ test_inst_latest:
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
+test_inst_latest_arm64:
+  extends: .test_job_arm64_with_test_agent
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_flaky:
   extends: .test_job_with_test_agent
   variables:
@@ -1076,6 +1087,17 @@ test_profiling:
   parallel:
     matrix: *test_matrix
 
+test_profiling_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":profilingTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
 test_debugger:
@@ -1087,6 +1109,17 @@ test_debugger:
   parallel:
     matrix: *test_matrix
 
+test_debugger_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":debuggerTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_smoke:
   extends: .test_job
   variables:
@@ -1095,6 +1128,18 @@ test_smoke:
     CACHE_TYPE: "smoke"
   parallel:
     matrix: *test_matrix_8
+
+test_smoke_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_ssi_smoke:
   extends: .test_job
@@ -1107,6 +1152,21 @@ test_ssi_smoke:
   parallel:
     matrix: *test_matrix_8
 
+test_ssi_smoke_arm64:
+  extends: .test_job_arm64_poc
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
@@ -1118,6 +1178,18 @@ test_smoke_graalvm:
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
+
+test_smoke_graalvm_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "graalvm21"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    NON_DEFAULT_JVMS: "true"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_smoke_semeru8_debugger:
   extends: .test_job
