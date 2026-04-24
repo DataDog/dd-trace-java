@@ -113,7 +113,7 @@ public final class SQLNormalizer {
       byte b = utf8[i];
       if (b == '\'' && !escaped && !doubleQuoted) {
         singleQuoted = !singleQuoted;
-      } else if (b == '"' && !escaped && !singleQuoted) {
+      } else if (b == '"' && !singleQuoted) {
         doubleQuoted = !doubleQuoted;
       } else {
         escaped = (b == '\\') & !escaped;
