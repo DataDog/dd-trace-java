@@ -98,7 +98,6 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
   void testExceptionReplayEnablementFailure() throws Exception {
-    additionalJvmArgs.add("-Ddd.symbol.database.upload.enabled=true"); // enabled by default
     additionalJvmArgs.add("-Ddd.exception.replay.enabled=true");
     additionalJvmArgs.add("-Ddd.third.party.excludes=datadog.smoketest");
     this.probeMockDispatcher.setDispatcher(this::noEndpointDispatch);
