@@ -51,6 +51,8 @@ import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.CsvSource;
 import org.tabletest.junit.TableTest;
 
 @Timeout(value = 10, unit = TimeUnit.SECONDS)
@@ -407,12 +409,12 @@ public class CoreTracerTest extends DDCoreJavaSpecification {
           + " \"tracing_enabled\": false}}'";
 
   @TableTest({
-    "scenario                     |  json                                           | expectedValue ",
-    "tracing disabled             | '{\"lib_config\":{\"tracing_enabled\": false}}' | false         ",
-    "tracing enabled              | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true          ",
-    "action with tracing disabled |                                                                 ",
-    "                            | false                                                            "
+    "scenario         | json                                            | expectedValue",
+    "tracing disabled | '{\"lib_config\":{\"tracing_enabled\": false}}' | false        ",
+    "tracing enabled  | '{\"lib_config\":{\"tracing_enabled\": true}}'  | true         "
   })
+  @ParameterizedTest
+  @CsvSource(delimiter = '|', value = "action with tracing disabled | " + ACTION_JSON + " | false")
   void verifyConfigurationPollingWithTracingEnabled(
       String scenario, String json, boolean expectedValue) throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/config_overrides/config");
