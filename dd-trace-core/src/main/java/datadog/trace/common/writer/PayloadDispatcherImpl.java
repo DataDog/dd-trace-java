@@ -68,7 +68,7 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
     // there are alternative approaches to avoid blocking here, such as
     // introducing an unbound queue and another thread to do the IO
     // however, we can't block the application threads from here.
-    if (null == mapper || null == packer || !packer.format(trace, mapper)) {
+    if (null == mapper || !packer.format(trace, mapper)) {
       healthMetrics.onFailedPublish(
           trace.isEmpty() ? 0 : trace.get(0).samplingPriority(), trace.size());
     }
@@ -79,14 +79,13 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       if (mapperDiscovery.getMapper() == null) {
         mapperDiscovery.discover();
       }
-
       mapper = mapperDiscovery.getMapper();
-      if (null != mapper && null == packer) {
-        batchTimer =
-            monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-        packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
-        batchTimer.start();
-      }
+    }
+    if (null == packer && null != mapper) {
+      batchTimer =
+          monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
+      packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
+      batchTimer.start();
     }
   }
 
