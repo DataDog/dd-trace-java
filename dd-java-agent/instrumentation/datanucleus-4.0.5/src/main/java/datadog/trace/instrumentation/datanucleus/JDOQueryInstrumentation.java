@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_QUERY_DELETE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DATANUCLEUS_QUERY_EXECUTE;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
+import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -56,8 +57,8 @@ public class JDOQueryInstrumentation
 
       final AgentSpan span =
           methodName.startsWith("execute")
-              ? startSpan("datanucleus", DATANUCLEUS_QUERY_EXECUTE)
-              : startSpan("datanucleus", DATANUCLEUS_QUERY_DELETE);
+              ? startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_EXECUTE)
+              : startSpan(JAVA_DATANUCLEUS.toString(), DATANUCLEUS_QUERY_DELETE);
 
       DECORATE.afterStart(span);
 

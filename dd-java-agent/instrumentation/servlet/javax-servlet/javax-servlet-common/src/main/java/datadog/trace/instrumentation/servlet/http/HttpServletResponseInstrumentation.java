@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.DECORATE;
+import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.JAVA_WEB_SERVLET_RESPONSE;
 import static datadog.trace.instrumentation.servlet.http.HttpServletResponseDecorator.SERVLET_RESPONSE;
 
 import com.google.auto.service.AutoService;
@@ -67,7 +68,7 @@ public final class HttpServletResponseInstrumentation extends InstrumenterModule
         return null;
       }
 
-      final AgentSpan span = startSpan("servlet", SERVLET_RESPONSE);
+      final AgentSpan span = startSpan(JAVA_WEB_SERVLET_RESPONSE.toString(), SERVLET_RESPONSE);
       DECORATE.afterStart(span);
 
       span.setResourceName(DECORATE.spanNameForMethod(HttpServletResponse.class, method));
