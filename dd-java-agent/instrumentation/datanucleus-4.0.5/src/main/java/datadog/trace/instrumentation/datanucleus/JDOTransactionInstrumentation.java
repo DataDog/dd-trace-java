@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.DECORATE;
+import static datadog.trace.instrumentation.datanucleus.DatanucleusDecorator.JAVA_DATANUCLEUS;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
 import datadog.trace.agent.tooling.Instrumenter;
@@ -30,7 +31,7 @@ public class JDOTransactionInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope start(
         @Advice.Origin("datanucleus.transaction.#m") final String operationName) {
-      final AgentSpan span = startSpan("datanucleus", operationName);
+      final AgentSpan span = startSpan(JAVA_DATANUCLEUS.toString(), operationName);
 
       DECORATE.afterStart(span);
 

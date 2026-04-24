@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.OPERATION_NAME;
@@ -55,7 +56,7 @@ public final class MessagesAvailableInstrumentation
       AgentSpan clientSpan = activeSpan();
       if (clientSpan != null && OPERATION_NAME.equals(clientSpan.getOperationName())) {
         AgentSpan messageSpan =
-            startSpan("grpc", GRPC_MESSAGE)
+            startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE)
                 .setTag("message.type", clientSpan.getTag("response.type"));
         DECORATE.afterStart(messageSpan);
         return activateSpan(messageSpan);
