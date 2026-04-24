@@ -1,5 +1,8 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static java.util.Collections.emptyList
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
@@ -7,15 +10,13 @@ import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
-
-import static datadog.trace.api.sampling.PrioritySampling.UNSET
 
 class TraceGenerator {
 
@@ -164,7 +165,8 @@ class TraceGenerator {
     boolean measured,
     int samplingPriority,
     int statusCode,
-    CharSequence origin) {
+    CharSequence origin,
+    List<AgentSpanLink> spanLinks = emptyList()) {
       this.serviceName = UTF8BytesString.create(serviceName)
       this.operationName = UTF8BytesString.create(operationName)
       this.resourceName = UTF8BytesString.create(resourceName)
@@ -177,11 +179,20 @@ class TraceGenerator {
       this.type = type
       this.measured = measured
       this.samplingPriority = samplingPriority
-      this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, samplingPriority, measured, topLevel,
-        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)), origin, 0,
-        ProcessTags.tagsForSerialization)
       this.httpStatusCode = (short) statusCode
+      this.metadata = new Metadata(
+        Thread.currentThread().getId(),
+        UTF8BytesString.create(Thread.currentThread().getName()),
+        TagMap.fromMap(tags),
+        baggage,
+        samplingPriority,
+        measured,
+        topLevel,
+        statusCode == 0 ? null : UTF8BytesString.create(Integer.toString(statusCode)),
+        origin,
+        0,
+        ProcessTags.tagsForSerialization,
+        spanLinks)
     }
 
     @Override
@@ -338,6 +349,11 @@ class TraceGenerator {
 
     @Override
     void processTagsAndBaggage(MetadataConsumer consumer) {
+      consumer.accept(metadata)
+    }
+
+    @Override
+    void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
       consumer.accept(metadata)
     }
 

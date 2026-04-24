@@ -4057,6 +4057,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_AGENT_PROTOCOL_VERSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "0.4",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_AKKA_ACTOR_ENABLED": [
       {
         "version": "A",
@@ -11147,7 +11155,7 @@
     ],
     "DD_TRACE_WEBSOCKET_MESSAGES_ENABLED": [
       {
-        "version": "B",
+        "version": "A",
         "type": "boolean",
         "default": "true",
         "aliases": []
