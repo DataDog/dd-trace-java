@@ -74,6 +74,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
       }
 
       List<String> filenames = new ArrayList<>();
+      List<String> filesContent = contentCallback != null ? new ArrayList<String>() : null;
       for (FileItem fileItem : fileItems) {
         if (fileItem.isFormField()) {
           continue;
@@ -82,12 +83,12 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         if (name != null && !name.isEmpty()) {
           filenames.add(name);
         }
-      }
-      if (filenames.isEmpty() && contentCallback == null) {
-        return;
+        if (filesContent != null
+            && filesContent.size() < FileItemContentReader.MAX_FILES_TO_INSPECT) {
+          filesContent.add(FileItemContentReader.readContent(fileItem));
+        }
       }
 
-      // Fire filenames event
       if (filenamesCallback != null && !filenames.isEmpty()) {
         Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
@@ -103,12 +104,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         }
       }
 
-      // Fire content event only if not blocked
-      if (contentCallback == null) {
-        return;
-      }
-      List<String> filesContent = FileItemContentReader.readContents(fileItems);
-      if (filesContent.isEmpty()) {
+      if (filesContent == null || filesContent.isEmpty()) {
         return;
       }
       Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
