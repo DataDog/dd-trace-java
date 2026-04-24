@@ -52,3 +52,8 @@ dependencies {
   latestDepTestImplementation group: 'com.couchbase.client', name: 'java-client', version: '2.+'
   latestDepTestImplementation group: 'com.couchbase.client', name: 'encryption', version: '+'
 }
+
+tasks.withType(Test).configureEach {
+  // same setting as agent-tooling to avoid Byte Buddy/ConfigTransformSpockExtension failures on newer JDKs
+  jvmArgs += ["-Dnet.bytebuddy.raw=true"]
+}

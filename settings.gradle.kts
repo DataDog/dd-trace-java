@@ -241,8 +241,6 @@ include(
   ":dd-smoke-tests:springboot-jetty-jsp",
   ":dd-smoke-tests:springboot-jpa",
   ":dd-smoke-tests:springboot-mongo",
-  ":dd-smoke-tests:springboot-openliberty-20",
-  ":dd-smoke-tests:springboot-openliberty-23",
   ":dd-smoke-tests:springboot-thymeleaf",
   ":dd-smoke-tests:springboot-tomcat",
   ":dd-smoke-tests:springboot-tomcat-jsp",
@@ -647,6 +645,8 @@ if (!skipLinuxArm64Tests) {
   include(
     ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
     ":dd-java-agent:instrumentation:mule-4.5",
+    ":dd-smoke-tests:springboot-openliberty-20",
+    ":dd-smoke-tests:springboot-openliberty-23",
   )
 }
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
