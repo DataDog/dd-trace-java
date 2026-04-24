@@ -3,6 +3,19 @@ package datadog.trace.instrumentation.jetty8
 import javax.servlet.http.Part
 import spock.lang.Specification
 
+/** Minimal stand-in for {@code MultiPartInputStream}: exposes a {@code getParts()} method. */
+class FakeMpi {
+  private final Collection parts
+
+  FakeMpi(Collection parts) {
+    this.parts = parts
+  }
+
+  Collection getParts() {
+    parts
+  }
+}
+
 class PartHelperTest extends Specification {
 
   // ── extractFilenames ────────────────────────────────────────────────────────
@@ -189,6 +202,54 @@ class PartHelperTest extends Specification {
 
     expect:
     PartHelper.extractFormFields(parts) == [a: ['x'], b: ['y']]
+  }
+
+  // ── getAllParts ─────────────────────────────────────────────────────────────
+
+  def "getAllParts returns empty list when multiPartInputStream is null and singlePart is null"() {
+    expect:
+    PartHelper.getAllParts(null, null) == []
+  }
+
+  def "getAllParts falls back to singleton when multiPartInputStream is null"() {
+    given:
+    def part = filePart('evil.php')
+
+    expect:
+    PartHelper.getAllParts(null, part) == [part]
+  }
+
+  def "getAllParts returns all parts from MultiPartInputStream.getParts()"() {
+    given:
+    def file = filePart('evil.php')
+    def text = field('name', 'val')
+    def mpi = new FakeMpi([file, text])
+
+    expect:
+    PartHelper.getAllParts(mpi, null) == [file, text]
+  }
+
+  def "getAllParts prefers full collection over singleton even when singlePart is provided"() {
+    given:
+    def file = filePart('evil.php')
+    def other = field('name', 'val')
+    def mpi = new FakeMpi([file, other])
+
+    expect:
+    PartHelper.getAllParts(mpi, file) == [file, other]
+  }
+
+  def "getAllParts falls back to singleton when getParts() throws"() {
+    given:
+    def part = filePart('fallback.jpg')
+    def mpi = new Object() {
+        Collection getParts() {
+          throw new IOException("simulated failure")
+        }
+      }
+
+    expect:
+    PartHelper.getAllParts(mpi, part) == [part]
   }
 
   // ── helpers ─────────────────────────────────────────────────────────────────
