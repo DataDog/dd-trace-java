@@ -81,6 +81,9 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseBodyAdvice {
+    private static final int MAX_CONTENT_BYTES = 4096;
+    private static final int MAX_FILES_TO_INSPECT = 25;
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This InterfaceHttpPostRequestDecoder thiz,
@@ -122,31 +125,30 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           String filename = fileUpload.getFilename();
           if (filename != null && !filename.isEmpty()) {
             filenames.add(filename);
-            if (filesContent.size() < 25) {
-              String contentStr = "";
-              try {
-                if (fileUpload.isInMemory()) {
-                  ByteBuf buf = fileUpload.getByteBuf();
-                  int length = (int) Math.min(4096L, (long) buf.readableBytes());
-                  byte[] bytes = new byte[length];
-                  buf.getBytes(buf.readerIndex(), bytes);
-                  contentStr = new String(bytes, StandardCharsets.ISO_8859_1);
-                } else {
-                  byte[] bytes = new byte[4096];
-                  int read;
-                  FileInputStream fis = new FileInputStream(fileUpload.getFile());
-                  try {
-                    read = fis.read(bytes);
-                  } finally {
-                    fis.close();
-                  }
-                  contentStr =
-                      new String(bytes, 0, read < 0 ? 0 : read, StandardCharsets.ISO_8859_1);
+          }
+          if (filesContent.size() < MAX_FILES_TO_INSPECT) {
+            String contentStr = "";
+            try {
+              if (fileUpload.isInMemory()) {
+                ByteBuf buf = fileUpload.getByteBuf();
+                int length = (int) Math.min((long) MAX_CONTENT_BYTES, (long) buf.readableBytes());
+                byte[] bytes = new byte[length];
+                buf.getBytes(buf.readerIndex(), bytes);
+                contentStr = new String(bytes, StandardCharsets.ISO_8859_1);
+              } else {
+                byte[] bytes = new byte[MAX_CONTENT_BYTES];
+                int read;
+                FileInputStream fis = new FileInputStream(fileUpload.getFile());
+                try {
+                  read = fis.read(bytes);
+                } finally {
+                  fis.close();
                 }
-              } catch (IOException ignored) {
+                contentStr = new String(bytes, 0, read < 0 ? 0 : read, StandardCharsets.ISO_8859_1);
               }
-              filesContent.add(contentStr);
+            } catch (IOException ignored) {
             }
+            filesContent.add(contentStr);
           }
         }
       }
@@ -174,6 +176,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             BlockResponseFunction brf = requestContext.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+              requestContext.getTraceSegment().effectivelyBlocked();
             }
             thr = new BlockingException("Blocked request (multipart file upload)");
           }
@@ -192,6 +195,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             BlockResponseFunction brf = requestContext.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+              requestContext.getTraceSegment().effectivelyBlocked();
             }
             thr = new BlockingException("Blocked request (multipart file upload content)");
           }

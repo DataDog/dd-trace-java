@@ -138,6 +138,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
             t = new BlockingException("Blocked request (multipart file upload)");
           }
@@ -158,6 +159,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
               BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
               if (brf != null) {
                 brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                reqCtx.getTraceSegment().effectivelyBlocked();
               }
               t = new BlockingException("Blocked request (multipart file upload content)");
             }
