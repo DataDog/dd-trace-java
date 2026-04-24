@@ -23,6 +23,7 @@ import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Reason;
 import dev.openfeature.sdk.Structure;
 import dev.openfeature.sdk.Value;
+import dev.openfeature.sdk.exceptions.FatalError;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -41,29 +42,46 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
-class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
+class DDEvaluator
+    implements Evaluator,
+        FeatureFlaggingGateway.ConfigListener,
+        FeatureFlaggingGateway.FatalErrorListener {
 
   private static final Set<Class<?>> SUPPORTED_RESOLUTION_TYPES =
       new HashSet<>(asList(String.class, Boolean.class, Integer.class, Double.class, Value.class));
 
   private final Runnable configCallback;
+  private final Runnable fatalCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
   private final CountDownLatch initializationLatch = new CountDownLatch(1);
+  private volatile String fatalErrorMessage = null;
 
   public DDEvaluator(final Runnable configCallback) {
+    this(configCallback, () -> {});
+  }
+
+  DDEvaluator(final Runnable configCallback, final Runnable fatalCallback) {
     this.configCallback = configCallback;
+    this.fatalCallback = fatalCallback;
   }
 
   @Override
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit); // await for initialization
+    FeatureFlaggingGateway.addFatalErrorListener(this);
+    initializationLatch.await(timeout, unit); // await for initialization or fatal error
+    final String fatal = fatalErrorMessage;
+    if (fatal != null) {
+      throw new FatalError(fatal);
+    }
+    return configuration.get() != null;
   }
 
   @Override
   public void shutdown() {
     FeatureFlaggingGateway.removeConfigListener(this);
+    FeatureFlaggingGateway.removeFatalErrorListener(this);
   }
 
   @Override
@@ -71,6 +89,13 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     configuration.set(config);
     initializationLatch.countDown();
     configCallback.run();
+  }
+
+  @Override
+  public void onFatalError(final int httpStatus, final String message) {
+    fatalErrorMessage = message != null ? message : "RC fatal error (HTTP " + httpStatus + ")";
+    initializationLatch.countDown();
+    fatalCallback.run();
   }
 
   @Override
