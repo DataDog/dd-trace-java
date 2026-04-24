@@ -99,23 +99,21 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
-            return;
           }
         }
       }
 
-      if (filesContent == null || filesContent.isEmpty()) {
-        return;
-      }
-      Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-      Flow.Action contentAction = contentFlow.getAction();
-      if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (multipart file upload content)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+      if (t == null && filesContent != null && !filesContent.isEmpty()) {
+        Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+        Flow.Action contentAction = contentFlow.getAction();
+        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
+          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            t = new BlockingException("Blocked request (multipart file upload content)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

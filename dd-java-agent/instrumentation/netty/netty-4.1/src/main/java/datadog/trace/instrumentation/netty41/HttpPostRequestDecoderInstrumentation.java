@@ -109,7 +109,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
       Map<String, List<String>> attributes = new LinkedHashMap<>();
       List<String> filenames = new ArrayList<>();
-      List<String> filesContent = new ArrayList<>();
+      List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
       for (InterfaceHttpData data : thiz.getBodyHttpDatas()) {
         if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
           String name = data.getName();
