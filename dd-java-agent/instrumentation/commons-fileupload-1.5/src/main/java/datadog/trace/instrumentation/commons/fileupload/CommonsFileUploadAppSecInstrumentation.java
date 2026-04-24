@@ -74,7 +74,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
       }
 
       List<String> filenames = new ArrayList<>();
-      List<String> filesContent = contentCallback != null ? new ArrayList<String>() : null;
+      List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
       for (FileItem fileItem : fileItems) {
         if (fileItem.isFormField()) {
           continue;
