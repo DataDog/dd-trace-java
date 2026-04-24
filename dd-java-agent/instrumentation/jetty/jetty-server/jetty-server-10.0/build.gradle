@@ -98,6 +98,23 @@ tasks.named('earlyDep10ForkedTest', Test) {
   systemProperty 'test.dd.earlyJetty10', 'true'
 }
 
+// Force Jetty 10.0.9 for the early suite: earlyDep10ForkedTestImplementation extends
+// testImplementation (which pins 10.0.10), so without this force Gradle would pick 10.0.10
+// and never exercise the MultiPartFormInputStream path.
+['earlyDep10ForkedTestCompileClasspath', 'earlyDep10ForkedTestRuntimeClasspath'].each { conf ->
+  configurations.named(conf) {
+    resolutionStrategy.eachDependency { DependencyResolveDetails details ->
+      if (details.requested.group == 'org.eclipse.jetty' ||
+        details.requested.group == 'org.eclipse.jetty.websocket') {
+        if (details.requested.version.startsWith('10.')) {
+          details.useVersion '10.0.9'
+          details.because 'earlyDep10ForkedTest must stay on Jetty 10.0.9 to exercise MultiPartFormInputStream path'
+        }
+      }
+    }
+  }
+}
+
 configurations.named('latestDepForkedTestRuntimeClasspath') {
   resolutionStrategy {
     force libs.slf4j
