@@ -6747,7 +6747,7 @@
     ],
     "DD_TRACE_JAVA_NET_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_JAVA_NET_ENABLED", "DD_INTEGRATION_JAVA_NET_ENABLED"]
