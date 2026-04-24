@@ -107,6 +107,20 @@ tasks.named("test", Test) {
   dependsOn "test_before_1_11_106"
 }
 
+def isLinuxArm64 = {
+  def os = System.getProperty("os.name").toLowerCase()
+  def arch = System.getProperty("os.arch").toLowerCase()
+  os.contains("linux") && (arch.contains("arm64") || arch.contains("aarch64"))
+}
+
+tasks.withType(Test).configureEach {
+  if ((name == "forkedTest" || name.endsWith("ForkedTest"))
+    && isLinuxArm64()) {
+    // TODO: Remove this Linux arm64 workaround once the forked AWS SDK 1.11 tests are stable there.
+    maxParallelForks = 1
+  }
+}
+
 tasks.named("forkedTest", Test) {
   dependsOn "test_before_1_11_106ForkedTest"
 }

@@ -32,6 +32,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     final springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
     final command = [javaPath()]
     command.addAll(defaultJavaProperties)
+    command.add('-Dfile.encoding=UTF-8')
     command.add('-Ddd.trace.debug=true')
     command.add('-Ddd.remote_config.enabled=true')
     command.add("-Ddd.remote_config.url=http://localhost:${server.address.port}/v0.7/config".toString())
