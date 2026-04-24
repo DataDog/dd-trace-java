@@ -119,11 +119,12 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
       RuntimeException exc = null;
 
-      Map<String, List<String>> attributes = new LinkedHashMap<>();
+      Map<String, List<String>> attributes = callback != null ? new LinkedHashMap<>() : null;
       List<String> filenames = new ArrayList<>();
       List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
       for (InterfaceHttpData data : thiz.getBodyHttpDatas()) {
-        if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+        if (attributes != null
+            && data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
           String name = data.getName();
           List<String> values = attributes.get(name);
           if (values == null) {
