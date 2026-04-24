@@ -422,6 +422,50 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     sparkSession.stop()
   }
 
+  def "fallback to jobGroup.id when spark.databricks.job.runId equals parentRunId on Databricks 18.2+"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local")
+      .config("spark.default.parallelism", "2")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "5678") // Same as parentRunId
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", "0000_job-1234-run-7890-action-0000")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          traceId 8944764253919609482G
+          parentSpanId 3503717452567411167G
+          assert span.tags["databricks_job_id"] == "1234"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "7890"
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession.stop()
+  }
+
   def "compute the databricks parent context"() {
     setup:
     def contextWithJobRunId = new DatabricksParentContext("1234", "5678", "9012")
