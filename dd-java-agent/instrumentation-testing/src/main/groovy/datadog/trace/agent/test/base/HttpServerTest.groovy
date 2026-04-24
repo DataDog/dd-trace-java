@@ -1685,10 +1685,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBodyFilesContent())
     def maxContentBytes = 4096
     def body = new MultipartBody.Builder()
-      .setType(MultipartBody.FORM)
-      .addFormDataPart('file', 'large.bin',
-      RequestBody.create(MediaType.parse('application/octet-stream'), 'X' * (maxContentBytes + 500)))
-      .build()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'large.bin',
+    RequestBody.create(MediaType.parse('application/octet-stream'), 'X' * (maxContentBytes + 500)))
+    .build()
     def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
     def response = client.newCall(httpRequest).execute()
 
@@ -1696,7 +1696,8 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.waitForTraces(1)
 
     then:
-    TEST_WRITER.get(0).any { span ->
+    TEST_WRITER.get(0).any {
+      span ->
       span.getTag('request.body.files_content') == '[' + 'X' * maxContentBytes + ']'
     }
 
@@ -1709,9 +1710,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     assumeTrue(testBodyFilesContent())
     def maxFilesToInspect = 25
     def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
-    (1..maxFilesToInspect + 1).each { i ->
+    (1..maxFilesToInspect + 1).each {
+      i ->
       bodyBuilder.addFormDataPart("file$i", "file${i}.bin",
-        RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_$i"))
+      RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_$i"))
     }
     def httpRequest = request(BODY_MULTIPART, 'POST', bodyBuilder.build()).build()
     def response = client.newCall(httpRequest).execute()
@@ -1720,10 +1722,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     TEST_WRITER.waitForTraces(1)
 
     then:
-    TEST_WRITER.get(0).any { span ->
+    TEST_WRITER.get(0).any {
+      span ->
       def tag = span.getTag('request.body.files_content') as String
       tag?.contains("content_of_file_$maxFilesToInspect") &&
-        !tag.contains("content_of_file_${maxFilesToInspect + 1}")
+      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
     }
 
     cleanup:
