@@ -1,0 +1,180 @@
+package datadog.trace.instrumentation.tomcat7
+
+import spock.lang.Specification
+
+class ParameterCollectorImplTest extends Specification {
+
+  void 'getContents returns empty list when no parts added'() {
+    expect:
+    new ParameterCollector.ParameterCollectorImpl().getContents().isEmpty()
+  }
+
+  void 'addPart skips content when filename is null'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    collector.addPart(new TestPart(null, 'some body'))
+
+    then:
+    collector.getContents().isEmpty()
+    collector.getFilenames().isEmpty()
+  }
+
+  void 'addPart skips content when filename is empty'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    collector.addPart(new TestPart('', 'some body'))
+
+    then:
+    collector.getContents().isEmpty()
+    collector.getFilenames().isEmpty()
+  }
+
+  void 'addPart reads content for file part with filename'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    collector.addPart(new TestPart('file.txt', 'hello world'))
+
+    then:
+    collector.getContents() == ['hello world']
+    collector.getFilenames() == ['file.txt']
+  }
+
+  void 'addPart reads content for multiple files'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    collector.addPart(new TestPart('a.txt', 'content-a'))
+    collector.addPart(new TestPart('b.txt', 'content-b'))
+
+    then:
+    collector.getContents() == ['content-a', 'content-b']
+    collector.getFilenames() == ['a.txt', 'b.txt']
+  }
+
+  void 'addPart truncates content at 4096 bytes'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def longContent = 'X' * 5000
+
+    when:
+    collector.addPart(new TestPart('big.bin', longContent))
+
+    then:
+    collector.getContents()[0].length() == 4096
+  }
+
+  void 'addPart reads exactly 4096 bytes when content is 4096 bytes'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def content = 'Y' * 4096
+
+    when:
+    collector.addPart(new TestPart('exact.bin', content))
+
+    then:
+    collector.getContents()[0].length() == 4096
+  }
+
+  void 'addPart stops collecting content after 25 files but still collects filenames'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    (1..26).each { i -> collector.addPart(new TestPart("file${i}.txt", "content${i}")) }
+
+    then:
+    collector.getContents().size() == 25
+    collector.getFilenames().size() == 26
+  }
+
+  void 'addPart adds empty string when getInputStream throws'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+
+    when:
+    collector.addPart(new FailingPart('bad.txt'))
+
+    then:
+    collector.getContents() == ['']
+    collector.getFilenames() == ['bad.txt']
+  }
+
+  void 'addPart preserves ISO-8859-1 bytes'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def bytes = (0..255).collect { (byte) it } as byte[]
+    def expected = new String(bytes, 'ISO-8859-1')
+
+    when:
+    collector.addPart(new RawBytesPart('binary.bin', bytes))
+
+    then:
+    collector.getContents()[0] == expected
+  }
+
+  void 'ParameterCollectorNoop getContents returns empty list'() {
+    expect:
+    ParameterCollector.ParameterCollectorNoop.INSTANCE.getContents().isEmpty()
+  }
+
+  // --- helper classes ---
+
+  static class TestPart {
+    private final String filename
+    private final String content
+
+    TestPart(String filename, String content) {
+      this.filename = filename
+      this.content = content
+    }
+
+    String getSubmittedFileName() {
+      filename
+    }
+
+    InputStream getInputStream() {
+      new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    }
+  }
+
+  static class FailingPart {
+    private final String filename
+
+    FailingPart(String filename) {
+      this.filename = filename
+    }
+
+    String getSubmittedFileName() {
+      filename
+    }
+
+    InputStream getInputStream() {
+      throw new IOException('simulated error')
+    }
+  }
+
+  static class RawBytesPart {
+    private final String filename
+    private final byte[] bytes
+
+    RawBytesPart(String filename, byte[] bytes) {
+      this.filename = filename
+      this.bytes = bytes
+    }
+
+    String getSubmittedFileName() {
+      filename
+    }
+
+    InputStream getInputStream() {
+      new ByteArrayInputStream(bytes)
+    }
+  }
+}

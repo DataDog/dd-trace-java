@@ -18,13 +18,16 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
+import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -100,6 +103,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
       Map<String, List<String>> attributes = new LinkedHashMap<>();
       List<String> filenames = new ArrayList<>();
+      List<String> filesContent = new ArrayList<>();
       for (InterfaceHttpData data : thiz.getBodyHttpDatas()) {
         if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
           String name = data.getName();
@@ -114,9 +118,35 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             exc = new UndeclaredThrowableException(e);
           }
         } else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
-          String filename = ((FileUpload) data).getFilename();
+          FileUpload fileUpload = (FileUpload) data;
+          String filename = fileUpload.getFilename();
           if (filename != null && !filename.isEmpty()) {
             filenames.add(filename);
+            if (filesContent.size() < 25) {
+              String contentStr = "";
+              try {
+                if (fileUpload.isInMemory()) {
+                  ByteBuf buf = fileUpload.getByteBuf();
+                  int length = (int) Math.min(4096L, (long) buf.readableBytes());
+                  byte[] bytes = new byte[length];
+                  buf.getBytes(buf.readerIndex(), bytes);
+                  contentStr = new String(bytes, StandardCharsets.ISO_8859_1);
+                } else {
+                  byte[] bytes = new byte[4096];
+                  int read;
+                  FileInputStream fis = new FileInputStream(fileUpload.getFile());
+                  try {
+                    read = fis.read(bytes);
+                  } finally {
+                    fis.close();
+                  }
+                  contentStr =
+                      new String(bytes, 0, read < 0 ? 0 : read, StandardCharsets.ISO_8859_1);
+                }
+              } catch (IOException ignored) {
+              }
+              filesContent.add(contentStr);
+            }
           }
         }
       }
@@ -146,6 +176,24 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
               brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
             }
             thr = new BlockingException("Blocked request (multipart file upload)");
+          }
+        }
+      }
+
+      if (thr == null && !filesContent.isEmpty()) {
+        BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+            cbp.getCallback(EVENTS.requestFilesContent());
+        if (contentCb != null) {
+          Flow<Void> contentFlow = contentCb.apply(requestContext, filesContent);
+          Flow.Action contentAction = contentFlow.getAction();
+          if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) contentAction;
+            BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            }
+            thr = new BlockingException("Blocked request (multipart file upload content)");
           }
         }
       }

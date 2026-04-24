@@ -143,6 +143,27 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
           }
         }
       }
+
+      if (t == null) {
+        List<String> contents = collector.getContents();
+        if (!contents.isEmpty()) {
+          BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+              cbp.getCallback(EVENTS.requestFilesContent());
+          if (contentCb != null) {
+            Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
+            Flow.Action contentAction = contentFlow.getAction();
+            if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+              Flow.Action.RequestBlockingAction rba =
+                  (Flow.Action.RequestBlockingAction) contentAction;
+              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+              if (brf != null) {
+                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              }
+              t = new BlockingException("Blocked request (multipart file upload content)");
+            }
+          }
+        }
+      }
     }
   }
 

@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +21,8 @@ public interface ParameterCollector {
   void addPart(Object part);
 
   List<String> getFilenames();
+
+  List<String> getContents();
 
   class ParameterCollectorNoop implements ParameterCollector {
     public static final ParameterCollector INSTANCE = new ParameterCollectorNoop();
@@ -46,11 +50,20 @@ public interface ParameterCollector {
     public List<String> getFilenames() {
       return Collections.emptyList();
     }
+
+    @Override
+    public List<String> getContents() {
+      return Collections.emptyList();
+    }
   }
 
   class ParameterCollectorImpl implements ParameterCollector {
+    private static final int MAX_CONTENT_BYTES = 4096;
+    private static final int MAX_FILES_TO_INSPECT = 25;
+
     private Map<String, List<String>> map;
     private List<String> filenames;
+    private List<String> contents;
 
     public boolean isEmpty() {
       return map == null;
@@ -96,6 +109,12 @@ public interface ParameterCollector {
             filenames = new ArrayList<>();
           }
           filenames.add(filename);
+          if (contents == null) {
+            contents = new ArrayList<>();
+          }
+          if (contents.size() < MAX_FILES_TO_INSPECT) {
+            contents.add(readContent(part));
+          }
         }
       } catch (Throwable ignored) {
       }
@@ -104,6 +123,32 @@ public interface ParameterCollector {
     @Override
     public List<String> getFilenames() {
       return filenames != null ? filenames : Collections.<String>emptyList();
+    }
+
+    @Override
+    public List<String> getContents() {
+      return contents != null ? contents : Collections.<String>emptyList();
+    }
+
+    private static String readContent(Object part) {
+      try {
+        Method m = part.getClass().getMethod("getInputStream");
+        InputStream is = (InputStream) m.invoke(part);
+        try {
+          byte[] buf = new byte[MAX_CONTENT_BYTES];
+          int total = 0;
+          int n;
+          while (total < MAX_CONTENT_BYTES
+              && (n = is.read(buf, total, MAX_CONTENT_BYTES - total)) != -1) {
+            total += n;
+          }
+          return new String(buf, 0, total, StandardCharsets.ISO_8859_1);
+        } finally {
+          is.close();
+        }
+      } catch (Exception ignored) {
+        return "";
+      }
     }
 
     private static String getFilename(Object part) {
