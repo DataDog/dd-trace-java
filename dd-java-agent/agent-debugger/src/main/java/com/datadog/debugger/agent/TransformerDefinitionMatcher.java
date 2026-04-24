@@ -60,6 +60,7 @@ public class TransformerDefinitionMatcher {
         continue;
       }
       fileName = normalizeWindowsToUnixPath(fileName);
+      fileName = fileName.toLowerCase();
       Map<String, List<ProbeDefinition>> targetMap =
           fileName.indexOf('/') != -1
               ? definitionsByQualifiedFileNames
@@ -139,6 +140,7 @@ public class TransformerDefinitionMatcher {
       sb.append(reversedPackageName);
     }
     String reversedFileName = sb.toString();
+    reversedFileName = reversedFileName.toLowerCase();
     List<ProbeDefinition> bySourceFileDefinitions = new ArrayList<>();
     // try match qualified filenames
     Collection<String> matchingFileNames =
@@ -153,6 +155,7 @@ public class TransformerDefinitionMatcher {
       }
     }
     // try match simple filenames
+    sourceFileName = sourceFileName.toLowerCase();
     List<ProbeDefinition> definitions = definitionsBySimpleFileNames.get("/" + sourceFileName);
     if (definitions != null) {
       bySourceFileDefinitions.addAll(definitions);
