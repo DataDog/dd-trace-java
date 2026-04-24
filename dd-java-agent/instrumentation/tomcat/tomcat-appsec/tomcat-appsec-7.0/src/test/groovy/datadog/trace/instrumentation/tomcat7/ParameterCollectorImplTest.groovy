@@ -131,6 +131,18 @@ class ParameterCollectorImplTest extends Specification {
     collector.getFilenames() == ['file.txt']
   }
 
+  void 'addPart falls back to getFilename() when getSubmittedFileName() is absent (Tomcat 7)'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
+
+    when:
+    collector.addPart(new Tomcat7Part('tomcat7.txt', 'tomcat7 content'))
+
+    then:
+    collector.getContents() == ['tomcat7 content']
+    collector.getFilenames() == ['tomcat7.txt']
+  }
+
   void 'ParameterCollectorNoop getContents returns empty list'() {
     expect:
     ParameterCollector.ParameterCollectorNoop.INSTANCE.getContents().isEmpty()
@@ -187,6 +199,25 @@ class ParameterCollectorImplTest extends Specification {
 
     InputStream getInputStream() {
       new ByteArrayInputStream(bytes)
+    }
+  }
+
+  /** Simulates a Tomcat 7 ApplicationPart that only exposes getFilename(), not getSubmittedFileName(). */
+  static class Tomcat7Part {
+    private final String filename
+    private final String content
+
+    Tomcat7Part(String filename, String content) {
+      this.filename = filename
+      this.content = content
+    }
+
+    String getFilename() {
+      filename
+    }
+
+    InputStream getInputStream() {
+      new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
     }
   }
 }
