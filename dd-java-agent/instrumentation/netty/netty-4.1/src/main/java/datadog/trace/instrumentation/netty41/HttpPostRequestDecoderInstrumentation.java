@@ -104,6 +104,9 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
       RuntimeException exc = null;
 
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+          cbp.getCallback(EVENTS.requestFilesContent());
+
       Map<String, List<String>> attributes = new LinkedHashMap<>();
       List<String> filenames = new ArrayList<>();
       List<String> filesContent = new ArrayList<>();
@@ -126,7 +129,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           if (filename != null && !filename.isEmpty()) {
             filenames.add(filename);
           }
-          if (filesContent.size() < MAX_FILES_TO_INSPECT) {
+          if (contentCb != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
             String contentStr = "";
             try {
               if (fileUpload.isInMemory()) {
@@ -180,22 +183,17 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      if (thr == null && !filesContent.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-            cbp.getCallback(EVENTS.requestFilesContent());
-        if (contentCb != null) {
-          Flow<Void> contentFlow = contentCb.apply(requestContext, filesContent);
-          Flow.Action contentAction = contentFlow.getAction();
-          if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba =
-                (Flow.Action.RequestBlockingAction) contentAction;
-            BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-              requestContext.getTraceSegment().effectivelyBlocked();
-            }
-            thr = new BlockingException("Blocked request (multipart file upload content)");
+      if (thr == null && contentCb != null && !filesContent.isEmpty()) {
+        Flow<Void> contentFlow = contentCb.apply(requestContext, filesContent);
+        Flow.Action contentAction = contentFlow.getAction();
+        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
+          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            requestContext.getTraceSegment().effectivelyBlocked();
           }
+          thr = new BlockingException("Blocked request (multipart file upload content)");
         }
       }
 
