@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.hazelcast4;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.SPAN_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -59,7 +60,7 @@ public final class ClientListenerInstrumentation
         return null;
       }
 
-      final AgentSpan span = startSpan("hazelcast-sdk", SPAN_NAME);
+      final AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPAN_NAME);
       DECORATE.afterStart(span);
       DECORATE.onServiceExecution(span, operationName, null, correlationId);
 

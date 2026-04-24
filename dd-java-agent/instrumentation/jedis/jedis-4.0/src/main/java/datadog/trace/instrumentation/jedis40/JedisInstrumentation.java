@@ -56,7 +56,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
     public static AgentScope onEnter(
         @Advice.Argument(0) final CommandObject<?> commandObject,
         @Advice.This final Connection thiz) {
-      final AgentSpan span = startSpan("jedis", JedisClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("redis-command", JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
 

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.jdbc;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.JAVA_JDBC_POOL_WAITING;
 import static datadog.trace.instrumentation.jdbc.PoolWaitingDecorator.POOL_WAITING;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
@@ -51,7 +52,7 @@ public final class Dbcp2LinkedBlockingDequeInstrumentation extends InstrumenterM
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentSpan onEnter() {
       if (CallDepthThreadLocalMap.getCallDepth(PoolWaitingDecorator.class) > 0) {
-        AgentSpan span = startSpan("jdbc", POOL_WAITING);
+        AgentSpan span = startSpan(JAVA_JDBC_POOL_WAITING.toString(), POOL_WAITING);
         DECORATE.afterStart(span);
         span.setResourceName("dbcp2.waiting");
         return span;

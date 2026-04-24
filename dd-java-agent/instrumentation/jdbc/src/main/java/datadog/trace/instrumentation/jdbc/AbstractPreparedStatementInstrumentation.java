@@ -89,16 +89,16 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
             span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
             span.setTag(DBM_TRACE_INJECTED, true);
           } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
-            span = startSpan("jdbc", DATABASE_QUERY);
+            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
             DECORATE.setApplicationName(span, connection);
           } else if (DECORATE.isOracle(dbInfo)) {
-            span = startSpan("jdbc", DATABASE_QUERY);
+            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
           } else {
-            span = startSpan("jdbc", DATABASE_QUERY);
+            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
           }
         } else {
-          span = startSpan("jdbc", DATABASE_QUERY);
+          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
         }
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);

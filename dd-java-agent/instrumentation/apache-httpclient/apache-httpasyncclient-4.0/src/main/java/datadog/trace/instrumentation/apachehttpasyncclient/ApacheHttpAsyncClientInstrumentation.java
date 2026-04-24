@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.im
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.APACHE_HTTPASYNCCLIENT;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpasyncclient.ApacheHttpAsyncClientDecorator.HTTP_REQUEST;
 import static java.util.Arrays.asList;
@@ -102,7 +103,7 @@ public class ApacheHttpAsyncClientInstrumentation
       }
 
       final AgentScope.Continuation parentContinuation = captureActiveSpan();
-      final AgentSpan clientSpan = startSpan("httpasyncclient", HTTP_REQUEST);
+      final AgentSpan clientSpan = startSpan(APACHE_HTTPASYNCCLIENT.toString(), HTTP_REQUEST);
       DECORATE.afterStart(clientSpan);
       ((DelegatingRequestProducer) requestProducer).setSpan(clientSpan);
       futureCallback =

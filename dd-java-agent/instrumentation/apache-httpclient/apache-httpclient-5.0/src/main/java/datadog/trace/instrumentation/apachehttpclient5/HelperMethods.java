@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient5;
 import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient5.HttpHeadersInjectAdapter.SETTER;
@@ -35,7 +36,7 @@ public class HelperMethods {
   }
 
   private static AgentScope activateHttpSpan(final HttpRequest request) {
-    final AgentSpan span = startSpan("httpclient5", HTTP_REQUEST);
+    final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
     final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);
