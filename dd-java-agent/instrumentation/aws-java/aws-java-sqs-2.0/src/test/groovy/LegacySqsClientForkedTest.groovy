@@ -103,7 +103,7 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "POST /"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -149,7 +149,7 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "POST /"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -231,7 +231,7 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "POST /"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -294,7 +294,7 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "POST /"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false
@@ -339,7 +339,7 @@ class LegacySqsClientForkedTest extends InstrumentationSpecification {
           }
         }
         span {
-          operationName "http.request"
+          operationName "apache-httpclient.request"
           resourceName "POST /"
           spanType DDSpanTypes.HTTP_CLIENT
           errored false

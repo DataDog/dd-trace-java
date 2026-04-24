@@ -118,7 +118,7 @@ class UrlConnectionV0ForkedTest extends UrlConnectionTest {
 
   @Override
   String operation(String protocol) {
-    return "${protocol}.request"
+    return "http-url-connection.request"
   }
 }
 

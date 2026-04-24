@@ -33,6 +33,6 @@ class JavaHttpClientAsyncTest extends JavaHttpClientTest {
 
   @Override
   String operation() {
-    return "http.request"
+    return "java-http-client.request"
   }
 }

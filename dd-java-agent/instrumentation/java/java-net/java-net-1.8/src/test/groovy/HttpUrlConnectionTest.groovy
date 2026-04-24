@@ -376,7 +376,12 @@ abstract class HttpUrlConnectionTest extends HttpClientTest {
   }
 }
 
-class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {}
+class HttpUrlConnectionV0ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "http-url-connection.request"
+  }
+}
 
 class HttpUrlConnectionV1ForkedTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV1 {
 }

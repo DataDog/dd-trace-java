@@ -11,7 +11,12 @@ import spock.lang.Timeout
 import java.util.concurrent.Future
 
 @Timeout(5)
-class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0{
+class ApacheHttpAsyncClientNullCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+
+  @Override
+  String operation() {
+    "apache-httpasyncclient.request"
+  }
 
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()

@@ -7,6 +7,11 @@ import spock.lang.Timeout
 class HttpUrlConnectionUseCachesFalseTest extends HttpUrlConnectionTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
   @Override
+  String operation() {
+    "http-url-connection.request"
+  }
+
+  @Override
   int doRequest(String method, URI uri, Map<String, String> headers, String body, Closure callback) {
     HttpURLConnection connection = uri.toURL().openConnection()
     try {

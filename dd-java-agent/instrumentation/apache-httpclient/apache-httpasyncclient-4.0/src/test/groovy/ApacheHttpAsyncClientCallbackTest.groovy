@@ -16,6 +16,11 @@ import java.util.concurrent.TimeUnit
 @Timeout(5)
 class ApacheHttpAsyncClientCallbackTest extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
+  @Override
+  String operation() {
+    "apache-httpasyncclient.request"
+  }
+
   @Shared
   RequestConfig requestConfig = RequestConfig.custom()
   .setConnectTimeout(CONNECT_TIMEOUT_MS)
