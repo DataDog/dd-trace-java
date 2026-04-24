@@ -18,16 +18,13 @@ import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
 import io.netty.handler.codec.http.multipart.Attribute;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
-import java.io.FileInputStream;
 import java.io.IOException;
 import java.lang.reflect.UndeclaredThrowableException;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -75,6 +72,13 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".NettyFileUploadContentReader",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("parseBody").and(takesArguments(0)).and(isPrivate()),
@@ -83,7 +87,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseBodyAdvice {
-    private static final int MAX_CONTENT_BYTES = 4096;
     private static final int MAX_FILES_TO_INSPECT = 25;
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -139,25 +142,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             filenames.add(filename);
           }
           if (contentCb != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
-            String contentStr = "";
-            try {
-              if (fileUpload.isInMemory()) {
-                ByteBuf buf = fileUpload.getByteBuf();
-                int length = Math.min(MAX_CONTENT_BYTES, buf.readableBytes());
-                byte[] bytes = new byte[length];
-                buf.getBytes(buf.readerIndex(), bytes);
-                contentStr = new String(bytes, StandardCharsets.ISO_8859_1);
-              } else {
-                byte[] bytes = new byte[MAX_CONTENT_BYTES];
-                int read;
-                try (FileInputStream fis = new FileInputStream(fileUpload.getFile())) {
-                  read = fis.read(bytes);
-                }
-                contentStr = new String(bytes, 0, read < 0 ? 0 : read, StandardCharsets.ISO_8859_1);
-              }
-            } catch (IOException ignored) {
-            }
-            filesContent.add(contentStr);
+            filesContent.add(NettyFileUploadContentReader.readContent(fileUpload));
           }
         }
       }
