@@ -54,7 +54,7 @@ public class TracingExecutionInterceptor implements ExecutionInterceptor {
       return; // SQS messages spans are created by aws-java-sqs-2.0
     }
 
-    final AgentSpan span = startSpan("aws-sdk", DECORATE.spanName(executionAttributes));
+    final AgentSpan span = startSpan("java-aws-sdk", DECORATE.spanName(executionAttributes));
     // TODO If DSM is enabled, add DSM context here too
     DECORATE.afterStart(span);
     executionAttributes.putAttribute(CONTEXT_ATTRIBUTE, span);

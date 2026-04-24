@@ -114,6 +114,7 @@ class TagsAssert {
       assert tags[Tags.COMPONENT].toString() == tags[DDTags.DD_INTEGRATION].toString()
     }
     String capturedInstrumentationName = INSTRUMENTATION_NAMES.remove(spanId)
+    System.err.println("CAPTURED $capturedInstrumentationName")
     if (capturedInstrumentationName != null && capturedInstrumentationName != "test" && tags[DDTags.DD_INTEGRATION] != null) {
       assert tags[DDTags.DD_INTEGRATION].toString() == capturedInstrumentationName :
       "DD_INTEGRATION '${tags[DDTags.DD_INTEGRATION]}' != instrumentationName '${capturedInstrumentationName}' passed to startSpan()"

@@ -56,6 +56,7 @@ import datadog.trace.bootstrap.ActiveSubsystems
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.bootstrap.debugger.DebuggerContext
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.Sink
@@ -406,18 +407,17 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
-    TEST_TRACER.startSpan(*_) >> { Object[] args ->
-      AgentSpan agentSpan = callRealMethod()
-      if (args.length > 0 && args[0] instanceof String) {
-        TagsAssert.INSTRUMENTATION_NAMES[agentSpan.spanId] = (String) args[0]
-      }
-      if (!enabledFinishTimingChecks) {
-        return agentSpan
-      }
-
-      def trackingSpan = new TrackingSpanDecorator(agentSpan, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
-      originalToTrackingSpan[agentSpan] = trackingSpan
-      return trackingSpan
+    TEST_TRACER.startSpan(_ as String, _ as CharSequence) >> { String instrName, CharSequence spanName ->
+      trackStartSpan(callRealMethod(), instrName, enabledFinishTimingChecks)
+    }
+    TEST_TRACER.startSpan(_ as String, _ as CharSequence, _ as Long) >> { String instrName, CharSequence spanName, long micros ->
+      trackStartSpan(callRealMethod(), instrName, enabledFinishTimingChecks)
+    }
+    TEST_TRACER.startSpan(_ as String, _ as CharSequence, _ as AgentSpanContext) >> { String instrName, CharSequence spanName, AgentSpanContext ctx ->
+      trackStartSpan(callRealMethod(), instrName, enabledFinishTimingChecks)
+    }
+    TEST_TRACER.startSpan(_ as String, _ as CharSequence, _ as AgentSpanContext, _ as Long) >> { String instrName, CharSequence spanName, AgentSpanContext ctx, long micros ->
+      trackStartSpan(callRealMethod(), instrName, enabledFinishTimingChecks)
     }
 
     ClassInjector.enableClassInjection(INSTRUMENTATION)
@@ -573,6 +573,16 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   boolean useStrictTraceWrites() {
     return true
+  }
+
+  protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
+    TagsAssert.INSTRUMENTATION_NAMES[span.spanId] = instrName
+    if (!enabledFinishTimingChecks) {
+      return span
+    }
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    originalToTrackingSpan[span] = trackingSpan
+    return trackingSpan
   }
 
   void assertTraces(
