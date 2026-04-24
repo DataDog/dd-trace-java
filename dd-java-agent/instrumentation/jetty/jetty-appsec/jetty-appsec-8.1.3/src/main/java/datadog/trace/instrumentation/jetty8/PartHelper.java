@@ -13,11 +13,14 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
 import javax.servlet.http.Part;
@@ -228,6 +231,7 @@ public class PartHelper {
   }
 
   private static String readPartContent(Part part) {
+    Charset charset = charsetFromContentType(part.getContentType());
     try (InputStream is = part.getInputStream()) {
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       byte[] buf = new byte[4096];
@@ -235,9 +239,40 @@ public class PartHelper {
       while ((read = is.read(buf)) != -1) {
         baos.write(buf, 0, read);
       }
-      return baos.toString("UTF-8");
+      return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
       return null;
     }
+  }
+
+  /**
+   * Parses the {@code charset} parameter from a {@code Content-Type} header value (e.g. {@code
+   * text/plain; charset=ISO-8859-1}). Returns UTF-8 when absent, unknown, or {@code null}.
+   */
+  static Charset charsetFromContentType(String contentType) {
+    if (contentType != null) {
+      int idx = contentType.toLowerCase(Locale.ROOT).indexOf("charset=");
+      if (idx >= 0) {
+        String name = contentType.substring(idx + 8).trim();
+        if (!name.isEmpty() && name.charAt(0) == '"') {
+          name = name.substring(1);
+          int end = name.indexOf('"');
+          if (end >= 0) name = name.substring(0, end);
+        } else {
+          int end = 0;
+          while (end < name.length()
+              && name.charAt(end) != ';'
+              && !Character.isWhitespace(name.charAt(end))) {
+            end++;
+          }
+          name = name.substring(0, end);
+        }
+        try {
+          return Charset.forName(name);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+    return StandardCharsets.UTF_8;
   }
 }
