@@ -382,10 +382,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
     final ProviderEvaluation<T> result =
         ProviderEvaluation.<T>builder()
             .value(mappedValue)
-            .reason(
-                !isEmpty(allocation.rules)
-                    ? Reason.TARGETING_MATCH.name()
-                    : !isEmpty(split.shards) ? Reason.SPLIT.name() : Reason.STATIC.name())
+            .reason(resolveReason(allocation, split, flag))
             .variant(variant.key)
             .flagMetadata(metadataBuilder.build())
             .build();
@@ -394,6 +391,25 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       dispatchExposure(key, result, context);
     }
     return result;
+  }
+
+  private static String resolveReason(
+      final Allocation allocation, final Split split, final Flag flag) {
+    // ADR-004: SPLIT overrides TARGETING_MATCH when both rules and shard contributed
+    if (!isEmpty(allocation.rules) && !isEmpty(split.shards)) {
+      return Reason.SPLIT.name();
+    }
+    if (!isEmpty(allocation.rules)) {
+      return Reason.TARGETING_MATCH.name();
+    }
+    if (!isEmpty(split.shards)) {
+      return Reason.SPLIT.name();
+    }
+    // No rules, no shards (vacuous split). STATIC only when this is the sole allocation
+    // with no date-window constraints (ADR-003: time-gated result is not permanently stable).
+    final boolean hasDateWindow = allocation.startAt != null || allocation.endAt != null;
+    final boolean isSoleStaticAlloc = flag.allocations.size() == 1 && !hasDateWindow;
+    return isSoleStaticAlloc ? Reason.STATIC.name() : Reason.DEFAULT.name();
   }
 
   private static Object resolveAttribute(final String name, final EvaluationContext context) {
