@@ -164,8 +164,13 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetPartAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static boolean before() {
-      return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0;
+    static boolean before(
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            Object multiPartInputStream) {
+      // _multiPartInputStream is null before the first parse. Once set, all parts are cached and
+      // events have already fired (either here or in GetFilenamesAdvice). Skip on repeat calls.
+      return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0
+          && multiPartInputStream == null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
