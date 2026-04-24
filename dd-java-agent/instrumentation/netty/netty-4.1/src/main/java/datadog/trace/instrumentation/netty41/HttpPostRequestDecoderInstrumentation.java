@@ -61,6 +61,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
               Reference.EXPECTS_NON_STATIC,
               "currentStatus",
               "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
+          .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
           .build(),
       new Reference.Builder("io.netty.handler.codec.http.multipart.HttpPostStandardRequestDecoder")
           .withField(
@@ -68,6 +69,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
               Reference.EXPECTS_NON_STATIC,
               "currentStatus",
               "Lio/netty/handler/codec/http/multipart/HttpPostRequestDecoder$MultiPartStatus;")
+          .withField(new String[0], Reference.EXPECTS_NON_STATIC, "isLastChunk", "Z")
           .build()
     };
   }
@@ -88,10 +90,17 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
     static void after(
         @Advice.This InterfaceHttpPostRequestDecoder thiz,
         @Advice.FieldValue("currentStatus") Enum currentStatus,
+        @Advice.FieldValue("isLastChunk") boolean isLastChunk,
         @ActiveRequestContext RequestContext requestContext,
         @Advice.Thrown(readOnly = false) Throwable thr) {
-      if (!currentStatus.name().equals("EPILOGUE")) {
-        return;
+      String statusName = currentStatus.name();
+      if (!statusName.equals("EPILOGUE")) {
+        // For multipart decoders, the PREEPILOGUE→EPILOGUE transition requires a second
+        // parseBody() call that never comes when the full request arrives in one shot.
+        // Fire on PREEPILOGUE + isLastChunk to handle that case.
+        if (!statusName.equals("PREEPILOGUE") || !isLastChunk) {
+          return;
+        }
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
@@ -160,6 +169,8 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
           brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+          // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
+          // the span synchronously in this Netty path; calling it on a finished span throws.
           thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
         }
       }
