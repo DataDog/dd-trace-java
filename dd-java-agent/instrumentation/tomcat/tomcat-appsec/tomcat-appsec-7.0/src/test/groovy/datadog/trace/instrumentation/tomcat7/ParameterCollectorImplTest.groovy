@@ -6,12 +6,12 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'getContents returns empty list when no parts added'() {
     expect:
-    new ParameterCollector.ParameterCollectorImpl().getContents().isEmpty()
+    new ParameterCollector.ParameterCollectorImpl(true).getContents().isEmpty()
   }
 
   void 'addPart skips content when filename is null'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     collector.addPart(new TestPart(null, 'some body'))
@@ -23,7 +23,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart reads content but skips filename when filename is empty string'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     collector.addPart(new TestPart('', 'some body'))
@@ -35,7 +35,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart reads content for file part with filename'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     collector.addPart(new TestPart('file.txt', 'hello world'))
@@ -47,7 +47,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart reads content for multiple files'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     collector.addPart(new TestPart('a.txt', 'content-a'))
@@ -60,7 +60,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart truncates content at 4096 bytes'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
     def longContent = 'X' * 5000
 
     when:
@@ -72,7 +72,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart reads exactly 4096 bytes when content is 4096 bytes'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
     def content = 'Y' * 4096
 
     when:
@@ -84,7 +84,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart stops collecting content after 25 files but still collects filenames'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     (1..26).each { i -> collector.addPart(new TestPart("file${i}.txt", "content${i}")) }
@@ -96,7 +96,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart adds empty string when getInputStream throws'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
     collector.addPart(new FailingPart('bad.txt'))
@@ -108,7 +108,7 @@ class ParameterCollectorImplTest extends Specification {
 
   void 'addPart preserves ISO-8859-1 bytes'() {
     given:
-    def collector = new ParameterCollector.ParameterCollectorImpl()
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
     def bytes = (0..255).collect { (byte) it } as byte[]
     def expected = new String(bytes, 'ISO-8859-1')
 
@@ -117,6 +117,18 @@ class ParameterCollectorImplTest extends Specification {
 
     then:
     collector.getContents()[0] == expected
+  }
+
+  void 'addPart skips content when inspectContent is false but still collects filename'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl(false)
+
+    when:
+    collector.addPart(new TestPart('file.txt', 'hello world'))
+
+    then:
+    collector.getContents().isEmpty()
+    collector.getFilenames() == ['file.txt']
   }
 
   void 'ParameterCollectorNoop getContents returns empty list'() {

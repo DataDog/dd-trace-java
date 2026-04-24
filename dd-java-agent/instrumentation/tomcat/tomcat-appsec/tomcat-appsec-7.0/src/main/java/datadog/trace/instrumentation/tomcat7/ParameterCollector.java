@@ -61,9 +61,14 @@ public interface ParameterCollector {
     private static final int MAX_CONTENT_BYTES = 4096;
     private static final int MAX_FILES_TO_INSPECT = 25;
 
+    private final boolean inspectContent;
     private Map<String, List<String>> map;
     private List<String> filenames;
     private List<String> contents;
+
+    public ParameterCollectorImpl(boolean inspectContent) {
+      this.inspectContent = inspectContent;
+    }
 
     public boolean isEmpty() {
       return map == null;
@@ -115,11 +120,13 @@ public interface ParameterCollector {
           }
           filenames.add(filename);
         }
-        if (contents == null) {
-          contents = new ArrayList<>();
-        }
-        if (contents.size() < MAX_FILES_TO_INSPECT) {
-          contents.add(readContent(part));
+        if (inspectContent) {
+          if (contents == null) {
+            contents = new ArrayList<>();
+          }
+          if (contents.size() < MAX_FILES_TO_INSPECT) {
+            contents.add(readContent(part));
+          }
         }
       } catch (Throwable ignored) {
       }
