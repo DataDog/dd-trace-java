@@ -12,6 +12,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -30,6 +31,37 @@ import javax.servlet.http.Part;
 public class PartHelper {
 
   private PartHelper() {}
+
+  // Cached reflection handle to MultiPartInputStream.getParts() — set once on first use.
+  private static volatile Method mpiGetParts;
+
+  /**
+   * Returns all parts from a {@code MultiPartInputStream} object (already-parsed, no re-trigger).
+   * Falls back to a singleton of {@code singlePart} if reflection fails or the collection is empty.
+   */
+  public static Collection<?> getAllParts(Object multiPartInputStream, Part singlePart) {
+    if (multiPartInputStream != null) {
+      Method m = mpiGetParts;
+      if (m == null) {
+        try {
+          m = multiPartInputStream.getClass().getMethod("getParts");
+          mpiGetParts = m;
+        } catch (NoSuchMethodException ignored) {
+        }
+      }
+      if (m != null) {
+        try {
+          @SuppressWarnings("unchecked")
+          Collection<?> all = (Collection<?>) m.invoke(multiPartInputStream);
+          if (all != null && !all.isEmpty()) {
+            return all;
+          }
+        } catch (Exception ignored) {
+        }
+      }
+    }
+    return singlePart != null ? Collections.singletonList(singlePart) : Collections.emptyList();
+  }
 
   /**
    * Returns filenames found in {@code parts} by parsing each part's {@code Content-Disposition}

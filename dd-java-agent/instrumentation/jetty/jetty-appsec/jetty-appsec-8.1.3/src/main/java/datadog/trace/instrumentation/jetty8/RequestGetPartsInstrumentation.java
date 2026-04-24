@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.Collection;
-import java.util.Collections;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -154,10 +153,13 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
   }
 
   /**
-   * Fires AppSec events for a single-part upload via {@code getPart(String)}, which in Jetty 8.x
-   * does NOT delegate to {@code getParts()} — it calls {@code
-   * _multiPartInputStream.getPart(String)} directly. Without this advice, single-file uploads that
-   * never call the public {@code getParts()} would be missed.
+   * Fires AppSec events for requests whose first multipart access is {@code getPart(String)}.
+   *
+   * <p>In Jetty 8.x, {@code getPart(String)} parses and caches the entire multipart stream into
+   * {@code _multiPartInputStream} but returns only the single requested part. If the app only calls
+   * {@code getPart("field")} (a text field), any co-uploaded file parts would never reach {@code
+   * requestFilesFilenames}. We therefore read all cached parts via {@code
+   * MultiPartInputStream.getParts()} and fall back to the returned singleton only if that fails.
    */
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class GetPartAdvice {
@@ -170,13 +172,18 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Enter boolean proceed,
         @Advice.Return Part part,
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            Object multiPartInputStream,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
       CallDepthThreadLocalMap.decrementCallDepth(Part.class);
-      if (!proceed || t != null || part == null) {
+      if (!proceed || t != null) {
         return;
       }
-      Collection<Part> parts = Collections.singletonList(part);
+      Collection<?> parts = PartHelper.getAllParts(multiPartInputStream, part);
+      if (parts.isEmpty()) {
+        return;
+      }
       t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
       if (t == null) {
         t = PartHelper.fireFilenamesEvent(parts, reqCtx);
