@@ -117,9 +117,8 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
             if (blockResponseFunction != null) {
               blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (for Request/parseParts)");
-              }
+              t = new BlockingException("Blocked request (for Request/parseParts)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
           }
         }

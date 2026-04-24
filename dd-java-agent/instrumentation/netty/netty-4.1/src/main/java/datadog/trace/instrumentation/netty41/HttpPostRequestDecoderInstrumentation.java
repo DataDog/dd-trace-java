@@ -157,8 +157,8 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         BlockResponseFunction brf = requestContext.getBlockResponseFunction();
         if (brf != null) {
           brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+          thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
         }
-        thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
       }
 
       if (!filenames.isEmpty()) {
