@@ -6,6 +6,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -113,7 +114,7 @@ public class ApacheHttpAsyncClientInstrumentation extends InstrumenterModule.Tra
         @Advice.Argument(value = 4, readOnly = false) FutureCallback<?> futureCallback) {
 
       final AgentScope.Continuation parentContinuation = captureActiveSpan();
-      final AgentSpan clientSpan = startSpan("httpasyncclient5", HTTP_REQUEST);
+      final AgentSpan clientSpan = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
       final AgentScope clientScope = activateSpan(clientSpan);
       DECORATE.afterStart(clientSpan);
 

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.hazelcast4;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.hazelcast4.HazelcastConstants.COMPONENT_NAME;
 import static datadog.trace.instrumentation.hazelcast4.HazelcastDecorator.DECORATE;
 
 import com.hazelcast.client.impl.protocol.ClientMessage;
@@ -36,7 +37,7 @@ public class InvocationAdvice {
       return null;
     }
 
-    final AgentSpan span = startSpan("hazelcast-sdk", HazelcastConstants.SPAN_NAME);
+    final AgentSpan span = startSpan(COMPONENT_NAME.toString(), HazelcastConstants.SPAN_NAME);
 
     span.setTag(
         HazelcastConstants.HAZELCAST_INSTANCE,

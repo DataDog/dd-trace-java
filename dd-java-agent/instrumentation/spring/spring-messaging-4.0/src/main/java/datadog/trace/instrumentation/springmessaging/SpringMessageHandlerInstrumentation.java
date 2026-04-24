@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
@@ -80,7 +81,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
-      AgentSpan span = startSpan("spring-messaging", SPRING_INBOUND);
+      AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);

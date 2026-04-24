@@ -56,7 +56,7 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
-      final AgentSpan span = startSpan("jedis", JedisClientDecorator.OPERATION_NAME);
+      final AgentSpan span = startSpan("redis-command", JedisClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
 
