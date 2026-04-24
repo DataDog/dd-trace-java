@@ -104,17 +104,22 @@ public interface ParameterCollector {
     public void addPart(Object part) {
       try {
         String filename = getFilename(part);
-        if (filename != null && !filename.isEmpty()) {
+        // null means no filename parameter at all → form field, skip entirely.
+        // empty string means filename="" was sent → file upload without a name, still inspect.
+        if (filename == null) {
+          return;
+        }
+        if (!filename.isEmpty()) {
           if (filenames == null) {
             filenames = new ArrayList<>();
           }
           filenames.add(filename);
-          if (contents == null) {
-            contents = new ArrayList<>();
-          }
-          if (contents.size() < MAX_FILES_TO_INSPECT) {
-            contents.add(readContent(part));
-          }
+        }
+        if (contents == null) {
+          contents = new ArrayList<>();
+        }
+        if (contents.size() < MAX_FILES_TO_INSPECT) {
+          contents.add(readContent(part));
         }
       } catch (Throwable ignored) {
       }

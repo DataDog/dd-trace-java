@@ -21,7 +21,7 @@ class ParameterCollectorImplTest extends Specification {
     collector.getFilenames().isEmpty()
   }
 
-  void 'addPart skips content when filename is empty'() {
+  void 'addPart reads content but skips filename when filename is empty string'() {
     given:
     def collector = new ParameterCollector.ParameterCollectorImpl()
 
@@ -29,7 +29,7 @@ class ParameterCollectorImplTest extends Specification {
     collector.addPart(new TestPart('', 'some body'))
 
     then:
-    collector.getContents().isEmpty()
+    collector.getContents() == ['some body']
     collector.getFilenames().isEmpty()
   }
 

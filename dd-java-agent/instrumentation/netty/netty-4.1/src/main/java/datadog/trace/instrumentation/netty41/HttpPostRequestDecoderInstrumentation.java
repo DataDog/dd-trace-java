@@ -131,18 +131,15 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             try {
               if (fileUpload.isInMemory()) {
                 ByteBuf buf = fileUpload.getByteBuf();
-                int length = (int) Math.min((long) MAX_CONTENT_BYTES, (long) buf.readableBytes());
+                int length = Math.min(MAX_CONTENT_BYTES, buf.readableBytes());
                 byte[] bytes = new byte[length];
                 buf.getBytes(buf.readerIndex(), bytes);
                 contentStr = new String(bytes, StandardCharsets.ISO_8859_1);
               } else {
                 byte[] bytes = new byte[MAX_CONTENT_BYTES];
                 int read;
-                FileInputStream fis = new FileInputStream(fileUpload.getFile());
-                try {
+                try (FileInputStream fis = new FileInputStream(fileUpload.getFile())) {
                   read = fis.read(bytes);
-                } finally {
-                  fis.close();
                 }
                 contentStr = new String(bytes, 0, read < 0 ? 0 : read, StandardCharsets.ISO_8859_1);
               }
