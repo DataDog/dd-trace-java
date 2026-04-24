@@ -160,6 +160,38 @@ class PartHelperTest extends Specification {
     PartHelper.filenameFromPart(p) == 'first.txt'
   }
 
+  // ── charsetFromContentType ──────────────────────────────────────────────────
+
+  def "charsetFromContentType returns UTF-8 for null"() {
+    expect:
+    PartHelper.charsetFromContentType(null) == java.nio.charset.StandardCharsets.UTF_8
+  }
+
+  def "charsetFromContentType returns UTF-8 when no charset parameter"() {
+    expect:
+    PartHelper.charsetFromContentType('text/plain') == java.nio.charset.StandardCharsets.UTF_8
+  }
+
+  def "charsetFromContentType parses unquoted charset"() {
+    expect:
+    PartHelper.charsetFromContentType('text/plain; charset=ISO-8859-1') == java.nio.charset.Charset.forName('ISO-8859-1')
+  }
+
+  def "charsetFromContentType parses quoted charset"() {
+    expect:
+    PartHelper.charsetFromContentType('text/plain; charset="ISO-8859-1"') == java.nio.charset.Charset.forName('ISO-8859-1')
+  }
+
+  def "charsetFromContentType is case-insensitive"() {
+    expect:
+    PartHelper.charsetFromContentType('text/plain; CHARSET=UTF-16') == java.nio.charset.StandardCharsets.UTF_16
+  }
+
+  def "charsetFromContentType returns UTF-8 for unknown charset"() {
+    expect:
+    PartHelper.charsetFromContentType('text/plain; charset=not-a-real-charset') == java.nio.charset.StandardCharsets.UTF_8
+  }
+
   // ── extractFormFields ───────────────────────────────────────────────────────
 
   def "extractFormFields returns empty map for null collection"() {
@@ -202,6 +234,16 @@ class PartHelperTest extends Specification {
 
     expect:
     PartHelper.extractFormFields(parts) == [a: ['x'], b: ['y']]
+  }
+
+  def "extractFormFields decodes field using Content-Type charset instead of hard-coded UTF-8"() {
+    given:
+    // "café" encoded as ISO-8859-1: 'é' = 0xE9. Decoded as UTF-8 it would be mojibake.
+    byte[] iso88591Bytes = 'café'.getBytes('ISO-8859-1')
+    def parts = [fieldWithContentType('drink', iso88591Bytes, 'text/plain; charset=ISO-8859-1')]
+
+    expect:
+    PartHelper.extractFormFields(parts) == [drink: ['café']]
   }
 
   // ── getAllParts ─────────────────────────────────────────────────────────────
@@ -260,6 +302,16 @@ class PartHelperTest extends Specification {
     p.getHeader('Content-Disposition') >> "form-data; name=\"${name}\""
     p.getName() >> name
     p.getInputStream() >> new ByteArrayInputStream(value.getBytes('UTF-8'))
+    return p
+  }
+
+  /** Creates a stub Part with a specific Content-Type (for charset testing). */
+  private Part fieldWithContentType(String name, byte[] rawValue, String contentType) {
+    Part p = Stub(Part)
+    p.getHeader('Content-Disposition') >> "form-data; name=\"${name}\""
+    p.getName() >> name
+    p.getContentType() >> contentType
+    p.getInputStream() >> new ByteArrayInputStream(rawValue)
     return p
   }
 
