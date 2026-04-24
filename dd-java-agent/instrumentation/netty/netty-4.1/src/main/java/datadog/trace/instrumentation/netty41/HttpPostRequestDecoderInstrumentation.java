@@ -110,14 +110,14 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
 
-      if (callback == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+          cbp.getCallback(EVENTS.requestFilesContent());
+
+      if (callback == null && contentCb == null) {
         return;
       }
 
       RuntimeException exc = null;
-
-      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-          cbp.getCallback(EVENTS.requestFilesContent());
 
       Map<String, List<String>> attributes = new LinkedHashMap<>();
       List<String> filenames = new ArrayList<>();
@@ -147,16 +147,18 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      Flow<Void> flow = callback.apply(requestContext, attributes);
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-          // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
-          // the span synchronously in this Netty path; calling it on a finished span throws.
-          thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
+      if (callback != null) {
+        Flow<Void> flow = callback.apply(requestContext, attributes);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
+            // the span synchronously in this Netty path; calling it on a finished span throws.
+            thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
+          }
         }
       }
 
