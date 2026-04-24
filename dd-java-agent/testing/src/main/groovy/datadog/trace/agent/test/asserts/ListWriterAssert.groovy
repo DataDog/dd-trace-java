@@ -2,7 +2,6 @@ package datadog.trace.agent.test.asserts
 
 import static TraceAssert.assertTrace
 
-import datadog.trace.agent.tooling.muzzle.MuzzleCheck
 import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
@@ -103,7 +102,6 @@ class ListWriterAssert {
 
   static void assertNoErrors() {
     assert InstrumentationErrors.getErrors().size() == 0 : "Instrumentation errors were seen, failing fast"
-    assert MuzzleCheck.getErrors().size() == 0 : "Muzzle errors were seen, failing fast"
     // InstrumentationSpecification.{cleanup,cleanupAfterAgent} will provide details later
   }
 

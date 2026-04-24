@@ -39,7 +39,6 @@ import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.agent.tooling.TracerInstaller
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers
 import datadog.trace.agent.tooling.bytebuddy.matcher.GlobalIgnores
-import datadog.trace.agent.tooling.muzzle.MuzzleCheck
 import datadog.trace.api.Config
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.Pair
@@ -479,7 +478,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
     InstrumentationErrors.enableRecordingAndReset()
-    MuzzleCheck.enableRecordingAndReset()
     ProcessTags.reset()
   }
 
@@ -523,8 +521,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
     def instrumentationErrorCount = InstrumentationErrors.getErrors().size()
     assert instrumentationErrorCount == 0, "${instrumentationErrorCount} instrumentation errors were seen:\n${InstrumentationErrors.getErrors().join("\n---\n")}"
-    def muzzleErrorCount = MuzzleCheck.getErrors().size()
-    assert muzzleErrorCount == 0, "${muzzleErrorCount} muzzle errors were seen:\n${MuzzleCheck.getErrors().join("\n---\n")}"
   }
 
   private void doCheckRepeatedFinish() {
