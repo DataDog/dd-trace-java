@@ -23,6 +23,7 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
+import spock.lang.Ignore
 
 class WriterFactoryTest extends DDSpecification {
 
@@ -163,6 +164,12 @@ class WriterFactoryTest extends DDSpecification {
     "DDIntakeWriter"                           | true         | true        | true                     | DDIntakeWriter      | [DDIntakeApi]
     "DDIntakeWriter"                           | true         | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
     "DDIntakeWriter"                           | false        | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
+  }
+
+  @Ignore("TODO: implement — verify that writerType=OtlpWriter plus OTLP config getters on Config produce an OtlpWriter with the expected endpoint/protocol/compression/headers/timeout wired through")
+  def "test writer creation for OtlpWriter"() {
+    expect:
+    true
   }
 
   Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {

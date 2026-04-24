@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGE
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE;
@@ -57,6 +58,8 @@ public class WriterFactory {
       final HealthMetrics healthMetrics,
       String configuredType) {
 
+    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
+
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
@@ -67,6 +70,17 @@ public class WriterFactory {
     } else if (configuredType.startsWith(MULTI_WRITER_TYPE)) {
       return new MultiWriter(
           config, commObjects, sampler, singleSpanSampler, healthMetrics, configuredType);
+    } else if (OTLP_WRITER_TYPE.equals(configuredType)) {
+      return OtlpWriter.builder()
+          .endpoint(config.getOtlpTracesEndpoint())
+          .headers(config.getOtlpTracesHeaders())
+          .protocol(config.getOtlpTracesProtocol())
+          .compression(config.getOtlpTracesCompression())
+          .timeoutMillis(config.getOtlpTracesTimeout())
+          .healthMetrics(healthMetrics)
+          .spanSamplingRules(singleSpanSampler)
+          .flushIntervalMilliseconds(flushIntervalMilliseconds)
+          .build();
     }
 
     if (!DD_AGENT_WRITER_TYPE.equals(configuredType)
@@ -84,7 +98,6 @@ public class WriterFactory {
           "Using 'EnsureTrace' prioritization type. (Do not use this type if your application is running in production mode)");
     }
 
-    int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
     DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
     // CI Visibility with bazel support wants to write traces into JSON files
