@@ -525,7 +525,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    if (lockAttrIndices == null) lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    if (lockAttrIndices == null)
+      lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
     lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, lockAttrIndices));
   }
 
@@ -537,7 +538,8 @@ public final class JfrToOtlpConverter {
     long timestamp = convertTimestamp(event.startTime(), ctl);
     long durationNanos = ctl.chunkInfo().asDuration(event.duration()).toNanos();
 
-    if (lockAttrIndices == null) lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
+    if (lockAttrIndices == null)
+      lockAttrIndices = new int[] {getSampleTypeAttributeIndex("lock-contention")};
     lockSamples.add(new SampleData(stackIndex, 0, durationNanos, timestamp, lockAttrIndices));
   }
 
@@ -602,7 +604,9 @@ public final class JfrToOtlpConverter {
     // Cache key mirrors the stackTraceCache pattern: tag methodId with chunk identity
     // so per-chunk CP indices don't collide across chunks.
     long cacheKey =
-        methodId ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32) ^ (lineNumber * 1000003L);
+        methodId
+            ^ ((long) System.identityHashCode(ctl.chunkInfo()) << 32)
+            ^ (lineNumber * 1000003L);
     int cached = frameCache.get(cacheKey);
     if (cached != -1) {
       return cached;
@@ -815,7 +819,8 @@ public final class JfrToOtlpConverter {
 
     // Field 5: timestamps_unix_nano (packed)
     if (sample.timestampNanos > 0) {
-      encoder.writePackedFixed64Field(OtlpProtoFields.Sample.TIMESTAMPS_UNIX_NANO, sample.timestampNanos);
+      encoder.writePackedFixed64Field(
+          OtlpProtoFields.Sample.TIMESTAMPS_UNIX_NANO, sample.timestampNanos);
     }
   }
 

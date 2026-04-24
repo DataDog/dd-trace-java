@@ -61,8 +61,8 @@ public final class ProtobufEncoder {
 
   public void writeFixed64(long value) {
     if (size + 8 > buf.length) resize(8);
-    buf[size    ] = (byte)  (value        & 0xFF);
-    buf[size + 1] = (byte) ((value >>  8) & 0xFF);
+    buf[size] = (byte) (value & 0xFF);
+    buf[size + 1] = (byte) ((value >> 8) & 0xFF);
     buf[size + 2] = (byte) ((value >> 16) & 0xFF);
     buf[size + 3] = (byte) ((value >> 24) & 0xFF);
     buf[size + 4] = (byte) ((value >> 32) & 0xFF);
@@ -74,8 +74,8 @@ public final class ProtobufEncoder {
 
   public void writeFixed32(int value) {
     if (size + 4 > buf.length) resize(4);
-    buf[size    ] = (byte)  (value        & 0xFF);
-    buf[size + 1] = (byte) ((value >>  8) & 0xFF);
+    buf[size] = (byte) (value & 0xFF);
+    buf[size + 1] = (byte) ((value >> 8) & 0xFF);
     buf[size + 2] = (byte) ((value >> 16) & 0xFF);
     buf[size + 3] = (byte) ((value >> 24) & 0xFF);
     size += 4;
