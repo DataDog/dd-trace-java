@@ -174,7 +174,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
             BlockResponseFunction brf = requestContext.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-              requestContext.getTraceSegment().effectivelyBlocked();
               thr = new BlockingException("Blocked request (multipart file upload)");
             }
           }
@@ -189,7 +188,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           BlockResponseFunction brf = requestContext.getBlockResponseFunction();
           if (brf != null) {
             brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-            requestContext.getTraceSegment().effectivelyBlocked();
             thr = new BlockingException("Blocked request (multipart file upload content)");
           }
         }
