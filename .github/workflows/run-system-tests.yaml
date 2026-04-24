@@ -75,7 +75,7 @@ jobs:
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
-      skip_empty_scenarios: true
+      skip_empty_scenarios: ${{ github.event_name != 'push' && github.event_name != 'schedule' }}
       push_to_test_optimization: true
     secrets:
       DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
