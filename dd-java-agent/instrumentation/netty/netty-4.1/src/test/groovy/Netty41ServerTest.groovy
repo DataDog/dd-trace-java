@@ -75,7 +75,7 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
             ChannelPipeline pipeline = ch.pipeline()
             pipeline.addFirst("logger", LOGGING_HANDLER)
             pipeline.addLast(new HttpServerCodec())
-            pipeline.addLast(new HttpObjectAggregator(1024))
+            pipeline.addLast(new HttpObjectAggregator(1024 * 1024))
             pipeline.addLast(new WebSocketServerProtocolHandler("/websocket"))
             pipeline.addLast([
               channelRead0       : { ChannelHandlerContext ctx, msg ->
