@@ -11,7 +11,6 @@ import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE
 import static net.bytebuddy.description.modifier.Ownership.STATIC
 import static net.bytebuddy.description.modifier.Visibility.PUBLIC
 import static net.bytebuddy.matcher.ElementMatchers.named
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf
 import static net.bytebuddy.matcher.ElementMatchers.none
 
 /**
@@ -48,7 +47,7 @@ class ConfigTransformSpockExtension implements IGlobalExtension {
       new AgentBuilder.LocationStrategy.Simple(
       ClassFileLocator.ForClassLoader.ofSystemLoader()))
       .ignore(none()) // Allow transforming bootstrap classes
-      .type(namedOneOf(INST_CONFIG, CONFIG))
+      .type(named(INST_CONFIG).or(named(CONFIG)))
       .transform { builder, typeDescription, classLoader, module, pd ->
         builder
           .field(named("INSTANCE"))
