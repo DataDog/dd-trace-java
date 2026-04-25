@@ -46,8 +46,11 @@ abstract class ProcessManager extends Specification {
   protected Process testedProcess
 
   @Shared
+  private String logFileTimestamp = createLogFileTimestamp()
+
+  @Shared
   private String[] logFilePaths = (0..<numberOfProcesses).collect { idx ->
-    "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${idx}.log"
+    "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${logFileTimestamp}.${idx}.log"
   }
 
   // Here for backwards compatibility with single process case
@@ -109,6 +112,12 @@ abstract class ProcessManager extends Specification {
   String javaPath() {
     final String separator = System.getProperty("file.separator")
     return System.getProperty("java.home") + separator + "bin" + separator + "java"
+  }
+
+  private static String createLogFileTimestamp() {
+    def format = new java.text.SimpleDateFormat("yyyyMMdd-HHmmss.SSS")
+    format.setTimeZone(TimeZone.getTimeZone("UTC"))
+    return format.format(new Date())
   }
 
   def cleanupSpec() {
