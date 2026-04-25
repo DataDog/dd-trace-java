@@ -11,6 +11,14 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.named('test', Test) {
+  failOnNoDiscoveredTests = false
+}
+
+tasks.named('latestDepTest', Test) {
+  failOnNoDiscoveredTests = false
+}
+
 dependencies {
   compileOnly group: 'io.valkey', name: 'valkey-java', version: '5.3.0'
 

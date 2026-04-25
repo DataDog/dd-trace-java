@@ -13,8 +13,13 @@ muzzle {
 addTestSuiteForDir('latestDepTest', 'test')
 addTestSuiteExtendingForDir('latestDepForkedTest', 'latestDepTest', 'test')
 
+tasks.named("test", Test) {
+  failOnNoDiscoveredTests = false
+}
+
 tasks.named("latestDepTest", Test) {
   finalizedBy 'latestDepForkedTest'
+  failOnNoDiscoveredTests = false
 }
 
 dependencies {
