@@ -6,6 +6,10 @@ apply from: "$rootDir/gradle/test-with-scala.gradle"
 addTestSuiteForDir('latestPre207Test', 'test')
 addTestSuite('latestDepTest')
 
+tasks.named('latestPre207Test', Test) {
+  failOnNoDiscoveredTests = false
+}
+
 muzzle {
   // There are some weird library issues below 2.9 so can't assert inverse
   pass {

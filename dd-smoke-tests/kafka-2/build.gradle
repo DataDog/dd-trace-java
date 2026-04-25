@@ -9,6 +9,11 @@ plugins {
 ext['spring-boot.version'] = '2.7.15'
 
 apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'Kafka 2.x Smoke Tests.'
 

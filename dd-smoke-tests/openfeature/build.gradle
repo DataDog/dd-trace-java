@@ -36,6 +36,9 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
   configurations = [project.configurations.runtimeClasspath]
   mergeServiceFiles()
   append 'META-INF/spring.handlers'

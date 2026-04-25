@@ -15,3 +15,7 @@ repositories {
 dependencies {
   compileOnly group: 'javax', name: 'javaee-api', version: '8.0.1'
 }
+
+tasks.withType(JavaCompile).configureEach {
+  options.release = 11
+}

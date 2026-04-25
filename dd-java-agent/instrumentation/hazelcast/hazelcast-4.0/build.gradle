@@ -11,6 +11,9 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+tasks.named('latestDepTest', Test) {
+  failOnNoDiscoveredTests = false
+}
 
 dependencies {
   compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '4.0'

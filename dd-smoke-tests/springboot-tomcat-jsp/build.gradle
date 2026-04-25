@@ -1,6 +1,8 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 
 plugins {
+  id 'com.gradleup.shadow'
   id 'java'
   id 'war'
   id 'org.springframework.boot' version '3.3.5'
@@ -36,14 +38,33 @@ dependencies {
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
+tasks.named("shadowJar", ShadowJar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+  configurations = [project.configurations.runtimeClasspath]
+  from('src/main/webapp') {
+    into 'META-INF/resources'
+  }
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }
+}
+
 tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar"
+  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  dependsOn "war", shadowJarTask
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return ["-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}"]
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.war.path=${it.archiveFile.get().asFile}"] }.get()
       }
     })
 }

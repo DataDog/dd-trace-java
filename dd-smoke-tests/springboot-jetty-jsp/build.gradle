@@ -45,6 +45,9 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
   configurations = [project.configurations.runtimeClasspath]
   from('src/main/webapp') {
     into 'META-INF/resources'
