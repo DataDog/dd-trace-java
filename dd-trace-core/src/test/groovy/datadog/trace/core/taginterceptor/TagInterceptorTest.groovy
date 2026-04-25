@@ -696,6 +696,7 @@ class TagInterceptorTest extends DDCoreSpecification {
   }
 
   void "when interceptServiceName extraServiceProvider is called"() {
+    def origServiceNameCollector = ServiceNameCollector.INSTANCE
     setup:
     final extraServiceProvider = Mock(ServiceNameCollector)
     ServiceNameCollector.INSTANCE = extraServiceProvider
@@ -708,9 +709,13 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     then:
     1 * extraServiceProvider.addService("some-service")
+
+    cleanup:
+    ServiceNameCollector.INSTANCE = origServiceNameCollector
   }
 
   void "when interceptServletContext extraServiceProvider is called"() {
+    def origServiceNameCollector = ServiceNameCollector.INSTANCE
     setup:
     final extraServiceProvider = Mock(ServiceNameCollector)
     ServiceNameCollector.INSTANCE = extraServiceProvider
@@ -723,6 +728,9 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     then:
     1 * extraServiceProvider.addService(expected)
+
+    cleanup:
+    ServiceNameCollector.INSTANCE = origServiceNameCollector
 
     where:
     value   | expected
