@@ -27,12 +27,14 @@ apply from: "$sharedConfigDirectory/spring-boot-fatjar.gradle"
 
 version = ""
 
-// Gradle 9 daemon JVM is JDK 17, but the SpringBootWebfluxIntegrationTest can
-// run on `-PtestJvm=11`. Pin source/target to 11 so the produced classes load
-// on the test JVM.
+// Gradle 9 daemon JVM is JDK 17, but SpringBootWebfluxIntegrationTest has no
+// testJvmConstraints and Spring Boot 2.7 itself supports Java 8+. Pin a Java 8
+// toolchain so the produced classes load on every test JVM the parent project
+// exposes (`-PtestJvm=8`, `=11`, etc.).
 java {
-  sourceCompatibility = JavaVersion.VERSION_11
-  targetCompatibility = JavaVersion.VERSION_11
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
 }
 
 dependencies {
