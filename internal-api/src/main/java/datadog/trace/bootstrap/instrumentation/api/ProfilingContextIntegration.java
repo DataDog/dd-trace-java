@@ -34,6 +34,36 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
     return 0;
   }
 
+  /** Returns the current TSC tick count for the calling thread. */
+  default long getCurrentTicks() {
+    return 0L;
+  }
+
+  /**
+   * Emits a TaskBlock event covering a blocking interval on the current thread.
+   *
+   * @param startTicks TSC tick at block entry
+   * @param spanId the span ID active when blocking began
+   * @param rootSpanId the local root span ID active when blocking began
+   * @param blocker identity hash code of the blocking object, or 0 if none
+   * @param unblockingSpanId the span ID of the thread that unblocked this thread, or 0 if unknown
+   */
+  default void recordTaskBlock(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {}
+
+  /**
+   * Called when the current thread is about to enter {@code LockSupport.park*}. Native code can
+   * suppress wall-clock signals for the park interval and record the start tick for off-CPU
+   * analysis.
+   */
+  default void parkEnter(long spanId, long rootSpanId) {}
+
+  /**
+   * Called when the current thread has returned from {@code LockSupport.park*}. Clears the park
+   * state and may emit a TaskBlock JFR event.
+   */
+  default void parkExit(long blocker, long unblockingSpanId) {}
+
   String name();
 
   final class NoOp implements ProfilingContextIntegration {
