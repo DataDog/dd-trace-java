@@ -1,13 +1,13 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -168,28 +168,28 @@ public final class OtlpCommonProto {
       keyUtf8 = keyUtf8(key.toString());
     }
     switch (type) {
-      case STRING:
+      case STRING_ATTRIBUTE:
         writeStringAttribute(buf, keyUtf8, valueUtf8((String) value));
         break;
-      case BOOLEAN:
+      case BOOLEAN_ATTRIBUTE:
         writeBooleanAttribute(buf, keyUtf8, (boolean) value);
         break;
-      case LONG:
+      case LONG_ATTRIBUTE:
         writeLongAttribute(buf, keyUtf8, ((Number) value).longValue());
         break;
-      case DOUBLE:
+      case DOUBLE_ATTRIBUTE:
         writeDoubleAttribute(buf, keyUtf8, ((Number) value).doubleValue());
         break;
-      case STRING_ARRAY:
+      case STRING_ARRAY_ATTRIBUTE:
         writeStringArrayAttribute(buf, keyUtf8, (List<String>) value);
         break;
-      case BOOLEAN_ARRAY:
+      case BOOLEAN_ARRAY_ATTRIBUTE:
         writeBooleanArrayAttribute(buf, keyUtf8, (List<Boolean>) value);
         break;
-      case LONG_ARRAY:
+      case LONG_ARRAY_ATTRIBUTE:
         writeLongArrayAttribute(buf, keyUtf8, (List<? extends Number>) value);
         break;
-      case DOUBLE_ARRAY:
+      case DOUBLE_ARRAY_ATTRIBUTE:
         writeDoubleArrayAttribute(buf, keyUtf8, (List<? extends Number>) value);
         break;
       default:

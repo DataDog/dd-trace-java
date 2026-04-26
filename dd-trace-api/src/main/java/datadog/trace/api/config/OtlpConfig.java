@@ -2,6 +2,15 @@ package datadog.trace.api.config;
 
 public final class OtlpConfig {
 
+  public static final String LOGS_OTEL_ENABLED = "logs.otel.enabled";
+  public static final String LOGS_OTEL_EXPORTER = "logs.otel.exporter";
+
+  public static final String OTLP_LOGS_ENDPOINT = "otlp.logs.endpoint";
+  public static final String OTLP_LOGS_HEADERS = "otlp.logs.headers";
+  public static final String OTLP_LOGS_PROTOCOL = "otlp.logs.protocol";
+  public static final String OTLP_LOGS_COMPRESSION = "otlp.logs.compression";
+  public static final String OTLP_LOGS_TIMEOUT = "otlp.logs.timeout";
+
   public static final String METRICS_OTEL_ENABLED = "metrics.otel.enabled";
   public static final String METRICS_OTEL_EXPORTER = "metrics.otel.exporter";
 
