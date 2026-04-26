@@ -1,6 +1,9 @@
+import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
+
 plugins {
   id 'java'
-  id 'org.springframework.boot' version '3.3.5'
+  id 'com.gradleup.shadow' version '8.3.9'
   id 'io.spring.dependency-management' version '1.1.6'
 }
 
@@ -24,6 +27,11 @@ dependencyManagement {
 
 version = ""
 
+java {
+  sourceCompatibility = JavaVersion.VERSION_11
+  targetCompatibility = JavaVersion.VERSION_11
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-webflux'
   implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
@@ -34,5 +42,27 @@ dependencies {
     implementation files(property('apiJar'))
   } else {
     implementation "com.datadoghq:dd-trace-api:0.110.0"
+  }
+}
+
+tasks.named("jar", Jar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+}
+
+tasks.named("shadowJar", ShadowJar) {
+  manifest {
+    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
+  }
+  configurations = [project.configurations.runtimeClasspath]
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
   }
 }

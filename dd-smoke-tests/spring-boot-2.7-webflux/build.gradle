@@ -18,7 +18,7 @@ tasks.register('webfluxBuild', Exec) {
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
     "JAVA_HOME": getLazyJavaHomeFor(17)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine "$rootDir/${gradlewCommand}", "shadowJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
 
@@ -45,7 +45,7 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest.jar"
+  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-all.jar"
 }
 
 spotless {
