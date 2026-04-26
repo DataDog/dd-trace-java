@@ -37,7 +37,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    // Gradle 3.5 is deprecated by TestKit 9.4.1 ("only the last 5 major
+    // versions" — i.e. Gradle 5+) and triggers a DeprecationLogger init race
+    // that flakes the build with IllegalStateException. Re-enable once we
+    // can either cover this version another way or drop it entirely.
+    // "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
     "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
     "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
     "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
