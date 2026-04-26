@@ -7,6 +7,11 @@ plugins {
   id 'java-test-fixtures'
 }
 
+// Spring Boot 2.7.x is the last 2.x line whose spring-asm understands Java 17
+// class files (major 61). Required because the application sources are
+// compiled with target 17 (see configureCompiler below) but the Spring Boot
+// Gradle plugin 3.3.5 BOM is overridden here to keep the runtime on the 2.x
+// line for instrumentation coverage.
 ext['spring-boot.version'] = '2.7.15'
 
 apply from: "$rootDir/gradle/java.gradle"

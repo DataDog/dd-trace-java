@@ -53,7 +53,12 @@ def appDir = "$projectDir/rum-ear"
 def appBuildDir = layout.buildDirectory.dir("rm-ear")
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-// define the task that builds the quarkus project
+// define the task that builds the EAR via a sub-Gradle invocation.
+//
+// The sub-build inherits this project's wrapper (Gradle 9.4.1), whose daemon
+// requires JDK 17 — that's why JAVA_HOME is 17, not the test runtime version.
+// The deployed WAR's compile target is pinned separately in
+// rum-ear/war/build.gradle via a Java toolchain.
 tasks.register('earBuild', Exec) {
   workingDir "$appDir"
   environment += [

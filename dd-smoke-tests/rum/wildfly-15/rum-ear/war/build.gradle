@@ -1,6 +1,15 @@
 apply plugin: 'java'
 apply plugin: 'war'
 
+// Gradle 9 daemon JVM is JDK 17, but this WAR is deployed to a WildFly server
+// that may run on Java 8 (testJvmConstraints maxJavaVersion=11). Pin a Java 8
+// toolchain so the produced bytecode loads on the lowest supported test JVM.
+java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(8)
+  }
+}
+
 repositories {
   mavenLocal()
   if (project.rootProject.hasProperty("mavenRepositoryProxy")) {
@@ -14,8 +23,4 @@ repositories {
 
 dependencies {
   compileOnly group: 'javax', name: 'javaee-api', version: '8.0.1'
-}
-
-tasks.withType(JavaCompile).configureEach {
-  options.release = 11
 }

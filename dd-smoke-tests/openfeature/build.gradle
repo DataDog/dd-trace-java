@@ -1,6 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
-
 plugins {
   id 'com.gradleup.shadow'
   id 'java'
@@ -8,9 +5,11 @@ plugins {
 }
 
 ext['spring-boot.version'] = '2.7.15'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootApplication'
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'Open Feature provider Smoke Tests.'
 
 testJvmConstraints {
@@ -29,30 +28,8 @@ dependencies {
   testImplementation project(':products:feature-flagging:feature-flagging-lib')
 }
 
-tasks.named("jar", Jar) {
-  manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
-  }
-}
-
-tasks.named("shadowJar", ShadowJar) {
-  manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
-  }
-  configurations = [project.configurations.runtimeClasspath]
-  mergeServiceFiles()
-  append 'META-INF/spring.handlers'
-  append 'META-INF/spring.schemas'
-  append 'META-INF/spring.tooling'
-  append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
-  transform(PropertiesFileTransformer) {
-    paths = ['META-INF/spring.factories']
-    mergeStrategy = "append"
-  }
-}
-
 tasks.withType(Test).configureEach {
-  def shadowJarTask = tasks.named('shadowJar', ShadowJar)
+  def shadowJarTask = tasks.named('shadowJar')
   dependsOn shadowJarTask
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override

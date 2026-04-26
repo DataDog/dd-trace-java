@@ -4,6 +4,11 @@
 ext['junit-jupiter.version'] = libs.versions.junit5.get()
 ext['junit-platform.version'] = libs.versions.junit.platform.get()
 
+// Gradle 9.4.1 requires JDK 17, which forced the Spring Boot Gradle plugin
+// to be bumped to 3.x in many smoke tests. To keep the runtime Spring Boot
+// version pinned (so we keep testing the older line), modules set
+// `ext['spring-boot.version']` and we re-import that BOM here, overriding
+// what the plugin's own BOM would have set.
 if (project.ext.has('spring-boot.version')) {
   dependencyManagement {
     imports {

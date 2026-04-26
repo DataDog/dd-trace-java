@@ -1,6 +1,3 @@
-import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
-
 plugins {
   id 'java'
   id 'com.gradleup.shadow' version '8.3.9'
@@ -18,6 +15,7 @@ if (hasProperty('appBuildDir')) {
 }
 
 ext['spring-boot.version'] = '2.7.4'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootApplication'
 
 dependencyManagement {
   imports {
@@ -25,8 +23,13 @@ dependencyManagement {
   }
 }
 
+apply from: "$sharedConfigDirectory/spring-boot-fatjar.gradle"
+
 version = ""
 
+// Gradle 9 daemon JVM is JDK 17, but the SpringBootWebfluxIntegrationTest can
+// run on `-PtestJvm=11`. Pin source/target to 11 so the produced classes load
+// on the test JVM.
 java {
   sourceCompatibility = JavaVersion.VERSION_11
   targetCompatibility = JavaVersion.VERSION_11
@@ -42,27 +45,5 @@ dependencies {
     implementation files(property('apiJar'))
   } else {
     implementation "com.datadoghq:dd-trace-api:0.110.0"
-  }
-}
-
-tasks.named("jar", Jar) {
-  manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
-  }
-}
-
-tasks.named("shadowJar", ShadowJar) {
-  manifest {
-    attributes('Main-Class': 'datadog.smoketest.springboot.SpringbootApplication')
-  }
-  configurations = [project.configurations.runtimeClasspath]
-  mergeServiceFiles()
-  append 'META-INF/spring.handlers'
-  append 'META-INF/spring.schemas'
-  append 'META-INF/spring.tooling'
-  append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
-  transform(PropertiesFileTransformer) {
-    paths = ['META-INF/spring.factories']
-    mergeStrategy = "append"
   }
 }
