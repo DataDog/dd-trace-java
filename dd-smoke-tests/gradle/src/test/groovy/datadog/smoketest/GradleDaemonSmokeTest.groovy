@@ -213,7 +213,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
     } catch (Exception e) {
       println "${new Date()}: $specificationContext.currentIteration.displayName " +
-        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
+      "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
     }
   }
 
@@ -226,12 +226,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
 
     GradleRunner gradleRunner = GradleRunner.create()
-      .withTestKitDir(testKitFolder.toFile())
-      .withProjectDir(projectFolder.toFile())
-      .withGradleVersion(gradleVersion)
-      .withArguments(arguments)
-      .withEnvironment(buildEnv)
-      .forwardOutput()
+    .withTestKitDir(testKitFolder.toFile())
+    .withProjectDir(projectFolder.toFile())
+    .withGradleVersion(gradleVersion)
+    .withArguments(arguments)
+    .withEnvironment(buildEnv)
+    .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     try {
@@ -239,11 +239,26 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
       return buildResult
     } catch (Exception e) {
-      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
-      if (daemonLog != null) {
-        println "=============================================================="
-        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
-        println "=============================================================="
+      // Best-effort daemon log dump for diagnostics. Wrap in its own try/catch
+      // so an issue here (e.g. NoSuchFileException when the daemon never even
+      // started its test-kit-daemon/<version> dir) doesn't mask the original
+      // build failure.
+      try {
+        def daemonDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion)
+        if (Files.isDirectory(daemonDir)) {
+          def daemonLog = Files.list(daemonDir).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+          if (daemonLog != null) {
+            println "=============================================================="
+            println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+            println "=============================================================="
+          } else {
+            println "${new Date()}: $specificationContext.currentIteration.displayName - No Gradle Daemon log found in ${daemonDir}"
+          }
+        } else {
+          println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon directory does not exist: ${daemonDir} (daemon likely failed to start)"
+        }
+      } catch (Throwable diagFailure) {
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Failed to read Gradle Daemon log: ${diagFailure}"
       }
       throw e
     }
