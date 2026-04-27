@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+import static datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator.INSTRUMENTATION_NAME;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -31,7 +32,7 @@ public final class RouteUpdateHelper {
     if (parentSpan != null) {
       HTTP_RESOURCE_DECORATOR.withRoute(parentSpan, method, path, true);
     }
-    if (handlerSpan != null
+    if (isVertxRouteHandlerSpan(handlerSpan)
         && handlerSpan.getResourceNamePriority() < ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE) {
       HTTP_RESOURCE_DECORATOR.withRoute(handlerSpan, method, path, true);
     }
@@ -81,5 +82,13 @@ public final class RouteUpdateHelper {
 
   public static boolean hasHttpRoute(final AgentSpan span) {
     return span != null && span.getTag(Tags.HTTP_ROUTE) != null;
+  }
+
+  private static boolean isVertxRouteHandlerSpan(final AgentSpan span) {
+    if (span == null) {
+      return false;
+    }
+    final CharSequence spanName = span.getSpanName();
+    return spanName != null && INSTRUMENTATION_NAME.toString().contentEquals(spanName);
   }
 }
