@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -34,6 +36,7 @@ public class ProcessTags {
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
     static final SortedMap<String, String> TAGS = loadTags(Config.get());
+    private static final Pattern MAPPING_KEY_PATTERN = Pattern.compile("^\\{(\\w+)}(\\S+)$");
     static volatile UTF8BytesString serializedForm;
     static volatile List<UTF8BytesString> utf8ListForm;
     static volatile List<String> stringListForm;
@@ -48,8 +51,44 @@ public class ProcessTags {
         } catch (Throwable t) {
           LOGGER.debug("Unable to calculate default process tags", t);
         }
+        fillMappingTags(tags, config.getProcessTagsMapping());
       }
       return tags;
+    }
+
+    private static void fillMappingTags(
+        SortedMap<String, String> tags, Map<String, String> mappings) {
+      for (Map.Entry<String, String> entry : mappings.entrySet()) {
+        parseMappingEntry(tags, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private static void parseMappingEntry(
+        SortedMap<String, String> tags, String sourceAndKey, String processTagKey) {
+      // sourceAndKey format: {source}config_key (colon-split already done by getMergedMap)
+      Matcher matcher = MAPPING_KEY_PATTERN.matcher(sourceAndKey != null ? sourceAndKey : "");
+      if (!matcher.matches()) {
+        LOGGER.warn("Malformed process.tags.mapping key: '{}'", sourceAndKey);
+        return;
+      }
+      String source = matcher.group(1);
+      String configKey = matcher.group(2);
+      String value;
+      if ("env".equals(source)) {
+        value = envGetter.apply(configKey);
+      } else if ("prop".equals(source)) {
+        value = SystemProperties.get(configKey);
+      } else {
+        LOGGER.warn(
+            "Unsupported source '{}' in process.tags.mapping for key: '{}'", source, sourceAndKey);
+        return;
+      }
+      if (value == null || value.isEmpty()) {
+        LOGGER.debug(
+            "No value for key '{}' from source '{}' in process.tags.mapping", configKey, source);
+        return;
+      }
+      tags.put(processTagKey, value);
     }
 
     private static void fillJeeTags(SortedMap<String, String> tags) {

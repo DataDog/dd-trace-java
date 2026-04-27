@@ -34,6 +34,8 @@ public final class GeneralConfig {
   public static final String EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED =
       "experimental.propagate.process.tags.enabled";
 
+  public static final String PROCESS_TAGS_MAPPING = "process.tags.mapping";
+
   public static final String LOG_LEVEL = "log.level";
   public static final String TRACE_LOG_LEVEL = "trace.log.level";
   public static final String TRACE_DEBUG = "trace.debug";

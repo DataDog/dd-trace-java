@@ -142,6 +142,114 @@ class ProcessTagsForkedTest extends DDSpecification {
     assert ProcessTags.tagsAsUTF8ByteStringList[0].toString() == "0test:value"
   }
 
+  def 'should resolve process tag from system property via {prop} source'() {
+    setup:
+    System.setProperty("my.property", "my.value")
+    injectSysConfig("process.tags.mapping", "{prop}my.property:some_key")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("some_key:my.value")
+    cleanup:
+    System.clearProperty("my.property")
+  }
+
+  def 'should resolve process tag from environment variable via {env} source'() {
+    setup:
+    ProcessTags.envGetter = key -> key == "MY_ENV_VAR" ? "myvalue" : null
+    injectSysConfig("process.tags.mapping", "{env}MY_ENV_VAR:my_tag")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("my_tag:myvalue")
+    cleanup:
+    ProcessTags.envGetter = System::getenv
+    ProcessTags.reset()
+  }
+
+  def 'should not emit process tag when key is missing from source'() {
+    setup:
+    injectSysConfig("process.tags.mapping", "{prop}nonexistent.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+  }
+
+  def 'should not emit process tag when value is empty'() {
+    setup:
+    System.setProperty("empty.key", "")
+    injectSysConfig("process.tags.mapping", "{prop}empty.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+    cleanup:
+    System.clearProperty("empty.key")
+  }
+
+  def 'should not emit process tag for unsupported source'() {
+    setup:
+    injectSysConfig("process.tags.mapping", "{unknown}some.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+  }
+
+  def 'should ignore malformed process tag mapping entries'() {
+    setup:
+    injectSysConfig("process.tags.mapping", malformed)
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("bad_tag:") }
+    where:
+    malformed                     | _
+    "no_braces:key:bad_tag"       | _
+    "{unclosed_brace key:bad_tag" | _
+    "{prop}keyonly"               | _
+    "{prop}:bad_tag"              | _
+    "{prop}some.key:"             | _
+  }
+
+  def 'last mapping wins when same source key is repeated'() {
+    setup:
+    System.setProperty("my.key", "first_value")
+    // getMergedMap keeps the last value for the same map key
+    injectSysConfig("process.tags.mapping", "{prop}my.key:tag_v1,{prop}my.key:tag_v2")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("tag_v2:first_value")
+    !tags.any { it.startsWith("tag_v1:") }
+    cleanup:
+    System.clearProperty("my.key")
+  }
+
+  def 'should handle multiple valid mapping entries'() {
+    setup:
+    System.setProperty("prop.a", "valueA")
+    System.setProperty("prop.b", "valueB")
+    injectSysConfig("process.tags.mapping", "{prop}prop.a:tag_a,{prop}prop.b:tag_b")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("tag_a:valuea")
+    tags.contains("tag_b:valueb")
+    cleanup:
+    System.clearProperty("prop.a")
+    System.clearProperty("prop.b")
+  }
+
   def 'process tag value normalization'() {
     setup:
     ProcessTags.addTag("test", testValue)
