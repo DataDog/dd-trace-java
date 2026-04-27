@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
+import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -116,7 +117,8 @@ public final class JakartaRsAnnotationsInstrumentation extends InstrumenterModul
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan("jakarta-rs", JAKARTA_ENDPOINT_OPERATION_NAME);
+      final AgentSpan span =
+          startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onJakartaRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);

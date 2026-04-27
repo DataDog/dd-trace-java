@@ -9,6 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CLIENT;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_CONTEXT_KEY;
 import static datadog.trace.instrumentation.synapse3.SynapseClientDecorator.SYNAPSE_REQUEST;
 import static datadog.trace.instrumentation.synapse3.TargetRequestInjectAdapter.SETTER;
@@ -86,9 +87,9 @@ public final class SynapseClientInstrumentation extends InstrumenterModule.Traci
 
       AgentSpan span;
       if (null != parentSpan) {
-        span = startSpan("synapse3-client", SYNAPSE_REQUEST, parentSpan.context());
+        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST, parentSpan.context());
       } else {
-        span = startSpan("synapse3-client", SYNAPSE_REQUEST);
+        span = startSpan(SYNAPSE_CLIENT.toString(), SYNAPSE_REQUEST);
       }
 
       DECORATE.afterStart(span);

@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DATABASE_CONNECTION;
 import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.DECORATE;
+import static datadog.trace.instrumentation.jdbc.DataSourceDecorator.JAVA_JDBC_CONNECTION;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -64,7 +65,7 @@ public final class DataSourceInstrumentation extends InstrumenterModule.Tracing
         return null;
       }
 
-      final AgentSpan span = startSpan("jdbc-datasource", DATABASE_CONNECTION);
+      final AgentSpan span = startSpan(JAVA_JDBC_CONNECTION.toString(), DATABASE_CONNECTION);
       DECORATE.afterStart(span);
 
       span.setResourceName(DECORATE.spanNameForMethod(ds.getClass(), "getConnection"));

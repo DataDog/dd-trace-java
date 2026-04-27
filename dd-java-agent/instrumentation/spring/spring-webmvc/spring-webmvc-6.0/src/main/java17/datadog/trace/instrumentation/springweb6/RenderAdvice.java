@@ -13,7 +13,7 @@ public class RenderAdvice {
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
-    final AgentSpan span = startSpan("spring-web", SpringWebHttpServerDecorator.RESPONSE_RENDER);
+    final AgentSpan span = startSpan("spring-webmvc", SpringWebHttpServerDecorator.RESPONSE_RENDER);
     SpringWebHttpServerDecorator.DECORATE_RENDER.afterStart(span);
     SpringWebHttpServerDecorator.DECORATE_RENDER.onRender(span, mv);
     return getCurrentContext().with(span).attach();

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.akkahttp106;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
 
 import akka.http.scaladsl.HttpExt;
@@ -22,7 +23,7 @@ public class SingleRequestAdvice {
       return null;
     }
 
-    final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
+    final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
     return activateSpan(span);

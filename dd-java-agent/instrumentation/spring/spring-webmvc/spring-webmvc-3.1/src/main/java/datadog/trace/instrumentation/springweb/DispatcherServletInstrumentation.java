@@ -97,7 +97,7 @@ public final class DispatcherServletInstrumentation extends InstrumenterModule.T
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onEnter(@Advice.Argument(0) final ModelAndView mv) {
-      final AgentSpan span = startSpan("spring-web", RESPONSE_RENDER);
+      final AgentSpan span = startSpan("spring-webmvc", RESPONSE_RENDER);
       DECORATE_RENDER.afterStart(span);
       DECORATE_RENDER.onRender(span, mv);
       return getCurrentContext().with(span).attach();
