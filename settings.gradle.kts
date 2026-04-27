@@ -328,6 +328,8 @@ include(
   ":dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin",
   ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling",
+  ":dd-java-agent:instrumentation:datadog:profiling:lock-support-profiling",
+  ":dd-java-agent:instrumentation:datadog:profiling:object-wait-profiling",
   ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation",
   ":dd-java-agent:instrumentation:datanucleus-4.0.5",
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-3.0",
