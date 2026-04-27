@@ -347,9 +347,8 @@ public final class DatadogProfiler {
   }
 
   int encode(CharSequence constant) {
-    if (constant != null && profiler != null) {
-      return contextSetter.encode(constant.toString());
-    }
+    // java-profiler ContextSetter no longer exposes value encoding.
+    // Keep API contract by returning "not encoded" (0), which callers already handle.
     return 0;
   }
 

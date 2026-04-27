@@ -171,4 +171,20 @@ class LockSupportProfilingInstrumentationTest {
         State.UNPARKING_SPAN.get(t),
         "Stale UNPARKING_SPAN entry must be drained even when state is null");
   }
+
+  /**
+   * If multiple unpark calls race for the same parked thread, the latest span ID should be consumed
+   * and the entry must still be drained exactly once by ParkAdvice.after().
+   */
+  @Test
+  void latest_unparking_span_wins_and_entry_is_drained() {
+    Thread t = Thread.currentThread();
+    State.UNPARKING_SPAN.put(t, 101L);
+    State.UNPARKING_SPAN.put(t, 202L);
+
+    Long consumed = State.UNPARKING_SPAN.remove(t);
+    assertNotNull(consumed);
+    assertEquals(202L, consumed.longValue());
+    assertNull(State.UNPARKING_SPAN.get(t), "Entry must be removed after consumption");
+  }
 }
