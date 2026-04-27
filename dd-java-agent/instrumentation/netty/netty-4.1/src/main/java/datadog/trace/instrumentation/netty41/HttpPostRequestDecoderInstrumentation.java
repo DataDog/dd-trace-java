@@ -12,7 +12,6 @@ import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -88,8 +87,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   static class ParseBodyAdvice {
-    private static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
-
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This InterfaceHttpPostRequestDecoder thiz,
@@ -143,7 +140,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           if (filename != null && !filename.isEmpty()) {
             filenames.add(filename);
           }
-          if (contentCb != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
+          if (contentCb != null && filesContent.size() < NettyFileUploadContentReader.MAX_FILES_TO_INSPECT) {
             filesContent.add(NettyFileUploadContentReader.readContent(fileUpload));
           }
         }

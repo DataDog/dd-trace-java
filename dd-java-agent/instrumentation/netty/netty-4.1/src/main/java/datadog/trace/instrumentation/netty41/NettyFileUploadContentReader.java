@@ -9,6 +9,7 @@ import java.nio.charset.StandardCharsets;
 /** Reads uploaded file content from a Netty {@link FileUpload} for WAF inspection. */
 public final class NettyFileUploadContentReader {
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+  public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
   public static String readContent(FileUpload fileUpload) {
     try {
