@@ -1181,7 +1181,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     // spark.databricks.job.runId is the runId of the task, not of the Job, until Databricks 18.2
     String taskRunId = properties.getProperty("spark.databricks.job.runId");
     // On Databricks 18.2+, spark.databricks.job.runId now returns the job run ID
-    // There is no easy config key to extract the task run ID, so we use the fallback extraction methods
+    // There is no easy config key to extract the task run ID, so we use the fallback extraction
+    // methods
     // Task run ID is crucial for the spans parent-child relationship inside the trace
     if (taskRunId != null && !taskRunId.equals(jobRunId)) {
       return taskRunId;
