@@ -140,7 +140,8 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
           if (filename != null && !filename.isEmpty()) {
             filenames.add(filename);
           }
-          if (contentCb != null && filesContent.size() < NettyFileUploadContentReader.MAX_FILES_TO_INSPECT) {
+          if (contentCb != null
+              && filesContent.size() < NettyFileUploadContentReader.MAX_FILES_TO_INSPECT) {
             filesContent.add(NettyFileUploadContentReader.readContent(fileUpload));
           }
         }
