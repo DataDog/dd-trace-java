@@ -3915,7 +3915,7 @@
     ],
     "DD_TEST_OPTIMIZATION_MANIFEST_FILE": [
       {
-        "version": "A",
+        "version": "B",
         "type": "string",
         "default": null,
         "aliases": []
@@ -3923,7 +3923,7 @@
     ],
     "DD_TEST_OPTIMIZATION_PAYLOADS_IN_FILES": [
       {
-        "version": "A",
+        "version": "C",
         "type": "boolean",
         "default": "false",
         "aliases": []
