@@ -231,6 +231,26 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
           on_match    : ['block']
         ],
         [
+          id          : '__test_file_upload_content_block',
+          name        : 'test rule to block on malicious file upload content',
+          tags        : [
+            type      : 'unrestricted-file-upload',
+            category  : 'attack_attempt',
+            confidence: '1',
+          ],
+          conditions  : [
+            [
+              parameters: [
+                inputs: [[address: 'server.request.body.files_content']],
+                regex : 'dd-test-malicious-file-content',
+              ],
+              operator  : 'match_regex',
+            ]
+          ],
+          transformers: [],
+          on_match    : ['block']
+        ],
+        [
           id  : "apiA-100-001",
           name: "API 10 tag rule on request headers",
           tags: [
@@ -605,6 +625,38 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpans.size() == 1
     forEachRootSpanTrigger {
       assert it['rule']['id'] in ['__test_file_upload_block', 'crs-944-140']
+    }
+    rootSpans.each {
+      assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
+    }
+  }
+
+  void 'block request based on malicious file upload content'() {
+    when:
+    String url = "http://localhost:${httpPort}/upload"
+    def requestBody = new okhttp3.MultipartBody.Builder()
+      .setType(okhttp3.MultipartBody.FORM)
+      .addFormDataPart('file', 'safe-document.txt',
+      RequestBody.create(MediaType.parse('application/octet-stream'), 'dd-test-malicious-file-content'))
+      .build()
+    def request = new Request.Builder()
+      .url(url)
+      .post(requestBody)
+      .build()
+    def response = client.newCall(request).execute()
+    def responseBodyStr = response.body().string()
+
+    then:
+    responseBodyStr.contains("blocked")
+    response.code() == 403
+
+    when:
+    waitForTraceCount(1) == 1
+
+    then:
+    rootSpans.size() == 1
+    forEachRootSpanTrigger {
+      assert it['rule']['id'] == '__test_file_upload_content_block'
     }
     rootSpans.each {
       assert it.meta.get('appsec.blocked') != null, 'appsec.blocked is not set'
