@@ -93,27 +93,15 @@ def parse_datetime(value: Any) -> datetime:
     if not text:
         raise ValueError("timestamp is empty")
 
-    for fmt in (
-        "%Y%m%d%H%M%S%z",
-        "%Y-%m-%dT%H:%M:%S.%f%z",
-        "%Y-%m-%dT%H:%M:%S%z",
-        "%Y-%m-%d %H:%M:%S%z",
-    ):
-        try:
-            return datetime.strptime(normalize_timezone_suffix(text), fmt).astimezone(timezone.utc)
-        except ValueError:
-            continue
+    # Gradle buildTime compact format: 20260423130000+0000
+    try:
+        return datetime.strptime(text, "%Y%m%d%H%M%S%z").astimezone(timezone.utc)
+    except ValueError:
+        pass
 
-    iso_text = text.replace("Z", "+00:00") if text.endswith("Z") else text
-    return datetime.fromisoformat(iso_text).astimezone(timezone.utc)
-
-
-def normalize_timezone_suffix(text: str) -> str:
-    if text.endswith("Z"):
-        return text[:-1] + "+0000"
-    if len(text) >= 6 and text[-3] == ":" and (text[-6] == "+" or text[-6] == "-"):
-        return text[:-3] + text[-2:]
-    return text
+    # ISO 8601: normalise Z and +HHMM → +HH:MM for fromisoformat
+    text = re.sub(r"([+-])(\d{2})(\d{2})$", r"\1\2:\3", text.replace("Z", "+00:00"))
+    return datetime.fromisoformat(text).astimezone(timezone.utc)
 
 
 def format_datetime(value: datetime) -> str:
@@ -124,9 +112,8 @@ def emit_outputs(outputs: dict[str, Any], github_output: str | None) -> None:
     lines = [f"{key}={'' if value is None else value}" for key, value in outputs.items()]
     for line in lines:
         print(line)
-    output_path = github_output
-    if output_path:
-        with open(output_path, "a", encoding="utf-8") as handle:
+    if github_output:
+        with open(github_output, "a", encoding="utf-8") as handle:
             for line in lines:
                 handle.write(f"{line}\n")
 
@@ -369,18 +356,34 @@ def revert_violations_in_lockfiles(
     for relative_path, violated_gavs in file_to_violated_gavs.items():
         current_path = current_dir / relative_path
         baseline_path = baseline_dir / relative_path
-        baseline_lines = read_lockfile_lines(baseline_path) if baseline_path.exists() else {}
+
+        # Keyed by full group:artifact:version so multiple versions of the same
+        # group:artifact (e.g. com.typesafe:config:1.3.1 and com.typesafe:config:1.4.4
+        # locked for different configurations) are never confused.
+        baseline_by_gav = read_lockfile_lines(baseline_path) if baseline_path.exists() else {}
+        current_by_gav = read_lockfile_lines(current_path)
+
+        # For each violated GAV, find which baseline coordinate(s) it replaced: those
+        # that share the same group:artifact but are absent from the current lockfile.
+        predecessors_by_violated: dict[str, list[str]] = {}
+        for violated_gav in violated_gavs:
+            ga = ":".join(violated_gav.split(":")[:2])
+            removed = sorted(
+                b for b in baseline_by_gav
+                if ":".join(b.split(":")[:2]) == ga and b not in current_by_gav
+            )
+            predecessors_by_violated[violated_gav] = removed
 
         output_lines: list[str] = []
         for raw_line in current_path.read_text(encoding="utf-8").splitlines():
             stripped = raw_line.strip()
             coordinate = stripped.split("=", 1)[0] if "=" in stripped and not stripped.startswith("#") else None
             if coordinate and coordinate.count(":") == 2 and coordinate in violated_gavs:
-                group_artifact = ":".join(coordinate.split(":")[:2])
-                old_line = baseline_lines.get(group_artifact)
-                if old_line is not None:
-                    output_lines.append(old_line)
-                    print(f"Reverted {coordinate} to {old_line.split('=')[0]} in {relative_path}")
+                predecessors = predecessors_by_violated[coordinate]
+                if predecessors:
+                    for pred in predecessors:
+                        output_lines.append(baseline_by_gav[pred])
+                    print(f"Reverted {coordinate} to {', '.join(predecessors)} in {relative_path}")
                 else:
                     print(f"Removed new dependency {coordinate} from {relative_path} (too new, no prior version)")
             else:
@@ -392,7 +395,7 @@ def revert_violations_in_lockfiles(
 def load_metadata_overrides(path: str | None) -> dict[str, Any]:
     if not path:
         return {}
-    return json.loads(Path(path).read_text(encoding="utf-8"))
+    return load_json(path, None)
 
 
 def resolve_gav_timestamp(
@@ -453,7 +456,7 @@ def changed_lockfile_coordinates(*, baseline_dir: Path, current_dir: Path) -> li
 
 
 def read_lockfile_lines(path: Path) -> dict[str, str]:
-    """Maps group:artifact to the full lockfile line for a given file."""
+    """Maps group:artifact:version to the full lockfile line for a given file."""
     lines: dict[str, str] = {}
     for raw_line in path.read_text(encoding="utf-8").splitlines():
         line = raw_line.strip()
@@ -462,8 +465,7 @@ def read_lockfile_lines(path: Path) -> dict[str, str]:
         coordinate = line.split("=", 1)[0]
         if coordinate.count(":") != 2:
             continue
-        group_artifact = ":".join(coordinate.split(":")[:2])
-        lines[group_artifact] = line
+        lines[coordinate] = line
     return lines
 
 
@@ -477,16 +479,7 @@ def collect_lockfiles(root: Path) -> dict[str, set[str]]:
 
 
 def parse_lockfile(path: Path) -> set[str]:
-    coordinates: set[str] = set()
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        coordinate = line.split("=", 1)[0]
-        if coordinate.count(":") != 2:
-            continue
-        coordinates.add(coordinate)
-    return coordinates
+    return set(read_lockfile_lines(path))
 
 
 def main() -> int:

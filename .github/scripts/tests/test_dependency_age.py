@@ -1,5 +1,6 @@
 import json
 import re
+import shutil
 import subprocess
 import tempfile
 import unittest
@@ -145,6 +146,7 @@ class DependencyAgeScriptTest(unittest.TestCase):
         the temp dir root so callers can read back modified files.
         """
         tmp = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, tmp, True)
         baseline_dir = Path(tmp) / "before"
         current_dir = Path(tmp) / "after"
         metadata_file = Path(tmp) / "metadata.json"
@@ -200,6 +202,39 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertIn("com.example:lib-a:1.1.0", final)   # valid upgrade kept
         self.assertIn("com.example:lib-b:1.0.0", final)   # reverted to baseline version
         self.assertNotIn("com.example:lib-b:2.0.0", final)
+
+    def test_reverts_correct_version_when_multiple_versions_coexist(self) -> None:
+        # Simulates a lockfile where the same group:artifact is locked at two different
+        # versions for different configurations (e.g. compile vs runtime classpath).
+        # Only one of the two versions is upgraded; the other must be left untouched.
+        lockfile = "module/gradle.lockfile"
+        baseline_content = "\n".join([
+            "# Gradle lockfile",
+            "com.typesafe:config:1.3.1=compileClasspath,testCompileClasspath",
+            "com.typesafe:config:1.4.4=runtimeClasspath,testRuntimeClasspath",
+            "",
+        ])
+        current_content = "\n".join([
+            "# Gradle lockfile",
+            "com.typesafe:config:1.3.1=compileClasspath,testCompileClasspath",  # unchanged
+            "com.typesafe:config:1.5.0=runtimeClasspath,testRuntimeClasspath",  # too new
+            "",
+        ])
+        metadata = {
+            "com.typesafe:config:1.5.0": "2026-04-24T11:00:00Z",  # too new
+        }
+
+        result, current_dir = self.run_validate_lockfiles(
+            baseline={"module/gradle.lockfile": baseline_content},
+            current={"module/gradle.lockfile": current_content},
+            metadata=metadata,
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        final = (current_dir / lockfile).read_text(encoding="utf-8")
+        self.assertIn("com.typesafe:config:1.3.1=compileClasspath,testCompileClasspath", final)
+        self.assertIn("com.typesafe:config:1.4.4=runtimeClasspath,testRuntimeClasspath", final)
+        self.assertNotIn("com.typesafe:config:1.5.0", final)
 
     def test_removes_brand_new_dependency_that_is_too_new(self) -> None:
         lockfile = "module/gradle.lockfile"
