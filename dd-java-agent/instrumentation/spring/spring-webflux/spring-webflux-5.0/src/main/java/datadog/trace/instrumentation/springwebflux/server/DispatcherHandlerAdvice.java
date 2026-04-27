@@ -33,7 +33,7 @@ public class DispatcherHandlerAdvice {
       exchange.getAttributes().put(AdviceUtils.PARENT_SPAN_ATTRIBUTE, parentSpan);
     }
 
-    final AgentSpan span = startSpan("spring-webflux", DISPATCHER_HANDLE_HANDLER);
+    final AgentSpan span = startSpan("spring-webflux-controller", DISPATCHER_HANDLE_HANDLER);
     span.setMeasured(true);
     DECORATE.afterStart(span);
     exchange.getAttributes().put(AdviceUtils.SPAN_ATTRIBUTE, span);

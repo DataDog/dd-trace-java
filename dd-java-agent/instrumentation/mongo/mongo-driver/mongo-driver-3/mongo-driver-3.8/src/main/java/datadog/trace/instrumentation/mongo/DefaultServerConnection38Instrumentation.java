@@ -70,7 +70,7 @@ public class DefaultServerConnection38Instrumentation extends InstrumenterModule
         return;
       }
 
-      AgentSpan span = startSpan("mongo", MongoDecorator.OPERATION_NAME);
+      AgentSpan span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
       // scope is going to be closed by the MongoCommandListener
       activateSpanWithoutScope(span);
 

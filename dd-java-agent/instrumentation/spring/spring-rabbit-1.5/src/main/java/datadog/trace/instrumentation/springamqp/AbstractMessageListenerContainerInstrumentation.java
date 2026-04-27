@@ -72,7 +72,7 @@ public class AbstractMessageListenerContainerInstrumentation extends Instrumente
           AgentScope.Continuation continuation = state.getAndResetContinuation();
           if (null != continuation) {
             try (AgentScope scope = continuation.activate()) {
-              AgentSpan span = startSpan("amqp", AMQP_CONSUME);
+              AgentSpan span = startSpan("rabbitmq-amqp", AMQP_CONSUME);
               span.setMeasured(true);
               DECORATE.afterStart(span);
               DECORATE.onConsume(span, message.getMessageProperties().getConsumerQueue());

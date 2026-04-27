@@ -81,7 +81,7 @@ public class VertxRedisClientDecorator
   }
 
   private AgentSpan innerStartAndDecorateSpan(UTF8BytesString command) {
-    final AgentSpan span = startSpan("vertx", REDIS_COMMAND);
+    final AgentSpan span = startSpan("redis-command", REDIS_COMMAND);
     DECORATE.afterStart(span);
     DECORATE.onStatement(span, command);
     return span;

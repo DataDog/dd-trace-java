@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.DECORATE;
+import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_CONTROLLER;
 import static datadog.trace.instrumentation.jakarta3.JakartaRsAnnotationsDecorator.JAKARTA_RS_REQUEST_ABORT;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -26,7 +27,7 @@ public class RequestFilterHelper {
 
       if (span == null) {
         parent = activeSpan();
-        span = startSpan("jakarta-rs", JAKARTA_RS_REQUEST_ABORT);
+        span = startSpan(JAKARTA_RS_CONTROLLER.toString(), JAKARTA_RS_REQUEST_ABORT);
 
         final AgentScope scope = activateSpan(span);
 

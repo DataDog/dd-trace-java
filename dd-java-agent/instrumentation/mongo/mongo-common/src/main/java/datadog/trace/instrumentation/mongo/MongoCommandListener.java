@@ -129,7 +129,7 @@ public final class MongoCommandListener implements CommandListener {
     AgentSpan span = activeSpan();
     boolean shouldForceCloseSpanScope = true;
     if (span == null || span.getSpanName() != MongoDecorator.OPERATION_NAME) {
-      span = startSpan("mongo", MongoDecorator.OPERATION_NAME);
+      span = startSpan("java-mongo", MongoDecorator.OPERATION_NAME);
       shouldForceCloseSpanScope = false;
     }
 

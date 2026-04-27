@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.ge
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jaxrs.v1.InjectAdapter.SETTER;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT;
 import static datadog.trace.instrumentation.jaxrs.v1.JaxRsClientV1Decorator.JAX_RS_CLIENT_CALL;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -72,7 +73,7 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       // WARNING: this might be a chain...so we only have to trace the first in the chain.
       final boolean isRootClientHandler = null == request.getProperties().get(DD_CONTEXT_ATTRIBUTE);
       if (isRootClientHandler) {
-        final AgentSpan span = startSpan("jax-rs", JAX_RS_CLIENT_CALL);
+        final AgentSpan span = startSpan(JAX_RS_CLIENT.toString(), JAX_RS_CLIENT_CALL);
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
