@@ -25,6 +25,10 @@ class Candidate:
     published_at: datetime
 
 
+# Entry point for GitHub Actions workflows
+# select-gradle: get newest Gradle release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
+# select-maven: get newest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
+# validate-lockfiles: validate changed Gradle lockfile entries
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Dependency age helpers for GitHub workflows.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -59,12 +63,14 @@ def parse_args() -> argparse.Namespace:
     return parser.parse_args()
 
 
+# add shared args used by select-gradle and select-maven
 def add_common_selection_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--min-age-hours", type=int, default=default_min_age_hours())
     parser.add_argument("--now")
     parser.add_argument("--github-output", default=None)
 
 
+# get MIN_DEPENDENCY_AGE_HOURS from environment variable; default is 48 hours
 def default_min_age_hours() -> int:
     try:
         return int(os.environ.get("MIN_DEPENDENCY_AGE_HOURS", DEFAULT_MIN_AGE_HOURS))
@@ -72,12 +78,14 @@ def default_min_age_hours() -> int:
         return DEFAULT_MIN_AGE_HOURS
 
 
+# return input as a datetime object; default to current UTC time
 def now_utc(raw: str | None) -> datetime:
     if raw:
         return parse_datetime(raw)
     return datetime.now(timezone.utc)
 
 
+# now_utc helper to parse input as a datetime object; used for Gradle and Maven timestamps
 def parse_datetime(value: Any) -> datetime:
     if isinstance(value, datetime):
         return value.astimezone(timezone.utc)
@@ -104,10 +112,12 @@ def parse_datetime(value: Any) -> datetime:
     return datetime.fromisoformat(text).astimezone(timezone.utc)
 
 
+# normalize datetime to YYYY-MM-DDTHH:MM:SSZ for GitHub Actions outputs
 def format_datetime(value: datetime) -> str:
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
+# emit key=value lines to stdout and GitHub Actions output file
 def emit_outputs(outputs: dict[str, Any], github_output: str | None) -> None:
     lines = [f"{key}={'' if value is None else value}" for key, value in outputs.items()]
     for line in lines:
@@ -118,6 +128,7 @@ def emit_outputs(outputs: dict[str, Any], github_output: str | None) -> None:
                 handle.write(f"{line}\n")
 
 
+# load JSON from file or URL
 def load_json(file_path: str | None, url: str | None) -> Any:
     if file_path:
         text = Path(file_path).read_text(encoding="utf-8")
@@ -129,6 +140,7 @@ def load_json(file_path: str | None, url: str | None) -> Any:
         return json.load(response)
 
 
+# select latest Gradle release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
 def select_gradle_release(args: argparse.Namespace) -> int:
     cutoff = now_utc(args.now) - timedelta(hours=args.min_age_hours)
     payload = load_json(args.versions_file, args.versions_url)
@@ -157,6 +169,7 @@ def select_gradle_release(args: argparse.Namespace) -> int:
     )
 
 
+# select latest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
 def select_maven_release(args: argparse.Namespace) -> int:
     cutoff = now_utc(args.now) - timedelta(hours=args.min_age_hours)
     pattern = combine_patterns(args.prerelease_pattern)
@@ -189,6 +202,7 @@ def select_maven_release(args: argparse.Namespace) -> int:
     )
 
 
+# combine prerelease patterns into a single regex pattern
 def combine_patterns(patterns: list[str]) -> re.Pattern[str] | None:
     non_empty = [pattern for pattern in patterns if pattern]
     if not non_empty:
@@ -196,6 +210,7 @@ def combine_patterns(patterns: list[str]) -> re.Pattern[str] | None:
     return re.compile("|".join(f"(?:{pattern})" for pattern in non_empty), re.IGNORECASE)
 
 
+# load all Maven Central versions for given group:artifact
 def load_maven_documents(
     *,
     group_id: str,
@@ -233,6 +248,7 @@ def load_maven_documents(
     return docs
 
 
+# emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven
 def emit_selection_result(
     *,
     label: str,
@@ -274,6 +290,7 @@ def emit_selection_result(
     return 0
 
 
+# ensure every changed Gradle lockfile entry is at least MIN_DEPENDENCY_AGE_HOURS hours old
 def validate_lockfiles(args: argparse.Namespace) -> int:
     cutoff = now_utc(args.now) - timedelta(hours=args.min_age_hours)
     baseline_dir = Path(args.baseline_dir)
@@ -342,6 +359,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     return 0
 
 
+# rewrite lockfiles so that invalid coordinates are reverted to prior valid versions
 def revert_violations_in_lockfiles(
     *,
     violations: list[tuple[str, list[str], str]],
@@ -402,12 +420,14 @@ def revert_violations_in_lockfiles(
         current_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
 
 
+# load metadata overrides from file
 def load_metadata_overrides(path: str | None) -> dict[str, Any]:
     if not path:
         return {}
     return load_json(path, None)
 
 
+# find publish time for given group:artifact:version
 def resolve_gav_timestamp(
     *,
     gav: str,
@@ -439,6 +459,7 @@ def resolve_gav_timestamp(
     return None, "No metadata was found for this coordinate in Maven Central search."
 
 
+# parse override format for given group:artifact:version
 def parse_metadata_override(gav: str, override: Any) -> tuple[datetime | None, str | None]:
     if isinstance(override, dict):
         if "reason" in override:
@@ -452,6 +473,7 @@ def parse_metadata_override(gav: str, override: Any) -> tuple[datetime | None, s
     return None, f"Unsupported metadata override format for {gav}."
 
 
+# compare baseline and current lockfiles to find changed coordinates
 def changed_lockfile_coordinates(*, baseline_dir: Path, current_dir: Path) -> list[tuple[str, str]]:
     changed: list[tuple[str, str]] = []
     baseline_lockfiles = collect_lockfiles(baseline_dir)
@@ -465,6 +487,7 @@ def changed_lockfile_coordinates(*, baseline_dir: Path, current_dir: Path) -> li
     return changed
 
 
+# parse_lockfile helper to read lockfile into group:artifact:version coordinates
 def read_lockfile_lines(path: Path) -> dict[str, str]:
     """Maps group:artifact:version to the full lockfile line for a given file."""
     lines: dict[str, str] = {}
@@ -479,6 +502,7 @@ def read_lockfile_lines(path: Path) -> dict[str, str]:
     return lines
 
 
+# recursively collect all gradle.lockfile paths from given root
 def collect_lockfiles(root: Path) -> dict[str, set[str]]:
     lockfiles: dict[str, set[str]] = {}
     if not root.exists():
@@ -488,6 +512,7 @@ def collect_lockfiles(root: Path) -> dict[str, set[str]]:
     return lockfiles
 
 
+# parse lockfile into a set of group:artifact:version coordinates
 def parse_lockfile(path: Path) -> set[str]:
     return set(read_lockfile_lines(path))
 
