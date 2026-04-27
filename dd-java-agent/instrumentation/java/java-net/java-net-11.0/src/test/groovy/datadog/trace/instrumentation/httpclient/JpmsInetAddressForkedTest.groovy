@@ -1,8 +1,13 @@
 package datadog.trace.instrumentation.httpclient
 
+import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver
+import spock.lang.IgnoreIf
 
+@IgnoreIf(reason =  'Does not work on J9', value = {
+  JavaVirtualMachine.isJ9()
+})
 class JpmsInetAddressForkedTest extends InstrumentationSpecification {
 
   /**
