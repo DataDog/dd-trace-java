@@ -158,7 +158,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
@@ -181,7 +181,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_X_DATADOG_TAGS_MAX_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_MESSAGES_SEPARATE_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_WEBSOCKET_TAG_SESSION_ID;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.ConfigSetting.NON_DEFAULT_SEQ_ID;
 import static datadog.trace.api.DDTags.APM_ENABLED;
 import static datadog.trace.api.DDTags.HOST_TAG;
@@ -637,6 +636,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERA
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
@@ -684,6 +684,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA;
 import static datadog.trace.api.config.TracerConfig.TRACE_STRICT_WRITES_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_X_DATADOG_TAGS_MAX_LENGTH;
 import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
+import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
@@ -838,6 +839,7 @@ public class Config {
   private final boolean integrationSynapseLegacyOperationName;
   private final String writerType;
   private final boolean injectBaggageAsTagsEnabled;
+  private final boolean injectLinksAsTagsEnabled;
   private final boolean agentConfiguredUsingDefault;
   private final String agentUrl;
   private final String agentHost;
@@ -1227,7 +1229,7 @@ public class Config {
 
   private final int xDatadogTagsMaxLength;
 
-  private final boolean traceAgentV05Enabled;
+  private final ProtocolVersion protocolVersion;
 
   private final String logLevel;
   private final boolean debugEnabled;
@@ -1433,8 +1435,10 @@ public class Config {
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
+    boolean isDatadogTraceWriter = !isTraceOtlpExporterEnabled();
     injectBaggageAsTagsEnabled =
-        configProvider.getBoolean(WRITER_BAGGAGE_INJECT, DEFAULT_WRITER_BAGGAGE_INJECT);
+        configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
+    injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
     String lambdaInitType = getEnv("AWS_LAMBDA_INITIALIZATION_TYPE");
     if (lambdaInitType != null && lambdaInitType.equals("snap-start")) {
       secureRandom = true;
@@ -2065,8 +2069,18 @@ public class Config {
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
-    traceAgentV05Enabled =
-        configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
+    ProtocolVersion protocol =
+        ProtocolVersion.fromConfigValue(
+            configProvider.getString(
+                TRACE_AGENT_PROTOCOL_VERSION, DEFAULT_TRACE_AGENT_PROTOCOL_VERSION));
+
+    // Check if we need to fall back to legacy flag of `0.5` protocol.
+    if (protocol != ProtocolVersion.V1_0
+        && configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, false)) {
+      protocol = ProtocolVersion.V0_5;
+    }
+
+    protocolVersion = protocol;
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -3231,6 +3245,10 @@ public class Config {
 
   public boolean isInjectBaggageAsTagsEnabled() {
     return injectBaggageAsTagsEnabled;
+  }
+
+  public boolean isInjectLinksAsTagsEnabled() {
+    return injectLinksAsTagsEnabled;
   }
 
   public boolean isAgentConfiguredUsingDefault() {
@@ -4661,8 +4679,8 @@ public class Config {
     return servletAsyncTimeoutError;
   }
 
-  public boolean isTraceAgentV05Enabled() {
-    return traceAgentV05Enabled;
+  public ProtocolVersion getProtocolVersion() {
+    return protocolVersion;
   }
 
   public String getLogLevel() {
@@ -6234,8 +6252,8 @@ public class Config {
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
-        + ", traceAgentV05Enabled="
-        + traceAgentV05Enabled
+        + ", traceAgentProtocolVersion="
+        + protocolVersion.asConfigValue()
         + ", logLevel="
         + logLevel
         + ", debugEnabled="
@@ -6304,6 +6322,8 @@ public class Config {
         + traceFlushIntervalSeconds
         + ", injectBaggageAsTagsEnabled="
         + injectBaggageAsTagsEnabled
+        + ", injectLinksAsTagsEnabled="
+        + injectLinksAsTagsEnabled
         + ", logsInjectionEnabled="
         + logsInjectionEnabled
         + ", appLogsCollectionEnabled="

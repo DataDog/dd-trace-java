@@ -184,6 +184,7 @@ public class DDSpanContext
 
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
+  private final boolean injectLinksAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
 
@@ -238,6 +239,7 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
+        true,
         true);
   }
 
@@ -261,7 +263,8 @@ public class DDSpanContext
       final PathwayContext pathwayContext,
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags) {
     this(
         traceId,
         spanId,
@@ -286,7 +289,8 @@ public class DDSpanContext
         disableSamplingMechanismValidation,
         propagationTags,
         ProfilingContextIntegration.NoOp.INSTANCE,
-        injectBaggageAsTags);
+        injectBaggageAsTags,
+        injectLinksAsTags);
   }
 
   public DDSpanContext(
@@ -313,7 +317,8 @@ public class DDSpanContext
       final boolean disableSamplingMechanismValidation,
       final PropagationTags propagationTags,
       final ProfilingContextIntegration profilingContextIntegration,
-      final boolean injectBaggageAsTags) {
+      final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags) {
 
     assert traceCollector != null;
     this.traceCollector = traceCollector;
@@ -370,6 +375,7 @@ public class DDSpanContext
             : traceCollector.getTracer().getPropagationTagsFactory().empty();
     this.propagationTags.updateTraceIdHighOrderBits(this.traceId.toHighOrderLong());
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.injectLinksAsTags = injectLinksAsTags;
     if (origin != null) {
       setOrigin(origin);
     }
@@ -396,6 +402,16 @@ public class DDSpanContext
   @Override
   public long getRootSpanId() {
     return getRootSpanContextOrThis().spanId;
+  }
+
+  @Override
+  public long getTraceIdHigh() {
+    return traceId.toHighOrderLong();
+  }
+
+  @Override
+  public long getTraceIdLow() {
+    return traceId.toLong();
   }
 
   @Override
@@ -1168,6 +1184,16 @@ public class DDSpanContext
 
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    processTagsAndBaggage(
+        consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  void processTagsAndBaggage(
+      final MetadataConsumer consumer,
+      int longRunningVersion,
+      DDSpan restrictedSpan,
+      boolean injectLinksAsTags,
+      boolean injectBaggageAsTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
     // links
     // This is a compromise to avoid...
@@ -1177,10 +1203,14 @@ public class DDSpanContext
       // Tags
       TagsPostProcessorFactory.lazyProcessor().processTags(unsafeTags, this, restrictedSpan);
 
-      String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
-      if (linksTag != null) {
-        unsafeTags.put(SPAN_LINKS, linksTag);
+      // Links
+      if (injectLinksAsTags) {
+        String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
+        if (linksTag != null) {
+          unsafeTags.set(SPAN_LINKS, linksTag);
+        }
       }
+
       // Baggage
       Map<String, String> baggageItemsWithPropagationTags;
       if (injectBaggageAsTags) {
@@ -1206,7 +1236,8 @@ public class DDSpanContext
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,
-              ProcessTags.getTagsForSerialization()));
+              ProcessTags.getTagsForSerialization(),
+              restrictedSpan.getLinks()));
     }
   }
 

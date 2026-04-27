@@ -30,7 +30,7 @@ jobs:
           fetch-depth: 0
 
       - name: Cache Gradle dependencies
-        uses: actions/cache@668228422ae6a00e4ad889ee87cd7109ec5666a7 # v5.0.4
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
         with:
           path: |
             ~/.gradle/caches
@@ -75,8 +75,11 @@ jobs:
       desired_execution_time: 900  # 15 minutes
       scenarios_groups: tracer-release
       excluded_scenarios: APM_TRACING_E2E_OTEL,APM_TRACING_E2E_SINGLE_SPAN,PROFILING  # exclude flaky scenarios
-      skip_empty_scenarios: true
-      push_to_test_optimization: false # disabled to avoid pushing to Test Optimization while API key is transitioning to system-tests
+      skip_empty_scenarios: ${{ github.event_name != 'push' && github.event_name != 'schedule' }}
+      push_to_test_optimization: true
+    secrets:
+      DOCKERHUB_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+      DOCKERHUB_TOKEN: ${{ secrets.DOCKERHUB_TOKEN }}
 
   # Ensure the main job is run to completion
   check:
