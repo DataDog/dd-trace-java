@@ -126,5 +126,5 @@ tasks.named("compileLatestDepTestJava", JavaCompile) {
 }
 
 tasks.named("latestDepTest", Test) {
-  onlyIf { javaVersion.isJava17Compatible() }
+  onlyIf { javaVersion >= JavaVersion.VERSION_17 }
 }
