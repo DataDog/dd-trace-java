@@ -16,7 +16,7 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
-  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE')
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE', 'CI_COMMIT_DESCRIPTION')
 
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")

@@ -91,6 +91,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   void processTagsAndBaggage(MetadataConsumer consumer);
 
+  void processTagsAndBaggage(
+      MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags);
+
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 
   T setSamplingPriority(
