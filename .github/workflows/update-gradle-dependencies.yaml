@@ -116,7 +116,7 @@ jobs:
           # What Does This Do
 
           This PR updates the Gradle dependency locks for common and product modules.
-          Changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
+          Dependency resolution was performed through delayed proxies, and changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
 
           # Motivation
 
@@ -177,7 +177,7 @@ jobs:
           # What Does This Do
 
           This PR updates the Gradle dependency locks for instrumentations and their tests.
-          Changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
+          Dependency resolution was performed through delayed proxies, and changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
 
           # Motivation
 

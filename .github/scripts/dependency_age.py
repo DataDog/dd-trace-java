@@ -121,7 +121,7 @@ def emit_outputs(outputs: dict[str, Any], github_output: str | None) -> None:
 def load_json(file_path: str | None, url: str | None) -> Any:
     if file_path:
         text = Path(file_path).read_text(encoding="utf-8")
-        text = re.sub(r"[ \t]*//[^\n]*", "", text)  # strip // line comments
+        text = re.sub(r"(?<!:)//[^\n]*", "", text)  # strip // line comments, preserve ://
         return json.loads(text)
     if not url:
         raise ValueError("either file_path or url is required")
@@ -295,7 +295,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     for relative_path, gav in changed:
         gav_to_files.setdefault(gav, set()).add(relative_path)
 
-    reverted: list[tuple[str, list[str], str]] = []
+    violations: list[tuple[str, list[str], str]] = []
     for gav in sorted(gav_to_files):
         published_at, reason = resolve_gav_timestamp(
             gav=gav,
@@ -304,10 +304,10 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         )
         affected_files = sorted(gav_to_files[gav])
         if published_at is None:
-            reverted.append((gav, affected_files, reason or "Unable to determine publish timestamp."))
+            violations.append((gav, affected_files, reason or "Unable to determine publish timestamp."))
             continue
         if published_at > cutoff:
-            reverted.append(
+            violations.append(
                 (
                     gav,
                     affected_files,
@@ -323,21 +323,21 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
             f"(published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})"
         )
 
-    if reverted:
-        outputs["reverted_coordinates"] = len(reverted)
+    if violations:
+        outputs["reverted_coordinates"] = len(violations)
         revert_violations_in_lockfiles(
-            violations=reverted,
+            violations=violations,
             baseline_dir=baseline_dir,
             current_dir=current_dir,
         )
-        for gav, affected_files, message in reverted:
+        for gav, affected_files, message in violations:
             for path in affected_files:
                 print(f"::warning file={path}::{gav}: {message} Reverted to prior version.")
 
     emit_outputs(outputs, args.github_output)
     print(
         f"Validated {len(changed)} changed dependency selections against cutoff {format_datetime(cutoff)}. "
-        f"{len(reverted)} reverted."
+        f"{len(violations)} reverted."
     )
     return 0
 
@@ -363,16 +363,26 @@ def revert_violations_in_lockfiles(
         baseline_by_gav = read_lockfile_lines(baseline_path) if baseline_path.exists() else {}
         current_by_gav = read_lockfile_lines(current_path)
 
-        # For each violated GAV, find which baseline coordinate(s) it replaced: those
-        # that share the same group:artifact but are absent from the current lockfile.
-        predecessors_by_violated: dict[str, list[str]] = {}
-        for violated_gav in violated_gavs:
-            ga = ":".join(violated_gav.split(":")[:2])
-            removed = sorted(
-                b for b in baseline_by_gav
-                if ":".join(b.split(":")[:2]) == ga and b not in current_by_gav
-            )
-            predecessors_by_violated[violated_gav] = removed
+        # Group removed baseline GAVs and violated GAVs by group:artifact.
+        removed_by_ga: dict[str, list[str]] = {}
+        for b in sorted(baseline_by_gav):
+            if b not in current_by_gav:
+                ga = ":".join(b.split(":")[:2])
+                removed_by_ga.setdefault(ga, []).append(b)
+
+        violations_by_ga: dict[str, list[str]] = {}
+        for v in sorted(violated_gavs):
+            ga = ":".join(v.split(":")[:2])
+            violations_by_ga.setdefault(ga, []).append(v)
+
+        # Pair each removed predecessor with the violation at the same sorted position.
+        # Excess predecessors (consolidation) pile onto the last violation.
+        # Violations with no corresponding predecessor are brand-new dependencies.
+        predecessors_by_violated: dict[str, list[str]] = {v: [] for v in violated_gavs}
+        for ga, ga_violations in violations_by_ga.items():
+            for i, pred in enumerate(removed_by_ga.get(ga, [])):
+                target = ga_violations[min(i, len(ga_violations) - 1)]
+                predecessors_by_violated[target].append(pred)
 
         output_lines: list[str] = []
         for raw_line in current_path.read_text(encoding="utf-8").splitlines():
