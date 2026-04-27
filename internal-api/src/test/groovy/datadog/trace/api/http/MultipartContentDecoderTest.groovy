@@ -57,9 +57,28 @@ class MultipartContentDecoderTest extends Specification {
     MultipartContentDecoder.decodeBytes(bytes, 5, null) == 'hello'
   }
 
+  void 'decodeBytes returns empty string for zero length'() {
+    expect:
+    MultipartContentDecoder.decodeBytes(new byte[16], 0, null) == ''
+  }
+
+  void 'decodeBytes falls back to ISO-8859-1 when declared charset cannot decode the bytes'() {
+    given:
+    // bytes are ISO-8859-1 encoded but Content-Type explicitly declares UTF-8
+    byte[] bytes = 'café'.getBytes('ISO-8859-1')
+
+    expect:
+    MultipartContentDecoder.decodeBytes(bytes, bytes.length, 'text/plain; charset=UTF-8') == 'café'
+  }
+
   void 'extractCharset returns null for null contentType'() {
     expect:
     MultipartContentDecoder.extractCharset(null) == null
+  }
+
+  void 'extractCharset returns null for empty contentType'() {
+    expect:
+    MultipartContentDecoder.extractCharset('') == null
   }
 
   void 'extractCharset returns null for contentType without charset'() {
@@ -85,5 +104,10 @@ class MultipartContentDecoderTest extends Specification {
     expect:
     MultipartContentDecoder.extractCharset('text/plain; charset=UTF-8').name() == 'UTF-8'
     MultipartContentDecoder.extractCharset('text/xml; charset=ISO-8859-1').name() == 'ISO-8859-1'
+  }
+
+  void 'extractCharset extracts charset when followed by additional parameters'() {
+    expect:
+    MultipartContentDecoder.extractCharset('text/plain; charset=UTF-8; boundary=something').name() == 'UTF-8'
   }
 }
