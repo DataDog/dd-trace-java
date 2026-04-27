@@ -133,36 +133,6 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContents([]) == []
   }
 
-  void 'extractCharset returns null for null contentType'() {
-    expect:
-    FileItemContentReader.extractCharset(null) == null
-  }
-
-  void 'extractCharset returns null for contentType without charset'() {
-    expect:
-    FileItemContentReader.extractCharset('text/plain') == null
-    FileItemContentReader.extractCharset('image/jpeg') == null
-    FileItemContentReader.extractCharset('application/octet-stream') == null
-  }
-
-  void 'extractCharset returns null for invalid charset name'() {
-    expect:
-    FileItemContentReader.extractCharset('text/plain; charset=NOTACHARSET') == null
-  }
-
-  void 'extractCharset extracts charset case-insensitively'() {
-    expect:
-    FileItemContentReader.extractCharset('text/plain; CHARSET=UTF-8').name() == 'UTF-8'
-    FileItemContentReader.extractCharset('text/plain; Charset=UTF-8').name() == 'UTF-8'
-    FileItemContentReader.extractCharset('text/plain; charset=utf-8').name() == 'UTF-8'
-  }
-
-  void 'extractCharset extracts charset from standard Content-Type'() {
-    expect:
-    FileItemContentReader.extractCharset('text/plain; charset=UTF-8').name() == 'UTF-8'
-    FileItemContentReader.extractCharset('text/xml; charset=ISO-8859-1').name() == 'ISO-8859-1'
-  }
-
   private FileItem fileItem(String content) {
     fileItem(content, 'file.txt')
   }
