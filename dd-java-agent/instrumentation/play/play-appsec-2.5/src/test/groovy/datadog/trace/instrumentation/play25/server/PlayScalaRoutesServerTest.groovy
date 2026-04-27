@@ -89,6 +89,7 @@ class PlayScalaRoutesServerTest extends PlayServerTest {
   @Override
   void handlerSpan(TraceAssert trace, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedClientIp = endpoint == FORWARDED ? endpoint.body : '127.0.0.1'
     trace.span {
       serviceName expectedServiceName()
       operationName 'play.request'
@@ -98,8 +99,10 @@ class PlayScalaRoutesServerTest extends PlayServerTest {
       tags {
         "$Tags.COMPONENT" 'play-action'
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
-        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
+        "$Tags.PEER_HOST_IPV4" expectedClientIp
+        "$Tags.HTTP_CLIENT_IP" expectedClientIp
+        // FIXME(APPSEC-62562): play-2.x instrumentation retrieves IP resolved from x-forwarded-for as peer IP.
+        "$Tags.NETWORK_CLIENT_IP" expectedClientIp
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String

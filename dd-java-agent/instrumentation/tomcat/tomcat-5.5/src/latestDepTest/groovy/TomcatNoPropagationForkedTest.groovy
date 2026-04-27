@@ -73,6 +73,7 @@ class TomcatNoPropagationForkedTest extends InstrumentationSpecification {
             "$Tags.COMPONENT" "tomcat-server"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "$Tags.HTTP_CLIENT_IP" { it != null }
+            "$Tags.NETWORK_CLIENT_IP" { it != null }
             "$Tags.PEER_HOST_IPV4" { it != null }
             "$Tags.PEER_PORT" { it != null }
             "$Tags.HTTP_HOSTNAME" { it != null }

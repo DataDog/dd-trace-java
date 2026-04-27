@@ -142,7 +142,8 @@ class RatpackHttpServerTest extends HttpServerTest<EmbeddedApp> {
         "$Tags.HTTP_METHOD" String
         "$Tags.HTTP_STATUS" Integer
         "$Tags.HTTP_ROUTE" String
-        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
+        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? { it == endpoint.body || it == '127.0.0.1' } : '127.0.0.1')
+        "$Tags.NETWORK_CLIENT_IP" (endpoint == FORWARDED ? { it == endpoint.body || it == '127.0.0.1' } : '127.0.0.1')
         if (endpoint == EXCEPTION) {
           errorTags(Exception, EXCEPTION.body)
         }
