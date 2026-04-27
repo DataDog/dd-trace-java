@@ -1,3 +1,4 @@
+<!DOCTYPE suite SYSTEM "http://testng.org/testng-1.0.dtd" >
 <suite name="API Test Suite" parallel="tests" configfailurepolicy="continue">
   <test name="Test A">
     <classes>
