@@ -341,6 +341,18 @@ public final class DatadogProfiler {
     }
   }
 
+  /** Monotonic tick count for TaskBlock and wall-clock off-CPU interval timing. */
+  public long getCurrentTicks() {
+    return profiler.getCurrentTicks();
+  }
+
+  int encode(CharSequence constant) {
+    if (constant != null && profiler != null) {
+      return contextSetter.encode(constant.toString());
+    }
+    return 0;
+  }
+
   public int operationNameOffset() {
     return offsetOf(OPERATION);
   }
@@ -452,6 +464,26 @@ public final class DatadogProfiler {
         profiler.recordQueueTime(
             startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
       }
+    }
+  }
+
+  void recordTaskBlockEvent(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
+    if (profiler != null) {
+      long endTicks = profiler.getCurrentTicks();
+      profiler.recordTaskBlock(startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+    }
+  }
+
+  void parkEnter(long spanId, long rootSpanId) {
+    if (profiler != null) {
+      profiler.parkEnter(spanId, rootSpanId);
+    }
+  }
+
+  void parkExit(long blocker, long unblockingSpanId) {
+    if (profiler != null) {
+      profiler.parkExit(blocker, unblockingSpanId);
     }
   }
 }
