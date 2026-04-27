@@ -5,6 +5,7 @@ import static datadog.trace.api.config.TracerConfig.PRIORITIZATION_TYPE
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.ddagent.SharedCommunicationObjects
 import datadog.trace.api.Config
+import datadog.trace.api.config.OtlpConfig
 import datadog.trace.api.intake.TrackType
 import datadog.trace.common.sampling.Sampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
@@ -12,6 +13,8 @@ import datadog.trace.common.writer.ddagent.Prioritization
 import datadog.trace.common.writer.ddintake.DDEvpProxyApi
 import datadog.trace.common.writer.ddintake.DDIntakeApi
 import datadog.trace.core.monitor.HealthMetrics
+import datadog.trace.core.otlp.common.OtlpGrpcSender
+import datadog.trace.core.otlp.common.OtlpHttpSender
 import datadog.trace.test.util.DDSpecification
 import groovy.json.JsonBuilder
 import java.util.stream.Collectors
@@ -23,7 +26,6 @@ import okhttp3.Protocol
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.ResponseBody
-import spock.lang.Ignore
 
 class WriterFactoryTest extends DDSpecification {
 
@@ -166,10 +168,43 @@ class WriterFactoryTest extends DDSpecification {
     "DDIntakeWriter"                           | false        | false       | true                     | DDIntakeWriter      | [DDIntakeApi]
   }
 
-  @Ignore("TODO: implement — verify that writerType=OtlpWriter plus OTLP config getters on Config produce an OtlpWriter with the expected endpoint/protocol/compression/headers/timeout wired through")
-  def "test writer creation for OtlpWriter"() {
-    expect:
-    true
+  def "test writer creation for OtlpWriter wires #protocol+#compression"() {
+    setup:
+    def config = Mock(Config)
+    def headers = ["api-key": "secret"]
+    def readField = { Object instance, String fieldName ->
+      def field = instance.class.getDeclaredField(fieldName)
+      field.setAccessible(true)
+      return field.get(instance)
+    }
+
+    config.getTraceFlushIntervalSeconds() >> 1.0f
+    config.getOtlpTracesEndpoint() >> endpoint
+    config.getOtlpTracesHeaders() >> headers
+    config.getOtlpTracesProtocol() >> protocol
+    config.getOtlpTracesCompression() >> compression
+    config.getOtlpTracesTimeout() >> 5000
+
+    when:
+    // OTLP branch in WriterFactory does not consult sharedComm or sampler, so nulls are safe here.
+    def writer = WriterFactory.createWriter(config, null, null, null, HealthMetrics.NO_OP, "OtlpWriter")
+    def sender = readField(writer, "sender")
+
+    then:
+    writer.class == OtlpWriter
+    sender.class == expectedSenderClass
+    readField(sender, "url").toString() == expectedUrl
+    readField(sender, "headers") == headers
+    readField(sender, "gzip") == expectedGzip
+
+    cleanup:
+    writer?.close()
+
+    where:
+    protocol                          | compression                  | endpoint                                | expectedSenderClass | expectedUrl                              | expectedGzip
+    OtlpConfig.Protocol.HTTP_PROTOBUF | OtlpConfig.Compression.NONE  | "http://otel-collector:4318/v1/traces" | OtlpHttpSender      | "http://otel-collector:4318/v1/traces"   | false
+    OtlpConfig.Protocol.HTTP_PROTOBUF | OtlpConfig.Compression.GZIP  | "http://otel-collector:4318/v1/traces" | OtlpHttpSender      | "http://otel-collector:4318/v1/traces"   | true
+    OtlpConfig.Protocol.GRPC          | OtlpConfig.Compression.NONE  | "http://otel-collector:4317"            | OtlpGrpcSender      | "http://otel-collector:4317/v1/traces"   | false
   }
 
   Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {
