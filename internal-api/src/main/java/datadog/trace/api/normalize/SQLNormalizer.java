@@ -114,6 +114,9 @@ public final class SQLNormalizer {
       if (b == '\'' && !escaped && !doubleQuoted) {
         singleQuoted = !singleQuoted;
       } else if (b == '"' && !singleQuoted) {
+        // No !escaped check here: in SQL, double quotes delimit identifiers,
+        // where backslash has no special escaping role. A literal double quote
+        // inside an identifier is escaped by doubling it (""), not by backslash.
         doubleQuoted = !doubleQuoted;
       } else {
         escaped = (b == '\\') & !escaped;
