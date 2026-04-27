@@ -1,12 +1,11 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
+  id 'com.gradleup.shadow'
   id 'war'
-  id 'org.springframework.boot' version '3.3.5'
   id 'io.spring.dependency-management' version '1.1.6'
 }
 
 ext['spring-boot.version'] = '2.5.12'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootTomcatApplication'
 
 ext {
   serverName = 'tomcat'
@@ -17,6 +16,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
 
 repositories {
@@ -84,10 +84,6 @@ tasks.named('javadocJar') {
   dependsOn 'unzip'
 }
 
-tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
 tasks.named('war') {
   dependsOn 'unzip'
 }
@@ -109,18 +105,18 @@ tasks.named('spotbugsMain') {
 }
 
 tasks.matching({it.name.startsWith('compileTest')}).configureEach {
-  dependsOn 'war', 'bootWar', 'unzip'
+  dependsOn 'war', 'unzip'
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar", "unzip"
+  dependsOn "war", "unzip"
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
+        def warTask = tasks.named('war').get()
         return [
-          "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
+          "-Ddatadog.smoketest.springboot.war.path=${warTask.archiveFile.get().getAsFile()}",
           "-Ddatadog.smoketest.tomcatDir=${tomcatDir.get().asFile}"
         ]
       }

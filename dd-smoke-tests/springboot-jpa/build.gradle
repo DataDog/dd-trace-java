@@ -1,20 +1,17 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
+  id 'com.gradleup.shadow'
   id 'java'
   id 'war'
-  id 'org.springframework.boot' version '3.3.5'
   id 'io.spring.dependency-management' version '1.1.6'
 }
 
 ext['spring-boot.version'] = '2.6.0'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootApplication'
+ext.springBootIncludeWebapp = true
+
 apply from: "$rootDir/gradle/java.gradle"
-
-testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'SpringBoot JPA Smoke Tests.'
 
 dependencies {
@@ -34,13 +31,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "bootWar"
+  def shadowJarTask = tasks.named('shadowJar')
+  dependsOn shadowJarTask
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return ["-Ddatadog.smoketest.springboot.bootWar.path=${bootWarTask.archiveFile.get()}"]
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
       }
     })
 }

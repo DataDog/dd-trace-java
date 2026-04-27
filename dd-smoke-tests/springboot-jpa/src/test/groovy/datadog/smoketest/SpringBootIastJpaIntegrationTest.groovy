@@ -10,7 +10,7 @@ class SpringBootIastJpaIntegrationTest extends AbstractServerSmokeTest {
 
   @Override
   ProcessBuilder createProcessBuilder() {
-    String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.bootWar.path")
+    String springBootShadowJar = System.getProperty("datadog.smoketest.springboot.shadowJar.path")
 
     List<String> command = new ArrayList<>()
     command.add(javaPath())
