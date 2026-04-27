@@ -12,6 +12,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
@@ -215,6 +217,8 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIM
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_FILE_CONTENT_BYTES;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACES_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
@@ -1030,6 +1034,8 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final int appSecBodyParsingSizeLimit;
+  private final int appSecMaxFileContentBytes;
+  private final int appSecMaxFileContentCount;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final int apiSecurityEndpointCollectionMessageLimit;
@@ -2333,6 +2339,12 @@ public class Config {
     appSecBodyParsingSizeLimit =
         configProvider.getInteger(
             APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
+    appSecMaxFileContentBytes =
+        configProvider.getInteger(
+            APPSEC_MAX_FILE_CONTENT_BYTES, DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES);
+    appSecMaxFileContentCount =
+        configProvider.getInteger(
+            APPSEC_MAX_FILE_CONTENT_COUNT, DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -5616,6 +5628,14 @@ public class Config {
 
   public int getAppSecBodyParsingSizeLimit() {
     return appSecBodyParsingSizeLimit;
+  }
+
+  public int getAppSecMaxFileContentBytes() {
+    return appSecMaxFileContentBytes;
+  }
+
+  public int getAppSecMaxFileContentCount() {
+    return appSecMaxFileContentCount;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {

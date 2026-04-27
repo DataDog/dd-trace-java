@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty41;
 
+import datadog.trace.api.Config;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import java.io.FileInputStream;
@@ -7,7 +8,7 @@ import java.nio.charset.StandardCharsets;
 
 /** Reads uploaded file content from a Netty {@link FileUpload} for WAF inspection. */
 public final class NettyFileUploadContentReader {
-  public static final int MAX_CONTENT_BYTES = 4096;
+  public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
 
   public static String readContent(FileUpload fileUpload) {
     try {

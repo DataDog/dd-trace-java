@@ -1683,7 +1683,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def 'test instrumentation gateway file upload content truncated at max size'() {
     setup:
     assumeTrue(testBodyFilesContent())
-    def maxContentBytes = 4096
+    def maxContentBytes = Config.get().getAppSecMaxFileContentBytes()
     def body = new MultipartBody.Builder()
     .setType(MultipartBody.FORM)
     .addFormDataPart('file', 'large.bin',
@@ -1708,7 +1708,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   def 'test instrumentation gateway file upload content max files limit'() {
     setup:
     assumeTrue(testBodyFilesContent())
-    def maxFilesToInspect = 25
+    def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
     def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
     (1..maxFilesToInspect + 1).each {
       i ->

@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import datadog.trace.api.Config;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.charset.StandardCharsets;
@@ -59,8 +60,8 @@ public interface ParameterCollector {
   }
 
   class ParameterCollectorImpl implements ParameterCollector {
-    private static final int MAX_CONTENT_BYTES = 4096;
-    private static final int MAX_FILES_TO_INSPECT = 25;
+    private static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+    private static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
     private final boolean inspectContent;
     private Map<String, List<String>> map;
