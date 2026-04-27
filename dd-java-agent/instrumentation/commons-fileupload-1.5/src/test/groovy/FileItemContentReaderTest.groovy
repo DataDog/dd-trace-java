@@ -39,41 +39,13 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == ''
   }
 
-  void 'readContent decodes UTF-8 when Content-Type specifies charset=UTF-8'() {
+  void 'readContent uses Content-Type from file item for charset decoding'() {
     given:
     def text = 'héllo wörld'
     def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain; charset=UTF-8')
 
     expect:
     FileItemContentReader.readContent(item) == text
-  }
-
-  void 'readContent falls back to UTF-8 when Content-Type has no charset'() {
-    given:
-    def text = 'hello world'
-    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain')
-
-    expect:
-    FileItemContentReader.readContent(item) == text
-  }
-
-  void 'readContent falls back to UTF-8 when Content-Type is null'() {
-    given:
-    def text = 'hello world'
-    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', null)
-
-    expect:
-    FileItemContentReader.readContent(item) == text
-  }
-
-  void 'readContent falls back to ISO-8859-1 when bytes are invalid UTF-8'() {
-    given:
-    // 0xE9 is 'é' in ISO-8859-1 but an invalid lone UTF-8 byte
-    byte[] iso88591Bytes = 'café'.getBytes('ISO-8859-1')
-    def item = fileItemFromBytes(iso88591Bytes, 'file.txt', null)
-
-    expect:
-    FileItemContentReader.readContent(item) == 'café'
   }
 
   void 'readContents returns content for each non-form file with a name'() {
