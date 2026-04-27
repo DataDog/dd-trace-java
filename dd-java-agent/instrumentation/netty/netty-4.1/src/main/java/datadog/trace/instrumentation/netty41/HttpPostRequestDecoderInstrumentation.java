@@ -108,10 +108,13 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       BiFunction<RequestContext, Object, Flow<Void>> callback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
 
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+
       BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
           cbp.getCallback(EVENTS.requestFilesContent());
 
-      if (callback == null && contentCb == null) {
+      if (callback == null && filenamesCb == null && contentCb == null) {
         return;
       }
 
@@ -163,8 +166,6 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       }
 
       if (!filenames.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
         if (filenamesCb != null) {
           Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
           Flow.Action filenamesAction = filenamesFlow.getAction();
