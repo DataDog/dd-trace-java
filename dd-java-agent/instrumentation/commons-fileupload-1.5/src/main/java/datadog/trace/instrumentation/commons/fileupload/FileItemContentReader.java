@@ -2,7 +2,10 @@ package datadog.trace.instrumentation.commons.fileupload;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
+import java.nio.charset.CodingErrorAction;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,8 +50,13 @@ public final class FileItemContentReader {
     Charset charset = extractCharset(contentType);
     if (charset == null) charset = StandardCharsets.UTF_8;
     try {
-      return new String(buf, 0, length, charset);
-    } catch (Exception e) {
+      return charset
+          .newDecoder()
+          .onMalformedInput(CodingErrorAction.REPORT)
+          .onUnmappableCharacter(CodingErrorAction.REPORT)
+          .decode(ByteBuffer.wrap(buf, 0, length))
+          .toString();
+    } catch (CharacterCodingException e) {
       return new String(buf, 0, length, StandardCharsets.ISO_8859_1);
     }
   }

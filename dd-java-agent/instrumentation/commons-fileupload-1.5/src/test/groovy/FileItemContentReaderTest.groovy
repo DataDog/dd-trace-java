@@ -66,6 +66,16 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == text
   }
 
+  void 'readContent falls back to ISO-8859-1 when bytes are invalid UTF-8'() {
+    given:
+    // 0xE9 is 'é' in ISO-8859-1 but an invalid lone UTF-8 byte
+    byte[] iso88591Bytes = 'café'.getBytes('ISO-8859-1')
+    def item = fileItemFromBytes(iso88591Bytes, 'file.txt', null)
+
+    expect:
+    FileItemContentReader.readContent(item) == 'café'
+  }
+
   void 'readContents returns content for each non-form file with a name'() {
     given:
     def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
