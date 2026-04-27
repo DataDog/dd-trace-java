@@ -1439,11 +1439,11 @@ public class Config {
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
     traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+    boolean otlpTracesExporter = isTraceOtlpExporterEnabled();
     writerType =
         configProvider.getString(
-            WRITER_TYPE,
-            isTraceOtlpExporterEnabled() ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
-    boolean isDatadogTraceWriter = !isTraceOtlpExporterEnabled();
+            WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
+    boolean isDatadogTraceWriter = !otlpTracesExporter;
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);

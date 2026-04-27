@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 
 import datadog.communication.ddagent.DroppingPolicy;
 import datadog.trace.api.config.OtlpConfig;
@@ -49,7 +50,7 @@ public class OtlpWriter extends RemoteWriter {
   public static class OtlpWriterBuilder {
     private String endpoint = DEFAULT_OTLP_HTTP_ENDPOINT;
     private Map<String, String> headers = Collections.emptyMap();
-    private int timeoutMillis = (int) TimeUnit.SECONDS.toMillis(10);
+    private int timeoutMillis = DEFAULT_OTLP_TRACES_TIMEOUT;
     private OtlpConfig.Protocol protocol = OtlpConfig.Protocol.HTTP_PROTOBUF;
     private OtlpConfig.Compression compression = OtlpConfig.Compression.NONE;
     private int traceBufferSize = BUFFER_SIZE;

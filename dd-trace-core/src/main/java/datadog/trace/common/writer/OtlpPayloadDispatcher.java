@@ -43,7 +43,7 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
   @Override
   public void flush() {
     OtlpPayload payload = collector.collectTraces();
-    if (payload.getContentLength() > 0) {
+    if (payload != OtlpPayload.EMPTY) {
       sender.send(payload);
     }
   }
@@ -59,9 +59,11 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
   }
 
   private static boolean shouldExport(CoreSpan<?> span) {
+    // trace-level sampling priority
     if (span.samplingPriority() > 0) {
       return true;
     }
+    // span-level sampling priority
     return span.getTag(DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG) != null;
   }
 }
