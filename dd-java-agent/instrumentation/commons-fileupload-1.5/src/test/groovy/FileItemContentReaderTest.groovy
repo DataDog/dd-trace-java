@@ -39,6 +39,33 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == ''
   }
 
+  void 'readContent decodes UTF-8 when Content-Type specifies charset=UTF-8'() {
+    given:
+    def text = 'héllo wörld'
+    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain; charset=UTF-8')
+
+    expect:
+    FileItemContentReader.readContent(item) == text
+  }
+
+  void 'readContent falls back to UTF-8 when Content-Type has no charset'() {
+    given:
+    def text = 'hello world'
+    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain')
+
+    expect:
+    FileItemContentReader.readContent(item) == text
+  }
+
+  void 'readContent falls back to UTF-8 when Content-Type is null'() {
+    given:
+    def text = 'hello world'
+    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', null)
+
+    expect:
+    FileItemContentReader.readContent(item) == text
+  }
+
   void 'readContents returns content for each non-form file with a name'() {
     given:
     def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
@@ -96,15 +123,54 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContents([]) == []
   }
 
+  void 'extractCharset returns null for null contentType'() {
+    expect:
+    FileItemContentReader.extractCharset(null) == null
+  }
+
+  void 'extractCharset returns null for contentType without charset'() {
+    expect:
+    FileItemContentReader.extractCharset('text/plain') == null
+    FileItemContentReader.extractCharset('image/jpeg') == null
+    FileItemContentReader.extractCharset('application/octet-stream') == null
+  }
+
+  void 'extractCharset returns null for invalid charset name'() {
+    expect:
+    FileItemContentReader.extractCharset('text/plain; charset=NOTACHARSET') == null
+  }
+
+  void 'extractCharset extracts charset case-insensitively'() {
+    expect:
+    FileItemContentReader.extractCharset('text/plain; CHARSET=UTF-8').name() == 'UTF-8'
+    FileItemContentReader.extractCharset('text/plain; Charset=UTF-8').name() == 'UTF-8'
+    FileItemContentReader.extractCharset('text/plain; charset=utf-8').name() == 'UTF-8'
+  }
+
+  void 'extractCharset extracts charset from standard Content-Type'() {
+    expect:
+    FileItemContentReader.extractCharset('text/plain; charset=UTF-8').name() == 'UTF-8'
+    FileItemContentReader.extractCharset('text/xml; charset=ISO-8859-1').name() == 'ISO-8859-1'
+  }
+
   private FileItem fileItem(String content) {
     fileItem(content, 'file.txt')
   }
 
   private FileItem fileItem(String content, String name) {
+    fileItem(content, name, null)
+  }
+
+  private FileItem fileItem(String content, String name, String contentType) {
+    fileItemFromBytes((content ?: '').getBytes('ISO-8859-1'), name, contentType)
+  }
+
+  private FileItem fileItemFromBytes(byte[] bytes, String name, String contentType) {
     FileItem item = Stub(FileItem)
     item.isFormField() >> false
     item.getName() >> name
-    item.getInputStream() >> new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    item.getContentType() >> contentType
+    item.getInputStream() >> new ByteArrayInputStream(bytes)
     return item
   }
 }
