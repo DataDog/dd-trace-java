@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.tomcat7
 
+import datadog.trace.api.Config
 import spock.lang.Specification
 
 class ParameterCollectorImplTest extends Specification {
@@ -58,40 +59,43 @@ class ParameterCollectorImplTest extends Specification {
     collector.getFilenames() == ['a.txt', 'b.txt']
   }
 
-  void 'addPart truncates content at 4096 bytes'() {
+  void 'addPart truncates content at MAX_CONTENT_BYTES'() {
     given:
+    def maxBytes = Config.get().getAppSecMaxFileContentBytes()
     def collector = new ParameterCollector.ParameterCollectorImpl(true)
-    def longContent = 'X' * 5000
+    def longContent = 'X' * (maxBytes + 500)
 
     when:
     collector.addPart(new TestPart('big.bin', longContent))
 
     then:
-    collector.getContents()[0].length() == 4096
+    collector.getContents()[0].length() == maxBytes
   }
 
-  void 'addPart reads exactly 4096 bytes when content is 4096 bytes'() {
+  void 'addPart reads exactly MAX_CONTENT_BYTES when content is exactly that size'() {
     given:
+    def maxBytes = Config.get().getAppSecMaxFileContentBytes()
     def collector = new ParameterCollector.ParameterCollectorImpl(true)
-    def content = 'Y' * 4096
+    def content = 'Y' * maxBytes
 
     when:
     collector.addPart(new TestPart('exact.bin', content))
 
     then:
-    collector.getContents()[0].length() == 4096
+    collector.getContents()[0].length() == maxBytes
   }
 
-  void 'addPart stops collecting content after 25 files but still collects filenames'() {
+  void 'addPart stops collecting content after MAX_FILES_TO_INSPECT files but still collects filenames'() {
     given:
+    def maxFiles = Config.get().getAppSecMaxFileContentCount()
     def collector = new ParameterCollector.ParameterCollectorImpl(true)
 
     when:
-    (1..26).each { i -> collector.addPart(new TestPart("file${i}.txt", "content${i}")) }
+    (1..maxFiles + 1).each { i -> collector.addPart(new TestPart("file${i}.txt", "content${i}")) }
 
     then:
-    collector.getContents().size() == 25
-    collector.getFilenames().size() == 26
+    collector.getContents().size() == maxFiles
+    collector.getFilenames().size() == maxFiles + 1
   }
 
   void 'addPart adds empty string when getInputStream throws'() {
