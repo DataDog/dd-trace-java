@@ -401,6 +401,8 @@ public class DefaultConfigurationPoller
 
     Map<Product, List<ParsedConfigKey>> parsedKeysByProduct = new HashMap<>();
 
+    boolean appliedAny = false;
+
     for (String configKey : fleetResponse.getClientConfigs()) {
       try {
         ParsedConfigKey parsedConfigKey = ParsedConfigKey.parse(configKey);
@@ -413,13 +415,20 @@ public class DefaultConfigurationPoller
                   + parsedConfigKey.getProductName()
                   + " is not being handled");
         }
+        // TODO(POC): Log when we detect SCA configs from DEBUG endpoint
+        // Backend serves SCA configs via: GET /api/unstable/remote-config/debug/configs/SCA_{id}
+        // These arrive as DEBUG product with "SCA_" prefix in config ID.
+        if (product == Product.DEBUG
+            && "DEBUG".equalsIgnoreCase(parsedConfigKey.getProductName())
+            && parsedConfigKey.getConfigId().startsWith("SCA_")) {
+          log.debug("POC: Detected SCA config from DEBUG endpoint: {}", configKey);
+        }
         parsedKeysByProduct.computeIfAbsent(product, k -> new ArrayList<>()).add(parsedConfigKey);
       } catch (ReportableException e) {
         errors.add(e);
       }
     }
 
-    boolean appliedAny = false;
     for (Map.Entry<Product, ProductState> entry : productStates.entrySet()) {
       Product product = entry.getKey();
       ProductState state = entry.getValue();
