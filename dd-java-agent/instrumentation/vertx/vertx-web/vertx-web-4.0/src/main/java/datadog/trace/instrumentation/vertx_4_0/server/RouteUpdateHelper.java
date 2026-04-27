@@ -37,6 +37,31 @@ public final class RouteUpdateHelper {
     }
   }
 
+  public static void updateRouteFromContext(
+      final RoutingContext routingContext,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    if (routingContext.currentRoute() == null) {
+      return;
+    }
+
+    final String method = routingContext.request().method().name();
+    String path = routingContext.currentRoute().getPath();
+    if (path == null) {
+      // getName returns the name of the route, if not path or the pattern or null
+      path = routingContext.currentRoute().getName();
+    }
+    final String mountPoint = routingContext.mountPoint();
+    if (mountPoint != null && path != null) {
+      final String noBackslashhMountPoint =
+          mountPoint.endsWith("/")
+              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
+              : mountPoint;
+      path = noBackslashhMountPoint + path;
+    }
+    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
+  }
+
   public static boolean shouldUpdateRoute(
       final RoutingContext routingContext,
       final AgentSpan parentSpan,

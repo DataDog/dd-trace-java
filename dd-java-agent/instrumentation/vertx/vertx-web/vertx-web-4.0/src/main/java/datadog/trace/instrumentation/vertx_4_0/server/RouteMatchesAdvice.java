@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
 import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.PARENT_SPAN_CONTEXT_KEY;
-import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.updateRoute;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.updateRouteFromContext;
 
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -23,23 +23,9 @@ class RouteMatchesAdvice {
     }
     final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
     final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
-    if (ctx.currentRoute() != null) {
-      final String method = ctx.request().method().name();
-      String path = ctx.currentRoute().getPath();
-      if (path == null) {
-        path = ctx.currentRoute().getName();
-      }
-      final String mountPoint = ctx.mountPoint();
-      if (mountPoint != null && path != null) {
-        final String noBackslashhMountPoint =
-            mountPoint.endsWith("/")
-                ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-                : mountPoint;
-        path = noBackslashhMountPoint + path;
-      }
-      updateRoute(ctx, method, path, parentSpan, handlerSpan);
-    }
-    Map<String, String> params = ctx.pathParams();
+    updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+    final Map<String, String> params = ctx.pathParams();
     if (params.isEmpty()) {
       return;
     }
@@ -47,9 +33,7 @@ class RouteMatchesAdvice {
       // vert.x 5 removes the entry after our advice so we must ignore it
       return;
     }
-
-    Throwable throwable = PathParameterPublishingHelper.publishParams(params);
-    t = throwable;
+    t = PathParameterPublishingHelper.publishParams(params);
   }
 
   static class BooleanReturnVariant {
@@ -64,23 +48,9 @@ class RouteMatchesAdvice {
       }
       final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
       final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
-      if (ctx.currentRoute() != null) {
-        final String method = ctx.request().method().name();
-        String path = ctx.currentRoute().getPath();
-        if (path == null) {
-          path = ctx.currentRoute().getName();
-        }
-        final String mountPoint = ctx.mountPoint();
-        if (mountPoint != null && path != null) {
-          final String noBackslashhMountPoint =
-              mountPoint.endsWith("/")
-                  ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-                  : mountPoint;
-          path = noBackslashhMountPoint + path;
-        }
-        updateRoute(ctx, method, path, parentSpan, handlerSpan);
-      }
-      Map<String, String> params = ctx.pathParams();
+      updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+      final Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {
         return;
       }
@@ -88,9 +58,7 @@ class RouteMatchesAdvice {
         // vert.x 5 removes the entry after our advice so we must ignore it
         return;
       }
-
-      Throwable throwable = PathParameterPublishingHelper.publishParams(params);
-      t = throwable;
+      t = PathParameterPublishingHelper.publishParams(params);
     }
   }
 }

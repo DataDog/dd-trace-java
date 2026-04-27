@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
 import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.PARENT_SPAN_CONTEXT_KEY;
-import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.updateRoute;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.updateRouteFromContext;
 
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
@@ -23,28 +23,13 @@ class RouteMatchesAdvice {
     }
     final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
     final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
-    if (ctx.currentRoute() != null) {
-      final String method = ctx.request().rawMethod();
-      String path = ctx.currentRoute().getPath();
-      String mountPoint = ctx.mountPoint();
-      if (mountPoint != null && !mountPoint.isEmpty()) {
-        if (mountPoint.charAt(mountPoint.length() - 1) == '/'
-            && path != null
-            && !path.isEmpty()
-            && path.charAt(0) == '/') {
-          mountPoint = mountPoint.substring(0, mountPoint.length() - 1);
-        }
-        path = mountPoint + path;
-      }
-      updateRoute(ctx, method, path, parentSpan, handlerSpan);
-    }
-    Map<String, String> params = ctx.pathParams();
+    updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+    final Map<String, String> params = ctx.pathParams();
     if (params.isEmpty()) {
       return;
     }
-
-    Throwable resThr = PathParameterPublishingHelper.publishParams(params);
-    t = resThr;
+    t = PathParameterPublishingHelper.publishParams(params);
   }
 
   static class BooleanReturnVariant {
@@ -59,28 +44,13 @@ class RouteMatchesAdvice {
       }
       final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
       final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
-      if (ctx.currentRoute() != null) {
-        final String method = ctx.request().rawMethod();
-        String path = ctx.currentRoute().getPath();
-        String mountPoint = ctx.mountPoint();
-        if (mountPoint != null && !mountPoint.isEmpty()) {
-          if (mountPoint.charAt(mountPoint.length() - 1) == '/'
-              && path != null
-              && !path.isEmpty()
-              && path.charAt(0) == '/') {
-            mountPoint = mountPoint.substring(0, mountPoint.length() - 1);
-          }
-          path = mountPoint + path;
-        }
-        updateRoute(ctx, method, path, parentSpan, handlerSpan);
-      }
-      Map<String, String> params = ctx.pathParams();
+      updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+      final Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {
         return;
       }
-
-      Throwable resThr = PathParameterPublishingHelper.publishParams(params);
-      t = resThr;
+      t = PathParameterPublishingHelper.publishParams(params);
     }
   }
 }

@@ -6,7 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopScope;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
 import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.PARENT_SPAN_CONTEXT_KEY;
-import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.updateRoute;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.updateRouteFromContext;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
@@ -63,23 +63,6 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     if (parentSpan == null && handlerSpan == null) {
       return;
     }
-
-    final String method = routingContext.request().method().name();
-    final String mountPoint = routingContext.mountPoint();
-
-    String path = routingContext.currentRoute().getPath();
-    if (path == null) {
-      // getName returns the name of the route, if not path or the pattern or null
-      path = routingContext.currentRoute().getName();
-    }
-
-    if (mountPoint != null && path != null) {
-      final String noBackslashhMountPoint =
-          mountPoint.endsWith("/")
-              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-              : mountPoint;
-      path = noBackslashhMountPoint + path;
-    }
-    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
+    updateRouteFromContext(routingContext, parentSpan, handlerSpan);
   }
 }
