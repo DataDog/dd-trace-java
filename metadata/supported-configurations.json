@@ -3913,6 +3913,22 @@
         "aliases": []
       }
     ],
+    "DD_TEST_OPTIMIZATION_MANIFEST_FILE": [
+      {
+        "version": "B",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TEST_OPTIMIZATION_PAYLOADS_IN_FILES": [
+      {
+        "version": "C",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TEST_SESSION_NAME": [
       {
         "version": "A",

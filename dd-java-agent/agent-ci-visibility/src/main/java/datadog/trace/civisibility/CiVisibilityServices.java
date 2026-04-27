@@ -5,6 +5,7 @@ import datadog.communication.BackendApiFactory;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.communication.util.IOUtils;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Command;
@@ -83,7 +84,14 @@ public class CiVisibilityServices {
     this.backendApi = new BackendApiFactory(config, sco).createBackendApi(Intake.API);
     this.ciIntake = new BackendApiFactory(config, sco).createBackendApi(Intake.CI_INTAKE);
     this.jvmInfoFactory = new CachingJvmInfoFactory(config, new JvmInfoFactoryImpl());
-    this.gitClientFactory = buildGitClientFactory(config, metricCollector);
+
+    if (BazelMode.get().isPayloadFilesEnabled()) {
+      // git commands should not be executed in payload files mode
+      logger.info("[bazel mode] Payload-in-files mode detected. Disabling git commands");
+      this.gitClientFactory = r -> NoOpGitClient.INSTANCE;
+    } else {
+      this.gitClientFactory = buildGitClientFactory(config, metricCollector);
+    }
 
     this.environment = buildCiEnvironment();
     this.ciProviderInfoFactory = new CIProviderInfoFactory(config, environment);
