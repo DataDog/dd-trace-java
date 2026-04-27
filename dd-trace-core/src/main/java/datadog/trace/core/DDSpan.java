@@ -773,6 +773,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+    context.processTagsAndBaggage(
+        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  @Override
   public boolean isError() {
     return context.getErrorFlag();
   }
@@ -883,7 +890,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
-  List<? extends AgentSpanLink> getLinks() {
+  public List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
@@ -894,7 +901,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     // If links are initially null / empty, then the shared placeholder List EMPTY is used.
-    // Bacause EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
     // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
 

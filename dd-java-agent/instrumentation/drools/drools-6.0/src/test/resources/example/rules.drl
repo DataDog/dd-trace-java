@@ -1,0 +1,12 @@
+package example
+
+import example.Person
+
+rule "Mark person as adult"
+when
+    $p : Person(age >= 18, adult == false)
+then
+    $p.setAdult(true);
+    System.out.println("Rule fired for " + $p.getName());
+    update($p);
+end

@@ -59,12 +59,17 @@ public class TransformerDefinitionMatcher {
       if (fileName == null) {
         continue;
       }
+      fileName = normalizeWindowsToUnixPath(fileName);
       Map<String, List<ProbeDefinition>> targetMap =
           fileName.indexOf('/') != -1
               ? definitionsByQualifiedFileNames
               : definitionsBySimpleFileNames;
       targetMap.computeIfAbsent("/" + fileName, key -> new ArrayList<>()).add(definition);
     }
+  }
+
+  private static String normalizeWindowsToUnixPath(String fileName) {
+    return fileName.replace('\\', '/');
   }
 
   private Trie buildDefinitionFileNamesTrie(

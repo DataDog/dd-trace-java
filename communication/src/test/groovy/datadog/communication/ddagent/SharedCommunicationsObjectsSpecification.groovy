@@ -1,12 +1,13 @@
 package datadog.communication.ddagent
 
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.config.TracerConfig.AGENT_HOST
+
 import datadog.metrics.api.Monitoring
 import datadog.trace.api.Config
 import datadog.trace.test.util.DDSpecification
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
-
-import static datadog.trace.api.config.TracerConfig.AGENT_HOST
 
 class SharedCommunicationsObjectsSpecification extends DDSpecification {
   SharedCommunicationObjects sco = new SharedCommunicationObjects()
@@ -31,7 +32,7 @@ class SharedCommunicationsObjectsSpecification extends DDSpecification {
     sco.featuresDiscovery(config)
 
     then:
-    1 * config.traceAgentV05Enabled >> false
+    1 * config.protocolVersion >> V0_4
     1 * config.tracerMetricsEnabled >> false
     sco.featuresDiscovery != null
 

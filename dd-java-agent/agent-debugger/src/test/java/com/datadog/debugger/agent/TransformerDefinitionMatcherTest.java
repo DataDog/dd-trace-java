@@ -75,6 +75,26 @@ public class TransformerDefinitionMatcherTest {
   }
 
   @Test
+  public void sourceFileWindowsStyleFileName() {
+    LogProbe probe = createProbe(PROBE_ID1, "src\\main\\java\\java\\lang\\String.java", 23);
+    TransformerDefinitionMatcher matcher = createMatcher(probe);
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(1, probeDefinitions.size());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+  }
+
+  @Test
+  public void sourceFileWindowsStyleAbsoluteFileName() {
+    LogProbe probe =
+        createProbe(
+            PROBE_ID1, "C:\\Users\\user\\project\\src\\main\\java\\java\\lang\\String.java", 23);
+    TransformerDefinitionMatcher matcher = createMatcher(probe);
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(1, probeDefinitions.size());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+  }
+
+  @Test
   public void sourceFileSimpleFileName() {
     LogProbe probe = createProbe(PROBE_ID1, "String.java", 23);
     TransformerDefinitionMatcher matcher = createMatcher(probe);
