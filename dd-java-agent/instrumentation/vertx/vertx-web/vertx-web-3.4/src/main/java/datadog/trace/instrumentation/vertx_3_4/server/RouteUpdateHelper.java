@@ -41,6 +41,9 @@ public final class RouteUpdateHelper {
       final RoutingContext routingContext,
       final AgentSpan parentSpan,
       final AgentSpan handlerSpan) {
+    if (parentSpan == null && handlerSpan == null) {
+      return;
+    }
     if (routingContext.currentRoute() == null) {
       return;
     }
@@ -60,14 +63,11 @@ public final class RouteUpdateHelper {
     updateRoute(routingContext, method, path, parentSpan, handlerSpan);
   }
 
-  public static boolean shouldUpdateRoute(
+  private static boolean shouldUpdateRoute(
       final RoutingContext routingContext,
       final AgentSpan parentSpan,
       final AgentSpan handlerSpan,
       final String path) {
-    if (parentSpan == null && handlerSpan == null) {
-      return false;
-    }
     final String currentRoute = routingContext.get(ROUTE_CONTEXT_KEY);
     if (currentRoute != null && currentRoute.equals(path)) {
       return false;

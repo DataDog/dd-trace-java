@@ -37,7 +37,8 @@ public class RouteImplInstrumentation extends InstrumenterModule
       postProcessorFactory = IastPostProcessorFactory.INSTANCE;
       return true;
     }
-    return enabledSystems.contains(TargetSystem.APPSEC);
+    return enabledSystems.contains(TargetSystem.TRACING)
+        || enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
