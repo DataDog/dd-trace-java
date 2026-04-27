@@ -1,6 +1,6 @@
 [
   {
-    "version": "9.5-rc-1", // ineligible: prerelease pattern
+    "version": "9.5-rc-1",
     "buildTime": "20260420120000+0000",
     "snapshot": false,
     "nightly": false,
@@ -9,7 +9,7 @@
     "activeRc": true
   },
   {
-    "version": "9.4.2", // ineligible: published within 48h cooldown period
+    "version": "9.4.2",
     "buildTime": "20260423130000+0000",
     "snapshot": false,
     "nightly": false,
