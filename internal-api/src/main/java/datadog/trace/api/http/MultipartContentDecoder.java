@@ -4,7 +4,6 @@ import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
-import java.util.Locale;
 
 /** Decodes multipart file content bytes to String using the per-part Content-Type charset. */
 public final class MultipartContentDecoder {
@@ -26,11 +25,11 @@ public final class MultipartContentDecoder {
 
   public static Charset extractCharset(String contentType) {
     if (contentType == null) return null;
-    int idx = contentType.toLowerCase(Locale.ROOT).indexOf("charset=");
+    int idx = indexOfIgnoreAsciiCase(contentType, "charset=");
     if (idx < 0) return null;
     int nameStart = idx + 8;
     int end = contentType.length();
-    for (int i = nameStart; i < contentType.length(); i++) {
+    for (int i = nameStart; i < end; i++) {
       char c = contentType.charAt(i);
       if (c == ';' || c == ',' || c == ' ') {
         end = i;
@@ -46,6 +45,21 @@ public final class MultipartContentDecoder {
     } catch (IllegalArgumentException e) {
       return null;
     }
+  }
+
+  private static int indexOfIgnoreAsciiCase(String s, String needle) {
+    int sLen = s.length();
+    int nLen = needle.length();
+    outer:
+    for (int i = 0, max = sLen - nLen; i <= max; i++) {
+      for (int j = 0; j < nLen; j++) {
+        if (Character.toLowerCase(s.charAt(i + j)) != needle.charAt(j)) {
+          continue outer;
+        }
+      }
+      return i;
+    }
+    return -1;
   }
 
   private MultipartContentDecoder() {}
