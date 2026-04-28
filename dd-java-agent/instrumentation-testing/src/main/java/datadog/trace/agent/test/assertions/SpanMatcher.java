@@ -12,6 +12,7 @@ import static datadog.trace.core.DDSpanAccessor.spanLinks;
 import static java.time.Duration.ofNanos;
 import static org.junit.jupiter.api.AssertionFailureBuilder.assertionFailure;
 
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.core.DDSpan;
@@ -49,6 +50,7 @@ import org.opentest4j.AssertionFailedError;
  * </ul>
  */
 public final class SpanMatcher {
+  private Matcher<DDTraceId> traceIdMatcher;
   private Matcher<Long> idMatcher;
   private Matcher<Long> parentIdMatcher;
   private Matcher<String> serviceNameMatcher;
@@ -75,6 +77,18 @@ public final class SpanMatcher {
    */
   public static SpanMatcher span() {
     return new SpanMatcher();
+  }
+
+  /**
+   * Checks the trace identifier matches the given value.
+   *
+   * @param traceId The trace identifier to match against.
+   * @return The current {@link SpanMatcher} instance with the specified trace identifier constraint
+   *     applied.
+   */
+  public SpanMatcher traceId(DDTraceId traceId) {
+    this.traceIdMatcher = Matchers.is(traceId);
+    return this;
   }
 
   /**
@@ -293,6 +307,7 @@ public final class SpanMatcher {
       this.parentIdMatcher = is(previousSpan.getSpanId());
     }
     // Assert span values
+    assertValue(this.traceIdMatcher, span.getTraceId(), "Expected trace identifier");
     assertValue(this.idMatcher, span.getSpanId(), "Expected identifier");
     assertValue(this.parentIdMatcher, span.getParentId(), "Expected parent identifier");
     assertValue(this.serviceNameMatcher, span.getServiceName(), "Expected service name");
