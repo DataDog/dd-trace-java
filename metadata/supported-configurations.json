@@ -2452,7 +2452,7 @@
     "DD_PROCESS_TAGS_MAPPING": [
       {
         "version": "A",
-        "type": "string",
+        "type": "map",
         "default": null,
         "aliases": []
       }
