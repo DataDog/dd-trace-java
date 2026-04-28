@@ -24,10 +24,20 @@ muzzle {
 
 apply from: "$rootDir/gradle/java.gradle"
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_11
+}
+
+configurations.configureEach {
+  resolutionStrategy.deactivateDependencyLocking()
+}
+
 dependencies {
   compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-common', version: '3.0.0'
   compileOnly group: 'org.glassfish.jersey.core', name: 'jersey-server', version: '3.0.0'
   compileOnly group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '3.0.0'
+
+  testImplementation group: 'org.glassfish.jersey.media', name: 'jersey-media-multipart', version: '3.1.2'
 }
 
 // tested in GrizzlyTest/GrizzlyAsyncTest
