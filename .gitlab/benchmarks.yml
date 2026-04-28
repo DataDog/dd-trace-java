@@ -13,7 +13,14 @@
     - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
       interruptible: false
-    - when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+      interruptible: false
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+      when: on_success
+      interruptible: false
+    - when: manual
+      allow_failure: true
       interruptible: true
   script:
     - export ARTIFACTS_DIR="$(pwd)/reports" && mkdir -p "${ARTIFACTS_DIR}"
@@ -83,9 +90,14 @@ check-big-regressions:
       when: never
     - if: '$CI_COMMIT_BRANCH =~ /backport-pr-/'
       when: never
-    - if: '$CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+    - if: '$CI_COMMIT_BRANCH =~ /^(master|release\\/)/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
-    - when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+      when: on_success
+    - when: manual
+      allow_failure: true
   # ARTIFACTS_DIR /go/src/github.com/DataDog/apm-reliability/dd-trace-java/reports/
   # need to convert them
   script:
