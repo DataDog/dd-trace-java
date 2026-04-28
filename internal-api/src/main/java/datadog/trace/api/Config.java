@@ -158,7 +158,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TELEMETRY_METRICS_INTERVA
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_GENERATION_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_V05_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_BYTES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_BAGGAGE_MAX_ITEMS;
@@ -292,6 +292,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_MANIFEST_FILE;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_PAYLOADS_IN_FILES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -635,6 +637,7 @@ import static datadog.trace.api.config.TracerConfig.TRACE_128_BIT_TRACEID_GENERA
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_ARGS;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PATH;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PORT;
+import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_PROTOCOL_VERSION;
 import static datadog.trace.api.config.TracerConfig.TRACE_AGENT_URL;
 import static datadog.trace.api.config.TracerConfig.TRACE_ANALYTICS_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_BAGGAGE_MAX_BYTES;
@@ -1129,6 +1132,8 @@ public class Config {
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
   private final boolean ciVisibilityFailedTestReplayEnabled;
+  private final String testOptimizationManifestFile;
+  private final boolean testOptimizationPayloadsInFiles;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -1227,7 +1232,7 @@ public class Config {
 
   private final int xDatadogTagsMaxLength;
 
-  private final boolean traceAgentV05Enabled;
+  private final ProtocolVersion protocolVersion;
 
   private final String logLevel;
   private final boolean debugEnabled;
@@ -2067,8 +2072,18 @@ public class Config {
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
 
-    traceAgentV05Enabled =
-        configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, DEFAULT_TRACE_AGENT_V05_ENABLED);
+    ProtocolVersion protocol =
+        ProtocolVersion.fromConfigValue(
+            configProvider.getString(
+                TRACE_AGENT_PROTOCOL_VERSION, DEFAULT_TRACE_AGENT_PROTOCOL_VERSION));
+
+    // Check if we need to fall back to legacy flag of `0.5` protocol.
+    if (protocol != ProtocolVersion.V1_0
+        && configProvider.getBoolean(ENABLE_TRACE_AGENT_V05, false)) {
+      protocol = ProtocolVersion.V0_5;
+    }
+
+    protocolVersion = protocol;
 
     traceAnalyticsEnabled =
         configProvider.getBoolean(TRACE_ANALYTICS_ENABLED, DEFAULT_TRACE_ANALYTICS_ENABLED);
@@ -2582,6 +2597,10 @@ public class Config {
     ciVisibilityFailedTestReplayEnabled =
         configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
+    testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
+    testOptimizationPayloadsInFiles =
+        configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
+
     remoteConfigEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
@@ -2950,8 +2969,11 @@ public class Config {
 
     // if API key is not provided, check if any products are using agentless mode and require it
     if (apiKey == null || apiKey.isEmpty()) {
-      // CI Visibility
-      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+      // CI Visibility (skip validation in manifest/payloads-in-files mode - no network needed)
+      if (isCiVisibilityEnabled()
+          && ciVisibilityAgentlessEnabled
+          && testOptimizationManifestFile == null
+          && !testOptimizationPayloadsInFiles) {
         throw new FatalAgentMisconfigurationError(
             "Attempt to start in CI Visibility in Agentless mode without API key. "
                 + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
@@ -4347,6 +4369,14 @@ public class Config {
     return ciVisibilityFailedTestReplayEnabled;
   }
 
+  public String getTestOptimizationManifestFile() {
+    return testOptimizationManifestFile;
+  }
+
+  public boolean isTestOptimizationPayloadsInFiles() {
+    return testOptimizationPayloadsInFiles;
+  }
+
   public String getGitPullRequestBaseBranch() {
     return gitPullRequestBaseBranch;
   }
@@ -4666,8 +4696,8 @@ public class Config {
     return servletAsyncTimeoutError;
   }
 
-  public boolean isTraceAgentV05Enabled() {
-    return traceAgentV05Enabled;
+  public ProtocolVersion getProtocolVersion() {
+    return protocolVersion;
   }
 
   public String getLogLevel() {
@@ -6239,8 +6269,8 @@ public class Config {
         + servletAsyncTimeoutError
         + ", datadogTagsLimit="
         + xDatadogTagsMaxLength
-        + ", traceAgentV05Enabled="
-        + traceAgentV05Enabled
+        + ", traceAgentProtocolVersion="
+        + protocolVersion.asConfigValue()
         + ", logLevel="
         + logLevel
         + ", debugEnabled="
