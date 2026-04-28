@@ -17,6 +17,8 @@ public final class HostNameResolver {
     try {
       final ClassLoader cl = HostNameResolver.class.getClassLoader();
       final MethodHandles methodHandles = new MethodHandles(cl);
+      // forces the JPMS opener for this class to get executed. More efficient than getLocalHost
+      InetAddress.getLoopbackAddress();
 
       final Class<?> holderClass =
           Class.forName("java.net.InetAddress$InetAddressHolder", false, cl);
@@ -59,6 +61,9 @@ public final class HostNameResolver {
   }
 
   public static String hostName(InetAddress address, String ip) {
+    if (address == null) {
+      return null;
+    }
     final String alreadyResolved = getAlreadyResolvedHostName(address);
     if (alreadyResolved != null) {
       return alreadyResolved;

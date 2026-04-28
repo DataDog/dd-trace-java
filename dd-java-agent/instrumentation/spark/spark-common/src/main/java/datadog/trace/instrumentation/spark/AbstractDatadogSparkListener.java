@@ -426,7 +426,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (properties != null) {
       String databricksJobId = getDatabricksJobId(properties);
       String databricksJobRunId = getDatabricksJobRunId(properties, databricksClusterName);
-      String databricksTaskRunId = getDatabricksTaskRunId(properties);
+      String databricksTaskRunId = getDatabricksTaskRunId(properties, databricksJobRunId);
 
       // ids to link those spans to databricks job/task traces
       builder.withTag("databricks_job_id", databricksJobId);
@@ -1177,10 +1177,14 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   }
 
   @SuppressForbidden // split with one-char String use a fast-path without regex usage
-  private static String getDatabricksTaskRunId(Properties properties) {
-    // spark.databricks.job.runId is the runId of the task, not of the Job
+  private static String getDatabricksTaskRunId(Properties properties, String jobRunId) {
+    // spark.databricks.job.runId is the runId of the task, not of the Job, until Databricks 18.2
     String taskRunId = properties.getProperty("spark.databricks.job.runId");
-    if (taskRunId != null) {
+    // On Databricks 18.2+, spark.databricks.job.runId now returns the job run ID
+    // There is no easy config key to extract the task run ID, so we use the fallback extraction
+    // methods
+    // Task run ID is crucial for the spans parent-child relationship inside the trace
+    if (taskRunId != null && !taskRunId.equals(jobRunId)) {
       return taskRunId;
     }
 
