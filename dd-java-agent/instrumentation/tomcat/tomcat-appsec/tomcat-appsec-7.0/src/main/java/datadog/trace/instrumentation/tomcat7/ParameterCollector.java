@@ -144,43 +144,29 @@ public interface ParameterCollector {
       return contents != null ? contents : Collections.<String>emptyList();
     }
 
-    // Entry caches (class → method) stored as a single volatile write for safe publication.
+    // Entry caches (class → method[]) stored as a single volatile write for safe publication.
+    // methods[0]=getInputStream, methods[1]=getContentType
     // Keyed by Part concrete class; re-resolved when the class changes (different Tomcat version).
-    private static volatile Map.Entry<Class<?>, Method> cachedInputStreamEntry;
+    private static volatile Map.Entry<Class<?>, Method[]> cachedContentMethodsEntry;
     private static volatile Map.Entry<Class<?>, Method> cachedFilenameEntry;
-    private static volatile Map.Entry<Class<?>, Method> cachedContentTypeEntry;
 
     private static String readContent(Object part) {
       try {
         Class<?> partClass = part.getClass();
-        Map.Entry<Class<?>, Method> inputStreamEntry = cachedInputStreamEntry;
-        Method getInputStream;
-        if (inputStreamEntry == null || inputStreamEntry.getKey() != partClass) {
-          getInputStream = partClass.getMethod("getInputStream");
-          cachedInputStreamEntry =
-              new AbstractMap.SimpleImmutableEntry<>(partClass, getInputStream);
+        Map.Entry<Class<?>, Method[]> entry = cachedContentMethodsEntry;
+        Method[] methods;
+        if (entry == null || entry.getKey() != partClass) {
+          methods =
+              new Method[] {
+                partClass.getMethod("getInputStream"), partClass.getMethod("getContentType")
+              };
+          cachedContentMethodsEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, methods);
         } else {
-          getInputStream = inputStreamEntry.getValue();
+          methods = entry.getValue();
         }
-        Map.Entry<Class<?>, Method> contentTypeEntry = cachedContentTypeEntry;
-        Method getContentType;
-        if (contentTypeEntry == null || contentTypeEntry.getKey() != partClass) {
-          getContentType = partClass.getMethod("getContentType");
-          cachedContentTypeEntry =
-              new AbstractMap.SimpleImmutableEntry<>(partClass, getContentType);
-        } else {
-          getContentType = contentTypeEntry.getValue();
-        }
-        String contentType = (String) getContentType.invoke(part);
-        try (InputStream is = (InputStream) getInputStream.invoke(part)) {
-          byte[] buf = new byte[MAX_CONTENT_BYTES];
-          int total = 0;
-          int n;
-          while (total < MAX_CONTENT_BYTES
-              && (n = is.read(buf, total, MAX_CONTENT_BYTES - total)) != -1) {
-            total += n;
-          }
-          return MultipartContentDecoder.decodeBytes(buf, total, contentType);
+        String contentType = (String) methods[1].invoke(part);
+        try (InputStream is = (InputStream) methods[0].invoke(part)) {
+          return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
         }
       } catch (Exception ignored) {
         return "";

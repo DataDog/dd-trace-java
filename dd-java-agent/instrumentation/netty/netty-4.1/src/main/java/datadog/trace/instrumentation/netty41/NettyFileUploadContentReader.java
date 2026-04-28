@@ -20,16 +20,10 @@ public final class NettyFileUploadContentReader {
         buf.getBytes(buf.readerIndex(), bytes);
         return MultipartContentDecoder.decodeBytes(bytes, length, fileUpload.getContentType());
       } else {
-        byte[] bytes = new byte[MAX_CONTENT_BYTES];
-        int total = 0;
-        int n;
         try (FileInputStream fis = new FileInputStream(fileUpload.getFile())) {
-          while (total < MAX_CONTENT_BYTES
-              && (n = fis.read(bytes, total, MAX_CONTENT_BYTES - total)) != -1) {
-            total += n;
-          }
+          return MultipartContentDecoder.readInputStream(
+              fis, MAX_CONTENT_BYTES, fileUpload.getContentType());
         }
-        return MultipartContentDecoder.decodeBytes(bytes, total, fileUpload.getContentType());
       }
     } catch (Exception ignored) {
       return "";

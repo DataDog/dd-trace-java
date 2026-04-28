@@ -13,14 +13,8 @@ public final class FileItemContentReader {
 
   public static String readContent(FileItem fileItem) {
     try (InputStream is = fileItem.getInputStream()) {
-      byte[] buf = new byte[MAX_CONTENT_BYTES];
-      int total = 0;
-      int n;
-      while (total < MAX_CONTENT_BYTES
-          && (n = is.read(buf, total, MAX_CONTENT_BYTES - total)) != -1) {
-        total += n;
-      }
-      return MultipartContentDecoder.decodeBytes(buf, total, fileItem.getContentType());
+      return MultipartContentDecoder.readInputStream(
+          is, MAX_CONTENT_BYTES, fileItem.getContentType());
     } catch (IOException ignored) {
       return "";
     }
