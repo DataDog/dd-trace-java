@@ -60,7 +60,7 @@ class DDEvaluator
     this(configCallback, () -> {});
   }
 
-  DDEvaluator(final Runnable configCallback, final Runnable fatalCallback) {
+  public DDEvaluator(final Runnable configCallback, final Runnable fatalCallback) {
     this.configCallback = configCallback;
     this.fatalCallback = fatalCallback;
   }
@@ -105,6 +105,10 @@ class DDEvaluator
       final T defaultValue,
       final EvaluationContext context) {
     try {
+      final String fatal = fatalErrorMessage;
+      if (fatal != null) {
+        return error(defaultValue, ErrorCode.PROVIDER_FATAL, fatal);
+      }
       final ServerConfiguration config = configuration.get();
       if (config == null) {
         return error(defaultValue, ErrorCode.PROVIDER_NOT_READY);

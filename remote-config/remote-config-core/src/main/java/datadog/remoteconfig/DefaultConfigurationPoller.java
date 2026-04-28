@@ -337,10 +337,6 @@ public class DefaultConfigurationPoller
 
   void sendRequest(Consumer<ResponseBody> responseBodyConsumer) throws IOException {
     try (Response response = fetchConfiguration()) {
-      if (response.code() == 404) {
-        log.debug("Remote configuration endpoint is disabled");
-        return;
-      }
       if (response.code() == 204) {
         log.debug("No configuration changes (HTTP 204 No Content)");
         return;
@@ -389,7 +385,7 @@ public class DefaultConfigurationPoller
   }
 
   private static boolean isNonRetryableError(int code) {
-    return code == 401 || code == 403;
+    return code == 400 || code == 401 || code == 403 || code == 404;
   }
 
   private synchronized void notifyNonRetryableErrorListeners(int code, String message) {

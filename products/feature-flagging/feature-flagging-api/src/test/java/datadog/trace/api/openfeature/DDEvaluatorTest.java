@@ -1,6 +1,7 @@
 package datadog.trace.api.openfeature;
 
 import static dev.openfeature.sdk.ErrorCode.FLAG_NOT_FOUND;
+import static dev.openfeature.sdk.ErrorCode.PROVIDER_FATAL;
 import static dev.openfeature.sdk.ErrorCode.TARGETING_KEY_MISSING;
 import static dev.openfeature.sdk.Reason.DEFAULT;
 import static dev.openfeature.sdk.Reason.DISABLED;
@@ -145,6 +146,38 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo(ERROR.name()));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+  }
+
+  @Test
+  public void testEvaluateAfterFatalError() {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), mock(Runnable.class));
+    evaluator.onFatalError(403, "Unauthorized API key");
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
+    assertThat(details.getValue(), equalTo(23));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(PROVIDER_FATAL));
+  }
+
+  @Test
+  public void testFatalErrorTakesPrecedenceOverConfig() {
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), mock(Runnable.class));
+    // Config received, then a fatal error arrives post-init
+    evaluator.accept(mock(ServerConfiguration.class));
+    evaluator.onFatalError(401, "RC permanently rejected");
+    final ProviderEvaluation<?> details =
+        evaluator.evaluate(Integer.class, "test", 23, mock(EvaluationContext.class));
+    assertThat(details.getValue(), equalTo(23));
+    assertThat(details.getReason(), equalTo(ERROR.name()));
+    assertThat(details.getErrorCode(), equalTo(PROVIDER_FATAL));
+  }
+
+  @Test
+  public void testFatalCallbackInvoked() {
+    final Runnable fatalCallback = mock(Runnable.class);
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class), fatalCallback);
+    evaluator.onFatalError(403, "Bad credentials");
+    verify(fatalCallback, times(1)).run();
   }
 
   @Test
