@@ -4,11 +4,15 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.lang.reflect.Method;
 import java.math.BigDecimal;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 import play.api.libs.json.JsValue;
+import play.api.mvc.MultipartFormData;
 
 class BodyParserHelpersTest {
 
@@ -99,5 +103,65 @@ class BodyParserHelpersTest {
     assertTrue(result instanceof Map);
     Map<String, Object> map = (Map<String, Object>) result;
     assertNull(map.get("a"));
+  }
+
+  // --- collectFilenames tests ---
+
+  @Test
+  void collectFilenames_emptyIterator() {
+    List<String> result = BodyParserHelpers.collectFilenames(Collections.emptyIterator());
+    assertTrue(result.isEmpty());
+  }
+
+  @Test
+  void collectFilenames_nullFilenameExcluded() throws Exception {
+    List<String> result =
+        BodyParserHelpers.collectFilenames(
+            Collections.<Object>singletonList(filePart("f", null)).iterator());
+    assertTrue(result.isEmpty());
+  }
+
+  @Test
+  void collectFilenames_emptyFilenameExcluded() throws Exception {
+    List<String> result =
+        BodyParserHelpers.collectFilenames(
+            Collections.<Object>singletonList(filePart("f", "")).iterator());
+    assertTrue(result.isEmpty());
+  }
+
+  @Test
+  void collectFilenames_validFilenameIncluded() throws Exception {
+    List<String> result =
+        BodyParserHelpers.collectFilenames(
+            Collections.<Object>singletonList(filePart("f", "evil.php")).iterator());
+    assertEquals(Collections.singletonList("evil.php"), result);
+  }
+
+  @Test
+  void collectFilenames_mixedPartsFiltered() throws Exception {
+    List<Object> parts =
+        Arrays.<Object>asList(
+            filePart("f1", "a.pdf"),
+            filePart("f2", null),
+            filePart("f3", ""),
+            filePart("f4", "b.jpg"));
+    List<String> result = BodyParserHelpers.collectFilenames(parts.iterator());
+    assertEquals(Arrays.asList("a.pdf", "b.jpg"), result);
+  }
+
+  @SuppressWarnings("unchecked")
+  private static MultipartFormData.FilePart<Object> filePart(String key, String filename)
+      throws Exception {
+    // FilePart is a Scala case class nested in object MultipartFormData.
+    // Use the companion object's apply() to avoid JVM inner-class constructor complexity.
+    Class<?> companionClass = Class.forName("play.api.mvc.MultipartFormData$FilePart$");
+    Object companion = companionClass.getField("MODULE$").get(null);
+    for (Method m : companionClass.getMethods()) {
+      if ("apply".equals(m.getName()) && m.getParameterCount() == 4) {
+        return (MultipartFormData.FilePart<Object>)
+            m.invoke(companion, key, filename, scala.None$.MODULE$, new Object());
+      }
+    }
+    throw new IllegalStateException("FilePart.apply(4 params) not found");
   }
 }
