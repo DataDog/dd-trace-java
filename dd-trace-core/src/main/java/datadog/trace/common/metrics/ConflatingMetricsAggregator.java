@@ -41,6 +41,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -80,6 +81,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
               Pair.of(
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
+  private static final DDCache<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      SPAN_DERIVED_PRIMARY_TAGS_CACHE = DDCaches.newFixedSizeCache(64);
+  private static final Function<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      SPAN_DERIVED_PRIMARY_TAGS_CACHE_ADDER =
+          key ->
+              Pair.of(
+                  DDCaches.newFixedSizeCache(512),
+                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
@@ -103,11 +114,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final long reportingInterval;
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
+  private final Set<String> additionalMetricTags;
   private final HealthMetrics healthMetrics;
   private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
+  // TODO: Refactor to one / fewer constructors?
   public ConflatingMetricsAggregator(
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
@@ -115,6 +128,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        config.getAdditionalMetricTags(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -141,6 +155,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         wellKnownTags,
         ignoredResources,
+        Collections.emptySet(),
         features,
         healthMetric,
         sink,
@@ -163,7 +178,58 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
     this(
+        wellKnownTags,
         ignoredResources,
+        Collections.emptySet(),
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ConflatingMetricsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      Set<String> additionalMetricTags,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      boolean includeEndpointInMetrics) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        additionalMetricTags,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS,
+        includeEndpointInMetrics);
+  }
+
+  ConflatingMetricsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      Set<String> additionalMetricTags,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
+    this(
+        ignoredResources,
+        additionalMetricTags,
         features,
         healthMetric,
         sink,
@@ -186,7 +252,35 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       long reportingInterval,
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
+    this(
+        ignoredResources,
+        Collections.emptySet(),
+        features,
+        healthMetric,
+        sink,
+        metricWriter,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ConflatingMetricsAggregator(
+      Set<String> ignoredResources,
+      Set<String> additionalMetricTags,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      MetricWriter metricWriter,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalMetricTags =
+        additionalMetricTags == null ? Collections.<String>emptySet() : additionalMetricTags;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
@@ -347,6 +441,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
             getPeerTags(span, spanKind.toString()),
+            getAdditionalMetricTags(span),
             httpMethod,
             httpEndpoint,
             grpcStatusCode);
@@ -410,6 +505,34 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return Collections.emptyList();
+  }
+
+  // TODO: This method is very similar to getPeerTags. We can probably consolidate to a helper.
+  private List<UTF8BytesString> getAdditionalMetricTags(CoreSpan<?> span) {
+    if (additionalMetricTags == null || additionalMetricTags.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<UTF8BytesString> tagValues = new ArrayList<>(additionalMetricTags.size());
+    for (String tagKey : additionalMetricTags) {
+      Object value = span.unsafeGetTag(tagKey);
+      if (value != null) {
+        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+            cacheAndCreator =
+                SPAN_DERIVED_PRIMARY_TAGS_CACHE.computeIfAbsent(
+                    tagKey, SPAN_DERIVED_PRIMARY_TAGS_CACHE_ADDER);
+        tagValues.add(
+            cacheAndCreator
+                .getLeft()
+                .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+      }
+    }
+    if (tagValues.isEmpty()) {
+      return Collections.emptyList();
+    }
+    if (tagValues.size() > 1) {
+      tagValues.sort(Comparator.comparing(UTF8BytesString::toString));
+    }
+    return tagValues;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

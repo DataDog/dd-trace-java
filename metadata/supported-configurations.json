@@ -185,6 +185,14 @@
         "aliases": []
       }
     ],
+    "DD_APM_ADDITIONAL_METRIC_TAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_APM_TRACING_ENABLED": [
       {
         "version": "A",

@@ -111,6 +111,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         true,
         "server",
         [],
+        [UTF8BytesString.create("priority:high"), UTF8BytesString.create("region:eu-west-1")],
         "GET",
         "/api/users/:id",
         null
@@ -307,7 +308,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         boolean hasHttpEndpoint = key.getHttpEndpoint() != null
         boolean hasServiceSource = key.getServiceSource() != null
         boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null
-        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
+        int expectedMapSize = 16 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
@@ -340,6 +341,14 @@ class SerializingMetricWriterTest extends DDSpecification {
         for (int i = 0; i < peerTagsLength; i++) {
           def unpackedPeerTag = unpacker.unpackString()
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
+        }
+        ++elementCount
+        assert unpacker.unpackString() == "SpanDerivedPrimaryTags"
+        int additionalMetricTagsLength = unpacker.unpackArrayHeader()
+        assert additionalMetricTagsLength == key.getAdditionalMetricTags().size()
+        for (int i = 0; i < additionalMetricTagsLength; i++) {
+          def unpackedAdditionalMetricTag = unpacker.unpackString()
+          assert unpackedAdditionalMetricTag == key.getAdditionalMetricTags()[i].toString()
         }
         ++elementCount
         // Service source is only present when the service name has been overridden by the tracer
@@ -441,6 +450,62 @@ class SerializingMetricWriterTest extends DDSpecification {
       Pair.of(keyWithGrpc, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
       Pair.of(keyWithGrpcError, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
       Pair.of(keyWithoutGrpc, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L)))
+    ]
+
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128)
+
+    when:
+    writer.startBucket(content.size(), startTime, duration)
+    for (Pair<MetricKey, AggregateMetric> pair : content) {
+      writer.add(pair.getLeft(), pair.getRight())
+    }
+    writer.finishBucket()
+
+    then:
+    sink.validatedInput()
+  }
+
+  def "SpanDerivedPrimaryTags field is present in payload even when empty"() {
+    setup:
+    long startTime = MILLISECONDS.toNanos(System.currentTimeMillis())
+    long duration = SECONDS.toNanos(10)
+    WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
+
+    def keyWithTags = new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      200,
+      false,
+      false,
+      "server",
+      [],
+      [UTF8BytesString.create("priority:high"), UTF8BytesString.create("region:eu-west-1")],
+      null,
+      null,
+      null)
+    def keyWithoutTags = new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      200,
+      false,
+      false,
+      "server",
+      [],
+      [],
+      null,
+      null,
+      null)
+
+    def content = [
+      Pair.of(keyWithTags, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
+      Pair.of(keyWithoutTags, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L)))
     ]
 
     ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)

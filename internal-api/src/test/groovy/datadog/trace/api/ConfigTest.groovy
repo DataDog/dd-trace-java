@@ -38,6 +38,7 @@ import static datadog.trace.api.config.DebuggerConfig.DYNAMIC_INSTRUMENTATION_VE
 import static datadog.trace.api.config.DebuggerConfig.EXCEPTION_REPLAY_ENABLED
 import static datadog.trace.api.config.GeneralConfig.API_KEY
 import static datadog.trace.api.config.GeneralConfig.API_KEY_FILE
+import static datadog.trace.api.config.GeneralConfig.APM_ADDITIONAL_METRIC_TAGS
 import static datadog.trace.api.config.GeneralConfig.CONFIGURATION_FILE
 import static datadog.trace.api.config.GeneralConfig.ENV
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS
@@ -161,6 +162,7 @@ import datadog.trace.util.throwable.FatalAgentMisconfigurationError
 class ConfigTest extends DDSpecification {
   private static final String PREFIX = "dd."
   private static final DD_API_KEY_ENV = "DD_API_KEY"
+  private static final DD_APM_ADDITIONAL_METRIC_TAGS_ENV = "DD_APM_ADDITIONAL_METRIC_TAGS"
   private static final DD_SERVICE_NAME_ENV = "DD_SERVICE_NAME"
   private static final DD_TRACE_ENABLED_ENV = "DD_TRACE_ENABLED"
   private static final DD_WRITER_TYPE_ENV = "DD_WRITER_TYPE"
@@ -2464,6 +2466,28 @@ class ConfigTest extends DDSpecification {
     def config = new Config()
     then:
     config.getMetricsIgnoredResources() == ["GET /healthcheck", "SELECT foo from bar"].toSet()
+  }
+
+  def "test get additional metric tags from system property"() {
+    setup:
+    System.setProperty(PREFIX + APM_ADDITIONAL_METRIC_TAGS, "region, priority, region")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.getAdditionalMetricTags() == ["region", "priority"] as Set
+  }
+
+  def "test get additional metric tags from env var"() {
+    setup:
+    environmentVariables.set(DD_APM_ADDITIONAL_METRIC_TAGS_ENV, "region, priority, region")
+
+    when:
+    def config = new Config()
+
+    then:
+    config.getAdditionalMetricTags() == ["region", "priority"] as Set
   }
 
   def "appsec state with sys = #sys env = #env"() {

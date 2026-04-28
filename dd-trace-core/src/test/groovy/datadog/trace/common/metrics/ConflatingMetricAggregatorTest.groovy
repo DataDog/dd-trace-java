@@ -373,6 +373,148 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     "server"   | []
   }
 
+  def "should create bucket for each set of additional-metric-tags"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      ["region", "priority"] as Set,
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "server").setTag("region", "eu-west-1").setTag("priority", "high"),
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "server").setTag("region", "us-east-1").setTag("priority", "high")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(2, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "server",
+      [],
+      [UTF8BytesString.create("priority:high"), UTF8BytesString.create("region:eu-west-1")],
+      null,
+      null,
+      null
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "server",
+      [],
+      [UTF8BytesString.create("priority:high"), UTF8BytesString.create("region:us-east-1")],
+      null,
+      null,
+      null
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should sort additional-metric-tags and keep empty buckets stable"() {
+    setup:
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      new LinkedHashSet(["priority", "region"]),
+      features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "server").setTag("region", "eu-west-1").setTag("priority", "high"),
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "server"),
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "server")
+    ])
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.startBucket(2, _, _)
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "server",
+      [],
+      [UTF8BytesString.create("priority:high"), UTF8BytesString.create("region:eu-west-1")],
+      null,
+      null,
+      null
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
+      })
+    1 * writer.add(
+      new MetricKey(
+      "resource",
+      "service",
+      "operation",
+      null,
+      "type",
+      HTTP_OK,
+      false,
+      false,
+      "server",
+      [],
+      [],
+      null,
+      null,
+      null
+      ), { AggregateMetric aggregateMetric ->
+        aggregateMetric.getHitCount() == 2 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 200
+      })
+    1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
   def "measured spans do not contribute to top level count"() {
     setup:
     MetricWriter writer = Mock(MetricWriter)

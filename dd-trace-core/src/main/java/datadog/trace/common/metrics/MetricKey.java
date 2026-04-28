@@ -36,6 +36,7 @@ public final class MetricKey {
   private final boolean isTraceRoot;
   private final UTF8BytesString spanKind;
   private final List<UTF8BytesString> peerTags;
+  private final List<UTF8BytesString> additionalMetricTags;
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
   private final UTF8BytesString grpcStatusCode;
@@ -54,6 +55,39 @@ public final class MetricKey {
       CharSequence httpMethod,
       CharSequence httpEndpoint,
       CharSequence grpcStatusCode) {
+    this(
+        resource,
+        service,
+        operationName,
+        serviceSource,
+        type,
+        httpStatusCode,
+        synthetics,
+        isTraceRoot,
+        spanKind,
+        peerTags,
+        Collections.emptyList(),
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode);
+  }
+
+  // TODO: Should we keep one constructor? We'd need to refactor all of the old calls.
+  public MetricKey(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      CharSequence serviceSource,
+      CharSequence type,
+      int httpStatusCode,
+      boolean synthetics,
+      boolean isTraceRoot,
+      CharSequence spanKind,
+      List<UTF8BytesString> peerTags,
+      List<UTF8BytesString> additionalMetricTags,
+      CharSequence httpMethod,
+      CharSequence httpEndpoint,
+      CharSequence grpcStatusCode) {
     this.resource = null == resource ? EMPTY : utf8(RESOURCE_CACHE, resource);
     this.service = null == service ? EMPTY : utf8(SERVICE_CACHE, service);
     this.serviceSource = null == serviceSource ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
@@ -64,6 +98,8 @@ public final class MetricKey {
     this.isTraceRoot = isTraceRoot;
     this.spanKind = null == spanKind ? EMPTY : utf8(KIND_CACHE, spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
+    this.additionalMetricTags =
+        additionalMetricTags == null ? Collections.emptyList() : additionalMetricTags;
     this.httpMethod = httpMethod == null ? null : utf8(HTTP_METHOD_CACHE, httpMethod);
     this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
     this.grpcStatusCode =
@@ -73,6 +109,7 @@ public final class MetricKey {
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
     tmpHash = HashingUtils.addToHash(tmpHash, this.spanKind);
     tmpHash = HashingUtils.addToHash(tmpHash, this.peerTags);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.additionalMetricTags);
     tmpHash = HashingUtils.addToHash(tmpHash, this.resource);
     tmpHash = HashingUtils.addToHash(tmpHash, this.service);
     tmpHash = HashingUtils.addToHash(tmpHash, this.operationName);
@@ -134,6 +171,10 @@ public final class MetricKey {
     return peerTags;
   }
 
+  public List<UTF8BytesString> getAdditionalMetricTags() {
+    return additionalMetricTags;
+  }
+
   public UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
@@ -163,6 +204,7 @@ public final class MetricKey {
           && isTraceRoot == metricKey.isTraceRoot
           && spanKind.equals(metricKey.spanKind)
           && peerTags.equals(metricKey.peerTags)
+          && additionalMetricTags.equals(metricKey.additionalMetricTags)
           && Objects.equals(serviceSource, metricKey.serviceSource)
           && Objects.equals(httpMethod, metricKey.httpMethod)
           && Objects.equals(httpEndpoint, metricKey.httpEndpoint)
