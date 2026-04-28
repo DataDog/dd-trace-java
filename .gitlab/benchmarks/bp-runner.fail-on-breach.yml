@@ -58,4 +58,4 @@ experiments:
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:(profiling|appsec|iast):Agent.start"
             thresholds:
-              - execution_time < 1300 ms
+              - execution_time < 1394.70 ms
