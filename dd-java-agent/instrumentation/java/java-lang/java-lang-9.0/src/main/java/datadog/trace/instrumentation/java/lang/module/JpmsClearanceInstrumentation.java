@@ -61,6 +61,10 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
             // belonging
             // to that package so it will work. Moving the same to a helper won't.
             module.addOpens(cls.getPackageName(), JpmsHelper.class.getModule());
+            final ClassLoader loader = cls.getClassLoader();
+            if (loader != null) {
+              module.addOpens(cls.getPackageName(), loader.getUnnamedModule());
+            }
           } catch (Throwable t) {
             JpmsHelper.LOGGER.debug(
                 "Unable to open package {} to the unnamed module", cls.getPackageName(), t);
