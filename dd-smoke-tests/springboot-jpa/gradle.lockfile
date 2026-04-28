@@ -169,4 +169,4 @@ org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:1.29=compileClasspath,productionRuntimeClasspath,runtimeClasspath,testCompileClasspath,testRuntimeClasspath
-empty=developmentOnly,providedCompile,providedRuntime,spotbugsPlugins,testAndDevelopmentOnly
+empty=developmentOnly,providedCompile,providedRuntime,shadow,spotbugsPlugins,testAndDevelopmentOnly

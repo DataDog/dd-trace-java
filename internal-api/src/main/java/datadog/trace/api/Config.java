@@ -292,6 +292,8 @@ import static datadog.trace.api.config.CiVisibilityConfig.GIT_PULL_REQUEST_BASE_
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_FAILED_TEST_REPLAY_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ATTEMPT_TO_FIX_RETRIES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_MANAGEMENT_ENABLED;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_MANIFEST_FILE;
+import static datadog.trace.api.config.CiVisibilityConfig.TEST_OPTIMIZATION_PAYLOADS_IN_FILES;
 import static datadog.trace.api.config.CiVisibilityConfig.TEST_SESSION_NAME;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS;
 import static datadog.trace.api.config.CrashTrackingConfig.CRASH_TRACKING_AGENTLESS_DEFAULT;
@@ -1130,6 +1132,8 @@ public class Config {
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
   private final boolean ciVisibilityFailedTestReplayEnabled;
+  private final String testOptimizationManifestFile;
+  private final boolean testOptimizationPayloadsInFiles;
 
   private final boolean remoteConfigEnabled;
   private final boolean remoteConfigIntegrityCheckEnabled;
@@ -2593,6 +2597,10 @@ public class Config {
     ciVisibilityFailedTestReplayEnabled =
         configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
 
+    testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
+    testOptimizationPayloadsInFiles =
+        configProvider.getBoolean(TEST_OPTIMIZATION_PAYLOADS_IN_FILES, false);
+
     remoteConfigEnabled =
         configProvider.getBoolean(
             REMOTE_CONFIGURATION_ENABLED, DEFAULT_REMOTE_CONFIG_ENABLED, REMOTE_CONFIG_ENABLED);
@@ -2961,8 +2969,11 @@ public class Config {
 
     // if API key is not provided, check if any products are using agentless mode and require it
     if (apiKey == null || apiKey.isEmpty()) {
-      // CI Visibility
-      if (isCiVisibilityEnabled() && ciVisibilityAgentlessEnabled) {
+      // CI Visibility (skip validation in manifest/payloads-in-files mode - no network needed)
+      if (isCiVisibilityEnabled()
+          && ciVisibilityAgentlessEnabled
+          && testOptimizationManifestFile == null
+          && !testOptimizationPayloadsInFiles) {
         throw new FatalAgentMisconfigurationError(
             "Attempt to start in CI Visibility in Agentless mode without API key. "
                 + "Please ensure that either an API key is configured, or the tracer is set up to work with the Agent");
@@ -4356,6 +4367,14 @@ public class Config {
 
   public boolean isCiVisibilityFailedTestReplayEnabled() {
     return ciVisibilityFailedTestReplayEnabled;
+  }
+
+  public String getTestOptimizationManifestFile() {
+    return testOptimizationManifestFile;
+  }
+
+  public boolean isTestOptimizationPayloadsInFiles() {
+    return testOptimizationPayloadsInFiles;
   }
 
   public String getGitPullRequestBaseBranch() {

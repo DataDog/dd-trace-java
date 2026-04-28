@@ -3913,6 +3913,22 @@
         "aliases": []
       }
     ],
+    "DD_TEST_OPTIMIZATION_MANIFEST_FILE": [
+      {
+        "version": "B",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TEST_OPTIMIZATION_PAYLOADS_IN_FILES": [
+      {
+        "version": "C",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_TEST_SESSION_NAME": [
       {
         "version": "A",
@@ -6743,6 +6759,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED", "DD_INTEGRATION_JAVA_HTTP_CLIENT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_JAVA_NET_ENABLED": [
+      {
+        "version": "B",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_NET_ENABLED", "DD_INTEGRATION_JAVA_NET_ENABLED"]
       }
     ],
     "DD_TRACE_TRACE_FFM_ANALYTICS_ENABLED": [

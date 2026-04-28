@@ -20,10 +20,12 @@ import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
+import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -94,9 +96,29 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
+    boolean debug = config.isTelemetryDebugRequestsEnabled();
+    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
+
+    // CI Visibility bazel support writes telemetry to files instead of the network
+    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+      Path telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
+      if (telemetryDir == null) {
+        log.warn(
+            "[bazel mode] Payload-in-files mode enabled but telemetry directory not resolved, disabling telemetry");
+        return;
+      }
+      log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
+      DependencyService dependencyService = createDependencyService(instrumentation);
+      TelemetryService telemetryService =
+          TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
+      TELEMETRY_THREAD =
+          createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+      TELEMETRY_THREAD.start();
+      return;
+    }
+
     sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
-    boolean debug = config.isTelemetryDebugRequestsEnabled();
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
     HttpRetryPolicy.Factory httpRetryPolicy =
@@ -114,7 +136,6 @@ public class TelemetrySystem {
         TelemetryService.build(
             ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
-    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();

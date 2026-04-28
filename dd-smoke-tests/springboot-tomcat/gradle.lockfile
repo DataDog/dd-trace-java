@@ -140,4 +140,4 @@ org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
 org.yaml:snakeyaml:1.28=compileClasspath,productionRuntimeClasspath,runtimeClasspath,serverFile,testCompileClasspath,testRuntimeClasspath
 tomcat:tomcat-9:9.0.117=serverFile
-empty=annotationProcessor,developmentOnly,providedCompile,spotbugsPlugins,testAndDevelopmentOnly,testAnnotationProcessor
+empty=annotationProcessor,developmentOnly,providedCompile,shadow,spotbugsPlugins,testAndDevelopmentOnly,testAnnotationProcessor
