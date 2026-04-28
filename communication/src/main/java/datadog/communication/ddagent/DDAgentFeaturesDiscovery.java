@@ -22,7 +22,6 @@ import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -311,7 +310,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       try {
         newState.state = Strings.sha256(response);
-      } catch (NoSuchAlgorithmException ex) {
+      } catch (Throwable ex) {
         log.debug(
             "Failed to hash trace agent /info response. Will probe {}", newState.traceEndpoint, ex);
       }

@@ -79,14 +79,13 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       if (mapperDiscovery.getMapper() == null) {
         mapperDiscovery.discover();
       }
-
       mapper = mapperDiscovery.getMapper();
-      if (null != mapper && null == packer) {
-        batchTimer =
-            monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-        packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
-        batchTimer.start();
-      }
+    }
+    if (null == packer && null != mapper) {
+      batchTimer =
+          monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
+      packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
+      batchTimer.start();
     }
   }
 

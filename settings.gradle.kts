@@ -335,6 +335,7 @@ include(
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0",
   ":dd-java-agent:instrumentation:dropwizard:dropwizard-views-0.7",
   ":dd-java-agent:instrumentation:dropwizard:dropwizard-0.8",
+  ":dd-java-agent:instrumentation:drools:drools-6.0",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-6.4",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-7.0",
