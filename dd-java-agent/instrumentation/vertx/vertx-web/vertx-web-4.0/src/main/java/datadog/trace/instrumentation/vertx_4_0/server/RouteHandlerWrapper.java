@@ -51,6 +51,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {
+        if (spanStarter) {
+          setRoute(routingContext);
+        }
         DECORATE.onError(span, t);
         throw t;
       }
