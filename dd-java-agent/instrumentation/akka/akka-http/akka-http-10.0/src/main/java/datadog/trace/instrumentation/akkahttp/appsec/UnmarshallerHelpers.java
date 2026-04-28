@@ -125,18 +125,10 @@ public class UnmarshallerHelpers {
     Flow<Void> flow = callback.apply(reqCtx, conv);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction != null) {
-        boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          if (blockResponseFunction instanceof AkkaBlockResponseFunction) {
-            AkkaBlockResponseFunction abrf = (AkkaBlockResponseFunction) blockResponseFunction;
-            abrf.setUnmarshallBlock(true);
-          }
-          throw new BlockingException("Blocked request (for " + details + ")");
-        }
+      BlockingException e =
+          tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "for " + details);
+      if (e != null) {
+        throw e;
       }
     }
   }
@@ -211,10 +203,10 @@ public class UnmarshallerHelpers {
     java.lang.Iterable<akka.http.javadsl.model.Multipart.FormData.BodyPart.Strict> strictParts =
         st.getStrictParts();
     Map<String, List<String>> conv = new HashMap<>();
-    List<String> filenames = new ArrayList<>();
+    List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
     for (akka.http.javadsl.model.Multipart.FormData.BodyPart.Strict part : strictParts) {
       Optional<String> filenameOpt = part.getFilename();
-      if (filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
+      if (filenames != null && filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
         filenames.add(filenameOpt.get());
       }
 
@@ -244,26 +236,32 @@ public class UnmarshallerHelpers {
       curStrings.add(s);
     }
 
+    BlockingException pendingBlock = null;
     if (bodyCallback != null) {
-      executeCallback(reqCtx, bodyCallback, conv, "multipartFormDataUnmarshaller");
+      Flow<Void> flow = bodyCallback.apply(reqCtx, conv);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        pendingBlock =
+            tryBlock(
+                reqCtx,
+                (Flow.Action.RequestBlockingAction) action,
+                "multipartFormDataUnmarshaller");
+      }
     }
 
-    if (filenamesCallback != null && !filenames.isEmpty()) {
-      Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
-      Flow.Action filenamesAction = filenamesFlow.getAction();
-      if (filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) filenamesAction;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (success) {
-            if (brf instanceof AkkaBlockResponseFunction) {
-              ((AkkaBlockResponseFunction) brf).setUnmarshallBlock(true);
-            }
-            throw new BlockingException("Blocked request (multipart file upload)");
-          }
+    if (filenamesCallback != null && filenames != null && !filenames.isEmpty()) {
+      Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
+      if (pendingBlock == null) {
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          pendingBlock =
+              tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
         }
       }
+    }
+
+    if (pendingBlock != null) {
+      throw pendingBlock;
     }
   }
 
@@ -418,9 +416,13 @@ public class UnmarshallerHelpers {
   }
 
   private static void handleStrictFormData(StrictForm sf) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+
     Iterator<Tuple2<String, StrictForm.Field>> iterator = sf.fields().iterator();
     Map<String, List<String>> conv = new HashMap<>();
-    List<String> filenames = new ArrayList<>();
+    List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
     while (iterator.hasNext()) {
       Tuple2<String, StrictForm.Field> next = iterator.next();
       String fieldName = next._1();
@@ -447,9 +449,11 @@ public class UnmarshallerHelpers {
           instanceof akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) {
         akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict bodyPart =
             (akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) strictFieldValue;
-        Optional<String> filenameOpt = bodyPart.getFilename();
-        if (filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
-          filenames.add(filenameOpt.get());
+        if (filenames != null) {
+          Optional<String> filenameOpt = bodyPart.getFilename();
+          if (filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
+            filenames.add(filenameOpt.get());
+          }
         }
         HttpEntity.Strict sentity = bodyPart.entity();
         String s =
@@ -461,36 +465,33 @@ public class UnmarshallerHelpers {
       }
     }
 
-    handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+    BlockingException pendingBlock = null;
+    try {
+      handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+    } catch (BlockingException e) {
+      pendingBlock = e;
+    }
 
-    if (!filenames.isEmpty()) {
+    if (filenamesCb != null && filenames != null && !filenames.isEmpty()) {
       AgentSpan span = activeSpan();
       RequestContext reqCtx;
       if (span != null
           && (reqCtx = span.getRequestContext()) != null
           && reqCtx.getData(RequestContextSlot.APPSEC) != null) {
-        CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCb != null) {
-          Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
-          Flow.Action filenamesAction = filenamesFlow.getAction();
-          if (filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba =
-                (Flow.Action.RequestBlockingAction) filenamesAction;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (success) {
-                if (brf instanceof AkkaBlockResponseFunction) {
-                  ((AkkaBlockResponseFunction) brf).setUnmarshallBlock(true);
-                }
-                throw new BlockingException("Blocked request (multipart file upload)");
-              }
-            }
+        Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
+        if (pendingBlock == null) {
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            pendingBlock =
+                tryBlock(
+                    reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
           }
         }
       }
+    }
+
+    if (pendingBlock != null) {
+      throw pendingBlock;
     }
   }
 
@@ -537,6 +538,22 @@ public class UnmarshallerHelpers {
 
     // callback execution
     executeCallback(reqCtx, callback, o, source);
+  }
+
+  private static BlockingException tryBlock(
+      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf == null) {
+      return null;
+    }
+    boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+    if (!success) {
+      return null;
+    }
+    if (brf instanceof AkkaBlockResponseFunction) {
+      ((AkkaBlockResponseFunction) brf).setUnmarshallBlock(true);
+    }
+    return new BlockingException("Blocked request (" + details + ")");
   }
 
   private static void handleException(Exception e, String logMessage) {
