@@ -370,6 +370,42 @@ class TelemetryRouterSpecification extends Specification {
     500        | _
   }
 
+  def 'single-client constructor skips feature discovery and delegates to the given client'() {
+    setup:
+    def singleClient = Mock(TelemetryClient)
+    def router = new TelemetryRouter(singleClient)
+
+    when:
+    def result = router.sendRequest(dummyRequest())
+
+    then:
+    result == TelemetryClient.Result.SUCCESS
+    1 * singleClient.sendHttpRequest(_) >> TelemetryClient.Result.SUCCESS
+    0 * ddAgentFeaturesDiscovery.discoverIfOutdated()
+    0 * ddAgentFeaturesDiscovery.supportsTelemetryProxy()
+  }
+
+  def 'single-client constructor does not switch clients on failure'() {
+    setup:
+    def singleClient = Mock(TelemetryClient)
+    def router = new TelemetryRouter(singleClient)
+
+    when: 'first request fails'
+    def firstResult = router.sendRequest(dummyRequest())
+
+    then:
+    firstResult == TelemetryClient.Result.FAILURE
+    1 * singleClient.sendHttpRequest(_) >> TelemetryClient.Result.FAILURE
+
+    when: 'second request goes to the same client'
+    def secondResult = router.sendRequest(dummyRequest())
+
+    then:
+    secondResult == TelemetryClient.Result.SUCCESS
+    1 * singleClient.sendHttpRequest(_) >> TelemetryClient.Result.SUCCESS
+    0 * ddAgentFeaturesDiscovery._
+  }
+
   def 'switch back to Agent if it starts supporting telemetry'() {
     Request request
 
