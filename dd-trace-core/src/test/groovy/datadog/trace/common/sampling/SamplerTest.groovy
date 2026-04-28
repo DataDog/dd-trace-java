@@ -1,6 +1,10 @@
 package datadog.trace.common.sampling
 
 import datadog.trace.api.Config
+import datadog.trace.api.sampling.PrioritySampling
+import datadog.trace.common.writer.ListWriter
+import datadog.trace.core.CoreTracer
+import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
 
 class SamplerTest extends DDSpecification{
@@ -146,5 +150,26 @@ class SamplerTest extends DDSpecification{
     then:
     sampler instanceof ForcePrioritySampler
     !(sampler instanceof ParentBasedAlwaysOnSampler)
+  }
+
+  void "test that spans built with OTLP traces export enabled and priority sampling disabled have a non-UNSET sampling priority"() {
+    setup:
+    System.setProperty("dd.trace.otel.exporter", "otlp")
+    System.setProperty("dd.priority.sampling", "false")
+    Config config = new Config()
+    Sampler sampler = Sampler.Builder.forConfig(config, null)
+    CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build()
+
+    when:
+    DDSpan span = (DDSpan) tracer.buildSpan("test").start()
+    ((PrioritySampler) sampler).setSamplingPriority(span)
+
+    then:
+    span.getSamplingPriority() != null
+    span.getSamplingPriority() == PrioritySampling.SAMPLER_KEEP
+
+    cleanup:
+    span.finish()
+    tracer.close()
   }
 }
