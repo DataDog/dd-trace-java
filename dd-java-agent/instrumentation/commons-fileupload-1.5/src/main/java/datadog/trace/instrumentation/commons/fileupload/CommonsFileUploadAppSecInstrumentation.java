@@ -73,14 +73,14 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         return;
       }
 
-      List<String> filenames = new ArrayList<>();
+      List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
       List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
       for (FileItem fileItem : fileItems) {
         if (fileItem.isFormField()) {
           continue;
         }
         String name = fileItem.getName();
-        if (name != null && !name.isEmpty()) {
+        if (filenames != null && name != null && !name.isEmpty()) {
           filenames.add(name);
         }
         if (filesContent != null
@@ -89,7 +89,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         }
       }
 
-      if (filenamesCallback != null && !filenames.isEmpty()) {
+      if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
