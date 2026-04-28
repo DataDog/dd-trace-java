@@ -113,7 +113,7 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      if (filenamesCb != null && t == null) {
+      if (filenamesCb != null) {
         List<String> filenames = new ArrayList<>();
         for (String key : attachment) {
           for (FormData.FormValue formValue : attachment.get(key)) {

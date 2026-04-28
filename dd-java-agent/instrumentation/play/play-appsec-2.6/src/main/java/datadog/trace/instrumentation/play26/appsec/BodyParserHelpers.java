@@ -132,13 +132,16 @@ public class BodyParserHelpers {
 
   private static MultipartFormData<?> handleMultipartFormData(MultipartFormData<?> data) {
     scala.collection.immutable.Map<String, Seq<String>> mpfd = data.asFormUrlEncoded();
+    BlockingException pendingBlock = null;
 
     if (mpfd != null && !mpfd.isEmpty()) {
       try {
         Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
         handleArbitraryPostData(conv, "multipartFormData");
+      } catch (BlockingException be) {
+        pendingBlock = be;
       } catch (Exception e) {
-        handleException(e, "Error handling result of multipartFormData BodyParser");
+        log.debug("Error handling result of multipartFormData BodyParser", e);
       }
     }
 
@@ -149,10 +152,13 @@ public class BodyParserHelpers {
           handleMultipartFilenames(((scala.collection.Iterable<?>) files).iterator());
         }
       }
+    } catch (BlockingException be) {
+      if (pendingBlock == null) pendingBlock = be;
     } catch (Exception e) {
-      handleException(e, "Error handling multipartFormData filenames");
+      log.debug("Error handling multipartFormData filenames", e);
     }
 
+    if (pendingBlock != null) throw pendingBlock;
     return data;
   }
 
@@ -166,15 +172,7 @@ public class BodyParserHelpers {
       return;
     }
 
-    List<String> filenames = new ArrayList<>();
-    while (iterator.hasNext()) {
-      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
-      String filename = part.filename();
-      if (filename != null && !filename.isEmpty()) {
-        filenames.add(filename);
-      }
-    }
-
+    List<String> filenames = collectFilenames(iterator);
     if (filenames.isEmpty()) {
       return;
     }
@@ -186,6 +184,18 @@ public class BodyParserHelpers {
       return;
     }
     executeFilenamesCallback(reqCtx, callback, filenames);
+  }
+
+  static List<String> collectFilenames(Iterator<?> iterator) {
+    List<String> filenames = new ArrayList<>();
+    while (iterator.hasNext()) {
+      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+      String filename = part.filename();
+      if (filename != null && !filename.isEmpty()) {
+        filenames.add(filename);
+      }
+    }
+    return filenames;
   }
 
   private static void executeFilenamesCallback(
