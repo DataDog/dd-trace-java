@@ -39,6 +39,15 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == ''
   }
 
+  void 'readContent uses Content-Type from file item for charset decoding'() {
+    given:
+    def text = 'héllo wörld'
+    def item = fileItemFromBytes(text.getBytes('UTF-8'), 'file.txt', 'text/plain; charset=UTF-8')
+
+    expect:
+    FileItemContentReader.readContent(item) == text
+  }
+
   void 'readContents returns content for each non-form file with a name'() {
     given:
     def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
@@ -101,10 +110,19 @@ class FileItemContentReaderTest extends Specification {
   }
 
   private FileItem fileItem(String content, String name) {
+    fileItem(content, name, null)
+  }
+
+  private FileItem fileItem(String content, String name, String contentType) {
+    fileItemFromBytes((content ?: '').getBytes('ISO-8859-1'), name, contentType)
+  }
+
+  private FileItem fileItemFromBytes(byte[] bytes, String name, String contentType) {
     FileItem item = Stub(FileItem)
     item.isFormField() >> false
     item.getName() >> name
-    item.getInputStream() >> new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    item.getContentType() >> contentType
+    item.getInputStream() >> new ByteArrayInputStream(bytes)
     return item
   }
 }

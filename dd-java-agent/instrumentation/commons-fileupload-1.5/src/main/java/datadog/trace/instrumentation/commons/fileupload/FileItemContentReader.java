@@ -1,8 +1,8 @@
 package datadog.trace.instrumentation.commons.fileupload;
 
+import datadog.trace.api.http.MultipartContentDecoder;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 import org.apache.commons.fileupload.FileItem;
@@ -35,7 +35,7 @@ public final class FileItemContentReader {
           && (n = is.read(buf, total, MAX_CONTENT_BYTES - total)) != -1) {
         total += n;
       }
-      return new String(buf, 0, total, StandardCharsets.ISO_8859_1);
+      return MultipartContentDecoder.decodeBytes(buf, total, fileItem.getContentType());
     } catch (IOException ignored) {
       return "";
     }
