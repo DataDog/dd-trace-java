@@ -28,7 +28,16 @@ public final class MultipartContentDecoder {
     if (contentType == null) return null;
     int idx = contentType.toLowerCase(Locale.ROOT).indexOf("charset=");
     if (idx < 0) return null;
-    String name = contentType.substring(idx + 8).split("[;, ]")[0].trim();
+    int nameStart = idx + 8;
+    int end = contentType.length();
+    for (int i = nameStart; i < contentType.length(); i++) {
+      char c = contentType.charAt(i);
+      if (c == ';' || c == ',' || c == ' ') {
+        end = i;
+        break;
+      }
+    }
+    String name = contentType.substring(nameStart, end).trim();
     if (name.length() > 1 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
       name = name.substring(1, name.length() - 1);
     }
