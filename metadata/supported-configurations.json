@@ -10353,6 +10353,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_SPRING_WEB_ENABLED", "DD_INTEGRATION_SPRING_WEB_ENABLED"]
       }
     ],
+    "DD_TRACE_SPRING_WEB_VIEW_NAME_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_SPRING_WS_2_ENABLED": [
       {
         "version": "A",
