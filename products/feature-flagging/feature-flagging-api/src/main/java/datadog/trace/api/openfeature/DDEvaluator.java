@@ -101,6 +101,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .build();
       }
 
+      if (flag.allocations == null) {
+        return error(defaultValue, ErrorCode.GENERAL, "null allocations for flag " + key);
+      }
+
       final Date now = new Date();
       final String targetingKey = context.getTargetingKey();
 
