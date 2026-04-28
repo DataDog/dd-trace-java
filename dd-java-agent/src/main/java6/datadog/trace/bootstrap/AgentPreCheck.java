@@ -193,7 +193,7 @@ public class AgentPreCheck {
           out = process.getOutputStream();
           out.write(payload.getBytes(StandardCharsets.UTF_8));
         } catch (IOException ignored) {
-          // iif this happens it can generate noise into the customer logs.
+          // iif this happens it can generate noise into the logs.
           // we'll only log if the error is more severe
         } finally {
           if (out != null) {
