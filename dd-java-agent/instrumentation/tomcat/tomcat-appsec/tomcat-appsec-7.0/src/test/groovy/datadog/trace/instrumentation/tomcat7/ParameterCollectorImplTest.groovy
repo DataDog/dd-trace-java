@@ -223,7 +223,7 @@ class ParameterCollectorImplTest extends Specification {
     }
 
     String getContentType() {
-      null
+      'text/plain; charset=ISO-8859-1'
     }
   }
 
