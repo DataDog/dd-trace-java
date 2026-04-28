@@ -21,9 +21,11 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
+    1 * parentSpan.setResourceName("GET /items/:id", _)
     1 * handlerSpan.getSpanName() >> "vertx.route-handler"
     1 * handlerSpan.getResourceNamePriority() >> Byte.MIN_VALUE
     1 * handlerSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
+    1 * handlerSpan.setResourceName("GET /items/:id", _)
     0 * _
   }
 
@@ -40,6 +42,7 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
+    1 * parentSpan.setResourceName("GET /items/:id", _)
     1 * handlerSpan.getSpanName() >> "some.other.span"
     0 * handlerSpan.setTag(_, _)
     0 * _
@@ -57,7 +60,6 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     then:
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * parentSpan.getTag(Tags.HTTP_ROUTE) >> "/existing"
-    1 * handlerSpan.getTag(Tags.HTTP_ROUTE) >> "/existing"
     0 * context.put(_, _)
     0 * parentSpan.setTag(_, _)
     0 * handlerSpan.setTag(_, _)
