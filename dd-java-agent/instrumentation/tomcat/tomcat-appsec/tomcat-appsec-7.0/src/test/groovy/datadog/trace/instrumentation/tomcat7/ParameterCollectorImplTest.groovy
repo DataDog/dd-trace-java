@@ -183,6 +183,10 @@ class ParameterCollectorImplTest extends Specification {
     InputStream getInputStream() {
       new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
     }
+
+    String getContentType() {
+      null
+    }
   }
 
   static class FailingPart {
@@ -217,6 +221,10 @@ class ParameterCollectorImplTest extends Specification {
     InputStream getInputStream() {
       new ByteArrayInputStream(bytes)
     }
+
+    String getContentType() {
+      null
+    }
   }
 
   /** Simulates a Tomcat 7 ApplicationPart that only exposes getFilename(), not getSubmittedFileName(). */
@@ -235,6 +243,10 @@ class ParameterCollectorImplTest extends Specification {
 
     InputStream getInputStream() {
       new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    }
+
+    String getContentType() {
+      null
     }
   }
 
