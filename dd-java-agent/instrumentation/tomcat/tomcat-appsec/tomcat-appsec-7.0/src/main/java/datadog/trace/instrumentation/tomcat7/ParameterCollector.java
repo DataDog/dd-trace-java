@@ -1,9 +1,9 @@
 package datadog.trace.instrumentation.tomcat7;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.http.MultipartContentDecoder;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.nio.charset.StandardCharsets;
 import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -148,19 +148,31 @@ public interface ParameterCollector {
     // Keyed by Part concrete class; re-resolved when the class changes (different Tomcat version).
     private static volatile Map.Entry<Class<?>, Method> cachedInputStreamEntry;
     private static volatile Map.Entry<Class<?>, Method> cachedFilenameEntry;
+    private static volatile Map.Entry<Class<?>, Method> cachedContentTypeEntry;
 
     private static String readContent(Object part) {
       try {
         Class<?> partClass = part.getClass();
-        Map.Entry<Class<?>, Method> entry = cachedInputStreamEntry;
-        Method m;
-        if (entry == null || entry.getKey() != partClass) {
-          m = partClass.getMethod("getInputStream");
-          cachedInputStreamEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, m);
+        Map.Entry<Class<?>, Method> inputStreamEntry = cachedInputStreamEntry;
+        Method getInputStream;
+        if (inputStreamEntry == null || inputStreamEntry.getKey() != partClass) {
+          getInputStream = partClass.getMethod("getInputStream");
+          cachedInputStreamEntry =
+              new AbstractMap.SimpleImmutableEntry<>(partClass, getInputStream);
         } else {
-          m = entry.getValue();
+          getInputStream = inputStreamEntry.getValue();
         }
-        try (InputStream is = (InputStream) m.invoke(part)) {
+        Map.Entry<Class<?>, Method> contentTypeEntry = cachedContentTypeEntry;
+        Method getContentType;
+        if (contentTypeEntry == null || contentTypeEntry.getKey() != partClass) {
+          getContentType = partClass.getMethod("getContentType");
+          cachedContentTypeEntry =
+              new AbstractMap.SimpleImmutableEntry<>(partClass, getContentType);
+        } else {
+          getContentType = contentTypeEntry.getValue();
+        }
+        String contentType = (String) getContentType.invoke(part);
+        try (InputStream is = (InputStream) getInputStream.invoke(part)) {
           byte[] buf = new byte[MAX_CONTENT_BYTES];
           int total = 0;
           int n;
@@ -168,7 +180,7 @@ public interface ParameterCollector {
               && (n = is.read(buf, total, MAX_CONTENT_BYTES - total)) != -1) {
             total += n;
           }
-          return new String(buf, 0, total, StandardCharsets.ISO_8859_1);
+          return MultipartContentDecoder.decodeBytes(buf, total, contentType);
         }
       } catch (Exception ignored) {
         return "";

@@ -1,10 +1,10 @@
 package datadog.trace.instrumentation.netty41;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.http.MultipartContentDecoder;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.multipart.FileUpload;
 import java.io.FileInputStream;
-import java.nio.charset.StandardCharsets;
 
 /** Reads uploaded file content from a Netty {@link FileUpload} for WAF inspection. */
 public final class NettyFileUploadContentReader {
@@ -18,7 +18,7 @@ public final class NettyFileUploadContentReader {
         int length = Math.min(MAX_CONTENT_BYTES, buf.readableBytes());
         byte[] bytes = new byte[length];
         buf.getBytes(buf.readerIndex(), bytes);
-        return new String(bytes, StandardCharsets.ISO_8859_1);
+        return MultipartContentDecoder.decodeBytes(bytes, length, fileUpload.getContentType());
       } else {
         byte[] bytes = new byte[MAX_CONTENT_BYTES];
         int total = 0;
@@ -29,7 +29,7 @@ public final class NettyFileUploadContentReader {
             total += n;
           }
         }
-        return new String(bytes, 0, total, StandardCharsets.ISO_8859_1);
+        return MultipartContentDecoder.decodeBytes(bytes, total, fileUpload.getContentType());
       }
     } catch (Exception ignored) {
       return "";
