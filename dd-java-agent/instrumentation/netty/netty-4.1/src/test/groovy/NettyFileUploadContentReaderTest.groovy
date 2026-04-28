@@ -98,6 +98,35 @@ class NettyFileUploadContentReaderTest extends Specification {
     NettyFileUploadContentReader.readContent(upload) == ''
   }
 
+  // --- charset decoding ---
+
+  void 'readContent uses Content-Type charset for in-memory content'() {
+    given:
+    def text = 'héllo wörld'
+    def buf = Unpooled.copiedBuffer(text, StandardCharsets.UTF_8)
+    FileUpload upload = Stub(FileUpload)
+    upload.isInMemory() >> true
+    upload.getByteBuf() >> buf
+    upload.getContentType() >> 'text/plain; charset=UTF-8'
+
+    expect:
+    NettyFileUploadContentReader.readContent(upload) == text
+  }
+
+  void 'readContent uses Content-Type charset for disk-backed content'() {
+    given:
+    def text = 'héllo wörld'
+    def file = tempDir.resolve('upload.bin').toFile()
+    file.bytes = text.getBytes(StandardCharsets.UTF_8)
+    FileUpload upload = Stub(FileUpload)
+    upload.isInMemory() >> false
+    upload.getFile() >> file
+    upload.getContentType() >> 'text/plain; charset=UTF-8'
+
+    expect:
+    NettyFileUploadContentReader.readContent(upload) == text
+  }
+
   // --- error handling ---
 
   void 'readContent returns empty string when getByteBuf throws'() {

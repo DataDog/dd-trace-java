@@ -147,6 +147,19 @@ class ParameterCollectorImplTest extends Specification {
     collector.getFilenames() == ['tomcat7.txt']
   }
 
+  void 'addPart uses Content-Type charset declared by part'() {
+    given:
+    def collector = new ParameterCollector.ParameterCollectorImpl(true)
+    def text = 'héllo wörld'
+    def bytes = text.getBytes('UTF-8')
+
+    when:
+    collector.addPart(new TestPartWithContentType('utf8.txt', bytes, 'text/plain; charset=UTF-8'))
+
+    then:
+    collector.getContents()[0] == text
+  }
+
   void 'ParameterCollectorNoop getContents returns empty list'() {
     expect:
     ParameterCollector.ParameterCollectorNoop.INSTANCE.getContents().isEmpty()
@@ -222,6 +235,30 @@ class ParameterCollectorImplTest extends Specification {
 
     InputStream getInputStream() {
       new ByteArrayInputStream((content ?: '').getBytes('ISO-8859-1'))
+    }
+  }
+
+  static class TestPartWithContentType {
+    private final String filename
+    private final byte[] bytes
+    private final String contentType
+
+    TestPartWithContentType(String filename, byte[] bytes, String contentType) {
+      this.filename = filename
+      this.bytes = bytes
+      this.contentType = contentType
+    }
+
+    String getSubmittedFileName() {
+      filename
+    }
+
+    InputStream getInputStream() {
+      new ByteArrayInputStream(bytes)
+    }
+
+    String getContentType() {
+      contentType
     }
   }
 }
