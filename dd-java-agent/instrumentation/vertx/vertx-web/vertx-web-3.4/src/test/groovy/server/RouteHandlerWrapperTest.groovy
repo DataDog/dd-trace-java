@@ -4,7 +4,6 @@ import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper
-import datadog.trace.instrumentation.vertx_3_4.server.VertxDecorator
 import io.vertx.ext.web.RoutingContext
 
 class RouteHandlerWrapperTest extends InstrumentationSpecification {
@@ -16,14 +15,13 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     def handlerSpan = Mock(AgentSpan)
 
     when:
-    RouteUpdateHelper.updateRoute(
-      context, "GET", "/items/:id", parentSpan, handlerSpan)
+    RouteUpdateHelper.updateRoute(context, "GET", "/items/:id", parentSpan, handlerSpan)
 
     then:
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * handlerSpan.getSpanName() >> VertxDecorator.INSTRUMENTATION_NAME
+    1 * handlerSpan.getSpanName() >> "vertx.route-handler"
     1 * handlerSpan.getResourceNamePriority() >> Byte.MIN_VALUE
     1 * handlerSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
     0 * _

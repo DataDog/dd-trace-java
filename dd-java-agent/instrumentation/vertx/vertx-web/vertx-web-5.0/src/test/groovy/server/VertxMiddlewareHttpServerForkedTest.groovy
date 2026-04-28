@@ -34,6 +34,10 @@ class VertxMiddlewareHttpServerForkedTest extends VertxHttpServerForkedTest {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
         "before" true
+        def expectedRoute = this.expectedServerSpanRoute(endpoint)
+        if (expectedRoute != null) {
+          "$Tags.HTTP_ROUTE" expectedRoute
+        }
         if (endpoint == EXCEPTION && this.testExceptionTag()) {
           errorTags(RuntimeException, EXCEPTION.body)
         }
