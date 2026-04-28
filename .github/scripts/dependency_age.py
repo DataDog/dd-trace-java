@@ -248,6 +248,17 @@ def load_maven_documents(
     return docs
 
 
+# parse a version string into a tuple of ints for numeric comparison (e.g. "3.9.11" → (3, 9, 11))
+def _version_sort_key(version: str) -> tuple:
+    parts = []
+    for segment in version.split("."):
+        try:
+            parts.append((0, int(segment)))
+        except ValueError:
+            parts.append((1, segment))
+    return tuple(parts)
+
+
 # emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven
 def emit_selection_result(
     *,
@@ -257,7 +268,7 @@ def emit_selection_result(
     candidates: list[Candidate],
     not_found_reason: str,
 ) -> int:
-    selected = max(candidates, key=lambda candidate: (candidate.published_at, candidate.version), default=None)
+    selected = max(candidates, key=lambda candidate: _version_sort_key(candidate.version), default=None)
     outputs: dict[str, Any] = {
         "cutoff_at": format_datetime(cutoff),
     }
