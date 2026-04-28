@@ -1,5 +1,6 @@
 package datadog.trace.api.http
 
+import java.nio.charset.Charset
 import spock.lang.Specification
 
 class MultipartContentDecoderTest extends Specification {
@@ -13,7 +14,7 @@ class MultipartContentDecoderTest extends Specification {
     MultipartContentDecoder.decodeBytes(bytes, bytes.length, 'text/plain; charset=UTF-8') == text
   }
 
-  void 'decodeBytes falls back to UTF-8 when Content-Type has no charset'() {
+  void 'decodeBytes falls back to machine default when Content-Type has no charset'() {
     given:
     def text = 'hello world'
     byte[] bytes = text.getBytes('UTF-8')
@@ -22,7 +23,7 @@ class MultipartContentDecoderTest extends Specification {
     MultipartContentDecoder.decodeBytes(bytes, bytes.length, 'text/plain') == text
   }
 
-  void 'decodeBytes falls back to UTF-8 when Content-Type is null'() {
+  void 'decodeBytes falls back to machine default when Content-Type is null'() {
     given:
     def text = 'hello world'
     byte[] bytes = text.getBytes('UTF-8')
@@ -31,13 +32,13 @@ class MultipartContentDecoderTest extends Specification {
     MultipartContentDecoder.decodeBytes(bytes, bytes.length, null) == text
   }
 
-  void 'decodeBytes falls back to ISO-8859-1 when bytes are invalid for declared charset'() {
+  void 'decodeBytes falls back to machine default when bytes cannot be decoded with default charset'() {
     given:
-    // 0xE9 is 'é' in ISO-8859-1 but an invalid lone UTF-8 byte
     byte[] bytes = 'café'.getBytes('ISO-8859-1')
+    String expected = new String(bytes, Charset.defaultCharset())
 
     expect:
-    MultipartContentDecoder.decodeBytes(bytes, bytes.length, null) == 'café'
+    MultipartContentDecoder.decodeBytes(bytes, bytes.length, null) == expected
   }
 
   void 'decodeBytes uses declared ISO-8859-1 charset'() {
@@ -62,13 +63,14 @@ class MultipartContentDecoderTest extends Specification {
     MultipartContentDecoder.decodeBytes(new byte[16], 0, null) == ''
   }
 
-  void 'decodeBytes falls back to ISO-8859-1 when declared charset cannot decode the bytes'() {
+  void 'decodeBytes falls back to machine default when declared charset cannot decode the bytes'() {
     given:
     // bytes are ISO-8859-1 encoded but Content-Type explicitly declares UTF-8
     byte[] bytes = 'café'.getBytes('ISO-8859-1')
+    String expected = new String(bytes, Charset.defaultCharset())
 
     expect:
-    MultipartContentDecoder.decodeBytes(bytes, bytes.length, 'text/plain; charset=UTF-8') == 'café'
+    MultipartContentDecoder.decodeBytes(bytes, bytes.length, 'text/plain; charset=UTF-8') == expected
   }
 
   void 'extractCharset returns null for null contentType'() {
