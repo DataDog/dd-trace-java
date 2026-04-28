@@ -19,12 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.netty.handler.codec.http.EmptyHttpHeaders;
-import io.netty.handler.codec.http.multipart.Attribute;
-import io.netty.handler.codec.http.multipart.FileUpload;
-import io.netty.handler.codec.http.multipart.InterfaceHttpData;
 import io.netty.handler.codec.http.multipart.InterfaceHttpPostRequestDecoder;
-import java.io.IOException;
-import java.lang.reflect.UndeclaredThrowableException;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -74,7 +69,7 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".NettyFileUploadContentReader",
+      packageName + ".NettyMultipartHelper",
     };
   }
 
@@ -118,37 +113,13 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         return;
       }
 
-      RuntimeException exc = null;
-
       Map<String, List<String>> attributes = callback != null ? new LinkedHashMap<>() : null;
-      List<String> filenames = new ArrayList<>();
+      List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
       List<String> filesContent = contentCb != null ? new ArrayList<>() : null;
-      for (InterfaceHttpData data : thiz.getBodyHttpDatas()) {
-        if (attributes != null
-            && data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
-          String name = data.getName();
-          List<String> values = attributes.get(name);
-          if (values == null) {
-            attributes.put(name, values = new ArrayList<>(1));
-          }
 
-          try {
-            values.add(((Attribute) data).getValue());
-          } catch (IOException e) {
-            exc = new UndeclaredThrowableException(e);
-          }
-        } else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
-          FileUpload fileUpload = (FileUpload) data;
-          String filename = fileUpload.getFilename();
-          if (filename != null && !filename.isEmpty()) {
-            filenames.add(filename);
-          }
-          if (contentCb != null
-              && filesContent.size() < NettyFileUploadContentReader.MAX_FILES_TO_INSPECT) {
-            filesContent.add(NettyFileUploadContentReader.readContent(fileUpload));
-          }
-        }
-      }
+      RuntimeException exc =
+          NettyMultipartHelper.collectBodyData(
+              thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
 
       if (callback != null) {
         Flow<Void> flow = callback.apply(requestContext, attributes);
@@ -165,23 +136,21 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
         }
       }
 
-      if (!filenames.isEmpty()) {
-        if (filenamesCb != null) {
-          Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
-          Flow.Action filenamesAction = filenamesFlow.getAction();
-          if (thr == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba =
-                (Flow.Action.RequestBlockingAction) filenamesAction;
-            BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-              thr = new BlockingException("Blocked request (multipart file upload)");
-            }
+      if (filenames != null && !filenames.isEmpty()) {
+        Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
+        Flow.Action filenamesAction = filenamesFlow.getAction();
+        if (thr == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba =
+              (Flow.Action.RequestBlockingAction) filenamesAction;
+          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
+            thr = new BlockingException("Blocked request (multipart file upload)");
           }
         }
       }
 
-      if (thr == null && contentCb != null && !filesContent.isEmpty()) {
+      if (thr == null && filesContent != null && !filesContent.isEmpty()) {
         Flow<Void> contentFlow = contentCb.apply(requestContext, filesContent);
         Flow.Action contentAction = contentFlow.getAction();
         if (contentAction instanceof Flow.Action.RequestBlockingAction) {
