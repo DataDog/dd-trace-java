@@ -8,6 +8,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
@@ -48,6 +49,15 @@ class OtlpPayloadDispatcherTest {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
     dispatcher.addTrace(Arrays.asList(droppedSpan(), droppedSpan()));
+
+    verifyNoInteractions(collector, sender);
+  }
+
+  @Test
+  void unsetPriorityTraceWithoutSingleSpanSamplingForwardsNothing() {
+    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
+
+    dispatcher.addTrace(Arrays.asList(unsetSpan(), unsetSpan()));
 
     verifyNoInteractions(collector, sender);
   }
@@ -132,6 +142,13 @@ class OtlpPayloadDispatcherTest {
     CoreSpan<?> span = mock(CoreSpan.class);
     when(span.samplingPriority()).thenReturn(0);
     when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(8);
+    return span;
+  }
+
+  private static CoreSpan<?> unsetSpan() {
+    CoreSpan<?> span = mock(CoreSpan.class);
+    when(span.samplingPriority()).thenReturn((int) PrioritySampling.UNSET);
+    when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
     return span;
   }
 }
