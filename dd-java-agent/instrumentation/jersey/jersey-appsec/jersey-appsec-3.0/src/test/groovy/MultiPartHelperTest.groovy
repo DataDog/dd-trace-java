@@ -136,4 +136,24 @@ class MultiPartHelperTest extends Specification {
     expect:
     MultiPartHelper.collectBodyPart(bodyPart, [:], null)
   }
+
+  def "text/plain part with filename populates both body map and filename list"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getFileName() >> 'upload.txt'
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.TEXT_PLAIN_TYPE
+    bodyPart.getName() >> 'file'
+    bodyPart.getValue() >> 'content'
+    bodyPart.getFormDataContentDisposition() >> cd
+    def map = [:]
+    def filenames = []
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, map, filenames)
+
+    then:
+    map == [file: ['content']]
+    filenames == ['upload.txt']
+  }
 }

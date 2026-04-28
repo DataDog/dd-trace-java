@@ -98,7 +98,7 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
           BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
           if (blockResponseFunction != null) {
             blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t = new BlockingException("Blocked request (for MultiPartReaderClientSide/readFrom)");
+            t = new BlockingException("Blocked request (for MultiPartReaderServerSide/readMultiPart)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }

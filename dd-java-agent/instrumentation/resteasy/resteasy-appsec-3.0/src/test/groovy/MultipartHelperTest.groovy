@@ -9,6 +9,7 @@ class MultipartHelperTest extends Specification {
 
     where:
     cd << [
+      null,
       'form-data',
       'form-data; name="field"',
       'form-data; name="field"; other=value',
