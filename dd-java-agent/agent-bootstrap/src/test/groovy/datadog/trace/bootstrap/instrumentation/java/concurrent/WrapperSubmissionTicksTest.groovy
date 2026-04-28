@@ -47,6 +47,7 @@ class WrapperSubmissionTicksTest extends DDSpecification {
     def mockCtx = Mock(TestSpanContext) {
       getSpanId() >> spanId
       getRootSpanId() >> rootSpanId
+      getSyntheticWorkSpanIdForActivation(_) >> 555L
     }
     def mockSpan = Mock(AgentSpan) {
       context() >> mockCtx
@@ -63,9 +64,8 @@ class WrapperSubmissionTicksTest extends DDSpecification {
     wrapper.run()
 
     then:
-    // Queue-wait TaskBlock: startTicks=ticks, spanId and rootSpanId from context,
-    // blocker=0 (no specific object), unblockingSpanId=0 (no unblocking span)
-    1 * mockProfiling.recordTaskBlock(ticks, spanId, rootSpanId, 0L, 0L)
+    // Queue-wait TaskBlock: unblocking = synthetic work segment (matches SpanNode in onTaskDeactivation)
+    1 * mockProfiling.recordTaskBlock(ticks, spanId, rootSpanId, 0L, 555L)
   }
 
   def "TaskBlock is NOT emitted when submissionTicks is zero (profiler inactive at wrap time)"() {
@@ -73,6 +73,7 @@ class WrapperSubmissionTicksTest extends DDSpecification {
     def mockCtx = Mock(TestSpanContext) {
       getSpanId() >> 111L
       getRootSpanId() >> 222L
+      getSyntheticWorkSpanIdForActivation(_) >> 999L
     }
     def mockSpan = Mock(AgentSpan) {
       context() >> mockCtx
@@ -101,6 +102,7 @@ class WrapperSubmissionTicksTest extends DDSpecification {
     def mockCtx = Mock(TestSpanContext) {
       getSpanId() >> spanId
       getRootSpanId() >> rootSpanId
+      getSyntheticWorkSpanIdForActivation(_) >> 777L
     }
     def mockSpan = Mock(AgentSpan) {
       context() >> mockCtx
@@ -118,7 +120,7 @@ class WrapperSubmissionTicksTest extends DDSpecification {
     wrapper.run()
 
     then:
-    1 * mockProfiling.recordTaskBlock(ticks, spanId, rootSpanId, 0L, 0L)
+    1 * mockProfiling.recordTaskBlock(ticks, spanId, rootSpanId, 0L, 777L)
   }
 
   static class ComparableTask implements Runnable, Comparable<ComparableTask> {

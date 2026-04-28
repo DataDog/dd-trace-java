@@ -46,6 +46,8 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -63,6 +65,119 @@ import org.slf4j.LoggerFactory;
  */
 public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
+
+  /**
+   * Extended {@link JavaProfiler} APIs that exist in newer ddprof builds but are absent from
+   * older published jars (e.g. 1.40.0). When a method is null, {@link DatadogProfiler} no-ops or
+   * falls back so we still compile and run against the minimum supported ddprof.
+   */
+  private static final Method RECORD_TRACE_ROOT_EXTENDED = optionalMethod(
+      "recordTraceRoot",
+      long.class,
+      long.class,
+      long.class,
+      String.class,
+      String.class,
+      int.class);
+
+  private static final Method RECORD_TASK_BLOCK = optionalMethod(
+      "recordTaskBlock", long.class, long.class, long.class, long.class, long.class, long.class);
+
+  private static final Method PARK_ENTER = optionalMethod("parkEnter", long.class, long.class);
+
+  private static final Method PARK_EXIT = optionalMethod("parkExit", long.class, long.class);
+
+  private static final Method RECORD_SPAN_NODE = optionalMethod(
+      "recordSpanNode",
+      long.class,
+      long.class,
+      long.class,
+      long.class,
+      long.class,
+      int.class,
+      int.class);
+
+  /**
+   * Oldest API: 7 args, no {@code submittingSpanId} (e.g. ddprof 1.40). Not present in 1.41+; use
+   * {@link #RECORD_QUEUE_TIME_8} with {@code 0L} when this is null.
+   */
+  private static final Method RECORD_QUEUE_TIME_7 = optionalMethod(
+      "recordQueueTime",
+      long.class,
+      long.class,
+      Class.class,
+      Class.class,
+      Class.class,
+      int.class,
+      Thread.class);
+
+  /** (startTicks, endTicks, task, scheduler, queueType, queueLength, origin, submittingSpanId) */
+  private static final Method RECORD_QUEUE_TIME_8 = optionalMethod(
+      "recordQueueTime",
+      long.class,
+      long.class,
+      Class.class,
+      Class.class,
+      Class.class,
+      int.class,
+      Thread.class,
+      long.class);
+
+  /** submit + optional consuming override (newer ddprof) */
+  private static final Method RECORD_QUEUE_TIME_9 = optionalMethod(
+      "recordQueueTime",
+      long.class,
+      long.class,
+      Class.class,
+      Class.class,
+      Class.class,
+      int.class,
+      Thread.class,
+      long.class,
+      long.class);
+
+  /**
+   * Not on all published ddprof API surfaces; must be invoked reflectively for compile against
+   * minimum ddprof, then work at runtime when a newer native jar is loaded.
+   */
+  private static final Method SET_CONTEXT_VALUE = optionalMethod("setContextValue", int.class, int.class);
+
+  private static final Method CONTEXT_SETTER_SET_INT_INT =
+      optionalContextSetterMethod("setContextValue", int.class, int.class);
+
+  private static Method optionalMethod(String name, Class<?>... paramTypes) {
+    try {
+      return JavaProfiler.class.getMethod(name, paramTypes);
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+  }
+
+  private static final Method CONTEXT_SETTER_ENCODE = optionalContextSetterMethod("encode", String.class);
+
+  private static final Method REGISTER_CONSTANT = optionalProfilerDeclared("registerConstant", String.class);
+
+  private static Method optionalContextSetterMethod(String name, Class<?>... paramTypes) {
+    try {
+      return ContextSetter.class.getMethod(name, paramTypes);
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Package-private in {@link JavaProfiler}; used when {@link ContextSetter} has no public {@code
+   * encode} (e.g. minimal or older ddprof).
+   */
+  private static Method optionalProfilerDeclared(String name, Class<?>... paramTypes) {
+    try {
+      Method m = JavaProfiler.class.getDeclaredMethod(name, paramTypes);
+      m.setAccessible(true);
+      return m;
+    } catch (NoSuchMethodException e) {
+      return null;
+    }
+  }
 
   private static final int[] EMPTY = new int[0];
 
@@ -334,13 +449,36 @@ public final class DatadogProfiler {
 
   public void recordTraceRoot(
       long rootSpanId, long parentSpanId, long startTicks, String endpoint, String operation) {
-    if (!profiler.recordTraceRoot(
-        rootSpanId, parentSpanId, startTicks, endpoint, operation, MAX_NUM_ENDPOINTS)) {
-      log.debug(
-          "Endpoint event not written because more than {} distinct endpoints have been encountered."
-              + " This avoids excessive memory overhead.",
-          MAX_NUM_ENDPOINTS);
+    if (RECORD_TRACE_ROOT_EXTENDED != null) {
+      try {
+        if (!(boolean)
+            RECORD_TRACE_ROOT_EXTENDED.invoke(
+                profiler,
+                rootSpanId,
+                parentSpanId,
+                startTicks,
+                endpoint,
+                operation,
+                MAX_NUM_ENDPOINTS)) {
+          logEndpointLimit();
+        }
+        return;
+      } catch (InvocationTargetException | IllegalAccessException e) {
+        if (detailedDebugLogging) {
+          log.debug("recordTraceRoot extended API failed, using legacy signature", e);
+        }
+      }
     }
+    if (!profiler.recordTraceRoot(rootSpanId, endpoint, operation, MAX_NUM_ENDPOINTS)) {
+      logEndpointLimit();
+    }
+  }
+
+  private void logEndpointLimit() {
+    log.debug(
+        "Endpoint event not written because more than {} distinct endpoints have been encountered."
+            + " This avoids excessive memory overhead.",
+        MAX_NUM_ENDPOINTS);
   }
 
   public long getCurrentTicks() {
@@ -359,6 +497,7 @@ public final class DatadogProfiler {
     return contextSetter.offsetOf(attribute);
   }
 
+  @SuppressWarnings("deprecation")
   public void setSpanContext(long spanId, long rootSpanId) {
     debugLogging(rootSpanId);
     try {
@@ -371,18 +510,34 @@ public final class DatadogProfiler {
   public void clearSpanContext() {
     debugLogging(0L);
     try {
-      profiler.setContext(0L, 0L);
+      profiler.clearContext();
     } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
   }
 
   public boolean setContextValue(int offset, int encoding) {
-    if (contextSetter != null && offset >= 0) {
+    if (offset < 0) {
+      return false;
+    }
+    if (SET_CONTEXT_VALUE != null) {
       try {
-        return contextSetter.setContextValue(offset, encoding);
-      } catch (Throwable e) {
-        log.debug("Failed to set context", e);
+        SET_CONTEXT_VALUE.invoke(profiler, offset, encoding);
+        return true;
+      } catch (InvocationTargetException | IllegalAccessException e) {
+        if (detailedDebugLogging) {
+          log.debug("JavaProfiler.setContextValue failed", e);
+        }
+        return false;
+      }
+    }
+    if (contextSetter != null && CONTEXT_SETTER_SET_INT_INT != null) {
+      try {
+        return (Boolean) CONTEXT_SETTER_SET_INT_INT.invoke(contextSetter, offset, encoding);
+      } catch (InvocationTargetException | IllegalAccessException e) {
+        if (detailedDebugLogging) {
+          log.debug("ContextSetter.setContextValue(int,int) failed", e);
+        }
       }
     }
     return false;
@@ -390,9 +545,9 @@ public final class DatadogProfiler {
 
   public boolean setContextValue(int offset, CharSequence value) {
     if (contextSetter != null && offset >= 0) {
-      int encoding = encode(value);
       try {
-        return contextSetter.setContextValue(offset, encoding);
+        return contextSetter.setContextValue(
+            offset, value != null ? value.toString() : null);
       } catch (Throwable e) {
         log.debug("Failed to set context", e);
       }
@@ -432,8 +587,27 @@ public final class DatadogProfiler {
   }
 
   int encode(CharSequence constant) {
-    if (constant != null && profiler != null) {
-      return contextSetter.encode(constant.toString());
+    if (constant == null || profiler == null) {
+      return 0;
+    }
+    String s = constant.toString();
+    if (contextSetter != null && CONTEXT_SETTER_ENCODE != null) {
+      try {
+        return (Integer) CONTEXT_SETTER_ENCODE.invoke(contextSetter, s);
+      } catch (InvocationTargetException | IllegalAccessException e) {
+        if (detailedDebugLogging) {
+          log.debug("ContextSetter.encode failed", e);
+        }
+      }
+    }
+    if (REGISTER_CONSTANT != null) {
+      try {
+        return (Integer) REGISTER_CONSTANT.invoke(profiler, s);
+      } catch (InvocationTargetException | IllegalAccessException e) {
+        if (detailedDebugLogging) {
+          log.debug("registerConstant failed", e);
+        }
+      }
     }
     return 0;
   }
@@ -463,21 +637,43 @@ public final class DatadogProfiler {
 
   void recordTaskBlockEvent(
       long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
-    if (profiler != null) {
-      long endTicks = profiler.getCurrentTicks();
-      profiler.recordTaskBlock(startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+    if (profiler == null || RECORD_TASK_BLOCK == null) {
+      return;
+    }
+    long endTicks = profiler.getCurrentTicks();
+    try {
+      RECORD_TASK_BLOCK.invoke(
+          profiler, startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+    } catch (InvocationTargetException | IllegalAccessException e) {
+      if (detailedDebugLogging) {
+        log.debug("recordTaskBlock failed", e);
+      }
     }
   }
 
   void parkEnter(long spanId, long rootSpanId) {
-    if (profiler != null) {
-      profiler.parkEnter(spanId, rootSpanId);
+    if (profiler == null || PARK_ENTER == null) {
+      return;
+    }
+    try {
+      PARK_ENTER.invoke(profiler, spanId, rootSpanId);
+    } catch (InvocationTargetException | IllegalAccessException e) {
+      if (detailedDebugLogging) {
+        log.debug("parkEnter failed", e);
+      }
     }
   }
 
   void parkExit(long blocker, long unblockingSpanId) {
-    if (profiler != null) {
-      profiler.parkExit(blocker, unblockingSpanId);
+    if (profiler == null || PARK_EXIT == null) {
+      return;
+    }
+    try {
+      PARK_EXIT.invoke(profiler, blocker, unblockingSpanId);
+    } catch (InvocationTargetException | IllegalAccessException e) {
+      if (detailedDebugLogging) {
+        log.debug("parkExit failed", e);
+      }
     }
   }
 
@@ -489,8 +685,12 @@ public final class DatadogProfiler {
       long durationNanos,
       int encodedOperation,
       int encodedResource) {
-    if (profiler != null) {
-      profiler.recordSpanNode(
+    if (profiler == null || RECORD_SPAN_NODE == null) {
+      return;
+    }
+    try {
+      RECORD_SPAN_NODE.invoke(
+          profiler,
           spanId,
           parentSpanId,
           rootSpanId,
@@ -498,6 +698,10 @@ public final class DatadogProfiler {
           durationNanos,
           encodedOperation,
           encodedResource);
+    } catch (InvocationTargetException | IllegalAccessException e) {
+      if (detailedDebugLogging) {
+        log.debug("recordSpanNode failed", e);
+      }
     }
   }
 
@@ -508,22 +712,82 @@ public final class DatadogProfiler {
       Class<?> queueType,
       int queueLength,
       Thread origin,
-      long submittingSpanId) {
+      long submittingSpanId,
+      long consumingSpanIdOverride) {
     if (profiler != null) {
       // note: because this type traversal can update secondary_super_cache (see JDK-8180450)
       // we avoid doing this unless we are absolutely certain we will record the event
       Class<?> taskType = TaskWrapper.getUnwrappedType(task);
       if (taskType != null) {
         long endTicks = profiler.getCurrentTicks();
-        profiler.recordQueueTime(
-            startTicks,
-            endTicks,
-            taskType,
-            scheduler,
-            queueType,
-            queueLength,
-            origin,
-            submittingSpanId);
+        if (consumingSpanIdOverride != 0L && RECORD_QUEUE_TIME_9 != null) {
+          try {
+            RECORD_QUEUE_TIME_9.invoke(
+                profiler,
+                startTicks,
+                endTicks,
+                taskType,
+                scheduler,
+                queueType,
+                queueLength,
+                origin,
+                submittingSpanId,
+                consumingSpanIdOverride);
+            return;
+          } catch (InvocationTargetException | IllegalAccessException e) {
+            if (detailedDebugLogging) {
+              log.debug("recordQueueTime with consumingSpanIdOverride failed, trying 8-arg", e);
+            }
+          }
+        }
+        if (RECORD_QUEUE_TIME_8 != null) {
+          try {
+            RECORD_QUEUE_TIME_8.invoke(
+                profiler,
+                startTicks,
+                endTicks,
+                taskType,
+                scheduler,
+                queueType,
+                queueLength,
+                origin,
+                submittingSpanId);
+            return;
+          } catch (InvocationTargetException | IllegalAccessException e) {
+            if (detailedDebugLogging) {
+              log.debug("recordQueueTime 8-arg failed, trying 7- or 8-arg fallback", e);
+            }
+          }
+        }
+        if (RECORD_QUEUE_TIME_7 != null) {
+          try {
+            RECORD_QUEUE_TIME_7.invoke(
+                profiler, startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
+            return;
+          } catch (InvocationTargetException | IllegalAccessException e) {
+            if (detailedDebugLogging) {
+              log.debug("recordQueueTime 7-arg failed", e);
+            }
+          }
+        }
+        if (RECORD_QUEUE_TIME_8 != null) {
+          try {
+            RECORD_QUEUE_TIME_8.invoke(
+                profiler,
+                startTicks,
+                endTicks,
+                taskType,
+                scheduler,
+                queueType,
+                queueLength,
+                origin,
+                0L);
+          } catch (InvocationTargetException | IllegalAccessException e) {
+            if (detailedDebugLogging) {
+              log.debug("recordQueueTime 8-arg (submittingSpanId=0) failed", e);
+            }
+          }
+        }
       }
     }
   }

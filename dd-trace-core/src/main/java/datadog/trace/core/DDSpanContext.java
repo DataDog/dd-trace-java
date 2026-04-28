@@ -46,6 +46,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -160,8 +161,22 @@ public class DDSpanContext
   private final boolean injectBaggageAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
-  private volatile long executionThreadId = 0;
-  private volatile String executionThreadName = "";
+  private volatile ExecutionThread executionThread = null;
+
+  private static final AtomicReferenceFieldUpdater<DDSpanContext, ExecutionThread>
+      EXECUTION_THREAD_UPDATER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DDSpanContext.class, ExecutionThread.class, "executionThread");
+
+  private static final class ExecutionThread {
+    private final long id;
+    private final String name;
+
+    private ExecutionThread(long id, String name) {
+      this.id = id;
+      this.name = name;
+    }
+  }
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -395,23 +410,24 @@ public class DDSpanContext
 
   @Override
   public void captureExecutionThread(long threadId, String threadName) {
-    // First-write-wins: onTaskActivation() fires before any finish path (phasedFinish /
-    // finishAndAddToTrace), so the worker thread captured there is protected from being
-    // overwritten by a later callback on the event loop thread.
-    if (this.executionThreadId == 0) {
-      this.executionThreadId = threadId;
-      this.executionThreadName = threadName;
+    if (threadId <= 0 || threadName == null || threadName.isEmpty()) {
+      return;
     }
+    // First-write-wins with atomic CAS: onTaskActivation() may race with finish callbacks
+    // running on a different thread. Publish id+name atomically as one immutable object.
+    EXECUTION_THREAD_UPDATER.compareAndSet(this, null, new ExecutionThread(threadId, threadName));
   }
 
   @Override
   public long getExecutionThreadId() {
-    return executionThreadId;
+    ExecutionThread value = executionThread;
+    return value != null ? value.id : 0;
   }
 
   @Override
   public String getExecutionThreadName() {
-    return executionThreadName;
+    ExecutionThread value = executionThread;
+    return value != null ? value.name : "";
   }
 
   public String getServiceName() {

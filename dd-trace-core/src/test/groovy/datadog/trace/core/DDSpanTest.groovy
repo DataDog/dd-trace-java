@@ -17,6 +17,7 @@ import datadog.trace.core.propagation.ExtractedContext
 import datadog.trace.core.test.DDCoreSpecification
 import spock.lang.Shared
 
+import java.util.concurrent.CountDownLatch
 import java.util.concurrent.TimeUnit
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG
@@ -228,6 +229,54 @@ class DDSpanTest extends DDCoreSpecification {
     then: "worker thread attribution is preserved — not overwritten by phasedFinish"
     span.context().executionThreadId == workerThreadId
     span.context().executionThreadName == workerThreadName
+
+    cleanup:
+    span.publish()
+  }
+
+  def "captureExecutionThread is atomic under concurrent contenders"() {
+    setup:
+    def span = tracer.buildSpan("test").start()
+    long workerThreadId = 101L
+    String workerThreadName = "worker-thread-101"
+    long callbackThreadId = 202L
+    String callbackThreadName = "eventloop-thread-202"
+    def ready = new CountDownLatch(2)
+    def start = new CountDownLatch(1)
+    def done = new CountDownLatch(2)
+
+    Thread worker = new Thread({
+      ready.countDown()
+      start.await()
+      span.context().captureExecutionThread(workerThreadId, workerThreadName)
+      done.countDown()
+    })
+    Thread callback = new Thread({
+      ready.countDown()
+      start.await()
+      span.context().captureExecutionThread(callbackThreadId, callbackThreadName)
+      done.countDown()
+    })
+
+    when:
+    worker.start()
+    callback.start()
+    assert ready.await(5, TimeUnit.SECONDS)
+    start.countDown()
+    assert done.await(5, TimeUnit.SECONDS)
+    long capturedId = span.context().executionThreadId
+    String capturedName = span.context().executionThreadName
+
+    then: "exactly one contender wins and id/name stay as a coherent pair"
+    (capturedId == workerThreadId && capturedName == workerThreadName) ||
+      (capturedId == callbackThreadId && capturedName == callbackThreadName)
+
+    when: "late attempts must not overwrite the first captured pair"
+    span.context().captureExecutionThread(999L, "late-writer")
+
+    then:
+    span.context().executionThreadId == capturedId
+    span.context().executionThreadName == capturedName
 
     cleanup:
     span.publish()

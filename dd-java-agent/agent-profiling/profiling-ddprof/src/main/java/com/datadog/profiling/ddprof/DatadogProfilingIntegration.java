@@ -176,8 +176,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     // thread that is physically executing the virtual thread at this point.  The resulting
     // SpanNode is therefore attributed to the carrier in JFR, making it visible in the critical
     // path as a ForkJoin worker rather than disappearing into the unattributed lane.
-    long syntheticSpanId =
-        profilerContext.getSpanId() ^ ((long) Thread.currentThread().getId() << 32) ^ startNano;
+    long syntheticSpanId = profilerContext.getSyntheticWorkSpanIdForActivation(startNano);
     DDPROF.recordSpanNodeEvent(
         syntheticSpanId,
         profilerContext.getSpanId(),

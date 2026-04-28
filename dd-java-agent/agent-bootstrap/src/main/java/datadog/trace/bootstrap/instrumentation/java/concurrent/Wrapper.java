@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFil
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AsyncProfiledTaskHandoff;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import java.util.concurrent.RunnableFuture;
 
@@ -59,15 +60,25 @@ public class Wrapper<T extends Runnable> implements Runnable, AutoCloseable {
         AgentSpan span = scope.span();
         if (span != null && span.context() instanceof ProfilerContext) {
           profilerCtx = (ProfilerContext) span.context();
+          Long pendingStart = AsyncProfiledTaskHandoff.takePendingActivationStartNano();
+          // Same activation timestamp as a synthetic id for the work segment, aligned with
+          // beforeExecute queue-timer + AsyncProfiledTaskHandoff when a QueueTime self-loop
+          // was disambiguated.
+          startNano = (pendingStart != null) ? pendingStart : System.nanoTime();
+          long unblocking = profilerCtx.getSyntheticWorkSpanIdForActivation(startNano);
           // Emit a zero-blocker TaskBlock covering the queue wait (submission → activation).
-          // submissionTicks == 0 means the profiler was inactive at wrap time; skip then.
+          // unblocking = synthetic work segment; enables critical path to leave the base span
+          // after the handoff when that SpanNode exists (onTaskDeactivation).
           if (submissionTicks > 0) {
             AgentTracer.get()
                 .getProfilingContext()
                 .recordTaskBlock(
-                    submissionTicks, profilerCtx.getSpanId(), profilerCtx.getRootSpanId(), 0L, 0L);
+                    submissionTicks,
+                    profilerCtx.getSpanId(),
+                    profilerCtx.getRootSpanId(),
+                    0L,
+                    unblocking);
           }
-          startNano = System.nanoTime();
           AgentTracer.get().getProfilingContext().onTaskActivation(profilerCtx, startNano);
         }
       }

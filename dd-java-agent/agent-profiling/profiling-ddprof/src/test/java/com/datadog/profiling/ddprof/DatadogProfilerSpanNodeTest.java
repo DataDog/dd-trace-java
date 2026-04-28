@@ -48,7 +48,24 @@ class DatadogProfilerSpanNodeTest {
 
     // We need a single object that satisfies both instanceof checks.
     // Use a hand-rolled stub instead.
-    TestContext combinedCtx = new TestContext(42L, 7L, 1L, 3, 5);
+    TestContext combinedCtx = new TestContext(42L, 7L, 1L, 3, 5, 0L, "");
+
+    AgentSpan span = mock(AgentSpan.class);
+    when(span.context()).thenReturn(combinedCtx);
+    when(span.getStartTime()).thenReturn(1_700_000_000_000_000_000L);
+    when(span.getDurationNano()).thenReturn(1_000_000L);
+
+    assertDoesNotThrow(() -> integration.onSpanFinished(span));
+  }
+
+  /**
+   * When execution-thread metadata is present, onSpanFinished should still be safe and attempt both
+   * SpanNode and SpanExecutionThread event emission paths.
+   */
+  @Test
+  void onSpanFinished_withExecutionThreadMetadata_doesNotThrow() {
+    DatadogProfilingIntegration integration = new DatadogProfilingIntegration();
+    TestContext combinedCtx = new TestContext(42L, 7L, 1L, 3, 5, 123L, "worker-123");
 
     AgentSpan span = mock(AgentSpan.class);
     when(span.context()).thenReturn(combinedCtx);
@@ -76,14 +93,24 @@ class DatadogProfilerSpanNodeTest {
     private final long rootSpanId;
     private final int encodedOp;
     private final int encodedResource;
+    private final long executionThreadId;
+    private final String executionThreadName;
 
     TestContext(
-        long spanId, long parentSpanId, long rootSpanId, int encodedOp, int encodedResource) {
+        long spanId,
+        long parentSpanId,
+        long rootSpanId,
+        int encodedOp,
+        int encodedResource,
+        long executionThreadId,
+        String executionThreadName) {
       this.spanId = spanId;
       this.parentSpanId = parentSpanId;
       this.rootSpanId = rootSpanId;
       this.encodedOp = encodedOp;
       this.encodedResource = encodedResource;
+      this.executionThreadId = executionThreadId;
+      this.executionThreadName = executionThreadName;
     }
 
     // ProfilerContext
@@ -120,6 +147,16 @@ class DatadogProfilerSpanNodeTest {
     @Override
     public CharSequence getResourceName() {
       return "test-resource";
+    }
+
+    @Override
+    public long getExecutionThreadId() {
+      return executionThreadId;
+    }
+
+    @Override
+    public String getExecutionThreadName() {
+      return executionThreadName;
     }
 
     // AgentSpanContext

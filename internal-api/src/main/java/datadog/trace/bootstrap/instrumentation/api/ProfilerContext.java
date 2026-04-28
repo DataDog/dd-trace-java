@@ -37,4 +37,16 @@ public interface ProfilerContext {
    * {@code onTaskActivation}), subsequent calls from e.g. a Netty event loop callback are ignored.
    */
   default void captureExecutionThread(long threadId, String threadName) {}
+
+  /**
+   * Synthetic span id for the per-activation work segment of this context on the current thread.
+   * Must match {@code DatadogProfilingIntegration#onTaskDeactivation} so that {@code TaskBlock} /
+   * {@code datadog.QueueTime} edges and {@code SpanNode} for the work window share the same id.
+   *
+   * @param activationStartNano {@link System#nanoTime()} at task activation
+   * @return xor mix of base span, thread, and start time; never 0
+   */
+  default long getSyntheticWorkSpanIdForActivation(long activationStartNano) {
+    return getSpanId() ^ (Thread.currentThread().getId() << 32) ^ activationStartNano;
+  }
 }

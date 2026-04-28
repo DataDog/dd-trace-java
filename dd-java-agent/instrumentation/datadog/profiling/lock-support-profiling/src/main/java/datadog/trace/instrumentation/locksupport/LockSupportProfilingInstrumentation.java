@@ -102,7 +102,6 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       if (profiling == null) {
         return;
       }
-      Long unblockingSpanId = State.UNPARKING_SPAN.remove(Thread.currentThread());
       // parkExit clears the flag in ProfiledThread and emits a TaskBlock JFR event if the park
       // duration exceeds the configured threshold and span context was active.
       profiling.parkExit(state[0], unblockingSpanId != null ? unblockingSpanId : 0L);
@@ -117,6 +116,9 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
         return;
       }
       AgentSpan span = AgentTracer.activeSpan();
+      // Unblocking span id is only recorded when the unpark caller has a traced
+      // ProfilerContext. Schedulers and native wakeups often call unpark() without an
+      // active span, so TaskBlock events keep unblockingSpanId=0 in those cases.
       if (span == null || !(span.context() instanceof ProfilerContext)) {
         return;
       }
