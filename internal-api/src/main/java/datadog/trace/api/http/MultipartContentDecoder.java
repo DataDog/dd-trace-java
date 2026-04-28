@@ -1,6 +1,7 @@
 package datadog.trace.api.http;
 
 import java.nio.ByteBuffer;
+import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
 import java.nio.charset.CodingErrorAction;
 
@@ -10,12 +11,17 @@ public final class MultipartContentDecoder {
   public static String decodeBytes(byte[] buf, int length, String contentType) {
     Charset charset = extractCharset(contentType);
     if (charset == null) charset = Charset.defaultCharset();
-    return charset
-        .newDecoder()
-        .onMalformedInput(CodingErrorAction.REPLACE)
-        .onUnmappableCharacter(CodingErrorAction.REPLACE)
-        .decode(ByteBuffer.wrap(buf, 0, length))
-        .toString();
+    try {
+      return charset
+          .newDecoder()
+          .onMalformedInput(CodingErrorAction.REPLACE)
+          .onUnmappableCharacter(CodingErrorAction.REPLACE)
+          .decode(ByteBuffer.wrap(buf, 0, length))
+          .toString();
+    } catch (CharacterCodingException e) {
+      // unreachable: CodingErrorAction.REPLACE never throws CharacterCodingException
+      throw new IllegalStateException(e);
+    }
   }
 
   public static Charset extractCharset(String contentType) {
