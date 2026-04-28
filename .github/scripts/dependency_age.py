@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 
 import argparse
+import email.utils
 import json
 import os
 import re
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -17,6 +19,11 @@ GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 DEFAULT_MIN_AGE_HOURS = 48
 GRADLE_PRERELEASE_PATTERN = re.compile(r"(?:^|[.\-])(rc|milestone)(?:[.\-\d]|$)", re.IGNORECASE)
+AKKA_REPOSITORY_URL = os.environ.get("DEPENDENCY_AGE_AKKA_REPOSITORY_URL", "https://repo.akka.io/maven")
+REPOSITORY_FALLBACKS: tuple[tuple[str, str], ...] = (
+    ("com.typesafe.akka", AKKA_REPOSITORY_URL),
+    ("io.akka", AKKA_REPOSITORY_URL),
+)
 
 
 @dataclass(frozen=True)
@@ -251,7 +258,9 @@ def load_maven_documents(
 # parse a version string into a tuple of ints for numeric comparison (e.g. "3.9.11" → (3, 9, 11))
 def _version_sort_key(version: str) -> tuple:
     parts = []
-    for segment in version.split("."):
+    for segment in re.split(r"([.\-])", version):
+        if segment in {"", ".", "-"}:
+            continue
         try:
             parts.append((0, int(segment)))
         except ValueError:
@@ -319,116 +328,75 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         print("No dependency version changes detected across Gradle lockfiles.")
         return 0
 
-    gav_to_files: dict[str, set[str]] = {}
+    changed_by_file: dict[str, list[str]] = {}
     for relative_path, gav in changed:
-        gav_to_files.setdefault(gav, set()).add(relative_path)
+        changed_by_file.setdefault(relative_path, []).append(gav)
 
-    violations: list[tuple[str, list[str], str]] = []
-    for gav in sorted(gav_to_files):
-        published_at, reason = resolve_gav_timestamp(
-            gav=gav,
-            metadata=metadata,
-            search_url=args.search_url,
-        )
-        affected_files = sorted(gav_to_files[gav])
-        if published_at is None:
-            violations.append((gav, affected_files, reason or "Unable to determine publish timestamp."))
-            continue
-        if published_at > cutoff:
-            violations.append(
-                (
-                    gav,
-                    affected_files,
-                    (
-                        f"Published at {format_datetime(published_at)}, which is newer than cutoff "
-                        f"{format_datetime(cutoff)}."
-                    ),
+    timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
+    violations_by_file: dict[str, list[tuple[str, str]]] = {}
+    for relative_path, gavs in sorted(changed_by_file.items()):
+        for gav in gavs:
+            if gav not in timestamp_cache:
+                timestamp_cache[gav] = resolve_gav_timestamp(
+                    gav=gav,
+                    metadata=metadata,
+                    search_url=args.search_url,
                 )
+            published_at, reason = timestamp_cache[gav]
+            if published_at is None:
+                violations_by_file.setdefault(relative_path, []).append(
+                    (gav, reason or "Unable to determine publish timestamp.")
+                )
+                continue
+            if published_at > cutoff:
+                violations_by_file.setdefault(relative_path, []).append(
+                    (
+                        gav,
+                        f"Published at {format_datetime(published_at)}, which is newer than cutoff "
+                        f"{format_datetime(cutoff)}.",
+                    )
+                )
+                continue
+            print(
+                f"Verified {gav} in {relative_path} "
+                f"(published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})"
             )
-            continue
-        print(
-            f"Verified {gav} in {', '.join(affected_files)} "
-            f"(published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})"
-        )
 
-    if violations:
-        outputs["reverted_coordinates"] = len(violations)
-        revert_violations_in_lockfiles(
-            violations=violations,
+    if violations_by_file:
+        revert_lockfiles_to_baseline(
+            violations_by_file=violations_by_file,
             baseline_dir=baseline_dir,
             current_dir=current_dir,
         )
-        for gav, affected_files, message in violations:
-            for path in affected_files:
-                print(f"::warning file={path}::{gav}: {message} Reverted to prior version.")
+        outputs["reverted_coordinates"] = sum(len(entries) for entries in violations_by_file.values())
+        for path, entries in sorted(violations_by_file.items()):
+            for gav, message in entries:
+                print(f"::warning file={path}::{gav}: {message} Reverted lockfile to baseline.")
 
     emit_outputs(outputs, args.github_output)
     print(
         f"Validated {len(changed)} changed dependency selections against cutoff {format_datetime(cutoff)}. "
-        f"{len(violations)} reverted."
+        f"{len(violations_by_file)} lockfiles reverted."
     )
     return 0
 
 
-# rewrite lockfiles so that invalid coordinates are reverted to prior valid versions
-def revert_violations_in_lockfiles(
+# restore each violating lockfile to its baseline copy to keep the file internally consistent
+def revert_lockfiles_to_baseline(
     *,
-    violations: list[tuple[str, list[str], str]],
+    violations_by_file: dict[str, list[tuple[str, str]]],
     baseline_dir: Path,
     current_dir: Path,
 ) -> None:
-    file_to_violated_gavs: dict[str, set[str]] = {}
-    for gav, affected_files, _ in violations:
-        for path in affected_files:
-            file_to_violated_gavs.setdefault(path, set()).add(gav)
-
-    for relative_path, violated_gavs in file_to_violated_gavs.items():
+    for relative_path in sorted(violations_by_file):
         current_path = current_dir / relative_path
         baseline_path = baseline_dir / relative_path
-
-        # Keyed by full group:artifact:version so multiple versions of the same
-        # group:artifact (e.g. com.typesafe:config:1.3.1 and com.typesafe:config:1.4.4
-        # locked for different configurations) are never confused.
-        baseline_by_gav = read_lockfile_lines(baseline_path) if baseline_path.exists() else {}
-        current_by_gav = read_lockfile_lines(current_path)
-
-        # Group removed baseline GAVs and violated GAVs by group:artifact.
-        removed_by_ga: dict[str, list[str]] = {}
-        for b in sorted(baseline_by_gav):
-            if b not in current_by_gav:
-                ga = ":".join(b.split(":")[:2])
-                removed_by_ga.setdefault(ga, []).append(b)
-
-        violations_by_ga: dict[str, list[str]] = {}
-        for v in sorted(violated_gavs):
-            ga = ":".join(v.split(":")[:2])
-            violations_by_ga.setdefault(ga, []).append(v)
-
-        # Pair each removed predecessor with the violation at the same sorted position.
-        # Excess predecessors (consolidation) pile onto the last violation.
-        # Violations with no corresponding predecessor are brand-new dependencies.
-        predecessors_by_violated: dict[str, list[str]] = {v: [] for v in violated_gavs}
-        for ga, ga_violations in violations_by_ga.items():
-            for i, pred in enumerate(removed_by_ga.get(ga, [])):
-                target = ga_violations[min(i, len(ga_violations) - 1)]
-                predecessors_by_violated[target].append(pred)
-
-        output_lines: list[str] = []
-        for raw_line in current_path.read_text(encoding="utf-8").splitlines():
-            stripped = raw_line.strip()
-            coordinate = stripped.split("=", 1)[0] if "=" in stripped and not stripped.startswith("#") else None
-            if coordinate and coordinate.count(":") == 2 and coordinate in violated_gavs:
-                predecessors = predecessors_by_violated[coordinate]
-                if predecessors:
-                    for pred in predecessors:
-                        output_lines.append(baseline_by_gav[pred])
-                    print(f"Reverted {coordinate} to {', '.join(predecessors)} in {relative_path}")
-                else:
-                    print(f"Removed new dependency {coordinate} from {relative_path} (too new, no prior version)")
-            else:
-                output_lines.append(raw_line)
-
-        current_path.write_text("\n".join(output_lines) + "\n", encoding="utf-8")
+        if baseline_path.exists():
+            current_path.write_text(baseline_path.read_text(encoding="utf-8"), encoding="utf-8")
+            print(f"Reverted lockfile {relative_path} to baseline.")
+        else:
+            current_path.unlink(missing_ok=True)
+            print(f"Removed new lockfile {relative_path} because it has no baseline copy to restore.")
 
 
 # load metadata overrides from file
@@ -458,8 +426,11 @@ def resolve_gav_timestamp(
             "wt": "json",
         }
     )
-    payload = load_json(None, f"{search_url}?{query}")
-    docs = payload.get("response", {}).get("docs", [])
+    try:
+        payload = load_json(None, f"{search_url}?{query}")
+        docs = payload.get("response", {}).get("docs", [])
+    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError):
+        docs = []
     for document in docs:
         if document.get("v") != version:
             continue
@@ -467,7 +438,62 @@ def resolve_gav_timestamp(
         if timestamp is None:
             return None, "Maven Central search result did not include a publish timestamp."
         return parse_datetime(timestamp), None
-    return None, "No metadata was found for this coordinate in Maven Central search."
+
+    fallback_timestamp = resolve_repository_fallback_timestamp(
+        group_id=group_id,
+        artifact_id=artifact_id,
+        version=version,
+    )
+    if fallback_timestamp is not None:
+        return fallback_timestamp, None
+
+    return None, "No metadata was found for this coordinate in Maven Central search or configured repository fallbacks."
+
+
+def resolve_repository_fallback_timestamp(
+    *,
+    group_id: str,
+    artifact_id: str,
+    version: str,
+) -> datetime | None:
+    relative_dir = "/".join(group_id.split(".")) + f"/{artifact_id}/{version}"
+    candidate_files = [
+        f"{artifact_id}-{version}.pom",
+        f"{artifact_id}-{version}.module",
+        f"{artifact_id}-{version}.jar",
+    ]
+    for prefix, base_url in REPOSITORY_FALLBACKS:
+        if group_id != prefix and not group_id.startswith(f"{prefix}."):
+            continue
+        for filename in candidate_files:
+            timestamp = fetch_last_modified(f"{base_url.rstrip('/')}/{relative_dir}/{filename}")
+            if timestamp is not None:
+                return timestamp
+    return None
+
+
+def fetch_last_modified(url: str) -> datetime | None:
+    for method in ("HEAD", "GET"):
+        request = urllib.request.Request(url, method=method)
+        try:
+            with urllib.request.urlopen(request, timeout=30) as response:
+                header = response.headers.get("Last-Modified")
+        except urllib.error.HTTPError as error:
+            if error.code in {403, 404, 405}:
+                continue
+            return None
+        except urllib.error.URLError:
+            return None
+        if not header:
+            continue
+        try:
+            parsed = email.utils.parsedate_to_datetime(header)
+        except (TypeError, ValueError, IndexError):
+            continue
+        if parsed.tzinfo is None:
+            parsed = parsed.replace(tzinfo=timezone.utc)
+        return parsed.astimezone(timezone.utc)
+    return None
 
 
 # parse override format for given group:artifact:version
