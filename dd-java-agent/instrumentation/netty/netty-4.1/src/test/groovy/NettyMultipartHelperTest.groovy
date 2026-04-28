@@ -1,3 +1,8 @@
+import datadog.appsec.api.blocking.BlockingException
+import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.instrumentation.netty41.NettyMultipartHelper
 import io.netty.buffer.Unpooled
 import io.netty.handler.codec.http.multipart.Attribute
@@ -371,6 +376,69 @@ class NettyMultipartHelperTest extends Specification {
     attributes == [field1: ['val1'], field2: ['val2']]
     filenames == ['upload.txt']
     filesContent == ['file-body']
+  }
+
+  // =========================================================
+  // tryBlock
+  // =========================================================
+
+  void 'tryBlock returns null when flow action is not a blocking action'() {
+    given:
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> Flow.Action.Noop.INSTANCE
+    RequestContext ctx = Stub(RequestContext)
+
+    expect:
+    NettyMultipartHelper.tryBlock(ctx, flow, 'msg') == null
+  }
+
+  void 'tryBlock returns BlockingException with provided message when brf commits response'() {
+    given:
+    def segment = Stub(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Stub(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    def result = NettyMultipartHelper.tryBlock(ctx, flow, 'blocked!')
+
+    then:
+    result instanceof BlockingException
+    result.message == 'blocked!'
+  }
+
+  void 'tryBlock calls tryCommitBlockingResponse on brf with segment and rba'() {
+    given:
+    def segment = Stub(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Mock(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    NettyMultipartHelper.tryBlock(ctx, flow, 'msg')
+
+    then:
+    1 * brf.tryCommitBlockingResponse(segment, rba)
+  }
+
+  void 'tryBlock returns null when brf is null despite blocking action'() {
+    given:
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> null
+
+    expect:
+    NettyMultipartHelper.tryBlock(ctx, flow, 'msg') == null
   }
 
   // =========================================================
