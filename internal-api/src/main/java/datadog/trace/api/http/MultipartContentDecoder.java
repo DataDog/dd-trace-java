@@ -14,8 +14,8 @@ public final class MultipartContentDecoder {
     try {
       return charset
           .newDecoder()
-          .onMalformedInput(CodingErrorAction.REPORT)
-          .onUnmappableCharacter(CodingErrorAction.REPORT)
+          .onMalformedInput(CodingErrorAction.REPLACE)
+          .onUnmappableCharacter(CodingErrorAction.REPLACE)
           .decode(ByteBuffer.wrap(buf, 0, length))
           .toString();
     } catch (CharacterCodingException e) {

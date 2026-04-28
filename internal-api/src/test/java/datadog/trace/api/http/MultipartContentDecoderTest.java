@@ -64,12 +64,22 @@ public class MultipartContentDecoderTest {
   }
 
   @Test
-  void decodeBytesUsesMachineDefaultFallbackWhenDeclaredCharsetCannotDecodeBytes() {
+  void decodeBytesReplacesMalformedBytesWithReplacementCharacterUsingDeclaredCharset() {
+    // 0xE9 (ISO-8859-1 'é') is not valid UTF-8; REPLACE substitutes U+FFFD
     byte[] bytes = "café".getBytes(StandardCharsets.ISO_8859_1);
-    String expected = new String(bytes, Charset.defaultCharset());
     assertEquals(
-        expected,
+        "caf�",
         MultipartContentDecoder.decodeBytes(bytes, bytes.length, "text/plain; charset=UTF-8"));
+  }
+
+  @Test
+  void decodeBytesHandlesTruncationAtMultibyteCharacterBoundary() {
+    // "€" encodes as 3 bytes in UTF-8: E2 82 AC
+    byte[] complete = "hello€".getBytes(StandardCharsets.UTF_8); // 8 bytes
+    // Pass only 6 bytes: "hello" + first byte of "€" (incomplete sequence)
+    String result = MultipartContentDecoder.decodeBytes(complete, 6, "text/plain; charset=UTF-8");
+    // Incomplete sequence → U+FFFD with declared charset, not fallback to JVM default
+    assertEquals("hello�", result);
   }
 
   @ParameterizedTest
