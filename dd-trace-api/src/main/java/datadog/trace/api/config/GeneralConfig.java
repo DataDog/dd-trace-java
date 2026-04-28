@@ -104,6 +104,7 @@ public final class GeneralConfig {
   public static final String TELEMETRY_DEPENDENCY_RESOLUTION_QUEUE_SIZE =
       "telemetry.dependency-resolution.queue.size";
   public static final String TELEMETRY_DEBUG_REQUESTS_ENABLED = "telemetry.debug.requests.enabled";
+  public static final String TELEMETRY_JMX_ENABLED = "telemetry.jmx.enabled";
   public static final String AGENTLESS_LOG_SUBMISSION_ENABLED = "agentless.log.submission.enabled";
   public static final String AGENTLESS_LOG_SUBMISSION_QUEUE_SIZE =
       "agentless.log.submission.queue.size";
