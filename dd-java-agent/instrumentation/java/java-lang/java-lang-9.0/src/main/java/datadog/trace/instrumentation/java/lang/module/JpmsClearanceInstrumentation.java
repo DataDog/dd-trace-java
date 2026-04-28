@@ -7,6 +7,7 @@ import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
+import java.util.Collection;
 import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
@@ -19,7 +20,9 @@ import net.bytebuddy.implementation.bytecode.assign.Assigner;
  */
 @AutoService(InstrumenterModule.class)
 public class JpmsClearanceInstrumentation extends InstrumenterModule
-    implements Instrumenter.ForKnownTypes, Instrumenter.ForBootstrap, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForConfiguredTypes,
+        Instrumenter.ForBootstrap,
+        Instrumenter.HasMethodAdvice {
   public JpmsClearanceInstrumentation() {
     super("java-module");
   }
@@ -35,13 +38,13 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public String[] knownMatchingTypes() {
-    return JpmsHelper.getAllTriggers().toArray(new String[0]);
+  public void methodAdvice(MethodTransformer transformer) {
+    transformer.applyAdvice(isConstructor(), getClass().getName() + "$OpenModuleAdvice");
   }
 
   @Override
-  public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(isConstructor(), getClass().getName() + "$OpenModuleAdvice");
+  public Collection<String> configuredMatchingTypes() {
+    return JpmsHelper.getAllTriggers();
   }
 
   public static class OpenModuleAdvice {
