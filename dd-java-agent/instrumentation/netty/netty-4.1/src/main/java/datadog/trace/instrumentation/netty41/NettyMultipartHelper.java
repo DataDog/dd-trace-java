@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.netty41;
 
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.api.Config;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.http.MultipartContentDecoder;
 import io.netty.buffer.ByteBuf;
 import io.netty.handler.codec.http.multipart.Attribute;
@@ -72,6 +76,24 @@ public final class NettyMultipartHelper {
     } catch (Exception ignored) {
       return "";
     }
+  }
+
+  /**
+   * Checks if the flow action is a blocking action and, if so, commits the blocking response.
+   * Returns a {@link BlockingException} to be re-thrown by the advice, or {@code null} if no
+   * blocking action was taken.
+   */
+  public static BlockingException tryBlock(RequestContext ctx, Flow<Void> flow, String message) {
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = ctx.getBlockResponseFunction();
+      if (brf != null) {
+        brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        return new BlockingException(message);
+      }
+    }
+    return null;
   }
 
   private NettyMultipartHelper() {}

@@ -6,13 +6,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isPrivate;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.muzzle.Reference;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -122,45 +120,30 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
               thiz.getBodyHttpDatas(), attributes, filenames, filesContent);
 
       if (callback != null) {
-        Flow<Void> flow = callback.apply(requestContext, attributes);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-            // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
-            // the span synchronously in this Netty path; calling it on a finished span throws.
-            thr = new BlockingException("Blocked request (multipart/urlencoded post data)");
-          }
-        }
+        // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
+        // the span synchronously in this Netty path; calling it on a finished span throws.
+        thr =
+            NettyMultipartHelper.tryBlock(
+                requestContext,
+                callback.apply(requestContext, attributes),
+                "Blocked request (multipart/urlencoded post data)");
       }
 
       if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> filenamesFlow = filenamesCb.apply(requestContext, filenames);
-        Flow.Action filenamesAction = filenamesFlow.getAction();
-        if (thr == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba =
-              (Flow.Action.RequestBlockingAction) filenamesAction;
-          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-            thr = new BlockingException("Blocked request (multipart file upload)");
-          }
+        if (thr == null) {
+          thr =
+              NettyMultipartHelper.tryBlock(
+                  requestContext, filenamesFlow, "Blocked request (multipart file upload)");
         }
       }
 
       if (thr == null && filesContent != null && !filesContent.isEmpty()) {
-        Flow<Void> contentFlow = contentCb.apply(requestContext, filesContent);
-        Flow.Action contentAction = contentFlow.getAction();
-        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
-          BlockResponseFunction brf = requestContext.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(requestContext.getTraceSegment(), rba);
-            thr = new BlockingException("Blocked request (multipart file upload content)");
-          }
-        }
+        thr =
+            NettyMultipartHelper.tryBlock(
+                requestContext,
+                contentCb.apply(requestContext, filesContent),
+                "Blocked request (multipart file upload content)");
       }
 
       if (exc != null) {
