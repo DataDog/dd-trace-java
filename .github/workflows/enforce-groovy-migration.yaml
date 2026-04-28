@@ -97,7 +97,7 @@ jobs:
               const body = `**❌ New Groovy Files Detected**\n\n` +
                 `Please avoid introducing new \`.groovy\` files to this repository.\n\n` +
                 `${fileList}\n\n` +
-                `Instead, rewrite the new file(s) in Java / JUnit.\n\n` +
+                `Instead, rewrite the new file(s) in Java / JUnit. See the [How to Test With JUnit Guide](https://github.com/DataDog/dd-trace-java/blob/master/docs/how_to_test_with_junit.md) for more details.\n\n` +
                 `If this PR needs an exception, add the \`tag: override-groovy-enforcement\` label to bypass this workflow.\n\n` +
                 managedMarker
               if (existingComment) {
