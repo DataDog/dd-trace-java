@@ -1,35 +1,29 @@
 package datadog.crashtracking;
 
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static java.util.Comparator.reverseOrder;
 import static java.util.Locale.ROOT;
 
 import com.datadoghq.profiler.JVMAccess;
 import com.sun.management.HotSpotDiagnosticMXBean;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
+import datadog.environment.SystemProperties;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
-import java.io.IOException;
+import java.io.File;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.util.Arrays;
 import java.util.List;
 import java.util.StringTokenizer;
-import java.util.function.Predicate;
-import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public final class Initializer {
   static final Logger LOG = LoggerFactory.getLogger(Initializer.class);
   static final String PID_PREFIX = "_pid";
-  static final String RWXRWXRWX = "rwxrwxrwx";
-  static final String R_XR_XR_X = "r-xr-xr-x";
 
   private interface FlagAccess {
     String getValue(String flagName);
@@ -127,15 +121,23 @@ public final class Initializer {
    */
   private static boolean initializeJ9() {
     try {
-      String scriptPath = getJ9CrashUploaderScriptPath();
-
       // Check if -Xdump:tool is already configured via JVM arguments
       boolean xdumpConfigured = isXdumpToolConfigured();
       // Get custom javacore path if configured
       String javacorePath = getJ9JavacorePath();
+      if (javacorePath == null || javacorePath.isEmpty()) {
+        // OpenJ9 defaults javacore output to the JVM working directory. Persist that location in
+        // the uploader config so the crash script does not need to guess from its own cwd.
+        javacorePath = SystemProperties.get("user.dir");
+      }
 
       if (xdumpConfigured) {
         LOG.debug("J9 crash tracking: -Xdump:tool already configured, crash uploads enabled");
+        // Use the path from the -Xdump:tool arg when available (allows callers to specify a known
+        // path via -Xdump:tool:events=gpf+abort,exec=<path>\ %pid), falling back to the default
+        // TempLocationManager path when the path cannot be extracted.
+        String extractedPath = extractJ9ScriptPathFromXdumpArg();
+        String scriptPath = extractedPath != null ? extractedPath : getJ9CrashUploaderScriptPath();
         // Initialize the crash uploader script and config manager
         CrashUploaderScriptInitializer.initialize(scriptPath, null, javacorePath);
         // Also set up OOME notifier script
@@ -143,6 +145,7 @@ public final class Initializer {
         OOMENotifierScriptInitializer.initialize(oomeScript);
         return true;
       } else {
+        String scriptPath = getJ9CrashUploaderScriptPath();
         // Log instructions for manual configuration
         LOG.info("J9 JVM detected. To enable crash tracking, add this JVM argument at startup:");
         LOG.info("  -Xdump:tool:events=gpf+abort,exec={}\\ %pid", scriptPath);
@@ -156,6 +159,40 @@ public final class Initializer {
           t);
     }
     return false;
+  }
+
+  /**
+   * Extract the crash uploader script path from the {@code -Xdump:tool} JVM argument.
+   *
+   * <p>Looks for a JVM argument of the form {@code
+   * -Xdump:tool:events=...,exec=/path/to/dd_crash_uploader.sh\ %pid} and returns the script path
+   * portion (before the {@code \ %pid} argument separator).
+   *
+   * @return the script path, or {@code null} if not found or not extractable
+   */
+  private static String extractJ9ScriptPathFromXdumpArg() {
+    List<String> vmArgs = JavaVirtualMachine.getVmOptions();
+    for (String arg : vmArgs) {
+      if (arg.startsWith("-Xdump:tool") && arg.contains("dd_crash_uploader")) {
+        int execIdx = arg.indexOf("exec=");
+        if (execIdx >= 0) {
+          String execVal = arg.substring(execIdx + 5);
+          // Separator between command and args: plain space, or "\ " (backslash + space) as
+          // suggested by the Initializer's log hint. Check plain space first since that is the
+          // form that actually works when the shell splits the exec string into tokens.
+          int spaceIdx = execVal.indexOf(' ');
+          if (spaceIdx >= 0) {
+            String candidate = execVal.substring(0, spaceIdx);
+            // Strip a trailing backslash left over from the "\ %pid" notation
+            return candidate.endsWith("\\")
+                ? candidate.substring(0, candidate.length() - 1)
+                : candidate;
+          }
+          return execVal;
+        }
+      }
+    }
+    return null;
   }
 
   /**
@@ -207,8 +244,8 @@ public final class Initializer {
    */
   private static String getJ9CrashUploaderScriptPath() {
     String scriptFileName = getScriptFileName("dd_crash_uploader");
-    Path scriptPath = TempLocationManager.getInstance().getTempDir().resolve(scriptFileName);
-    return scriptPath.toString();
+    String tempDir = TempLocationManager.getInstance().getTempDir().toString();
+    return tempDir + File.separator + scriptFileName;
   }
 
   static InputStream getCrashUploaderTemplate() {
@@ -236,19 +273,11 @@ public final class Initializer {
     else if (selfClass.startsWith("file:")) {
       int idx = selfClass.lastIndexOf("dd-java-agent");
       if (idx > -1) {
-        Path libsPath = Paths.get(selfClass.substring(5, idx + 13), "build", "libs");
-        try (Stream<Path> files = Files.walk(libsPath)) {
-          Predicate<Path> isJarFile =
-              p -> p.getFileName().toString().toLowerCase(ROOT).endsWith(".jar");
-          agentPath =
-              files
-                  .sorted(reverseOrder())
-                  .filter(isJarFile)
-                  .findFirst()
-                  .map(Path::toString)
-                  .orElse(null);
-        } catch (IOException ignored) {
-          // Ignore failure to get agent path
+        File libsDir = new File(selfClass.substring(5, idx + 13), "build/libs");
+        File[] jars = libsDir.listFiles(f -> f.getName().toLowerCase(ROOT).endsWith(".jar"));
+        if (jars != null && jars.length > 0) {
+          Arrays.sort(jars, (a, b) -> b.getName().compareTo(a.getName()));
+          agentPath = jars[0].getAbsolutePath();
         }
       }
     }

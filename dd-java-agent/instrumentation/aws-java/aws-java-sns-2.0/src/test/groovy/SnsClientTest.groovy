@@ -13,7 +13,6 @@ import software.amazon.awssdk.auth.credentials.AwsBasicCredentials
 import software.amazon.awssdk.auth.credentials.StaticCredentialsProvider
 import software.amazon.awssdk.regions.Region
 import software.amazon.awssdk.services.sns.SnsClient
-import software.amazon.awssdk.services.sns.model.MessageAttributeValue
 import software.amazon.awssdk.services.sns.model.PublishResponse
 import software.amazon.awssdk.services.sqs.SqsClient
 import software.amazon.awssdk.services.sqs.model.QueueAttributeName
@@ -41,15 +40,15 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     LOCALSTACK.start()
     def endPoint = "http://" + LOCALSTACK.getHost() + ":" + LOCALSTACK.getMappedPort(4566)
     snsClient = SnsClient.builder()
-    .endpointOverride(URI.create(endPoint))
-    .region(Region.of("us-east-1"))
-    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
-    .build()
+      .endpointOverride(URI.create(endPoint))
+      .region(Region.of("us-east-1"))
+      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
+      .build()
     sqsClient = SqsClient.builder()
-    .endpointOverride(URI.create(endPoint))
-    .region(Region.of("us-east-1"))
-    .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
-    .build()
+      .endpointOverride(URI.create(endPoint))
+      .region(Region.of("us-east-1"))
+      .credentialsProvider(StaticCredentialsProvider.create(AwsBasicCredentials.create("test", "test")))
+      .build()
     testQueueURL = sqsClient.createQueue {  it.queueName("testqueue") }.queueUrl()
     testQueueARN = sqsClient.getQueueAttributes {it.queueUrl(testQueueURL).attributeNames(QueueAttributeName.QUEUE_ARN)}.attributes().get(QueueAttributeName.QUEUE_ARN)
     testTopicARN = snsClient.createTopic { it.name("testtopic") }.topicArn()
@@ -81,30 +80,6 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
 
   abstract String expectedOperation(String awsService, String awsOperation)
   abstract String expectedService(String awsService, String awsOperation)
-
-  def "trace details propagated when message attributes are readonly"() {
-    when:
-    TEST_WRITER.clear()
-
-    def headers = new HashMap<String, MessageAttributeValue>()
-    headers.put("mykey", MessageAttributeValue.builder().stringValue("myvalue").dataType("String").build())
-    def readonlyHeaders = Collections.unmodifiableMap(headers)
-    snsClient.publish(b -> b.message("sometext").topicArn(testTopicARN).messageAttributes(readonlyHeaders))
-
-    def message = sqsClient.receiveMessage {
-      it.queueUrl(testQueueURL).waitTimeSeconds(3)
-    }.messages().get(0)
-
-    def messageBody = new JsonSlurper().parseText(message.body())
-
-    then:
-    // injected value is here
-    String injectedValue = messageBody["MessageAttributes"]["_datadog"]["Value"]
-    injectedValue.length() > 0
-
-    // original header value is still present
-    messageBody["MessageAttributes"]["mykey"] != null
-  }
 
   def "trace details propagated via SNS system message attributes"() {
     when:
@@ -214,7 +189,7 @@ abstract class SnsClientTest extends VersionedNamingTestBase {
     TEST_WRITER.clear()
     snsClient.publish { req ->
       req.message("test message")
-      .topicArn(testTopicARN)
+        .topicArn(testTopicARN)
     }
 
     def message = sqsClient.receiveMessage { it.queueUrl(testQueueURL).waitTimeSeconds(3) }.messages().get(0)
@@ -339,4 +314,3 @@ class SnsClientV1DataStreamsForkedTest extends SnsClientTest {
     1
   }
 }
-

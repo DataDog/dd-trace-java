@@ -1,8 +1,12 @@
 package datadog.smoketest
 
+import com.google.common.collect.ImmutableSet
 import datadog.trace.agent.test.utils.PortUtils
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.time.Instant
+import java.time.ZoneOffset
+import java.time.format.DateTimeFormatter
 import java.util.concurrent.TimeUnit
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -15,6 +19,9 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE', 'CI_COMMIT_DESCRIPTION')
+  private static final DateTimeFormatter LOG_FILE_TIMESTAMP_FORMATTER =
+  DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss.SSS", Locale.ROOT).withZone(ZoneOffset.UTC)
 
   @Shared
   protected String buildDirectory = System.getProperty("datadog.smoketest.builddir")
@@ -43,14 +50,18 @@ abstract class ProcessManager extends Specification {
   @Shared
   protected Process testedProcess
 
+  // Added a timestamp to protect logs from being overwritten on retries.
+  @Shared
+  private String logFileTimestamp = LOG_FILE_TIMESTAMP_FORMATTER.format(Instant.now())
+
   @Shared
   private String[] logFilePaths = (0..<numberOfProcesses).collect { idx ->
-    "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${idx}.log"
+    "${buildDirectory}/reports/testProcess.${this.getClass().getName()}.${logFileTimestamp}.${idx}.log"
   }
 
   // Here for backwards compatibility with single process case
   @Shared
-  def logFilePath = logFilePaths[0]
+  def logFilePath = logFilePaths.length > 0 ? logFilePaths[0] : null
 
   def setup() {
     testedProcesses.each {
@@ -77,8 +88,10 @@ abstract class ProcessManager extends Specification {
     (0..<numberOfProcesses).each { idx ->
       ProcessBuilder processBuilder = createProcessBuilder(idx)
 
-      processBuilder.environment().put("JAVA_HOME", System.getProperty("java.home"))
-      processBuilder.environment().put("DD_API_KEY", apiKey())
+      Map<String, String> env = processBuilder.environment()
+      env.put("JAVA_HOME", System.getProperty("java.home"))
+      env.put("DD_API_KEY", apiKey())
+      muteNoisyEnvironmentVariables(env)
 
       processBuilder.redirectErrorStream(true)
 
@@ -189,6 +202,14 @@ abstract class ProcessManager extends Specification {
 
     return line.contains("ERROR") || line.contains("ASSERTION FAILED")
     || line.contains("Failed to handle exception in instrumentation")
+  }
+
+  /**
+   * Some variable can be printed in smoke application logs and result into false-positive test result.
+   * @param env environment variables to process.
+   */
+  void muteNoisyEnvironmentVariables(Map<String, String> env) {
+    env.keySet().removeAll(NOISY_ENVIRONMENT_VARIABLES)
   }
 
   /**

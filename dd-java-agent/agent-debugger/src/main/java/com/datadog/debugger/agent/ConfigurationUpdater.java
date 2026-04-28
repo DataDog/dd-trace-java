@@ -14,12 +14,12 @@ import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
 import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
-import datadog.trace.relocate.api.RatelimitedLogger;
 import datadog.trace.util.TagsHelper;
 import java.lang.annotation.Annotation;
 import java.lang.annotation.ElementType;
@@ -285,7 +285,8 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     for (Class<?> changedClass : changedClasses) {
       boolean addClass = true;
       try {
-        if (changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
+        if (changedClass.getSuperclass() != null
+            && changedClass.getSuperclass().getTypeName().equals("java.lang.Record")
             && Modifier.isFinal(changedClass.getModifiers())) {
           if (hasTypeAnnotationOnRecordComponent(changedClass)) {
             LOGGER.debug(

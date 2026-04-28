@@ -2,12 +2,14 @@ package datadog.trace.bootstrap;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
 import java.io.PrintStream;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Method;
+import java.nio.charset.StandardCharsets;
 
 /** Special lightweight pre-main class that skips installation on incompatible JVMs. */
 public class AgentPreCheck {
@@ -189,10 +191,16 @@ public class AgentPreCheck {
         OutputStream out = null;
         try {
           out = process.getOutputStream();
-          out.write(payload.getBytes());
+          out.write(payload.getBytes(StandardCharsets.UTF_8));
+        } catch (IOException ignored) {
+          // if this happens it can generate noise into the logs.
+          // we'll only log if the error is more severe
         } finally {
           if (out != null) {
-            out.close();
+            try {
+              out.close();
+            } catch (IOException ignored) {
+            }
           }
         }
       } catch (Throwable e) {

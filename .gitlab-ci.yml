@@ -4,10 +4,29 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-load-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-startup-parallel.yml'
+    ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-dacapo-parallel.yml'
+    ref: 'main'
+  - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
   - build
   - publish
+  # These benchmarks are intended to replace the legacy benchmarks in the future
+  - java-spring-petclinic-parallel
+  - java-spring-petclinic-parallel-slo
+  - java-startup-parallel
+  - java-load-parallel
+  - java-dacapo-parallel
   - shared-pipeline
   - benchmarks
   - macrobenchmarks
@@ -42,6 +61,10 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+
+  # One pipeline injection package size ratchet
+  OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
+  LIB_INJECTION_IMAGE_MAX_SIZE_BYTES: 40_000_000
 
 # trigger new commit cancel
 workflow:
@@ -222,6 +245,9 @@ maven-central-pre-release-check:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: .pre
   rules:
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+      allow_failure: false
     - if: '$CI_COMMIT_TAG =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       when: on_success
       allow_failure: false
@@ -229,11 +255,14 @@ maven-central-pre-release-check:
     - |
       MAVEN_CENTRAL_USERNAME=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_username --with-decryption --query "Parameter.Value" --out text)
       MAVEN_CENTRAL_PASSWORD=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.central_password --with-decryption --query "Parameter.Value" --out text)
-      # See https://central.sonatype.org/publish/publish-portal-api/
-      # 15e0cbbb-deff-421e-9e02-296a24d0cada is deployment, any deployment id listed in central  work, the idea is to check whether the token can authenticate
-      curl --request POST --include --fail https://central.sonatype.com/api/v1/publisher/status?id=15e0cbbb-deff-421e-9e02-296a24d0cada --header "Authorization: Bearer $(printf "$MAVEN_CENTRAL_USERNAME:$MAVEN_CENTRAL_PASSWORD" | base64)"
-      if [ $? -ne 0 ]; then
-        echo "Failed to authenticate against central. Check credentials, see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
+      # See https://central.sonatype.org/publish/publish-portal-ossrh-staging-api/
+      # Use the staging API search endpoint to validate the tokens without relying on a specific deployment
+      AUTHORIZATION_HEADER="Authorization: Bearer $(printf '%s:%s' "$MAVEN_CENTRAL_USERNAME" "$MAVEN_CENTRAL_PASSWORD" | base64)"
+      if ! curl --silent --show-error --fail \
+        "https://ossrh-staging-api.central.sonatype.com/manual/search/repositories?ip=any" \
+        --header "$AUTHORIZATION_HEADER" \
+        > /dev/null; then
+        echo "Failed to authenticate tokens against maven central staging API. Check credentials and see https://datadoghq.atlassian.net/wiki/x/Oog5OgE"
         exit 1
       fi
 
@@ -396,7 +425,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew logEnvVarUsages checkEnvironmentVariablesUsage checkConfigStrings
+    - ./gradlew checkConfigurations
 
 test_published_artifacts:
   extends: .gradle_build
@@ -641,7 +670,7 @@ muzzle-dep-report:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
   services:
-    - name: ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.33.1
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
       alias: local-agent
       variables:
         LOG_LEVEL: "DEBUG"
@@ -803,7 +832,12 @@ aggregate_test_counts:
   rules:
     - if: '$POPULATE_CACHE'
       when: never
-    - when: always
+    - if: '$CI_COMMIT_BRANCH == "master"'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   script:
     - *set_datadog_api_keys
     - .gitlab/aggregate_test_counts.sh
@@ -836,32 +870,6 @@ deploy_to_profiling_backend:
     UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
     UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
     UPSTREAM_TAG: $CI_COMMIT_TAG
-
-trigger_tibco_tests:
-  stage: tests
-  needs: [ build ]
-  rules:
-    - if: '$POPULATE_CACHE'
-      when: never
-    - if: '$CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH'
-      when: on_success
-    - if: '$CI_COMMIT_TAG =~ /^v.*/'
-      when: on_success
-    - when: manual
-      allow_failure: true
-  trigger:
-    project: DataDog/tibco-testing
-    branch: main
-    strategy: depend
-  variables:
-    UPSTREAM_PACKAGE_JOB: $BUILD_JOB_NAME
-    UPSTREAM_PACKAGE_JOB_ID: $BUILD_JOB_ID
-    UPSTREAM_PROJECT_ID: $CI_PROJECT_ID
-    UPSTREAM_PROJECT_NAME: $CI_PROJECT_NAME
-    UPSTREAM_PIPELINE_ID: $CI_PIPELINE_ID
-    UPSTREAM_BRANCH: $CI_COMMIT_BRANCH
-    UPSTREAM_TAG: $CI_COMMIT_TAG
-    FORCE_TRIGGER: $FORCE_TRIGGER
 
 deploy_to_di_backend:manual:
   stage: publish
@@ -1028,11 +1036,12 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
       )
-      # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
-      sleep 300
+      # Try once immediately (fast path on job retry), then wait 5 mins for initial propagation,
+      # then try 4 more times with a minute delay between each retry.
       TRY=0
-      MAX_TRIES=5
-      DELAY=60
+      MAX_TRIES=6
+      INITIAL_DELAY=300
+      RETRY_DELAY=60
       while [ $TRY -lt $MAX_TRIES ]; do
         ARTIFACTS_AVAILABLE=true
         for URL in "${ARTIFACT_URLS[@]}"; do
@@ -1049,7 +1058,11 @@ verify_maven_central_deployment:
           echo "The release was not available after 10 mins. Manually re-run the job to try again."
           exit 1
         fi
-        sleep $DELAY
+        if [ $TRY -eq 1 ]; then
+          sleep $INITIAL_DELAY
+        else
+          sleep $RETRY_DELAY
+        fi
       done
 
 publishing-gate:
@@ -1060,6 +1073,7 @@ publishing-gate:
 
 configure_system_tests:
   variables:
+    SYSTEM_TESTS_REF: "main" # system tests are pinned on release branches only
     SYSTEM_TESTS_SCENARIOS_GROUPS: "simple_onboarding,simple_onboarding_profiling,simple_onboarding_appsec,docker-ssi,lib-injection"
 
 create_key:

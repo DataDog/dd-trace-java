@@ -12,7 +12,7 @@ jobs:
       contents: read
       id-token: write # Required for OIDC token federation
     steps:
-      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
@@ -130,7 +130,7 @@ jobs:
 
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branch.outputs.branch }}"

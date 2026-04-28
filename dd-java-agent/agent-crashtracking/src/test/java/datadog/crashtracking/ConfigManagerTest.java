@@ -24,12 +24,12 @@ public class ConfigManagerTest {
         .thenReturn(new WellKnownTags("1234", "", "env", "service", "version", ""));
     when(config.isCrashTrackingAgentless()).thenReturn(false);
     when(config.isCrashTrackingErrorsIntakeEnabled()).thenReturn(true);
+    when(config.isCrashTrackingExtendedInfoEnabled()).thenReturn(true);
     when(config.getMergedCrashTrackingTags()).thenReturn(Collections.singletonMap("key", "value"));
     File tmpFile = File.createTempFile("ConfigManagerTest", null);
     tmpFile.deleteOnExit();
-    ConfigManager.writeConfigToFile(config, tmpFile.toPath());
-    ConfigManager.StoredConfig deserialized =
-        ConfigManager.readConfig(Config.get(), tmpFile.toPath());
+    ConfigManager.writeConfigToFile(config, tmpFile);
+    ConfigManager.StoredConfig deserialized = ConfigManager.readConfig(Config.get(), tmpFile);
     Assertions.assertNotNull(deserialized);
     assertEquals("service", deserialized.service);
     assertEquals("version", deserialized.version);
@@ -41,6 +41,7 @@ public class ConfigManagerTest {
         deserialized.processTags);
     assertFalse(deserialized.agentless);
     assertTrue(deserialized.sendToErrorTracking);
+    assertTrue(deserialized.extendedInfoEnabled);
   }
 
   @Test
@@ -56,5 +57,6 @@ public class ConfigManagerTest {
     assertEquals("env", storedConfig.env);
     assertFalse(storedConfig.agentless);
     assertFalse(storedConfig.sendToErrorTracking);
+    assertFalse(storedConfig.extendedInfoEnabled);
   }
 }

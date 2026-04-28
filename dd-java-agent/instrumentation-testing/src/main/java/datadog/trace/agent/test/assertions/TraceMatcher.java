@@ -1,16 +1,18 @@
 package datadog.trace.agent.test.assertions;
 
+import static java.util.Comparator.comparingLong;
+
 import datadog.trace.core.DDSpan;
 import java.util.Comparator;
 import java.util.List;
-import java.util.function.Function;
+import java.util.function.UnaryOperator;
 import org.opentest4j.AssertionFailedError;
 
 /**
  * This class is a helper class to verify a trace structure.
  *
  * <p>To get a {@code TraceMatcher}, use the static factory methods: {@link #trace(SpanMatcher...)}
- * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(Function,
+ * with the expected {@link SpanMatcher}s (one per expected span), or {@link #trace(UnaryOperator,
  * SpanMatcher...)} to configure the checks with a {@link Options} object.
  *
  * <p>{@link #SORT_BY_START_TIME} can be used as predefined configuration to sort spans by start
@@ -21,8 +23,8 @@ import org.opentest4j.AssertionFailedError;
  */
 public final class TraceMatcher {
   public static final Comparator<DDSpan> START_TIME_COMPARATOR =
-      Comparator.comparingLong(DDSpan::getStartTime);
-  public static Function<Options, Options> SORT_BY_START_TIME =
+      comparingLong(DDSpan::getStartTime);
+  public static UnaryOperator<Options> SORT_BY_START_TIME =
       options -> options.sorter(START_TIME_COMPARATOR);
 
   private final Options options;
@@ -51,7 +53,7 @@ public final class TraceMatcher {
    * @param options The {@link TraceAssertions.Options} to configure the checks.
    * @param matchers The matchers to verify the trace structure.
    */
-  public static TraceMatcher trace(Function<Options, Options> options, SpanMatcher... matchers) {
+  public static TraceMatcher trace(UnaryOperator<Options> options, SpanMatcher... matchers) {
     return new TraceMatcher(options.apply(new Options()), matchers);
   }
 

@@ -506,7 +506,7 @@ public class SymbolExtractor {
       if (node.getType() == AbstractInsnNode.LINE) {
         LineNumberNode lineNumberNode = (LineNumberNode) node;
         int newLine = sourceRemapper.remapSourceLine(lineNumberNode.line);
-        if (dedupSet.add(newLine)) {
+        if (newLine > 0 && dedupSet.add(newLine)) {
           lineNo.add(newLine);
         }
         maxLine = Math.max(newLine, maxLine);

@@ -1,10 +1,12 @@
 package datadog.communication.serialization.msgpack;
 
 import static datadog.trace.util.stacktrace.StackTraceEvent.DEFAULT_LANGUAGE;
+import static java.nio.charset.StandardCharsets.UTF_8;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.Codec;
@@ -19,7 +21,6 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.CharBuffer;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -27,12 +28,15 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
 public class MsgPackWriterTest {
+  // Explicit escapes for non-ASCII chars to make test independent of container settings.
+  private static final String NON_ASCII_STRING = "foob\u00E1r_\u263a"; // foobár_☺
+  private static final byte[] NON_ASCII_BYTES = NON_ASCII_STRING.getBytes(UTF_8);
+  private static final int NON_ASCII_BUFFER_CAPACITY = NON_ASCII_BYTES.length + 1;
 
   @Test
   public void testOverflow() {
@@ -71,13 +75,16 @@ public class MsgPackWriterTest {
             newBuffer(
                 2 + 25, // enough space for a 25 element string and its 2 byte header
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  for (int i = 0; i < messageCount; ++i) {
-                    try {
-                      flushed.add(unpacker.unpackString());
-                    } catch (Exception error) {
-                      Assertions.fail(error.getMessage());
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    for (int i = 0; i < messageCount; ++i) {
+                      try {
+                        flushed.add(unpacker.unpackString());
+                      } catch (Exception error) {
+                        fail(error.getMessage());
+                      }
                     }
+                  } catch (IOException error) {
+                    fail(error.getMessage());
                   }
                 }));
     assertTrue(packer.format("abcdefghijklm", mapper), "data fits in buffer");
@@ -117,13 +124,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     int length = unpacker.unpackBinaryHeader();
                     assertEquals(4, length);
                     assertArrayEquals(data, unpacker.readPayload(length));
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(
@@ -138,16 +144,36 @@ public class MsgPackWriterTest {
             newBuffer(
                 10,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackBinaryHeader(), 6);
-                    assertArrayEquals(
-                        unpacker.readPayload(6), "foobar".getBytes(StandardCharsets.UTF_8));
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(6, unpacker.unpackBinaryHeader());
+                    assertArrayEquals(unpacker.readPayload(6), "foobar".getBytes(UTF_8));
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
-    writer.writeBinary("foobar".getBytes(StandardCharsets.UTF_8));
+    writer.writeBinary("foobar".getBytes(UTF_8));
+  }
+
+  @Test
+  public void testWriteBinaryLongPair() {
+    final long hi = 0x1122334455667788L;
+    final long lo = 0x99AABBCCDDEEFF00L;
+    final byte[] data = ByteBuffer.allocate(16).putLong(hi).putLong(lo).array();
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                25,
+                (messageCount, buffy) -> {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
+                    int length = unpacker.unpackBinaryHeader();
+                    assertEquals(16, length);
+                    assertArrayEquals(data, unpacker.readPayload(length));
+                  } catch (IOException e) {
+                    fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(data, (ignored, writable) -> writable.writeBinary(hi, lo));
+    messageFormatter.flush();
   }
 
   @Test
@@ -158,13 +184,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     int length = unpacker.unpackBinaryHeader();
                     assertEquals(4, length);
                     assertArrayEquals(data, unpacker.readPayload(length));
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (ba, writable) -> writable.writeObject(ba, null));
@@ -179,13 +204,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     int length = unpacker.unpackBinaryHeader();
                     assertEquals(4, length);
                     assertArrayEquals(data, unpacker.readPayload(length));
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(ByteBuffer.wrap(data), (bb, writable) -> writable.writeBinary(bb));
@@ -200,13 +224,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     int length = unpacker.unpackBinaryHeader();
                     assertEquals(4, length);
                     assertArrayEquals(data, unpacker.readPayload(length));
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(
@@ -221,11 +244,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     unpacker.unpackNil();
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(null, (x, w) -> w.writeObject(x, null));
@@ -239,11 +261,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertTrue(unpacker.unpackBoolean());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(true, (x, w) -> w.writeObject(x, null));
@@ -257,11 +278,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertTrue(unpacker.unpackBoolean());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(true, (x, w) -> w.writeBoolean(x));
@@ -276,11 +296,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data.doubleValue(), unpacker.unpackDouble(), 0);
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (Mapper<Number>) (x, w) -> w.writeObject(x, null));
@@ -295,11 +314,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data.toCharArray(), (x, w) -> w.writeObject(x, null));
@@ -314,11 +332,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals("xyz", unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(utf8BytesString, (x, w) -> w.writeObject(x, null));
@@ -333,14 +350,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 25,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (boolean datum : data) {
                       assertEquals(datum, unpacker.unpackBoolean());
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -355,14 +371,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (float datum : data) {
                       assertEquals(datum, unpacker.unpackFloat(), 0.001);
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -377,14 +392,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (double datum : data) {
                       assertEquals(datum, unpacker.unpackDouble(), 0.001);
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -399,14 +413,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (long datum : data) {
                       assertEquals(datum, unpacker.unpackLong());
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -421,14 +434,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (int datum : data) {
                       assertEquals(datum, unpacker.unpackInt());
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -443,14 +455,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(4, unpacker.unpackArrayHeader());
                     for (short datum : data) {
                       assertEquals(datum, unpacker.unpackInt());
                     }
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -465,11 +476,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackLong());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -484,12 +494,11 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackLong());
                     assertEquals(data, unpacker.unpackLong());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(
@@ -509,14 +518,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackLong());
                     assertEquals(data, unpacker.unpackLong());
                     // Can't unpack unsigned long directly as the unpacker refuses negative values
                     assertEquals(data, unpacker.unpackValue().asNumberValue().toLong());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(
@@ -537,11 +545,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackInt());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -556,11 +563,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackInt());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeInt(x));
@@ -575,11 +581,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data, unpacker.unpackInt());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -594,11 +599,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data.toString(), unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -613,13 +617,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 100,
                 (messageCount, buffy) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
                     assertEquals(data.length, unpacker.unpackArrayHeader());
                     assertEquals(data[0].toString(), unpacker.unpackString());
                     assertEquals(data[1].toString(), unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -628,18 +631,17 @@ public class MsgPackWriterTest {
 
   @Test
   public void testWriteStringUTF8BytesString() {
-    UTF8BytesString value = UTF8BytesString.create("foobár");
+    UTF8BytesString value = UTF8BytesString.create(NON_ASCII_STRING);
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                20,
+                NON_ASCII_BUFFER_CAPACITY * 2,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackString(), "foobár");
-                    assertEquals(unpacker.unpackString(), "foobár");
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.writeObjectString(value, null);
@@ -653,12 +655,11 @@ public class MsgPackWriterTest {
             newBuffer(
                 20,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
                     unpacker.unpackNil();
                     unpacker.unpackNil();
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.writeObjectString(null, null);
@@ -671,7 +672,7 @@ public class MsgPackWriterTest {
         new Object() {
           @Override
           public String toString() {
-            return "foobár";
+            return NON_ASCII_STRING;
           }
         };
     MsgPackWriter writer =
@@ -679,16 +680,15 @@ public class MsgPackWriterTest {
             newBuffer(
                 40,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackString(), "foobár");
-                    assertEquals(unpacker.unpackString(), "foobàr");
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.writeObjectString(value, null);
-    writer.writeObjectString(value, s -> "foobàr".getBytes(StandardCharsets.UTF_8));
+    writer.writeObjectString(value, s -> NON_ASCII_BYTES);
   }
 
   @Test
@@ -696,16 +696,15 @@ public class MsgPackWriterTest {
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                10,
+                NON_ASCII_BUFFER_CAPACITY,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackString(), "foobár");
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
-    CharBuffer charSeq = CharBuffer.wrap("foobár");
+    CharBuffer charSeq = CharBuffer.wrap(NON_ASCII_STRING);
     writer.writeString(charSeq, null);
   }
 
@@ -714,16 +713,15 @@ public class MsgPackWriterTest {
     MsgPackWriter writer =
         new MsgPackWriter(
             newBuffer(
-                10,
+                NON_ASCII_BUFFER_CAPACITY,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackString(), "foobár");
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(NON_ASCII_STRING, unpacker.unpackString());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
-    writer.writeString("", s -> "foobár".getBytes(StandardCharsets.UTF_8));
+    writer.writeString("", s -> NON_ASCII_BYTES);
   }
 
   @Test
@@ -733,14 +731,13 @@ public class MsgPackWriterTest {
             newBuffer(
                 10,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackArrayHeader(), 1);
-                    assertEquals(unpacker.unpackArrayHeader(), 0xFFFF);
-                    assertEquals(unpacker.unpackArrayHeader(), 0x10000);
-                    assertEquals(unpacker.unpackArrayHeader(), 1);
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(1, unpacker.unpackArrayHeader());
+                    assertEquals(0xFFFF, unpacker.unpackArrayHeader());
+                    assertEquals(0x10000, unpacker.unpackArrayHeader());
+                    assertEquals(1, unpacker.unpackArrayHeader());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.startArray(1);
@@ -756,13 +753,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 10,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackMapHeader(), 1);
-                    assertEquals(unpacker.unpackMapHeader(), 0xFFFF);
-                    assertEquals(unpacker.unpackMapHeader(), 0x10000);
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(1, unpacker.unpackMapHeader());
+                    assertEquals(0xFFFF, unpacker.unpackMapHeader());
+                    assertEquals(0x10000, unpacker.unpackMapHeader());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.startMap(1);
@@ -777,13 +773,12 @@ public class MsgPackWriterTest {
             newBuffer(
                 10,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
-                    assertEquals(unpacker.unpackRawStringHeader(), 1);
-                    assertEquals(unpacker.unpackRawStringHeader(), 0xFFFF);
-                    assertEquals(unpacker.unpackRawStringHeader(), 0x10000);
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
+                    assertEquals(1, unpacker.unpackRawStringHeader());
+                    assertEquals(0xFFFF, unpacker.unpackRawStringHeader());
+                    assertEquals(0x10000, unpacker.unpackRawStringHeader());
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     writer.writeStringHeader(1);
@@ -814,11 +809,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 1000,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
                     checkStackTraceEvent(data, unpacker);
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(data, (x, w) -> w.writeObject(x, null));
@@ -833,11 +827,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 1000,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
                     checkStackTraceFrame(frame, unpacker);
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(frame, (x, w) -> w.writeObject(x, null));
@@ -850,11 +843,10 @@ public class MsgPackWriterTest {
             newBuffer(
                 100000,
                 (messageCount, buffer) -> {
-                  MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer);
-                  try {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)) {
                     checkStackTraceBatch(batch, unpacker);
                   } catch (IOException e) {
-                    Assertions.fail(e.getMessage());
+                    fail(e.getMessage());
                   }
                 }));
     messageFormatter.format(batch, (x, w) -> w.writeObject(x, null));

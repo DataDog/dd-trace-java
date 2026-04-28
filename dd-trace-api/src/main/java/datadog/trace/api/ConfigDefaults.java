@@ -47,12 +47,10 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
-  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
-  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_ENABLED = false;
+  static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
   static final int DEFAULT_CODE_ORIGIN_MAX_USER_FRAMES = 8;
-  static final boolean DEFAULT_TRACE_SPAN_ORIGIN_ENRICHED = false;
   static final boolean DEFAULT_TRACE_ENABLED = true;
   public static final boolean DEFAULT_TRACE_OTEL_ENABLED = false;
   static final boolean DEFAULT_INTEGRATIONS_ENABLED = true;
@@ -89,7 +87,8 @@ public final class ConfigDefaults {
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V0_4.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
@@ -109,7 +108,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
-  static final String DEFAULT_OTLP_HTTP_METRIC_ENDPOINT = "v1/metrics";
+  static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
+
+  static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
+  static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
   static final String DEFAULT_OTLP_HTTP_PORT = "4318";
   static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
@@ -233,7 +235,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_TRACE_ANNOTATION_ASYNC = false;
   static final boolean DEFAULT_TRACE_EXECUTORS_ALL = false;
   static final String DEFAULT_TRACE_METHODS = null;
+  static final String DEFAULT_TRACE_NATIVE_METHODS = null;
   static final String DEFAULT_MEASURE_METHODS = "";
+  static final String DEFAULT_MEASURE_NATIVE_METHODS = "";
   static final boolean DEFAULT_TRACE_ANALYTICS_ENABLED = false;
   static final float DEFAULT_ANALYTICS_SAMPLE_RATE = 1.0f;
   static final int DEFAULT_TRACE_RATE_LIMIT = 100;

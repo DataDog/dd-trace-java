@@ -358,7 +358,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
-  def "kotlin trace consistent with timeout"() {
+  def "kotlin trace consistent with timeout #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.traceAfterTimeout()
@@ -397,7 +397,7 @@ abstract class AbstractKotlinCoroutineInstrumentationTest<T extends CoreKotlinCo
     [dispatcherName, dispatcher] << dispatchersToTest
   }
 
-  def "kotlin trace consistent after delay"() {
+  def "kotlin trace consistent after delay #dispatcherName"() {
     setup:
     CoreKotlinCoroutineTests kotlinTest = getCoreKotlinCoroutineTestsInstance(dispatcher)
     int expectedNumberOfSpans = kotlinTest.traceAfterDelay()

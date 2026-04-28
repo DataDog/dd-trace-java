@@ -42,7 +42,7 @@ public class AgentTaskScheduler implements Executor {
    * @param timeout the amount of time to wait for the shutdown.
    * @param unit the unit of the time amount.
    */
-  static void shutdownAndReset(long timeout, TimeUnit unit) {
+  public static void shutdownAndReset(long timeout, TimeUnit unit) {
     INSTANCE.shutdown(timeout, unit);
     INSTANCE = new AgentTaskScheduler(TASK_SCHEDULER);
   }
