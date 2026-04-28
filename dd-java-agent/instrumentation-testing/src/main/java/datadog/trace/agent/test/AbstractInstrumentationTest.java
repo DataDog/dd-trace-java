@@ -1,6 +1,6 @@
 package datadog.trace.agent.test;
 
-import static java.util.function.Function.identity;
+import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -27,8 +27,8 @@ import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import net.bytebuddy.agent.ByteBuddyAgent;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
@@ -148,8 +148,7 @@ public abstract class AbstractInstrumentationTest {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   protected void assertTraces(
-      Function<TraceAssertions.Options, TraceAssertions.Options> options,
-      TraceMatcher... matchers) {
+      UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
     int expectedTraceCount = matchers.length;
     try {
       writer.waitForTraces(expectedTraceCount);

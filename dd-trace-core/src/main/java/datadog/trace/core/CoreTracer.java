@@ -40,6 +40,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -776,7 +777,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     if (config.isCiVisibilityEnabled()
-        && (config.isCiVisibilityAgentlessEnabled() || featuresDiscovery.supportsEvpProxy())) {
+        && (config.isCiVisibilityAgentlessEnabled()
+            || featuresDiscovery.supportsEvpProxy()
+            || BazelMode.get().isPayloadFilesEnabled())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
@@ -835,7 +838,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
       }
 
-      if (config.isCiVisibilityAgentlessEnabled()) {
+      if (config.isCiVisibilityAgentlessEnabled() || BazelMode.get().isPayloadFilesEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {
         featuresDiscovery.discoverIfOutdated();
