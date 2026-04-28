@@ -20,33 +20,40 @@ public final class MultipartContentDecoder {
 
   public static Charset extractCharset(String contentType) {
     if (contentType == null) return null;
-    int idx = indexOfIgnoreAsciiCase(contentType, "charset=");
-    if (idx < 0) return null;
-    int nameStart = idx + 8;
-    int end = contentType.length();
-    for (int i = nameStart; i < end; i++) {
-      char c = contentType.charAt(i);
-      if (c == ';' || c == ',' || c == ' ') {
-        end = i;
-        break;
+    int searchFrom = 0;
+    while (true) {
+      int idx = indexOfIgnoreAsciiCase(contentType, "charset=", searchFrom);
+      if (idx < 0) return null;
+      // Require a parameter boundary before "charset=" so "xcharset=..." is not matched
+      if (idx == 0 || contentType.charAt(idx - 1) == ';' || contentType.charAt(idx - 1) == ' ') {
+        int nameStart = idx + 8;
+        int end = contentType.length();
+        for (int i = nameStart; i < end; i++) {
+          char c = contentType.charAt(i);
+          if (c == ';' || c == ',' || c == ' ') {
+            end = i;
+            break;
+          }
+        }
+        String name = contentType.substring(nameStart, end).trim();
+        if (name.length() > 1 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
+          name = name.substring(1, name.length() - 1);
+        }
+        try {
+          return Charset.forName(name);
+        } catch (IllegalArgumentException e) {
+          return null;
+        }
       }
-    }
-    String name = contentType.substring(nameStart, end).trim();
-    if (name.length() > 1 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
-      name = name.substring(1, name.length() - 1);
-    }
-    try {
-      return Charset.forName(name);
-    } catch (IllegalArgumentException e) {
-      return null;
+      searchFrom = idx + 1;
     }
   }
 
-  private static int indexOfIgnoreAsciiCase(String s, String needle) {
+  private static int indexOfIgnoreAsciiCase(String s, String needle, int fromIndex) {
     int sLen = s.length();
     int nLen = needle.length();
     outer:
-    for (int i = 0, max = sLen - nLen; i <= max; i++) {
+    for (int i = fromIndex, max = sLen - nLen; i <= max; i++) {
       for (int j = 0; j < nLen; j++) {
         if (Character.toLowerCase(s.charAt(i + j)) != needle.charAt(j)) {
           continue outer;

@@ -109,6 +109,20 @@ public class MultipartContentDecoderTest {
   }
 
   @Test
+  void extractCharsetIgnoresSubstringMatchInParameterName() {
+    // "xcharset=UTF-16" must not match; the real "charset=UTF-8" that follows must be used
+    assertEquals(
+        "UTF-8",
+        MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-16; charset=UTF-8")
+            .name());
+  }
+
+  @Test
+  void extractCharsetReturnsNullWhenOnlySubstringMatchExists() {
+    assertNull(MultipartContentDecoder.extractCharset("text/plain; xcharset=UTF-8"));
+  }
+
+  @Test
   void extractCharsetHandlesAdditionalParameters() {
     assertEquals(
         "UTF-8",
