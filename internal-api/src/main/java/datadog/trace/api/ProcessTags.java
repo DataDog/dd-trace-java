@@ -33,10 +33,13 @@ public class ProcessTags {
   // visible for testing
   static Function<String, String> envGetter = EnvironmentVariables::get;
 
+  private static class LazyRegexp {
+    static final Pattern MAPPING_KEY_PATTERN = Pattern.compile("^\\{(\\w+)}(\\S+)$");
+  }
+
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
     static final SortedMap<String, String> TAGS = loadTags(Config.get());
-    private static final Pattern MAPPING_KEY_PATTERN = Pattern.compile("^\\{(\\w+)}(\\S+)$");
     static volatile UTF8BytesString serializedForm;
     static volatile List<UTF8BytesString> utf8ListForm;
     static volatile List<String> stringListForm;
@@ -66,7 +69,8 @@ public class ProcessTags {
     private static void parseMappingEntry(
         SortedMap<String, String> tags, String sourceAndKey, String processTagKey) {
       // sourceAndKey format: {source}config_key (colon-split already done by getMergedMap)
-      Matcher matcher = MAPPING_KEY_PATTERN.matcher(sourceAndKey != null ? sourceAndKey : "");
+      Matcher matcher =
+          LazyRegexp.MAPPING_KEY_PATTERN.matcher(sourceAndKey != null ? sourceAndKey : "");
       if (!matcher.matches()) {
         LOGGER.warn("Malformed process.tags.mapping key: '{}'", sourceAndKey);
         return;
