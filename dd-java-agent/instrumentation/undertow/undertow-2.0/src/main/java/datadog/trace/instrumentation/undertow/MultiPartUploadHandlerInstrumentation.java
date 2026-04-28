@@ -130,9 +130,9 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
             Flow.Action.RequestBlockingAction rba =
                 (Flow.Action.RequestBlockingAction) filenamesAction;
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
+            if (brf != null && t == null) {
               boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (success && t == null) {
+              if (success) {
                 t = new BlockingException("Blocked request (multipart file upload)");
               }
             }
