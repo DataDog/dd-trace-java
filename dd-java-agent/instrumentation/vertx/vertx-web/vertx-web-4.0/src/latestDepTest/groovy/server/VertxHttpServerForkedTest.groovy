@@ -163,7 +163,7 @@ class VertxHttpServerForkedTest extends HttpServerTest<Vertx> {
         "$Tags.COMPONENT" VertxDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.HTTP_STATUS" Integer
-        def expectedRoute = expectedServerSpanRoute(endpoint)
+        def expectedRoute = this.expectedServerSpanRoute(endpoint)
         if (expectedRoute != null) {
           "$Tags.HTTP_ROUTE" expectedRoute
         }
