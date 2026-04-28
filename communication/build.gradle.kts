@@ -20,15 +20,26 @@ dependencies {
   api(libs.okio)
   api(libs.okhttp)
   api(libs.moshi)
+  implementation(libs.netty.codec.http)
+  implementation(libs.netty.handler)
+  implementation(libs.netty.handler.proxy)
+  implementation(libs.apache.httpclient5)
+  implementation(libs.jetty.httpclient)
+  implementation(libs.jetty.unixsocket) {
+    exclude(group = "org.eclipse.jetty", module = "jetty-server")
+    exclude(group = "javax.servlet", module = "javax.servlet-api")
+  }
   // metrics-lib is needed rather than metrics-api to change the default port of StatsD connection manager
   // TODO Could help decoupling it later to only depend on metrics-api
   implementation(project(":products:metrics:metrics-lib"))
 
   testImplementation(project(":utils:test-utils"))
   testImplementation(libs.bundles.junit5)
+  testImplementation(libs.junit.platform.suite)
   testImplementation(libs.bytebuddy)
   testImplementation("org.msgpack:msgpack-core:0.8.20")
   testImplementation("org.msgpack:jackson-dataformat-msgpack:0.8.20")
+  testImplementation(libs.jnr.unixsocket)
   testImplementation(
     group = "com.squareup.okhttp3",
     name = "mockwebserver",
