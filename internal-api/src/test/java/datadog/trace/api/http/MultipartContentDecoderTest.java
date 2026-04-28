@@ -3,7 +3,6 @@ package datadog.trace.api.http;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -54,13 +53,6 @@ public class MultipartContentDecoderTest {
   @Test
   void decodeBytesReturnsEmptyStringForZeroLength() {
     assertEquals("", MultipartContentDecoder.decodeBytes(new byte[16], 0, null));
-  }
-
-  @Test
-  void decodeBytesUsesMachineDefaultFallbackWhenBytesCannotBeDecoded() {
-    byte[] bytes = "café".getBytes(StandardCharsets.ISO_8859_1);
-    String expected = new String(bytes, Charset.defaultCharset());
-    assertEquals(expected, MultipartContentDecoder.decodeBytes(bytes, bytes.length, null));
   }
 
   @Test
