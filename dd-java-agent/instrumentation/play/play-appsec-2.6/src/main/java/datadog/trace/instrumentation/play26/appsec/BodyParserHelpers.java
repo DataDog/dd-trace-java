@@ -149,7 +149,17 @@ public class BodyParserHelpers {
       if (MULTIPART_FILES_METHOD != null) {
         Object files = MULTIPART_FILES_METHOD.invoke(data);
         if (files instanceof scala.collection.Iterable) {
-          handleMultipartFilenames(((scala.collection.Iterable<?>) files).iterator());
+          final Iterator<?> scalaIter = ((scala.collection.Iterable<?>) files).iterator();
+          handleMultipartFilenames(
+              new java.util.Iterator<Object>() {
+                public boolean hasNext() {
+                  return scalaIter.hasNext();
+                }
+
+                public Object next() {
+                  return scalaIter.next();
+                }
+              });
         }
       }
     } catch (BlockingException be) {
@@ -162,7 +172,7 @@ public class BodyParserHelpers {
     return data;
   }
 
-  private static void handleMultipartFilenames(Iterator<?> iterator) {
+  private static void handleMultipartFilenames(java.util.Iterator<?> iterator) {
     AgentSpan span = activeSpan();
     if (span == null) {
       return;
@@ -186,7 +196,7 @@ public class BodyParserHelpers {
     executeFilenamesCallback(reqCtx, callback, filenames);
   }
 
-  static List<String> collectFilenames(Iterator<?> iterator) {
+  static List<String> collectFilenames(java.util.Iterator<?> iterator) {
     List<String> filenames = new ArrayList<>();
     while (iterator.hasNext()) {
       MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
