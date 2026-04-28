@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
-import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.INSTRUMENTATION_NAME;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -12,6 +11,7 @@ public final class RouteUpdateHelper {
   public static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   public static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   public static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
+  private static final String VERTX_ROUTE_HANDLER_SPAN_NAME = "vertx.route-handler";
 
   private RouteUpdateHelper() {}
 
@@ -91,6 +91,6 @@ public final class RouteUpdateHelper {
       return false;
     }
     final CharSequence spanName = span.getSpanName();
-    return spanName != null && INSTRUMENTATION_NAME.toString().contentEquals(spanName);
+    return spanName != null && VERTX_ROUTE_HANDLER_SPAN_NAME.contentEquals(spanName);
   }
 }
