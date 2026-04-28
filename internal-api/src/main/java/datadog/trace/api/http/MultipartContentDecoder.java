@@ -29,6 +29,9 @@ public final class MultipartContentDecoder {
     int idx = contentType.toLowerCase(Locale.ROOT).indexOf("charset=");
     if (idx < 0) return null;
     String name = contentType.substring(idx + 8).split("[;, ]")[0].trim();
+    if (name.length() > 1 && name.charAt(0) == '"' && name.charAt(name.length() - 1) == '"') {
+      name = name.substring(1, name.length() - 1);
+    }
     try {
       return Charset.forName(name);
     } catch (IllegalArgumentException e) {

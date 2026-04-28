@@ -113,4 +113,23 @@ public class MultipartContentDecoderTest {
         MultipartContentDecoder.extractCharset("text/plain; charset=UTF-8; boundary=something")
             .name());
   }
+
+  @ParameterizedTest
+  @CsvSource({
+    "text/plain; charset=\"UTF-8\", UTF-8",
+    "text/xml; charset=\"ISO-8859-1\", ISO-8859-1"
+  })
+  void extractCharsetHandlesQuotedCharsetValue(String contentType, String expectedCharset) {
+    assertEquals(expectedCharset, MultipartContentDecoder.extractCharset(contentType).name());
+  }
+
+  @Test
+  void decodeBytesUsesQuotedDeclaredCharset() {
+    String text = "café";
+    byte[] bytes = text.getBytes(StandardCharsets.ISO_8859_1);
+    assertEquals(
+        text,
+        MultipartContentDecoder.decodeBytes(
+            bytes, bytes.length, "text/plain; charset=\"ISO-8859-1\""));
+  }
 }
