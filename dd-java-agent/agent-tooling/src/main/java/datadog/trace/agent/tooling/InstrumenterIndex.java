@@ -1,7 +1,7 @@
 package datadog.trace.agent.tooling;
 
 import static datadog.trace.agent.tooling.InstrumenterModuleFilter.ALL_MODULES;
-import static datadog.trace.agent.tooling.InstrumenterModuleFilter.forTargetSystemsOrExcludeProvider;
+import static datadog.trace.agent.tooling.InstrumenterModuleFilter.forTargetSystemsOrNeedToEarlyLoad;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.Collections.disjoint;
@@ -60,6 +60,9 @@ final class InstrumenterIndex {
   /** Bit to signal that the encoded item is instance of <code>ExcludeFilterProvider</code> */
   private static final int IS_EXCLUDE_FILTER_PROVIDER_FLAG = 0x02;
 
+  /** Bit to signal that the encoded item is instance of <code>JavaModuleOpenProvider</code> */
+  private static final int IS_JAVA_MODULE_OPEN_PROVIDER_FLAG = 0x04;
+
   static final ClassLoader instrumenterClassLoader = Instrumenter.class.getClassLoader();
 
   private final int instrumentationCount;
@@ -101,7 +104,7 @@ final class InstrumenterIndex {
    */
   public Iterable<InstrumenterModule> modules(
       final Set<InstrumenterModule.TargetSystem> enabledSystems) {
-    return modules(forTargetSystemsOrExcludeProvider(enabledSystems));
+    return modules(forTargetSystemsOrNeedToEarlyLoad(enabledSystems));
   }
 
   public Iterable<InstrumenterModule> modules() {
@@ -217,6 +220,7 @@ final class InstrumenterIndex {
     // flags
     final byte flags = (byte) readNumber();
     final boolean isExcludeProvider = decodeModuleIsExcludeProvider(flags);
+    final boolean isJavaModuleOpenProvider = decodeModuleJavaModuleOpenProvider(flags);
     hasTargetSystemOverrides = decodeModuleHasTargetSystemOverrides(flags);
     memberAdviceTargetSystemOverrides = null;
     memberCount = readNumber();
@@ -228,7 +232,7 @@ final class InstrumenterIndex {
     } else {
       memberName = null;
     }
-    if (filter.test(moduleName, moduleTargetSystems, isExcludeProvider)) {
+    if (filter.test(moduleName, moduleTargetSystems, isExcludeProvider, isJavaModuleOpenProvider)) {
       if (module == null) {
         module = buildModule();
         modules[instrumentationId] = module;
@@ -379,11 +383,18 @@ final class InstrumenterIndex {
     if (module instanceof ExcludeFilterProvider) {
       ret |= (byte) IS_EXCLUDE_FILTER_PROVIDER_FLAG;
     }
+    if (module instanceof JavaModuleOpenProvider) {
+      ret |= (byte) IS_JAVA_MODULE_OPEN_PROVIDER_FLAG;
+    }
     return ret;
   }
 
   static boolean decodeModuleIsExcludeProvider(byte flags) {
     return (flags & IS_EXCLUDE_FILTER_PROVIDER_FLAG) != 0;
+  }
+
+  static boolean decodeModuleJavaModuleOpenProvider(byte flags) {
+    return (flags & IS_JAVA_MODULE_OPEN_PROVIDER_FLAG) != 0;
   }
 
   static boolean decodeModuleHasTargetSystemOverrides(byte flags) {

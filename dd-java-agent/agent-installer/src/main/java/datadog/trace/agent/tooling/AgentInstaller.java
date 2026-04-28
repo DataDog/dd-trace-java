@@ -19,6 +19,7 @@ import datadog.trace.api.ProductActivation;
 import datadog.trace.api.telemetry.IntegrationsCollector;
 import datadog.trace.bootstrap.FieldBackedContextAccessor;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
+import datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper;
 import datadog.trace.util.AgentTaskScheduler;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.instrument.ClassFileTransformer;
@@ -185,18 +186,26 @@ public class AgentInstaller {
     Iterable<InstrumenterModule> instrumenterModules =
         withExtensions(instrumenterIndex.modules(enabledSystems));
 
+    final boolean javaModuleSupported = JavaModule.isSupported();
+
     // This needs to be a separate loop through all instrumentations before we start adding
     // advice so that we can exclude field injection, since that will try to check exclusion
     // immediately and we don't have the ability to express dependencies between different
     // instrumentations to control the load order.
     for (InstrumenterModule module : instrumenterModules) {
+      boolean added = false;
       if (module instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
-        if (DEBUG) {
-          log.debug(
-              "Adding filtered classes - instrumentation.class={}", module.getClass().getName());
-        }
+        added = true;
+      }
+      if (javaModuleSupported && module instanceof JavaModuleOpenProvider) {
+        JpmsHelper.addAllTriggers(((JavaModuleOpenProvider) module).triggerClasses());
+        added = true;
+      }
+      if (DEBUG && added) {
+        log.debug(
+            "Adding filtered classes - instrumentation.class={}", module.getClass().getName());
       }
     }
 
