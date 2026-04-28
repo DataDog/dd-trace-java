@@ -1385,6 +1385,14 @@
         "aliases": []
       }
     ],
+    "DD_ERROR_MESSAGE_LENGTH_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2147483647",
+        "aliases": []
+      }
+    ],
     "DD_EXCEPTION_DEBUGGING_ENABLED": [
       {
         "version": "A",
