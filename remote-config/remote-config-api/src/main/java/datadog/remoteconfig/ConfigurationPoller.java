@@ -35,8 +35,8 @@ public interface ConfigurationPoller {
   void stop();
 
   /**
-   * Registers a listener that is called when a non-retryable HTTP error (e.g. 401, 403) is
-   * received from the RC endpoint. The default implementation is a no-op.
+   * Registers a listener that is called when a non-retryable HTTP error (e.g. 400, 401, 403, 404)
+   * is received from the RC endpoint. The default implementation is a no-op.
    */
   default void addNonRetryableErrorListener(NonRetryableErrorListener listener) {}
 
