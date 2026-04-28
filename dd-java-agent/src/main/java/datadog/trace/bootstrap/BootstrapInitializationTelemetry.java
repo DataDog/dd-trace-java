@@ -327,7 +327,7 @@ public abstract class BootstrapInitializationTelemetry {
         try (OutputStream out = process.getOutputStream()) {
           out.write(payload);
         } catch (IOException ignoredException) {
-          // iif this happens it can generate noise into the customer logs.
+          // iif this happens it can generate noise into the logs.
           // we'll only log if the error is more severe
         }
       } catch (Throwable e) {
