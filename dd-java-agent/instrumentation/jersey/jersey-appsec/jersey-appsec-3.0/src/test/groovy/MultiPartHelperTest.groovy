@@ -9,7 +9,6 @@ import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 import spock.lang.Specification
 
 import jakarta.ws.rs.core.MediaType
-import java.io.ByteArrayInputStream
 
 class MultiPartHelperTest extends Specification {
 
