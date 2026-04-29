@@ -31,6 +31,7 @@ import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
 import datadog.trace.core.util.StackTraces;
+import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Collections;
@@ -342,7 +343,9 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public DDSpan setErrorMessage(final String errorMessage) {
-    return setTag(DDTags.ERROR_MSG, errorMessage);
+    return setTag(
+        DDTags.ERROR_MSG,
+        Strings.truncate(errorMessage, Config.get().getErrorMessageLengthLimit()));
   }
 
   @Override
@@ -366,8 +369,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
             DDTags.ERROR_STACK,
             StackTraces.getStackTrace(error, Config.get().getStackTraceLengthLimit()));
       }
-
-      setTag(DDTags.ERROR_MSG, message);
+      setTag(
+          DDTags.ERROR_MSG, Strings.truncate(message, Config.get().getErrorMessageLengthLimit()));
       setTag(DDTags.ERROR_TYPE, error.getClass().getName());
       if (isExceptionReplayEnabled()) {
         DebuggerContext.handleException(error, this);

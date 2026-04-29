@@ -368,6 +368,7 @@ import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PATH;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_PORT;
 import static datadog.trace.api.config.GeneralConfig.DOGSTATSD_START_DELAY;
 import static datadog.trace.api.config.GeneralConfig.ENV;
+import static datadog.trace.api.config.GeneralConfig.ERROR_MESSAGE_LENGTH_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.GLOBAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.HEALTH_METRICS_ENABLED;
@@ -1343,6 +1344,7 @@ public class Config {
   private final int tagNameUtf8CacheSize;
   private final int tagValueUtf8CacheSize;
   private final int stackTraceLengthLimit;
+  private final int errorMessageLengthLimit;
 
   private final boolean sfnInjectDatadogAttributeEnabled;
   private final boolean sqsInjectDatadogAttributeEnabled;
@@ -3087,6 +3089,8 @@ public class Config {
             : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
+    this.errorMessageLengthLimit =
+        configProvider.getInteger(ERROR_MESSAGE_LENGTH_LIMIT, Integer.MAX_VALUE);
 
     this.rumInjectorConfig = parseRumConfig(configProvider);
 
@@ -4908,6 +4912,10 @@ public class Config {
 
   public int getStackTraceLengthLimit() {
     return stackTraceLengthLimit;
+  }
+
+  public int getErrorMessageLengthLimit() {
+    return errorMessageLengthLimit;
   }
 
   public boolean isSqsInjectDatadogAttributeEnabled() {

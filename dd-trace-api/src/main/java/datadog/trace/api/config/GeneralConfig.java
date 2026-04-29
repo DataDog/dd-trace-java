@@ -119,6 +119,7 @@ public final class GeneralConfig {
   public static final String TAG_VALUE_UTF8_CACHE_SIZE = "tag.value.utf8.cache.size";
   public static final String SPAN_BUILDER_REUSE_ENABLED = "span.builder.reuse.enabled";
   public static final String STACK_TRACE_LENGTH_LIMIT = "stack.trace.length.limit";
+  public static final String ERROR_MESSAGE_LENGTH_LIMIT = "error.message.length.limit";
 
   public static final String SSI_INJECTION_ENABLED = "injection.enabled";
   public static final String SSI_INJECTION_FORCE = "inject.force";
