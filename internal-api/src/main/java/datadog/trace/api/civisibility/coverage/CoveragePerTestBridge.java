@@ -66,6 +66,13 @@ public abstract class CoveragePerTestBridge {
     }
   }
 
+  /* This method is referenced by name in bytecode added in jacoco instrumentation module (see datadog.trace.instrumentation.jacoco.ProbeInserterInstrumentation.VisitCodeAdvice) */
+  public static boolean[] resolveProbeArray(boolean[] jacocoArray, Class<?> clazz, long classId) {
+    CoverageProbes probes = getCurrentCoverageProbes();
+    boolean[] result = probes.resolveProbeArray(clazz, classId, jacocoArray);
+    return result != null ? result : jacocoArray;
+  }
+
   /* This method is referenced by name in bytecode added in jacoco instrumentation module (see datadog.trace.instrumentation.jacoco.ProbeInserterInstrumentation.InsertProbeAdvice) */
   public static void recordCoverage(Class<?> clazz, long classId, int probeId) {
     getCurrentCoverageProbes().record(clazz, classId, probeId);

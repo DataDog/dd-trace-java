@@ -7,6 +7,7 @@ public class ExecutionDataAdapter {
   private final String className;
   // Unbounded data structure that only exists within a single test span
   private final boolean[] probeActivations;
+  private boolean[] jacocoArray;
 
   public ExecutionDataAdapter(long classId, String className, int totalProbeCount) {
     this.classId = classId;
@@ -14,8 +15,24 @@ public class ExecutionDataAdapter {
     this.probeActivations = new boolean[totalProbeCount];
   }
 
+  long getClassId() {
+    return classId;
+  }
+
   public String getClassName() {
     return className;
+  }
+
+  boolean[] getProbeActivations() {
+    return probeActivations;
+  }
+
+  void setJacocoArray(boolean[] jacocoArray) {
+    this.jacocoArray = jacocoArray;
+  }
+
+  boolean[] getJacocoArray() {
+    return jacocoArray;
   }
 
   void record(int probeId) {
