@@ -32,17 +32,56 @@ public class SharedDBCommenter {
   private static final String TRACEPARENT = encode("traceparent");
   private static final String DD_SERVICE_HASH = encode("ddsh");
 
+  // Pre-computed marker strings for trace comment detection
+  private static final String PARENT_SERVICE_EQ = PARENT_SERVICE + "=";
+  private static final String DATABASE_SERVICE_EQ = DATABASE_SERVICE + "=";
+  private static final String DD_HOSTNAME_EQ = DD_HOSTNAME + "=";
+  private static final String DD_DB_NAME_EQ = DD_DB_NAME + "=";
+  private static final String DD_PEER_SERVICE_EQ = DD_PEER_SERVICE + "=";
+  private static final String DD_ENV_EQ = DD_ENV + "=";
+  private static final String DD_VERSION_EQ = DD_VERSION + "=";
+  private static final String TRACEPARENT_EQ = TRACEPARENT + "=";
+  private static final String DD_SERVICE_HASH_EQ = DD_SERVICE_HASH + "=";
+
   // Used by SQLCommenter and MongoCommentInjector to avoid duplicate comment injection
   public static boolean containsTraceComment(String commentContent) {
-    return commentContent.contains(PARENT_SERVICE + "=")
-        || commentContent.contains(DATABASE_SERVICE + "=")
-        || commentContent.contains(DD_HOSTNAME + "=")
-        || commentContent.contains(DD_DB_NAME + "=")
-        || commentContent.contains(DD_PEER_SERVICE + "=")
-        || commentContent.contains(DD_ENV + "=")
-        || commentContent.contains(DD_VERSION + "=")
-        || commentContent.contains(TRACEPARENT + "=")
-        || commentContent.contains(DD_SERVICE_HASH + "=");
+    return commentContent.contains(PARENT_SERVICE_EQ)
+        || commentContent.contains(DATABASE_SERVICE_EQ)
+        || commentContent.contains(DD_HOSTNAME_EQ)
+        || commentContent.contains(DD_DB_NAME_EQ)
+        || commentContent.contains(DD_PEER_SERVICE_EQ)
+        || commentContent.contains(DD_ENV_EQ)
+        || commentContent.contains(DD_VERSION_EQ)
+        || commentContent.contains(TRACEPARENT_EQ)
+        || commentContent.contains(DD_SERVICE_HASH_EQ);
+  }
+
+  /**
+   * Checks for trace comment markers within a range of the given string, without allocating a
+   * substring. Searches within [fromIndex, toIndex) of the source string.
+   */
+  public static boolean containsTraceComment(String sql, int fromIndex, int toIndex) {
+    return containsInRange(sql, PARENT_SERVICE_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DATABASE_SERVICE_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_HOSTNAME_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_DB_NAME_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_PEER_SERVICE_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_ENV_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_VERSION_EQ, fromIndex, toIndex)
+        || containsInRange(sql, TRACEPARENT_EQ, fromIndex, toIndex)
+        || containsInRange(sql, DD_SERVICE_HASH_EQ, fromIndex, toIndex);
+  }
+
+  /** Checks if {@code target} appears within the range [fromIndex, toIndex) of {@code source}. */
+  private static boolean containsInRange(String source, String target, int fromIndex, int toIndex) {
+    int targetLen = target.length();
+    int limit = toIndex - targetLen;
+    for (int i = fromIndex; i <= limit; i++) {
+      if (source.regionMatches(i, target, 0, targetLen)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   // Build database comment content without comment delimiters such as /* */
