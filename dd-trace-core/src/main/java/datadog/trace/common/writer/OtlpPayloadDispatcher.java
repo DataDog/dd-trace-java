@@ -16,7 +16,7 @@ final class OtlpPayloadDispatcher implements PayloadDispatcher {
   private final OtlpSender sender;
 
   OtlpPayloadDispatcher(OtlpSender sender) {
-    this(sender, OtlpTraceProtoCollector.INSTANCE);
+    this(sender, new OtlpTraceProtoCollector());
   }
 
   OtlpPayloadDispatcher(OtlpSender sender, OtlpTraceCollector collector) {
