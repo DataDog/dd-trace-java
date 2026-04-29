@@ -57,11 +57,12 @@ public final class MultiPartHelper {
     try {
       // getEntityAs(InputStream.class) is backed by BodyPartEntity which supports re-reading:
       // each call creates a fresh stream from the buffered MIME part data.
-      InputStream is = bodyPart.getEntityAs(InputStream.class);
-      if (is == null) return "";
-      String contentType =
-          bodyPart.getMediaType() != null ? bodyPart.getMediaType().toString() : null;
-      return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+      try (InputStream is = bodyPart.getEntityAs(InputStream.class)) {
+        if (is == null) return "";
+        String contentType =
+            bodyPart.getMediaType() != null ? bodyPart.getMediaType().toString() : null;
+        return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+      }
     } catch (IOException ignored) {
       return "";
     }
@@ -74,8 +75,9 @@ public final class MultiPartHelper {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        BlockingException be = new BlockingException(message);
         ctx.getTraceSegment().effectivelyBlocked();
-        return new BlockingException(message);
+        return be;
       }
     }
     return null;
