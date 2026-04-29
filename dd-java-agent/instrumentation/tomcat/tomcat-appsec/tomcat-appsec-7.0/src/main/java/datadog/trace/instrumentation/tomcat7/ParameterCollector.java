@@ -143,15 +143,30 @@ public interface ParameterCollector {
       return contents != null ? contents : Collections.<String>emptyList();
     }
 
-    // Per-class method cache; cachedPartClass is written last to safely publish the three methods.
-    // Keyed by Part concrete class; re-resolved when the class changes (different Tomcat version).
-    private static volatile Class<?> cachedPartClass;
-    private static volatile Method cachedGetInputStream;
-    private static volatile Method cachedGetContentType;
-    // getSubmittedFileName (Servlet 3.1+) or getFilename (Tomcat 7); null if neither found
-    private static volatile Method cachedGetFilename;
+    // Immutable snapshot of resolved methods for a single Part concrete class.
+    // Held in a single volatile reference so readers get a consistent view:
+    // reading methodCache once into a local variable and using that local
+    // guarantees all three Method objects belong to the same class, even if
+    // another thread concurrently replaces methodCache with an entry for a
+    // different class.
+    private static final class CachedMethods {
+      final Class<?> partClass;
+      final Method getInputStream;
+      final Method getContentType;
+      // getSubmittedFileName (Servlet 3.1+) or getFilename (Tomcat 7); null if neither found
+      final Method getFilename;
 
-    private static void resolveAndCacheMethods(Class<?> partClass) {
+      CachedMethods(Class<?> c, Method is, Method ct, Method fn) {
+        partClass = c;
+        getInputStream = is;
+        getContentType = ct;
+        getFilename = fn;
+      }
+    }
+
+    private static volatile CachedMethods methodCache;
+
+    private static CachedMethods resolveAndCache(Class<?> partClass) {
       Method getInputStream = null;
       Method getContentType = null;
       Method getFilename = null;
@@ -173,20 +188,26 @@ public interface ParameterCollector {
         } catch (Exception ignored) {
         }
       }
-      cachedGetInputStream = getInputStream;
-      cachedGetContentType = getContentType;
-      cachedGetFilename = getFilename;
-      cachedPartClass = partClass;
+      CachedMethods cache =
+          new CachedMethods(partClass, getInputStream, getContentType, getFilename);
+      methodCache = cache;
+      return cache;
+    }
+
+    private static CachedMethods getCachedMethods(Class<?> partClass) {
+      CachedMethods cache = methodCache;
+      if (cache != null && cache.partClass == partClass) {
+        return cache;
+      }
+      return resolveAndCache(partClass);
     }
 
     private static String readContent(Object part) {
       try {
-        Class<?> partClass = part.getClass();
-        if (cachedPartClass != partClass) {
-          resolveAndCacheMethods(partClass);
-        }
-        String contentType = (String) cachedGetContentType.invoke(part);
-        try (InputStream is = (InputStream) cachedGetInputStream.invoke(part)) {
+        CachedMethods cache = getCachedMethods(part.getClass());
+        String contentType =
+            cache.getContentType != null ? (String) cache.getContentType.invoke(part) : null;
+        try (InputStream is = (InputStream) cache.getInputStream.invoke(part)) {
           return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
         }
       } catch (Exception ignored) {
@@ -195,11 +216,8 @@ public interface ParameterCollector {
     }
 
     private static String getFilename(Object part) {
-      Class<?> partClass = part.getClass();
-      if (cachedPartClass != partClass) {
-        resolveAndCacheMethods(partClass);
-      }
-      Method m = cachedGetFilename;
+      CachedMethods cache = getCachedMethods(part.getClass());
+      Method m = cache.getFilename;
       if (m == null) {
         return null;
       }

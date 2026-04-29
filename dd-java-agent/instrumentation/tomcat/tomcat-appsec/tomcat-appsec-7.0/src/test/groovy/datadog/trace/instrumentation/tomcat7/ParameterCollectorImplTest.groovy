@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.tomcat7
 
 import datadog.trace.api.Config
+import java.util.concurrent.CopyOnWriteArrayList
+import java.util.concurrent.CountDownLatch
 import spock.lang.Specification
 
 class ParameterCollectorImplTest extends Specification {
@@ -163,6 +165,54 @@ class ParameterCollectorImplTest extends Specification {
   void 'ParameterCollectorNoop getContents returns empty list'() {
     expect:
     ParameterCollector.ParameterCollectorNoop.INSTANCE.getContents().isEmpty()
+  }
+
+  void 'concurrent addPart with two different Part classes never drops parts due to stale cache'() {
+    // Regression test for the TOCTOU race in the static method cache:
+    // with 4 flat volatile fields, thread A could pass the "cache == classA" check,
+    // then thread B could overwrite the fields with classB's methods, and thread A
+    // would invoke classB.getFilename on a classA instance → IllegalArgumentException
+    // → part silently dropped. The immutable CachedMethods holder fixes this because
+    // each thread reads the volatile reference once into a local variable and uses
+    // only that consistent snapshot.
+    given:
+    def iterations = 2000
+    def latch = new CountDownLatch(1)
+    def thread1Errors = new CopyOnWriteArrayList<String>()
+    def thread2Errors = new CopyOnWriteArrayList<String>()
+
+    // Each thread uses its own collector and its own Part class to maximise
+    // cache-flip interleaving (the static cache alternates between the two classes).
+    def thread1 = Thread.start {
+      latch.await()
+      (1..iterations).each { i ->
+        def collector = new ParameterCollector.ParameterCollectorImpl(false)
+        collector.addPart(new TestPart("tp-${i}.txt", 'x'))
+        if (collector.getFilenames() != ["tp-${i}.txt"]) {
+          thread1Errors.add("iter ${i}: got ${collector.getFilenames()}")
+        }
+      }
+    }
+
+    def thread2 = Thread.start {
+      latch.await()
+      (1..iterations).each { i ->
+        def collector = new ParameterCollector.ParameterCollectorImpl(false)
+        collector.addPart(new Tomcat7Part("t7-${i}.txt", 'x'))
+        if (collector.getFilenames() != ["t7-${i}.txt"]) {
+          thread2Errors.add("iter ${i}: got ${collector.getFilenames()}")
+        }
+      }
+    }
+
+    when:
+    latch.countDown()
+    thread1.join(30_000)
+    thread2.join(30_000)
+
+    then:
+    thread1Errors.isEmpty()
+    thread2Errors.isEmpty()
   }
 
   // --- helper classes ---
