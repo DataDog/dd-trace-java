@@ -39,11 +39,12 @@ public class ExceptionHandlers {
               final boolean exitOnFailure = InstrumenterConfig.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
-              // Writes the following bytecode (note that two statements are conditionally written):
+              // Writes the following bytecode (note that some statements are conditionally
+              // written):
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t); // when appSecEnabled=true
               // try {
-              //   InstrumentationErrors.recordError(t);
+              //   if (InstrumentationErrors.isEnabled()) InstrumentationErrors.recordError(t);
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
               //   System.exit(1); // when exitOnFailure=true
@@ -69,15 +70,28 @@ public class ExceptionHandlers {
                     "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
               }
 
+              final Label skipRecord = new Label();
+
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
+              mv.visitMethodInsn(
+                  Opcodes.INVOKESTATIC,
+                  "datadog/trace/bootstrap/InstrumentationErrors",
+                  "isEnabled",
+                  "()Z",
+                  false);
+              mv.visitJumpInsn(Opcodes.IFEQ, skipRecord);
               mv.visitInsn(Opcodes.DUP); // stack: (top) throwable,throwable
-              // invoke recordError on our exception tracker
               mv.visitMethodInsn(
                   Opcodes.INVOKESTATIC,
                   "datadog/trace/bootstrap/InstrumentationErrors",
                   "recordError",
-                  "(Ljava/lang/Throwable;)V");
+                  "(Ljava/lang/Throwable;)V",
+                  false);
+              mv.visitLabel(skipRecord);
+              if (frames) {
+                mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"});
+              }
 
               // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));

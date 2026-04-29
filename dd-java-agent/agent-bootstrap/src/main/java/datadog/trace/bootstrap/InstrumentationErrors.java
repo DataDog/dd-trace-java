@@ -15,12 +15,15 @@ public class InstrumentationErrors {
    * visibility.
    */
   @SuppressWarnings("unused")
+  public static boolean isEnabled() {
+    return recordErrors;
+  }
+
+  @SuppressWarnings("unused")
   public static void recordError(final Throwable throwable) {
-    if (recordErrors) {
-      StringWriter stackTrace = new StringWriter();
-      throwable.printStackTrace(new PrintWriter(stackTrace));
-      ERRORS.add(stackTrace.toString());
-    }
+    StringWriter stackTrace = new StringWriter();
+    throwable.printStackTrace(new PrintWriter(stackTrace));
+    ERRORS.add(stackTrace.toString());
   }
 
   // Visible for testing
