@@ -1,6 +1,7 @@
 package datadog.opentelemetry.shim.logs;
 
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
+import static datadog.trace.bootstrap.otlp.logs.OtlpLogRecord.STRING_BODY;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import datadog.trace.api.time.SystemTimeSource;
@@ -81,7 +82,7 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public LogRecordBuilder setBody(String value) {
-    this.bodyType = 1;
+    this.bodyType = STRING_BODY;
     this.bodyValue = value;
     return this;
   }
