@@ -204,7 +204,7 @@ class WriterFactoryTest extends DDSpecification {
     protocol                          | compression                  | endpoint                                | expectedSenderClass | expectedUrl                              | expectedGzip
     OtlpConfig.Protocol.HTTP_PROTOBUF | OtlpConfig.Compression.NONE  | "http://otel-collector:4318/v1/traces" | OtlpHttpSender      | "http://otel-collector:4318/v1/traces"   | false
     OtlpConfig.Protocol.HTTP_PROTOBUF | OtlpConfig.Compression.GZIP  | "http://otel-collector:4318/v1/traces" | OtlpHttpSender      | "http://otel-collector:4318/v1/traces"   | true
-    OtlpConfig.Protocol.GRPC          | OtlpConfig.Compression.NONE  | "http://otel-collector:4317"            | OtlpGrpcSender      | "http://otel-collector:4317/v1/traces"   | false
+    OtlpConfig.Protocol.GRPC          | OtlpConfig.Compression.NONE  | "http://otel-collector:4317"            | OtlpGrpcSender      | "http://otel-collector:4317/opentelemetry.proto.collector.trace.v1.TraceService/Export" | false
   }
 
   Response buildHttpResponse(boolean hasEvpProxy, boolean evpProxySupportsCompression, HttpUrl agentUrl) {

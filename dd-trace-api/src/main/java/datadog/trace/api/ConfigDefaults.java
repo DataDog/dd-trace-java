@@ -112,6 +112,8 @@ public final class ConfigDefaults {
 
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
   public static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
+  public static final String DEFAULT_OTLP_GRPC_TRACES_ENDPOINT =
+      "opentelemetry.proto.collector.trace.v1.TraceService/Export";
   public static final String DEFAULT_OTLP_HTTP_PORT = "4318";
   public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 

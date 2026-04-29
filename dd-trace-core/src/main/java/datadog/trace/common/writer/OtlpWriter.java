@@ -1,5 +1,6 @@
 package datadog.trace.common.writer;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_TRACES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
@@ -19,9 +20,10 @@ import java.util.concurrent.TimeUnit;
 public class OtlpWriter extends RemoteWriter {
 
   private static final int BUFFER_SIZE = 1024;
-  private static final String TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+  private static final String HTTP_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+  private static final String GRPC_TRACES_SIGNAL_PATH = "/" + DEFAULT_OTLP_GRPC_TRACES_ENDPOINT;
   private static final String DEFAULT_OTLP_HTTP_ENDPOINT =
-      "http://localhost:" + DEFAULT_OTLP_HTTP_PORT + TRACES_SIGNAL_PATH;
+      "http://localhost:" + DEFAULT_OTLP_HTTP_PORT + HTTP_TRACES_SIGNAL_PATH;
 
   public static OtlpWriterBuilder builder() {
     return new OtlpWriterBuilder();
@@ -45,6 +47,11 @@ public class OtlpWriter extends RemoteWriter {
   public void close() {
     super.close();
     sender.shutdown();
+  }
+
+  // only used by tests
+  OtlpSender getSender() {
+    return sender;
   }
 
   public static class OtlpWriterBuilder {
@@ -128,9 +135,9 @@ public class OtlpWriter extends RemoteWriter {
         sender =
             protocol == OtlpConfig.Protocol.GRPC
                 ? new OtlpGrpcSender(
-                    endpoint, TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
+                    endpoint, GRPC_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression)
                 : new OtlpHttpSender(
-                    endpoint, TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
+                    endpoint, HTTP_TRACES_SIGNAL_PATH, headers, timeoutMillis, compression);
       }
 
       final OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender);

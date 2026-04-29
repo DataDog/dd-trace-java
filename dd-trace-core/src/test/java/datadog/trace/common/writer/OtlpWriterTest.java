@@ -1,10 +1,13 @@
 package datadog.trace.common.writer;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 
 import datadog.trace.api.config.OtlpConfig;
+import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpSender;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -59,5 +62,22 @@ class OtlpWriterTest {
           writer.start();
           writer.close();
         });
+  }
+
+  @Test
+  void grpcProtocolUsesGrpcMethodPath() {
+    OtlpWriter writer =
+        OtlpWriter.builder()
+            .protocol(OtlpConfig.Protocol.GRPC)
+            .endpoint("http://localhost:4317")
+            .build();
+    try {
+      OtlpGrpcSender grpcSender = assertInstanceOf(OtlpGrpcSender.class, writer.getSender());
+      assertEquals(
+          "/opentelemetry.proto.collector.trace.v1.TraceService/Export",
+          grpcSender.url().encodedPath());
+    } finally {
+      writer.close();
+    }
   }
 }
