@@ -39,6 +39,11 @@ public class CouchbaseOnSubscribe extends TracedOnSubscribe {
   }
 
   @Override
+  protected String instrumentationName() {
+    return "couchbase-client";
+  }
+
+  @Override
   protected void afterStart(final AgentSpan span) {
     super.afterStart(span);
 

@@ -206,7 +206,7 @@ class SubscriptionTest extends InstrumentationSpecification {
 
   static class Connection {
     static int query() {
-      def span = AgentTracer.startSpan("Connection.query")
+      def span = AgentTracer.startSpan("test", "Connection.query")
       span.finish()
       return new Random().nextInt()
     }

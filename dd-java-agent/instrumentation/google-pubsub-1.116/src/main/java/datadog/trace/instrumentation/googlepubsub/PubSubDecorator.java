@@ -124,7 +124,7 @@ public class PubSubDecorator extends MessagingClientDecorator {
   public AgentSpan onConsume(final PubsubMessage message, final String subscription) {
     final AgentSpanContext spanContext =
         extractContextAndGetSpanContext(message, TextMapExtractAdapter.GETTER);
-    final AgentSpan span = startSpan(PUBSUB_CONSUME, spanContext);
+    final AgentSpan span = startSpan(JAVA_PUBSUB.toString(), PUBSUB_CONSUME, spanContext);
     final CharSequence parsedSubscription = extractSubscription(subscription);
     DataStreamsTags tags =
         createWithSubscription("google-pubsub", INBOUND, parsedSubscription.toString());

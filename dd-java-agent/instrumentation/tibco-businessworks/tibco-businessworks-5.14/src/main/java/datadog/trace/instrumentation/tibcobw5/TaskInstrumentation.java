@@ -66,7 +66,9 @@ public class TaskInstrumentation extends AbstractTibcoInstrumentation
       AgentSpan span = map.get(ddActivityInfo.id);
       if (span == null) {
         AgentSpan parent = map.getOrDefault(ddActivityInfo.parent, activeSpan());
-        span = startSpan(TIBCO_ACTIVITY_OPERATION, parent != null ? parent.context() : null);
+        span =
+            startSpan(
+                "tibco_bw", TIBCO_ACTIVITY_OPERATION, parent != null ? parent.context() : null);
         DECORATE.afterStart(span);
         DECORATE.onActivityStart(span, ddActivityInfo.name);
         map.put(ddActivityInfo.id, span);

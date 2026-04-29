@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.cics;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.cics.CicsDecorator.CICS_CLIENT;
 import static datadog.trace.instrumentation.cics.CicsDecorator.DECORATE;
 import static datadog.trace.instrumentation.cics.CicsDecorator.ECI_EXECUTE_OPERATION;
 
@@ -36,7 +37,7 @@ public final class ECIInteractionInstrumentation
         return null;
       }
 
-      AgentSpan span = startSpan(ECI_EXECUTE_OPERATION);
+      AgentSpan span = startSpan(CICS_CLIENT.toString(), ECI_EXECUTE_OPERATION);
       DECORATE.afterStart(span);
       DECORATE.onECIInteraction(span, (ECIInteractionSpec) spec);
 

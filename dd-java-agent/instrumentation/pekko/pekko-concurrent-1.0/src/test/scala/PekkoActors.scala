@@ -137,7 +137,7 @@ class Greeter(message: String, receiverActor: ActorRef) extends Actor {
     case Greet =>
       receiverActor ! Greeting(greeting)
     case Leak(leak) =>
-      val span = startSpan(greeting)
+      val span = startSpan("test", greeting)
       span.setResourceName(leak)
       activateSpan(span)
       span.finish()

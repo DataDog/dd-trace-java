@@ -33,7 +33,7 @@ public class LinearTask extends RecursiveTask<Integer> {
       return parent;
     } else {
       int next = parent + 1;
-      AgentSpan span = startSpan(Integer.toString(next));
+      AgentSpan span = startSpan("test", Integer.toString(next));
       try (AgentScope scope = activateSpan(span)) {
         LinearTask child = new LinearTask(next, depth);
         return child.fork().join();

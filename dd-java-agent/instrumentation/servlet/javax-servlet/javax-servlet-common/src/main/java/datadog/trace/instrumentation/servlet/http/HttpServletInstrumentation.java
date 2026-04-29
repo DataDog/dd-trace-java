@@ -78,7 +78,8 @@ public final class HttpServletInstrumentation extends InstrumenterModule.Tracing
       }
 
       final AgentSpan span =
-          startSpan(SPAN_NAME_CACHE.computeIfAbsent(method.getName(), SERVLET_PREFIX));
+          startSpan(
+              "servlet-service", SPAN_NAME_CACHE.computeIfAbsent(method.getName(), SERVLET_PREFIX));
       DECORATE.afterStart(span);
 
       // Here we use the Method instead of "this.class.name" to distinguish calls to "super".

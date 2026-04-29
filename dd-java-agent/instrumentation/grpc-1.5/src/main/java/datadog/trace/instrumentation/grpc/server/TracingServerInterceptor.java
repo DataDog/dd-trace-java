@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.grpc.server.GrpcExtractAdapter.GETTER;
+import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_MESSAGE;
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC_SERVER;
@@ -67,7 +68,8 @@ public class TracingServerInterceptor implements ServerInterceptor {
     spanContext = callIGCallbackRequestStarted(tracer, spanContext);
 
     CallbackProvider cbp = tracer.getCallbackProvider(RequestContextSlot.APPSEC);
-    final AgentSpan span = startSpan(GRPC_SERVER, spanContext).setMeasured(true);
+    final AgentSpan span =
+        startSpan(COMPONENT_NAME.toString(), GRPC_SERVER, spanContext).setMeasured(true);
 
     AgentTracer.get()
         .getDataStreamsMonitoring()
@@ -143,7 +145,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     @Override
     public void onMessage(final ReqT message) {
       final AgentSpan msgSpan =
-          startSpan(GRPC_MESSAGE, this.span.context())
+          startSpan(COMPONENT_NAME.toString(), GRPC_MESSAGE, this.span.context())
               .setTag("message.type", message.getClass().getName());
       DECORATE.afterStart(msgSpan);
       try (AgentScope scope = activateSpan(msgSpan)) {

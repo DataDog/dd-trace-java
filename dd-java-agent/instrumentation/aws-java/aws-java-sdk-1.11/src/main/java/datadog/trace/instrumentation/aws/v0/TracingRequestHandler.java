@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.AWS_LEGACY_TRACING;
+import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.aws.v0.AwsSdkClientDecorator.DECORATE;
 
 import com.amazonaws.AmazonWebServiceRequest;
@@ -65,7 +66,7 @@ public class TracingRequestHandler extends RequestHandler2 {
         span.setOperationName(AwsNameCache.spanName(request));
       } else {
         // this is the most common code path
-        span = startSpan("aws-sdk", AwsNameCache.spanName(request));
+        span = startSpan(COMPONENT_NAME.toString(), AwsNameCache.spanName(request));
         context = span; // TODO If DSM is enabled, add DSM context here too
       }
       DECORATE.afterStart(span);

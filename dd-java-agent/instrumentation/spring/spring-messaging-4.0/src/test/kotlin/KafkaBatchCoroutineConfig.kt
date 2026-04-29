@@ -89,7 +89,7 @@ class KafkaBatchCoroutineListener : AsyncObservationSupport() {
     }
     // Create a child span inside the coroutine body.
     // It should be linked to spring.consume, which should be linked to kafka.consume.
-    val childSpan = startSpan("child.work")
+    val childSpan = startSpan("test", "child.work")
     records.forEach { receivedValues.add(it.value()) }
     childSpan.finish()
     latch.countDown()

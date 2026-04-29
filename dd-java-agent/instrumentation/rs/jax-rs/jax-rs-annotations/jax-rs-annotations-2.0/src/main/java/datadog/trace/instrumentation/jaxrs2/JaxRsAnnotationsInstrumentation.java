@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.DECORATE;
+import static datadog.trace.instrumentation.jaxrs2.JaxRsAnnotationsDecorator.JAX_RS_CONTROLLER;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 
@@ -124,7 +125,7 @@ public final class JaxRsAnnotationsInstrumentation extends InstrumenterModule.Tr
       // Rename the parent span according to the path represented by these annotations.
       final AgentSpan parent = activeSpan();
 
-      final AgentSpan span = startSpan(JAX_ENDPOINT_OPERATION_NAME);
+      final AgentSpan span = startSpan(JAX_RS_CONTROLLER.toString(), JAX_ENDPOINT_OPERATION_NAME);
       span.setMeasured(true);
       DECORATE.onJaxRsSpan(span, parent, target.getClass(), method);
       DECORATE.afterStart(span);
