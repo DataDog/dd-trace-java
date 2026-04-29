@@ -1,5 +1,7 @@
 package datadog.smoketest.apmtracingdisabled;
 
+import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
@@ -71,6 +73,17 @@ public class Controller {
       RestTemplate restTemplate = new RestTemplate();
       restTemplate.getForObject(url, String.class);
     }
+  }
+
+  @GetMapping("/llmobs/test")
+  public String llmobsTest() {
+    // Create LLMObs span using public API
+    LLMObsSpan llmSpan =
+        LLMObs.startLLMSpan("llmobs-test-operation", "gpt-4", "openai", null, null);
+    llmSpan.annotateIO("test input", "test output");
+    llmSpan.finish();
+
+    return "LLMObs test completed";
   }
 
   private String forceKeepSpan() {

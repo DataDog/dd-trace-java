@@ -6,69 +6,35 @@ import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
 import datadog.trace.test.util.DDSpecification
+import spock.lang.Unroll
 
-class SamplerTest extends DDSpecification{
+class SamplerTest extends DDSpecification {
 
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and appsec enabled is enabled"() {
+  @Unroll
+  def 'sampler selection: apmEnabled=#apmEnabled llmobs=#llmobs appsec=#appsec iast=#iast sca=#sca → #expectedType.simpleName with activeProducts=#expectedProducts'() {
     setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.appsec.enabled", "true")
-    Config config = new Config()
+    if (!apmEnabled) injectSysConfig("dd.apm.tracing.enabled", "false")
+    if (llmobs)      injectSysConfig("dd.llmobs.enabled", "true")
+    if (appsec)      injectSysConfig("dd.appsec.enabled", "true")
+    if (iast)        injectSysConfig("dd.iast.enabled", "true")
+    if (sca)         injectSysConfig("dd.appsec.sca.enabled", "true")
 
     when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
+    Sampler sampler = Sampler.Builder.forConfig(Config.get(), null)
 
     then:
-    sampler instanceof AsmStandaloneSampler
-  }
+    expectedType.isInstance(sampler)
+    expectedProducts == null || (sampler as StandaloneSampler).getActiveProducts() == expectedProducts
 
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and iast enabled is enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.iast.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof AsmStandaloneSampler
-  }
-
-  void "test that AsmStandaloneSampler is selected when apm tracing disabled and sca enabled is enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    System.setProperty("dd.appsec.sca.enabled", "true")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    sampler instanceof AsmStandaloneSampler
-  }
-
-  void "test that AsmStandaloneSampler is not selected when apm tracing and asm not enabled"() {
-    setup:
-    System.setProperty("dd.apm.tracing.enabled", "false")
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    !(sampler instanceof AsmStandaloneSampler)
-  }
-
-  void "test that AsmStandaloneSampler is not selected when apm tracing enabled and asm not enabled"() {
-    setup:
-    Config config = new Config()
-
-    when:
-    Sampler sampler = Sampler.Builder.forConfig(config, null)
-
-    then:
-    !(sampler instanceof AsmStandaloneSampler)
+    where:
+    apmEnabled | llmobs | appsec | iast  | sca   || expectedType              | expectedProducts
+    true       | false  | false  | false | false || RateByServiceTraceSampler | null
+    false      | true   | false  | false | false || StandaloneSampler         | [StandaloneProduct.LLMOBS]
+    false      | false  | true   | false | false || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | false  | false  | true  | false || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | false  | false  | false | true  || StandaloneSampler         | [StandaloneProduct.ASM]
+    false      | true   | true   | false | false || StandaloneSampler         | [StandaloneProduct.LLMOBS, StandaloneProduct.ASM]
+    false      | false  | false  | false | false || ForcePrioritySampler      | null
   }
 
   void "test that ParentBasedAlwaysOnSampler replaces AllSampler when OTLP traces export is enabled and priority sampling is disabled"() {

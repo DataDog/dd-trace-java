@@ -12,6 +12,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.sampling.SamplingRule;
 import datadog.trace.core.CoreSpan;
 import java.time.Clock;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -36,9 +37,17 @@ public interface Sampler {
     public static Sampler forConfig(final Config config, final TraceConfig traceConfig) {
       Sampler sampler;
       if (config != null) {
-        if (!config.isApmTracingEnabled() && isAsmEnabled(config)) {
-          log.debug("APM is disabled. Only 1 trace per minute will be sent.");
-          return new AsmStandaloneSampler(Clock.systemUTC());
+        if (!config.isApmTracingEnabled()) {
+          List<StandaloneProduct> active = new ArrayList<>();
+          if (config.isLlmObsEnabled()) active.add(StandaloneProduct.LLMOBS);
+          if (isAsmEnabled(config)) active.add(StandaloneProduct.ASM);
+          if (active.isEmpty()) {
+            log.debug("APM is disabled. All APM traces will be dropped.");
+            return new ForcePrioritySampler(
+                PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+          }
+          log.debug("APM is disabled, standalone products active: {}.", active);
+          return new StandaloneSampler(active, Clock.systemUTC());
         }
         final Map<String, String> serviceRules = config.getTraceSamplingServiceRules();
         final Map<String, String> operationRules = config.getTraceSamplingOperationRules();
