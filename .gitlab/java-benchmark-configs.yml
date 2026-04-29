@@ -1,21 +1,47 @@
+# Benchmarks run on master, merge queue, or when manually triggered.
+.parallel_benchmark_rules: &parallel_benchmark_rules
+  - if: '$POPULATE_CACHE'
+    when: never
+  - if: '$CI_COMMIT_TAG =~ /^v?[0-9]+\.[0-9]+\.[0-9]+$/'
+    when: manual
+    allow_failure: true
+  - if: '$CI_COMMIT_BRANCH == "master"'
+    when: on_success
+    interruptible: false
+  - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+    when: on_success
+    interruptible: true
+  - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+    when: on_success
+    interruptible: true
+  - when: manual
+    interruptible: true
+    allow_failure: true
+
 # Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
   needs: ["publish-artifacts-to-s3"]
 
 linux-java-insecure-bank-load-parallel:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-load-parallel:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
 
 linux-java-insecure-bank-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
 
 linux-java-spring-petclinic-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
 
 linux-java-dacapo-parallel-1:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
 
 linux-java-dacapo-parallel-2:
   needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
