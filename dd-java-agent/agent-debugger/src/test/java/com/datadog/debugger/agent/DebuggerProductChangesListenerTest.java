@@ -1,5 +1,11 @@
 package com.datadog.debugger.agent;
 
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeConfiguration;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeLogProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeMetricProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeSpanDecorationProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeSpanProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeTriggerProbe;
 import static com.datadog.debugger.util.LogProbeTestHelper.parseTemplate;
 import static datadog.remoteconfig.PollingHinterNoop.NOOP;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
@@ -16,7 +22,6 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
-import com.datadog.debugger.probe.Where;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.debugger.ProbeId;
@@ -259,39 +264,27 @@ public class DebuggerProductChangesListenerTest {
   }
 
   byte[] toContent(Configuration configuration) {
-    return DebuggerProductChangesListener.Adapter.CONFIGURATION_JSON_ADAPTER
-        .toJson(configuration)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeConfiguration(configuration).getBytes(StandardCharsets.UTF_8);
   }
 
   byte[] toContent(MetricProbe probe) {
-    return DebuggerProductChangesListener.Adapter.METRIC_PROBE_JSON_ADAPTER
-        .toJson(probe)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeMetricProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
 
   byte[] toContent(LogProbe probe) {
-    return DebuggerProductChangesListener.Adapter.LOG_PROBE_JSON_ADAPTER
-        .toJson(probe)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeLogProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
 
   byte[] toContent(SpanProbe probe) {
-    return DebuggerProductChangesListener.Adapter.SPAN_PROBE_JSON_ADAPTER
-        .toJson(probe)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeSpanProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
 
   byte[] toContent(SpanDecorationProbe probe) {
-    return DebuggerProductChangesListener.Adapter.SPAN_DECORATION_PROBE_JSON_ADAPTER
-        .toJson(probe)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeSpanDecorationProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
 
   byte[] toContent(TriggerProbe probe) {
-    return DebuggerProductChangesListener.Adapter.TRIGGER_PROBE_JSON_ADAPTER
-        .toJson(probe)
-        .getBytes(StandardCharsets.UTF_8);
+    return serializeTriggerProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
 
   void acceptConfig(
@@ -398,7 +391,10 @@ public class DebuggerProductChangesListenerTest {
   }
 
   TriggerProbe createTriggerProbe(String id) {
-    return new TriggerProbe(new ProbeId(id, 0), Where.of("java.lang.String", "indexOf", null));
+    return TriggerProbe.builder()
+        .probeId(new ProbeId(id, 0))
+        .where("java.lang.String", "indexOf", null)
+        .build();
   }
 
   Configuration.FilterList createFilteredList() {

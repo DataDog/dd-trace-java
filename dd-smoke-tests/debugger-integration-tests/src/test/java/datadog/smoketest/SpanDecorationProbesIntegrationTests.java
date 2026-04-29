@@ -58,7 +58,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "{argStr}"))
+            .decorations(createDecoration("tag1", "{argStr}"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -104,7 +104,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(decorations)
+            .decorations(decorations)
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -137,7 +137,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "{invalidArg}"))
+            .decorations(createDecoration("tag1", "{invalidArg}"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -180,7 +180,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(
+            .decorations(
                 createDecoration(
                     not(eq(ref("invalidArg"), nullValue())),
                     "invalidArg != null",
@@ -228,7 +228,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(decorations)
+            .decorations(decorations)
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
@@ -276,7 +276,7 @@ public class SpanDecorationProbesIntegrationTests extends ServerAppDebuggerInteg
         SpanDecorationProbe.builder()
             .probeId(PROBE_ID)
             .where(TEST_APP_CLASS_NAME, TRACED_METHOD_NAME)
-            .decorate(createDecoration("tag1", "staticText"))
+            .decorations(createDecoration("tag1", "staticText"))
             .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
             .build();
     addProbe(spanDecorationProbe);
