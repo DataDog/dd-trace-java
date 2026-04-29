@@ -701,6 +701,40 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     assertEquals(4.25d, (attributes.get("tag.double") as Number).doubleValue(), 0.000001d)
   }
 
+  def "test thread metadata is encoded in v1 attributes"() {
+    setup:
+    def span = new TraceGenerator.PojoSpan(
+      "service-a",
+      "operation-a",
+      "resource-a",
+      DDTraceId.ONE,
+      123L,
+      0L,
+      1000L,
+      2000L,
+      0,
+      [:],
+      [:],
+      "web",
+      false,
+      PrioritySampling.SAMPLER_KEEP,
+      0,
+      null)
+
+    TraceMapperV1 mapper = new TraceMapperV1()
+    byte[] encoded = serializeMappedPayload(mapper, [[span]])
+    MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(encoded)
+    List<String> stringTable = new ArrayList<>()
+    stringTable.add("")
+
+    when:
+    Map<String, Object> attributes = readFirstSpanAttributes(unpacker, stringTable)
+
+    then:
+    assertAttributeValueEquals(span.getTag(DDTags.THREAD_ID), attributes.get(DDTags.THREAD_ID), DDTags.THREAD_ID)
+    assertEquals(span.getTag(DDTags.THREAD_NAME).toString(), attributes.get(DDTags.THREAD_NAME))
+  }
+
   private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
 
     private final List<List<TraceGenerator.PojoSpan>> expectedTraces
@@ -973,6 +1007,8 @@ class TraceMapperV1PayloadTest extends DDSpecification {
     for (Map.Entry<String, String> entry : expectedSpan.getBaggage().entrySet()) {
       expectedAttributes.put(entry.getKey(), entry.getValue())
     }
+    expectedAttributes.put(DDTags.THREAD_ID, expectedSpan.getTag(DDTags.THREAD_ID))
+    expectedAttributes.put(DDTags.THREAD_NAME, expectedSpan.getTag(DDTags.THREAD_NAME))
     for (Map.Entry<String, Object> entry : expectedSpan.getTags().entrySet()) {
       if (DDTags.SPAN_EVENTS == entry.getKey()) {
         continue
