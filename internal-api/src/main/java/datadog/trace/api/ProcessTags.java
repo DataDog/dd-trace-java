@@ -96,7 +96,7 @@ public class ProcessTags {
             "No value for key '{}' from source '{}' in process.tags.mapping", configKey, source);
         return;
       }
-      tags.put(processTagKey, value);
+      tags.put(TraceUtils.normalizeTagValue(processTagKey), value);
     }
 
     private static void fillJeeTags(SortedMap<String, String> tags) {

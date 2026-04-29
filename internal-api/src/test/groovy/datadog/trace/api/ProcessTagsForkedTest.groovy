@@ -249,6 +249,22 @@ class ProcessTagsForkedTest extends DDSpecification {
     System.clearProperty("prop.b")
   }
 
+  def 'should normalize mapped process tag key'() {
+    setup:
+    System.setProperty("my.prop", "some_value")
+    injectSysConfig("process.tags.mapping", "{prop}my.prop:1Tenant")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    // key '1Tenant' is valid (leading digit is allowed) but the colon in raw keys would be invalid;
+    // normalizeTagValue strips leading non-alphanumeric chars and replaces colons — verify the key is stored normalized
+    tags.any { it.startsWith("1tenant:") }
+    !tags.any { it.startsWith("1Tenant:") }
+    cleanup:
+    System.clearProperty("my.prop")
+  }
+
   def 'process tag value normalization'() {
     setup:
     ProcessTags.addTag("test", testValue)
