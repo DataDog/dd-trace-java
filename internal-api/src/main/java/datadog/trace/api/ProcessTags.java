@@ -86,7 +86,9 @@ public class ProcessTags {
         value = SystemProperties.get(configKey);
       } else {
         LOGGER.warn(
-            "Unsupported source '{}' in process.tags.mapping for key: '{}'", source, sourceAndKey);
+            "Unsupported source '{}' in process.tags.mapping for key: '{}' (supported sources: 'env', 'prop' — lowercase only)",
+            source,
+            sourceAndKey);
         return;
       }
       if (value == null || value.isEmpty()) {

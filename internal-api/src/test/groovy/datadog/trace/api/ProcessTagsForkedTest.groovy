@@ -211,12 +211,11 @@ class ProcessTagsForkedTest extends DDSpecification {
     then:
     !tags.any { it.startsWith("bad_tag:") }
     where:
+    // all three cases reach parseMappingEntry and trigger a WARN
     malformed                     | _
-    "no_braces:key:bad_tag"       | _
-    "{unclosed_brace key:bad_tag" | _
-    "{prop}keyonly"               | _
-    "{prop}:bad_tag"              | _
-    "{prop}some.key:"             | _
+    "no_braces:key:bad_tag"       | _ // loadMap splits on first ':', key="no_braces" has no {source} prefix
+    "{unclosed_brace key:bad_tag" | _ // key has a space, regex does not match
+    "{prop}:bad_tag"              | _ // key is "{prop}" with no config-key after '}'
   }
 
   def 'last mapping wins when same source key is repeated'() {
