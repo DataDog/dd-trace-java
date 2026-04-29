@@ -126,7 +126,8 @@ public class DebuggerAgent {
       Redaction.addUserDefinedTypes(config);
       DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery =
           sharedCommunicationObjects.featuresDiscovery(config);
-      ddAgentFeaturesDiscovery.discoverIfOutdated();
+      // force to discover because commonInit can be retried if previously failed
+      ddAgentFeaturesDiscovery.discover();
       agentVersion = ddAgentFeaturesDiscovery.getVersion();
       String diagnosticEndpoint = getDiagnosticEndpoint(config, ddAgentFeaturesDiscovery);
       ProbeStatusSink probeStatusSink =
@@ -152,6 +153,8 @@ public class DebuggerAgent {
       return true;
     } catch (Exception ex) {
       LOGGER.debug("Failed to init common component for debugger agent", ex);
+      // reset commonInitDone to be able to retry commonInit next time
+      commonInitDone.set(false);
       return false;
     }
   }
