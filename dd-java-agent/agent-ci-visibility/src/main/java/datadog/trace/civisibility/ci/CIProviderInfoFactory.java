@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.ci;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.civisibility.ci.env.CiEnvironment;
 import java.nio.file.Path;
 
@@ -21,6 +22,12 @@ public class CIProviderInfoFactory {
   }
 
   public CIProviderInfo createCIProviderInfo(Path currentPath) {
+    // bazel rule supplies CI/git data downstream
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isPayloadFilesEnabled() && bazelMode.getPayloadsDir() != null) {
+      return new BazelInfo();
+    }
+
     if (!config.isCiVisibilityCiProviderIntegrationEnabled()) {
       return new UnknownCIInfo(environment, targetFolder, currentPath);
     }
