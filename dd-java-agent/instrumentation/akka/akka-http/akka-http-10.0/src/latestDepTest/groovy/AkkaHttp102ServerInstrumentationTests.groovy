@@ -37,6 +37,11 @@ class AkkaHttp102ServerInstrumentationBindSyncTest extends AkkaHttpServerInstrum
   }
 
   @Override
+  boolean testBodyFilenames() {
+    false
+  }
+
+  @Override
   boolean testBodyJson() {
     false
   }

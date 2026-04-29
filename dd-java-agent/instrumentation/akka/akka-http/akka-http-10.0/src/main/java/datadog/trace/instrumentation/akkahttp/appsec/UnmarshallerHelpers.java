@@ -26,6 +26,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.WeakHashMap;
 import java.util.function.BiFunction;
 import org.slf4j.Logger;
@@ -124,18 +125,10 @@ public class UnmarshallerHelpers {
     Flow<Void> flow = callback.apply(reqCtx, conv);
     Flow.Action action = flow.getAction();
     if (action instanceof Flow.Action.RequestBlockingAction) {
-      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-      BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-      if (blockResponseFunction != null) {
-        boolean success =
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        if (success) {
-          if (blockResponseFunction instanceof AkkaBlockResponseFunction) {
-            AkkaBlockResponseFunction abrf = (AkkaBlockResponseFunction) blockResponseFunction;
-            abrf.setUnmarshallBlock(true);
-          }
-          throw new BlockingException("Blocked request (for " + details + ")");
-        }
+      BlockingException e =
+          tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "for " + details);
+      if (e != null) {
+        throw e;
       }
     }
   }
@@ -199,17 +192,28 @@ public class UnmarshallerHelpers {
     }
 
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-    BiFunction<RequestContext, Object, Flow<Void>> callback =
+    BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
         cbp.getCallback(EVENTS.requestBodyProcessed());
-    if (callback == null) {
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+    if (bodyCallback == null && filenamesCallback == null) {
       return;
     }
 
-    // conversion to map string -> list of string
     java.lang.Iterable<akka.http.javadsl.model.Multipart.FormData.BodyPart.Strict> strictParts =
         st.getStrictParts();
     Map<String, List<String>> conv = new HashMap<>();
+    List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
     for (akka.http.javadsl.model.Multipart.FormData.BodyPart.Strict part : strictParts) {
+      Optional<String> filenameOpt = part.getFilename();
+      if (filenames != null && filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
+        filenames.add(filenameOpt.get());
+      }
+
+      if (bodyCallback == null) {
+        continue;
+      }
+
       akka.http.javadsl.model.HttpEntity.Strict entity = part.getEntity();
       if (!(entity instanceof HttpEntity.Strict)) {
         continue;
@@ -232,8 +236,33 @@ public class UnmarshallerHelpers {
       curStrings.add(s);
     }
 
-    // callback execution
-    executeCallback(reqCtx, callback, conv, "multipartFormDataUnmarshaller");
+    BlockingException pendingBlock = null;
+    if (bodyCallback != null) {
+      Flow<Void> flow = bodyCallback.apply(reqCtx, conv);
+      Flow.Action action = flow.getAction();
+      if (action instanceof Flow.Action.RequestBlockingAction) {
+        pendingBlock =
+            tryBlock(
+                reqCtx,
+                (Flow.Action.RequestBlockingAction) action,
+                "multipartFormDataUnmarshaller");
+      }
+    }
+
+    if (filenamesCallback != null && filenames != null && !filenames.isEmpty()) {
+      Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
+      if (pendingBlock == null) {
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          pendingBlock =
+              tryBlock(reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
+        }
+      }
+    }
+
+    if (pendingBlock != null) {
+      throw pendingBlock;
+    }
   }
 
   public static Unmarshaller<HttpEntity, String> transformStringUnmarshaller(
@@ -387,8 +416,13 @@ public class UnmarshallerHelpers {
   }
 
   private static void handleStrictFormData(StrictForm sf) {
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+
     Iterator<Tuple2<String, StrictForm.Field>> iterator = sf.fields().iterator();
     Map<String, List<String>> conv = new HashMap<>();
+    List<String> filenames = filenamesCb != null ? new ArrayList<>() : null;
     while (iterator.hasNext()) {
       Tuple2<String, StrictForm.Field> next = iterator.next();
       String fieldName = next._1();
@@ -413,9 +447,15 @@ public class UnmarshallerHelpers {
         strings.add((String) strictFieldValue);
       } else if (strictFieldValue
           instanceof akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) {
-        HttpEntity.Strict sentity =
-            ((akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) strictFieldValue)
-                .entity();
+        akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict bodyPart =
+            (akka.http.scaladsl.model.Multipart$FormData$BodyPart$Strict) strictFieldValue;
+        if (filenames != null) {
+          Optional<String> filenameOpt = bodyPart.getFilename();
+          if (filenameOpt.isPresent() && !filenameOpt.get().isEmpty()) {
+            filenames.add(filenameOpt.get());
+          }
+        }
+        HttpEntity.Strict sentity = bodyPart.entity();
         String s =
             sentity
                 .getData()
@@ -425,7 +465,34 @@ public class UnmarshallerHelpers {
       }
     }
 
-    handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+    BlockingException pendingBlock = null;
+    try {
+      handleArbitraryPostData(conv, "HttpEntity -> StrictForm unmarshaller");
+    } catch (BlockingException e) {
+      pendingBlock = e;
+    }
+
+    if (filenamesCb != null && filenames != null && !filenames.isEmpty()) {
+      AgentSpan span = activeSpan();
+      RequestContext reqCtx;
+      if (span != null
+          && (reqCtx = span.getRequestContext()) != null
+          && reqCtx.getData(RequestContextSlot.APPSEC) != null) {
+        Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
+        if (pendingBlock == null) {
+          Flow.Action action = flow.getAction();
+          if (action instanceof Flow.Action.RequestBlockingAction) {
+            pendingBlock =
+                tryBlock(
+                    reqCtx, (Flow.Action.RequestBlockingAction) action, "multipart file upload");
+          }
+        }
+      }
+    }
+
+    if (pendingBlock != null) {
+      throw pendingBlock;
+    }
   }
 
   private static Object tryConvertingScalaContainers(Object obj, int depth) {
@@ -471,6 +538,22 @@ public class UnmarshallerHelpers {
 
     // callback execution
     executeCallback(reqCtx, callback, o, source);
+  }
+
+  private static BlockingException tryBlock(
+      RequestContext reqCtx, Flow.Action.RequestBlockingAction rba, String details) {
+    BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+    if (brf == null) {
+      return null;
+    }
+    boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+    if (!success) {
+      return null;
+    }
+    if (brf instanceof AkkaBlockResponseFunction) {
+      ((AkkaBlockResponseFunction) brf).setUnmarshallBlock(true);
+    }
+    return new BlockingException("Blocked request (" + details + ")");
   }
 
   private static void handleException(Exception e, String logMessage) {

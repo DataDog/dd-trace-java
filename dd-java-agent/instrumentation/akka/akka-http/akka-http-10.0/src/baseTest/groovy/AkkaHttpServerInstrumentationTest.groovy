@@ -75,6 +75,11 @@ abstract class AkkaHttpServerInstrumentationTest extends HttpServerTest<AkkaHttp
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBodyJson() {
     true
   }
@@ -224,6 +229,11 @@ abstract class AkkaHttpServerInstrumentationSyncTest extends AkkaHttpServerInstr
   }
 
   @Override
+  boolean testBodyFilenames() {
+    false
+  }
+
+  @Override
   boolean testBodyJson() {
     false
   }
@@ -284,6 +294,11 @@ class AkkaHttpServerInstrumentationBindAndHandleTest extends AkkaHttpServerInstr
   }
 
   @Override
+  boolean testBodyFilenames() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
   boolean testBodyUrlencoded() {
     akkaHttpVersion != '10.0.10'
   }
@@ -306,6 +321,11 @@ class AkkaHttpServerInstrumentationBindAndHandleAsyncWithRouteAsyncHandlerTest e
 
   @Override
   boolean testBodyMultipart() {
+    akkaHttpVersion != '10.0.10'
+  }
+
+  @Override
+  boolean testBodyFilenames() {
     akkaHttpVersion != '10.0.10'
   }
 
