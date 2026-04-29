@@ -7,5 +7,6 @@
 
 buildSrc/call-site-instrumentation-plugin
 components/json
+dd-java-agent/instrumentation/opentelemetry/opentelemetry-1.4
 dd-java-agent/instrumentation/sofarpc/sofarpc-5.0
 dd-trace-api
