@@ -487,6 +487,11 @@ class SpringBootSmokeTest extends AbstractAppSecServerSmokeTest {
     }
     rootSpans.each { assert it.meta['actor.ip'] == '1.2.3.4' }
     rootSpans.each {
+      // network.client.ip is the raw peer (socket) address, not the header-spoofed value
+      assert it.meta['network.client.ip'] != null
+      assert it.meta['network.client.ip'] != '1.2.3.4'
+    }
+    rootSpans.each {
       assert it.meta['http.response.headers.content-type'] == 'text/plain;charset=UTF-8'
       assert it.meta['http.response.headers.content-length'] == '15'
     }

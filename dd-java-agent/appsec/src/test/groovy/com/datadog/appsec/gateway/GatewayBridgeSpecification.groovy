@@ -189,12 +189,10 @@ class GatewayBridgeSpecification extends DDSpecification {
     then:
     1 * spanInfo.getTags() >> TagMap.fromMap(['http.client_ip': '1.1.1.1'])
     1 * mockAppSecCtx.transferCollectedEvents() >> [event]
-    1 * mockAppSecCtx.peerAddress >> '2001::1'
     1 * mockAppSecCtx.close()
     1 * spanInfo.setMetric("_dd.appsec.enabled", 1)
     1 * spanInfo.setTag("_dd.runtime_family", "jvm")
     1 * spanInfo.setTag('appsec.event', true)
-    1 * spanInfo.setTag('network.client.ip', '2001::1')
     1 * spanInfo.setTag('actor.ip', '1.1.1.1')
     1 * traceSegment.setDataTop('appsec', new AppSecEventWrapper([event]))
     1 * mockAppSecCtx.isWafBlocked()

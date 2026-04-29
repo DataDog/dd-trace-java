@@ -296,6 +296,11 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     true
   }
 
+  /** Some frameworks (incorrectly) expose the forwarded header as the request peer address. */
+  boolean forwardedIpAsPeerInformation() {
+    false
+  }
+
   boolean hasExtraErrorInformation() {
     false
   }
@@ -2466,6 +2471,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     boolean hasPeerInformation = hasPeerInformation()
     boolean hasPeerPort = hasPeerPort()
     boolean hasForwardedIP = hasForwardedIP()
+    boolean useForwardedIpAsPeerInformation = forwardedIpAsPeerInformation()
     def expectedExtraServerTags = expectedExtraServerTags(endpoint)
     def expectedStatus = expectedStatus(endpoint)
     def expectedQueryTag = expectedQueryTag(endpoint)
@@ -2490,22 +2496,32 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
+          def peerHostTag = Tags.PEER_HOST_IPV4
+          def expectedPeerIp = "127.0.0.1"
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-          } else {
-            "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
+            peerHostTag = Tags.PEER_HOST_IPV6
+            expectedPeerIp = "0:0:0:0:0:0:0:1"
           }
+          // Special-case for the FORWARDED endpoint, which is exercised by the
+          // "test forwarded request" feature in this class. That test sends a
+          // GET /forwarded request with an `X-Forwarded-For: 1.2.3.4` header.
+          // Some frameworks (e.g. Dropwizard, Play 2.3/2.5 via
+          // `request.remoteAddress()`) substitute the forwarded IP into their
+          // remote-address API, so the peer/network IP tags become 1.2.3.4
+          // instead of the actual TCP peer (loopback). Frameworks with that
+          // behaviour opt in via `forwardedIpAsPeerInformation()`.
+          // FIXME(santiago.mola): This is actually a bug, and ideally instrumentation
+          // for Dropwizard or Play should be fixed to retrieve the correct peer IP
+          // for network.client.ip tags.
+          if (endpoint == FORWARDED && useForwardedIpAsPeerInformation) {
+            expectedPeerIp = endpoint.body
+          }
+          tag(peerHostTag, expectedPeerIp)
+          "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
+          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
         } else {
+          // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
+          "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
@@ -2513,6 +2529,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" expectedStatus
         "$Tags.HTTP_USER_AGENT" String
+        // The FORWARDED endpoint is hit by the "test forwarded request" feature
+        // with an `X-Forwarded-For: 1.2.3.4` header; FORWARDED.body is that
+        // same "1.2.3.4" string, which is what we expect to surface as the
+        // forwarded-IP tag when the framework extracts it.
         if (endpoint == FORWARDED && hasForwardedIP) {
           "$Tags.HTTP_FORWARDED_IP" endpoint.body
         }

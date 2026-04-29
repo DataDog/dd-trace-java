@@ -110,6 +110,7 @@ class ReactorNettyHttp2ClientTest extends InstrumentationSpecification {
             "$Tags.PEER_PORT" Integer
             "$Tags.PEER_HOST_IPV4" { String }
             "$Tags.HTTP_CLIENT_IP" { String }
+            "$Tags.NETWORK_CLIENT_IP" { String }
 
             "$Tags.HTTP_HOSTNAME" { String }
             "$Tags.HTTP_URL" "http://localhost:${server.port()}/firstUrl"
@@ -132,6 +133,7 @@ class ReactorNettyHttp2ClientTest extends InstrumentationSpecification {
               "$Tags.PEER_PORT" Integer
               "$Tags.PEER_HOST_IPV4" { String }
               "$Tags.HTTP_CLIENT_IP" { String }
+              "$Tags.NETWORK_CLIENT_IP" { String }
 
               "$Tags.HTTP_HOSTNAME" { String }
               "$Tags.HTTP_URL" "http://localhost:${server.port()}/"

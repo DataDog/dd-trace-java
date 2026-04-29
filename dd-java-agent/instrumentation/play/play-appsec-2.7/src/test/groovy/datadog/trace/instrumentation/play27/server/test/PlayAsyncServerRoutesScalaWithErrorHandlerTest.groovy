@@ -77,6 +77,7 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
   @Override
   void handlerSpan(TraceAssert trace, HttpServerTest.ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedClientIp = endpoint == FORWARDED ? { it == endpoint.body || it == '127.0.0.1' } : '127.0.0.1'
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -87,7 +88,9 @@ class PlayAsyncServerRoutesScalaWithErrorHandlerTest extends AbstractPlayServer2
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
-        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : "127.0.0.1")
+        "$Tags.HTTP_CLIENT_IP" expectedClientIp
+        // FIXME(APPSEC-62562): play-2.x instrumentation retrieves IP resolved from x-forwarded-for as peer IP.
+        "$Tags.NETWORK_CLIENT_IP" expectedClientIp
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String

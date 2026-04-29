@@ -43,8 +43,15 @@ class PlayServerTest extends HttpServerTest<TestServer> {
   }
 
   @Override
+  boolean forwardedIpAsPeerInformation() {
+    // FIXME(APPSEC-62562): play-2.x instrumentation retrieves IP resolved from x-forwarded-for as peer IP.
+    true
+  }
+
+  @Override
   void handlerSpan(TraceAssert trace, ServerEndpoint endpoint = SUCCESS) {
     def expectedQueryTag = expectedQueryTag(endpoint)
+    def expectedClientIp = endpoint == FORWARDED ? endpoint.body : '127.0.0.1'
     trace.span {
       serviceName expectedServiceName()
       operationName "play.request"
@@ -54,8 +61,10 @@ class PlayServerTest extends HttpServerTest<TestServer> {
       tags {
         "$Tags.COMPONENT" PlayHttpServerDecorator.DECORATE.component()
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
-        "$Tags.PEER_HOST_IPV4" (endpoint == FORWARDED ? endpoint.body : "127.0.0.1")
-        "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : "127.0.0.1")
+        "$Tags.PEER_HOST_IPV4" expectedClientIp
+        "$Tags.HTTP_CLIENT_IP" expectedClientIp
+        // FIXME(APPSEC-62562): play-2.x instrumentation retrieves IP resolved from x-forwarded-for as peer IP.
+        "$Tags.NETWORK_CLIENT_IP" expectedClientIp
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String

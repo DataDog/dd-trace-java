@@ -123,6 +123,12 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
   }
 
   @Override
+  boolean forwardedIpAsPeerInformation() {
+    // FIXME(APPSEC-62560): dropwizard-0.8 instrumentation retrieves IP resolved from x-forwarded-for as peer IP.
+    true
+  }
+
+  @Override
   boolean changesAll404s() {
     true
   }

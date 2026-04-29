@@ -556,6 +556,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
             "$Tags.PEER_HOST_IPV4" "127.0.0.1"
             "$Tags.PEER_PORT" Integer
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_HOSTNAME" address.host
             "$Tags.HTTP_URL" String
             "$Tags.HTTP_METHOD" "GET"

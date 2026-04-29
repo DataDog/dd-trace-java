@@ -370,6 +370,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       } else {
         span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
+      if (clientIpResolverEnabled) {
+        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+      }
     }
     setPeerPort(span, peerPort);
     Flow<Void> flow = callIGCallbackAddressAndPort(span, peerIp, peerPort, inferredAddressStr);
