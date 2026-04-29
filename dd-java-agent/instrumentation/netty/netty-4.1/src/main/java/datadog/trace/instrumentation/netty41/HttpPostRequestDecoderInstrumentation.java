@@ -122,11 +122,14 @@ public class HttpPostRequestDecoderInstrumentation extends InstrumenterModule.Ap
       if (callback != null) {
         // effectivelyBlocked() is intentionally absent: tryCommitBlockingResponse finishes
         // the span synchronously in this Netty path; calling it on a finished span throws.
-        thr =
+        Throwable block =
             NettyMultipartHelper.tryBlock(
                 requestContext,
                 callback.apply(requestContext, attributes),
                 "Blocked request (multipart/urlencoded post data)");
+        if (block != null) {
+          thr = block;
+        }
       }
 
       if (filenames != null && !filenames.isEmpty()) {
