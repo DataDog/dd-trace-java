@@ -11,6 +11,7 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -26,6 +27,7 @@ import org.apache.commons.fileupload.FileItem;
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
   public CommonsFileUploadAppSecInstrumentation() {
     super("commons-fileupload");
@@ -54,7 +56,6 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Return final List<FileItem> fileItems,
@@ -83,8 +84,7 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         if (filenames != null && name != null && !name.isEmpty()) {
           filenames.add(name);
         }
-        if (filesContent != null
-            && filesContent.size() < FileItemContentReader.MAX_FILES_TO_INSPECT) {
+        if (filesContent != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
           filesContent.add(FileItemContentReader.readContent(fileItem));
         }
       }

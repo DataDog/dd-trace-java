@@ -9,7 +9,6 @@ import org.apache.commons.fileupload.FileItem;
 /** Reads uploaded file content for WAF inspection. */
 public final class FileItemContentReader {
   public static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
-  public static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
   public static String readContent(FileItem fileItem) {
     try (InputStream is = fileItem.getInputStream()) {
