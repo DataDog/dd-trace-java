@@ -102,7 +102,7 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
       }
 
       if (flag.allocations == null) {
-        return error(defaultValue, ErrorCode.GENERAL, "null allocations for flag " + key);
+        return error(defaultValue, ErrorCode.GENERAL, "Missing allocations for flag " + key);
       }
 
       final Date now = new Date();
