@@ -125,6 +125,16 @@ public final class TraceMapperV0_5 implements TraceMapper {
     return "v0.5";
   }
 
+  // Visible for tests
+  Map<Object, Integer> getEncoding() {
+    return encoding;
+  }
+
+  // Visible for tests
+  GrowableBuffer getDictionary() {
+    return dictionary;
+  }
+
   private static class DictionaryMapper implements Mapper<Object> {
 
     @Override
