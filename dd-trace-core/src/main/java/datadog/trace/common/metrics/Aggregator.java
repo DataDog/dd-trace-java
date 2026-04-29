@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.trace.common.metrics.SignalItem.StopSignal;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Iterator;
@@ -46,7 +47,8 @@ final class Aggregator implements Runnable {
       final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit) {
+      TimeUnit reportingIntervalTimeUnit,
+      HealthMetrics healthMetrics) {
     this(
         writer,
         batchPool,
@@ -56,7 +58,8 @@ final class Aggregator implements Runnable {
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS);
+        DEFAULT_SLEEP_MILLIS,
+        healthMetrics);
   }
 
   Aggregator(
@@ -68,14 +71,18 @@ final class Aggregator implements Runnable {
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
-      long sleepMillis) {
+      long sleepMillis,
+      HealthMetrics healthMetrics) {
     this.writer = writer;
     this.batchPool = batchPool;
     this.inbox = inbox;
     this.commonKeys = commonKeys;
     this.aggregates =
         new LRUCache<>(
-            new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
+            new CommonKeyCleaner(commonKeys, healthMetrics),
+            maxAggregates * 4 / 3,
+            0.75f,
+            maxAggregates);
     this.pending = pending;
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
@@ -183,14 +190,19 @@ final class Aggregator implements Runnable {
       implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
 
     private final Set<MetricKey> commonKeys;
+    private final HealthMetrics healthMetrics;
 
-    private CommonKeyCleaner(Set<MetricKey> commonKeys) {
+    private CommonKeyCleaner(Set<MetricKey> commonKeys, HealthMetrics healthMetrics) {
       this.commonKeys = commonKeys;
+      this.healthMetrics = healthMetrics;
     }
 
     @Override
     public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
       commonKeys.remove(expired.getKey());
+      if (expired.getValue().getHitCount() > 0) {
+        healthMetrics.onStatsAggregateDropped();
+      }
     }
   }
 }
