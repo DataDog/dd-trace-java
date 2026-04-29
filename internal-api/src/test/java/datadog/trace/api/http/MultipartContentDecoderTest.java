@@ -3,6 +3,9 @@ package datadog.trace.api.http;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.io.ByteArrayInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -147,5 +150,26 @@ public class MultipartContentDecoderTest {
         text,
         MultipartContentDecoder.decodeBytes(
             bytes, bytes.length, "text/plain; charset=\"ISO-8859-1\""));
+  }
+
+  @Test
+  void readInputStreamTruncatesAtMaxBytes() throws IOException {
+    byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
+    assertEquals(
+        "hello", MultipartContentDecoder.readInputStream(new ByteArrayInputStream(data), 5, null));
+  }
+
+  @Test
+  void readInputStreamHandlesMultipleReadCallsToFillBuffer() throws IOException {
+    byte[] data = "hello world".getBytes(StandardCharsets.UTF_8);
+    // InputStream that returns 2 bytes per read() call to exercise the accumulation loop.
+    InputStream slow =
+        new ByteArrayInputStream(data) {
+          @Override
+          public synchronized int read(byte[] b, int off, int len) {
+            return super.read(b, off, Math.min(len, 2));
+          }
+        };
+    assertEquals("hello world", MultipartContentDecoder.readInputStream(slow, data.length, null));
   }
 }

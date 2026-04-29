@@ -11,6 +11,7 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -26,6 +27,7 @@ import org.apache.commons.fileupload.FileItem;
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
 
   public CommonsFileUploadAppSecInstrumentation() {
     super("commons-fileupload");
@@ -54,7 +56,6 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Return final List<FileItem> fileItems,
@@ -73,22 +74,22 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         return;
       }
 
-      List<String> filenames = new ArrayList<>();
+      List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
+      List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
       for (FileItem fileItem : fileItems) {
         if (fileItem.isFormField()) {
           continue;
         }
         String name = fileItem.getName();
-        if (name != null && !name.isEmpty()) {
+        if (filenames != null && name != null && !name.isEmpty()) {
           filenames.add(name);
         }
-      }
-      if (filenames.isEmpty() && contentCallback == null) {
-        return;
+        if (filesContent != null && filesContent.size() < MAX_FILES_TO_INSPECT) {
+          filesContent.add(FileItemContentReader.readContent(fileItem));
+        }
       }
 
-      // Fire filenames event
-      if (filenamesCallback != null && !filenames.isEmpty()) {
+      if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> flow = filenamesCallback.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
@@ -98,28 +99,21 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             t = new BlockingException("Blocked request (multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
-            return;
           }
         }
       }
 
-      // Fire content event only if not blocked
-      if (contentCallback == null) {
-        return;
-      }
-      List<String> filesContent = FileItemContentReader.readContents(fileItems);
-      if (filesContent.isEmpty()) {
-        return;
-      }
-      Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-      Flow.Action contentAction = contentFlow.getAction();
-      if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
-        BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-        if (brf != null) {
-          brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          t = new BlockingException("Blocked request (multipart file upload content)");
-          reqCtx.getTraceSegment().effectivelyBlocked();
+      if (t == null && filesContent != null && !filesContent.isEmpty()) {
+        Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+        Flow.Action contentAction = contentFlow.getAction();
+        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
+          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            t = new BlockingException("Blocked request (multipart file upload content)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          }
         }
       }
     }

@@ -27,6 +27,7 @@ import io.netty.handler.codec.http.HttpResponseStatus
 import io.netty.handler.codec.http.HttpServerCodec
 import io.netty.handler.codec.http.multipart.Attribute
 import io.netty.handler.codec.http.multipart.HttpPostRequestDecoder
+import io.netty.handler.codec.http.multipart.InterfaceHttpData
 import io.netty.handler.codec.http.websocketx.BinaryWebSocketFrame
 import io.netty.handler.codec.http.websocketx.CloseWebSocketFrame
 import io.netty.handler.codec.http.websocketx.ContinuationWebSocketFrame
@@ -36,6 +37,7 @@ import io.netty.handler.logging.LogLevel
 import io.netty.handler.logging.LoggingHandler
 import io.netty.util.CharsetUtil
 
+import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_MULTIPART
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_URLENCODED
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.ERROR
 import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.EXCEPTION
@@ -73,7 +75,7 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
             ChannelPipeline pipeline = ch.pipeline()
             pipeline.addFirst("logger", LOGGING_HANDLER)
             pipeline.addLast(new HttpServerCodec())
-            pipeline.addLast(new HttpObjectAggregator(1024))
+            pipeline.addLast(new HttpObjectAggregator(1024 * 1024))
             pipeline.addLast(new WebSocketServerProtocolHandler("/websocket"))
             pipeline.addLast([
               channelRead0       : { ChannelHandlerContext ctx, msg ->
@@ -127,6 +129,31 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
                             }
                           } finally {
                             decoder.destroy()
+                          }
+
+                          content = Unpooled.copiedBuffer(m as String, CharsetUtil.UTF_8)
+                          response = new DefaultFullHttpResponse(HTTP_1_1, HttpResponseStatus.valueOf(endpoint.status), content)
+                        }
+                        break
+                      case BODY_MULTIPART:
+                        if (msg instanceof FullHttpRequest) {
+                          HttpPostRequestDecoder decoder = new HttpPostRequestDecoder(
+                            new HttpRequest() {
+                              @Delegate
+                              HttpRequest delegate = request
+                            })
+
+                          Map m
+                          try {
+                            decoder.offer(msg)
+
+                            m = decoder.bodyHttpDatas
+                              .findAll { it.httpDataType == InterfaceHttpData.HttpDataType.Attribute }
+                              .collectEntries { d -> [d.name, [((Attribute) d).value]] }
+                          } finally {
+                            try {
+                              decoder.destroy()
+                            } catch (Exception ignored) {}
                           }
 
                           content = Unpooled.copiedBuffer(m as String, CharsetUtil.UTF_8)
@@ -267,6 +294,21 @@ abstract class Netty41ServerTest extends HttpServerTest<EventLoopGroup> {
 
   @Override
   boolean testBodyUrlencoded() {
+    true
+  }
+
+  @Override
+  boolean testBodyMultipart() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
+  boolean testBodyFilesContent() {
     true
   }
 

@@ -1,6 +1,10 @@
 package datadog.trace.instrumentation.tomcat7;
 
+import datadog.trace.api.Config;
+import datadog.trace.api.http.MultipartContentDecoder;
+import java.io.InputStream;
 import java.lang.reflect.Method;
+import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -19,6 +23,8 @@ public interface ParameterCollector {
   void addPart(Object part);
 
   List<String> getFilenames();
+
+  List<String> getContents();
 
   class ParameterCollectorNoop implements ParameterCollector {
     public static final ParameterCollector INSTANCE = new ParameterCollectorNoop();
@@ -46,11 +52,25 @@ public interface ParameterCollector {
     public List<String> getFilenames() {
       return Collections.emptyList();
     }
+
+    @Override
+    public List<String> getContents() {
+      return Collections.emptyList();
+    }
   }
 
   class ParameterCollectorImpl implements ParameterCollector {
+    private static final int MAX_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
+    private static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
+
+    private final boolean inspectContent;
     private Map<String, List<String>> map;
     private List<String> filenames;
+    private List<String> contents;
+
+    public ParameterCollectorImpl(boolean inspectContent) {
+      this.inspectContent = inspectContent;
+    }
 
     public boolean isEmpty() {
       return map == null;
@@ -91,11 +111,24 @@ public interface ParameterCollector {
     public void addPart(Object part) {
       try {
         String filename = getFilename(part);
-        if (filename != null && !filename.isEmpty()) {
+        // null means no filename parameter at all → form field, skip entirely.
+        // empty string means filename="" was sent → file upload without a name, still inspect.
+        if (filename == null) {
+          return;
+        }
+        if (!filename.isEmpty()) {
           if (filenames == null) {
             filenames = new ArrayList<>();
           }
           filenames.add(filename);
+        }
+        if (inspectContent) {
+          if (contents == null) {
+            contents = new ArrayList<>();
+          }
+          if (contents.size() < MAX_FILES_TO_INSPECT) {
+            contents.add(readContent(part));
+          }
         }
       } catch (Throwable ignored) {
       }
@@ -106,20 +139,71 @@ public interface ParameterCollector {
       return filenames != null ? filenames : Collections.<String>emptyList();
     }
 
+    @Override
+    public List<String> getContents() {
+      return contents != null ? contents : Collections.<String>emptyList();
+    }
+
+    // Entry caches (class → method[]) stored as a single volatile write for safe publication.
+    // methods[0]=getInputStream, methods[1]=getContentType
+    // Keyed by Part concrete class; re-resolved when the class changes (different Tomcat version).
+    private static volatile Map.Entry<Class<?>, Method[]> cachedContentMethodsEntry;
+    private static volatile Map.Entry<Class<?>, Method> cachedFilenameEntry;
+
+    private static String readContent(Object part) {
+      try {
+        Class<?> partClass = part.getClass();
+        Map.Entry<Class<?>, Method[]> entry = cachedContentMethodsEntry;
+        Method[] methods;
+        if (entry == null || entry.getKey() != partClass) {
+          methods =
+              new Method[] {
+                partClass.getMethod("getInputStream"), partClass.getMethod("getContentType")
+              };
+          cachedContentMethodsEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, methods);
+        } else {
+          methods = entry.getValue();
+        }
+        String contentType = (String) methods[1].invoke(part);
+        try (InputStream is = (InputStream) methods[0].invoke(part)) {
+          return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
+        }
+      } catch (Exception ignored) {
+        return "";
+      }
+    }
+
     private static String getFilename(Object part) {
-      // Try getSubmittedFileName() first — Servlet 3.1+ / Tomcat 8+ (both javax and jakarta)
+      Class<?> partClass = part.getClass();
+      Map.Entry<Class<?>, Method> entry = cachedFilenameEntry;
+      Method m;
+      if (entry == null || entry.getKey() != partClass) {
+        m = null;
+        // Try getSubmittedFileName() first — Servlet 3.1+ / Tomcat 8+ (both javax and jakarta)
+        try {
+          m = partClass.getMethod("getSubmittedFileName");
+        } catch (Exception ignored) {
+        }
+        if (m == null) {
+          // Fall back to getFilename() — Tomcat 7 ApplicationPart specific
+          try {
+            m = partClass.getMethod("getFilename");
+          } catch (Exception ignored) {
+          }
+        }
+        // null value in the entry means "no filename method on this class"
+        cachedFilenameEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, m);
+      } else {
+        m = entry.getValue();
+      }
+      if (m == null) {
+        return null;
+      }
       try {
-        Method m = part.getClass().getMethod("getSubmittedFileName");
         return (String) m.invoke(part);
       } catch (Exception ignored) {
+        return null;
       }
-      // Fall back to getFilename() — Tomcat 7 ApplicationPart specific
-      try {
-        Method m = part.getClass().getMethod("getFilename");
-        return (String) m.invoke(part);
-      } catch (Exception ignored) {
-      }
-      return null;
     }
   }
 }
