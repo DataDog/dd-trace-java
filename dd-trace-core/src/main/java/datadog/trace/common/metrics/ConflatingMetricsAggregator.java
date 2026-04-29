@@ -204,7 +204,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             keys.keySet(),
             maxAggregates,
             reportingInterval,
-            timeUnit);
+            timeUnit,
+            healthMetric);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
