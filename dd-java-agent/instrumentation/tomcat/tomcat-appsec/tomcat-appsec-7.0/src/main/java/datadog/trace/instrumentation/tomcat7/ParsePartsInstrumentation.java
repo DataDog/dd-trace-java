@@ -59,6 +59,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
       "datadog.trace.instrumentation.tomcat7.ParameterCollector",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl$CachedMethods",
     };
   }
 
