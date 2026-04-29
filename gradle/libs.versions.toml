@@ -37,8 +37,8 @@ instrument-java = "0.0.3"
 jmh = "1.37"
 
 # Profiling
-jmc = "8.1.0"
-jafar = "0.16.0"
+jmc = "9.1.1"
+jafar = "0.21.7"
 
 # Web & Network
 jnr-unixsocket = "0.38.24"
@@ -118,6 +118,7 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
+jmc-flightrecorder-writer = { module = "org.openjdk.jmc:flightrecorder.writer", version.ref = "jmc" }
 jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 

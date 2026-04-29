@@ -3,6 +3,8 @@ package com.datadog.profiling.agent;
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
 import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_OTLP_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
@@ -19,6 +21,7 @@ import com.datadog.profiling.controller.ProfilerFlareReporter;
 import com.datadog.profiling.controller.ProfilingSystem;
 import com.datadog.profiling.controller.UnsupportedEnvironmentException;
 import com.datadog.profiling.controller.jfr.JFRAccess;
+import com.datadog.profiling.uploader.OtlpProfileUploader;
 import com.datadog.profiling.uploader.ProfileUploader;
 import com.datadog.profiling.utils.Timestamper;
 import datadog.trace.api.Config;
@@ -54,6 +57,8 @@ public class ProfilingAgent {
 
   private static volatile ProfilingSystem profiler;
   private static volatile ProfileUploader uploader;
+  private static volatile OtlpProfileUploader otlpUploader;
+  private static volatile DataDumper dumper;
 
   private static class DataDumper implements RecordingDataListener {
     private final Path path;
@@ -139,9 +144,13 @@ public class ProfilingAgent {
         final Controller controller = CompositeController.build(configProvider, context);
 
         String dumpPath = configProvider.getString(ProfilingConfig.PROFILING_DEBUG_DUMP_PATH);
-        DataDumper dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
+        dumper = dumpPath != null ? new DataDumper(Paths.get(dumpPath)) : null;
 
         uploader = new ProfileUploader(config, configProvider);
+
+        if (configProvider.getBoolean(PROFILING_OTLP_ENABLED, PROFILING_OTLP_ENABLED_DEFAULT)) {
+          otlpUploader = new OtlpProfileUploader(config, configProvider);
+        }
 
         RecordingDataListener listener = uploader::upload;
         if (dumper != null) {
@@ -163,6 +172,21 @@ public class ProfilingAgent {
               configProvider.getBoolean(
                   PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
           listener = wrapWithScrubber(listener, excludeEventTypes, failOpen);
+        }
+        if (otlpUploader != null) {
+          OtlpProfileUploader otlp = otlpUploader;
+          RecordingDataListener downstream = listener;
+          listener =
+              (type, data, sync) -> {
+                data.retain(); // downstream listener gets original refcount slot
+                try {
+                  otlp.upload(type, data, sync, null);
+                } catch (Exception e) {
+                  data.release();
+                  throw e;
+                }
+                downstream.onNewData(type, data, sync);
+              };
         }
 
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
@@ -192,7 +216,7 @@ public class ProfilingAgent {
           This means that if/when we implement functionality to manually shutdown profiler we would
           need to not forget to add code that removes this shutdown hook from JVM.
            */
-          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader));
+          Runtime.getRuntime().addShutdownHook(new ShutdownHook(profiler, uploader, otlpUploader));
         } catch (final IllegalStateException ex) {
           // The JVM is already shutting down.
         }
@@ -221,17 +245,20 @@ public class ProfilingAgent {
   }
 
   public static void shutdown() {
-    shutdown(profiler, uploader, false);
+    shutdown(profiler, uploader, otlpUploader, false);
   }
 
   public static void shutdown(boolean snapshot) {
-    shutdown(profiler, uploader, snapshot);
+    shutdown(profiler, uploader, otlpUploader, snapshot);
   }
 
   private static final AtomicBoolean shutDownFlag = new AtomicBoolean();
 
   private static void shutdown(
-      ProfilingSystem profiler, ProfileUploader uploader, boolean snapshot) {
+      ProfilingSystem profiler,
+      ProfileUploader uploader,
+      OtlpProfileUploader otlpUploader,
+      boolean snapshot) {
     if (shutDownFlag.compareAndSet(false, true)) {
       if (profiler != null) {
         profiler.shutdown(snapshot);
@@ -240,6 +267,10 @@ public class ProfilingAgent {
       if (uploader != null) {
         uploader.shutdown();
       }
+
+      if (otlpUploader != null) {
+        otlpUploader.shutdown();
+      }
     }
   }
 
@@ -247,16 +278,21 @@ public class ProfilingAgent {
 
     private final WeakReference<ProfilingSystem> profilerRef;
     private final WeakReference<ProfileUploader> uploaderRef;
+    private final WeakReference<OtlpProfileUploader> otlpUploaderRef;
 
-    private ShutdownHook(final ProfilingSystem profiler, final ProfileUploader uploader) {
+    private ShutdownHook(
+        final ProfilingSystem profiler,
+        final ProfileUploader uploader,
+        final OtlpProfileUploader otlpUploader) {
       super(AGENT_THREAD_GROUP, "dd-profiler-shutdown-hook");
       profilerRef = new WeakReference<>(profiler);
       uploaderRef = new WeakReference<>(uploader);
+      otlpUploaderRef = new WeakReference<>(otlpUploader);
     }
 
     @Override
     public void run() {
-      shutdown(profilerRef.get(), uploaderRef.get(), false);
+      shutdown(profilerRef.get(), uploaderRef.get(), otlpUploaderRef.get(), false);
     }
   }
 }
