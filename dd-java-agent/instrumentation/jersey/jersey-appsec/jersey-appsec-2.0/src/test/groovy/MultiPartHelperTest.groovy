@@ -1,50 +1,17 @@
+import datadog.appsec.api.blocking.BlockingException
+import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.instrumentation.jersey2.MultiPartHelper
 import org.glassfish.jersey.media.multipart.FormDataBodyPart
 import org.glassfish.jersey.media.multipart.FormDataContentDisposition
 import spock.lang.Specification
 
 import javax.ws.rs.core.MediaType
+import java.io.ByteArrayInputStream
 
 class MultiPartHelperTest extends Specification {
-
-  // filenameFromBodyPart
-
-  def "returns null when content disposition is null"() {
-    given:
-    def bodyPart = Mock(FormDataBodyPart)
-    bodyPart.getFormDataContentDisposition() >> null
-
-    expect:
-    MultiPartHelper.filenameFromBodyPart(bodyPart) == null
-  }
-
-  def "returns null when filename is null or empty"() {
-    given:
-    def cd = Mock(FormDataContentDisposition)
-    cd.getFileName() >> rawFilename
-    def bodyPart = Mock(FormDataBodyPart)
-    bodyPart.getFormDataContentDisposition() >> cd
-
-    expect:
-    MultiPartHelper.filenameFromBodyPart(bodyPart) == null
-
-    where:
-    rawFilename << [null, '']
-  }
-
-  def "extracts filename"() {
-    given:
-    def cd = Mock(FormDataContentDisposition)
-    cd.getFileName() >> filename
-    def bodyPart = Mock(FormDataBodyPart)
-    bodyPart.getFormDataContentDisposition() >> cd
-
-    expect:
-    MultiPartHelper.filenameFromBodyPart(bodyPart) == filename
-
-    where:
-    filename << ['report.php', 'upload.txt', 'shell;evil.php', 'file"name.php']
-  }
 
   // collectBodyPart — body map
 
@@ -58,7 +25,7 @@ class MultiPartHelperTest extends Specification {
     def map = [:]
 
     when:
-    MultiPartHelper.collectBodyPart(bodyPart, map, null)
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
 
     then:
     map == [field: ['value']]
@@ -72,7 +39,7 @@ class MultiPartHelperTest extends Specification {
     def map = [:]
 
     when:
-    MultiPartHelper.collectBodyPart(bodyPart, map, null)
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
 
     then:
     map.isEmpty()
@@ -85,7 +52,7 @@ class MultiPartHelperTest extends Specification {
     bodyPart.getFormDataContentDisposition() >> null
 
     expect:
-    MultiPartHelper.collectBodyPart(bodyPart, null, null)
+    MultiPartHelper.collectBodyPart(bodyPart, null, null, null)
   }
 
   def "multiple values for same field are accumulated"() {
@@ -98,8 +65,8 @@ class MultiPartHelperTest extends Specification {
     def map = [:]
 
     when:
-    MultiPartHelper.collectBodyPart(bodyPart, map, null)
-    MultiPartHelper.collectBodyPart(bodyPart, map, null)
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
+    MultiPartHelper.collectBodyPart(bodyPart, map, null, null)
 
     then:
     map == [tag: ['a', 'b']]
@@ -117,7 +84,7 @@ class MultiPartHelperTest extends Specification {
     def filenames = []
 
     when:
-    MultiPartHelper.collectBodyPart(bodyPart, null, filenames)
+    MultiPartHelper.collectBodyPart(bodyPart, null, filenames, null)
 
     then:
     filenames == ['report.php']
@@ -134,7 +101,7 @@ class MultiPartHelperTest extends Specification {
     bodyPart.getFormDataContentDisposition() >> cd
 
     expect:
-    MultiPartHelper.collectBodyPart(bodyPart, [:], null)
+    MultiPartHelper.collectBodyPart(bodyPart, [:], null, null)
   }
 
   def "text/plain part with filename populates both body map and filename list"() {
@@ -150,10 +117,165 @@ class MultiPartHelperTest extends Specification {
     def filenames = []
 
     when:
-    MultiPartHelper.collectBodyPart(bodyPart, map, filenames)
+    MultiPartHelper.collectBodyPart(bodyPart, map, filenames, null)
 
     then:
     map == [file: ['content']]
     filenames == ['upload.txt']
+  }
+
+  def "empty filename adds to content but not filenames"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getFileName() >> ''
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.APPLICATION_OCTET_STREAM_TYPE
+    bodyPart.getFormDataContentDisposition() >> cd
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('data'.bytes)
+    def filenames = []
+    def content = []
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, null, filenames, content)
+
+    then:
+    filenames.isEmpty()
+    content == ['data']
+  }
+
+  def "null filename (no filename attr) skips both filenames and content"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getFileName() >> null
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.APPLICATION_OCTET_STREAM_TYPE
+    bodyPart.getFormDataContentDisposition() >> cd
+    def filenames = []
+    def content = []
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, null, filenames, content)
+
+    then:
+    filenames.isEmpty()
+    content.isEmpty()
+  }
+
+  def "non-empty filename adds to both filenames and content"() {
+    given:
+    def cd = Mock(FormDataContentDisposition)
+    cd.getFileName() >> 'report.php'
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.APPLICATION_OCTET_STREAM_TYPE
+    bodyPart.getFormDataContentDisposition() >> cd
+    bodyPart.getEntityAs(InputStream) >> new ByteArrayInputStream('<?php echo 1;'.bytes)
+    def filenames = []
+    def content = []
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, null, filenames, content)
+
+    then:
+    filenames == ['report.php']
+    content == ['<?php echo 1;']
+  }
+
+  def "getFormDataContentDisposition throw skips filenames and content gracefully"() {
+    given:
+    def bodyPart = Mock(FormDataBodyPart)
+    bodyPart.getMediaType() >> MediaType.APPLICATION_OCTET_STREAM_TYPE
+    bodyPart.getFormDataContentDisposition() >> { throw new IllegalArgumentException("bad CD") }
+    def filenames = []
+    def content = []
+
+    when:
+    MultiPartHelper.collectBodyPart(bodyPart, null, filenames, content)
+
+    then:
+    filenames.isEmpty()
+    content.isEmpty()
+    noExceptionThrown()
+  }
+
+  def "MAX_FILES_TO_INSPECT limits number of content entries"() {
+    given:
+    def parts = (1..MultiPartHelper.MAX_FILES_TO_INSPECT + 2).collect { i ->
+      def cd = Mock(FormDataContentDisposition)
+      cd.getFileName() >> "f${i}.bin"
+      def bp = Mock(FormDataBodyPart)
+      bp.getMediaType() >> MediaType.APPLICATION_OCTET_STREAM_TYPE
+      bp.getFormDataContentDisposition() >> cd
+      bp.getEntityAs(InputStream) >> new ByteArrayInputStream("content${i}".bytes)
+      bp
+    }
+    def content = []
+
+    when:
+    parts.each { MultiPartHelper.collectBodyPart(it, null, null, content) }
+
+    then:
+    content.size() == MultiPartHelper.MAX_FILES_TO_INSPECT
+  }
+
+  // tryBlock
+
+  def "tryBlock returns null when flow action is not a blocking action"() {
+    given:
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> Flow.Action.Noop.INSTANCE
+    RequestContext ctx = Stub(RequestContext)
+
+    expect:
+    MultiPartHelper.tryBlock(ctx, flow, 'msg') == null
+  }
+
+  def "tryBlock returns BlockingException with provided message when brf commits response"() {
+    given:
+    def segment = Stub(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Stub(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    def result = MultiPartHelper.tryBlock(ctx, flow, 'blocked!')
+
+    then:
+    result instanceof BlockingException
+    result.message == 'blocked!'
+  }
+
+  def "tryBlock calls tryCommitBlockingResponse and effectivelyBlocked"() {
+    given:
+    def segment = Mock(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Mock(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    MultiPartHelper.tryBlock(ctx, flow, 'msg')
+
+    then:
+    1 * brf.tryCommitBlockingResponse(segment, rba)
+    1 * segment.effectivelyBlocked()
+  }
+
+  def "tryBlock returns null when brf is null despite blocking action"() {
+    given:
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> null
+
+    expect:
+    MultiPartHelper.tryBlock(ctx, flow, 'msg') == null
   }
 }
