@@ -768,18 +768,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       this.writer = writer;
     }
 
-    DDAgentFeaturesDiscovery featuresDiscovery =
-        sharedCommunicationObjects.featuresDiscovery(config);
+    // CI Visibility payload-files mode writes traces to local files; skip feature discovery to
+    // avoid probing the agent in hermetic Bazel runs.
+    boolean payloadFilesEnabled =
+        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
 
-    if (config.isCiVisibilityEnabled()) {
-      // ensure updated discovery and sync if the another discovery currently being done
-      featuresDiscovery.discoverIfOutdated();
+    DDAgentFeaturesDiscovery featuresDiscovery;
+    if (payloadFilesEnabled) {
+      featuresDiscovery = null;
+    } else {
+      featuresDiscovery = sharedCommunicationObjects.featuresDiscovery(config);
+      if (config.isCiVisibilityEnabled()) {
+        // ensure updated discovery and sync if the another discovery currently being done
+        featuresDiscovery.discoverIfOutdated();
+      }
     }
 
     if (config.isCiVisibilityEnabled()
         && (config.isCiVisibilityAgentlessEnabled()
-            || featuresDiscovery.supportsEvpProxy()
-            || BazelMode.get().isPayloadFilesEnabled())) {
+            || payloadFilesEnabled
+            || featuresDiscovery.supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);

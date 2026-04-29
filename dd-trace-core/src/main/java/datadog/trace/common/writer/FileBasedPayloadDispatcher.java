@@ -20,10 +20,9 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.util.PidHelper;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
@@ -63,7 +62,7 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
   private static final Set<String> EXCLUDED_TAGS =
       new HashSet<>(Arrays.asList("runtime-id", "pr.number"));
 
-  private final Path outputDir;
+  private final File outputDir;
   private final String filePrefix;
   private final TrackType trackType;
   private final CiVisibilityWellKnownTags wellKnownTags =
@@ -71,8 +70,8 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
   private final List<String> serializedEvents = new ArrayList<>();
   private final AtomicLong sequence = new AtomicLong(0);
 
-  public FileBasedPayloadDispatcher(Path outputDir, String filePrefix, TrackType trackType) {
-    this.outputDir = outputDir;
+  public FileBasedPayloadDispatcher(String outputDirPath, String filePrefix, TrackType trackType) {
+    this.outputDir = new File(outputDirPath);
     this.filePrefix = filePrefix;
     this.trackType = trackType;
   }
@@ -317,8 +316,8 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
   }
 
   private void ensureOutputDir() throws IOException {
-    if (!Files.exists(outputDir)) {
-      Files.createDirectories(outputDir);
+    if (!outputDir.exists() && !outputDir.mkdirs() && !outputDir.exists()) {
+      throw new IOException("Failed to create output directory: " + outputDir);
     }
   }
 
@@ -328,11 +327,16 @@ public class FileBasedPayloadDispatcher implements PayloadDispatcher {
     long seq = sequence.getAndIncrement();
 
     String filename = String.format("%s-%d-%d-%d.json", filePrefix, timestampNs, pid, seq);
-    Path target = outputDir.resolve(filename);
-    Path tmp = outputDir.resolve(filename + ".tmp");
+    File target = new File(outputDir, filename);
+    File tmp = new File(outputDir, filename + ".tmp");
 
-    Files.write(tmp, data);
-    Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
+    try (FileOutputStream out = new FileOutputStream(tmp)) {
+      out.write(data);
+    }
+    if (!tmp.renameTo(target)) {
+      tmp.delete();
+      throw new IOException("Failed to rename " + tmp + " to " + target);
+    }
 
     if (log.isDebugEnabled()) {
       log.debug("[bazel mode] Wrote payload file: {} ({} bytes)", target, data.length);

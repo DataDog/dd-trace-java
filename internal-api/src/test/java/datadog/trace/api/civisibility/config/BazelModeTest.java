@@ -119,7 +119,8 @@ class BazelModeTest {
     BazelMode mode = new BazelMode(configWith(manifest.toString(), false));
 
     assertNotNull(mode.getSettingsPath());
-    assertEquals(httpDir.resolve("settings.json"), mode.getSettingsPath());
+    assertEquals(
+        httpDir.resolve("settings.json").toFile().getAbsolutePath(), mode.getSettingsPath());
     // files that do not exist return null
     assertNull(mode.getKnownTestsPath());
     assertNull(mode.getTestManagementPath());
@@ -134,10 +135,12 @@ class BazelModeTest {
 
     assertTrue(mode.isEnabled());
     assertTrue(mode.isPayloadFilesEnabled());
-    assertEquals(tmp.resolve("payloads"), mode.getPayloadsDir());
-    assertEquals(tmp.resolve("payloads/tests"), mode.getTestPayloadsDir());
-    assertEquals(tmp.resolve("payloads/coverage"), mode.getCoveragePayloadsDir());
-    assertEquals(tmp.resolve("payloads/telemetry"), mode.getTelemetryPayloadsDir());
+    assertEquals(tmp.resolve("payloads").toString(), mode.getPayloadsDir());
+    assertEquals(tmp.resolve("payloads").resolve("tests").toString(), mode.getTestPayloadsDir());
+    assertEquals(
+        tmp.resolve("payloads").resolve("coverage").toString(), mode.getCoveragePayloadsDir());
+    assertEquals(
+        tmp.resolve("payloads").resolve("telemetry").toString(), mode.getTelemetryPayloadsDir());
   }
 
   @Test

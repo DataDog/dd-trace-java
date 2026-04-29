@@ -27,7 +27,6 @@ import datadog.trace.common.writer.ddintake.DDIntakeTrackTypeResolver;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.nio.file.Path;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nonnull;
 import okhttp3.HttpUrl;
@@ -85,13 +84,13 @@ public class WriterFactory {
     }
 
     int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
-    DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
-    // CI Visibility with bazel support wants to write traces into JSON files
+    // CI Visibility payload-files mode writes traces to local files; detect it before touching
+    // feature discovery to avoid probing the agent in hermetic Bazel runs.
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
       BazelMode bazelMode = BazelMode.get();
-      Path testsDir = bazelMode.getTestPayloadsDir();
-      Path coverageDir =
+      String testsDir = bazelMode.getTestPayloadsDir();
+      String coverageDir =
           config.isCiVisibilityCodeCoverageEnabled() ? bazelMode.getCoveragePayloadsDir() : null;
       if (testsDir != null) {
         log.info(
@@ -115,6 +114,8 @@ public class WriterFactory {
       log.warn(
           "[bazel mode] Payloads-in-files mode enabled but payload directory not resolved, falling back to default writer");
     }
+
+    DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.
@@ -209,7 +210,7 @@ public class WriterFactory {
 
   @Nonnull
   private static PayloadDispatcher createCiVisBazelPayloadDispatcher(
-      Path testsDir, Path coverageDir) {
+      String testsDir, String coverageDir) {
     FileBasedPayloadDispatcher testDispatcher =
         new FileBasedPayloadDispatcher(testsDir, "tests", TrackType.CITESTCYCLE);
 
