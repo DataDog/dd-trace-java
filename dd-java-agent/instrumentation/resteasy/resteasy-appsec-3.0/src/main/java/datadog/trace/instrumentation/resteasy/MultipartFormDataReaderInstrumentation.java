@@ -118,15 +118,17 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         }
       }
 
-      if (t == null && contentCallback != null) {
+      if (contentCallback != null) {
         List<String> filesContent = MultipartHelper.collectFilesContent(ret);
         if (!filesContent.isEmpty()) {
           Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-          BlockingException be =
-              MultipartHelper.tryBlock(
-                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
-          if (be != null) {
-            t = be;
+          if (t == null) {
+            BlockingException be =
+                MultipartHelper.tryBlock(
+                    reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+            if (be != null) {
+              t = be;
+            }
           }
         }
       }
