@@ -91,6 +91,7 @@ import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
@@ -814,9 +815,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         () -> AgentTaskScheduler.get().execute(() -> startMetricsAggregation(config, sco)));
 
     if (dataStreamsMonitoring == null) {
+      // DefaultDataStreamsMonitoring's constructor calls featuresDiscovery(config), which would
+      // probe the agent — skip it in payload-files mode.
       this.dataStreamsMonitoring =
-          new DefaultDataStreamsMonitoring(
-              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+          payloadFilesEnabled
+              ? DisabledDataStreamsMonitoring.INSTANCE
+              : new DefaultDataStreamsMonitoring(
+                  config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }
