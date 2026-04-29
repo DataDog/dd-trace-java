@@ -12,6 +12,7 @@ import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Map.Entry;
 import org.jboss.resteasy.plugins.providers.multipart.InputPart;
 import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput;
 
@@ -46,7 +47,8 @@ public final class MultipartHelper {
           @SuppressWarnings("unchecked")
           Map<String, List<String>> headers =
               (Map<String, List<String>>) GET_HEADERS.invoke(inputPart);
-          cdHeaders = headers != null ? headers.get("Content-Disposition") : null;
+          cdHeaders =
+              headers != null ? getHeaderCaseInsensitive(headers, "Content-Disposition") : null;
         } catch (Exception ignored) {
           continue;
         }
@@ -83,7 +85,7 @@ public final class MultipartHelper {
         if (headers == null) {
           continue;
         }
-        List<String> cdHeaders = headers.get("Content-Disposition");
+        List<String> cdHeaders = getHeaderCaseInsensitive(headers, "Content-Disposition");
         if (cdHeaders == null || cdHeaders.isEmpty()) {
           continue;
         }
@@ -92,7 +94,7 @@ public final class MultipartHelper {
         if (rawFilenameFromContentDisposition(cdHeaders.get(0)) == null) {
           continue;
         }
-        List<String> ctHeaders = headers.get("Content-Type");
+        List<String> ctHeaders = getHeaderCaseInsensitive(headers, "Content-Type");
         String contentType = (ctHeaders != null && !ctHeaders.isEmpty()) ? ctHeaders.get(0) : null;
         contents.add(readContent(inputPart, contentType));
       }
@@ -122,6 +124,16 @@ public final class MultipartHelper {
     } catch (IOException ignored) {
       return "";
     }
+  }
+
+  private static List<String> getHeaderCaseInsensitive(
+      Map<String, List<String>> headers, String name) {
+    for (Entry<String, List<String>> entry : headers.entrySet()) {
+      if (name.equalsIgnoreCase(entry.getKey())) {
+        return entry.getValue();
+      }
+    }
+    return null;
   }
 
   // Quote-aware: semicolons inside quoted filenames (e.g. filename="a;b.php") are not separators.
