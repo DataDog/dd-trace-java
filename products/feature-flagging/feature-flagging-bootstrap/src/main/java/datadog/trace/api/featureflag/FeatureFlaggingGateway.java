@@ -13,8 +13,19 @@ public abstract class FeatureFlaggingGateway {
 
   public interface ExposureListener extends Consumer<ExposureEvent> {}
 
+  /**
+   * Listener notified when a non-retryable fatal error is received from the RC endpoint (e.g. HTTP
+   * 401 Unauthorized). Implementations should transition the OpenFeature provider to
+   * PROVIDER_FATAL.
+   */
+  public interface FatalErrorListener {
+    void onFatalError(int httpStatus, String message);
+  }
+
   private static final List<ConfigListener> CONFIG_LISTENERS = new CopyOnWriteArrayList<>();
   private static final List<ExposureListener> EXPOSURE_LISTENERS = new CopyOnWriteArrayList<>();
+  private static final List<FatalErrorListener> FATAL_ERROR_LISTENERS =
+      new CopyOnWriteArrayList<>();
 
   private static final AtomicReference<ServerConfiguration> CURRENT_CONFIG =
       new AtomicReference<>();
@@ -48,5 +59,17 @@ public abstract class FeatureFlaggingGateway {
 
   public static void dispatch(final ExposureEvent event) {
     EXPOSURE_LISTENERS.forEach(listener -> listener.accept(event));
+  }
+
+  public static void addFatalErrorListener(final FatalErrorListener listener) {
+    FATAL_ERROR_LISTENERS.add(listener);
+  }
+
+  public static void removeFatalErrorListener(final FatalErrorListener listener) {
+    FATAL_ERROR_LISTENERS.remove(listener);
+  }
+
+  public static void dispatchFatalError(final int httpStatus, final String message) {
+    FATAL_ERROR_LISTENERS.forEach(listener -> listener.onFatalError(httpStatus, message));
   }
 }
