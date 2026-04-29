@@ -200,7 +200,9 @@ final class Aggregator implements Runnable {
     @Override
     public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
       commonKeys.remove(expired.getKey());
-      healthMetrics.onStatsAggregateDropped();
+      if (expired.getValue().getHitCount() > 0) {
+        healthMetrics.onStatsAggregateDropped();
+      }
     }
   }
 }
