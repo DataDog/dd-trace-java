@@ -5,6 +5,8 @@ muzzle {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
     versions = "[$openTelemetryVersion,)"
+    assertInverse = true
+    skipVersions = ['0.13.0'] // bad release
   }
 }
 

@@ -27,7 +27,7 @@ public class OpenTelemetryLogsInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.CanShortcutTypeMatching, Instrumenter.HasMethodAdvice {
 
   public OpenTelemetryLogsInstrumentation() {
-    super("opentelemetry-logs", "opentelemetry-1.27");
+    super("opentelemetry-logs", "opentelemetry-1.27", "opentelemetry-1");
   }
 
   @Override
