@@ -122,12 +122,11 @@ _Trigger:_ When creating or updating a pull request targeting `master`, or when 
 
 _Actions:_
 
-* Fail the PR if a new Groovy test file is added to a module listed in [`.github/g2j-migrated-modules.txt`](../g2j-migrated-modules.txt) (hard enforcement),
-* Post a warning comment on the PR if a new Groovy test file is added to any other non-exempt module (soft warning). Instrumentation (`dd-java-agent/instrumentation/`) and smoke-test (`dd-smoke-tests/`) modules are exempt from this warning.
+* Fail the PR if it introduces any new `.groovy` file, including added, copied, or renamed files whose previous name was not already `.groovy`.
 
-_Recovery:_ Re-write the Groovy test files in Java / JUnit 5. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
+_Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
 
-_Notes:_ The migrated modules list is always read from `master`. Add a new entry to `.github/g2j-migrated-modules.txt` each time a module is migrated to Java / JUnit 5.
+_Notes:_ Draft pull requests are ignored. The override label skips the workflow entirely.
 
 ## Code Quality and Security
 

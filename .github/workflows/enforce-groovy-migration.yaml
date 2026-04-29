@@ -16,38 +16,48 @@ jobs:
     permissions:
       issues: write # Required to create a comment on the pull request
       pull-requests: write # Required to create a comment on the pull request
-      contents: read # Required to read migrated modules file
     runs-on: ubuntu-latest
     steps:
-      - name: Check for Groovy regressions
+      - name: Check for new Groovy files
         uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # 9.0.0
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
           script: |
+            const managedMarker = '<!-- dd-trace-java-groovy-enforcement -->'
+
+            const deleteManagedComment = async () => {
+              const comments = await github.rest.issues.listComments({
+                issue_number: context.payload.pull_request.number,
+                owner: context.repo.owner,
+                repo: context.repo.repo
+              })
+
+              const existingComment = comments.data.find(comment =>
+                comment.body.includes(managedMarker)
+              )
+
+              if (existingComment) {
+                await github.rest.issues.deleteComment({
+                  comment_id: existingComment.id,
+                  owner: context.repo.owner,
+                  repo: context.repo.repo
+                })
+              }
+            }
+
             // Skip draft pull requests
             if (context.payload.pull_request.draft) {
+              await deleteManagedComment()
               return
             }
 
             // Check for override label — skip all checks if label present
             const labels = context.payload.pull_request.labels.map(l => l.name)
             if (labels.includes('tag: override-groovy-enforcement')) {
+              await deleteManagedComment()
               console.log('tag: override-groovy-enforcement label detected — skipping all checks.')
               return
             }
-
-            // Read migrated modules list from master
-            const migratedMods = await github.rest.repos.getContent({
-              owner: context.repo.owner,
-              repo: context.repo.repo,
-              path: '.github/g2j-migrated-modules.txt',
-              ref: 'master'
-            })
-            const migratedPrefixes = Buffer.from(migratedMods.data.content, 'base64')
-              .toString()
-              .split('\n')
-              .map(l => l.trim())
-              .filter(l => l && !l.startsWith('#'))
 
             // Get all files changed in this PR
             const allFiles = await github.paginate(github.rest.pulls.listFiles, {
@@ -56,35 +66,20 @@ jobs:
               pull_number: context.payload.pull_request.number
             })
 
-            // Filter these changed files to newly added Groovy files in any test source set
-            const addedGroovy = allFiles.filter(f =>
-              f.status === 'added' &&
-              /\/src\/[^/]*[tT]est[^/]*\/groovy\/.*\.groovy$/.test(f.filename)
-            )
-
-            // Extract module prefix from file path (everything before /src/(test|testFixtures)/groovy/)
-            const moduleOf = path => {
-              const m = path.match(/^(.*?)\/src\/(test|testFixtures)\/groovy\//)
-              return m ? m[1] : null
-            }
-
-            // Classify each added Groovy file
-            const regressions = []
-            const warnings = []
-            for (const file of addedGroovy) {
-              const path = file.filename
-              const mod = moduleOf(path)
-              if (migratedPrefixes.some(prefix => path.startsWith(prefix + '/'))) {
-                regressions.push({ path, mod })
-              } else if (
-                path.startsWith('dd-java-agent/instrumentation/') ||
-                path.startsWith('dd-smoke-tests/')
-              ) {
-                // ignore Groovy file additions to instrumentations and smoke-tests for now
-              } else {
-                warnings.push({ path, mod })
+            // Fail if the PR introduces any new .groovy file
+            // "renamed" only counts when the previous filename was not already Groovy.
+            const introducedGroovy = allFiles.filter(file => {
+              if (!file.filename.endsWith('.groovy')) {
+                return false
               }
-            }
+
+              if (file.status === 'added' || file.status === 'copied') {
+                return true
+              }
+
+              return file.status === 'renamed' &&
+                (!file.previous_filename || !file.previous_filename.endsWith('.groovy'))
+            })
 
             // Fetch existing comments once
             const comments = await github.rest.issues.listComments({
@@ -93,24 +88,21 @@ jobs:
               repo: context.repo.repo
             })
 
-            const regressionMarker = '<!-- dd-trace-java-groovy-regression -->'
-            const warningMarker = '<!-- dd-trace-java-groovy-warning -->'
-            const existingRegressionComment = comments.data.find(c => c.body.includes(regressionMarker))
-            const existingWarningComment = comments.data.find(c => c.body.includes(warningMarker))
+            const existingComment = comments.data.find(comment => comment.body.includes(managedMarker))
 
-            // Handle regression comment
-            if (regressions.length > 0) {
-              const fileList = regressions
-                .map(({ path, mod }) => `- \`${path}\` (module: \`${mod}\`)`)
+            if (introducedGroovy.length > 0) {
+              const fileList = introducedGroovy
+                .map(({ filename }) => `- \`${filename}\``)
                 .join('\n')
-              const body = `**❌ Groovy Test Regression Detected**\n\n` +
-                `The following files add Groovy tests to modules that have been fully migrated to Java / JUnit 5:\n\n` +
+              const body = `**❌ New Groovy Files Detected**\n\n` +
+                `Please avoid introducing new \`.groovy\` files to this repository.\n\n` +
                 `${fileList}\n\n` +
-                `These modules no longer accept Groovy test files. Please rewrite the test in Java / JUnit 5 instead.\n\n` +
-                regressionMarker
-              if (existingRegressionComment) {
+                `Instead, rewrite the new file(s) in Java / JUnit. See the [How to Test With JUnit Guide](https://github.com/DataDog/dd-trace-java/blob/master/docs/how_to_test_with_junit.md) for more details.\n\n` +
+                `If this PR needs an exception, add the \`tag: override-groovy-enforcement\` label to bypass this workflow.\n\n` +
+                managedMarker
+              if (existingComment) {
                 await github.rest.issues.updateComment({
-                  comment_id: existingRegressionComment.id,
+                  comment_id: existingComment.id,
                   owner: context.repo.owner,
                   repo: context.repo.repo,
                   body
@@ -123,48 +115,14 @@ jobs:
                   body
                 })
               }
-            } else if (existingRegressionComment) {
+            } else if (existingComment) {
               await github.rest.issues.deleteComment({
-                comment_id: existingRegressionComment.id,
+                comment_id: existingComment.id,
                 owner: context.repo.owner,
                 repo: context.repo.repo
               })
             }
 
-            // Handle warning comment
-            if (warnings.length > 0) {
-              const fileList = warnings
-                .map(({ path, mod }) => `- \`${path}\` (module: \`${mod}\`)`)
-                .join('\n')
-              const body = `**⚠️ New Groovy Test Files Added**\n\n` +
-                `The following files add Groovy tests to modules that are candidates for migration to Java / JUnit 5:\n\n` +
-                `${fileList}\n\n` +
-                `Consider writing these tests in Java / JUnit 5 instead to help with the ongoing migration effort.\n\n` +
-                warningMarker
-              if (existingWarningComment) {
-                await github.rest.issues.updateComment({
-                  comment_id: existingWarningComment.id,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body
-                })
-              } else {
-                await github.rest.issues.createComment({
-                  issue_number: context.payload.pull_request.number,
-                  owner: context.repo.owner,
-                  repo: context.repo.repo,
-                  body
-                })
-              }
-            } else if (existingWarningComment) {
-              await github.rest.issues.deleteComment({
-                comment_id: existingWarningComment.id,
-                owner: context.repo.owner,
-                repo: context.repo.repo
-              })
-            }
-
-            // Fail the check if there are regressions
-            if (regressions.length > 0) {
-              core.setFailed(`${regressions.length} Groovy regression(s) detected in migrated module(s). See PR comment for details. To skip this check entirely, add the 'tag: override-groovy-enforcement' label.`)
+            if (introducedGroovy.length > 0) {
+              core.setFailed(`${introducedGroovy.length} new Groovy file(s) detected. See PR comment for details. To bypass this workflow, add the 'tag: override-groovy-enforcement' label.`)
             }
