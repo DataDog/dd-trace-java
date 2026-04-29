@@ -48,6 +48,43 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == text
   }
 
+  void 'addToContents adds content when below MAX_FILES_TO_INSPECT'() {
+    given:
+    def contents = []
+    def item = fileItem('hello')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents == ['hello']
+  }
+
+  void 'addToContents does not add when at MAX_FILES_TO_INSPECT limit'() {
+    given:
+    def contents = (1..FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('extra')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
+  }
+
+  void 'addToContents fills up to exactly MAX_FILES_TO_INSPECT'() {
+    given:
+    def contents = (1..<FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('last')
+
+    when:
+    FileItemContentReader.addToContents(item, contents)
+
+    then:
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
+    contents.last() == 'last'
+  }
+
   private FileItem fileItem(String content) {
     fileItem(content, 'file.txt')
   }
