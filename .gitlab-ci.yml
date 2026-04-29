@@ -48,6 +48,15 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
+  ARM64_BUILDER_IMAGE_REPO: "ghcr.io/datadog/dd-trace-java-docker-build"
+  ARM64_BUILDER_IMAGE_TAG: "alexeyk_arm64-test-arm64-base"
+  WINDOWS_JDK8_VERSION: "8u482-b08" # keep pinned to Temurin GA patch releases and bump periodically
+  WINDOWS_JDK11_VERSION: "11.0.30+7"
+  WINDOWS_JDK17_VERSION: "17.0.18+8"
+  WINDOWS_JDK21_VERSION: "21.0.10+7"
+  WINDOWS_JDK25_VERSION: "25.0.2+10"
+  WINDOWS_BOOTSTRAP_CACHE_POLICY: pull
+  WINDOWS_DEPENDENCY_CACHE_POLICY: pull
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
@@ -369,6 +378,18 @@ populate_dep_cache:
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
 
+populate_dep_cache_windows:
+  extends: .windows_base_test_job
+  when: manual
+  allow_failure: true
+  variables:
+    WINDOWS_BOOTSTRAP_CACHE_POLICY: pull-push
+    WINDOWS_DEPENDENCY_CACHE_POLICY: push
+  script:
+    - |
+      .\gradlew.bat :baseTest -PskipTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
@@ -594,6 +615,156 @@ muzzle-dep-report:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
+.windows_test_cache:
+  cache:
+    - key: "windows-jdks-temurin-${WINDOWS_JDK8_VERSION}-${WINDOWS_JDK11_VERSION}-${WINDOWS_JDK17_VERSION}-${WINDOWS_JDK21_VERSION}-${WINDOWS_JDK25_VERSION}-x64"
+      paths:
+        - .tools/jdk-8/
+        - .tools/jdk-11/
+        - .tools/jdk-17/
+        - .tools/jdk-21/
+        - .tools/jdk-25/
+      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
+      unprotect: true
+    - key:
+        files:
+          - gradle/wrapper/gradle-wrapper.properties
+        prefix: "windows-gradle-wrapper"
+      paths:
+        - .gradle/wrapper/
+      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
+      unprotect: true
+    - key:
+        files:
+          - settings.gradle.kts
+          - "**/gradle.lockfile"
+        prefix: "windows-base-deps-jdk21"
+      fallback_keys:
+        - "windows-base-deps-jdk21-default"
+      paths:
+        - .gradle/caches/
+        - .gradle/notifications/
+        - .mvn/caches/
+      policy: $WINDOWS_DEPENDENCY_CACHE_POLICY
+      unprotect: true
+
+.windows_base_test_job:
+  extends: .windows_test_cache
+  stage: tests
+  tags: [ "windows-v2:2025" ]
+  needs: []
+  variables:
+    GIT_STRATEGY: none
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
+    SKIP_BUILDSCAN: "true"
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+  before_script:
+    - |
+      $ErrorActionPreference = "Stop"
+      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
+
+      $toolsDir = Join-Path $env:CI_PROJECT_DIR ".tools"
+      $tmpDir = Join-Path $env:CI_PROJECT_DIR ".tmp"
+      $tmpDirJava = $tmpDir.Replace("\", "/")
+      $jdk8ArchiveVersion = $env:WINDOWS_JDK8_VERSION.Replace("-", "")
+      $jdk11ArchiveVersion = $env:WINDOWS_JDK11_VERSION.Replace("+", "_")
+      $jdk17ArchiveVersion = $env:WINDOWS_JDK17_VERSION.Replace("+", "_")
+      $jdk21ArchiveVersion = $env:WINDOWS_JDK21_VERSION.Replace("+", "_")
+      $jdk25ArchiveVersion = $env:WINDOWS_JDK25_VERSION.Replace("+", "_")
+      $jdk8Home = Join-Path $toolsDir "jdk-8"
+      $jdk11Home = Join-Path $toolsDir "jdk-11"
+      $jdk17Home = Join-Path $toolsDir "jdk-17"
+      $jdk21Home = Join-Path $toolsDir "jdk-21"
+      $jdk25Home = Join-Path $toolsDir "jdk-25"
+
+      New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
+      try {
+        New-Item -ItemType Directory -Force -Path "C:\tmp" | Out-Null
+      } catch {
+        Write-Host "Unable to create C:\tmp: $($_.Exception.Message)"
+      }
+
+      git --version
+      git config --global --add safe.directory $env:CI_PROJECT_DIR
+      if (-not (Test-Path ".git")) {
+        git init .
+        git remote add origin $env:CI_REPOSITORY_URL
+      } else {
+        git remote remove origin 2>$null
+        git remote add origin $env:CI_REPOSITORY_URL
+      }
+      git config core.longpaths true
+      git fetch --depth 1 origin $env:CI_COMMIT_SHA
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      git checkout --force --detach FETCH_HEAD
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      @(
+        "DD_SERVICE",
+        "DD_ENTITY_ID",
+        "DD_SITE",
+        "DD_ENV",
+        "DD_DATACENTER",
+        "DD_PARTITION",
+        "DD_CLOUDPROVIDER"
+      ) | ForEach-Object {
+        if (Test-Path "Env:$_") {
+          Remove-Item "Env:$_"
+        }
+      }
+
+      function Install-TemurinJdk([string]$jdkHome, [string]$jdkUrl, [string]$zipName) {
+        $jdkZip = Join-Path $env:TEMP $zipName
+        $jdkExtract = "$jdkHome-extract"
+        if (-not (Test-Path (Join-Path $jdkHome "bin\java.exe"))) {
+          if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
+          (New-Object System.Net.WebClient).DownloadFile($jdkUrl, $jdkZip)
+          Expand-Archive -Path $jdkZip -DestinationPath $jdkExtract -Force
+          if (Test-Path $jdkHome) { Remove-Item $jdkHome -Recurse -Force }
+          $expandedJdkDir = Get-ChildItem $jdkExtract -Directory | Select-Object -First 1
+          Move-Item $expandedJdkDir.FullName $jdkHome
+          Remove-Item $jdkZip -Force
+          Remove-Item $jdkExtract -Recurse -Force
+        }
+      }
+
+      Install-TemurinJdk $jdk8Home "https://github.com/adoptium/temurin8-binaries/releases/download/jdk$($env:WINDOWS_JDK8_VERSION)/OpenJDK8U-jdk_x64_windows_hotspot_$jdk8ArchiveVersion.zip" "temurin-jdk-$jdk8ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk11Home "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-$($env:WINDOWS_JDK11_VERSION)/OpenJDK11U-jdk_x64_windows_hotspot_$jdk11ArchiveVersion.zip" "temurin-jdk-$jdk11ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk17Home "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-$($env:WINDOWS_JDK17_VERSION)/OpenJDK17U-jdk_x64_windows_hotspot_$jdk17ArchiveVersion.zip" "temurin-jdk-$jdk17ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk21Home "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK21_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdk21ArchiveVersion.zip" "temurin-jdk-$jdk21ArchiveVersion-windows-x64.zip"
+      Install-TemurinJdk $jdk25Home "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-$($env:WINDOWS_JDK25_VERSION)/OpenJDK25U-jdk_x64_windows_hotspot_$jdk25ArchiveVersion.zip" "temurin-jdk-$jdk25ArchiveVersion-windows-x64.zip"
+
+      $env:JAVA_HOME = $jdk21Home
+      $env:JAVA_8_HOME = $jdk8Home
+      $env:JAVA_11_HOME = $jdk11Home
+      $env:JAVA_17_HOME = $jdk17Home
+      $env:JAVA_21_HOME = $jdk21Home
+      $env:JAVA_25_HOME = $jdk25Home
+      $env:Path = "$($env:JAVA_HOME)\bin;$env:Path"
+      $env:GRADLE_USER_HOME = Join-Path $env:CI_PROJECT_DIR ".gradle"
+      $env:ORG_GRADLE_PROJECT_mavenRepositoryProxy = $env:MAVEN_REPOSITORY_PROXY
+      $env:ORG_GRADLE_PROJECT_gradlePluginProxy = $env:GRADLE_PLUGIN_PROXY
+
+      if ($env:MAVEN_REPOSITORY_PROXY) {
+        (Get-Content ".mvn\wrapper\maven-wrapper.properties") `
+          -replace "https://repo.maven.apache.org/maven2/", $env:MAVEN_REPOSITORY_PROXY `
+          | Set-Content ".mvn\wrapper\maven-wrapper.properties" -Encoding ASCII
+      }
+
+      Add-Content gradle.properties "org.gradle.java.installations.auto-detect=false" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.java.installations.auto-download=false" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_8_HOME,JAVA_11_HOME,JAVA_17_HOME,JAVA_21_HOME,JAVA_25_HOME" -Encoding ASCII
+      Add-Content gradle.properties "org.gradle.jvmargs=-Xms1g -Xmx4g -Djava.util.prefs.userRoot=$tmpDirJava/java-prefs -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -XX:ErrorFile=$tmpDirJava/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$tmpDirJava" -Encoding ASCII
+
+      & "$env:JAVA_8_HOME\bin\java.exe" -version
+      & "$env:JAVA_11_HOME\bin\java.exe" -version
+      & "$env:JAVA_17_HOME\bin\java.exe" -version
+      & "$env:JAVA_21_HOME\bin\java.exe" -version
+      & "$env:JAVA_25_HOME\bin\java.exe" -version
+      java -version
+      .\gradlew.bat --version
+
 .test_job:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
@@ -664,6 +835,96 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
+.test_job_arm64_poc:
+  image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG}
+  tags: [ "docker-in-docker:arm64" ]
+  stage: tests
+  needs: []
+  cache:
+    - key: dependency-arm64-base
+      paths:
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+        - .mvn/caches
+      policy: pull
+      unprotect: true
+  variables:
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 4G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
+    JETTY_AVAILABLE_PROCESSORS: 4
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
+  before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+    - |
+      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
+      cat >> gradle.properties <<EOF
+      org.gradle.java.installations.auto-detect=false
+      org.gradle.java.installations.auto-download=false
+      org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      EOF
+    - mkdir -p .gradle .mvn/caches
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
+    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    - *normalize_node_index
+    - *prepare_test_env
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - ./gradlew --version
+  script:
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
+  artifacts:
+    when: always
+    paths:
+      - workspace/**/build/test-results/**
+      - workspace/**/build/reports/tests/**
+      - buildSrc/build/test-results/**
+      - buildSrc/build/reports/tests/**
+      - .gradle/daemon/*/*.out.log
+    reports:
+      junit:
+        - workspace/**/build/test-results/**/*.xml
+        - buildSrc/build/test-results/**/*.xml
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
+
+.test_job_arm64_with_test_agent:
+  extends: .test_job_arm64_poc
+  variables:
+    CI_USE_TEST_AGENT: "true"
+    CI_AGENT_HOST: local-agent
+  services:
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
+      alias: local-agent
+      variables:
+        LOG_LEVEL: "DEBUG"
+        TRACE_LANGUAGE: "java"
+        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
+        DD_POOL_TRACE_CHECK_FAILURES: "true"
+        DD_DISABLE_ERROR_RESPONSES: "true"
+        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
+  script:
+    - !reference [.test_job_arm64_poc, script]
+    - .gitlab/check_test_agent_results.sh
+
 .test_job_with_test_agent:
   extends: .test_job
   variables:
@@ -711,6 +972,39 @@ test_base:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
 
+test_base_windows21:
+  extends: .windows_base_test_job
+  when: manual
+  allow_failure: true
+  script:
+    - |
+      .\gradlew.bat :baseTest -PskipFlakyTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4 --continue
+      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  artifacts:
+    when: always
+    paths:
+      - workspace/**/build/test-results/**
+      - workspace/**/build/reports/tests/**
+      - buildSrc/build/test-results/**
+      - buildSrc/build/reports/tests/**
+      - .gradle/daemon/*/*.out.log
+      - .tmp/**
+    reports:
+      junit:
+        - workspace/**/build/test-results/**/*.xml
+        - buildSrc/build/test-results/**/*.xml
+
+test_base_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":baseTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_inst:
   extends: .test_job_with_test_agent
   variables:
@@ -718,6 +1012,17 @@ test_inst:
     CACHE_TYPE: "inst"
   parallel:
     matrix: *test_matrix_8
+
+test_inst_arm64:
+  extends: .test_job_arm64_with_test_agent
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":instrumentationTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -730,6 +1035,17 @@ test_inst_latest:
         # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
         # This emulates "parallel" by including it in the matrix
         CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+
+test_inst_latest_arm64:
+  extends: .test_job_arm64_with_test_agent
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_flaky:
   extends: .test_job_with_test_agent
@@ -771,6 +1087,17 @@ test_profiling:
   parallel:
     matrix: *test_matrix
 
+test_profiling_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":profilingTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
 test_debugger:
@@ -782,6 +1109,17 @@ test_debugger:
   parallel:
     matrix: *test_matrix
 
+test_debugger_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: ":debuggerTest"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_smoke:
   extends: .test_job
   variables:
@@ -790,6 +1128,18 @@ test_smoke:
     CACHE_TYPE: "smoke"
   parallel:
     matrix: *test_matrix_8
+
+test_smoke_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_ssi_smoke:
   extends: .test_job
@@ -802,6 +1152,21 @@ test_ssi_smoke:
   parallel:
     matrix: *test_matrix_8
 
+test_ssi_smoke_arm64:
+  extends: .test_job_arm64_poc
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: manual
+  allow_failure: true
+  variables:
+    testJvm: "21"
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+
 test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
@@ -813,6 +1178,18 @@ test_smoke_graalvm:
   parallel:
     matrix:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
+
+test_smoke_graalvm_arm64:
+  extends: .test_job_arm64_poc
+  when: manual
+  allow_failure: true
+  variables:
+    testJvm: "graalvm21"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    NON_DEFAULT_JVMS: "true"
+  parallel:
+    matrix:
+      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
 
 test_smoke_semeru8_debugger:
   extends: .test_job

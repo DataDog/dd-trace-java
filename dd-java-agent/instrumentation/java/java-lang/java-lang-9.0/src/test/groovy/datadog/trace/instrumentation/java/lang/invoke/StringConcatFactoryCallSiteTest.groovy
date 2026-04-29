@@ -147,7 +147,8 @@ class StringConcatFactoryCallSiteTest extends InstrumentationSpecification {
     setup:
     StringModule iastModule = Mock(StringModule)
     InstrumentationBridge.registerIastModule(iastModule)
-    final expected = '𠆢Hello𠆢\u0001𠆢World!.'
+    // 𠆢Hello...
+    final expected = '\uD840\uDDA2Hello\uD840\uDDA2\u0001\uD840\uDDA2World!.'
 
     when:
     final result = TestStringConcatFactorySuite.plusWithUtfConstants('Hello', 'World!')
@@ -157,8 +158,8 @@ class StringConcatFactoryCallSiteTest extends InstrumentationSpecification {
     1 * iastModule.onStringConcatFactory(
       expected,
       ['Hello', 'World!'] as String[],
-      '𠆢\u0001\u0002\u0001.',
-      ['𠆢\u0001𠆢'] as Object[],
+      '\uD840\uDDA2\u0001\u0002\u0001.',
+      ['\uD840\uDDA2\u0001\uD840\uDDA2'] as Object[],
       [-2, 0, -5, 1, -1] as int[])
     0 * _
   }

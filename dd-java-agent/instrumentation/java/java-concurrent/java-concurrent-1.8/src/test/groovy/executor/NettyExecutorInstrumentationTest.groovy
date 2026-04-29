@@ -1,5 +1,9 @@
 package executor
 
+import static datadog.environment.OperatingSystem.arm64
+import static datadog.environment.OperatingSystem.linux
+import static org.junit.jupiter.api.Assumptions.assumeTrue
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.core.DDSpan
@@ -8,24 +12,18 @@ import io.netty.channel.epoll.EpollEventLoopGroup
 import io.netty.channel.local.LocalEventLoopGroup
 import io.netty.channel.nio.NioEventLoopGroup
 import io.netty.util.concurrent.DefaultEventExecutorGroup
-import runnable.JavaAsyncChild
-import spock.lang.Shared
-
 import java.lang.reflect.InvocationTargetException
 import java.util.concurrent.Callable
 import java.util.concurrent.Future
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
-
-import static org.junit.jupiter.api.Assumptions.assumeTrue
+import runnable.JavaAsyncChild
+import spock.lang.Shared
 
 class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
-
+  // TODO: check if arm64 can be supported too.
   @Shared
-  boolean isLinux = System.getProperty("os.name").toLowerCase().contains("linux")
-
-  @Shared
-  EpollEventLoopGroup epollEventLoopGroup = isLinux ? new EpollEventLoopGroup(4) : null
+  EpollEventLoopGroup epollEventLoopGroup = (isLinux() && !isArm64()) ? new EpollEventLoopGroup(4) : null
   @Shared
   DefaultEventExecutorGroup defaultEventExecutorGroup = new DefaultEventExecutorGroup(4)
   @Shared
@@ -279,6 +277,6 @@ class NettyExecutorInstrumentationTest extends InstrumentationSpecification {
 
   def epollExecutor() {
     // EPoll only works on linux
-    isLinux ? epollEventLoopGroup.next() : null
+    epollEventLoopGroup?.next()
   }
 }

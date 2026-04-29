@@ -15,7 +15,7 @@ def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 tasks.register('mvnStage', Exec) {
   workingDir("$appDir")
   environment += [
-    "MAVEN_OPTS": "-Xmx512M",
+    "MAVEN_OPTS": "-Xmx512M -Dfile.encoding=UTF-8",
     "JAVA_HOME": getLazyJavaHomeFor(8)
   ]
 

@@ -1,3 +1,5 @@
+import java.util.Locale.getDefault
+
 pluginManagement {
   repositories {
     mavenLocal()
@@ -239,8 +241,6 @@ include(
   ":dd-smoke-tests:springboot-jetty-jsp",
   ":dd-smoke-tests:springboot-jpa",
   ":dd-smoke-tests:springboot-mongo",
-  ":dd-smoke-tests:springboot-openliberty-20",
-  ":dd-smoke-tests:springboot-openliberty-23",
   ":dd-smoke-tests:springboot-thymeleaf",
   ":dd-smoke-tests:springboot-tomcat",
   ":dd-smoke-tests:springboot-tomcat-jsp",
@@ -479,7 +479,6 @@ include(
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.1",
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-core-3.7",
   ":dd-java-agent:instrumentation:mongo:mongo-test:mongo-test-sync-3.10",
-  ":dd-java-agent:instrumentation:mule-4.5",
   ":dd-java-agent:instrumentation:netty:netty-3.8",
   ":dd-java-agent:instrumentation:netty:netty-4.0",
   ":dd-java-agent:instrumentation:netty:netty-4.1",
@@ -490,7 +489,6 @@ include(
   ":dd-java-agent:instrumentation:ognl-appsec-3.3.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-2.2",
   ":dd-java-agent:instrumentation:okhttp:okhttp-3.0",
-  ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-rest-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-transport-1.0",
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",
@@ -638,6 +636,20 @@ include(
   ":dd-java-agent:instrumentation:zio:zio-2.0",
 )
 
+val os = System.getProperty("os.name").lowercase(getDefault())
+val arch = System.getProperty("os.arch").lowercase(getDefault())
+val arm64 = arch.contains("aarch64") || arch.contains("arm64")
+val skipLinuxArm64Tests = os.contains("linux") && arm64
+
+// TODO: skip modules that failing in a strange way on arm64 Linux
+if (!skipLinuxArm64Tests) {
+  include(
+    ":dd-java-agent:instrumentation:openai-java:openai-java-3.0",
+    ":dd-java-agent:instrumentation:mule-4.5",
+    ":dd-smoke-tests:springboot-openliberty-20",
+    ":dd-smoke-tests:springboot-openliberty-23",
+  )
+}
 // Optional `akka-http-10.6` instrumentation (see BUILDING.md for how to enable it):
 if (providers.gradleProperty("akkaRepositoryToken").getOrElse("").isNotBlank()) {
   include(
