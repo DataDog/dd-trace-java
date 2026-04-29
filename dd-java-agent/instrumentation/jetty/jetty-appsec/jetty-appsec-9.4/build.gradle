@@ -1,0 +1,31 @@
+muzzle {
+  pass {
+    name = '9_series'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = '[9.4.10,10.0)'
+  }
+  pass {
+    name = 'early_10_series'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    // _multiParts: MultiPartFormInputStream (before 10.0.10 switched to MultiParts)
+    versions = '[10.0.0,10.0.10)'
+    javaVersion = 11
+  }
+  pass {
+    name = '10_series'
+    group = 'org.eclipse.jetty'
+    module = 'jetty-server'
+    versions = '[10.0.10,11.0)'
+    javaVersion = 11
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+dependencies {
+  compileOnly group: 'org.eclipse.jetty', name: 'jetty-server', version: '9.4.21.v20190926'
+}
+
+// testing happens in the jetty-* modules

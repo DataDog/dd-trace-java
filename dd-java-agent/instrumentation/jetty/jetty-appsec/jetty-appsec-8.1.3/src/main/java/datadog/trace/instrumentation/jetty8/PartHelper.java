@@ -1,0 +1,278 @@
+package datadog.trace.instrumentation.jetty8;
+
+import static datadog.trace.api.gateway.Events.EVENTS;
+
+import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.api.gateway.BlockResponseFunction;
+import datadog.trace.api.gateway.CallbackProvider;
+import datadog.trace.api.gateway.Flow;
+import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.gateway.RequestContextSlot;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.LinkedHashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.function.BiFunction;
+import javax.servlet.http.Part;
+
+/**
+ * Helper for extracting filenames and form-field values from Servlet 3.0 {@link Part} objects.
+ *
+ * <p>{@code Part.getSubmittedFileName()} was added in Servlet 3.1 (Jetty 9.1+); for Jetty 8.x we
+ * must parse the {@code Content-Disposition} header manually.
+ */
+public class PartHelper {
+
+  private PartHelper() {}
+
+  // Cached reflection handle to MultiPartInputStream.getParts() — set once on first use.
+  private static volatile Method mpiGetParts;
+
+  /**
+   * Returns all parts from a {@code MultiPartInputStream} object (already-parsed, no re-trigger).
+   * Falls back to a singleton of {@code singlePart} if reflection fails or the collection is empty.
+   */
+  public static Collection<?> getAllParts(Object multiPartInputStream, Part singlePart) {
+    if (multiPartInputStream != null) {
+      Method m = mpiGetParts;
+      if (m == null) {
+        try {
+          m = multiPartInputStream.getClass().getMethod("getParts");
+          mpiGetParts = m;
+        } catch (NoSuchMethodException ignored) {
+        }
+      }
+      if (m != null) {
+        try {
+          @SuppressWarnings("unchecked")
+          Collection<?> all = (Collection<?>) m.invoke(multiPartInputStream);
+          if (all != null && !all.isEmpty()) {
+            return all;
+          }
+        } catch (Exception ignored) {
+        }
+      }
+    }
+    return singlePart != null ? Collections.singletonList(singlePart) : Collections.emptyList();
+  }
+
+  /**
+   * Returns filenames found in {@code parts} by parsing each part's {@code Content-Disposition}
+   * header for a {@code filename=} parameter.
+   */
+  public static List<String> extractFilenames(Collection<?> parts) {
+    if (parts == null || parts.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> filenames = new ArrayList<>();
+    for (Object obj : parts) {
+      String filename = filenameFromPart((Part) obj);
+      if (filename != null && !filename.isEmpty()) {
+        filenames.add(filename);
+      }
+    }
+    return filenames;
+  }
+
+  /**
+   * Returns a name→values map of form-field parts (those without a {@code filename=} parameter).
+   * File-upload parts are skipped to avoid reading potentially large content.
+   */
+  public static Map<String, List<String>> extractFormFields(Collection<?> parts) {
+    if (parts == null || parts.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, List<String>> result = new LinkedHashMap<>();
+    for (Object obj : parts) {
+      Part part = (Part) obj;
+      if (filenameFromPart(part) != null) {
+        continue; // file-upload part — skip
+      }
+      String name = part.getName();
+      if (name == null) {
+        continue;
+      }
+      String value = readPartContent(part);
+      if (value == null) {
+        continue;
+      }
+      result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
+    }
+    return result;
+  }
+
+  /**
+   * Extracts the {@code filename} value from a {@code Content-Disposition} header, or {@code null}
+   * if the part has no filename (i.e. it is a plain form field).
+   *
+   * <p>Uses a quote-aware parser so that semicolons inside a quoted filename (e.g. {@code
+   * filename="shell;evil.php"}) are not mistaken for parameter separators.
+   */
+  static String filenameFromPart(Part part) {
+    String cd = part.getHeader("Content-Disposition");
+    if (cd == null) {
+      return null;
+    }
+    int len = cd.length();
+    int i = 0;
+    while (i < len) {
+      // Skip separators between parameters
+      while (i < len && (cd.charAt(i) == ';' || cd.charAt(i) == ' ' || cd.charAt(i) == '\t')) {
+        i++;
+      }
+      if (i >= len) break;
+      // Read parameter name (up to '=' or ';')
+      int nameStart = i;
+      while (i < len && cd.charAt(i) != '=' && cd.charAt(i) != ';') {
+        i++;
+      }
+      boolean isFilename = "filename".equalsIgnoreCase(cd.substring(nameStart, i).trim());
+      if (i >= len || cd.charAt(i) == ';') {
+        // Value-less token (e.g. "form-data") — skip
+        continue;
+      }
+      i++; // skip '='
+      String value;
+      if (i < len && cd.charAt(i) == '"') {
+        i++; // skip opening quote
+        StringBuilder sb = new StringBuilder();
+        while (i < len && cd.charAt(i) != '"') {
+          if (cd.charAt(i) == '\\' && i + 1 < len) {
+            i++; // consume escape backslash, add next char literally
+          }
+          sb.append(cd.charAt(i++));
+        }
+        if (i < len) i++; // skip closing quote
+        value = sb.toString();
+      } else {
+        int valueStart = i;
+        while (i < len && cd.charAt(i) != ';') {
+          i++;
+        }
+        value = cd.substring(valueStart, i).trim();
+      }
+      if (isFilename) {
+        // Return empty string (not null) so callers can distinguish "filename present but empty"
+        // from "no filename parameter". extractFormFields() uses != null to skip file parts,
+        // so empty string correctly prevents buffering a file-upload body with filename="".
+        return value;
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Fires the {@code requestBodyProcessed} IG event for form-field parts in {@code parts} and
+   * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
+   */
+  public static BlockingException fireBodyProcessedEvent(
+      Collection<?> parts, RequestContext reqCtx) {
+    Map<String, List<String>> formFields = extractFormFields(parts);
+    if (formFields.isEmpty()) {
+      return null;
+    }
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, Object, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestBodyProcessed());
+    if (callback == null) {
+      return null;
+    }
+    Flow<Void> flow = callback.apply(reqCtx, formFields);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        reqCtx.getTraceSegment().effectivelyBlocked();
+        return new BlockingException("Blocked request (multipart form fields)");
+      }
+    }
+    return null;
+  }
+
+  /**
+   * Fires the {@code requestFilesFilenames} IG event for file-upload parts in {@code parts} and
+   * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
+   */
+  public static BlockingException fireFilenamesEvent(Collection<?> parts, RequestContext reqCtx) {
+    List<String> filenames = extractFilenames(parts);
+    if (filenames.isEmpty()) {
+      return null;
+    }
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+    if (callback == null) {
+      return null;
+    }
+    Flow<Void> flow = callback.apply(reqCtx, filenames);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        reqCtx.getTraceSegment().effectivelyBlocked();
+        return new BlockingException("Blocked request (multipart file upload)");
+      }
+    }
+    return null;
+  }
+
+  private static String readPartContent(Part part) {
+    Charset charset = charsetFromContentType(part.getContentType());
+    try (InputStream is = part.getInputStream()) {
+      ByteArrayOutputStream baos = new ByteArrayOutputStream();
+      byte[] buf = new byte[4096];
+      int read;
+      while ((read = is.read(buf)) != -1) {
+        baos.write(buf, 0, read);
+      }
+      return new String(baos.toByteArray(), charset);
+    } catch (IOException e) {
+      return null;
+    }
+  }
+
+  /**
+   * Parses the {@code charset} parameter from a {@code Content-Type} header value (e.g. {@code
+   * text/plain; charset=ISO-8859-1}). Returns UTF-8 when absent, unknown, or {@code null}.
+   */
+  static Charset charsetFromContentType(String contentType) {
+    if (contentType != null) {
+      int idx = contentType.toLowerCase(Locale.ROOT).indexOf("charset=");
+      if (idx >= 0) {
+        String name = contentType.substring(idx + 8).trim();
+        if (!name.isEmpty() && name.charAt(0) == '"') {
+          name = name.substring(1);
+          int end = name.indexOf('"');
+          if (end >= 0) name = name.substring(0, end);
+        } else {
+          int end = 0;
+          while (end < name.length()
+              && name.charAt(end) != ';'
+              && !Character.isWhitespace(name.charAt(end))) {
+            end++;
+          }
+          name = name.substring(0, end);
+        }
+        try {
+          return Charset.forName(name);
+        } catch (Exception ignored) {
+        }
+      }
+    }
+    return StandardCharsets.UTF_8;
+  }
+}

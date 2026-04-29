@@ -1,48 +1,34 @@
 package datadog.trace.instrumentation.jetty8;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.api.gateway.Events.EVENTS;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
+import datadog.trace.advice.ActiveRequestContext;
+import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.BlockResponseFunction;
-import datadog.trace.api.gateway.CallbackProvider;
-import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import java.io.IOException;
 import java.io.InputStream;
-import java.util.function.BiFunction;
-import javax.servlet.ServletException;
+import java.util.Collection;
+import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
-import net.bytebuddy.asm.AsmVisitorWrapper;
-import net.bytebuddy.description.field.FieldDescription;
-import net.bytebuddy.description.field.FieldList;
-import net.bytebuddy.description.method.MethodList;
-import net.bytebuddy.description.type.TypeDescription;
-import net.bytebuddy.implementation.Implementation;
+import net.bytebuddy.implementation.bytecode.assign.Assigner;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
-import net.bytebuddy.jar.asm.ClassWriter;
 import net.bytebuddy.jar.asm.FieldVisitor;
 import net.bytebuddy.jar.asm.MethodVisitor;
 import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.jar.asm.Type;
 import net.bytebuddy.matcher.ElementMatcher;
-import net.bytebuddy.pool.TypePool;
-import org.eclipse.jetty.server.Request;
+import net.bytebuddy.utility.OpenedClassReader;
 
 @AutoService(InstrumenterModule.class)
 public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType,
-        Instrumenter.HasTypeAdvice,
-        Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public RequestGetPartsInstrumentation() {
     super("jetty");
   }
@@ -54,26 +40,16 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".ParameterCollector",
-      packageName + ".ParameterCollector$ParameterCollectorImpl",
-      packageName + ".ParameterCollector$ParameterCollectorNoop",
-    };
-  }
-
-  @Override
-  public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new GetPartsVisitorWrapper());
+    return new String[] {packageName + ".PartHelper"};
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
-        named("getPart")
-            .and(takesArguments(1))
-            .and(takesArgument(0, String.class))
-            .or(named("getParts").and(takesArguments(0))),
-        getClass().getName() + "$GetPartsAdvice");
+        named("getParts").and(takesArguments(0)), getClass().getName() + "$GetFilenamesAdvice");
+    transformer.applyAdvice(
+        named("getPart").and(takesArguments(1)).and(takesArgument(0, String.class)),
+        getClass().getName() + "$GetPartAdvice");
   }
 
   @Override
@@ -108,7 +84,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     final boolean[] foundGetParameters;
 
     public ClassLoaderMatcherClassVisitor(boolean[] foundField, boolean[] foundGetParameters) {
-      super(Opcodes.ASM9);
+      super(OpenedClassReader.ASM_API);
       this.foundField = foundField;
       this.foundGetParameters = foundGetParameters;
     }
@@ -126,7 +102,7 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     public MethodVisitor visitMethod(
         int access, String name, String descriptor, String signature, String[] exceptions) {
       if (name.equals("getParts") && "()Ljava/util/Collection;".equals(descriptor)) {
-        return new MethodVisitor(Opcodes.ASM9) {
+        return new MethodVisitor(OpenedClassReader.ASM_API) {
           @Override
           public void visitMethodInsn(
               int opcode, String owner, String name, String descriptor, boolean isInterface) {
@@ -142,134 +118,81 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
     }
   }
 
-  public static class GetPartsAdvice {
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetFilenamesAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    static void before(
-        @Advice.Local("collector") ParameterCollector collector,
-        @Advice.Local("reqCtx") RequestContext reqCtx) {
-      AgentSpan agentSpan = AgentTracer.activeSpan();
-      if (agentSpan != null) {
-        RequestContext requestContext = agentSpan.getRequestContext();
-        if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
-          reqCtx = requestContext;
-          collector = new ParameterCollector.ParameterCollectorImpl();
-          return;
-        }
-      }
-      // this variable is used in the custom instrumentation below
-      collector = ParameterCollector.ParameterCollectorNoop.INSTANCE;
+    static boolean before(
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            final Object multiPartInputStream) {
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
+      // In Jetty 9.0/9.1, getPart(String) delegates to getParts() internally, triggering both
+      // GetPartAdvice and GetFilenamesAdvice — double-firing the filename event.
+      // incrementCallDepth returns the depth BEFORE incrementing (post-increment semantics).
+      // If Part.class depth is already 1, GetPartAdvice is active and will handle the event; skip.
+      int partPeek = CallDepthThreadLocalMap.incrementCallDepth(Part.class);
+      CallDepthThreadLocalMap.decrementCallDepth(Part.class);
+      return callDepth == 0 && multiPartInputStream == null && partPeek == 0;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Local("collector") ParameterCollector collector,
-        @Advice.Local("reqCtx") RequestContext reqCtx,
+        @Advice.Enter boolean proceed,
+        @Advice.Return Collection<?> parts,
+        @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (t != null || reqCtx == null || collector.isEmpty()) {
+      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
+      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      if (t == null) {
+        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
+      }
+    }
+  }
 
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
-          cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
+  /**
+   * Fires AppSec events for requests whose first multipart access is {@code getPart(String)}.
+   *
+   * <p>In Jetty 8.x, {@code getPart(String)} parses and caches the entire multipart stream into
+   * {@code _multiPartInputStream} but returns only the single requested part. If the app only calls
+   * {@code getPart("field")} (a text field), any co-uploaded file parts would never reach {@code
+   * requestFilesFilenames}. We therefore read all cached parts via {@code
+   * MultiPartInputStream.getParts()} and fall back to the returned singleton only if that fails.
+   */
+  @RequiresRequestContext(RequestContextSlot.APPSEC)
+  public static class GetPartAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    static boolean before(
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            Object multiPartInputStream) {
+      // _multiPartInputStream is null before the first parse. Once set, all parts are cached and
+      // events have already fired (either here or in GetFilenamesAdvice). Skip on repeat calls.
+      return CallDepthThreadLocalMap.incrementCallDepth(Part.class) == 0
+          && multiPartInputStream == null;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    static void after(
+        @Advice.Enter boolean proceed,
+        @Advice.Return Part part,
+        @Advice.FieldValue(value = "_multiPartInputStream", typing = Assigner.Typing.DYNAMIC)
+            Object multiPartInputStream,
+        @ActiveRequestContext RequestContext reqCtx,
+        @Advice.Thrown(readOnly = false) Throwable t) {
+      CallDepthThreadLocalMap.decrementCallDepth(Part.class);
+      if (!proceed || t != null) {
         return;
       }
-      Flow<Void> flow = callback.apply(reqCtx, collector.getMap());
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (for Request/parsePart(s))");
-          }
-        }
+      Collection<?> parts = PartHelper.getAllParts(multiPartInputStream, part);
+      if (parts.isEmpty()) {
+        return;
       }
-    }
-
-    static void muzzle(Request req) throws ServletException, IOException {
-      req.getParts();
-    }
-  }
-
-  public static class GetPartsVisitorWrapper implements AsmVisitorWrapper {
-    @Override
-    public int mergeWriter(int flags) {
-      return flags | ClassWriter.COMPUTE_MAXS;
-    }
-
-    @Override
-    public int mergeReader(int flags) {
-      return flags;
-    }
-
-    @Override
-    public ClassVisitor wrap(
-        TypeDescription instrumentedType,
-        ClassVisitor classVisitor,
-        Implementation.Context implementationContext,
-        TypePool typePool,
-        FieldList<FieldDescription.InDefinedShape> fields,
-        MethodList<?> methods,
-        int writerFlags,
-        int readerFlags) {
-      return new RequestClassVisitor(Opcodes.ASM8, classVisitor);
-    }
-  }
-
-  public static class RequestClassVisitor extends ClassVisitor {
-    public RequestClassVisitor(int api, ClassVisitor cv) {
-      super(api, cv);
-    }
-
-    @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      MethodVisitor superMv = super.visitMethod(access, name, descriptor, signature, exceptions);
-      if ("getPart".equals(name)
-              && "(Ljava/lang/String;)Ljavax/servlet/http/Part;".equals(descriptor)
-          || "getParts".equals(name) && "()Ljava/util/Collection;".equals(descriptor)) {
-        return new GetPartsMethodVisitor(api, superMv, descriptor.startsWith("()") ? 1 : 2);
-      } else {
-        return superMv;
+      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      if (t == null) {
+        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
       }
-    }
-  }
-
-  public static class GetPartsMethodVisitor extends MethodVisitor {
-    private final int collectedParamsVar;
-
-    public GetPartsMethodVisitor(int api, MethodVisitor superMv, int collectedParamsVar) {
-      super(api, superMv);
-      this.collectedParamsVar = collectedParamsVar;
-    }
-
-    @Override
-    public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      if (opcode == Opcodes.INVOKEVIRTUAL
-          && owner.equals("org/eclipse/jetty/util/MultiMap")
-          && name.equals("add")
-          && descriptor.equals("(Ljava/lang/String;Ljava/lang/Object;)V")) {
-        super.visitVarInsn(Opcodes.ALOAD, collectedParamsVar);
-        // stack: ..., key, value, collParams
-        super.visitInsn(Opcodes.DUP_X2);
-        // stack: ..., collParams, key, value, collParams
-        super.visitInsn(Opcodes.POP);
-        // stack: ..., collParams, key, value
-        super.visitInsn(Opcodes.DUP2_X1);
-        // stack: ..., key, value, collParams, key, value
-        super.visitMethodInsn(
-            Opcodes.INVOKEINTERFACE,
-            Type.getInternalName(ParameterCollector.class),
-            "put",
-            "(Ljava/lang/String;Ljava/lang/String;)V",
-            true);
-        // original stack
-      }
-      super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
     }
   }
 }
