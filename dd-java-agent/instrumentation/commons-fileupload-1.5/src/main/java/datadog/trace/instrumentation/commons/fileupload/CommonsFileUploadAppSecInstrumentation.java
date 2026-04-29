@@ -26,7 +26,6 @@ import org.apache.commons.fileupload.FileItem;
 @AutoService(InstrumenterModule.class)
 public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
   public CommonsFileUploadAppSecInstrumentation() {
     super("commons-fileupload");
   }
@@ -54,7 +53,6 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
 
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ParseRequestAdvice {
-
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Return final List<FileItem> fileItems,
@@ -83,9 +81,8 @@ public class CommonsFileUploadAppSecInstrumentation extends InstrumenterModule.A
         if (filenames != null && name != null && !name.isEmpty()) {
           filenames.add(name);
         }
-        if (filesContent != null
-            && filesContent.size() < FileItemContentReader.MAX_FILES_TO_INSPECT) {
-          filesContent.add(FileItemContentReader.readContent(fileItem));
+        if (filesContent != null) {
+          FileItemContentReader.addToContents(fileItem, filesContent);
         }
       }
 
