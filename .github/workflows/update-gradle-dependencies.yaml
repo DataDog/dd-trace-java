@@ -8,6 +8,8 @@ jobs:
   update-gradle-dependencies:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
+    env:
+      MIN_DEPENDENCY_AGE_HOURS: 48
     permissions:
       contents: read
       id-token: write # Required for OIDC token federation
@@ -41,6 +43,11 @@ jobs:
           echo "core_branch=ci/update-gradle-dependencies-${DATE}" >> $GITHUB_OUTPUT
           echo "instrumentation_branch=ci/update-gradle-dependencies-instrumentation-${DATE}" >> $GITHUB_OUTPUT
 
+      - name: Snapshot current Gradle lock files
+        run: |
+          mkdir -p /tmp/gradle-lockfiles-before
+          find . -name 'gradle.lockfile' -exec cp --parents {} /tmp/gradle-lockfiles-before/ \;
+
       - name: Update Gradle dependencies
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
@@ -48,6 +55,15 @@ jobs:
           find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Validate changed lock files meet dependency age policy
+        id: validate-lockfiles
+        run: |
+          python3 .github/scripts/dependency_age.py validate-lockfiles \
+            --baseline-dir /tmp/gradle-lockfiles-before \
+            --current-dir . \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
         run: |
@@ -100,10 +116,11 @@ jobs:
           # What Does This Do
 
           This PR updates the Gradle dependency locks for common and product modules.
+          Dependency resolution was performed through delayed proxies, and changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
 
           # Motivation
 
-          Refresh Gradle dependencies to make sure to apply the latest version available when bumping dependencies.
+          Refresh Gradle dependencies while enforcing the ${{ env.MIN_DEPENDENCY_AGE_HOURS }}-hour dependency age policy for new lockfile selections.
 
           # Contributor Checklist
 
@@ -160,10 +177,11 @@ jobs:
           # What Does This Do
 
           This PR updates the Gradle dependency locks for instrumentations and their tests.
+          Dependency resolution was performed through delayed proxies, and changed dependencies were validated to be at least ${{ env.MIN_DEPENDENCY_AGE_HOURS }} hours old.
 
           # Motivation
 
-          Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
+          Refresh Gradle dependencies while enforcing the ${{ env.MIN_DEPENDENCY_AGE_HOURS }}-hour dependency age policy for newly selected versions.
 
           # Contributor Checklist
 
