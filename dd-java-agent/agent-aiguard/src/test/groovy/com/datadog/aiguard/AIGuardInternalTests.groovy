@@ -7,9 +7,11 @@ import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
 import datadog.trace.api.aiguard.AIGuard
+import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
@@ -270,6 +272,68 @@ class AIGuardInternalTests extends DDSpecification {
     AIGuard.Options.DEFAULT            | true           | true
     AIGuard.Options.DEFAULT            | false          | false
     new AIGuard.Options().block(false) | true           | false
+  }
+
+  void 'test evaluate applies captured client ip tags to local root span'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getAndResetClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> null
+    1 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, '4.4.4.4')
+    1 * localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> null
+    1 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
+  }
+
+  void 'test evaluate does not overwrite existing client ip tags'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getAndResetClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> '9.9.9.9'
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    1 * localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> '8.8.8.8'
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'test evaluate is a noop for client ip tags when no data captured'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getAndResetClientIpAddressData() >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'test evaluate is a noop for client ip tags when no request context'() {
+    given:
+    localRootSpan.getRequestContext() >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
   }
 
   void 'test evaluate with API errors'() {

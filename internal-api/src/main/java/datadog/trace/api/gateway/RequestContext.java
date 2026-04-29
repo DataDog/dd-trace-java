@@ -1,6 +1,7 @@
 package datadog.trace.api.gateway;
 
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.function.Function;
@@ -19,6 +20,19 @@ public interface RequestContext extends Closeable {
   BlockResponseFunction getBlockResponseFunction();
 
   <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue);
+
+  /**
+   * Stores the client IP address information resolved during HTTP server request decoration so that
+   * later consumers (such as AI Guard) can apply it to the local root span without re-running the
+   * resolver. Implementations should store the data on the root request context.
+   */
+  void setClientIpAddressData(ClientIpAddressData clientIpAddressData);
+
+  /**
+   * Returns the previously stored {@link ClientIpAddressData} and clears it from the request
+   * context, or {@code null} if none was stored. Designed to be consumed at most once.
+   */
+  ClientIpAddressData getAndResetClientIpAddressData();
 
   class Noop implements RequestContext {
     public static final RequestContext INSTANCE = new Noop();
@@ -45,6 +59,14 @@ public interface RequestContext extends Closeable {
 
     @Override
     public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null;
+    }
+
+    @Override
+    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    public ClientIpAddressData getAndResetClientIpAddressData() {
       return null;
     }
 

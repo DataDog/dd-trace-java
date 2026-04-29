@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.bootstrap.instrumentation.api.ContextVisitors
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
@@ -298,6 +299,61 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * span.setTag(Tags.HTTP_FORWARDED, _)
     0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
     0 * this.span.setTag(Tags.NETWORK_CLIENT_IP, _)
+  }
+
+  void 'enabling ai guard captures client ip data without tagging the span during request decoration'() {
+    setup:
+    injectSysConfig('dd.ai_guard.enabled', 'true')
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def extracted = Mock(AgentSpanContext.Extracted)
+    def context = AgentSpan.fromSpanContext(extracted)
+    def requestContext = Mock(RequestContext)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, context)
+
+    then:
+    _ * extracted.getXForwardedFor() >> '2.3.4.5'
+    _ * extracted.getXClusterClientIp() >> null
+    _ * extracted.getXRealIp() >> null
+    _ * extracted.getXClientIp() >> null
+    _ * extracted.getCustomIpHeader() >> null
+    _ * extracted.getTrueClientIp() >> null
+    _ * extracted.getFastlyClientIp() >> null
+    _ * extracted.getCfConnectingIp() >> null
+    _ * extracted.getCfConnectingIpv6() >> null
+    _ * this.span.getRequestContext() >> requestContext
+    1 * requestContext.setClientIpAddressData({ ClientIpAddressData data ->
+      data.peerIp == '4.4.4.4' && data.inferredClientIp == '2.3.4.5'
+    })
+    0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+    0 * this.span.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * this.span.setTag(Tags.HTTP_FORWARDED_IP, _)
+  }
+
+  void 'enabling ai guard does not override client_ip_without_appsec tagging behavior'() {
+    setup:
+    injectSysConfig('dd.ai_guard.enabled', 'true')
+    injectSysConfig('dd.trace.client-ip.enabled', 'true')
+    ActiveSubsystems.APPSEC_ACTIVE = false
+
+    def extracted = Mock(AgentSpanContext.Extracted)
+    def context = AgentSpan.fromSpanContext(extracted)
+    def requestContext = Mock(RequestContext)
+    def decorator = newDecorator()
+
+    when:
+    decorator.onRequest(this.span, [peerIp: '4.4.4.4'], null, context)
+
+    then:
+    _ * this.span.getRequestContext() >> requestContext
+    2 * extracted.getXForwardedFor() >> '2.3.4.5'
+    1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
+    1 * this.span.setTag(Tags.NETWORK_CLIENT_IP, '4.4.4.4')
+    // ai guard capture is skipped because tags were already set
+    0 * requestContext.setClientIpAddressData(_)
   }
 
   void 'disabling appsec but enabling client_ip_without_appsec enables header collection and ip address resolution'() {

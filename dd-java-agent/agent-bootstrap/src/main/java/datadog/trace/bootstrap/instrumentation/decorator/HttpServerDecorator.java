@@ -30,6 +30,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -248,10 +249,31 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     AgentSpanContext.Extracted extracted = getExtractedSpanContext(parentContext);
-    boolean clientIpResolverEnabled =
+    // Whether to attach IP tags to all requests or not.
+    // This should be enabled if:
+    //   - DD_TRACE_CLIENT_IP_ENABLED=true, or
+    //   - DD_APPSEC_ENABLED=true (or AppSec enabled at runtime)
+    // This applies to tags:
+    //   - http.client_ip (IP resolved from proxy tags)
+    //   - network.client.ip (peer IP)
+    //   - tags with proxy header values
+    // For backwards compatibility, it does not apply to:
+    //   - peer.ipv4
+    //   - peer.ipv6
+    final boolean shouldTagIps =
         config.isClientIpEnabled() || traceClientIpResolverEnabled && APPSEC_ACTIVE;
+    // Whether to stash IP data for later tagging or not.
+    // AI Guard requires client IP tags on the local root span when an ai_guard span is created.
+    // Resolve the IPs eagerly but do not tag the span yet; stash them on the request context so
+    // AIGuardInternal can apply them lazily, only on requests that actually create an ai_guard
+    // span.
+    final boolean shouldStashIps =
+        !shouldTagIps && traceClientIpResolverEnabled && config.isAiGuardEnabled();
+    // Whether to resolve client IP based on proxy headers or no.
+    final boolean shouldResolveIp = shouldTagIps || shouldStashIps;
+
     if (extracted != null) {
-      if (clientIpResolverEnabled) {
+      if (shouldTagIps) {
         String forwarded = extracted.getForwarded();
         if (forwarded != null) {
           span.setTag(Tags.HTTP_FORWARDED, forwarded);
@@ -332,7 +354,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
 
     String inferredAddressStr = null;
-    if (clientIpResolverEnabled && extracted != null) {
+    if (shouldResolveIp && extracted != null) {
       InetAddress inferredAddress = ClientIpAddressResolver.resolve(extracted, span);
       // the peer address should be used if:
       // 1. the headers yield nothing, regardless of whether it is public or not
@@ -349,9 +371,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
-        span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+        if (shouldTagIps) {
+          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+        }
       }
-    } else if (clientIpResolverEnabled && span.getLocalRootSpan() != span) {
+    } else if (shouldTagIps && span.getLocalRootSpan() != span) {
       // in this case extracted == null
       // If there is no extracted we can't do anything but use the peer addr.
       // Additionally, extracted == null arises on subspans for which the resolution
@@ -370,8 +394,14 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       } else {
         span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
-      if (clientIpResolverEnabled) {
+      if (shouldTagIps) {
         span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+      }
+    }
+    if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
+      RequestContext requestContext = span.getRequestContext();
+      if (requestContext != null) {
+        requestContext.setClientIpAddressData(new ClientIpAddressData(peerIp, inferredAddressStr));
       }
     }
     setPeerPort(span, peerPort);

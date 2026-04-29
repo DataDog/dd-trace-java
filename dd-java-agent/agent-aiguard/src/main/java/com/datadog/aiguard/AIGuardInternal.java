@@ -24,10 +24,12 @@ import datadog.trace.api.aiguard.AIGuard.ToolCall;
 import datadog.trace.api.aiguard.AIGuard.ToolCall.Function;
 import datadog.trace.api.aiguard.Evaluator;
 import datadog.trace.api.aiguard.noop.NoOpEvaluator;
+import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.telemetry.WafMetricCollector;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.annotation.Annotation;
@@ -213,6 +215,32 @@ public class AIGuardInternal implements Evaluator {
     return options.block() && "true".equalsIgnoreCase(isBlockingEnabled.toString());
   }
 
+  /**
+   * Applies the {@link ClientIpAddressData} captured during HTTP server request decoration to the
+   * local root span. This is the lazy half of AI Guard client IP collection: {@code
+   * HttpServerDecorator} resolves the IP eagerly and stashes it on the {@link RequestContext}; we
+   * consume it here once an {@code ai_guard} span is created, so IP tags are not added to spans of
+   * non-AI requests in services that have AI Guard enabled.
+   */
+  private static void applyClientIpTags(final AgentSpan localRootSpan) {
+    final RequestContext requestContext = localRootSpan.getRequestContext();
+    if (requestContext == null) {
+      return;
+    }
+    final ClientIpAddressData clientIpAddressData = requestContext.getAndResetClientIpAddressData();
+    if (clientIpAddressData == null) {
+      return;
+    }
+    final String peerIp = clientIpAddressData.getPeerIp();
+    if (peerIp != null && localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+    }
+    final String inferredClientIp = clientIpAddressData.getInferredClientIp();
+    if (inferredClientIp != null && localRootSpan.getTag(Tags.HTTP_CLIENT_IP) == null) {
+      localRootSpan.setTag(Tags.HTTP_CLIENT_IP, inferredClientIp);
+    }
+  }
+
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
@@ -229,6 +257,7 @@ public class AIGuardInternal implements Evaluator {
     if (localRootSpan != null) {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
       localRootSpan.setTag(EVENT_TAG, true);
+      applyClientIpTags(localRootSpan);
     }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
