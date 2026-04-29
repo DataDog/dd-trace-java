@@ -1,7 +1,12 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.PARENT_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_3_4.server.RouteUpdateHelper.updateRouteFromContext;
+
 import datadog.trace.api.iast.Source;
 import datadog.trace.api.iast.SourceTypes;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import io.vertx.ext.web.RoutingContext;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -16,13 +21,15 @@ class RouteMatchesAdvice {
     if (ret != 0 || t != null) {
       return;
     }
-    Map<String, String> params = ctx.pathParams();
+    final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
+    final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
+    updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+    final Map<String, String> params = ctx.pathParams();
     if (params.isEmpty()) {
       return;
     }
-
-    Throwable resThr = PathParameterPublishingHelper.publishParams(params);
-    t = resThr;
+    t = PathParameterPublishingHelper.publishParams(params);
   }
 
   static class BooleanReturnVariant {
@@ -35,13 +42,15 @@ class RouteMatchesAdvice {
       if (!ret || t != null) {
         return;
       }
-      Map<String, String> params = ctx.pathParams();
+      final AgentSpan parentSpan = ctx.get(PARENT_SPAN_CONTEXT_KEY);
+      final AgentSpan handlerSpan = ctx.get(HANDLER_SPAN_CONTEXT_KEY);
+      updateRouteFromContext(ctx, parentSpan, handlerSpan);
+
+      final Map<String, String> params = ctx.pathParams();
       if (params.isEmpty()) {
         return;
       }
-
-      Throwable resThr = PathParameterPublishingHelper.publishParams(params);
-      t = resThr;
+      t = PathParameterPublishingHelper.publishParams(params);
     }
   }
 }

@@ -229,6 +229,7 @@ include(
   ":dd-smoke-tests:spring-boot-2.6-webmvc",
   ":dd-smoke-tests:spring-boot-3.0-webmvc",
   ":dd-smoke-tests:spring-boot-3.3-webmvc",
+  ":dd-smoke-tests:spring-boot-3.5-webmvc-undertow",
   ":dd-smoke-tests:spring-boot-rabbit",
   ":dd-smoke-tests:spring-security",
   ":dd-smoke-tests:springboot",
