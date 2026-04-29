@@ -24,7 +24,7 @@ public final class OtlpLogRecord {
   public final int bodyType;
   @Nullable public final Object bodyValue;
   @Nullable public final String eventName;
-  @Nullable public final Map<?, ?> attributes;
+  public final Map<?, ?> attributes;
   @Nullable public final AgentSpanContext spanContext;
 
   public OtlpLogRecord(
@@ -36,7 +36,7 @@ public final class OtlpLogRecord {
       int bodyType,
       @Nullable Object bodyValue,
       @Nullable String eventName,
-      @Nullable Map<?, ?> attributes,
+      Map<?, ?> attributes,
       @Nullable AgentSpanContext spanContext) {
     this.instrumentationScope = instrumentationScope;
     this.timestampNanos = timestampNanos;

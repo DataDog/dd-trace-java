@@ -43,7 +43,7 @@ public final class OtelLogRecordProcessor {
         scopedVisitor = visitor.visitScopedLogs(currentScope);
       }
       Map<?, ?> attributes = logRecord.attributes;
-      if (attributes != null && !attributes.isEmpty()) {
+      if (!attributes.isEmpty()) {
         ClassLoader cl = getAttributesClassLoader(attributes);
         // avoid repeated lookups when attribute class-loader is same for all records
         if (attributesReader == null || !Objects.equals(cl, attributesClassLoader)) {

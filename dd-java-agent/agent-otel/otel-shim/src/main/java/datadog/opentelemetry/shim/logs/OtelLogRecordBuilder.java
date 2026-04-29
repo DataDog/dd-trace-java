@@ -14,6 +14,7 @@ import io.opentelemetry.api.logs.LogRecordBuilder;
 import io.opentelemetry.api.logs.Severity;
 import io.opentelemetry.context.Context;
 import java.time.Instant;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +40,8 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   @Nullable private String eventName;
   @Nullable private Map<AttributeKey<?>, Object> attributes;
   @Nullable private Context context;
+
+  private boolean attributesEmitted;
 
   OtelLogRecordBuilder(OtelLogger logger) {
     this.logger = logger;
@@ -99,6 +102,11 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
     if (key == null || key.getKey().isEmpty()) {
       return this;
     }
+    if (attributesEmitted && attributes != null) {
+      // defensive copy if builder used after emit
+      attributes = new HashMap<>(attributes);
+      attributesEmitted = false;
+    }
     if (value != null) {
       if (attributes == null) {
         attributes = new HashMap<>();
@@ -138,6 +146,7 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public void emit() {
+    attributesEmitted = true;
     Context context = this.context != null ? this.context : Context.current();
     if (logger.isEnabled(severity, context)) {
       OtelLogRecordProcessor.INSTANCE.addLog(
@@ -150,7 +159,7 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
               bodyType,
               bodyValue,
               eventName,
-              attributes != null ? new HashMap<>(attributes) : null,
+              attributes != null ? attributes : Collections.emptyMap(),
               extract(context)));
     }
   }
