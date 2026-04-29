@@ -46,6 +46,28 @@ public final class AggregateMetric {
     return this;
   }
 
+  /**
+   * Record a single duration value with embedded tags. Called from the background aggregator thread
+   * when processing SpanStatsData (no Batch intermediary needed since the aggregation is
+   * single-threaded).
+   */
+  public void recordDuration(long taggedDuration) {
+    this.hitCount++;
+    long duration = taggedDuration;
+    if ((duration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      duration ^= TOP_LEVEL_TAG;
+      ++topLevelCount;
+    }
+    if ((duration & ERROR_TAG) == ERROR_TAG) {
+      duration ^= ERROR_TAG;
+      errorLatencies.accept(duration);
+      ++errorCount;
+    } else {
+      okLatencies.accept(duration);
+    }
+    this.duration += duration;
+  }
+
   public int getErrorCount() {
     return errorCount;
   }
