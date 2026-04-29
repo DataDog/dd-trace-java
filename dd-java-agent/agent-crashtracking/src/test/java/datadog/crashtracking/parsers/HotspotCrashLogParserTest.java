@@ -1,5 +1,7 @@
 package datadog.crashtracking.parsers;
 
+import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.InstanceOfAssertFactories.STRING;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -11,6 +13,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
+import java.util.Map;
 import java.util.Objects;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -66,12 +69,65 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x000000010f8ac794", crashLog.experimental.ucontext.get("pc"));
     assertEquals("0x0000000060001000", crashLog.experimental.ucontext.get("cpsr"));
 
+    // "Top of Stack: (sp=0x...)" contains "=" — verify the parser stops at it and doesn't
+    // absorb its hex-dump content into the last register mapping entry (sp).
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("sp", STRING)
+        .doesNotContain("Top of Stack:");
+
     assertNotNull(crashLog.experimental.runtimeArgs);
     assertTrue(crashLog.experimental.runtimeArgs.contains("--enable-native-access=ALL-UNNAMED"));
     assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
     assertFalse(
         crashLog.experimental.runtimeArgs.stream()
             .anyMatch(arg -> arg.contains("SourceLauncher") || arg.endsWith("CrashTest.java")));
+  }
+
+  /**
+   * Verifies the register-to-memory mapping section for the macOS aarch64 sample: representative
+   * values, library path redaction, and that "Top of Stack:" / "Instructions:" subsections are not
+   * absorbed into register values.
+   */
+  @Test
+  public void testRegisterToMemoryMappingMacosAarch64() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-macos-aarch64.txt"));
+
+    Map<String, String> mapping = crashLog.experimental.registerToMemoryMapping;
+
+    // Representative single-line entries
+    assertThat(mapping)
+        .containsEntry("x0", "0x0000000000000c55 is an unknown value")
+        .containsEntry("x2", "0x0 is null")
+        .containsEntry("x28", "0x0000000100a153f0 is a thread");
+
+    // Library path (symbol+offset format) — intermediate segments collapsed to a single /redacted
+    assertThat(mapping)
+        .extractingByKey("x16", STRING)
+        .isEqualTo(
+            "0x0000000182d709d0: pthread_jit_write_protect_np+0 in /redacted/system/libsystem_pthread.dylib at 0x0000000182d69000");
+    assertThat(mapping)
+        .extractingByKey("x21", STRING)
+        .isEqualTo(
+            "0x0000000106c1ccc0: _ZN19TemplateInterpreter13_active_tableE+0 in /redacted/server/libjvm.dylib at 0x0000000105efc000");
+
+    // macOS aarch64 uses address+pipe format — address kept, bytes redacted
+    assertThat(mapping)
+        .extractingByKey("x17", STRING)
+        .isEqualTo(
+            "0x0000000100a17cb0 points into unknown readable memory: 0x00000000ffffffff | REDACTED");
+
+    // "Top of Stack: (sp=0x...)" and "Instructions: (pc=0x...)" must not leak into register values
+    assertThat(mapping).doesNotContainKey("Top of Stack");
+    assertThat(mapping)
+        .allSatisfy((k, v) -> assertThat(v).doesNotContain("Top of Stack:", "Instructions:"));
+
+    // sp is the last register before "Top of Stack:" — its value must be clean
+    assertThat(mapping)
+        .extractingByKey("sp", STRING)
+        .isEqualTo("0x000000016feee0f0 is pointing into the stack for thread: 0x0000000100a153f0");
   }
 
   /** Linux aarch64 uses uppercase register names: R0-R30 */
@@ -87,11 +143,54 @@ public class HotspotCrashLogParserTest {
     assertEquals("0x0000000000000000", crashLog.experimental.ucontext.get("R0"));
     assertEquals("0x0000000000000001", crashLog.experimental.ucontext.get("R1"));
     assertEquals("0x0000ffff9efa168c", crashLog.experimental.ucontext.get("R30"));
-    // "Register to memory mapping:" section must NOT be included
     assertEquals(31, crashLog.experimental.ucontext.size(), "R0-R30 = 31 registers");
+  }
 
-    assertNotNull(crashLog.experimental.runtimeArgs);
-    assertTrue(crashLog.experimental.runtimeArgs.contains("--add-modules=ALL-DEFAULT"));
+  @Test
+  public void testRegisterToMemoryMapping() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(UUID.randomUUID().toString(), readFileAsString("sample-crash.txt"));
+
+    assertThat(crashLog.experimental).isNotNull();
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .isNotNull()
+        .containsEntry(
+            "RAX",
+            "0x00007f36ccfbf170 points into unknown readable memory: 0x00007f3600000758 | REDACTED")
+        .containsEntry(
+            "RSP", "0x00007f35e6253190 is pointing into the stack for thread: 0x00007f36cd96cc80")
+        .containsEntry("RDI", "0x0 is NULL")
+        .containsEntry(
+            "R11",
+            "{method} {0x00007f3744198b70} 'resize' '()[Ljava/util/HashMap$Node;' in 'java/util/HashMap'")
+        // unknown packages are fully redacted to redacted/Redacted
+        .containsEntry(
+            "RSI",
+            "{method} {0x00007f3639c2ff00} 'saveJob' '(Lredacted/Redacted;ILjava/lang/String;)V' in 'redacted/Redacted'");
+  }
+
+  @Test
+  public void testRegisterToMultilineMemoryMapping() throws Exception {
+    CrashLog crashLog =
+        new HotspotCrashLogParser()
+            .parse(
+                UUID.randomUUID().toString(), readFileAsString("sample-crash-linux-aarch64.txt"));
+
+    assertThat(crashLog.experimental).isNotNull();
+    assertThat(crashLog.experimental.registerToMemoryMapping).isNotNull().containsKey("R10");
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("R10", STRING)
+        .startsWith("0x00000007ffe85850 is an oop: java.lang.Class ")
+        .contains("\n{0x00000007ffe85850} - klass: 'java/lang/Class'")
+        .contains("\n - ---- fields (total size 25 words):")
+        .contains(
+            "\n - private transient 'name' 'Ljava/lang/String;' @44  \"jdk.internal.misc.Unsafe\"");
+
+    // Linux aarch64 uses bytes-only format (no address prefix before hex dump)
+    assertThat(crashLog.experimental.registerToMemoryMapping)
+        .extractingByKey("R9", STRING)
+        .isEqualTo("0x0000ffff9f686ca4 points into unknown readable memory: REDACTED");
   }
 
   @Test

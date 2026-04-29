@@ -38,6 +38,4 @@ public final class CrashTrackingConfig {
   public static final String CRASH_TRACKING_ENABLE_AUTOCONFIG =
       "crashtracking.debug.autoconfig.enable";
   public static final boolean CRASH_TRACKING_ENABLE_AUTOCONFIG_DEFAULT = false;
-
-  private CrashTrackingConfig() {}
 }
