@@ -11600,6 +11600,14 @@
         "default": "true",
         "aliases": []
       }
+    ],
+    "DD_TRACE_JAVA_MODULE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
+      }
     ]
   },
   "deprecations": {}

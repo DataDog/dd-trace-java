@@ -34,6 +34,7 @@ dependencies {
 project.tasks.withType(AbstractCompile).configureEach {
   switch (it.name) {
     case 'compileCsiJava':
+    case 'compileJava':
       configureCompiler(it, 11, JavaVersion.VERSION_1_8)
       break
     default:

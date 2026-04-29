@@ -50,6 +50,12 @@ include ':dd-java-agent:instrumentation:google-http-client'
    see [Type Matching](./how_instrumentations_work.md#type-matching))
 7. Pass the instrumentation name to the superclass constructor
 
+> [!NOTE]
+> **Need reflective access to a named Java module (Java 9+)?** If your instrumentation performs reflection on types
+> inside a module whose packages are not opened by the host application, also implement
+> `JavaModuleOpenProvider` on your `InstrumenterModule` and return the trigger classes from `triggerClasses()`.
+> See [JPMS Module Opening](./how_instrumentations_work.md#jpms-module-opening) for details.
+
 ```java
 
 @AutoService(InstrumenterModule.class)
