@@ -4,6 +4,9 @@ import datadog.trace.api.gateway.Flow
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.internal.TraceSegment
 import datadog.trace.instrumentation.resteasy.MultipartHelper
+import org.jboss.resteasy.plugins.providers.multipart.InputPart
+import org.jboss.resteasy.plugins.providers.multipart.MultipartFormDataInput
+import org.jboss.resteasy.specimpl.MultivaluedMapImpl
 import spock.lang.Specification
 
 import java.lang.reflect.Method
@@ -136,6 +139,76 @@ class MultipartHelperTest extends Specification {
   def "does not match filename* extended parameter as filename"() {
     expect:
     MultipartHelper.filenameFromContentDisposition("form-data; filename*=UTF-8''evil.php") == null
+  }
+
+  // collectFilesContent
+
+  private static MultivaluedMapImpl<String, String> headers(String cd) {
+    def h = new MultivaluedMapImpl<String, String>()
+    h.add('Content-Disposition', cd)
+    h
+  }
+
+  def "collectFilesContent includes part with non-empty filename"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="file"; filename="report.php"')
+    part.getBody(_, _) >> new ByteArrayInputStream('malicious'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['file': [part]]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then:
+    result == ['malicious']
+  }
+
+  def "collectFilesContent includes part with empty filename (security fix)"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="file"; filename=""')
+    part.getBody(_, _) >> new ByteArrayInputStream('anonymous'.bytes)
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['file': [part]]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then:
+    result == ['anonymous']
+  }
+
+  def "collectFilesContent skips part without filename attribute"() {
+    given:
+    def part = Mock(InputPart)
+    part.getHeaders() >> headers('form-data; name="field"')
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['field': [part]]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then:
+    result.isEmpty()
+  }
+
+  def "collectFilesContent respects MAX_FILES_TO_INSPECT limit"() {
+    given:
+    def parts = (1..MultipartHelper.MAX_FILES_TO_INSPECT + 2).collect { i ->
+      def p = Mock(InputPart)
+      p.getHeaders() >> headers("form-data; name=\"f${i}\"; filename=\"f${i}.bin\"")
+      p.getBody(_, _) >> new ByteArrayInputStream("content${i}".bytes)
+      p
+    }
+    def ret = Mock(MultipartFormDataInput)
+    ret.getFormDataMap() >> ['files': parts]
+
+    when:
+    def result = MultipartHelper.collectFilesContent(ret)
+
+    then:
+    result.size() == MultipartHelper.MAX_FILES_TO_INSPECT
   }
 
   // tryBlock
