@@ -28,7 +28,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.EnumSource;
 
 @WithConfig(key = "logs.otel.enabled", value = "true")
-class LogsTest extends AbstractInstrumentationTest {
+class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
 
   private final LogsReader logsReader = new LogsReader();
 

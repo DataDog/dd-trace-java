@@ -1,3 +1,5 @@
+package opentelemetry127.logs;
+
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -5,7 +7,7 @@ import io.opentelemetry.api.GlobalOpenTelemetry;
 import io.opentelemetry.api.logs.Logger;
 import org.junit.jupiter.api.Test;
 
-abstract class OpenTelemetry127ActivationTest extends AbstractInstrumentationTest {
+abstract class OpenTelemetryLogsActivationTest extends AbstractInstrumentationTest {
 
   abstract boolean shouldBeInjected();
 
