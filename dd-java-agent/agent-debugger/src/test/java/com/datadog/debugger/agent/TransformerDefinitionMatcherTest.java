@@ -65,6 +65,15 @@ public class TransformerDefinitionMatcherTest {
   }
 
   @Test
+  public void sourceFileFullFileNameCaseInsensitive() {
+    LogProbe probe = createProbe(PROBE_ID1, "Src/Main/Java/Java/LanG/STRING.jAvA", 23);
+    TransformerDefinitionMatcher matcher = createMatcher(probe);
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(1, probeDefinitions.size());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+  }
+
+  @Test
   public void sourceFileAbsoluteFileName() {
     LogProbe probe =
         createProbe(PROBE_ID1, "/home/user/project/src/main/java/java/lang/String.java", 23);
@@ -97,6 +106,15 @@ public class TransformerDefinitionMatcherTest {
   @Test
   public void sourceFileSimpleFileName() {
     LogProbe probe = createProbe(PROBE_ID1, "String.java", 23);
+    TransformerDefinitionMatcher matcher = createMatcher(probe);
+    List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
+    assertEquals(1, probeDefinitions.size());
+    assertEquals(PROBE_ID1, probeDefinitions.get(0).getProbeId());
+  }
+
+  @Test
+  public void sourceFileSimpleFileNameCaseInsensitive() {
+    LogProbe probe = createProbe(PROBE_ID1, "sTRINg.JAVA", 23);
     TransformerDefinitionMatcher matcher = createMatcher(probe);
     List<ProbeDefinition> probeDefinitions = match(matcher, String.class);
     assertEquals(1, probeDefinitions.size());

@@ -85,7 +85,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static final Logger LOGGER = LoggerFactory.getLogger(DebuggerTransformer.class);
   private static final String CANNOT_FIND_METHOD = "Cannot find method %s::%s%s";
   private static final String INSTRUMENTATION_FAILS = "Instrumentation failed for %s: %s";
-  private static final String CANNOT_FIND_LINE = "No executable code was found at %s:L%s";
   private static final Pattern COMMA_PATTERN = Pattern.compile(",");
   private static final List<Class<?>> PROBE_ORDER =
       Arrays.asList(
@@ -258,7 +257,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     if (instrumentTheWorld) {
       return transformTheWorld(loader, classFilePath, protectionDomain, classfileBuffer);
     }
-    if (skipInstrumentation(loader, classFilePath)) {
+    if (skipInstrumentation(classFilePath)) {
       return null;
     }
     List<ProbeDefinition> definitions = Collections.emptyList();
@@ -375,7 +374,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
     return true;
   }
 
-  private boolean skipInstrumentation(ClassLoader loader, String classFilePath) {
+  private boolean skipInstrumentation(String classFilePath) {
     if (definitionMatcher.isEmpty()) {
       LOGGER.debug("No debugger definitions present.");
       return true;
@@ -892,7 +891,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
     LogProbe.Capture capture = null;
     boolean captureSnapshot = false;
     ProbeCondition probeCondition = null;
-    List<LogProbe.CaptureExpression> captureExpressions = null;
     Where where = capturedContextProbes.get(0).getWhere();
     ProbeId probeId = capturedContextProbes.get(0).getProbeId();
     for (ProbeDefinition definition : capturedContextProbes) {
@@ -904,8 +902,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
         LogProbe logProbe = (LogProbe) definition;
         captureSnapshot = captureSnapshot | logProbe.isCaptureSnapshot();
         capture = mergeCapture(capture, logProbe.getCapture());
-        // captureExpressions = mergeCaptureExpressions(captureExpressions,
-        // logProbe.getCaptureExpressions());
         if (probeCondition == null) {
           probeCondition = logProbe.getProbeCondition();
         }
@@ -951,19 +947,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
         Math.max(current.getMaxFieldCount(), newCapture.getMaxFieldCount()));
   }
 
-  private static List<LogProbe.CaptureExpression> mergeCaptureExpressions(
-      List<LogProbe.CaptureExpression> captureExpressions,
-      List<LogProbe.CaptureExpression> newCaptureExpressions) {
-    if (captureExpressions == null) {
-      return newCaptureExpressions;
-    }
-    if (newCaptureExpressions == null) {
-      return captureExpressions;
-    }
-    captureExpressions.addAll(newCaptureExpressions);
-    return captureExpressions;
-  }
-
   private InstrumentationResult.Status preCheckInstrumentation(
       Map<ProbeId, List<DiagnosticMessage>> diagnostics, MethodInfo methodInfo) {
     if ((methodInfo.getMethodNode().access & (Opcodes.ACC_NATIVE | Opcodes.ACC_ABSTRACT)) != 0) {
@@ -1000,43 +983,6 @@ public class DebuggerTransformer implements ClassFileTransformer {
   private static void addDiagnosticForAllProbes(
       DiagnosticMessage diagnosticMessage, Map<ProbeId, List<DiagnosticMessage>> diagnostics) {
     diagnostics.forEach((probeId, diagnosticMessages) -> diagnosticMessages.add(diagnosticMessage));
-  }
-
-  private List<MethodNode> matchMethodDescription(
-      ClassNode classNode, Where where, ClassFileLines classFileLines) {
-    List<MethodNode> result = new ArrayList<>();
-    try {
-      for (MethodNode methodNode : classNode.methods) {
-        if (where.isMethodMatching(methodNode, classFileLines) == Where.MethodMatching.MATCH) {
-          result.add(methodNode);
-        }
-      }
-    } catch (Exception ex) {
-      LOGGER.warn("Cannot match method: {}", ex.toString());
-    }
-    return result;
-  }
-
-  private MethodNode matchSourceFile(
-      ClassNode classNode, Where where, ClassFileLines classFileLines) {
-    Where.SourceLine[] lines = where.getSourceLines();
-    if (lines == null || lines.length == 0) {
-      return null;
-    }
-    Where.SourceLine sourceLine = lines[0]; // assume only 1 range
-    int matchingLine = sourceLine.getFrom();
-    List<MethodNode> matchingMethods = classFileLines.getMethodsByLine(matchingLine);
-    if (matchingMethods != null) {
-      matchingMethods.forEach(
-          methodNode -> {
-            LOGGER.debug("Found lineNode {} method: {}", matchingLine, methodNode.name);
-          });
-      // pick the first matching method.
-      // TODO need a way to disambiguate if multiple methods match the same line
-      return matchingMethods.isEmpty() ? null : matchingMethods.get(0);
-    }
-    LOGGER.debug("Cannot find line: {} in class {}", matchingLine, classNode.name);
-    return null;
   }
 
   private void dumpInstrumentedClassFile(String className, byte[] data) {
@@ -1125,7 +1071,7 @@ public class DebuggerTransformer implements ClassFileTransformer {
       try {
         TypeDescription td1 = tpDatadogClassLoader.describe(type1.replace('/', '.')).resolve();
         TypeDescription td2 = tpDatadogClassLoader.describe(type2.replace('/', '.')).resolve();
-        TypeDescription common = null;
+        TypeDescription common;
         if (td1.isAssignableFrom(td2)) {
           common = td1;
         } else if (td2.isAssignableFrom(td1)) {
