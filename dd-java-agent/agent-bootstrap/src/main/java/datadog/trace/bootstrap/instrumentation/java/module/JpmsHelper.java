@@ -11,7 +11,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 @NotThreadSafe
-public class JpmsHelper {
+public final class JpmsHelper {
   private JpmsHelper() {}
 
   private static final Set<String> TRIGGERS = new HashSet<>();
