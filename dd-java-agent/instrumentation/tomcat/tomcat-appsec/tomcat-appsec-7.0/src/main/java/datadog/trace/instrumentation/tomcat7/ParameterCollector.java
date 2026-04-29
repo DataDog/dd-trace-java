@@ -4,7 +4,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.http.MultipartContentDecoder;
 import java.io.InputStream;
 import java.lang.reflect.Method;
-import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -144,28 +143,50 @@ public interface ParameterCollector {
       return contents != null ? contents : Collections.<String>emptyList();
     }
 
-    // Entry caches (class → method[]) stored as a single volatile write for safe publication.
-    // methods[0]=getInputStream, methods[1]=getContentType
+    // Per-class method cache; cachedPartClass is written last to safely publish the three methods.
     // Keyed by Part concrete class; re-resolved when the class changes (different Tomcat version).
-    private static volatile Map.Entry<Class<?>, Method[]> cachedContentMethodsEntry;
-    private static volatile Map.Entry<Class<?>, Method> cachedFilenameEntry;
+    private static volatile Class<?> cachedPartClass;
+    private static volatile Method cachedGetInputStream;
+    private static volatile Method cachedGetContentType;
+    // getSubmittedFileName (Servlet 3.1+) or getFilename (Tomcat 7); null if neither found
+    private static volatile Method cachedGetFilename;
+
+    private static void resolveAndCacheMethods(Class<?> partClass) {
+      Method getInputStream = null;
+      Method getContentType = null;
+      Method getFilename = null;
+      try {
+        getInputStream = partClass.getMethod("getInputStream");
+      } catch (Exception ignored) {
+      }
+      try {
+        getContentType = partClass.getMethod("getContentType");
+      } catch (Exception ignored) {
+      }
+      try {
+        getFilename = partClass.getMethod("getSubmittedFileName");
+      } catch (Exception ignored) {
+      }
+      if (getFilename == null) {
+        try {
+          getFilename = partClass.getMethod("getFilename");
+        } catch (Exception ignored) {
+        }
+      }
+      cachedGetInputStream = getInputStream;
+      cachedGetContentType = getContentType;
+      cachedGetFilename = getFilename;
+      cachedPartClass = partClass;
+    }
 
     private static String readContent(Object part) {
       try {
         Class<?> partClass = part.getClass();
-        Map.Entry<Class<?>, Method[]> entry = cachedContentMethodsEntry;
-        Method[] methods;
-        if (entry == null || entry.getKey() != partClass) {
-          methods =
-              new Method[] {
-                partClass.getMethod("getInputStream"), partClass.getMethod("getContentType")
-              };
-          cachedContentMethodsEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, methods);
-        } else {
-          methods = entry.getValue();
+        if (cachedPartClass != partClass) {
+          resolveAndCacheMethods(partClass);
         }
-        String contentType = (String) methods[1].invoke(part);
-        try (InputStream is = (InputStream) methods[0].invoke(part)) {
+        String contentType = (String) cachedGetContentType.invoke(part);
+        try (InputStream is = (InputStream) cachedGetInputStream.invoke(part)) {
           return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
         }
       } catch (Exception ignored) {
@@ -175,27 +196,10 @@ public interface ParameterCollector {
 
     private static String getFilename(Object part) {
       Class<?> partClass = part.getClass();
-      Map.Entry<Class<?>, Method> entry = cachedFilenameEntry;
-      Method m;
-      if (entry == null || entry.getKey() != partClass) {
-        m = null;
-        // Try getSubmittedFileName() first — Servlet 3.1+ / Tomcat 8+ (both javax and jakarta)
-        try {
-          m = partClass.getMethod("getSubmittedFileName");
-        } catch (Exception ignored) {
-        }
-        if (m == null) {
-          // Fall back to getFilename() — Tomcat 7 ApplicationPart specific
-          try {
-            m = partClass.getMethod("getFilename");
-          } catch (Exception ignored) {
-          }
-        }
-        // null value in the entry means "no filename method on this class"
-        cachedFilenameEntry = new AbstractMap.SimpleImmutableEntry<>(partClass, m);
-      } else {
-        m = entry.getValue();
+      if (cachedPartClass != partClass) {
+        resolveAndCacheMethods(partClass);
       }
+      Method m = cachedGetFilename;
       if (m == null) {
         return null;
       }
