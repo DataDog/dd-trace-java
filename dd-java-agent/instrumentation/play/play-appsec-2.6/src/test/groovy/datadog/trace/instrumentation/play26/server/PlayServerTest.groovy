@@ -7,6 +7,11 @@ import static datadog.trace.agent.test.base.HttpServerTest.ServerEndpoint.BODY_X
 
 class PlayServerTest extends AbstractPlayServerTest {
 
+  @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
   def 'test instrumentation gateway xml request body'() {
     setup:
     def request = request(

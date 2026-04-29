@@ -21,7 +21,9 @@ public class FormDataMap implements Map<String, Collection<String>> {
       Deque<FormData.FormValue> formValues = formData.get(key);
       List<String> values = new ArrayList<>(formValues.size());
       for (FormData.FormValue formValue : formValues) {
-        if (!formValue.isFile()) {
+        // In undertow 2.2+, isFile() returns false for in-memory file uploads; getFileName()
+        // correctly identifies all file uploads regardless of storage.
+        if (formValue.getFileName() == null) {
           values.add(formValue.getValue());
         }
       }

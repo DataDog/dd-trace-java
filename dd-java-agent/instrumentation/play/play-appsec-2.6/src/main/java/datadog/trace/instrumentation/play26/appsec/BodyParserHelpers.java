@@ -19,6 +19,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -56,6 +57,21 @@ public class BodyParserHelpers {
   public static final int MAX_CONVERSION_DEPTH = 10;
   private static final Logger log = LoggerFactory.getLogger(BodyParserHelpers.class);
   public static final int MAX_RECURSION = 15;
+
+  // Cached via reflection to avoid embedding a hard binary reference to
+  // files():Lscala/collection/Seq; — the return type changed to
+  // Lscala/collection/immutable/Seq; in Scala 2.13 (Play 2.7+), which would
+  // cause muzzle to disable the instrumentation for Play 2.7.
+  private static final Method MULTIPART_FILES_METHOD;
+
+  static {
+    Method m = null;
+    try {
+      m = MultipartFormData.class.getMethod("files");
+    } catch (Exception ignored) {
+    }
+    MULTIPART_FILES_METHOD = m;
+  }
 
   private static JFunction1<
           scala.collection.immutable.Map<String, Seq<String>>,
@@ -116,18 +132,89 @@ public class BodyParserHelpers {
 
   private static MultipartFormData<?> handleMultipartFormData(MultipartFormData<?> data) {
     scala.collection.immutable.Map<String, Seq<String>> mpfd = data.asFormUrlEncoded();
+    BlockingException pendingBlock = null;
 
-    if (mpfd == null || mpfd.isEmpty()) {
-      return data;
+    if (mpfd != null && !mpfd.isEmpty()) {
+      try {
+        Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
+        handleArbitraryPostData(conv, "multipartFormData");
+      } catch (BlockingException be) {
+        pendingBlock = be;
+      } catch (Exception e) {
+        log.debug("Error handling result of multipartFormData BodyParser", e);
+      }
     }
 
     try {
-      Object conv = tryConvertingScalaContainers(mpfd, MAX_CONVERSION_DEPTH);
-      handleArbitraryPostData(conv, "multipartFormData");
+      if (MULTIPART_FILES_METHOD != null) {
+        Object files = MULTIPART_FILES_METHOD.invoke(data);
+        if (files instanceof scala.collection.Iterable) {
+          handleMultipartFilenames(
+              new ScalaIteratorAdapter(((scala.collection.Iterable<?>) files).iterator()));
+        }
+      }
+    } catch (BlockingException be) {
+      if (pendingBlock == null) pendingBlock = be;
     } catch (Exception e) {
-      handleException(e, "Error handling result of multipartFormData BodyParser");
+      log.debug("Error handling multipartFormData filenames", e);
     }
+
+    if (pendingBlock != null) throw pendingBlock;
     return data;
+  }
+
+  private static void handleMultipartFilenames(java.util.Iterator<?> iterator) {
+    AgentSpan span = activeSpan();
+    if (span == null) {
+      return;
+    }
+    RequestContext reqCtx = span.getRequestContext();
+    if (reqCtx == null || reqCtx.getData(RequestContextSlot.APPSEC) == null) {
+      return;
+    }
+
+    List<String> filenames = collectFilenames(iterator);
+    if (filenames.isEmpty()) {
+      return;
+    }
+
+    CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+    BiFunction<RequestContext, List<String>, Flow<Void>> callback =
+        cbp.getCallback(EVENTS.requestFilesFilenames());
+    if (callback == null) {
+      return;
+    }
+    executeFilenamesCallback(reqCtx, callback, filenames);
+  }
+
+  static List<String> collectFilenames(java.util.Iterator<?> iterator) {
+    List<String> filenames = new ArrayList<>();
+    while (iterator.hasNext()) {
+      MultipartFormData.FilePart<?> part = (MultipartFormData.FilePart<?>) iterator.next();
+      String filename = part.filename();
+      if (filename != null && !filename.isEmpty()) {
+        filenames.add(filename);
+      }
+    }
+    return filenames;
+  }
+
+  private static void executeFilenamesCallback(
+      RequestContext reqCtx,
+      BiFunction<RequestContext, List<String>, Flow<Void>> callback,
+      List<String> filenames) {
+    Flow<Void> flow = callback.apply(reqCtx, filenames);
+    Flow.Action action = flow.getAction();
+    if (action instanceof Flow.Action.RequestBlockingAction) {
+      Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+      BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+      if (brf != null) {
+        boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+        if (success) {
+          throw new BlockingException("Blocked request (multipart file upload)");
+        }
+      }
+    }
   }
 
   public static Function1<JsValue, JsValue> getHandleJsonF() {
@@ -449,5 +536,23 @@ public class BodyParserHelpers {
       return node.getTextContent();
     }
     return null;
+  }
+
+  static final class ScalaIteratorAdapter implements java.util.Iterator<Object> {
+    private final Iterator<?> delegate;
+
+    ScalaIteratorAdapter(Iterator<?> delegate) {
+      this.delegate = delegate;
+    }
+
+    @Override
+    public boolean hasNext() {
+      return delegate.hasNext();
+    }
+
+    @Override
+    public Object next() {
+      return delegate.next();
+    }
   }
 }
