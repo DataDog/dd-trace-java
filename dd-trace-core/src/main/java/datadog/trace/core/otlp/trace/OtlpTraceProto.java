@@ -138,7 +138,9 @@ public final class OtlpTraceProto {
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
-    writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    if (span.getSpanType() != null) {
+      writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    }
 
     span.processTagsAndBaggage(metaWriter);
 
@@ -222,17 +224,11 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(
       StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
-    if (value == null) {
-      return;
-    }
     writeTag(buf, 9, LEN_WIRE_TYPE);
     writeAttribute(buf, key, value);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, UTF8BytesString key, CharSequence value) {
-    if (value == null) {
-      return;
-    }
     writeTag(buf, 9, LEN_WIRE_TYPE);
     if (value instanceof UTF8BytesString) {
       writeAttribute(buf, key, (UTF8BytesString) value);

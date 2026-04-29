@@ -443,6 +443,11 @@ class OtlpTraceProtoTest {
         Arguments.of(
             "minimal span — default UNSPECIFIED kind",
             asList(span("GET /api/users", "servlet.request", "web"))),
+
+        // ── null span type — regression: must not NPE, span.type attribute omitted ─
+        Arguments.of(
+            "null span type — span.type attribute omitted, no NPE",
+            asList(span("GET /api/users", "servlet.request", null))),
         Arguments.of("internal span kind", asList(kindSpan("GET /api/users", SPAN_KIND_INTERNAL))),
         Arguments.of("server span kind", asList(kindSpan("GET /api/users", SPAN_KIND_SERVER))),
         Arguments.of("client span kind", asList(kindSpan("redis.get", SPAN_KIND_CLIENT))),
@@ -1029,8 +1034,14 @@ class OtlpTraceProtoTest {
     assertTrue(
         attrKeys.contains("operation.name"),
         "attributes must include 'operation.name' [" + caseName + "]");
-    assertTrue(
-        attrKeys.contains("span.type"), "attributes must include 'span.type' [" + caseName + "]");
+    if (spec.spanType != null) {
+      assertTrue(
+          attrKeys.contains("span.type"), "attributes must include 'span.type' [" + caseName + "]");
+    } else {
+      assertFalse(
+          attrKeys.contains("span.type"),
+          "attributes must omit 'span.type' when null [" + caseName + "]");
+    }
 
     // service.name attribute is written only when the span's service differs from the default
     if (spec.serviceName != null) {
