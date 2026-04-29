@@ -107,16 +107,16 @@ public final class MultipartHelper {
       BlockResponseFunction brf = ctx.getBlockResponseFunction();
       if (brf != null) {
         brf.tryCommitBlockingResponse(ctx.getTraceSegment(), rba);
+        BlockingException be = new BlockingException(message);
         ctx.getTraceSegment().effectivelyBlocked();
-        return new BlockingException(message);
+        return be;
       }
     }
     return null;
   }
 
   static String readContent(InputPart inputPart, String contentType) {
-    try {
-      InputStream is = inputPart.getBody(InputStream.class, null);
+    try (InputStream is = inputPart.getBody(InputStream.class, null)) {
       if (is == null) return "";
       return MultipartContentDecoder.readInputStream(is, MAX_CONTENT_BYTES, contentType);
     } catch (IOException ignored) {
