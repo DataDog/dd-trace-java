@@ -10,6 +10,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_DATA_JOBS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_IAST_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_INTEGRATIONS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_MEASURE_NATIVE_METHODS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_ENABLED;
@@ -41,6 +42,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_TRIGGER;
 import static datadog.trace.api.config.IastConfig.IAST_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.TRACE_OTEL_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
@@ -149,6 +151,7 @@ public class InstrumenterConfig {
   private final boolean traceEnabled;
   private final boolean traceOtelEnabled;
   private final boolean metricsOtelEnabled;
+  private final boolean logsOtelEnabled;
   private final ProfilingEnablement profilingEnabled;
   private final boolean ciVisibilityEnabled;
   private final ProductActivation appSecActivation;
@@ -258,6 +261,7 @@ public class InstrumenterConfig {
     traceOtelEnabled = configProvider.getBoolean(TRACE_OTEL_ENABLED, DEFAULT_TRACE_OTEL_ENABLED);
     metricsOtelEnabled =
         configProvider.getBoolean(METRICS_OTEL_ENABLED, DEFAULT_METRICS_OTEL_ENABLED);
+    logsOtelEnabled = configProvider.getBoolean(LOGS_OTEL_ENABLED, DEFAULT_LOGS_OTEL_ENABLED);
 
     profilingEnabled =
         ProfilingEnablement.of(
@@ -451,6 +455,10 @@ public class InstrumenterConfig {
 
   public boolean isMetricsOtelEnabled() {
     return metricsOtelEnabled;
+  }
+
+  public boolean isLogsOtelEnabled() {
+    return logsOtelEnabled;
   }
 
   public boolean isProfilingEnabled() {
@@ -755,6 +763,8 @@ public class InstrumenterConfig {
         + traceOtelEnabled
         + ", metricsOtelEnabled="
         + metricsOtelEnabled
+        + ", logsOtelEnabled="
+        + logsOtelEnabled
         + ", profilingEnabled="
         + profilingEnabled
         + ", ciVisibilityEnabled="

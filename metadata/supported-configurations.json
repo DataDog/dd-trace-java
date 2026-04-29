@@ -2225,6 +2225,62 @@
         "aliases": ["DD_LOGS_INJECTION"]
       }
     ],
+    "DD_LOGS_OTEL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_LOG_LEVEL": [
       {
         "version": "D",
@@ -8321,6 +8377,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED", "DD_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENTELEMETRY_1_27_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_1_27_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_1_27_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENTELEMETRY_1_47_ENABLED": [
       {
         "version": "A",
@@ -8407,6 +8471,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENTELEMETRY_LOGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_LOGS_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_LOGS_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTELEMETRY_METRICS_ENABLED": [
@@ -11490,6 +11562,46 @@
       }
     ],
     "OTEL_EXPORTER_OTLP_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_HEADERS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "SDK-dependent, but will typically be either http/protobuf or grpc.",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT": [
       {
         "version": "A",
         "type": "int",
