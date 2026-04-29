@@ -222,11 +222,17 @@ public final class OtlpTraceProto {
 
   private static void writeSpanTag(
       StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
+    if (value == null) {
+      return;
+    }
     writeTag(buf, 9, LEN_WIRE_TYPE);
     writeAttribute(buf, key, value);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, UTF8BytesString key, CharSequence value) {
+    if (value == null) {
+      return;
+    }
     writeTag(buf, 9, LEN_WIRE_TYPE);
     if (value instanceof UTF8BytesString) {
       writeAttribute(buf, key, (UTF8BytesString) value);

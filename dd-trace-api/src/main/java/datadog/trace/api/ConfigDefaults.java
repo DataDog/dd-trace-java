@@ -108,12 +108,12 @@ public final class ConfigDefaults {
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
-  static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
+  public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
-  static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
-  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
-  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
+  public static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
+  public static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
