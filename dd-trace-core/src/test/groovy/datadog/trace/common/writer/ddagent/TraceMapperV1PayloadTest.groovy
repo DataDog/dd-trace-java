@@ -1051,9 +1051,6 @@ class TraceMapperV1PayloadTest extends DDSpecification {
         case TraceMapperV1.VALUE_TYPE_FLOAT:
           value = unpacker.unpackDouble()
           break
-        case TraceMapperV1.VALUE_TYPE_INT:
-          value = unpacker.unpackLong()
-          break
         case TraceMapperV1.VALUE_TYPE_BYTES:
           int len = unpacker.unpackBinaryHeader()
           byte[] data = new byte[len]
@@ -1237,9 +1234,6 @@ class TraceMapperV1PayloadTest extends DDSpecification {
                 break
               case TraceMapperV1.VALUE_TYPE_FLOAT:
                 unpacker.unpackDouble()
-                break
-              case TraceMapperV1.VALUE_TYPE_INT:
-                unpacker.unpackLong()
                 break
               case TraceMapperV1.VALUE_TYPE_BYTES:
                 int len = unpacker.unpackBinaryHeader()
