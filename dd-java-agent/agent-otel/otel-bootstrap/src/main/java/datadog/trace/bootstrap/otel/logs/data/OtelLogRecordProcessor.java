@@ -69,6 +69,7 @@ public final class OtelLogRecordProcessor {
   }
 
   private List<OtlpLogRecord> batchByScope() {
+    // capture expected batch size; records emitted after here go into next batch
     int batchSize = queue.size();
     List<OtlpLogRecord> batch = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {
@@ -76,7 +77,7 @@ public final class OtelLogRecordProcessor {
       if (logRecord != null) {
         batch.add(logRecord);
       } else {
-        break;
+        break; // should not happen unless another thread is also batching records
       }
     }
     batch.sort(BY_SCOPE);
