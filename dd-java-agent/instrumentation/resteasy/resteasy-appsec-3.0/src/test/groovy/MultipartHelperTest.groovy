@@ -1,7 +1,44 @@
+import datadog.appsec.api.blocking.BlockingException
+import datadog.trace.api.gateway.BlockResponseFunction
+import datadog.trace.api.gateway.Flow
+import datadog.trace.api.gateway.RequestContext
+import datadog.trace.api.internal.TraceSegment
 import datadog.trace.instrumentation.resteasy.MultipartHelper
 import spock.lang.Specification
 
+import java.lang.reflect.Method
+
 class MultipartHelperTest extends Specification {
+
+  // rawFilenameFromContentDisposition (package-private, tested via reflection)
+
+  private static String rawFilename(String cd) {
+    Method m = MultipartHelper.getDeclaredMethod('rawFilenameFromContentDisposition', String)
+    m.setAccessible(true)
+    return (String) m.invoke(null, [cd] as Object[])
+  }
+
+  def "rawFilenameFromContentDisposition returns null when filename attr absent"() {
+    expect:
+    rawFilename(cd) == null
+
+    where:
+    cd << [null, 'form-data', 'form-data; name="field"', '']
+  }
+
+  def "rawFilenameFromContentDisposition returns empty string for filename with empty value"() {
+    expect:
+    rawFilename('form-data; filename=""') == ''
+    rawFilename('form-data; filename=') == ''
+  }
+
+  def "rawFilenameFromContentDisposition returns the value for non-empty filename"() {
+    expect:
+    rawFilename('form-data; filename="report.php"') == 'report.php'
+    rawFilename('form-data; filename=report.php') == 'report.php'
+  }
+
+  // filenameFromContentDisposition (public API)
 
   def "returns null when no filename parameter"() {
     expect:
@@ -99,5 +136,67 @@ class MultipartHelperTest extends Specification {
   def "does not match filename* extended parameter as filename"() {
     expect:
     MultipartHelper.filenameFromContentDisposition("form-data; filename*=UTF-8''evil.php") == null
+  }
+
+  // tryBlock
+
+  def "tryBlock returns null when flow action is not a blocking action"() {
+    given:
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> Flow.Action.Noop.INSTANCE
+    RequestContext ctx = Stub(RequestContext)
+
+    expect:
+    MultipartHelper.tryBlock(ctx, flow, 'msg') == null
+  }
+
+  def "tryBlock returns BlockingException with provided message when brf commits response"() {
+    given:
+    def segment = Stub(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Stub(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    def result = MultipartHelper.tryBlock(ctx, flow, 'blocked!')
+
+    then:
+    result instanceof BlockingException
+    result.message == 'blocked!'
+  }
+
+  def "tryBlock calls tryCommitBlockingResponse and effectivelyBlocked"() {
+    given:
+    def segment = Mock(TraceSegment)
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    BlockResponseFunction brf = Mock(BlockResponseFunction)
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> brf
+    ctx.getTraceSegment() >> segment
+
+    when:
+    MultipartHelper.tryBlock(ctx, flow, 'msg')
+
+    then:
+    1 * brf.tryCommitBlockingResponse(segment, rba)
+    1 * segment.effectivelyBlocked()
+  }
+
+  def "tryBlock returns null when brf is null despite blocking action"() {
+    given:
+    def rba = Stub(Flow.Action.RequestBlockingAction)
+    Flow<Void> flow = Stub(Flow)
+    flow.getAction() >> rba
+    RequestContext ctx = Stub(RequestContext)
+    ctx.getBlockResponseFunction() >> null
+
+    expect:
+    MultipartHelper.tryBlock(ctx, flow, 'msg') == null
   }
 }
