@@ -2,6 +2,7 @@ package server
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper
 import io.vertx.ext.web.RoutingContext
@@ -21,11 +22,11 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * parentSpan.setResourceName("GET /items/:id", _)
+    1 * parentSpan.setResourceName(_, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE)
     1 * handlerSpan.getSpanName() >> "vertx.route-handler"
     1 * handlerSpan.getResourceNamePriority() >> Byte.MIN_VALUE
     1 * handlerSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * handlerSpan.setResourceName("GET /items/:id", _)
+    1 * handlerSpan.setResourceName(_, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE)
     0 * _
   }
 
@@ -42,7 +43,7 @@ class RouteHandlerWrapperTest extends InstrumentationSpecification {
     1 * context.get("dd.${Tags.HTTP_ROUTE}") >> null
     1 * context.put("dd.${Tags.HTTP_ROUTE}", "/items/:id")
     1 * parentSpan.setTag(Tags.HTTP_ROUTE, "/items/:id")
-    1 * parentSpan.setResourceName("GET /items/:id", _)
+    1 * parentSpan.setResourceName(_, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE)
     1 * handlerSpan.getSpanName() >> "some.other.span"
     0 * handlerSpan.setTag(_, _)
     0 * _
