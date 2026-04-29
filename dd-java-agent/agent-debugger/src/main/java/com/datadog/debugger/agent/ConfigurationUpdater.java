@@ -9,7 +9,6 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
-import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.util.ExceptionHelper;
 import com.datadog.debugger.util.SpringHelper;
@@ -170,7 +169,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       if (changes.hasRateLimitRelatedChanged()) {
         // apply rate limit config first to avoid racing with execution/instrumentation
         // of probes requiring samplers
-        applyRateLimiter(changes, newConfiguration.getSampling());
+        applyRateLimiter(newConfiguration.getSampling());
       }
       currentConfiguration = newConfiguration;
       if (changes.hasProbeRelatedChanges()) {
@@ -436,15 +435,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     return probeMetadata.getProbe(probeIndex);
   }
 
-  private static void applyRateLimiter(
-      ConfigurationComparer changes, LogProbe.Sampling globalSampling) {
-    // ensure rate is up-to-date for all new probes
-    for (ProbeDefinition added : changes.getAddedDefinitions()) {
-      if (added instanceof Sampled) {
-        Sampled probe = (Sampled) added;
-        probe.initSamplers();
-      }
-    }
+  private static void applyRateLimiter(LogProbe.Sampling globalSampling) {
     // set global sampling
     if (globalSampling != null) {
       ProbeRateLimiter.setGlobalSnapshotRate(globalSampling.getSnapshotsPerSecond());

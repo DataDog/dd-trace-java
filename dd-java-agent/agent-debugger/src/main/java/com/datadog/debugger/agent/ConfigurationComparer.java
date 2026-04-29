@@ -92,8 +92,7 @@ public class ConfigurationComparer {
 
   public boolean hasRateLimitRelatedChanged() {
     return originalConfiguration != null
-            && originalConfiguration.getSampling() != incomingConfiguration.getSampling()
-        || hasProbeRelatedChanges();
+        && originalConfiguration.getSampling() != incomingConfiguration.getSampling();
   }
 
   List<String> findChangesInBlockedTypes() {

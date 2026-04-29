@@ -179,6 +179,18 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     this.decorations = decorations;
   }
 
+  public SpanDecorationProbe(SpanDecorationProbe.Builder builder) {
+    this(
+        builder.language,
+        builder.probeId,
+        builder.tagStrs,
+        builder.where,
+        builder.evaluateAt,
+        builder.targetSpan,
+        builder.decorations);
+    initSamplers();
+  }
+
   @Override
   public InstrumentationResult.Status instrument(
       MethodInfo methodInfo, List<DiagnosticMessage> diagnostics, List<Integer> probeIndices) {
@@ -399,26 +411,25 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   public static class Builder extends ProbeDefinition.Builder<SpanDecorationProbe.Builder> {
     private TargetSpan targetSpan;
-    private List<Decoration> decorate;
+    private List<Decoration> decorations;
 
     public Builder targetSpan(TargetSpan targetSpan) {
       this.targetSpan = targetSpan;
       return this;
     }
 
-    public Builder decorate(List<Decoration> decorate) {
-      this.decorate = decorate;
+    public Builder decorations(List<Decoration> decorations) {
+      this.decorations = decorations;
       return this;
     }
 
-    public Builder decorate(Decoration decoration) {
-      this.decorate = Collections.singletonList(decoration);
+    public Builder decorations(Decoration decoration) {
+      this.decorations = Collections.singletonList(decoration);
       return this;
     }
 
     public SpanDecorationProbe build() {
-      return new SpanDecorationProbe(
-          LANGUAGE, probeId, tagStrs, where, evaluateAt, targetSpan, decorate);
+      return new SpanDecorationProbe(this);
     }
   }
 }

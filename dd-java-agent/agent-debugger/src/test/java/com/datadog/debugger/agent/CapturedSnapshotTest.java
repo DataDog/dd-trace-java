@@ -2824,7 +2824,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                     .probeId(PROBE_ID)
                     .where(where)
                     .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
-                    .decorate(
+                    .decorations(
                         new SpanDecorationProbe.Decoration(
                             null,
                             Arrays.asList(
@@ -2842,7 +2842,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(new TriggerProbe(PROBE_ID4, where))
+            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
