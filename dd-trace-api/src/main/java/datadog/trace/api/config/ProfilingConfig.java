@@ -10,8 +10,42 @@ public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
+
+  /**
+   * @deprecated Not used. The actual default is computed dynamically by {@link
+   *     datadog.trace.api.profiling.ProfilingSupport#isObjectAllocationSampleAvailable()}.
+   */
+  @Deprecated public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = true;
+
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
-  public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
+
+  /**
+   * @deprecated The old value was {@code false}. The default is now computed dynamically via {@link
+   *     datadog.trace.api.profiling.ProfilingSupport#isLiveHeapProfilingSafe()}.
+   */
+  @Deprecated public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
+
+  public static final String PROFILING_CPU_ENABLED = "profiling.cpu.enabled";
+  public static final boolean PROFILING_CPU_ENABLED_DEFAULT = true;
+  public static final String PROFILING_WALLTIME_ENABLED = "profiling.walltime.enabled";
+  public static final boolean PROFILING_WALLTIME_ENABLED_DEFAULT = true;
+  public static final String PROFILING_EXCEPTION_ENABLED = "profiling.exception.enabled";
+  public static final boolean PROFILING_EXCEPTION_ENABLED_DEFAULT = true;
+  public static final String PROFILING_IO_ENABLED = "profiling.io.enabled";
+  public static final boolean PROFILING_IO_ENABLED_DEFAULT = true;
+  public static final String PROFILING_LOCK_ENABLED = "profiling.lock.enabled";
+  public static final boolean PROFILING_LOCK_ENABLED_DEFAULT = true;
+  public static final String PROFILING_THREAD_ENABLED = "profiling.thread.enabled";
+  public static final boolean PROFILING_THREAD_ENABLED_DEFAULT = true;
+
+  /**
+   * Unified gate for direct memory (native ByteBuffer / FileChannel) profiling. Replaces the
+   * deprecated {@link #PROFILING_DIRECT_ALLOCATION_ENABLED}.
+   */
+  public static final String PROFILING_DIRECT_MEMORY_ENABLED = "profiling.direct.memory.enabled";
+
+  public static final boolean PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT = false;
+
   @Deprecated // Use dd.site instead
   public static final String PROFILING_URL = "profiling.url";
   @Deprecated // Use dd.api-key instead
@@ -79,9 +113,14 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
+  /**
+   * @deprecated Use {@link #PROFILING_DIRECT_MEMORY_ENABLED} instead.
+   */
+  @Deprecated
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
       "profiling.directallocation.enabled";
-  public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
+
+  @Deprecated public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
   public static final String PROFILING_STACKDEPTH = "profiling.stackdepth";
   public static final int PROFILING_STACKDEPTH_DEFAULT = 512;

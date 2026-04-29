@@ -17,14 +17,24 @@ package com.datadog.profiling.controller.openjdk;
 
 import static com.datadog.profiling.controller.ProfilingSupport.*;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CPU_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_EXCEPTION_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_HISTOGRAM_MODE_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_IO_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_IO_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_THREAD_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ULTRA_MINIMAL;
 
 import com.datadog.profiling.controller.ConfigurationException;
@@ -262,6 +272,50 @@ public final class OpenJdkController implements Controller {
           recordingSettings,
           "datadog.AggregatedSmapEntry",
           "Aggregated smaps collection is disabled in the config");
+    }
+
+    // Feature gates — unified profiling.*.enabled keys.
+    // These gates are evaluated at recording creation time only; profiling does not use Remote
+    // Config, so events disabled here remain disabled for the lifetime of the recording.
+
+    if (!configProvider.getBoolean(PROFILING_CPU_ENABLED, PROFILING_CPU_ENABLED_DEFAULT)) {
+      disableEvent(recordingSettings, "jdk.ExecutionSample", "CPU profiling is disabled");
+      disableEvent(recordingSettings, "jdk.NativeMethodSample", "CPU profiling is disabled");
+      disableEvent(recordingSettings, "jdk.CPUTimeSample", "CPU profiling is disabled");
+      disableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", "CPU profiling is disabled");
+    }
+
+    // jdk.JavaMonitorWait, jdk.ThreadPark, and jdk.ThreadSleep are intentionally NOT gated by
+    // PROFILING_WALL_ENABLED: they serve purposes beyond wall-clock profile construction
+    // (timeline blocking events, queueing time) and must remain enabled independently.
+
+    if (!configProvider.getBoolean(
+        PROFILING_EXCEPTION_ENABLED, PROFILING_EXCEPTION_ENABLED_DEFAULT)) {
+      disableEvent(recordingSettings, "datadog.ExceptionSample", "exception profiling is disabled");
+      disableEvent(recordingSettings, "datadog.ExceptionCount", "exception profiling is disabled");
+    }
+
+    if (!configProvider.getBoolean(PROFILING_IO_ENABLED, PROFILING_IO_ENABLED_DEFAULT)) {
+      disableEvent(recordingSettings, "jdk.FileRead", "I/O profiling is disabled");
+      disableEvent(recordingSettings, "jdk.FileWrite", "I/O profiling is disabled");
+      disableEvent(recordingSettings, "jdk.FileForce", "I/O profiling is disabled");
+      disableEvent(recordingSettings, "jdk.SocketRead", "I/O profiling is disabled");
+      disableEvent(recordingSettings, "jdk.SocketWrite", "I/O profiling is disabled");
+    }
+
+    if (!configProvider.getBoolean(PROFILING_LOCK_ENABLED, PROFILING_LOCK_ENABLED_DEFAULT)) {
+      disableEvent(recordingSettings, "jdk.JavaMonitorEnter", "lock profiling is disabled");
+      // BiasedLock events are no-ops on JDK 18+ (biased locking removed via JEP 374); disabling
+      // them here is harmless on modern JDKs.
+      disableEvent(recordingSettings, "jdk.BiasedLockRevocation", "lock profiling is disabled");
+      disableEvent(recordingSettings, "jdk.BiasedLockSelfRevocation", "lock profiling is disabled");
+      disableEvent(
+          recordingSettings, "jdk.BiasedLockClassRevocation", "lock profiling is disabled");
+    }
+
+    if (!configProvider.getBoolean(PROFILING_THREAD_ENABLED, PROFILING_THREAD_ENABLED_DEFAULT)) {
+      disableEvent(recordingSettings, "jdk.ThreadStart", "thread profiling is disabled");
+      disableEvent(recordingSettings, "jdk.ThreadEnd", "thread profiling is disabled");
     }
 
     // Warn users for expensive events
