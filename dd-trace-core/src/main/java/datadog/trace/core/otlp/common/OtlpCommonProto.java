@@ -1,13 +1,13 @@
 package datadog.trace.core.otlp.common;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ARRAY_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
@@ -15,6 +15,7 @@ import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import java.nio.ByteBuffer;
 import java.util.List;
@@ -44,6 +45,12 @@ public final class OtlpCommonProto {
       Config.get().getTagValueUtf8CacheSize() > 0
           ? new GenerationalUtf8Cache(Config.get().getTagValueUtf8CacheSize())
           : null;
+
+  public static void recalibrateCaches() {
+    if (VALUE_CACHE != null) {
+      VALUE_CACHE.recalibrate();
+    }
+  }
 
   public static int sizeVarInt(int value) {
     return 1 + (31 - Integer.numberOfLeadingZeros(value)) / 7;
@@ -153,36 +160,54 @@ public final class OtlpCommonProto {
   }
 
   @SuppressWarnings("unchecked")
-  public static void writeAttribute(StreamingBuffer buf, int type, String key, Object value) {
-    byte[] keyUtf8 = keyUtf8(key);
+  public static void writeAttribute(StreamingBuffer buf, int type, CharSequence key, Object value) {
+    byte[] keyUtf8;
+    if (key instanceof UTF8BytesString) {
+      keyUtf8 = ((UTF8BytesString) key).getUtf8Bytes();
+    } else {
+      keyUtf8 = keyUtf8(key.toString());
+    }
     switch (type) {
-      case STRING:
+      case STRING_ATTRIBUTE:
         writeStringAttribute(buf, keyUtf8, valueUtf8((String) value));
         break;
-      case BOOLEAN:
+      case BOOLEAN_ATTRIBUTE:
         writeBooleanAttribute(buf, keyUtf8, (boolean) value);
         break;
-      case LONG:
-        writeLongAttribute(buf, keyUtf8, (long) value);
+      case LONG_ATTRIBUTE:
+        writeLongAttribute(buf, keyUtf8, ((Number) value).longValue());
         break;
-      case DOUBLE:
-        writeDoubleAttribute(buf, keyUtf8, (double) value);
+      case DOUBLE_ATTRIBUTE:
+        writeDoubleAttribute(buf, keyUtf8, ((Number) value).doubleValue());
         break;
-      case STRING_ARRAY:
+      case STRING_ARRAY_ATTRIBUTE:
         writeStringArrayAttribute(buf, keyUtf8, (List<String>) value);
         break;
-      case BOOLEAN_ARRAY:
+      case BOOLEAN_ARRAY_ATTRIBUTE:
         writeBooleanArrayAttribute(buf, keyUtf8, (List<Boolean>) value);
         break;
-      case LONG_ARRAY:
-        writeLongArrayAttribute(buf, keyUtf8, (List<Long>) value);
+      case LONG_ARRAY_ATTRIBUTE:
+        writeLongArrayAttribute(buf, keyUtf8, (List<? extends Number>) value);
         break;
-      case DOUBLE_ARRAY:
-        writeDoubleArrayAttribute(buf, keyUtf8, (List<Double>) value);
+      case DOUBLE_ARRAY_ATTRIBUTE:
+        writeDoubleArrayAttribute(buf, keyUtf8, (List<? extends Number>) value);
         break;
       default:
         throw new IllegalArgumentException("Unknown attribute type: " + type);
     }
+  }
+
+  public static void writeAttribute(
+      StreamingBuffer buf, UTF8BytesString key, UTF8BytesString value) {
+    writeStringAttribute(buf, key.getUtf8Bytes(), value.getUtf8Bytes());
+  }
+
+  public static void writeAttribute(StreamingBuffer buf, UTF8BytesString key, String value) {
+    writeStringAttribute(buf, key.getUtf8Bytes(), valueUtf8(value));
+  }
+
+  public static void writeAttribute(StreamingBuffer buf, UTF8BytesString key, long value) {
+    writeLongAttribute(buf, key.getUtf8Bytes(), value);
   }
 
   private static byte[] keyUtf8(String key) {
@@ -301,10 +326,10 @@ public final class OtlpCommonProto {
   }
 
   private static void writeLongArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<Long> values) {
+      StreamingBuffer buf, byte[] keyUtf8, List<? extends Number> values) {
     long[] longValues = new long[values.size()];
     for (int i = 0; i < longValues.length; i++) {
-      longValues[i] = values.get(i); // avoid repeated unboxing later
+      longValues[i] = values.get(i).longValue(); // avoid repeated unboxing later
     }
     int arraySize = 0;
     for (long longValue : longValues) {
@@ -332,7 +357,7 @@ public final class OtlpCommonProto {
   }
 
   private static void writeDoubleArrayAttribute(
-      StreamingBuffer buf, byte[] keyUtf8, List<Double> values) {
+      StreamingBuffer buf, byte[] keyUtf8, List<? extends Number> values) {
     int arraySize = 11 * values.size();
     int valueSize = 1 + sizeVarInt(arraySize) + arraySize;
     int keyValueSize =
@@ -345,11 +370,11 @@ public final class OtlpCommonProto {
     writeVarInt(buf, valueSize);
     writeTag(buf, 5, LEN_WIRE_TYPE);
     writeVarInt(buf, arraySize);
-    for (double value : values) {
+    for (Number value : values) {
       writeTag(buf, 1, LEN_WIRE_TYPE);
       buf.put((byte) 9);
       writeTag(buf, 4, I64_WIRE_TYPE);
-      writeI64(buf, value);
+      writeI64(buf, value.doubleValue());
     }
   }
 }

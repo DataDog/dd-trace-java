@@ -1,39 +1,44 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+import static datadog.trace.api.ProtocolVersion.V1_0
+
 import com.fasterxml.jackson.core.type.TypeReference
 import com.fasterxml.jackson.databind.ObjectMapper
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
-import datadog.metrics.api.Monitoring
-import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.api.statsd.StatsDClient
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.metrics.api.Monitoring
+import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
 import datadog.trace.api.ProcessTags
+import datadog.trace.api.ProtocolVersion
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.common.sampling.RateByServiceTraceSampler
 import datadog.trace.common.writer.ddagent.DDAgentApi
+import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+import datadog.trace.common.writer.ddagent.TraceMapperV1
 import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import org.msgpack.jackson.dataformat.MessagePackFactory
-import spock.lang.Shared
-import spock.lang.Timeout
-
 import java.nio.ByteBuffer
 import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicLong
 import java.util.concurrent.atomic.AtomicReference
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import org.msgpack.jackson.dataformat.MessagePackFactory
+import spock.lang.Shared
+import spock.lang.Timeout
 
 @Timeout(20)
 class DDAgentApiTest extends DDCoreSpecification {
@@ -62,7 +67,7 @@ class DDAgentApiTest extends DDCoreSpecification {
   def "sending an empty list of traces returns no errors"() {
     setup:
     def agent = newAgent(agentVersion)
-    def client = createAgentApi(agent.address.toString())[1]
+    def client = createAgentApi(agent.address.toString(), protocolVersion)[1]
     def payload = prepareTraces(agentVersion, [])
 
     expect:
@@ -76,7 +81,11 @@ class DDAgentApiTest extends DDCoreSpecification {
     agent.close()
 
     where:
-    agentVersion << ["v0.3/traces", "v0.4/traces", "v0.5/traces"]
+    agentVersion   | protocolVersion
+    "v0.3/traces"  | V0_4
+    "v0.4/traces"  | V0_4
+    "v0.5/traces"  | V0_5
+    "v1.0/traces"  | V1_0
   }
 
   def "response body propagated in case of non-200 response"() {
@@ -448,13 +457,17 @@ class DDAgentApiTest extends DDCoreSpecification {
   Payload prepareTraces(String agentVersion, List<List<DDSpan>> traces) {
     Traces traceCapture = new Traces()
     def packer = new MsgPackWriter(new FlushingBuffer(1 << 20, traceCapture))
-    def traceMapper = agentVersion.equals("v0.5/traces")
-      ? new TraceMapperV0_5()
-      : new TraceMapperV0_4()
+
+    TraceMapper traceMapper = [
+      "v1.0/traces": new TraceMapperV1(),
+      "v0.5/traces": new TraceMapperV0_5(),
+    ].get(agentVersion, new TraceMapperV0_4())
+
     for (trace in traces) {
       packer.format(trace, traceMapper)
     }
     packer.flush()
+
     return traceMapper.newPayload()
       .withBody(traceCapture.traceCount,
       traces.isEmpty() ? ByteBuffer.allocate(0) : traceCapture.buffer)
@@ -471,10 +484,10 @@ class DDAgentApiTest extends DDCoreSpecification {
     }
   }
 
-  def createAgentApi(String url) {
+  def createAgentApi(String url, ProtocolVersion protocolVersion = V0_5) {
     HttpUrl agentUrl = HttpUrl.get(url)
     OkHttpClient client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    DDAgentFeaturesDiscovery discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, protocolVersion, true)
     return [discovery, new DDAgentApi(client, agentUrl, discovery, monitoring, false)]
   }
 }

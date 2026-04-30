@@ -2,6 +2,7 @@ package datadog.trace.civisibility;
 
 import datadog.communication.BackendApi;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
 import datadog.trace.api.civisibility.telemetry.tag.Provider;
 import datadog.trace.api.git.CommitInfo;
@@ -19,6 +20,7 @@ import datadog.trace.civisibility.config.ConfigurationApiImpl;
 import datadog.trace.civisibility.config.ExecutionSettings;
 import datadog.trace.civisibility.config.ExecutionSettingsFactory;
 import datadog.trace.civisibility.config.ExecutionSettingsFactoryImpl;
+import datadog.trace.civisibility.config.FileBasedConfigurationApi;
 import datadog.trace.civisibility.config.JvmInfo;
 import datadog.trace.civisibility.config.MultiModuleExecutionSettingsFactory;
 import datadog.trace.civisibility.git.tree.GitClient;
@@ -81,15 +83,22 @@ public class CiVisibilityRepoServices {
 
     ciTags = new CITagsProvider().getCiTags(ciInfo, pullRequestInfo);
 
-    gitDataUploader =
-        buildGitDataUploader(
-            services.config,
-            services.metricCollector,
-            services.gitInfoProvider,
-            gitClient,
-            gitRepoUnshallow,
-            services.backendApi,
-            repoRoot);
+    if (BazelMode.get().isEnabled()) {
+      // bazel rule takes care of the git data upload
+      LOGGER.info("[bazel mode] Skipping git data upload");
+      gitDataUploader = () -> CompletableFuture.completedFuture(null);
+    } else {
+      gitDataUploader =
+          buildGitDataUploader(
+              services.config,
+              services.metricCollector,
+              services.gitInfoProvider,
+              gitClient,
+              gitRepoUnshallow,
+              services.backendApi,
+              repoRoot);
+    }
+
     repoIndexProvider = services.repoIndexProviderFactory.create(repoRoot);
     codeowners = buildCodeowners(repoRoot);
     sourcePathResolver = buildSourcePathResolver(repoRoot, repoIndexProvider);
@@ -242,7 +251,17 @@ public class CiVisibilityRepoServices {
       PullRequestInfo pullRequestInfo,
       @Nullable String repoRoot) {
     ConfigurationApi configurationApi;
-    if (backendApi == null) {
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isManifestModeEnabled()) {
+      LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
+      configurationApi =
+          new FileBasedConfigurationApi(
+              bazelMode.getSettingsPath(),
+              null,
+              bazelMode.getFlakyTestsPath(),
+              bazelMode.getKnownTestsPath(),
+              bazelMode.getTestManagementPath());
+    } else if (backendApi == null) {
       LOGGER.warn(
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
       configurationApi = ConfigurationApi.NO_OP;

@@ -47,7 +47,6 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
-  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
@@ -88,7 +87,8 @@ public final class ConfigDefaults {
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V0_4.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
@@ -101,6 +101,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
+  public static final boolean DEFAULT_LOGS_OTEL_ENABLED = false;
+  static final int DEFAULT_OTLP_LOGS_TIMEOUT = 10_000; // ms
+
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
   static final int DEFAULT_METRICS_OTEL_INTERVAL = 10_000; // ms
@@ -110,6 +113,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
+  static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
   static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
   static final String DEFAULT_OTLP_HTTP_PORT = "4318";

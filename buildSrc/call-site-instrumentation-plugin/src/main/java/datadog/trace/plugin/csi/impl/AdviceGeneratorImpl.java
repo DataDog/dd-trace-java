@@ -266,7 +266,6 @@ public class AdviceGeneratorImpl implements AdviceGenerator {
       final List<Expression> parameterIndicesValues =
           advice
               .getArguments()
-              .sorted()
               .map(argSpec -> intLiteral(argSpec.getIndex()))
               .collect(Collectors.toList());
       final VariableDeclarator parameterIndices =

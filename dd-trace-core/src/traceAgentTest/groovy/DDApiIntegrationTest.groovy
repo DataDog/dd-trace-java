@@ -1,11 +1,16 @@
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+import static datadog.trace.api.ProtocolVersion.V1_0
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
 import datadog.communication.http.OkHttpUtils
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
-import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.Config
+import datadog.trace.api.ProtocolVersion
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.common.writer.Payload
 import datadog.trace.common.writer.RemoteApi
@@ -14,15 +19,15 @@ import datadog.trace.common.writer.ddagent.DDAgentApi
 import datadog.trace.common.writer.ddagent.TraceMapper
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
+import datadog.trace.common.writer.ddagent.TraceMapperV1
 import datadog.trace.core.CoreTracer
 import datadog.trace.core.DDSpan
-import okhttp3.HttpUrl
-import okhttp3.OkHttpClient
-import spock.lang.Shared
-
 import java.nio.ByteBuffer
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference
+import okhttp3.HttpUrl
+import okhttp3.OkHttpClient
+import spock.lang.Shared
 
 class DDApiIntegrationTest extends AbstractTraceAgentTest {
   def tracer
@@ -42,7 +47,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
   def api
   def unixDomainSocketApi
   TraceMapper mapper
-  String version
+  String traceEndpoint
 
   def endpoint = new AtomicReference<String>(null)
   def agentResponse = new AtomicReference<Map<String, Map<String, Number>>>(null)
@@ -75,25 +80,28 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     process?.destroy()
   }
 
-  def beforeTest(boolean enableV05) {
+  def beforeTest(ProtocolVersion protocol) {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS)
     HttpUrl agentUrl = HttpUrl.get(Config.get().getAgentUrl())
     OkHttpClient httpClient = OkHttpUtils.buildHttpClient(agentUrl, 5000)
-    discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, enableV05, true)
+    discovery = new DDAgentFeaturesDiscovery(httpClient, monitoring, agentUrl, protocol, true)
     api = new DDAgentApi(httpClient, agentUrl, discovery, monitoring, false)
     api.addResponseListener(responseListener)
     HttpUrl udsAgentUrl = HttpUrl.get(String.format("http://%s:%d", SOMEHOST, SOMEPORT))
     OkHttpClient udsClient = OkHttpUtils.buildHttpClient(true, socketPath.toString(), null, 5000)
-    udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, enableV05, true)
+    udsDiscovery = new DDAgentFeaturesDiscovery(udsClient, monitoring, agentUrl, protocol, true)
     unixDomainSocketApi = new DDAgentApi(udsClient, udsAgentUrl, udsDiscovery, monitoring, false)
     unixDomainSocketApi.addResponseListener(responseListener)
-    mapper = enableV05 ? new TraceMapperV0_5() : new TraceMapperV0_4()
-    version = enableV05 ? "v0.5" : "v0.4"
+    mapper = [
+      (V1_0): new TraceMapperV1(),
+      (V0_5): new TraceMapperV0_5(),
+    ].get(protocol, new TraceMapperV0_4())
+    traceEndpoint = protocol.endpoint()
   }
 
   def "Sending empty traces succeeds (test #test)"() {
     setup:
-    beforeTest(enableV05)
+    beforeTest(protocol)
     expect:
     RemoteApi.Response response = api.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
@@ -101,23 +109,23 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assert response.status().present
     assert 200 == response.status().asInt
     assert response.success()
-    assert discovery.getTraceEndpoint() == "${version}/traces"
-    assert endpoint.get() == "${Config.get().getAgentUrl()}/${version}/traces"
+    assert discovery.getTraceEndpoint() == traceEndpoint
+    assert endpoint.get() == "${Config.get().getAgentUrl()}/${traceEndpoint}"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
     // spotless:off
-    traces                 | test | enableV05
-    []                     | 1    | true
-    (1..16).collect { [] } | 4    | true
-    []                     | 5    | false
-    (1..16).collect { [] } | 8    | false
+    traces                 | test | protocol
+    []                     | 1    | V0_5
+    (1..16).collect { [] } | 4    | V0_5
+    []                     | 5    | V0_4
+    (1..16).collect { [] } | 8    | V0_4
     // spotless:on
   }
 
   def "Sending traces succeeds"() {
     setup:
-    beforeTest(enableV05)
+    beforeTest(protocol)
     expect:
     RemoteApi.Response response = api.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
@@ -125,17 +133,17 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assert response.status().present
     assert 200 == response.status().asInt
     assert response.success()
-    assert discovery.getTraceEndpoint() == "${version}/traces"
-    assert endpoint.get() == "${Config.get().getAgentUrl()}/${version}/traces"
+    assert discovery.getTraceEndpoint() == traceEndpoint
+    assert endpoint.get() == "${Config.get().getAgentUrl()}/${traceEndpoint}"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
-    enableV05 << [true, false]
+    protocol << [V0_5, V0_4]
   }
 
   def "Sending empty traces to unix domain socket succeeds (test #test)"() {
     setup:
-    beforeTest(enableV05)
+    beforeTest(protocol)
     expect:
     RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest(traces, mapper))
     assert !response.response().isEmpty()
@@ -143,21 +151,21 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assert response.status().present
     assert 200 == response.status().asInt
     assert response.success()
-    assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
+    assert udsDiscovery.getTraceEndpoint() == traceEndpoint
+    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${traceEndpoint}"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
     // spotless:off
-    traces | test | enableV05
-    []     | 1    | true
-    []     | 3    | false
+    traces | test | protocol
+    []     | 1    | V0_5
+    []     | 3    | V0_4
     // spotless:on
   }
 
-  def "Sending traces to unix domain socket succeeds (enableV05 #enableV05)"() {
+  def "Sending traces to unix domain socket succeeds (protocol #protocol)"() {
     setup:
-    beforeTest(enableV05)
+    beforeTest(protocol)
     expect:
     RemoteApi.Response response = unixDomainSocketApi.sendSerializedTraces(prepareRequest([[span]], mapper))
     assert !response.response().isEmpty()
@@ -165,12 +173,12 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
     assert response.status().present
     assert 200 == response.status().asInt
     assert response.success()
-    assert udsDiscovery.getTraceEndpoint() == "${version}/traces"
-    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${version}/traces"
+    assert udsDiscovery.getTraceEndpoint() == traceEndpoint
+    assert endpoint.get() == "http://${SOMEHOST}:${SOMEPORT}/${traceEndpoint}"
     assert agentResponse.get()["rate_by_service"] instanceof Map
 
     where:
-    enableV05 << [true, false]
+    protocol << [V0_5, V0_4]
   }
 
 

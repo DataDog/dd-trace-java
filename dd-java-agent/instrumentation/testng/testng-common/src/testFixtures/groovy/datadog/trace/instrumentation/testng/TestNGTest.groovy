@@ -134,6 +134,8 @@ abstract class TestNGTest extends CiVisibilityInstrumentationTest {
     "test-efd-new-very-slow-test"       | true    | [TestSucceedVerySlow]  | [] // is executed only once
     "test-efd-faulty-session-threshold" | false   | [TestFailedAndSucceed] | []
     "test-efd-skip-new-test"            | true    | [TestSucceedSkipEfd]   | []
+    "test-efd-new-flaky-test-pass-fail" | false   | [TestSucceedAndThenFail] | []
+    "test-efd-new-flaky-test-fail-pass" | false   | [TestFailAndThenSucceed] | []
   }
 
   def "test impacted tests detection #testcaseName"() {

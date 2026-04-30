@@ -1,18 +1,20 @@
+import static datadog.trace.api.ProcessTags.tagsForSerialization
+import static datadog.trace.api.TagMap.fromMap
+import static datadog.trace.api.sampling.PrioritySampling.UNSET
+import static java.lang.Thread.currentThread
+import static java.util.Collections.emptyList
+
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
-import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
-
-import static datadog.trace.api.sampling.PrioritySampling.UNSET
 
 class TraceGenerator {
 
@@ -156,9 +158,9 @@ class TraceGenerator {
       this.error = error
       this.type = type
       this.measured = measured
-      this.metadata = new Metadata(Thread.currentThread().getId(),
-        UTF8BytesString.create(Thread.currentThread().getName()), TagMap.fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0,
-        ProcessTags.tagsForSerialization)
+      this.metadata = new Metadata(currentThread().getId(),
+        UTF8BytesString.create(currentThread().getName()), fromMap(tags), baggage, UNSET, measured, topLevel, null, null, 0,
+        tagsForSerialization, emptyList())
     }
 
     @Override
@@ -314,6 +316,11 @@ class TraceGenerator {
 
     @Override
     void processTagsAndBaggage(MetadataConsumer consumer) {
+      consumer.accept(metadata)
+    }
+
+    @Override
+    void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
       consumer.accept(metadata)
     }
 

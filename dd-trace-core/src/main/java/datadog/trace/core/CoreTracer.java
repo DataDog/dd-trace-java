@@ -40,6 +40,7 @@ import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.TraceConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring;
 import datadog.trace.api.datastreams.PathwayContext;
 import datadog.trace.api.experimental.DataStreamsCheckpointer;
@@ -105,6 +106,7 @@ import datadog.trace.core.servicediscovery.ServiceDiscoveryFactory;
 import datadog.trace.core.taginterceptor.RuleFlags;
 import datadog.trace.core.taginterceptor.TagInterceptor;
 import datadog.trace.core.traceinterceptor.LatencyTraceInterceptor;
+import datadog.trace.lambda.LambdaAppSecHandler;
 import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -209,6 +211,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private final TimeSource timeSource;
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
+  private final boolean injectLinksAsTags;
   private final boolean flushOnClose;
   private final Collection<Runnable> shutdownListeners = new CopyOnWriteArrayList<>();
 
@@ -326,6 +329,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     private boolean reportInTracerFlare;
     private boolean pollForTracingConfiguration;
     private boolean injectBaggageAsTags;
+    private boolean injectLinksAsTags;
     private boolean flushOnClose;
 
     public CoreTracerBuilder serviceName(String serviceName) {
@@ -471,6 +475,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       return this;
     }
 
+    public CoreTracerBuilder injectLinksAsTags(boolean injectLinksAsTags) {
+      this.injectLinksAsTags = injectLinksAsTags;
+      return this;
+    }
+
     public CoreTracerBuilder flushOnClose(boolean flushOnClose) {
       this.flushOnClose = flushOnClose;
       return this;
@@ -506,6 +515,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       partialFlushMinSpans(config.getPartialFlushMinSpans());
       strictTraceWrites(config.isTraceStrictWritesEnabled());
       injectBaggageAsTags(config.isInjectBaggageAsTagsEnabled());
+      injectLinksAsTags(config.isInjectLinksAsTagsEnabled());
       flushOnClose(config.isCiVisibilityEnabled());
       return this;
     }
@@ -538,6 +548,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           reportInTracerFlare,
           pollForTracingConfiguration,
           injectBaggageAsTags,
+          injectLinksAsTags,
           flushOnClose);
     }
   }
@@ -569,6 +580,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
       final boolean flushOnClose) {
     this(
         config,
@@ -597,6 +609,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         reportInTracerFlare,
         pollForTracingConfiguration,
         injectBaggageAsTags,
+        injectLinksAsTags,
         flushOnClose);
   }
 
@@ -628,6 +641,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       final boolean reportInTracerFlare,
       final boolean pollForTracingConfiguration,
       final boolean injectBaggageAsTags,
+      final boolean injectLinksAsTags,
       final boolean flushOnClose) {
 
     assert localRootSpanTags != null;
@@ -763,7 +777,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     }
 
     if (config.isCiVisibilityEnabled()
-        && (config.isCiVisibilityAgentlessEnabled() || featuresDiscovery.supportsEvpProxy())) {
+        && (config.isCiVisibilityAgentlessEnabled()
+            || featuresDiscovery.supportsEvpProxy()
+            || BazelMode.get().isPayloadFilesEnabled())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
@@ -822,7 +838,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE);
       }
 
-      if (config.isCiVisibilityAgentlessEnabled()) {
+      if (config.isCiVisibilityAgentlessEnabled() || BazelMode.get().isPayloadFilesEnabled()) {
         addTraceInterceptor(DDIntakeTraceInterceptor.INSTANCE);
       } else {
         featuresDiscovery.discoverIfOutdated();
@@ -864,6 +880,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
+    this.injectLinksAsTags = injectLinksAsTags;
     this.flushOnClose = flushOnClose;
     this.allowInferredServices = SpanNaming.instance().namingSchema().allowInferredServices();
     if (profilingContextIntegration != ProfilingContextIntegration.NoOp.INSTANCE) {
@@ -1195,14 +1212,26 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   }
 
   @Override
-  public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
-    return LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+  public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
+    // Get context from AppSec
+    AgentSpanContext appSecContext = LambdaAppSecHandler.processRequestStart(event);
+
+    // Get context from extension
+    AgentSpanContext extensionContext = LambdaHandler.notifyStartInvocation(event, lambdaRequestId);
+
+    // Merge contexts
+    return LambdaAppSecHandler.mergeContexts(extensionContext, appSecContext);
   }
 
   @Override
   public void notifyExtensionEnd(
       AgentSpan span, Object result, boolean isError, String lambdaRequestId) {
     LambdaHandler.notifyEndInvocation(span, result, isError, lambdaRequestId);
+  }
+
+  @Override
+  public void notifyAppSecEnd(AgentSpan span) {
+    LambdaAppSecHandler.processRequestEnd(span);
   }
 
   @Override
@@ -2119,7 +2148,8 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
               tracer.disableSamplingMechanismValidation,
               propagationTags,
               tracer.profilingContextIntegration,
-              tracer.injectBaggageAsTags);
+              tracer.injectBaggageAsTags,
+              tracer.injectLinksAsTags);
 
       // By setting the tags on the context we apply decorators to any tags that have been set via
       // the builder. This is the order that the tags were added previously, but maybe the `tags`
