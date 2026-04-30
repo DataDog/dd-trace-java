@@ -13,10 +13,10 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 /**
- * Generic instrumenter module that will advice the constructor of each known class in order to
- * open once their module. This is marked for bootstrap even if it's not for sure, but we cannot
- * know in advance (depends to the instrumented types and today we are instrumenting InetAddress
- * that's in the bootstrap).
+ * Generic instrumenter module that will advice the constructor of each known class in order to open
+ * once their module. This is marked for bootstrap even if it's not for sure, but we cannot know in
+ * advance (depends to the instrumented types and today we are instrumenting InetAddress that's in
+ * the bootstrap).
  */
 @AutoService(InstrumenterModule.class)
 public class JpmsClearanceInstrumentation extends InstrumenterModule
