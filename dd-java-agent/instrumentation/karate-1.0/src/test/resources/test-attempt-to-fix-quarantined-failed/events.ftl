@@ -60,7 +60,7 @@
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate-1.0",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.suite" : "[org/example/test_failed] test failed",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -138,8 +138,7 @@
       "library_version" : ${content_meta_library_version},
       "runtime-id" : ${content_meta_runtime_id},
       "span.kind" : "test",
-      "test.failure_suppressed" : "true",
-      "test.final_status" : "pass",
+      "test.final_status" : "fail",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate-1.0",
@@ -189,7 +188,7 @@
       "test.command" : "karate-1.0",
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
@@ -222,7 +221,7 @@
       "test.framework" : "karate",
       "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "karate-1.0",
-      "test.status" : "pass",
+      "test.status" : "fail",
       "test.test_management.enabled" : "true",
       "test.type" : "test",
       "test_session.name" : "session-name"
