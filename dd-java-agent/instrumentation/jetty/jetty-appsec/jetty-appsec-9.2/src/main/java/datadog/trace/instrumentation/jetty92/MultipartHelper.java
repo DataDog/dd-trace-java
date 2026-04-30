@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.jetty94;
+package datadog.trace.instrumentation.jetty92;
 
 import static datadog.trace.api.gateway.Events.EVENTS;
 
@@ -22,7 +22,7 @@ public class MultipartHelper {
 
   /**
    * Extracts non-null, non-empty filenames from a collection of multipart {@link Part}s using
-   * {@link Part#getSubmittedFileName()} (Servlet 3.1+, Jetty 9.4.x–10.x).
+   * {@link Part#getSubmittedFileName()} (Servlet 3.1+, Jetty 9.2.x).
    *
    * @return list of filenames; never {@code null}, may be empty
    */
