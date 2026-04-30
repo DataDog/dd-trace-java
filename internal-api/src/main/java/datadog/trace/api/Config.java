@@ -701,6 +701,7 @@ import static datadog.trace.api.config.TracerConfig.WRITER_BAGGAGE_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_LINKS_INJECT;
 import static datadog.trace.api.config.TracerConfig.WRITER_TYPE;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableList;
 import static datadog.trace.util.CollectionUtils.tryMakeImmutableSet;
 import static datadog.trace.util.ConfigStrings.propertyNameToEnvironmentVariableName;
@@ -1460,8 +1461,12 @@ public class Config {
 
     integrationSynapseLegacyOperationName =
         configProvider.getBoolean(INTEGRATION_SYNAPSE_LEGACY_OPERATION_NAME, false);
-    writerType = configProvider.getString(WRITER_TYPE, DEFAULT_AGENT_WRITER_TYPE);
-    boolean isDatadogTraceWriter = !isTraceOtlpExporterEnabled();
+    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
+    boolean otlpTracesExporter = isTraceOtlpExporterEnabled();
+    writerType =
+        configProvider.getString(
+            WRITER_TYPE, otlpTracesExporter ? OTLP_WRITER_TYPE : DEFAULT_AGENT_WRITER_TYPE);
+    boolean isDatadogTraceWriter = !otlpTracesExporter;
     injectBaggageAsTagsEnabled =
         configProvider.getBoolean(WRITER_BAGGAGE_INJECT, isDatadogTraceWriter);
     injectLinksAsTagsEnabled = configProvider.getBoolean(WRITER_LINKS_INJECT, isDatadogTraceWriter);
@@ -2044,8 +2049,6 @@ public class Config {
             OTLP_METRICS_TEMPORALITY_PREFERENCE,
             OtlpConfig.Temporality.class,
             OtlpConfig.Temporality.DELTA);
-
-    traceOtelExporter = configProvider.getString(TRACE_OTEL_EXPORTER);
 
     otlpTimeout = configProvider.getInteger(OTLP_TRACES_TIMEOUT, DEFAULT_OTLP_TRACES_TIMEOUT);
     if (otlpTimeout < 0) {
