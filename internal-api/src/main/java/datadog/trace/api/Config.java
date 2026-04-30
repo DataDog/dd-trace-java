@@ -384,6 +384,7 @@ import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
+import static datadog.trace.api.config.GeneralConfig.PROCESS_TAGS_MAPPING;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_RUNTIME_ID_ENABLED;
@@ -874,6 +875,7 @@ public class Config {
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
   private final boolean experimentalPropagateProcessTagsEnabled;
+  private final Map<String, String> processTagsMapping;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -1678,6 +1680,7 @@ public class Config {
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
         configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, true);
+    processTagsMapping = configProvider.getMergedMap(PROCESS_TAGS_MAPPING);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -3275,6 +3278,10 @@ public class Config {
 
   public boolean isExperimentalPropagateProcessTagsEnabled() {
     return experimentalPropagateProcessTagsEnabled;
+  }
+
+  public Map<String, String> getProcessTagsMapping() {
+    return processTagsMapping;
   }
 
   public boolean isTraceEnabled() {
@@ -6488,6 +6495,8 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
+        + ", processTagsMapping="
+        + processTagsMapping
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + ", aiGuardEnabled="
