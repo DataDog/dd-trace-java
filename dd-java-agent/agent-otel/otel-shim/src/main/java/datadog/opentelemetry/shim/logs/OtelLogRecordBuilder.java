@@ -1,7 +1,6 @@
 package datadog.opentelemetry.shim.logs;
 
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
-import static datadog.trace.bootstrap.otlp.logs.OtlpLogRecord.STRING_BODY;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
 import datadog.trace.api.time.SystemTimeSource;
@@ -17,6 +16,7 @@ import java.time.Instant;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.concurrent.TimeUnit;
 import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
@@ -35,11 +35,10 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   private long observedNanos;
   private Severity severity = Severity.UNDEFINED_SEVERITY_NUMBER;
   @Nullable private String severityText;
-  private int bodyType;
-  @Nullable private Object bodyValue;
-  @Nullable private String eventName;
+  @Nullable private String body;
   @Nullable private Map<AttributeKey<?>, Object> attributes;
   @Nullable private Context context;
+  @Nullable private String eventName;
 
   private boolean attributesEmitted;
 
@@ -73,7 +72,7 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public LogRecordBuilder setSeverity(Severity severity) {
-    this.severity = severity;
+    this.severity = Objects.requireNonNull(severity);
     return this;
   }
 
@@ -84,16 +83,14 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   }
 
   @Override
-  public LogRecordBuilder setBody(String value) {
-    this.bodyType = STRING_BODY;
-    this.bodyValue = value;
+  public LogRecordBuilder setBody(String body) {
+    this.body = body;
     return this;
   }
 
   @Override
   public LogRecordBuilder setBody(Value<?> body) {
-    this.bodyType = body.getType().ordinal();
-    this.bodyValue = body.getValue();
+    this.body = body.asString();
     return this;
   }
 
@@ -146,7 +143,9 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public void emit() {
-    attributesEmitted = true;
+    if (body == null || body.isEmpty()) {
+      return; // drop log records without a body
+    }
     Context context = this.context != null ? this.context : Context.current();
     if (logger.isEnabled(severity, context)) {
       OtelLogRecordProcessor.INSTANCE.addLog(
@@ -156,11 +155,12 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
               observedNanos != 0 ? observedNanos : TIME_SOURCE.getCurrentTimeNanos(),
               severity.getSeverityNumber(),
               severityText,
-              bodyType,
-              bodyValue,
-              eventName,
+              body,
               attributes != null ? attributes : Collections.emptyMap(),
-              extract(context)));
+              extract(context),
+              eventName));
+
+      attributesEmitted = true;
     }
   }
 }

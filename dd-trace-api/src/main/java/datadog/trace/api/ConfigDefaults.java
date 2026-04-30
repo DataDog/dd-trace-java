@@ -102,7 +102,10 @@ public final class ConfigDefaults {
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
   public static final boolean DEFAULT_LOGS_OTEL_ENABLED = false;
-  static final int DEFAULT_OTLP_LOGS_TIMEOUT = 10_000; // ms
+  static final int DEFAULT_LOGS_OTEL_INTERVAL = 1_000; // ms
+  static final int DEFAULT_LOGS_OTEL_TIMEOUT = 30_000; // ms
+  static final int DEFAULT_LOGS_OTEL_QUEUE_SIZE = 2048;
+  static final int DEFAULT_LOGS_OTEL_BATCH_SIZE = 512;
 
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
