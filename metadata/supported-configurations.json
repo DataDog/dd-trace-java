@@ -2515,7 +2515,7 @@
     ],
     "DD_PROFILING_ALLOCATION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
@@ -2963,7 +2963,7 @@
     ],
     "DD_PROFILING_DIRECTALLOCATION_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_PROFILING_DIRECT_MEMORY_ENABLED"]
@@ -3115,7 +3115,7 @@
     ],
     "DD_PROFILING_HEAP_ENABLED": [
       {
-        "version": "A",
+        "version": "C",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3155,7 +3155,7 @@
     ],
     "DD_PROFILING_IO_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3187,7 +3187,7 @@
     ],
     "DD_PROFILING_LOCK_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3323,7 +3323,7 @@
     ],
     "DD_PROFILING_THREAD_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
@@ -3387,7 +3387,7 @@
     ],
     "DD_PROFILING_WALLTIME_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
         "default": "true",
         "aliases": []
