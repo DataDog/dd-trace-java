@@ -1,9 +1,9 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
@@ -257,19 +257,19 @@ class OtlpMetricsProtoTest {
   }
 
   private static AttrSpec strAttr(String key, String value) {
-    return new AttrSpec(STRING, key, value);
+    return new AttrSpec(STRING_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec longAttr(String key, long value) {
-    return new AttrSpec(LONG, key, value);
+    return new AttrSpec(LONG_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec boolAttr(String key, boolean value) {
-    return new AttrSpec(BOOLEAN, key, value);
+    return new AttrSpec(BOOLEAN_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec dblAttr(String key, double value) {
-    return new AttrSpec(DOUBLE, key, value);
+    return new AttrSpec(DOUBLE_ATTRIBUTE, key, value);
   }
 
   // ── test cases ─────────────────────────────────────────────────────────────

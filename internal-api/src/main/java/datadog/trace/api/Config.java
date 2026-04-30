@@ -12,6 +12,8 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_ENDPOINT_COL
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_MAX_DOWNSTREAM_REQUEST_BODY_ANALYSIS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_API_SECURITY_SAMPLE_DELAY;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACES;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_APPSEC_REPORTING_INBAND;
@@ -115,9 +117,11 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_LOGS_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -215,6 +219,8 @@ import static datadog.trace.api.config.AppSecConfig.APPSEC_BODY_PARSING_SIZE_LIM
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_HTML;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_HTTP_BLOCKED_TEMPLATE_JSON;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_IP_ADDR_HEADER;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_FILE_CONTENT_BYTES;
+import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_FILE_CONTENT_COUNT;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACES_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED;
 import static datadog.trace.api.config.AppSecConfig.APPSEC_MAX_STACK_TRACES;
@@ -378,6 +384,7 @@ import static datadog.trace.api.config.GeneralConfig.JDK_SOCKET_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.PERF_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.PRIMARY_TAG;
+import static datadog.trace.api.config.GeneralConfig.PROCESS_TAGS_MAPPING;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_ID_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_RUNTIME_ID_ENABLED;
@@ -449,10 +456,16 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_COMPRESSION;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_ENDPOINT;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_HEADERS;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_PROTOCOL;
+import static datadog.trace.api.config.OtlpConfig.OTLP_LOGS_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_COMPRESSION;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_ENDPOINT;
 import static datadog.trace.api.config.OtlpConfig.OTLP_METRICS_HEADERS;
@@ -863,6 +876,7 @@ public class Config {
   private final Map<String, String> peerServiceComponentOverrides;
   private final boolean removeIntegrationServiceNamesEnabled;
   private final boolean experimentalPropagateProcessTagsEnabled;
+  private final Map<String, String> processTagsMapping;
   private final Map<String, String> peerServiceMapping;
   private final Map<String, String> serviceMapping;
   private final Map<String, String> tags;
@@ -932,6 +946,13 @@ public class Config {
   private final Integer jmxFetchStatsdPort;
   private final boolean jmxFetchMultipleRuntimeServicesEnabled;
   private final int jmxFetchMultipleRuntimeServicesLimit;
+
+  private final String logsOtelExporter;
+  private final String otlpLogsEndpoint;
+  private final Map<String, String> otlpLogsHeaders;
+  private final OtlpConfig.Protocol otlpLogsProtocol;
+  private final OtlpConfig.Compression otlpLogsCompression;
+  private final int otlpLogsTimeout;
 
   private final String metricsOtelExporter;
   private final int metricsOtelInterval;
@@ -1031,6 +1052,8 @@ public class Config {
   private final int appSecMaxStackTraces;
   private final int appSecMaxStackTraceDepth;
   private final int appSecBodyParsingSizeLimit;
+  private final int appSecMaxFileContentBytes;
+  private final int appSecMaxFileContentCount;
   private final boolean apiSecurityEnabled;
   private final float apiSecuritySampleDelay;
   private final int apiSecurityEndpointCollectionMessageLimit;
@@ -1662,6 +1685,7 @@ public class Config {
         configProvider.getBoolean(TRACE_REMOVE_INTEGRATION_SERVICE_NAMES_ENABLED, false);
     experimentalPropagateProcessTagsEnabled =
         configProvider.getBoolean(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, true);
+    processTagsMapping = configProvider.getMergedMap(PROCESS_TAGS_MAPPING);
 
     peerServiceMapping = configProvider.getMergedMap(TRACE_PEER_SERVICE_MAPPING);
 
@@ -1925,6 +1949,40 @@ public class Config {
     statsDClientSocketBuffer = configProvider.getInteger(STATSD_CLIENT_SOCKET_BUFFER);
     statsDClientSocketTimeout = configProvider.getInteger(STATSD_CLIENT_SOCKET_TIMEOUT);
 
+    logsOtelExporter = configProvider.getString(LOGS_OTEL_EXPORTER);
+
+    // keep OTLP default timeout below the overall export timeout
+    int otlpTimeout = configProvider.getInteger(OTLP_LOGS_TIMEOUT, DEFAULT_OTLP_LOGS_TIMEOUT);
+    if (otlpTimeout < 0) {
+      log.warn("Invalid OTLP logs timeout: {}. The value must be positive", otlpTimeout);
+      otlpTimeout = DEFAULT_OTLP_LOGS_TIMEOUT;
+    }
+    otlpLogsTimeout = otlpTimeout;
+
+    otlpLogsHeaders = configProvider.getMergedMap(OTLP_LOGS_HEADERS, '=');
+    otlpLogsProtocol =
+        configProvider.getEnum(
+            OTLP_LOGS_PROTOCOL, OtlpConfig.Protocol.class, OtlpConfig.Protocol.HTTP_PROTOBUF);
+    otlpLogsCompression =
+        configProvider.getEnum(
+            OTLP_LOGS_COMPRESSION, OtlpConfig.Compression.class, OtlpConfig.Compression.NONE);
+
+    String otlpLogsEndpointFromEnvironment = configProvider.getString(OTLP_LOGS_ENDPOINT);
+    if (otlpLogsEndpointFromEnvironment == null) {
+      if (otlpLogsProtocol == OtlpConfig.Protocol.GRPC) {
+        otlpLogsEndpointFromEnvironment = "http://" + agentHost + ':' + DEFAULT_OTLP_GRPC_PORT;
+      } else {
+        otlpLogsEndpointFromEnvironment =
+            "http://"
+                + agentHost
+                + ':'
+                + DEFAULT_OTLP_HTTP_PORT
+                + '/'
+                + DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
+      }
+    }
+    otlpLogsEndpoint = otlpLogsEndpointFromEnvironment;
+
     metricsOtelExporter = configProvider.getString(METRICS_OTEL_EXPORTER);
 
     int cardinalityLimit =
@@ -1955,7 +2013,7 @@ public class Config {
 
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
-    int otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
+    otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP metrics timeout: {}. The value must be positive", otlpTimeout);
       otlpTimeout = defaultOtlpMetricsTimeout;
@@ -2336,6 +2394,12 @@ public class Config {
     appSecBodyParsingSizeLimit =
         configProvider.getInteger(
             APPSEC_BODY_PARSING_SIZE_LIMIT, DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT);
+    appSecMaxFileContentBytes =
+        configProvider.getInteger(
+            APPSEC_MAX_FILE_CONTENT_BYTES, DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES);
+    appSecMaxFileContentCount =
+        configProvider.getInteger(
+            APPSEC_MAX_FILE_CONTENT_COUNT, DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT);
     apiSecurityEnabled =
         configProvider.getBoolean(
             API_SECURITY_ENABLED, DEFAULT_API_SECURITY_ENABLED, API_SECURITY_ENABLED_EXPERIMENTAL);
@@ -3217,6 +3281,10 @@ public class Config {
 
   public boolean isExperimentalPropagateProcessTagsEnabled() {
     return experimentalPropagateProcessTagsEnabled;
+  }
+
+  public Map<String, String> getProcessTagsMapping() {
+    return processTagsMapping;
   }
 
   public boolean isTraceEnabled() {
@@ -5310,6 +5378,34 @@ public class Config {
     return configProvider.isEnabled(integrationNames, "jmxfetch.", ".enabled", defaultEnabled);
   }
 
+  public boolean isLogsOtelEnabled() {
+    return instrumenterConfig.isLogsOtelEnabled();
+  }
+
+  public boolean isLogsOtlpExporterEnabled() {
+    return "otlp".equalsIgnoreCase(logsOtelExporter);
+  }
+
+  public String getOtlpLogsEndpoint() {
+    return otlpLogsEndpoint;
+  }
+
+  public Map<String, String> getOtlpLogsHeaders() {
+    return otlpLogsHeaders;
+  }
+
+  public OtlpConfig.Protocol getOtlpLogsProtocol() {
+    return otlpLogsProtocol;
+  }
+
+  public OtlpConfig.Compression getOtlpLogsCompression() {
+    return otlpLogsCompression;
+  }
+
+  public int getOtlpLogsTimeout() {
+    return otlpLogsTimeout;
+  }
+
   public boolean isMetricsOtelEnabled() {
     return instrumenterConfig.isMetricsOtelEnabled();
   }
@@ -5619,6 +5715,14 @@ public class Config {
 
   public int getAppSecBodyParsingSizeLimit() {
     return appSecBodyParsingSizeLimit;
+  }
+
+  public int getAppSecMaxFileContentBytes() {
+    return appSecMaxFileContentBytes;
+  }
+
+  public int getAppSecMaxFileContentCount() {
+    return appSecMaxFileContentCount;
   }
 
   public boolean isCloudPayloadTaggingEnabledFor(String serviceName) {
@@ -6394,12 +6498,26 @@ public class Config {
         + cloudResponsePayloadTagging
         + ", experimentalPropagateProcessTagsEnabled="
         + experimentalPropagateProcessTagsEnabled
+        + ", processTagsMapping="
+        + processTagsMapping
         + ", rumInjectorConfig="
         + (rumInjectorConfig == null ? "null" : rumInjectorConfig.jsonPayload())
         + ", aiGuardEnabled="
         + aiGuardEnabled
         + ", aiGuardEndpoint="
         + aiGuardEndpoint
+        + ", logsOtelExporter="
+        + logsOtelExporter
+        + ", otlpLogsEndpoint="
+        + otlpLogsEndpoint
+        + ", otlpLogsHeaders="
+        + otlpLogsHeaders
+        + ", otlpLogsProtocol="
+        + otlpLogsProtocol
+        + ", otlpLogsCompression="
+        + otlpLogsCompression
+        + ", otlpLogsTimeout="
+        + otlpLogsTimeout
         + ", metricsOtelExporter="
         + metricsOtelExporter
         + ", metricsOtelInterval="
