@@ -8,10 +8,10 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
@@ -181,7 +181,7 @@ public final class OtlpTraceProto {
         .forEach(
             (key, value) -> {
               writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING, key, value);
+              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
             });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
@@ -205,18 +205,18 @@ public final class OtlpTraceProto {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
     }
   }
 

@@ -101,6 +101,9 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
+  public static final boolean DEFAULT_LOGS_OTEL_ENABLED = false;
+  static final int DEFAULT_OTLP_LOGS_TIMEOUT = 10_000; // ms
+
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
   static final int DEFAULT_METRICS_OTEL_INTERVAL = 10_000; // ms
@@ -110,6 +113,7 @@ public final class ConfigDefaults {
 
   static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
+  static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
   static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
   static final String DEFAULT_OTLP_HTTP_PORT = "4318";

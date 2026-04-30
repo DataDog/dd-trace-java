@@ -5,7 +5,7 @@ import java.util.Objects;
 import javax.annotation.Nullable;
 
 /** Instrumentation scopes have a mandatory name, optional version, and optional schema URL. */
-public final class OtelInstrumentationScope {
+public final class OtelInstrumentationScope implements Comparable<OtelInstrumentationScope> {
 
   private final UTF8BytesString scopeName;
   @Nullable private final UTF8BytesString scopeVersion;
@@ -30,6 +30,34 @@ public final class OtelInstrumentationScope {
   @Nullable
   public UTF8BytesString getSchemaUrl() {
     return schemaUrl;
+  }
+
+  @Override
+  public int compareTo(OtelInstrumentationScope that) {
+    int cmp = scopeName.toString().compareTo(that.scopeName.toString());
+    if (cmp != 0) {
+      return cmp;
+    }
+    if (scopeVersion != that.scopeVersion) {
+      if (scopeVersion == null) {
+        return -1;
+      } else if (that.scopeVersion == null) {
+        return 1;
+      }
+      cmp = scopeVersion.toString().compareTo(that.scopeVersion.toString());
+      if (cmp != 0) {
+        return cmp;
+      }
+    }
+    if (schemaUrl != that.schemaUrl) {
+      if (schemaUrl == null) {
+        return -1;
+      } else if (that.schemaUrl == null) {
+        return 1;
+      }
+      return schemaUrl.toString().compareTo(that.schemaUrl.toString());
+    }
+    return 0;
   }
 
   @Override
