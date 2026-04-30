@@ -69,6 +69,35 @@ class LlmObsApmDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
     !isLogPresent { it.contains("ERROR") }
   }
 
+  void 'standalone LLMObs span (no surrounding APM scope) should be kept and carry the LLMOBS trace-source bit'() {
+    setup:
+    final url = "http://localhost:${httpPort}/rest-api/llmobs/standalone"
+    final req = new Request.Builder().url(url).get().build()
+
+    when: "Trigger standalone LLMObs span (created on a fresh thread, no inherited APM scope)"
+    final resp = client.newCall(req).execute()
+
+    then:
+    resp.successful
+
+    and: "Wait for both traces (HTTP request trace + standalone LLMObs trace)"
+    waitForTraceCount(2)
+
+    and: "Standalone LLMObs trace should exist with the LLMOBS trace-source bit on the root and SAMPLER_KEEP"
+    def llmobsTrace = traces.find { trace ->
+      trace.spans.any { span -> span.meta["_ml_obs_tag.model_name"] == "gpt-4-standalone" }
+    }
+    assert llmobsTrace != null : "standalone LLMObs trace not found"
+    // ProductTraceSource.LLMOBS = 0x20 → encoded as the hex string "20"
+    final propagatedTraceSource = llmobsTrace.spans[0].meta["_dd.p.ts"]
+    assert propagatedTraceSource?.contains("20") : "expected LLMOBS bit (0x20) in _dd.p.ts on root, got '${propagatedTraceSource}'"
+    assert checkRootSpanPrioritySampling(llmobsTrace, PrioritySampling.SAMPLER_KEEP)
+
+    and: "No NPE or errors in logs"
+    !isLogPresent { it.contains("NullPointerException") }
+    !isLogPresent { it.contains("ERROR") }
+  }
+
   void 'LLMObs spans should have PROPAGATED_TRACE_SOURCE tag set'() {
     setup:
     final llmobsUrl = "http://localhost:${httpPort}/rest-api/llmobs/test"
