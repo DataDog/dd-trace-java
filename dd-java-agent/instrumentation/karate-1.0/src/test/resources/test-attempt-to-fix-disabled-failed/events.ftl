@@ -49,12 +49,15 @@
 }, {
   "content" : {
     "duration" : ${content_duration_3},
-    "error" : 0,
+    "error" : 1,
     "meta" : {
       "_dd.p.tid" : ${content_meta__dd_p_tid},
       "component" : "karate",
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
+      "error.message" : ${content_meta_error_message},
+      "error.stack" : ${content_meta_error_stack},
+      "error.type" : "com.intuit.karate.KarateException",
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_suite_end",
       "test.framework" : "karate",
@@ -132,7 +135,7 @@
       "dummy_ci_tag" : "dummy_ci_tag_value",
       "env" : "none",
       "error.message" : ${content_meta_error_message},
-      "error.stack" : ${content_meta_error_stack},
+      "error.stack" : ${content_meta_error_stack_2},
       "error.type" : "com.intuit.karate.KarateException",
       "language" : "jvm",
       "library_version" : ${content_meta_library_version},
