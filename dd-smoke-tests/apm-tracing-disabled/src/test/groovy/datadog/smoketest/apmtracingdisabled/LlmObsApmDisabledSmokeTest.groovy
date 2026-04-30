@@ -19,6 +19,11 @@ class LlmObsApmDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
     return createProcess(LLMOBS_APM_DISABLED_PROPERTIES)
   }
 
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '0.4'
+  }
+
   void 'When APM disabled and LLMObs enabled, LLMObs spans should be kept and APM spans should be dropped'() {
     setup:
     final llmobsUrl = "http://localhost:${httpPort}/rest-api/llmobs/test"
