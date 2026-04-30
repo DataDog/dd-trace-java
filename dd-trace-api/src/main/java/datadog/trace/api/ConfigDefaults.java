@@ -111,13 +111,15 @@ public final class ConfigDefaults {
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
-  static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
+  public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
   static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
-  static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
-  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
-  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
+  public static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
+  public static final String DEFAULT_OTLP_GRPC_TRACES_ENDPOINT =
+      "opentelemetry.proto.collector.trace.v1.TraceService/Export";
+  public static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
@@ -148,6 +150,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final int DEFAULT_APPSEC_MAX_COLLECTED_HEADERS = 50;
   static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
+  static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES = 4096;
+  static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT = 25;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;

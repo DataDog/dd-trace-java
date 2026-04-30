@@ -385,6 +385,19 @@ class HealthMetricsTest {
     verifyNoMoreInteractions(statsD);
   }
 
+  @Test
+  void testOnStatsAggregateDropped() throws InterruptedException {
+    CountDownLatch latch = new CountDownLatch(1);
+    try (TracerHealthMetrics healthMetrics =
+        new TracerHealthMetrics(new Latched(statsD, latch), 100, TimeUnit.MILLISECONDS)) {
+      healthMetrics.start();
+      healthMetrics.onStatsAggregateDropped();
+      assertTrue(latch.await(5, TimeUnit.SECONDS));
+    }
+    verify(statsD).count("stats.dropped_aggregates", 1L, "reason:lru_eviction");
+    verifyNoMoreInteractions(statsD);
+  }
+
   private static class Latched implements StatsDClient {
     private final StatsDClient delegate;
     private final CountDownLatch latch;

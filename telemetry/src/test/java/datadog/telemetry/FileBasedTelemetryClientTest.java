@@ -26,7 +26,7 @@ class FileBasedTelemetryClientTest {
   @Test
   void writesRequestBodyToFile(@TempDir Path tmp) throws IOException {
     Path outputDir = tmp.resolve("payloads/telemetry");
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir.toString());
     byte[] body = "{\"request_type\":\"app-started\"}".getBytes(StandardCharsets.UTF_8);
 
     TelemetryClient.Result result = client.sendHttpRequest(requestBuilder("app-started", body));
@@ -42,7 +42,7 @@ class FileBasedTelemetryClientTest {
     Path outputDir = tmp.resolve("does/not/exist/yet");
     assertFalse(Files.exists(outputDir));
 
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(outputDir.toString());
     TelemetryClient.Result result =
         client.sendHttpRequest(
             requestBuilder("app-heartbeat", "{}".getBytes(StandardCharsets.UTF_8)));
@@ -53,7 +53,7 @@ class FileBasedTelemetryClientTest {
 
   @Test
   void filenameFollowsTelemetryConvention(@TempDir Path tmp) throws IOException {
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
 
     client.sendHttpRequest(requestBuilder("app-started", "{}".getBytes(StandardCharsets.UTF_8)));
 
@@ -65,7 +65,7 @@ class FileBasedTelemetryClientTest {
 
   @Test
   void sequenceIncrementsPerRequest(@TempDir Path tmp) throws IOException {
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
 
     for (int i = 0; i < 3; i++) {
       client.sendHttpRequest(
@@ -86,7 +86,7 @@ class FileBasedTelemetryClientTest {
 
   @Test
   void handlesNullRequestBody(@TempDir Path tmp) throws IOException {
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
     Request.Builder builder =
         new Request.Builder().addHeader("DD-Telemetry-Request-Type", "app-closing").get();
 
@@ -103,7 +103,8 @@ class FileBasedTelemetryClientTest {
     // Create a regular file at the expected output-dir path so createDirectories fails.
     Path collision = tmp.resolve("not-a-dir");
     Files.createFile(collision);
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(collision.resolve("sub"));
+    FileBasedTelemetryClient client =
+        new FileBasedTelemetryClient(collision.resolve("sub").toString());
 
     TelemetryClient.Result result =
         client.sendHttpRequest(
@@ -114,7 +115,7 @@ class FileBasedTelemetryClientTest {
 
   @Test
   void leavesNoLingeringTempFiles(@TempDir Path tmp) throws IOException {
-    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp);
+    FileBasedTelemetryClient client = new FileBasedTelemetryClient(tmp.toString());
 
     client.sendHttpRequest(requestBuilder("app-started", "{}".getBytes(StandardCharsets.UTF_8)));
 

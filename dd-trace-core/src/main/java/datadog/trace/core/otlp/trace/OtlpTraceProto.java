@@ -138,7 +138,9 @@ public final class OtlpTraceProto {
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
-    writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    if (span.getSpanType() != null) {
+      writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    }
 
     span.processTagsAndBaggage(metaWriter);
 

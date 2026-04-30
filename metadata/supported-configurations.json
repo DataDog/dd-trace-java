@@ -289,6 +289,22 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_MAX_FILE_CONTENT_BYTES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "4096",
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_MAX_FILE_CONTENT_COUNT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "25",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_MAX_STACKTRACES": [
       {
         "version": "A",
@@ -2501,6 +2517,14 @@
       {
         "version": "A",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROCESS_TAGS_MAPPING": [
+      {
+        "version": "A",
+        "type": "map",
         "default": null,
         "aliases": []
       }
@@ -11711,6 +11735,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_JAVA_MODULE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
       }
     ]
   },

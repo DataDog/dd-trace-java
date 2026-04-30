@@ -1,10 +1,9 @@
 package datadog.telemetry;
 
 import datadog.trace.util.PidHelper;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.StandardCopyOption;
 import java.util.concurrent.atomic.AtomicLong;
 import okhttp3.HttpUrl;
 import okhttp3.Request;
@@ -27,12 +26,12 @@ public class FileBasedTelemetryClient extends TelemetryClient {
   private static final HttpUrl PLACEHOLDER_URL =
       HttpUrl.get("http://localhost/bazel-file-telemetry");
 
-  private final Path outputDir;
+  private final File outputDir;
   private final AtomicLong sequence = new AtomicLong(0);
 
-  public FileBasedTelemetryClient(Path outputDir) {
+  public FileBasedTelemetryClient(String outputDirPath) {
     super(null, null, PLACEHOLDER_URL, null);
-    this.outputDir = outputDir;
+    this.outputDir = new File(outputDirPath);
   }
 
   @Override
@@ -60,8 +59,8 @@ public class FileBasedTelemetryClient extends TelemetryClient {
   }
 
   private void ensureOutputDir() throws IOException {
-    if (!Files.exists(outputDir)) {
-      Files.createDirectories(outputDir);
+    if (!outputDir.exists() && !outputDir.mkdirs() && !outputDir.exists()) {
+      throw new IOException("Failed to create output directory: " + outputDir);
     }
   }
 
@@ -78,10 +77,15 @@ public class FileBasedTelemetryClient extends TelemetryClient {
     long seq = sequence.getAndIncrement();
     String pid = PidHelper.getPid();
     String filename = String.format("telemetry-%020d-%s.json", seq, pid);
-    Path target = outputDir.resolve(filename);
-    Path tmp = outputDir.resolve(filename + ".tmp");
+    File target = new File(outputDir, filename);
+    File tmp = new File(outputDir, filename + ".tmp");
 
-    Files.write(tmp, data);
-    Files.move(tmp, target, StandardCopyOption.ATOMIC_MOVE);
+    try (FileOutputStream out = new FileOutputStream(tmp)) {
+      out.write(data);
+    }
+    if (!tmp.renameTo(target)) {
+      tmp.delete();
+      throw new IOException("Failed to rename " + tmp + " to " + target);
+    }
   }
 }
