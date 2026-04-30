@@ -16,6 +16,9 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+tasks.named('latestDepTest', Test) {
+  failOnNoDiscoveredTests = false
+}
 
 dependencies {
   compileOnly group: 'redis.clients', name: 'jedis', version: '4.0.0'

@@ -10,7 +10,7 @@ plugins {
 }
 
 if (hasProperty("appBuildDir")) {
-  buildDir = file(property("appBuildDir"))
+  layout.buildDirectory.set(file(property("appBuildDir")))
 }
 
 group = "datadog"

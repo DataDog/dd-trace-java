@@ -1,15 +1,19 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
+  id 'com.gradleup.shadow'
   id 'java'
   id 'war'
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
   id 'java-test-fixtures'
 }
 
+ext['spring-boot.version'] = '2.7.15'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootApplication'
+ext.springBootIncludeWebapp = true
+
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'SpringBoot Tomcat JSP Smoke Tests.'
 
 java {
@@ -35,13 +39,13 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar"
+  def shadowJarTask = tasks.named('shadowJar')
+  dependsOn "war", shadowJarTask
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return ["-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}"]
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.war.path=${it.archiveFile.get().asFile}"] }.get()
       }
     })
 }

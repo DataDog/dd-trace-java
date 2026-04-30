@@ -9,6 +9,10 @@ muzzle {
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+tasks.named('latestDepTest', Test) {
+  failOnNoDiscoveredTests = false
+}
+
 configurations.configureEach {
   // the version used by Synapse isn't available in a public repository - we don't need it, so exclude it
   exclude group: 'org.snmp4j', module: 'snmp4j'

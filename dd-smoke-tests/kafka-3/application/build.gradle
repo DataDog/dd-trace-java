@@ -1,7 +1,7 @@
 plugins {
   id 'java'
-  id 'org.springframework.boot' version '3.2.2'
-  id 'io.spring.dependency-management' version '1.1.4'
+  id 'org.springframework.boot' version '3.3.5'
+  id 'io.spring.dependency-management' version '1.1.6'
 }
 
 java {
@@ -17,8 +17,10 @@ rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 apply from: "$sharedConfigDirectory/repositories.gradle"
 
 if (hasProperty('appBuildDir')) {
-  buildDir = property('appBuildDir')
+  layout.buildDirectory.set(file(property('appBuildDir') as String))
 }
+
+ext['spring-boot.version'] = '3.2.2'
 
 version = ""
 

@@ -1,13 +1,15 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
 plugins {
+  id 'com.gradleup.shadow'
   id 'java'
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+  id 'io.spring.dependency-management' version '1.1.6'
 }
+
+ext['spring-boot.version'] = '2.7.15'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootApplication'
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'Open Feature provider Smoke Tests.'
 
 testJvmConstraints {
@@ -27,12 +29,12 @@ dependencies {
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "bootJar"
-  def bootJarTask = tasks.named('bootJar', BootJar)
+  def shadowJarTask = tasks.named('shadowJar')
+  dependsOn shadowJarTask
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+        return shadowJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
       }
     })
 }

@@ -1,9 +1,11 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
+  id 'com.gradleup.shadow'
   id 'war'
-  id 'org.springframework.boot' version '2.5.12'
+  id 'io.spring.dependency-management' version '1.1.6'
 }
+
+ext['spring-boot.version'] = '2.5.12'
+ext.springBootMainClass = 'datadog.smoketest.springboot.SpringbootTomcatApplication'
 
 ext {
   serverName = 'tomcat'
@@ -14,6 +16,7 @@ ext {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+apply from: "$rootDir/gradle/spring-boot-fatjar.gradle"
 description = 'SpringBoot Tomcat Smoke Tests.'
 
 repositories {
@@ -43,6 +46,9 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
+def serverInstallDir = layout.buildDirectory.dir("server")
+def tomcatDir = serverInstallDir.map { it.dir("apache-${serverName}-${serverVersion}") }
+
 tasks.register("unzip", Copy) {
   def zipFileNamePrefix = "tomcat"
   def serverZipTree = providers.provider {
@@ -57,7 +63,7 @@ tasks.register("unzip", Copy) {
   }
 
   from serverZipTree
-  into layout.buildDirectory
+  into serverInstallDir
 
   // When tests are disabled this would still be run, so disable this manually
   onlyIf { !project.rootProject.hasProperty("skipTests") }
@@ -75,14 +81,6 @@ tasks.named('sourcesJar') {
 }
 
 tasks.named('javadocJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
   dependsOn 'unzip'
 }
 
@@ -107,19 +105,19 @@ tasks.named('spotbugsMain') {
 }
 
 tasks.matching({it.name.startsWith('compileTest')}).configureEach {
-  dependsOn 'war', 'bootWar', 'unzip'
+  dependsOn 'war', 'unzip'
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar", "unzip"
+  dependsOn "war", "unzip"
 
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
+        def warTask = tasks.named('war').get()
         return [
-          "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
-          "-Ddatadog.smoketest.tomcatDir=${layout.buildDirectory.get()}/apache-${serverName}-${serverVersion}"
+          "-Ddatadog.smoketest.springboot.war.path=${warTask.archiveFile.get().getAsFile()}",
+          "-Ddatadog.smoketest.tomcatDir=${tomcatDir.get().asFile}"
         ]
       }
     })

@@ -101,6 +101,7 @@ def extractLatestWildfly = tasks.register("extractLatestWildfly", Copy) {
 
 tasks.named("test", Test) {
   dependsOn 'extractWildfly'
+  failOnNoDiscoveredTests = false
 }
 
 tasks.named("forkedTest", Test) {
@@ -112,6 +113,7 @@ tasks.named("latestDepTest", Test) {
     minJavaVersion = JavaVersion.VERSION_17
   }
   dependsOn 'extractLatestWildfly'
+  failOnNoDiscoveredTests = false
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -181,5 +183,3 @@ tasks.named("latestDepForkedTest", Test) {
     }
     )
 }
-
-

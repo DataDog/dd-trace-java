@@ -6,12 +6,11 @@ muzzle {
   }
 }
 
+apply from: "$rootDir/gradle/java.gradle"
+
 configurations {
   testImplementation.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
-  testCompile.exclude group: 'org.slf4j', module: 'log4j-over-slf4j'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // Log4j 1.x reached EOL in 2015 and is not compatible with Java 25+: https://endoflife.date/log4j

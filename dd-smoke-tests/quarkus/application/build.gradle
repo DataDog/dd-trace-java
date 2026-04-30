@@ -10,10 +10,15 @@ rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 apply from: "$sharedConfigDirectory/repositories.gradle"
 
 if (hasProperty('appBuildDir')) {
-  buildDir = property('appBuildDir')
+  layout.buildDirectory.set(file(property('appBuildDir') as String))
 }
 
 version = ""
+
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+  targetCompatibility = JavaVersion.VERSION_1_8
+}
 
 dependencies {
   implementation enforcedPlatform("${quarkusPlatformGroupId}:${quarkusPlatformArtifactId}:${quarkusPlatformVersion}")

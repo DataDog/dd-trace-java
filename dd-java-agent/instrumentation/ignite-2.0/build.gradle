@@ -54,3 +54,7 @@ for (taskName in ['latestDepTest', 'latestDepForkedTest']) {
     }
   }
 }
+
+tasks.named('ignite216Test', Test) {
+  failOnNoDiscoveredTests = false
+}

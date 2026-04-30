@@ -50,17 +50,24 @@ dependencies {
 }
 
 def appDir = "$projectDir/spring-ear"
-def appBuildDir = "$buildDir/spring-ear"
+def appBuildDir = layout.buildDirectory.dir("spring-ear")
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-// define the task that builds the quarkus project
+// define the task that builds the EAR via a sub-Gradle invocation.
+//
+// The sub-build inherits this project's wrapper (Gradle 9.4.1), whose daemon
+// requires JDK 17 — that's why JAVA_HOME is 17, not the test runtime version.
+// The deployed WAR's compile target is pinned separately in
+// spring-ear/war/build.gradle via a Java toolchain.
 tasks.register('earBuild', Exec) {
   workingDir "$appDir"
   environment += [
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
+    "JAVA_HOME": getLazyJavaHomeFor(17)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4",
+    "-PappBuildDir=${appBuildDir.get().asFile.absolutePath}",
+    "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get().asFile.absolutePath}"
 
   outputs.cacheIf { true }
 
@@ -121,15 +128,20 @@ tasks.withType(Jar).configureEach {
   dependsOn 'unzip'
 }
 
-def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
+def wildflyDir = layout.buildDirectory.dir("${serverName}-${serverVersion}")
 
 tasks.register("deploy", Copy) {
   dependsOn 'unzip'
-  from "${appBuildDir}/libs/wildfly-spring-ear-smoketest.ear"
-  into "${wildflyDir}/standalone/deployments"
+  from appBuildDir.map { it.file("libs/wildfly-spring-ear-smoketest.ear").asFile }
+  into wildflyDir.map { it.dir("standalone/deployments").asFile }
 }
 
 tasks.withType(Test).configureEach {
   dependsOn 'deploy'
-  jvmArgs "-Ddatadog.smoketest.wildflyDir=${wildflyDir}"
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        return ["-Ddatadog.smoketest.wildflyDir=${wildflyDir.get().asFile.absolutePath}"]
+      }
+    })
 }

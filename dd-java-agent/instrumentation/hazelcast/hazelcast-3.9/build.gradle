@@ -11,6 +11,14 @@ apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 
+tasks.named('test', Test) {
+  failOnNoDiscoveredTests = false
+}
+
+tasks.named('latestDepTest', Test) {
+  failOnNoDiscoveredTests = false
+}
+
 dependencies {
   compileOnly group: 'com.hazelcast', name: 'hazelcast-all', version: '3.9'
 

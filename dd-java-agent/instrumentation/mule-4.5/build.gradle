@@ -79,13 +79,13 @@ configurations.configureEach {
 
 sourceSets {
   test {
-    output.dir("$buildDir/generated-resources/test", builtBy: 'generateAppResources')
+    output.dir(layout.buildDirectory.dir("generated-resources/test").get().asFile, builtBy: 'generateAppResources')
   }
   mule46ForkedTest {
-    output.dir("$buildDir/generated-resources/mule46ForkedTest", builtBy: 'generateAppResources46')
+    output.dir(layout.buildDirectory.dir("generated-resources/mule46ForkedTest").get().asFile, builtBy: 'generateAppResources46')
   }
   latestDepForkedTest {
-    output.dir("$buildDir/generated-resources/latestDepForkedTest", builtBy: 'generateAppResourcesLatest')
+    output.dir(layout.buildDirectory.dir("generated-resources/latestDepForkedTest").get().asFile, builtBy: 'generateAppResourcesLatest')
   }
 }
 
@@ -191,7 +191,7 @@ dependencies {
   latestMuleServices group: 'org.mule.services', name: 'mule-service-weave', version: '2.8.1', classifier: 'mule-service'
 }
 
-def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
+def copyMuleArtifacts(String configName, def muleBaseDir, Sync sync) {
   configurations[configName].resolvedConfiguration.resolvedArtifacts.findAll {
     it.classifier == "mule-service"
   } collect { artifact ->
@@ -200,21 +200,21 @@ def copyMuleArtifacts(String configName, String muleBaseDir, Sync sync) {
       into("${id.name}-${id.version}")
     }
   }
-  sync.into "$muleBaseDir/services"
+  sync.into muleBaseDir.map { it.dir("services").asFile }
 }
 
 // extract the enabled services into the mule base directory
 tasks.register('extractMuleServices', Sync) {
   dependsOn configurations.named('muleServices')
-  copyMuleArtifacts("muleServices", "$buildDir/mule/test", it)
+  copyMuleArtifacts("muleServices", layout.buildDirectory.dir("mule/test"), it)
 }
 tasks.register('extractMule46Services', Sync) {
   dependsOn configurations.named('mule46Services')
-  copyMuleArtifacts("mule46Services", "$buildDir/mule/mule46ForkedTest", it)
+  copyMuleArtifacts("mule46Services", layout.buildDirectory.dir("mule/mule46ForkedTest"), it)
 }
 tasks.register('extractLatestMuleServices', Sync) {
   dependsOn configurations.named('latestMuleServices')
-  copyMuleArtifacts("latestMuleServices", "$buildDir/mule/latestDepForkedTest", it)
+  copyMuleArtifacts("latestMuleServices", layout.buildDirectory.dir("mule/latestDepForkedTest"), it)
 }
 
 // build the mule application via maven
@@ -224,7 +224,7 @@ tasks.register('mvnPackage', Exec) {
 
   List<String> mvnArgs = [
     "$rootDir/mvnw",
-    "-Ddatadog.builddir=$buildDir",
+    "-Ddatadog.builddir=${layout.buildDirectory.get().asFile.absolutePath}",
     "-Ddatadog.name=mule-test-application",
     "-Ddatadog.version=$version",
     "package"
@@ -237,7 +237,7 @@ tasks.register('mvnPackage', Exec) {
 
   commandLine(mvnArgs)
 
-  outputs.dir("$buildDir/target")
+  outputs.dir(layout.buildDirectory.dir("target"))
   inputs.dir("$appDir/src")
   inputs.file("$appDir/pom.xml")
   inputs.file("$appDir/mule-artifact.json")
@@ -255,12 +255,15 @@ tasks.register('generateAppResourcesLatest') {
 }
 
 def createAppResourceTask(Task task, String name) {
-  def generatedResourcesDir = "$buildDir/generated-resources/$name"
+  def buildDirectory = project.layout.buildDirectory
+  def muleBaseDir = buildDirectory.dir("mule/${name}")
+  def applicationJar = buildDirectory.file("target/mule-test-application-$version-mule-application.jar")
+  def generatedResourcesDir = buildDirectory.dir("generated-resources/${name}")
   task.outputs.dir generatedResourcesDir
   task.doLast {
-    def generated = new File(generatedResourcesDir, "test-build.properties")
-    generated.text = """|mule.base=$buildDir/mule/$name
-                        |MuleTestApplicationConstants.jar=$buildDir/target/mule-test-application-$version-mule-application.jar
+    def generated = generatedResourcesDir.get().file("test-build.properties").asFile
+    generated.text = """|mule.base=${muleBaseDir.get().asFile.absolutePath}
+                        |MuleTestApplicationConstants.jar=${applicationJar.get().asFile.absolutePath}
                         |MuleTestApplicationConstants.name=mule-test-application-$version-mule-application""".stripMargin()
   }
 }

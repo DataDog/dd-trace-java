@@ -52,7 +52,7 @@ tasks.matching { it.name.startsWith('spotbugs') }.configureEach {
   it.reports {
     html {
       required = true
-      destination(file("$buildDir/reports/spotbugs/${name}.html"))
+      destination(project.layout.buildDirectory.file("reports/spotbugs/${name}.html").get().asFile)
       stylesheet = 'fancy-hist.xsl'
     }
   }

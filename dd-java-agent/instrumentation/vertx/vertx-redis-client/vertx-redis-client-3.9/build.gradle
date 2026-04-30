@@ -36,3 +36,9 @@ dependencies {
 tasks.withType(Test).configureEach {
   usesService(testcontainersLimit)
 }
+
+['test', 'latestDepTest', 'redis4xTest'].each { taskName ->
+  tasks.named(taskName, Test) {
+    failOnNoDiscoveredTests = false
+  }
+}

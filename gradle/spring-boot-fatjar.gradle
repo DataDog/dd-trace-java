@@ -1,0 +1,62 @@
+// Configure shadowJar + Spring Boot fat-jar boilerplate for smoke tests.
+//
+// Why not bootJar:
+//   After migrating to Gradle 9.4.1 the Spring Boot Gradle plugin 2.7.x is
+//   no longer compatible (Gradle daemon JVM is JDK 17). The next-best plugin
+//   (Spring Boot 3.x) bundles a JarLauncher compiled to Java 17, so the
+//   produced bootJar fails to launch on JDK 8 or 11. shadowJar is loader-free:
+//   the produced jar's Main-Class points directly at the application class
+//   and runs on any JDK ≥ the application's compile target.
+//
+// Prerequisites:
+//   - The plugins block must include `id 'com.gradleup.shadow'`.
+//   - `ext.springBootMainClass` must be set before applying this script.
+// Optional:
+//   - `ext.springBootIncludeWebapp = true` bundles src/main/webapp into
+//     META-INF/resources (needed for embedded servlet container fat jars
+//     that serve JSPs from the webapp directory).
+
+if (!project.ext.has('springBootMainClass')) {
+  throw new GradleException(
+  "springBootMainClass must be set in ext{} before applying spring-boot-fatjar.gradle")
+}
+
+def mainClass = project.ext.springBootMainClass
+def includeWebapp = project.ext.has('springBootIncludeWebapp') &&
+  project.ext.springBootIncludeWebapp
+
+tasks.named("jar", Jar) {
+  manifest {
+    attributes('Main-Class': mainClass)
+  }
+}
+
+// `apply from:` scripts don't inherit the parent's plugin classpath at parse
+// time, so the shadow Transformer class can't be `import`ed here. Resolve it
+// at task-configuration time via the ShadowJar task's own classloader.
+tasks.named("shadowJar") {
+  manifest {
+    attributes('Main-Class': mainClass)
+  }
+  configurations = [project.configurations.runtimeClasspath]
+  if (includeWebapp) {
+    from('src/main/webapp') {
+      into 'META-INF/resources'
+    }
+  }
+  mergeServiceFiles()
+  // Pre-Spring 5 namespace handler resources.
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  // Spring Boot 2.7+ moved auto-configuration into AutoConfiguration.imports.
+  append 'META-INF/spring/org.springframework.boot.autoconfigure.AutoConfiguration.imports'
+  // spring.factories is a Properties file: multiple modules contribute the
+  // same key (e.g. EnableAutoConfiguration), so merge via append rather than overwrite.
+  def propertiesFileTransformer = it.class.classLoader.loadClass(
+    'com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer')
+  transform(propertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }
+}

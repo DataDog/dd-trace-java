@@ -11,14 +11,25 @@ def appBuildDir = "$buildDir/application"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
-// define the task that builds the project
+// define the task that builds the project via a sub-Gradle invocation.
+//
+// The sub-build inherits this project's wrapper (Gradle 9.4.1), whose daemon
+// requires JDK 17 — that's why JAVA_HOME is 17, not the test runtime version.
+// The application's compile target is pinned separately in
+// application/build.gradle so the produced jar still loads on Java 11
+// (which `-PtestJvm=11` selects).
+//
+// We invoke `shadowJar`, not `bootJar`: Spring Boot 3.x's plugin (the only one
+// compatible with Gradle 9) packs a Java-17 JarLauncher into the bootJar, so
+// the produced jar wouldn't start under Java 11. shadowJar produces a
+// loader-free flat jar.
 tasks.register('webfluxBuild', Exec) {
   workingDir "$appDir"
   environment += [
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
+    "JAVA_HOME": getLazyJavaHomeFor(17)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine "$rootDir/${gradlewCommand}", "shadowJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
 
@@ -45,7 +56,7 @@ tasks.named("compileTestGroovy", GroovyCompile) {
 }
 
 tasks.withType(Test).configureEach {
-  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest.jar"
+  jvmArgs "-Ddatadog.smoketest.webflux.uberJar.path=$appBuildDir/libs/webflux-2.7-smoketest-all.jar"
 }
 
 spotless {

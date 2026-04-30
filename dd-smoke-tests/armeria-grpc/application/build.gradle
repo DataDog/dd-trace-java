@@ -1,6 +1,6 @@
 buildscript {
   dependencies {
-    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.3'
+    classpath 'com.google.protobuf:protobuf-gradle-plugin:0.9.5'
   }
 }
 
@@ -8,7 +8,7 @@ plugins {
   id 'application'
   id 'java'
   id 'com.gradleup.shadow' version '8.3.9'
-  id 'com.google.protobuf' version '0.9.3'
+  id 'com.google.protobuf' version '0.9.5'
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -18,7 +18,7 @@ rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
 apply from: "$sharedConfigDirectory/repositories.gradle"
 
 if (hasProperty('appBuildDir')) {
-  buildDir = property('appBuildDir')
+  layout.buildDirectory.set(file(property('appBuildDir') as String))
 }
 
 version = ""

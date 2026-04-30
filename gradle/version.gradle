@@ -13,11 +13,17 @@ abstract class WriteVersionNumberFile extends DefaultTask {
     this.version.convention(project.provider { project.version.toString() })
     this.gitHash.convention(project.provider {
       def stdout = new ByteArrayOutputStream()
-      project.exec {
-        commandLine 'git', 'rev-parse', '--short', 'HEAD'
-        standardOutput = stdout
+      def stderr = new ByteArrayOutputStream()
+      def process = new ProcessBuilder('git', 'rev-parse', '--short', 'HEAD').start()
+      process.waitForProcessOutput(stdout, stderr)
+      if (process.exitValue() != 0) {
+        throw new GradleException("Unable to determine git hash: ${stderr.toString().trim()}")
       }
-      return stdout.toString().trim()
+      def gitHash = stdout.toString().trim()
+      if (gitHash.isEmpty()) {
+        throw new GradleException("Unable to determine git hash: command returned empty output")
+      }
+      return gitHash
     })
     this.outputDirectory.convention(project.layout.buildDirectory.dir("generated/version"))
   }
