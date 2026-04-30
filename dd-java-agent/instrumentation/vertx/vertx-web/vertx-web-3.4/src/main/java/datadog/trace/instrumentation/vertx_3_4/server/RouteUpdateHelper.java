@@ -5,12 +5,14 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.RoutingContext;
 
 public final class RouteUpdateHelper {
   public static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   public static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   public static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
+  private static final String MATCHED_ROUTE_CONTEXT_KEY = "dd.vertx.matched_route";
   private static final String VERTX_ROUTE_HANDLER_SPAN_NAME = "vertx.route-handler";
 
   private RouteUpdateHelper() {}
@@ -42,26 +44,57 @@ public final class RouteUpdateHelper {
       final RoutingContext routingContext,
       final AgentSpan parentSpan,
       final AgentSpan handlerSpan) {
-    if (parentSpan == null && handlerSpan == null) {
-      return;
-    }
     if (routingContext.currentRoute() == null) {
       return;
     }
+    updateRouteFromPath(
+        routingContext, routingContext.currentRoute().getPath(), parentSpan, handlerSpan);
+  }
 
-    final String method = routingContext.request().rawMethod();
+  public static void updateRouteFromMatchedRoute(
+      final RoutingContext routingContext,
+      final Object route,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    if (route instanceof Route)
+      updateRouteFromPath(routingContext, ((Route) route).getPath(), parentSpan, handlerSpan);
+    else updateRouteFromContext(routingContext, parentSpan, handlerSpan);
+  }
+
+  private static void updateRouteFromPath(
+      final RoutingContext routingContext,
+      final String currentPath,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    if (parentSpan == null && handlerSpan == null) {
+      return;
+    }
+
+    String routePath;
     String mountPoint = routingContext.mountPoint();
-    String path = routingContext.currentRoute().getPath();
     if (mountPoint != null && !mountPoint.isEmpty()) {
       if (mountPoint.charAt(mountPoint.length() - 1) == '/'
-          && path != null
-          && !path.isEmpty()
-          && path.charAt(0) == '/') {
+          && currentPath != null
+          && !currentPath.isEmpty()
+          && currentPath.charAt(0) == '/') {
         mountPoint = mountPoint.substring(0, mountPoint.length() - 1);
       }
-      path = mountPoint + path;
+      routePath = mountPoint + currentPath;
+    } else routePath = currentPath;
+
+    final String path = mostSpecificPath(routingContext.get(MATCHED_ROUTE_CONTEXT_KEY), routePath);
+    updateRoute(
+        routingContext, routingContext.request().rawMethod(), path, parentSpan, handlerSpan);
+  }
+
+  private static String mostSpecificPath(final String first, final String second) {
+    if (first == null) {
+      return second;
     }
-    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
+    if (second == null) {
+      return first;
+    }
+    return first.length() >= second.length() ? first : second;
   }
 
   private static boolean shouldUpdateRoute(
