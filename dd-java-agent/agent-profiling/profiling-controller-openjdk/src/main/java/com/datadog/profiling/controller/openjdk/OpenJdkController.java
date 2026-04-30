@@ -279,43 +279,47 @@ public final class OpenJdkController implements Controller {
     // Config, so events disabled here remain disabled for the lifetime of the recording.
 
     if (!configProvider.getBoolean(PROFILING_CPU_ENABLED, PROFILING_CPU_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "jdk.ExecutionSample", "CPU profiling is disabled");
-      disableEvent(recordingSettings, "jdk.NativeMethodSample", "CPU profiling is disabled");
-      disableEvent(recordingSettings, "jdk.CPUTimeSample", "CPU profiling is disabled");
-      disableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", "CPU profiling is disabled");
+      disableEvent(recordingSettings, "jdk.ExecutionSample", "disabled by CPU profiling gate");
+      disableEvent(recordingSettings, "jdk.NativeMethodSample", "disabled by CPU profiling gate");
+      disableEvent(recordingSettings, "jdk.CPUTimeSample", "disabled by CPU profiling gate");
+      disableEvent(recordingSettings, "jdk.CPUTimeSamplesLost", "disabled by CPU profiling gate");
     }
 
     // jdk.JavaMonitorWait, jdk.ThreadPark, and jdk.ThreadSleep are intentionally NOT gated by
-    // PROFILING_WALL_ENABLED: they serve purposes beyond wall-clock profile construction
+    // PROFILING_WALLTIME_ENABLED: they serve purposes beyond wall-clock profile construction
     // (timeline blocking events, queueing time) and must remain enabled independently.
 
     if (!configProvider.getBoolean(
         PROFILING_EXCEPTION_ENABLED, PROFILING_EXCEPTION_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "datadog.ExceptionSample", "exception profiling is disabled");
-      disableEvent(recordingSettings, "datadog.ExceptionCount", "exception profiling is disabled");
+      disableEvent(
+          recordingSettings, "datadog.ExceptionSample", "disabled by exception profiling gate");
+      disableEvent(
+          recordingSettings, "datadog.ExceptionCount", "disabled by exception profiling gate");
     }
 
     if (!configProvider.getBoolean(PROFILING_IO_ENABLED, PROFILING_IO_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "jdk.FileRead", "I/O profiling is disabled");
-      disableEvent(recordingSettings, "jdk.FileWrite", "I/O profiling is disabled");
-      disableEvent(recordingSettings, "jdk.FileForce", "I/O profiling is disabled");
-      disableEvent(recordingSettings, "jdk.SocketRead", "I/O profiling is disabled");
-      disableEvent(recordingSettings, "jdk.SocketWrite", "I/O profiling is disabled");
+      disableEvent(recordingSettings, "jdk.FileRead", "disabled by I/O profiling gate");
+      disableEvent(recordingSettings, "jdk.FileWrite", "disabled by I/O profiling gate");
+      disableEvent(recordingSettings, "jdk.FileForce", "disabled by I/O profiling gate");
+      disableEvent(recordingSettings, "jdk.SocketRead", "disabled by I/O profiling gate");
+      disableEvent(recordingSettings, "jdk.SocketWrite", "disabled by I/O profiling gate");
     }
 
     if (!configProvider.getBoolean(PROFILING_LOCK_ENABLED, PROFILING_LOCK_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "jdk.JavaMonitorEnter", "lock profiling is disabled");
+      disableEvent(recordingSettings, "jdk.JavaMonitorEnter", "disabled by lock profiling gate");
       // BiasedLock events are no-ops on JDK 18+ (biased locking removed via JEP 374); disabling
       // them here is harmless on modern JDKs.
-      disableEvent(recordingSettings, "jdk.BiasedLockRevocation", "lock profiling is disabled");
-      disableEvent(recordingSettings, "jdk.BiasedLockSelfRevocation", "lock profiling is disabled");
       disableEvent(
-          recordingSettings, "jdk.BiasedLockClassRevocation", "lock profiling is disabled");
+          recordingSettings, "jdk.BiasedLockRevocation", "disabled by lock profiling gate");
+      disableEvent(
+          recordingSettings, "jdk.BiasedLockSelfRevocation", "disabled by lock profiling gate");
+      disableEvent(
+          recordingSettings, "jdk.BiasedLockClassRevocation", "disabled by lock profiling gate");
     }
 
     if (!configProvider.getBoolean(PROFILING_THREAD_ENABLED, PROFILING_THREAD_ENABLED_DEFAULT)) {
-      disableEvent(recordingSettings, "jdk.ThreadStart", "thread profiling is disabled");
-      disableEvent(recordingSettings, "jdk.ThreadEnd", "thread profiling is disabled");
+      disableEvent(recordingSettings, "jdk.ThreadStart", "disabled by thread profiling gate");
+      disableEvent(recordingSettings, "jdk.ThreadEnd", "disabled by thread profiling gate");
     }
 
     // Warn users for expensive events

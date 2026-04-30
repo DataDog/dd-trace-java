@@ -2461,7 +2461,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": ["DD_PROFILING_DDPROF_ALLOC_ENABLED"]
       }
     ],
@@ -2910,7 +2910,7 @@
         "version": "A",
         "type": "boolean",
         "default": "false",
-        "aliases": []
+        "aliases": ["DD_PROFILING_DIRECT_MEMORY_ENABLED"]
       }
     ],
     "DD_PROFILING_DIRECT_ALLOCATION_SAMPLE_LIMIT": [
@@ -2919,14 +2919,6 @@
         "type": "int",
         "default": "2000",
         "aliases": []
-      }
-    ],
-    "DD_PROFILING_DIRECTALLOCATION_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_PROFILING_DIRECT_MEMORY_ENABLED"]
       }
     ],
     "DD_PROFILING_DISABLED_EVENTS": [
@@ -3069,7 +3061,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": []
       }
     ],

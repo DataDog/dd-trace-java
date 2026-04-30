@@ -197,4 +197,49 @@ class DatadogProfilerConfigTest {
         JavaVirtualMachine.isJavaVersionAtLeast(11) && DatadogProfilerConfig.isJmethodIDSafe();
     assertEquals(expectedDefault, DatadogProfilerConfig.isMemoryLeakProfilingEnabled(config));
   }
+
+  @Test
+  void cpuUnifiedGateDisabledForcesCpuProfilerOff() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_CPU_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isCpuProfilerEnabled(config));
+  }
+
+  @Test
+  void cpuUnifiedGateEnabledHonorsDdprofKey() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_CPU_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, "false");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isCpuProfilerEnabled(config));
+  }
+
+  @Test
+  void cpuBothEnabledReturnsTrue() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_CPU_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertTrue(DatadogProfilerConfig.isCpuProfilerEnabled(config));
+  }
+
+  @Test
+  void wallClockUnifiedGateDisabledForcesWallClockOff() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_WALLTIME_ENABLED, "false");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isWallClockProfilerEnabled(config));
+  }
+
+  @Test
+  void wallClockUnifiedGateEnabledHonorsDdprofKey() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_WALLTIME_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "false");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertFalse(DatadogProfilerConfig.isWallClockProfilerEnabled(config));
+  }
 }

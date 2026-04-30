@@ -12,16 +12,18 @@ public final class ProfilingConfig {
   public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
 
   /**
-   * @deprecated Not used. The actual default is computed dynamically by {@link
-   *     datadog.trace.api.profiling.ProfilingSupport#isObjectAllocationSampleAvailable()}.
+   * @deprecated Not used. The actual default is computed dynamically by {@code
+   *     ProfilingSupport#isObjectAllocationSampleAvailable()} (in the {@code
+   *     com.datadog.profiling.controller} package, not visible from this module).
    */
   @Deprecated public static final boolean PROFILING_ALLOCATION_ENABLED_DEFAULT = true;
 
   public static final String PROFILING_HEAP_ENABLED = "profiling.heap.enabled";
 
   /**
-   * @deprecated The old value was {@code false}. The default is now computed dynamically via {@link
-   *     datadog.trace.api.profiling.ProfilingSupport#isLiveHeapProfilingSafe()}.
+   * @deprecated The old value was {@code false}. The default is now computed dynamically via {@code
+   *     ProfilingSupport#isLiveHeapProfilingSafe()} (in the {@code
+   *     com.datadog.profiling.controller} package, not visible from this module).
    */
   @Deprecated public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
 
