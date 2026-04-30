@@ -855,6 +855,71 @@ If reflection must be used the reflection usage should be added to
 
 See [GraalVM configuration docs](https://www.graalvm.org/jdk17/reference-manual/native-image/dynamic-features/Reflection/#manual-configuration).
 
+## JPMS Module Opening
+
+Java 9 introduced the Java Platform Module System (JPMS), which restricts reflective access across module boundaries.
+When the agent needs to reflect into a named JDK or library module whose packages are not opened (i.e., the host
+application has not passed the corresponding `--add-opens` flag), the reflection fails at runtime.
+
+### The `JavaModuleOpenProvider` interface
+
+Any `InstrumenterModule` can additionally implement
+[`JavaModuleOpenProvider`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/JavaModuleOpenProvider.java)
+to declare _trigger classes_. The first time a trigger class is instantiated, the agent opens the class's enclosing
+package to its own module so that subsequent reflective operations succeed.
+
+```java
+import static java.util.Collections.singleton;
+
+import com.google.auto.service.AutoService;
+import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.JavaModuleOpenProvider;
+
+@AutoService(InstrumenterModule.class)
+public class JpmsInetAddressInstrumentation extends InstrumenterModule
+    implements JavaModuleOpenProvider {
+
+  public JpmsInetAddressInstrumentation() {
+    super("java-net");
+  }
+
+  @Override
+  public Iterable<String> triggerClasses() {
+    return singleton("java.net.InetAddress");
+  }
+}
+```
+
+This module has no `adviceTransformations()` — its only purpose is to register the trigger class.
+
+### How it works
+
+1. During startup, `AgentInstaller` collects every `InstrumenterModule` that implements `JavaModuleOpenProvider`
+   and registers their trigger classes with `JpmsHelper.addAllTriggers()`.
+2. `JpmsClearanceInstrumentation` (a built-in module) instruments the **constructors** of all registered trigger
+   classes.
+3. On the first constructor call of a trigger class, its advice (inlined via ByteBuddy) calls
+   `module.addOpens(packageName, agentModule)`. The call is inlined into the trigger class's constructor, which
+   satisfies the JDK's requirement that the caller must belong to the module being opened.
+4. `JpmsHelper.shouldBeOpened()` ensures the `addOpens` is performed only once per class.
+
+> [!NOTE]
+> The `module.addOpens()` call must be inlined (via ByteBuddy advice) into the trigger class's constructor — it
+> cannot be delegated to a helper method, because the JDK verifies that the calling class belongs to the module
+> being opened.
+
+### When to use it
+
+Implement `JavaModuleOpenProvider` when:
+- Your instrumentation uses reflection on types inside a named JDK or library module.
+- You cannot rely on the host application having passed `--add-opens` flags.
+
+**Examples in the codebase:**
+- [`JpmsInetAddressInstrumentation`](../dd-java-agent/instrumentation/java/java-net/java-net-11.0/src/main/java/datadog/trace/instrumentation/httpclient/JpmsInetAddressInstrumentation.java)
+  — opens `java.net` for `InetAddress` reflective operations.
+- [`JpmsMuleInstrumentation`](../dd-java-agent/instrumentation/mule-4.5/src/main/java/datadog/trace/instrumentation/mule4/JpmsMuleInstrumentation.java)
+  — opens Mule's internal tracer packages.
+
 ## Testing
 
 ### Instrumentation Tests
