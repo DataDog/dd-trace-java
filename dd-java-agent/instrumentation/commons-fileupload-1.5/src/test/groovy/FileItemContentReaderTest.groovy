@@ -48,61 +48,41 @@ class FileItemContentReaderTest extends Specification {
     FileItemContentReader.readContent(item) == text
   }
 
-  void 'readContents returns content for each non-form file with a name'() {
+  void 'addToContents adds content when below MAX_FILES_TO_INSPECT'() {
     given:
-    def items = [fileItem('content-a', 'file-a.txt'), fileItem('content-b', 'file-b.txt'),]
+    def contents = []
+    def item = fileItem('hello')
 
     when:
-    def result = FileItemContentReader.readContents(items)
+    FileItemContentReader.addToContents(item, contents)
 
     then:
-    result == ['content-a', 'content-b']
+    contents == ['hello']
   }
 
-  void 'readContents skips form fields'() {
+  void 'addToContents does not add when at MAX_FILES_TO_INSPECT limit'() {
     given:
-    FileItem formField = Stub(FileItem)
-    formField.isFormField() >> true
-    def items = [formField, fileItem('content', 'real.txt')]
+    def contents = (1..FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('extra')
 
     when:
-    def result = FileItemContentReader.readContents(items)
+    FileItemContentReader.addToContents(item, contents)
 
     then:
-    result == ['content']
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
   }
 
-  void 'readContents includes file parts with empty or null name'() {
+  void 'addToContents fills up to exactly MAX_FILES_TO_INSPECT'() {
     given:
-    def items = [
-      fileItem('content-no-name', null),
-      fileItem('content-empty-name', ''),
-      fileItem('content-named', 'named.txt'),
-    ]
+    def contents = (1..<FileItemContentReader.MAX_FILES_TO_INSPECT).collect { "content-${it}" }
+    def item = fileItem('last')
 
     when:
-    def result = FileItemContentReader.readContents(items)
+    FileItemContentReader.addToContents(item, contents)
 
     then:
-    result == ['content-no-name', 'content-empty-name', 'content-named']
-  }
-
-  void 'readContents stops after MAX_FILES_TO_INSPECT files'() {
-    given:
-    def items = (1..FileItemContentReader.MAX_FILES_TO_INSPECT + 1).collect {
-      fileItem("content-${it}", "file-${it}.txt")
-    }
-
-    when:
-    def result = FileItemContentReader.readContents(items)
-
-    then:
-    result.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
-  }
-
-  void 'readContents returns empty list for empty input'() {
-    expect:
-    FileItemContentReader.readContents([]) == []
+    contents.size() == FileItemContentReader.MAX_FILES_TO_INSPECT
+    contents.last() == 'last'
   }
 
   private FileItem fileItem(String content) {

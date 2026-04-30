@@ -289,6 +289,22 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_MAX_FILE_CONTENT_BYTES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "4096",
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_MAX_FILE_CONTENT_COUNT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "25",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_MAX_STACKTRACES": [
       {
         "version": "A",
