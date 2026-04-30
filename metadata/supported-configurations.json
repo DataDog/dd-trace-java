@@ -2521,6 +2521,14 @@
         "aliases": []
       }
     ],
+    "DD_PROCESS_TAGS_MAPPING": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_AGENTLESS": [
       {
         "version": "A",
