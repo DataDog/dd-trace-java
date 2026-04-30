@@ -183,7 +183,7 @@ public final class OtelMetricStorage {
         Object attributes = entry.getKey();
         ClassLoader cl = attributes.getClass().getClassLoader();
         // avoid repeated lookups when attribute class-loader is same for all records
-        if (attributesReader == null || !Objects.equals(cl, attributesClassLoader)) {
+        if (attributesReader == null || cl != attributesClassLoader) {
           attributesReader = ATTRIBUTE_READERS.get(cl);
           attributesClassLoader = cl;
         }
@@ -230,7 +230,7 @@ public final class OtelMetricStorage {
         Object attributes = entry.getKey();
         ClassLoader cl = attributes.getClass().getClassLoader();
         // avoid repeated lookups when attribute class-loader is same for all records
-        if (attributesReader == null || !Objects.equals(cl, attributesClassLoader)) {
+        if (attributesReader == null || cl != attributesClassLoader) {
           attributesReader = ATTRIBUTE_READERS.get(cl);
           attributesClassLoader = cl;
         }
