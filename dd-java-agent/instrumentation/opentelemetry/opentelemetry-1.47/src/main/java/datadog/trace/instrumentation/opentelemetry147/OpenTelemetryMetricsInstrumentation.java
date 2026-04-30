@@ -11,6 +11,7 @@ import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.InstrumenterConfig;
+import io.opentelemetry.api.metrics.DoubleGauge;
 import io.opentelemetry.api.metrics.MeterProvider;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -100,6 +101,10 @@ public class OpenTelemetryMetricsInstrumentation extends InstrumenterModule.Trac
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void returnProvider(@Advice.Return(readOnly = false) MeterProvider result) {
       result = OtelMeterProvider.INSTANCE;
+    }
+
+    public static void muzzleCheck(DoubleGauge doubleGauge) {
+      doubleGauge.set(0); // not available before 1.38
     }
   }
 }
