@@ -1,5 +1,7 @@
 package datadog.trace.api.civisibility.config;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.api.Config;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.Strings;
@@ -73,21 +75,20 @@ public class BazelMode {
       manifestDir = null;
     }
 
-    payloadFilesEnabled = config.isTestOptimizationPayloadsInFiles();
     // TEST_UNDECLARED_OUTPUTS_DIR is a Bazel-provided env var, not a DD configuration
     String undeclaredOutputsDir = ConfigHelper.env("TEST_UNDECLARED_OUTPUTS_DIR");
-    if (payloadFilesEnabled) {
-      if (Strings.isNotBlank(undeclaredOutputsDir)) {
-        payloadsDir = undeclaredOutputsDir + File.separator + "payloads";
-        LOGGER.info(
-            "[bazel mode] Payload-in-files mode enabled with payload directory {}", payloadsDir);
-      } else {
-        payloadsDir = null;
-        LOGGER.warn(
-            "[bazel mode] Payload-in-files mode enabled, but no payload directory was provided");
-      }
+    if (config.isTestOptimizationPayloadsInFiles() && Strings.isNotBlank(undeclaredOutputsDir)) {
+      payloadsDir = undeclaredOutputsDir + File.separator + "payloads";
+      payloadFilesEnabled = true;
+      LOGGER.info(
+          "[bazel mode] Payload-in-files mode enabled with payload directory {}", payloadsDir);
     } else {
       payloadsDir = null;
+      payloadFilesEnabled = false;
+      if (config.isTestOptimizationPayloadsInFiles()) {
+        LOGGER.warn(
+            "[bazel mode] Payload-in-files mode requested but no payload directory was provided; disabling");
+      }
     }
 
     LOGGER.debug("[bazel mode] Resolved mode {}", this);
@@ -173,7 +174,7 @@ public class BazelMode {
 
   private static boolean isManifestCompatible(String manifestPath) {
     try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(new FileInputStream(manifestPath), "UTF-8"))) {
+        new BufferedReader(new InputStreamReader(new FileInputStream(manifestPath), UTF_8))) {
       String firstLine = reader.readLine();
       if (firstLine == null) {
         LOGGER.warn("[bazel mode] Manifest file is empty: {}", manifestPath);
@@ -265,7 +266,7 @@ public class BazelMode {
     LOGGER.debug(
         "[bazel mode] Reading runfiles manifest {} for rlocation {}", manifestFile, rlocation);
     try (BufferedReader reader =
-        new BufferedReader(new InputStreamReader(new FileInputStream(manifestFile), "UTF-8"))) {
+        new BufferedReader(new InputStreamReader(new FileInputStream(manifestFile), UTF_8))) {
       String line;
       while ((line = reader.readLine()) != null) {
         int spaceIdx = line.indexOf(' ');

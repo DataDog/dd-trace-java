@@ -144,10 +144,10 @@ class BazelModeTest {
   }
 
   @Test
-  void payloadDirsNullWhenUndeclaredOutputsDirMissing() {
+  void payloadFilesDisabledWhenUndeclaredOutputsDirMissing() {
     BazelMode mode = new BazelMode(configWith(null, true));
 
-    assertTrue(mode.isPayloadFilesEnabled());
+    assertFalse(mode.isPayloadFilesEnabled());
     assertNull(mode.getPayloadsDir());
     assertNull(mode.getTestPayloadsDir());
     assertNull(mode.getCoveragePayloadsDir());

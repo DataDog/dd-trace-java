@@ -84,38 +84,31 @@ public class WriterFactory {
     }
 
     int flushIntervalMilliseconds = Math.round(config.getTraceFlushIntervalSeconds() * 1000);
+    DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
-    // CI Visibility payload-files mode writes traces to local files; detect it before touching
-    // feature discovery to avoid probing the agent in hermetic Bazel runs.
+    // CI Visibility payload-files mode writes traces to local files instead of the agent.
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
       BazelMode bazelMode = BazelMode.get();
       String testsDir = bazelMode.getTestPayloadsDir();
       String coverageDir =
           config.isCiVisibilityCodeCoverageEnabled() ? bazelMode.getCoveragePayloadsDir() : null;
-      if (testsDir != null) {
-        log.info(
-            "[bazel mode] Payloads-in-files enabled, writing to {}", bazelMode.getPayloadsDir());
+      log.info("[bazel mode] Payloads-in-files enabled, writing to {}", bazelMode.getPayloadsDir());
 
-        PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
+      PayloadDispatcher dispatcher = createCiVisBazelPayloadDispatcher(testsDir, coverageDir);
 
-        TraceProcessingWorker worker =
-            new TraceProcessingWorker(
-                1024,
-                healthMetrics,
-                dispatcher,
-                DroppingPolicy.DISABLED,
-                prioritization,
-                flushIntervalMilliseconds,
-                TimeUnit.MILLISECONDS,
-                singleSpanSampler);
+      TraceProcessingWorker worker =
+          new TraceProcessingWorker(
+              1024,
+              healthMetrics,
+              dispatcher,
+              DroppingPolicy.DISABLED,
+              prioritization,
+              flushIntervalMilliseconds,
+              TimeUnit.MILLISECONDS,
+              singleSpanSampler);
 
-        return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
-      }
-      log.warn(
-          "[bazel mode] Payloads-in-files mode enabled but payload directory not resolved, falling back to default writer");
+      return new DDIntakeWriter(worker, dispatcher, healthMetrics, 5, TimeUnit.SECONDS, false);
     }
-
-    DDAgentFeaturesDiscovery featuresDiscovery = commObjects.featuresDiscovery(config);
 
     // The AgentWriter doesn't support the CI Visibility protocol. If CI Visibility is
     // enabled, check if we can use the IntakeWriter instead.

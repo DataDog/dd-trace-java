@@ -769,22 +769,15 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
       this.writer = writer;
     }
 
-    // CI Visibility payload-files mode writes traces to local files; skip feature discovery to
-    // avoid probing the agent in hermetic Bazel runs.
-    boolean payloadFilesEnabled =
-        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
-
-    DDAgentFeaturesDiscovery featuresDiscovery;
-    if (payloadFilesEnabled) {
-      featuresDiscovery = null;
-    } else {
-      featuresDiscovery = sharedCommunicationObjects.featuresDiscovery(config);
-      if (config.isCiVisibilityEnabled()) {
-        // ensure updated discovery and sync if the another discovery currently being done
-        featuresDiscovery.discoverIfOutdated();
-      }
+    DDAgentFeaturesDiscovery featuresDiscovery =
+        sharedCommunicationObjects.featuresDiscovery(config);
+    if (config.isCiVisibilityEnabled()) {
+      // ensure updated discovery and sync if the another discovery currently being done
+      featuresDiscovery.discoverIfOutdated();
     }
 
+    boolean payloadFilesEnabled =
+        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
     if (config.isCiVisibilityEnabled()
         && (config.isCiVisibilityAgentlessEnabled()
             || payloadFilesEnabled
@@ -815,8 +808,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         () -> AgentTaskScheduler.get().execute(() -> startMetricsAggregation(config, sco)));
 
     if (dataStreamsMonitoring == null) {
-      // DefaultDataStreamsMonitoring's constructor calls featuresDiscovery(config), which would
-      // probe the agent — skip it in payload-files mode.
+      // Avoid DSM in bazel hermetic mode
       this.dataStreamsMonitoring =
           payloadFilesEnabled
               ? DisabledDataStreamsMonitoring.INSTANCE

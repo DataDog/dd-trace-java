@@ -98,14 +98,9 @@ public class TelemetrySystem {
     boolean debug = config.isTelemetryDebugRequestsEnabled();
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
 
-    // CI Visibility bazel support writes telemetry to files instead of the network
+    // CI Visibility bazel mode writes telemetry to files instead of the network
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
       String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
-      if (telemetryDir == null) {
-        log.warn(
-            "[bazel mode] Payload-in-files mode enabled but telemetry directory not resolved, disabling telemetry");
-        return;
-      }
       log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
       DependencyService dependencyService = createDependencyService(instrumentation);
       TelemetryService telemetryService =
