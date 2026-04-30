@@ -1,5 +1,7 @@
 package datadog.trace.agent.tooling;
 
+import java.util.Collection;
+
 /**
  * Allows an {@link InstrumenterModule} to possibly open a java module to the unnamed module.
  *
@@ -8,5 +10,5 @@ package datadog.trace.agent.tooling;
  */
 public interface JavaModuleOpenProvider {
   /** Classes whose constructors trigger the one-time module open when first instantiated. */
-  Iterable<String> triggerClasses();
+  Collection<String> triggerClasses();
 }

@@ -193,17 +193,17 @@ public class AgentInstaller {
     // immediately and we don't have the ability to express dependencies between different
     // instrumentations to control the load order.
     for (InstrumenterModule module : instrumenterModules) {
-      boolean added = false;
+      boolean filterAdded = false;
       if (module instanceof ExcludeFilterProvider) {
         ExcludeFilterProvider provider = (ExcludeFilterProvider) module;
         ExcludeFilter.add(provider.excludedClasses());
-        added = true;
+        filterAdded = true;
       }
       if (javaModuleSupported && module instanceof JavaModuleOpenProvider) {
-        JpmsHelper.addAllTriggers(((JavaModuleOpenProvider) module).triggerClasses());
-        added = true;
+        JpmsHelper.addTriggers(((JavaModuleOpenProvider) module).triggerClasses());
+        filterAdded = true;
       }
-      if (DEBUG && added) {
+      if (DEBUG && filterAdded) {
         log.debug(
             "Adding filtered classes - instrumentation.class={}", module.getClass().getName());
       }

@@ -6,6 +6,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.JavaModuleOpenProvider;
 import datadog.trace.agent.tooling.muzzle.Reference;
+import java.util.Collection;
 
 @AutoService(InstrumenterModule.class)
 public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
@@ -30,7 +31,7 @@ public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
-  public Iterable<String> triggerClasses() {
+  public Collection<String> triggerClasses() {
     return asList(
         "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo",
         "org.mule.runtime.tracer.customization.impl.provider.LazyInitialSpanInfo");

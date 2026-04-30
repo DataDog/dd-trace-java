@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.java.module;
 import static java.util.Collections.unmodifiableSet;
 
 import datadog.trace.api.GenericClassValue;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicBoolean;
@@ -16,18 +17,16 @@ public final class JpmsHelper {
 
   private static final Set<String> TRIGGERS = new HashSet<>();
 
-  private static final ClassValue<AtomicBoolean> CLSVALUE =
+  private static final ClassValue<AtomicBoolean> HAS_FIRED =
       GenericClassValue.constructing(AtomicBoolean.class);
 
   public static final Logger LOGGER = LoggerFactory.getLogger(JpmsHelper.class);
 
-  public static void addAllTriggers(Iterable<String> classes) {
+  public static void addTriggers(Collection<String> classes) {
     if (classes == null) {
       return;
     }
-    for (String cls : classes) {
-      TRIGGERS.add(cls);
-    }
+    TRIGGERS.addAll(classes);
   }
 
   public static Set<String> getAllTriggers() {
@@ -35,6 +34,6 @@ public final class JpmsHelper {
   }
 
   public static boolean shouldBeOpened(Class<?> cls) {
-    return CLSVALUE.get(cls).compareAndSet(false, true);
+    return HAS_FIRED.get(cls).compareAndSet(false, true);
   }
 }
