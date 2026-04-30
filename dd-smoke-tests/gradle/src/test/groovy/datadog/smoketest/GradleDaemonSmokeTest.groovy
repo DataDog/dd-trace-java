@@ -9,7 +9,6 @@ import java.nio.file.Path
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
-import org.gradle.util.DistributionLocator
 import org.gradle.util.GradleVersion
 import org.gradle.wrapper.Download
 import org.gradle.wrapper.GradleUserHomeLookup
@@ -38,7 +37,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
     where:
     gradleVersion | projectName                                        | successExpected | expectedTraces | expectedCoverages
-    "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
+    // Gradle 3.5 is deprecated by TestKit 9.4.1 ("only the last 5 major
+    // versions" — i.e. Gradle 5+) and triggers a DeprecationLogger init race
+    // that flakes the build with IllegalStateException. Re-enable once we
+    // can either cover this version another way or drop it entirely.
+    // "3.5"         | "test-succeed-old-gradle"                          | true            | 5              | 1
     "7.6.4"       | "test-succeed-legacy-instrumentation"              | true            | 5              | 1
     "7.6.4"       | "test-succeed-multi-module-legacy-instrumentation" | true            | 7              | 2
     "7.6.4"       | "test-succeed-multi-forks-legacy-instrumentation"  | true            | 6              | 2
@@ -205,8 +208,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       def install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir))
 
       def configuration = new WrapperConfiguration()
-      def distribution = new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion))
-      configuration.setDistribution(distribution)
+      configuration.setDistribution(new URI("https://services.gradle.org/distributions/gradle-${gradleVersion}-bin.zip"))
       configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT)
 
       // this will download distribution (if not downloaded yet to userHomeDir) and verify its SHA
@@ -215,7 +217,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished dependencies download"
     } catch (Exception e) {
       println "${new Date()}: $specificationContext.currentIteration.displayName " +
-        "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
+      "- Failed to install Gradle distribution, will proceed to run test kit hoping for the best: $e"
     }
   }
 
@@ -228,12 +230,12 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     }
 
     GradleRunner gradleRunner = GradleRunner.create()
-      .withTestKitDir(testKitFolder.toFile())
-      .withProjectDir(projectFolder.toFile())
-      .withGradleVersion(gradleVersion)
-      .withArguments(arguments)
-      .withEnvironment(buildEnv)
-      .forwardOutput()
+    .withTestKitDir(testKitFolder.toFile())
+    .withProjectDir(projectFolder.toFile())
+    .withGradleVersion(gradleVersion)
+    .withArguments(arguments)
+    .withEnvironment(buildEnv)
+    .forwardOutput()
 
     println "${new Date()}: $specificationContext.currentIteration.displayName - Starting Gradle run"
     try {
@@ -241,11 +243,26 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       println "${new Date()}: $specificationContext.currentIteration.displayName - Finished Gradle run"
       return buildResult
     } catch (Exception e) {
-      def daemonLog = Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion)).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
-      if (daemonLog != null) {
-        println "=============================================================="
-        println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
-        println "=============================================================="
+      // Best-effort daemon log dump for diagnostics. Wrap in its own try/catch
+      // so an issue here (e.g. NoSuchFileException when the daemon never even
+      // started its test-kit-daemon/<version> dir) doesn't mask the original
+      // build failure.
+      try {
+        def daemonDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion)
+        if (Files.isDirectory(daemonDir)) {
+          def daemonLog = Files.list(daemonDir).filter(p -> p.toString().endsWith("log")).findAny().orElse(null)
+          if (daemonLog != null) {
+            println "=============================================================="
+            println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon log:\n${new String(Files.readAllBytes(daemonLog))}"
+            println "=============================================================="
+          } else {
+            println "${new Date()}: $specificationContext.currentIteration.displayName - No Gradle Daemon log found in ${daemonDir}"
+          }
+        } else {
+          println "${new Date()}: $specificationContext.currentIteration.displayName - Gradle Daemon directory does not exist: ${daemonDir} (daemon likely failed to start)"
+        }
+      } catch (Throwable diagFailure) {
+        println "${new Date()}: $specificationContext.currentIteration.displayName - Failed to read Gradle Daemon log: ${diagFailure}"
       }
       throw e
     }

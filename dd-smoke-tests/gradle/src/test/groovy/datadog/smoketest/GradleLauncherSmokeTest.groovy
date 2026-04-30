@@ -14,7 +14,11 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest)
 
-  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000
+  // Bumped from 90s after the Gradle 9.4.1 migration — Gradle 7.6.4+ daemons
+  // with the dd-trace agent + CI Visibility were consistently completing in
+  // ~1m30s on JDK 8 CI runners, repeatedly tripping the previous 90s limit.
+  // 180s gives a 2x safety margin without significantly extending green-path runs.
+  private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 180_000
   private static final int GRADLE_WRAPPER_RETRIES = 3
 
   private static final String JAVA_HOME = buildJavaHome()

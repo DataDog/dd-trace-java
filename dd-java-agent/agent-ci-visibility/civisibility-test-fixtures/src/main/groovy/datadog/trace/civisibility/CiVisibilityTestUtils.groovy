@@ -16,6 +16,7 @@ import freemarker.core.InvalidReferenceException
 import freemarker.template.Template
 import freemarker.template.TemplateException
 import freemarker.template.TemplateExceptionHandler
+import groovy.transform.CompileStatic
 import org.opentest4j.AssertionFailedError
 import org.skyscreamer.jsonassert.JSONAssert
 import org.skyscreamer.jsonassert.JSONCompareMode
@@ -367,6 +368,7 @@ abstract class CiVisibilityTestUtils {
     return compiledPaths
   }
 
+  @CompileStatic
   private static DynamicPath path(String rawPath, boolean unique = true) {
     return new DynamicPath(rawPath, JsonPath.compile(rawPath), unique)
   }
