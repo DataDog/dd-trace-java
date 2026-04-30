@@ -5,6 +5,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
+import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -145,10 +146,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
-      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
-      if (t == null) {
-        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      }
+      BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
+      t = bodyBlock != null ? bodyBlock : filenamesBlock;
     }
   }
 
@@ -189,10 +189,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       if (parts.isEmpty()) {
         return;
       }
-      t = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
-      if (t == null) {
-        t = PartHelper.fireFilenamesEvent(parts, reqCtx);
-      }
+      BlockingException bodyBlock = PartHelper.fireBodyProcessedEvent(parts, reqCtx);
+      BlockingException filenamesBlock = PartHelper.fireFilenamesEvent(parts, reqCtx);
+      t = bodyBlock != null ? bodyBlock : filenamesBlock;
     }
   }
 }

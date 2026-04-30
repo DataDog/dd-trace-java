@@ -76,9 +76,12 @@ public class PartHelper {
     }
     List<String> filenames = new ArrayList<>();
     for (Object obj : parts) {
-      String filename = filenameFromPart((Part) obj);
-      if (filename != null && !filename.isEmpty()) {
-        filenames.add(filename);
+      try {
+        String filename = filenameFromPart((Part) obj);
+        if (filename != null && !filename.isEmpty()) {
+          filenames.add(filename);
+        }
+      } catch (Exception ignored) {
       }
     }
     return filenames;
@@ -94,19 +97,22 @@ public class PartHelper {
     }
     Map<String, List<String>> result = new LinkedHashMap<>();
     for (Object obj : parts) {
-      Part part = (Part) obj;
-      if (filenameFromPart(part) != null) {
-        continue; // file-upload part — skip
+      try {
+        Part part = (Part) obj;
+        if (filenameFromPart(part) != null) {
+          continue; // file-upload part — skip
+        }
+        String name = part.getName();
+        if (name == null) {
+          continue;
+        }
+        String value = readPartContent(part);
+        if (value == null) {
+          continue;
+        }
+        result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
+      } catch (Exception ignored) {
       }
-      String name = part.getName();
-      if (name == null) {
-        continue;
-      }
-      String value = readPartContent(part);
-      if (value == null) {
-        continue;
-      }
-      result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
     }
     return result;
   }
@@ -193,9 +199,10 @@ public class PartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        reqCtx.getTraceSegment().effectivelyBlocked();
-        return new BlockingException("Blocked request (multipart form fields)");
+        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+          reqCtx.getTraceSegment().effectivelyBlocked();
+          return new BlockingException("Blocked request (multipart form fields)");
+        }
       }
     }
     return null;
@@ -222,9 +229,10 @@ public class PartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        reqCtx.getTraceSegment().effectivelyBlocked();
-        return new BlockingException("Blocked request (multipart file upload)");
+        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+          reqCtx.getTraceSegment().effectivelyBlocked();
+          return new BlockingException("Blocked request (multipart file upload)");
+        }
       }
     }
     return null;

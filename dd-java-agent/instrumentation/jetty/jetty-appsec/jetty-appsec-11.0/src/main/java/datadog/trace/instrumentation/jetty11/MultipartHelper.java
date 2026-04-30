@@ -32,9 +32,12 @@ public class MultipartHelper {
     }
     List<String> filenames = new ArrayList<>();
     for (Part part : parts) {
-      String name = part.getSubmittedFileName();
-      if (name != null && !name.isEmpty()) {
-        filenames.add(name);
+      try {
+        String name = part.getSubmittedFileName();
+        if (name != null && !name.isEmpty()) {
+          filenames.add(name);
+        }
+      } catch (Exception ignored) {
       }
     }
     return filenames;
@@ -62,9 +65,10 @@ public class MultipartHelper {
       Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
       BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
       if (brf != null) {
-        brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-        reqCtx.getTraceSegment().effectivelyBlocked();
-        return new BlockingException("Blocked request (multipart file upload)");
+        if (brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba)) {
+          reqCtx.getTraceSegment().effectivelyBlocked();
+          return new BlockingException("Blocked request (multipart file upload)");
+        }
       }
     }
     return null;
