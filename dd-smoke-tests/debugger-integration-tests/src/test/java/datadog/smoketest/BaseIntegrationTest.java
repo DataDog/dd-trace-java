@@ -592,7 +592,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
-    private Function<RecordedRequest, MockResponse> dispatcher;
+    private volatile Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override
     public MockResponse dispatch(RecordedRequest request) throws InterruptedException {

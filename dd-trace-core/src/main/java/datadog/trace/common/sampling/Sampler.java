@@ -80,7 +80,6 @@ public interface Sampler {
             log.error("Invalid sampler configuration. Using AllSampler", e);
             sampler = new AllSampler();
           }
-          // TODO: if OTLP trace export enabled, select ParentBasedAlwaysOnSampler here
         } else if (config.isPrioritySamplingEnabled()) {
           if (KEEP.equalsIgnoreCase(config.getPrioritySamplingForce())) {
             log.debug("Force Sampling Priority to: SAMPLER_KEEP.");
@@ -90,9 +89,19 @@ public interface Sampler {
             log.debug("Force Sampling Priority to: SAMPLER_DROP.");
             sampler =
                 new ForcePrioritySampler(PrioritySampling.SAMPLER_DROP, SamplingMechanism.DEFAULT);
+          } else if (config.isTraceOtlpExporterEnabled()) {
+            // RateByServiceTraceSampler relies on the Datadog Agent for rate updates.
+            log.debug(
+                "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of RateByServiceTraceSampler.");
+            sampler = new ParentBasedAlwaysOnSampler();
           } else {
             sampler = new RateByServiceTraceSampler();
           }
+        } else if (config.isTraceOtlpExporterEnabled()) {
+          // AllSampler does not emit a sampling priority; OTLP export requires one.
+          log.debug(
+              "OTLP traces export enabled. Using ParentBasedAlwaysOnSampler instead of AllSampler.");
+          sampler = new ParentBasedAlwaysOnSampler();
         } else {
           sampler = new AllSampler();
         }

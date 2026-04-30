@@ -88,6 +88,7 @@
 /dd-trace-api/src/main/java/datadog/trace/api/aiguard/          @DataDog/asm-java
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
+/internal-api/src/main/java/datadog/trace/api/http/             @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
 **/*CallSite*.java                                              @DataDog/asm-java
 **/*CallSite*.groovy                                            @DataDog/asm-java
