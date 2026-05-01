@@ -18,7 +18,7 @@ dependencies {
   }
 
   testImplementation testFixtures(project(':dd-java-agent:instrumentation:mongo:mongo-common'))
-  testImplementation project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
+  testImplementation rootProject.project(':dd-java-agent:instrumentation:mongo:mongo-common').sourceSets.test.output
   testImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
 

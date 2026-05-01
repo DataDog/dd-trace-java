@@ -36,14 +36,14 @@ tasks.named("latestDepTest", Test) {
 }
 
 sourceSets {
-  test.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
+  test.groovy.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
   test.groovy.srcDir sourceSets.latestDepForkedTest.groovy
-  latestDepTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
-  latestDepForkedTest.groovy.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
+  latestDepTest.groovy.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
+  latestDepForkedTest.groovy.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.groovy
 
-  test.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
-  latestDepTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
-  latestDepForkedTest.scala.srcDir project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  test.scala.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  latestDepTest.scala.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
+  latestDepForkedTest.scala.srcDir rootProject.project(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common').sourceSets.test.scala
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
