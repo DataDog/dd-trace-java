@@ -69,6 +69,7 @@ dependencies {
   // KotlinAwareHandlerInstrumentation relies on the reactive-streams and reactor instrumentation
   testImplementation project(':dd-java-agent:instrumentation:reactive-streams-1.0')
   testImplementation project(':dd-java-agent:instrumentation:reactor-core-3.1')
+  testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
 
   testImplementation 'org.apache.kafka:kafka-server-common:3.8.0:test'
   testImplementation 'org.apache.kafka:kafka-clients:3.8.0'
