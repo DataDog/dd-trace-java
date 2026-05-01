@@ -51,11 +51,15 @@ public abstract class AbstractMavenTest {
 
     File pomFile = new File(AbstractMavenTest.class.getResource(pomPath).toURI());
 
-    String[] arguments = new String[additionalArgs.length + 3];
+    String[] arguments = new String[additionalArgs.length + 4];
     arguments[0] = "-f";
     arguments[1] = pomFile.getAbsolutePath();
     arguments[2] = goal;
-    System.arraycopy(additionalArgs, 0, arguments, 3, additionalArgs.length);
+    // Cap Aether's HTTP read timeout so a stalled Maven Central fetch fails fast.
+    // Default is 30 min, which exceeds the 20-min Gradle test task timeout and turns
+    // a network stall into an opaque "Timeout has been exceeded" task abort.
+    arguments[3] = "-Daether.connector.requestTimeout=60000";
+    System.arraycopy(additionalArgs, 0, arguments, 4, additionalArgs.length);
 
     mavenCli.doMain(arguments, WORKING_DIRECTORY.toAbsolutePath().toString(), stdOut, stderr);
 

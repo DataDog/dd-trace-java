@@ -95,7 +95,10 @@ class DropwizardTest extends HttpServerTest<DropwizardTestSupport> {
 
   @Override
   String expectedIntegrationName() {
-    "java-web-servlet"
+    // In production, Jetty's server instrumentation creates the request span before Servlet3
+    // gets a chance to. Servlet3Advice detects the existing span and skips, so the span is
+    // owned by jetty-server, not java-web-servlet.
+    "jetty-server"
   }
 
   @Override

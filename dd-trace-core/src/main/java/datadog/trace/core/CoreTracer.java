@@ -91,6 +91,7 @@ import datadog.trace.core.baggage.BaggagePropagator;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.core.datastreams.DataStreamsTransactionExtractors;
 import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
+import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
@@ -770,16 +771,17 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     DDAgentFeaturesDiscovery featuresDiscovery =
         sharedCommunicationObjects.featuresDiscovery(config);
-
     if (config.isCiVisibilityEnabled()) {
       // ensure updated discovery and sync if the another discovery currently being done
       featuresDiscovery.discoverIfOutdated();
     }
 
+    boolean payloadFilesEnabled =
+        config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled();
     if (config.isCiVisibilityEnabled()
         && (config.isCiVisibilityAgentlessEnabled()
-            || featuresDiscovery.supportsEvpProxy()
-            || BazelMode.get().isPayloadFilesEnabled())) {
+            || payloadFilesEnabled
+            || featuresDiscovery.supportsEvpProxy())) {
       pendingTraceBuffer = PendingTraceBuffer.discarding();
       traceCollectorFactory =
           new StreamingTraceCollector.Factory(this, this.timeSource, this.healthMetrics);
@@ -806,9 +808,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
         () -> AgentTaskScheduler.get().execute(() -> startMetricsAggregation(config, sco)));
 
     if (dataStreamsMonitoring == null) {
+      // Avoid DSM in bazel hermetic mode
       this.dataStreamsMonitoring =
-          new DefaultDataStreamsMonitoring(
-              config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
+          payloadFilesEnabled
+              ? DisabledDataStreamsMonitoring.INSTANCE
+              : new DefaultDataStreamsMonitoring(
+                  config, sharedCommunicationObjects, this.timeSource, this::captureTraceConfig);
     } else {
       this.dataStreamsMonitoring = dataStreamsMonitoring;
     }

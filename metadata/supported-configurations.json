@@ -289,6 +289,22 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_MAX_FILE_CONTENT_BYTES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "4096",
+        "aliases": []
+      }
+    ],
+    "DD_APPSEC_MAX_FILE_CONTENT_COUNT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "25",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_MAX_STACKTRACES": [
       {
         "version": "A",
@@ -2225,6 +2241,62 @@
         "aliases": ["DD_LOGS_INJECTION"]
       }
     ],
+    "DD_LOGS_OTEL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_EXPORTER": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_HEADERS": [
+      {
+        "version": "A",
+        "type": "map",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_OTLP_LOGS_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_LOG_LEVEL": [
       {
         "version": "D",
@@ -2445,6 +2517,14 @@
       {
         "version": "A",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_PROCESS_TAGS_MAPPING": [
+      {
+        "version": "A",
+        "type": "map",
         "default": null,
         "aliases": []
       }
@@ -8321,6 +8401,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED", "DD_INTEGRATION_OPENSEARCH_TRANSPORT_ENABLED"]
       }
     ],
+    "DD_TRACE_OPENTELEMETRY_1_27_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_1_27_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_1_27_ENABLED"]
+      }
+    ],
     "DD_TRACE_OPENTELEMETRY_1_47_ENABLED": [
       {
         "version": "A",
@@ -8407,6 +8495,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_EXPERIMENTAL_ENABLED"]
+      }
+    ],
+    "DD_TRACE_OPENTELEMETRY_LOGS_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": null,
+        "aliases": ["DD_TRACE_INTEGRATION_OPENTELEMETRY_LOGS_ENABLED", "DD_INTEGRATION_OPENTELEMETRY_LOGS_ENABLED"]
       }
     ],
     "DD_TRACE_OPENTELEMETRY_METRICS_ENABLED": [
@@ -11497,6 +11593,46 @@
         "aliases": []
       }
     ],
+    "OTEL_EXPORTER_OTLP_LOGS_ENDPOINT": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_HEADERS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_PROTOCOL": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": "SDK-dependent, but will typically be either http/protobuf or grpc.",
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_COMPRESSION": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_EXPORTER_OTLP_LOGS_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "10000",
+        "aliases": []
+      }
+    ],
     "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT": [
       {
         "version": "A",
@@ -11599,6 +11735,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": []
+      }
+    ],
+    "DD_TRACE_JAVA_MODULE_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
       }
     ]
   },
