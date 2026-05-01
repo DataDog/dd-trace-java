@@ -17,10 +17,10 @@ import java.util.Map;
 ///
 /// **`initializationError`** — Gradle generates these for setup methods. When retried and eventually
 /// successful, multiple testcases appear; only the last one passes. All intermediate attempts are
-/// tagged skip. Files with only one (or zero) `initializationError` entries are left unmodified.
+/// tagged skip. Groups with only one (or zero) `initializationError` entries per classname are left unmodified.
 ///
-/// **`executionError`** and **`test exception`** — Framework-level synthetic failures that never
-/// represent a real test result and never fail CI. All occurrences are tagged skip unconditionally.
+/// **`executionError`** and **`test exception`** — Framework-level synthetic failures that do not
+/// represent real test results. Tagged skip unconditionally so Test Optimization treats them as non-failures.
 ///
 /// Before (two retries of the same class — first is intermediate, second is the final outcome):
 ///
