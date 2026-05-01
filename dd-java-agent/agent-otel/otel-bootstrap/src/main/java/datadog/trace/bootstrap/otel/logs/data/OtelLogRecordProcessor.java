@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.WeakHashMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -46,7 +45,7 @@ public final class OtelLogRecordProcessor {
       if (!attributes.isEmpty()) {
         ClassLoader cl = getAttributesClassLoader(attributes);
         // avoid repeated lookups when attribute class-loader is same for all records
-        if (attributesReader == null || !Objects.equals(cl, attributesClassLoader)) {
+        if (attributesReader == null || cl != attributesClassLoader) {
           attributesReader = ATTRIBUTE_READERS.get(cl);
           attributesClassLoader = cl;
         }
