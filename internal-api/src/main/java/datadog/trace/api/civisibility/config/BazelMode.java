@@ -1,14 +1,15 @@
 package datadog.trace.api.civisibility.config;
 
+import static java.nio.charset.StandardCharsets.UTF_8;
+
 import datadog.trace.api.Config;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
+import java.io.File;
+import java.io.FileInputStream;
 import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.InvalidPathException;
-import java.nio.file.Path;
-import java.nio.file.Paths;
+import java.io.InputStreamReader;
 import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,13 +30,13 @@ public class BazelMode {
   /* manifestModeEnabled reports whether a supported manifest was found and can be used for config cache */
   private final boolean manifestModeEnabled;
   /* manifestPath is the resolved absolute path to the Bazel manifest while in manifest mode */
-  @Nullable private final Path manifestPath;
+  @Nullable private final String manifestPath;
   /* manifestDir is the directory containing the resolved manifest and the cached config files */
-  @Nullable private final Path manifestDir;
+  @Nullable private final String manifestDir;
   /* payloadFilesEnabled reports whether Bazel payload-in-file mode is enabled */
   private final boolean payloadFilesEnabled;
   /* payloadsDir is the root directory containing payload output directories */
-  @Nullable private final Path payloadsDir;
+  @Nullable private final String payloadsDir;
 
   public static BazelMode get() {
     if (INSTANCE == null) {
@@ -55,7 +56,7 @@ public class BazelMode {
       LOGGER.debug("[bazel mode] Resolving manifest path from '{}'", manifestRloc);
       manifestPath = resolveRlocation(manifestRloc);
       if (manifestPath != null) {
-        manifestDir = manifestPath.getParent();
+        manifestDir = new File(manifestPath).getParent();
         manifestModeEnabled = isManifestCompatible(manifestPath);
         LOGGER.info(
             "[bazel mode] Manifest file resolved (path: '{}', enabled: {})",
@@ -74,28 +75,20 @@ public class BazelMode {
       manifestDir = null;
     }
 
-    payloadFilesEnabled = config.isTestOptimizationPayloadsInFiles();
     // TEST_UNDECLARED_OUTPUTS_DIR is a Bazel-provided env var, not a DD configuration
     String undeclaredOutputsDir = ConfigHelper.env("TEST_UNDECLARED_OUTPUTS_DIR");
-    if (payloadFilesEnabled) {
-      if (Strings.isNotBlank(undeclaredOutputsDir)) {
-        Path resolved = null;
-        try {
-          resolved = Paths.get(undeclaredOutputsDir).resolve("payloads");
-          LOGGER.info(
-              "[bazel mode] Payload-in-files mode enabled with payload directory {}", resolved);
-        } catch (InvalidPathException e) {
-          LOGGER.warn(
-              "[bazel mode] Payload-in-files mode enabled, but could not resolve payload directory");
-        }
-        payloadsDir = resolved;
-      } else {
-        LOGGER.warn(
-            "[bazel mode] Payload-in-files mode enabled, but no payload directory was provided");
-        payloadsDir = null;
-      }
+    if (config.isTestOptimizationPayloadsInFiles() && Strings.isNotBlank(undeclaredOutputsDir)) {
+      payloadsDir = undeclaredOutputsDir + File.separator + "payloads";
+      payloadFilesEnabled = true;
+      LOGGER.info(
+          "[bazel mode] Payload-in-files mode enabled with payload directory {}", payloadsDir);
     } else {
       payloadsDir = null;
+      payloadFilesEnabled = false;
+      if (config.isTestOptimizationPayloadsInFiles()) {
+        LOGGER.warn(
+            "[bazel mode] Payload-in-files mode requested but no payload directory was provided; disabling");
+      }
     }
 
     LOGGER.debug("[bazel mode] Resolved mode {}", this);
@@ -131,65 +124,57 @@ public class BazelMode {
   }
 
   @Nullable
-  public Path getPayloadsDir() {
+  public String getPayloadsDir() {
     return payloadsDir;
   }
 
   @Nullable
-  public Path getTestPayloadsDir() {
-    if (payloadsDir == null) {
-      return null;
-    }
-    return payloadsDir.resolve("tests");
+  public String getTestPayloadsDir() {
+    return payloadsDir != null ? payloadsDir + File.separator + "tests" : null;
   }
 
   @Nullable
-  public Path getCoveragePayloadsDir() {
-    if (payloadsDir == null) {
-      return null;
-    }
-    return payloadsDir.resolve("coverage");
+  public String getCoveragePayloadsDir() {
+    return payloadsDir != null ? payloadsDir + File.separator + "coverage" : null;
   }
 
   @Nullable
-  public Path getTelemetryPayloadsDir() {
-    if (payloadsDir == null) {
-      return null;
-    }
-    return payloadsDir.resolve("telemetry");
+  public String getTelemetryPayloadsDir() {
+    return payloadsDir != null ? payloadsDir + File.separator + "telemetry" : null;
   }
 
   @Nullable
-  public Path getSettingsPath() {
+  public String getSettingsPath() {
     return resolveToptFile(SETTINGS_FILE);
   }
 
   @Nullable
-  public Path getFlakyTestsPath() {
+  public String getFlakyTestsPath() {
     return resolveToptFile(FLAKY_TESTS_FILE);
   }
 
   @Nullable
-  public Path getKnownTestsPath() {
+  public String getKnownTestsPath() {
     return resolveToptFile(KNOWN_TESTS_FILE);
   }
 
   @Nullable
-  public Path getTestManagementPath() {
+  public String getTestManagementPath() {
     return resolveToptFile(TEST_MANAGEMENT_FILE);
   }
 
   @Nullable
-  private Path resolveToptFile(String relativePath) {
+  private String resolveToptFile(String relativePath) {
     if (manifestDir == null) {
       return null;
     }
-    Path path = manifestDir.resolve(relativePath);
-    return Files.exists(path) ? path : null;
+    File file = new File(manifestDir, relativePath);
+    return file.exists() ? file.getAbsolutePath() : null;
   }
 
-  private static boolean isManifestCompatible(Path manifestPath) {
-    try (BufferedReader reader = Files.newBufferedReader(manifestPath)) {
+  private static boolean isManifestCompatible(String manifestPath) {
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(new FileInputStream(manifestPath), UTF_8))) {
       String firstLine = reader.readLine();
       if (firstLine == null) {
         LOGGER.warn("[bazel mode] Manifest file is empty: {}", manifestPath);
@@ -224,73 +209,69 @@ public class BazelMode {
   }
 
   /**
-   * Resolves a Bazel runfile rlocation path to an absolute path, checking whether it exists.
-   * Implements the 4-step algorithm: check direct path, $RUNFILES_DIR, $RUNFILES_MANIFEST_FILE,
-   * $TEST_SRCDIR.
+   * Resolves a Bazel runfile rlocation to an absolute path string. Implements the 4-step algorithm:
+   * direct path, $RUNFILES_DIR, $RUNFILES_MANIFEST_FILE, $TEST_SRCDIR.
    */
   @Nullable
-  private static Path resolveRlocation(String rlocation) {
+  private static String resolveRlocation(String rlocation) {
     if (Strings.isBlank(rlocation)) {
       return null;
     }
 
-    try {
-      Path directPath = Paths.get(rlocation);
-      if (Files.exists(directPath)) {
-        LOGGER.debug("[bazel mode] Resolved manifest directly");
-        return directPath;
-      }
+    File direct = new File(rlocation);
+    if (direct.exists()) {
+      LOGGER.debug("[bazel mode] Resolved manifest directly");
+      return direct.getAbsolutePath();
+    }
 
-      String runfilesDir = ConfigHelper.env("RUNFILES_DIR");
-      if (Strings.isNotBlank(runfilesDir)) {
-        Path candidate = Paths.get(runfilesDir, rlocation);
-        if (Files.exists(candidate)) {
-          LOGGER.debug(
-              "[bazel mode] Manifest resolved via RUNFILES_DIR (dir: {}, candidate: {})",
-              runfilesDir,
-              candidate);
-          return candidate;
-        }
+    String runfilesDir = ConfigHelper.env("RUNFILES_DIR");
+    if (Strings.isNotBlank(runfilesDir)) {
+      File candidate = new File(runfilesDir, rlocation);
+      if (candidate.exists()) {
+        LOGGER.debug(
+            "[bazel mode] Manifest resolved via RUNFILES_DIR (dir: {}, candidate: {})",
+            runfilesDir,
+            candidate);
+        return candidate.getAbsolutePath();
       }
+    }
 
-      String manifestFile = ConfigHelper.env("RUNFILES_MANIFEST_FILE");
-      if (Strings.isNotBlank(manifestFile)) {
-        Path resolved = lookupInRunfilesManifest(Paths.get(manifestFile), rlocation);
-        if (resolved != null) {
-          LOGGER.debug(
-              "[bazel mode] Manifest resolved via RUNFILES_MANIFEST_FILE (candidate: {})",
-              resolved);
-          return resolved;
-        }
+    String manifestFile = ConfigHelper.env("RUNFILES_MANIFEST_FILE");
+    if (Strings.isNotBlank(manifestFile)) {
+      String resolved = lookupInRunfilesManifest(manifestFile, rlocation);
+      if (resolved != null) {
+        LOGGER.debug(
+            "[bazel mode] Manifest resolved via RUNFILES_MANIFEST_FILE (candidate: {})", resolved);
+        return resolved;
       }
+    }
 
-      String testSrcDir = ConfigHelper.env("TEST_SRCDIR");
-      if (Strings.isNotBlank(testSrcDir)) {
-        Path candidate = Paths.get(testSrcDir, rlocation);
-        if (Files.exists(candidate)) {
-          LOGGER.debug(
-              "[bazel mode] Manifest resolved via TEST_SRCDIR (dir: {}, candidate: {})",
-              testSrcDir,
-              candidate);
-          return candidate;
-        }
+    String testSrcDir = ConfigHelper.env("TEST_SRCDIR");
+    if (Strings.isNotBlank(testSrcDir)) {
+      File candidate = new File(testSrcDir, rlocation);
+      if (candidate.exists()) {
+        LOGGER.debug(
+            "[bazel mode] Manifest resolved via TEST_SRCDIR (dir: {}, candidate: {})",
+            testSrcDir,
+            candidate);
+        return candidate.getAbsolutePath();
       }
-    } catch (InvalidPathException ignored) {
     }
 
     return null;
   }
 
   @Nullable
-  private static Path lookupInRunfilesManifest(Path manifestFile, String rlocation) {
+  private static String lookupInRunfilesManifest(String manifestFile, String rlocation) {
     LOGGER.debug(
         "[bazel mode] Reading runfiles manifest {} for rlocation {}", manifestFile, rlocation);
-    try (BufferedReader reader = Files.newBufferedReader(manifestFile)) {
+    try (BufferedReader reader =
+        new BufferedReader(new InputStreamReader(new FileInputStream(manifestFile), UTF_8))) {
       String line;
       while ((line = reader.readLine()) != null) {
         int spaceIdx = line.indexOf(' ');
         if (spaceIdx > 0 && line.substring(0, spaceIdx).equals(rlocation)) {
-          return Paths.get(line.substring(spaceIdx + 1));
+          return line.substring(spaceIdx + 1);
         }
       }
     } catch (IOException e) {

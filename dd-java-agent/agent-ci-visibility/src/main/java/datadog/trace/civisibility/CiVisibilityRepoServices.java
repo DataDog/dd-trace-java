@@ -256,11 +256,11 @@ public class CiVisibilityRepoServices {
       LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
       configurationApi =
           new FileBasedConfigurationApi(
-              bazelMode.getSettingsPath(),
+              toPathOrNull(bazelMode.getSettingsPath()),
               null,
-              bazelMode.getFlakyTestsPath(),
-              bazelMode.getKnownTestsPath(),
-              bazelMode.getTestManagementPath());
+              toPathOrNull(bazelMode.getFlakyTestsPath()),
+              toPathOrNull(bazelMode.getKnownTestsPath()),
+              toPathOrNull(bazelMode.getTestManagementPath()));
     } else if (backendApi == null) {
       LOGGER.warn(
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
@@ -283,6 +283,11 @@ public class CiVisibilityRepoServices {
     } else {
       return new MultiModuleExecutionSettingsFactory(config, factory);
     }
+  }
+
+  @Nullable
+  private static Path toPathOrNull(@Nullable String path) {
+    return path != null ? Paths.get(path) : null;
   }
 
   private static GitDataUploader buildGitDataUploader(

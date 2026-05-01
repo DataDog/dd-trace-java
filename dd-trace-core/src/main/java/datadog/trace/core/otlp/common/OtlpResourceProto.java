@@ -1,7 +1,7 @@
 package datadog.trace.core.otlp.common;
 
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
@@ -67,6 +67,6 @@ public final class OtlpResourceProto {
 
   private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {
     writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeAttribute(buf, STRING, key, value);
+    writeAttribute(buf, STRING_ATTRIBUTE, key, value);
   }
 }
