@@ -10,6 +10,7 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI32;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentationScope;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
+import static datadog.trace.core.otlp.common.OtlpCommonProto.writeStringCached;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.SAMPLED_TRACE_FLAG;
@@ -56,7 +57,7 @@ public final class OtlpLogsProto {
 
     if (logRecord.severityText != null) {
       writeTag(buf, 3, LEN_WIRE_TYPE);
-      writeString(buf, logRecord.severityText);
+      writeStringCached(buf, logRecord.severityText);
     }
 
     if (logRecord.body != null) {
@@ -84,7 +85,7 @@ public final class OtlpLogsProto {
 
     if (logRecord.eventName != null) {
       writeTag(buf, 12, LEN_WIRE_TYPE);
-      writeString(buf, logRecord.eventName);
+      writeStringCached(buf, logRecord.eventName);
     }
 
     return recordMessage(buf, 2);
