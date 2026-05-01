@@ -22,20 +22,22 @@ import java.util.Map;
 /// **`executionError`** and **`test exception`** — Framework-level synthetic failures that never
 /// represent a real test result and never fail CI. All occurrences are tagged skip unconditionally.
 ///
-/// Before:
+/// Before (two retries of the same class — first is intermediate, second is the final outcome):
 ///
 /// ```
-/// <testcase name="executionError" />
+/// <testcase name="initializationError" classname="com.example.MyTest" />
+/// <testcase name="initializationError" classname="com.example.MyTest" />
 /// ```
 ///
-/// After:
+/// After (only the intermediate attempt is tagged; the last entry is left untouched):
 ///
 /// ```
-/// <testcase name="executionError">
+/// <testcase name="initializationError" classname="com.example.MyTest">
 ///   <properties>
 ///     <property name="dd_tags[test.final_status]" value="skip" />
 ///   </properties>
 /// </testcase>
+/// <testcase name="initializationError" classname="com.example.MyTest" />
 /// ```
 ///
 /// Usage (Java 25): `java TagInitializationErrors.java junit-report.xml`
