@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_A
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
-import static datadog.trace.core.otlp.trace.OtlpTraceProto.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.SAMPLED_TRACE_FLAG;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
@@ -117,12 +116,6 @@ class OtlpLogsProtoTest {
     @Nullable final String eventName;
 
     /**
-     * If true, wraps the span's IDs in a remote {@link ExtractedContext} so that {@code isRemote()}
-     * returns true, setting {@code REMOTE_TRACE_FLAG}.
-     */
-    boolean useRemoteContext;
-
-    /**
      * If true, the span at {@code spanContextIndex} is started under a known 128-bit trace ID so
      * the high-order bytes of trace_id are non-zero.
      */
@@ -147,11 +140,6 @@ class OtlpLogsProtoTest {
       this.attrs = attrs;
       this.spanContextIndex = spanContextIndex;
       this.eventName = eventName;
-    }
-
-    LogSpec remoteContext() {
-      this.useRemoteContext = true;
-      return this;
     }
 
     LogSpec use128BitTraceId() {
@@ -298,9 +286,6 @@ class OtlpLogsProtoTest {
         Arguments.of(
             "log with 128-bit trace ID — high-order trace_id bytes non-zero",
             asList(contextLog("128-bit trace", 0).use128BitTraceId())),
-        Arguments.of(
-            "log with remote span context — REMOTE flag set in flags field",
-            asList(contextLog("remote context", 0).remoteContext())),
 
         // ── event name ────────────────────────────────────────────────────────
         Arguments.of(
@@ -487,8 +472,8 @@ class OtlpLogsProtoTest {
   }
 
   /**
-   * Resolves the {@link AgentSpanContext} for a spec: null if no context, remote {@link
-   * ExtractedContext} if {@code useRemoteContext}, or the span's own context otherwise.
+   * Resolves the {@link AgentSpanContext} for a spec: the span's own context, or null if no
+   * context.
    */
   @Nullable
   private static AgentSpanContext resolveContext(List<DDSpan> spans, LogSpec spec) {
@@ -496,15 +481,6 @@ class OtlpLogsProtoTest {
       return null;
     }
     DDSpan span = spans.get(spec.spanContextIndex);
-    if (spec.useRemoteContext) {
-      return new ExtractedContext(
-          span.getTraceId(),
-          span.getSpanId(),
-          PrioritySampling.USER_KEEP,
-          null,
-          PropagationTags.factory().empty(),
-          TracePropagationStyle.DATADOG);
-    }
     return span.context();
   }
 
@@ -717,11 +693,6 @@ class OtlpLogsProtoTest {
         assertTrue(
             (parsedFlags & SAMPLED_TRACE_FLAG) != 0,
             "SAMPLED flag must be set in flags [" + caseName + "]");
-      }
-      if (ctx.isRemote()) {
-        assertTrue(
-            (parsedFlags & REMOTE_TRACE_FLAG) != 0,
-            "REMOTE flag must be set in flags [" + caseName + "]");
       }
       if (spec.use128BitTraceId) {
         long highOrderBytes = readBigEndianLong(parsedTraceId);

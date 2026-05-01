@@ -12,8 +12,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.writeInstrumentatio
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeString;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeVarInt;
-import static datadog.trace.core.otlp.trace.OtlpTraceProto.NO_TRACE_FLAGS;
-import static datadog.trace.core.otlp.trace.OtlpTraceProto.REMOTE_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.SAMPLED_TRACE_FLAG;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeSpanId;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.writeTraceId;
@@ -76,16 +74,9 @@ public final class OtlpLogsProto {
       writeTag(buf, 10, LEN_WIRE_TYPE);
       writeSpanId(buf, logRecord.spanContext.getSpanId());
 
-      int traceFlags = NO_TRACE_FLAGS;
       if (logRecord.spanContext.getSamplingPriority() > 0) {
-        traceFlags |= SAMPLED_TRACE_FLAG;
-      }
-      if (logRecord.spanContext.isRemote()) {
-        traceFlags |= REMOTE_TRACE_FLAG;
-      }
-      if (traceFlags != NO_TRACE_FLAGS) {
         writeTag(buf, 8, I32_WIRE_TYPE);
-        writeI32(buf, traceFlags);
+        writeI32(buf, SAMPLED_TRACE_FLAG);
       }
     }
 
