@@ -25,8 +25,11 @@ stages:
   - java-spring-petclinic-parallel
   - java-spring-petclinic-parallel-slo
   - java-startup-parallel
+  - java-startup-parallel-slo
   - java-load-parallel
+  - java-load-parallel-slo
   - java-dacapo-parallel
+  - java-dacapo-parallel-slo
   - shared-pipeline
   - benchmarks
   - macrobenchmarks
@@ -40,7 +43,6 @@ variables:
   # Gitlab runner features; see https://docs.gitlab.com/runner/configuration/feature-flags.html
   # Fold and time all script sections
   FF_SCRIPT_SECTIONS: 1
-
   REGISTRY: 486234852809.dkr.ecr.us-east-1.amazonaws.com
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
@@ -1413,11 +1415,12 @@ verify_maven_central_deployment:
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-api/${VERSION}/dd-trace-api-${VERSION}.jar"
         "https://repo1.maven.org/maven2/com/datadoghq/dd-trace-ot/${VERSION}/dd-trace-ot-${VERSION}.jar"
       )
-      # Wait 5 mins initially, then try 5 times with a minute delay between each retry to see if the release artifacts are available
-      sleep 300
+      # Try once immediately (fast path on job retry), then wait 5 mins for initial propagation,
+      # then try 4 more times with a minute delay between each retry.
       TRY=0
-      MAX_TRIES=5
-      DELAY=60
+      MAX_TRIES=6
+      INITIAL_DELAY=300
+      RETRY_DELAY=60
       while [ $TRY -lt $MAX_TRIES ]; do
         ARTIFACTS_AVAILABLE=true
         for URL in "${ARTIFACT_URLS[@]}"; do
@@ -1434,7 +1437,11 @@ verify_maven_central_deployment:
           echo "The release was not available after 10 mins. Manually re-run the job to try again."
           exit 1
         fi
-        sleep $DELAY
+        if [ $TRY -eq 1 ]; then
+          sleep $INITIAL_DELAY
+        else
+          sleep $RETRY_DELAY
+        fi
       done
 
 publishing-gate:

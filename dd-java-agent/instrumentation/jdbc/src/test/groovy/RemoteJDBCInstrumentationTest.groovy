@@ -2,7 +2,6 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS
-import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.microsoft.sqlserver.jdbc.SQLServerException
@@ -549,7 +548,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               // since Connection.getClientInfo will not provide the username
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" operation
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -573,7 +572,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
@@ -683,7 +682,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "${Tags.DB_OPERATION}" operation
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -707,7 +706,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
               "dd.instrumentation" true
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               peerServiceFrom(Tags.DB_INSTANCE)
@@ -856,7 +855,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               if (addDbmTag) {
                 "$InstrumentationTags.DBM_TRACE_INJECTED" true
               }
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "$InstrumentationTags.DBM_TRACE_INJECTED" true
@@ -880,7 +879,7 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
               "$Tags.PEER_HOSTNAME" String
               "$Tags.DB_USER" { it == null || it == jdbcUserNames.get(driver) }
               "$Tags.DB_OPERATION" "set"
-              if (conPoolType == "hikari") {
+              if (pool == "hikari") {
                 "$Tags.DB_POOL_NAME" String
               }
               "dd.instrumentation" true
@@ -1043,7 +1042,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
     def conn =  pool ? cpDatasources.get(pool).get(db).getConnection() : connectTo(db, peerConnectionProps(db))
 
-    TEST_WRITER.clear() // Clear any traces that pool or db can emmit on connection creation.
+    // Clear any traces that pool or db can emmit on connection creation.
+    TEST_WRITER.clear()
 
     return conn
   }
