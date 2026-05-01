@@ -4,7 +4,11 @@ muzzle {
     group = "org.glassfish.grizzly"
     module = "grizzly-http-client"
     versions = "[1.9,1.16]"
+    // Grizzly 5.0.1+ requires Java 21 to load.
+    javaVersion = '21'
     assertInverse = true
+    // 5.0.0 has a broken POM (references grizzly-bom:5.0.0-SNAPSHOT) and cannot be resolved.
+    skipVersions += "5.0.0"
   }
   pass {
     group = "com.ning"
