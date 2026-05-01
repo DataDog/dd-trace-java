@@ -113,10 +113,12 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     scope = LLMObsContext.attach(span.context());
 
-    // Mark this span as originating from LLM Observability product
-    TraceSegment segment = AgentTracer.get().getTraceSegment();
-    if (segment != null) {
-      segment.setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.LLMOBS);
+    // Mark this span as originating from LLM Observability product.
+    // Use the span's own context (DDSpanContext implements TraceSegment) so that
+    // setTagTop reaches the local root even when no AgentScope is active.
+    AgentSpanContext ctx = span.context();
+    if (ctx instanceof TraceSegment) {
+      ((TraceSegment) ctx).setTagTop(Tags.PROPAGATED_TRACE_SOURCE, ProductTraceSource.LLMOBS);
     }
   }
 
