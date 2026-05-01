@@ -53,7 +53,7 @@ public final class OtlpLogsService {
         break;
       default:
         LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());
-        this.collector = OtlpLogsCollector.NOOP_COLLECTOR;
+        this.collector = NoopOtlpLogsCollector.INSTANCE;
         this.sender = null;
     }
 

@@ -34,8 +34,8 @@ import java.util.function.Consumer;
  * the scoped logs message and all its chunked log records to the payload. Once all the logs data
  * has been chunked we add the enclosing resource logs message to the start of the payload.
  */
-public final class OtlpLogsProtoCollector
-    implements OtlpLogsVisitor, OtlpScopedLogsVisitor, OtlpLogsCollector {
+public final class OtlpLogsProtoCollector extends OtlpLogsCollector
+    implements OtlpLogsVisitor, OtlpScopedLogsVisitor {
 
   public static final OtlpLogsProtoCollector INSTANCE = new OtlpLogsProtoCollector();
 
