@@ -12,33 +12,32 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/// Tags intermediate `initializationError` retries with `dd_tags[test.final_status]=skip`.
+/// Tags synthetic testcases with `dd_tags[test.final_status]=skip` so Test Optimization does not
+/// treat them as real failures.
 ///
-/// Gradle generates synthetic "initializationError" testcases in JUnit reports for setup methods.
-/// When a setup is retried and eventually succeeds, multiple testcases are created, with only the
-/// last one passing. All intermediate attempts are marked skip so Test Optimization is not misled.
+/// **`initializationError`** — Gradle generates these for setup methods. When retried and eventually
+/// successful, multiple testcases appear; only the last one passes. All intermediate attempts are
+/// tagged skip. Files with only one (or zero) `initializationError` entries are left unmodified.
 ///
-/// For any suite with multiple `initializationError` test cases (when retries occurred), all entries
-/// but the last one are tagged by this script with `dd_tags[test.final_status]=skip`. The last
-/// entry is left unmodified, allowing **Test Optimization** to apply its default status inference based
-/// on the actual outcome. Files with only one (or zero) `initializationError` test cases are left unmodified.
+/// **`executionError`** and **`test exception`** — Framework-level synthetic failures that never
+/// represent a real test result and never fail CI. All occurrences are tagged skip unconditionally.
 ///
 /// Before:
-/// 
+///
 /// ```
-/// <testcase name="initializationError" />
+/// <testcase name="executionError" />
 /// ```
-/// 
+///
 /// After:
-/// 
+///
 /// ```
-/// <testcase name="initializationError">
+/// <testcase name="executionError">
 ///   <properties>
-///     <property name="dd_tags[test.final_status]" value="skip" /> 
+///     <property name="dd_tags[test.final_status]" value="skip" />
 ///   </properties>
 /// </testcase>
 /// ```
-/// 
+///
 /// Usage (Java 25): `java TagInitializationErrors.java junit-report.xml`
 
 class TagInitializationErrors {
@@ -71,32 +70,14 @@ class TagInitializationErrors {
     for (var group : byClassname.values()) {
       if (group.size() <= 1) continue;
       for (int i = 0; i < group.size() - 1; i++) {
-        var testcase = group.get(i);
-        var existingProperties = testcase.getElementsByTagName("properties");
-        if (existingProperties.getLength() > 0) {
-          var props = (Element) existingProperties.item(0);
-          var existingProps = props.getElementsByTagName("property");
-          boolean alreadyTagged = false;
-          for (int j = 0; j < existingProps.getLength(); j++) {
-            if ("dd_tags[test.final_status]".equals(((Element) existingProps.item(j)).getAttribute("name"))) {
-              alreadyTagged = true;
-              break;
-            }
-          }
-          if (alreadyTagged) continue;
-          var property = doc.createElement("property");
-          property.setAttribute("name", "dd_tags[test.final_status]");
-          property.setAttribute("value", "skip");
-          props.appendChild(property);
-        } else {
-          var properties = doc.createElement("properties");
-          var property = doc.createElement("property");
-          property.setAttribute("name", "dd_tags[test.final_status]");
-          property.setAttribute("value", "skip");
-          properties.appendChild(property);
-          testcase.appendChild(properties);
-        }
-        modified = true;
+        if (tagSkip(doc, group.get(i))) modified = true;
+      }
+    }
+    for (int i = 0; i < testcases.getLength(); i++) {
+      var e = (Element) testcases.item(i);
+      var name = e.getAttribute("name");
+      if ("executionError".equals(name) || "test exception".equals(name)) {
+        if (tagSkip(doc, e)) modified = true;
       }
     }
     if (!modified) return;
@@ -110,5 +91,30 @@ class TagInitializationErrors {
       tmpFile.delete();
       throw e;
     }
+  }
+
+  static boolean tagSkip(org.w3c.dom.Document doc, Element testcase) {
+    var existingProperties = testcase.getElementsByTagName("properties");
+    if (existingProperties.getLength() > 0) {
+      var props = (Element) existingProperties.item(0);
+      var existingProps = props.getElementsByTagName("property");
+      for (int j = 0; j < existingProps.getLength(); j++) {
+        if ("dd_tags[test.final_status]".equals(((Element) existingProps.item(j)).getAttribute("name"))) {
+          return false;
+        }
+      }
+      var property = doc.createElement("property");
+      property.setAttribute("name", "dd_tags[test.final_status]");
+      property.setAttribute("value", "skip");
+      props.appendChild(property);
+    } else {
+      var properties = doc.createElement("properties");
+      var property = doc.createElement("property");
+      property.setAttribute("name", "dd_tags[test.final_status]");
+      property.setAttribute("value", "skip");
+      properties.appendChild(property);
+      testcase.appendChild(properties);
+    }
+    return true;
   }
 }
