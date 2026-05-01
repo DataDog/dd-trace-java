@@ -64,24 +64,20 @@ class TagInitializationErrors {
     var doc = dbf.newDocumentBuilder().parse(xmlFile);
     var testcases = doc.getElementsByTagName("testcase");
     Map<String, List<Element>> byClassname = new LinkedHashMap<>();
+    boolean modified = false;
     for (int i = 0; i < testcases.getLength(); i++) {
       var e = (Element) testcases.item(i);
-      if ("initializationError".equals(e.getAttribute("name"))) {
+      var name = e.getAttribute("name");
+      if ("initializationError".equals(name)) {
         byClassname.computeIfAbsent(e.getAttribute("classname"), k -> new ArrayList<>()).add(e);
+      } else if ("executionError".equals(name) || "test exception".equals(name)) {
+        if (tagSkip(doc, e)) modified = true;
       }
     }
-    boolean modified = false;
     for (var group : byClassname.values()) {
       if (group.size() <= 1) continue;
       for (int i = 0; i < group.size() - 1; i++) {
         if (tagSkip(doc, group.get(i))) modified = true;
-      }
-    }
-    for (int i = 0; i < testcases.getLength(); i++) {
-      var e = (Element) testcases.item(i);
-      var name = e.getAttribute("name");
-      if ("executionError".equals(name) || "test exception".equals(name)) {
-        if (tagSkip(doc, e)) modified = true;
       }
     }
     if (!modified) return;
