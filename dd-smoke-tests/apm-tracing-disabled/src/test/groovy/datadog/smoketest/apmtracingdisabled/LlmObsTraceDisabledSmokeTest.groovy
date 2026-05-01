@@ -16,6 +16,11 @@ class LlmObsTraceDisabledSmokeTest extends AbstractApmTracingDisabledSmokeTest {
     return createProcess(LLMOBS_TRACE_DISABLED_PROPERTIES)
   }
 
+  @Override
+  protected String traceAgentProtocolVersion() {
+    return '0.4'
+  }
+
   void 'DD_TRACE_ENABLED=false with DD_LLMOBS_ENABLED=true should disable LLMObs gracefully'() {
     setup:
     final llmobsUrl = "http://localhost:${httpPort}/rest-api/llmobs/test"

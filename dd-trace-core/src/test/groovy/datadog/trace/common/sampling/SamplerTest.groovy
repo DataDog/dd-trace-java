@@ -9,11 +9,21 @@ class SamplerTest extends DDSpecification {
   @Unroll
   def 'sampler selection: apmEnabled=#apmEnabled llmobs=#llmobs appsec=#appsec iast=#iast sca=#sca → #expectedType.simpleName with activeProducts=#expectedProducts'() {
     setup:
-    if (!apmEnabled) injectSysConfig("dd.apm.tracing.enabled", "false")
-    if (llmobs)      injectSysConfig("dd.llmobs.enabled", "true")
-    if (appsec)      injectSysConfig("dd.appsec.enabled", "true")
-    if (iast)        injectSysConfig("dd.iast.enabled", "true")
-    if (sca)         injectSysConfig("dd.appsec.sca.enabled", "true")
+    if (!apmEnabled) {
+      injectSysConfig("dd.apm.tracing.enabled", "false")
+    }
+    if (llmobs) {
+      injectSysConfig("dd.llmobs.enabled", "true")
+    }
+    if (appsec) {
+      injectSysConfig("dd.appsec.enabled", "true")
+    }
+    if (iast) {
+      injectSysConfig("dd.iast.enabled", "true")
+    }
+    if (sca) {
+      injectSysConfig("dd.appsec.sca.enabled", "true")
+    }
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(Config.get(), null)

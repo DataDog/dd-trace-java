@@ -86,6 +86,24 @@ public class Controller {
     return "LLMObs test completed";
   }
 
+  @GetMapping("/llmobs/standalone")
+  public String llmobsStandalone() throws InterruptedException {
+    // Run LLMObs work on a fresh thread so no APM AgentScope is active
+    // when the LLMObs span is started — the standalone-usage path.
+    Thread t =
+        new Thread(
+            () -> {
+              LLMObsSpan llmSpan =
+                  LLMObs.startLLMSpan(
+                      "llmobs-standalone-operation", "gpt-4-standalone", "openai", null, null);
+              llmSpan.annotateIO("standalone input", "standalone output");
+              llmSpan.finish();
+            });
+    t.start();
+    t.join();
+    return "LLMObs standalone test completed";
+  }
+
   private String forceKeepSpan() {
     final Span span = GlobalTracer.get().activeSpan();
     if (span != null) {
