@@ -1,5 +1,6 @@
 package datadog.trace.agent.test.utils;
 
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.IOException;
 import java.lang.reflect.Field;
 import java.net.InetAddress;
@@ -113,6 +114,7 @@ public class PortUtils {
     }
   }
 
+  @SuppressForbidden
   public static void waitForPortToOpen(
       final int port, final long timeout, final TimeUnit unit, final Process process) {
     final long startedAt = System.currentTimeMillis();
@@ -200,6 +202,7 @@ public class PortUtils {
             + System.currentTimeMillis());
   }
 
+  @SuppressForbidden
   private static long tryGetPid(Process process) {
     try {
       Field pidField = process.getClass().getDeclaredField("pid");
@@ -211,6 +214,7 @@ public class PortUtils {
     }
   }
 
+  @SuppressForbidden
   private static void requestChildThreadDump(long pid) {
     String osName = System.getProperty("os.name", "").toLowerCase();
     if (osName.startsWith("windows")) {
@@ -233,6 +237,7 @@ public class PortUtils {
     }
   }
 
+  @SuppressForbidden
   private static void dumpTestJvmThreads() {
     System.err.println("[PortUtils] === Test JVM thread dump ===");
     Map<Thread, StackTraceElement[]> stacks = Thread.getAllStackTraces();
