@@ -78,13 +78,13 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public LogRecordBuilder setSeverityText(String severityText) {
-    this.severityText = severityText;
+    this.severityText = emptyToNull(severityText);
     return this;
   }
 
   @Override
   public LogRecordBuilder setBody(String body) {
-    this.body = body;
+    this.body = emptyToNull(body);
     return this;
   }
 
@@ -122,7 +122,7 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
   }
 
   public LogRecordBuilder setEventName(String eventName) {
-    this.eventName = eventName;
+    this.eventName = emptyToNull(eventName);
     return this;
   }
 
@@ -143,8 +143,8 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
   @Override
   public void emit() {
-    if (body == null || body.isEmpty()) {
-      return; // drop log records without a body
+    if (body == null && eventName == null) {
+      return; // drop log records where body and eventName are both missing
     }
     Context context = this.context != null ? this.context : Context.current();
     if (logger.isEnabled(severity, context)) {
@@ -162,5 +162,9 @@ final class OtelLogRecordBuilder implements LogRecordBuilder {
 
       attributesEmitted = true;
     }
+  }
+
+  private static String emptyToNull(@Nullable String value) {
+    return "".equals(value) ? null : value;
   }
 }

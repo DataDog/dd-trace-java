@@ -13,7 +13,7 @@ public final class OtlpLogRecord {
   public final long observedNanos;
   public final int severityNumber;
   @Nullable public final String severityText;
-  public final String body;
+  @Nullable public final String body;
   public final Map<?, ?> attributes;
   @Nullable public final AgentSpanContext spanContext;
   @Nullable public final String eventName;
@@ -24,7 +24,7 @@ public final class OtlpLogRecord {
       long observedNanos,
       int severityNumber,
       @Nullable String severityText,
-      final String body,
+      @Nullable String body,
       Map<?, ?> attributes,
       @Nullable AgentSpanContext spanContext,
       @Nullable String eventName) {

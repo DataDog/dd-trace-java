@@ -59,13 +59,15 @@ public final class OtlpLogsProto {
       writeString(buf, logRecord.severityText);
     }
 
-    writeTag(buf, 5, LEN_WIRE_TYPE);
-    byte[] bodyUtf8 = logRecord.body.getBytes(UTF_8);
-    int bodySize = 1 + sizeVarInt(bodyUtf8.length) + bodyUtf8.length;
-    writeVarInt(buf, bodySize);
-    writeTag(buf, 1, LEN_WIRE_TYPE);
-    writeVarInt(buf, bodyUtf8.length);
-    buf.put(bodyUtf8);
+    if (logRecord.body != null) {
+      writeTag(buf, 5, LEN_WIRE_TYPE);
+      byte[] bodyUtf8 = logRecord.body.getBytes(UTF_8);
+      int bodySize = 1 + sizeVarInt(bodyUtf8.length) + bodyUtf8.length;
+      writeVarInt(buf, bodySize);
+      writeTag(buf, 1, LEN_WIRE_TYPE);
+      writeVarInt(buf, bodyUtf8.length);
+      buf.put(bodyUtf8);
+    }
 
     if (logRecord.spanContext != null) {
       writeTag(buf, 9, LEN_WIRE_TYPE);

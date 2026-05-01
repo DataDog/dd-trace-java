@@ -100,8 +100,8 @@ class OtlpLogsProtoTest {
     /** severity_text (proto field 3); {@code null} → field absent. */
     @Nullable final String severityText;
 
-    /** body.string_value (proto field 5 → AnyValue field 1). */
-    final String body;
+    /** body.string_value (proto field 5 → AnyValue field 1); {@code null} → field absent. */
+    @Nullable final String body;
 
     /** Extra attributes written via {@code visitAttribute} before the log record. */
     final Map<String, Object> attrs;
@@ -127,7 +127,7 @@ class OtlpLogsProtoTest {
         long observedNanos,
         int severityNumber,
         @Nullable String severityText,
-        String body,
+        @Nullable String body,
         Map<String, Object> attrs,
         int spanContextIndex,
         @Nullable String eventName) {
@@ -223,6 +223,19 @@ class OtlpLogsProtoTest {
         eventName);
   }
 
+  private static LogSpec eventOnlyLog(String eventName) {
+    return new LogSpec(
+        DEFAULT_SCOPE,
+        BASE_NANOS,
+        BASE_NANOS + OBSERVED_OFFSET_NANOS,
+        9,
+        "INFO",
+        null,
+        new HashMap<>(),
+        -1,
+        eventName);
+  }
+
   private static LogSpec taggedLog(String body, Map<String, Object> attrs) {
     return new LogSpec(
         DEFAULT_SCOPE,
@@ -292,6 +305,9 @@ class OtlpLogsProtoTest {
             "log with event name — event_name field written",
             asList(eventLog("button clicked", "user.interaction"))),
         Arguments.of("null event name — event_name field absent", asList(infoLog("no event name"))),
+        Arguments.of(
+            "event-only log — body absent when null, event_name field present",
+            asList(eventOnlyLog("user.interaction"))),
 
         // ── attributes ────────────────────────────────────────────────────────
         Arguments.of(
