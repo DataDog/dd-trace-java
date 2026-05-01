@@ -105,9 +105,11 @@ class TagInitializationErrors {
   static boolean tagSkip(org.w3c.dom.Document doc, Element testcase) {
     var props = firstChildElement(testcase, "properties");
     if (props != null) {
-      var existingProps = props.getElementsByTagName("property");
-      for (int j = 0; j < existingProps.getLength(); j++) {
-        if ("dd_tags[test.final_status]".equals(((Element) existingProps.item(j)).getAttribute("name"))) {
+      var children = props.getChildNodes();
+      for (int j = 0; j < children.getLength(); j++) {
+        if (children.item(j) instanceof Element e
+            && "property".equals(e.getTagName())
+            && "dd_tags[test.final_status]".equals(e.getAttribute("name"))) {
           return false;
         }
       }
