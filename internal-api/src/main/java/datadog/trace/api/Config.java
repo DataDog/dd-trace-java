@@ -1976,10 +1976,21 @@ public class Config {
     }
     logsOtelTimeout = otelTimeout;
 
-    logsOtelQueueSize =
+    int otelQueueSize =
         configProvider.getInteger(LOGS_OTEL_QUEUE_SIZE, DEFAULT_LOGS_OTEL_QUEUE_SIZE);
-    logsOtelBatchSize =
+    if (otelQueueSize <= 0) {
+      log.warn("Invalid OTel logs queue size: {}. The value must be positive", otelQueueSize);
+      otelQueueSize = DEFAULT_LOGS_OTEL_QUEUE_SIZE;
+    }
+    logsOtelQueueSize = otelQueueSize;
+
+    int otelBatchSize =
         configProvider.getInteger(LOGS_OTEL_BATCH_SIZE, DEFAULT_LOGS_OTEL_BATCH_SIZE);
+    if (otelBatchSize <= 0) {
+      log.warn("Invalid OTel logs batch size: {}. The value must be positive", otelBatchSize);
+      otelBatchSize = DEFAULT_LOGS_OTEL_BATCH_SIZE;
+    }
+    logsOtelBatchSize = otelBatchSize;
 
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpLogsTimeout = Math.min(logsOtelTimeout, DEFAULT_LOGS_OTEL_TIMEOUT);
