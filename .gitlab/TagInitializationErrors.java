@@ -93,10 +93,18 @@ class TagInitializationErrors {
     }
   }
 
+  static Element firstChildElement(Element parent, String tagName) {
+    var children = parent.getChildNodes();
+    for (int i = 0; i < children.getLength(); i++) {
+      var child = children.item(i);
+      if (child instanceof Element e && tagName.equals(e.getTagName())) return e;
+    }
+    return null;
+  }
+
   static boolean tagSkip(org.w3c.dom.Document doc, Element testcase) {
-    var existingProperties = testcase.getElementsByTagName("properties");
-    if (existingProperties.getLength() > 0) {
-      var props = (Element) existingProperties.item(0);
+    var props = firstChildElement(testcase, "properties");
+    if (props != null) {
       var existingProps = props.getElementsByTagName("property");
       for (int j = 0; j < existingProps.getLength(); j++) {
         if ("dd_tags[test.final_status]".equals(((Element) existingProps.item(j)).getAttribute("name"))) {
