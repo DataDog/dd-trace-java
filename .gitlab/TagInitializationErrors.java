@@ -12,8 +12,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/// Tags synthetic testcases with `dd_tags[test.final_status]=skip` so Test Optimization does not
-/// treat them as real failures.
+/// Tags synthetic testcases (`initializationError`, `executionError`, `test exception`) with
+/// `dd_tags[test.final_status]=skip` so Test Optimization does not treat them as real failures.
+/// The script is idempotent — testcases that already carry a `dd_tags[test.final_status]` property
+/// are left unchanged.
 ///
 /// **`initializationError`** — Gradle generates these for setup methods. When retried and eventually
 /// successful, multiple testcases appear; only the last one passes. All intermediate attempts are
