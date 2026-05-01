@@ -45,12 +45,6 @@ jobs:
               }
             }
 
-            // Skip draft pull requests
-            if (context.payload.pull_request.draft) {
-              await deleteManagedComment()
-              return
-            }
-
             // Check for override label — skip all checks if label present
             const labels = context.payload.pull_request.labels.map(l => l.name)
             if (labels.includes('tag: override-groovy-enforcement')) {

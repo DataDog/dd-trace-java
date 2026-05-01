@@ -126,7 +126,7 @@ _Actions:_
 
 _Recovery:_ Re-write the new Groovy files in Java / JUnit. To override this check entirely, add the `tag: override-groovy-enforcement` label to the PR. Remove the label to re-enable enforcement.
 
-_Notes:_ Draft pull requests are ignored. The override label skips the workflow entirely.
+_Notes:_ The override label skips the workflow entirely.
 
 ## Code Quality and Security
 
