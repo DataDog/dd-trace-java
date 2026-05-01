@@ -5,7 +5,7 @@ muzzle {
     module = "grizzly-http-client"
     // The old 1.16 upper bound was historical; Grizzly 5 still exposes the com.ning AHC API
     // this instrumentation matches, so inverse muzzle should not treat 5.x as unsupported.
-    versions = "[1.9,6)"
+    versions = "[1.9,1.16],[5,6)"
     assertInverse = true
   }
   pass {
