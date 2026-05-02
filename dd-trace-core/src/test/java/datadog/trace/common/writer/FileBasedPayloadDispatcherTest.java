@@ -39,7 +39,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void flushWithNoEventsIsNoOp(@TempDir Path outputDir) throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
     dispatcher.flush();
 
@@ -49,7 +49,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void addTraceIsNoOpForEmptyTraces(@TempDir Path outputDir) throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
     dispatcher.addTrace(Collections.emptyList());
     dispatcher.flush();
@@ -60,7 +60,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void onDroppedTraceIsNoOpAndGetApisReturnsEmpty(@TempDir Path outputDir) {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
 
     assertTrue(dispatcher.getApis().isEmpty());
     dispatcher.onDroppedTrace(42); // does not throw
@@ -70,7 +70,7 @@ class FileBasedPayloadDispatcherTest {
   void citestcycleFlushWritesEnvelopeWithVersionMetadataAndEvents(@TempDir Path outputDir)
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
     Map<String, Object> tags = new HashMap<>();
     tags.put(Tags.TEST_SESSION_ID, DDTraceId.from(123));
     tags.put(Tags.TEST_MODULE_ID, 456L);
@@ -112,7 +112,7 @@ class FileBasedPayloadDispatcherTest {
   void citestcycleStripsCiGitOsRuntimeTagsAndWellKnownFields(@TempDir Path outputDir)
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
     Map<String, Object> tags = new HashMap<>();
     tags.put("ci.provider.name", "github");
     tags.put("git.branch", "main");
@@ -147,7 +147,7 @@ class FileBasedPayloadDispatcherTest {
   void citestcycleAssignsEventTypesForSessionModuleSuiteTestSpanSpans(@TempDir Path outputDir)
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
     List<CoreSpan<?>> spans =
         Arrays.asList(
             mockSpan(InternalSpanTypes.TEST_SESSION_END, Collections.emptyMap()),
@@ -178,7 +178,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void citestcovSkipsNonTestSpansAndEmptyReports(@TempDir Path outputDir) throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "coverage", TrackType.CITESTCOV);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "coverage", TrackType.CITESTCOV);
     CoreSpan<?> nonTest = mockSpan("not-a-test", Collections.emptyMap());
     CoreSpan<?> testNoCoverage = mockSpan(InternalSpanTypes.TEST, Collections.emptyMap());
 
@@ -191,7 +191,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void filenameFollowsPrefixNsPidSeqConvention(@TempDir Path outputDir) throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
     CoreSpan<?> span = mockSpan(InternalSpanTypes.TEST, Collections.emptyMap());
 
     dispatcher.addTrace(Collections.singletonList(span));
@@ -217,7 +217,7 @@ class FileBasedPayloadDispatcherTest {
   @Test
   void flushClearsAccumulatorSoSubsequentFlushIsNoOp(@TempDir Path outputDir) throws IOException {
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(outputDir, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
     CoreSpan<?> span = mockSpan(InternalSpanTypes.TEST, Collections.emptyMap());
 
     dispatcher.addTrace(Collections.singletonList(span));
@@ -232,7 +232,7 @@ class FileBasedPayloadDispatcherTest {
     Path nested = tmp.resolve("nested/does-not-exist");
     assertFalse(Files.exists(nested));
     FileBasedPayloadDispatcher dispatcher =
-        new FileBasedPayloadDispatcher(nested, "tests", TrackType.CITESTCYCLE);
+        new FileBasedPayloadDispatcher(nested.toString(), "tests", TrackType.CITESTCYCLE);
     dispatcher.addTrace(
         Collections.singletonList(mockSpan(InternalSpanTypes.TEST, Collections.emptyMap())));
 

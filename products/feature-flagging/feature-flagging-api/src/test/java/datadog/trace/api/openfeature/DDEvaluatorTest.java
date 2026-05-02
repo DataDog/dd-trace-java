@@ -13,6 +13,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.oneOf;
@@ -174,8 +175,8 @@ public class DDEvaluatorTest {
 
     details = evaluator.evaluate(Integer.class, "empty-allocation", 23, ctx);
     assertThat(details.getValue(), equalTo(23));
-    assertThat(details.getReason(), equalTo(ERROR.name()));
-    assertThat(details.getErrorCode(), equalTo(ErrorCode.GENERAL));
+    assertThat(details.getReason(), equalTo(DEFAULT.name()));
+    assertThat(details.getErrorCode(), nullValue());
   }
 
   private static Arguments[] flatteningTestCases() {

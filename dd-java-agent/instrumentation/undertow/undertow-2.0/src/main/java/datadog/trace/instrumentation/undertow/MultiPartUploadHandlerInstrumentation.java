@@ -22,6 +22,8 @@ import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.server.handlers.form.FormData;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 
@@ -81,9 +83,11 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      BiFunction<RequestContext, Object, Flow<Void>> callback =
+      BiFunction<RequestContext, Object, Flow<Void>> bodyCallback =
           cbp.getCallback(EVENTS.requestBodyProcessed());
-      if (callback == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      if (bodyCallback == null && filenamesCb == null) {
         return;
       }
       FormData attachment = exchange.getAttachment(FORM_DATA);
@@ -91,15 +95,47 @@ public class MultiPartUploadHandlerInstrumentation extends InstrumenterModule.Ap
         return;
       }
 
-      Flow<Void> flow = callback.apply(reqCtx, new FormDataMap(attachment));
-      Flow.Action action = flow.getAction();
-      if (action instanceof Flow.Action.RequestBlockingAction) {
-        Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-        BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-        if (blockResponseFunction != null) {
-          blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-          if (t == null) {
-            t = new BlockingException("Blocked request (for MultiPartUploadHandler/parseBlocking)");
+      if (bodyCallback != null) {
+        Flow<Void> flow = bodyCallback.apply(reqCtx, new FormDataMap(attachment));
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
+          if (blockResponseFunction != null) {
+            boolean success =
+                blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            if (success && t == null) {
+              t =
+                  new BlockingException(
+                      "Blocked request (for MultiPartUploadHandler/parseBlocking)");
+            }
+          }
+        }
+      }
+
+      if (filenamesCb != null) {
+        List<String> filenames = new ArrayList<>();
+        for (String key : attachment) {
+          for (FormData.FormValue formValue : attachment.get(key)) {
+            String filename = formValue.getFileName();
+            if (filename != null && !filename.isEmpty()) {
+              filenames.add(filename);
+            }
+          }
+        }
+        if (!filenames.isEmpty()) {
+          Flow<Void> filenamesFlow = filenamesCb.apply(reqCtx, filenames);
+          Flow.Action filenamesAction = filenamesFlow.getAction();
+          if (filenamesAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) filenamesAction;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null && t == null) {
+              boolean success = brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              if (success) {
+                t = new BlockingException("Blocked request (multipart file upload)");
+              }
+            }
           }
         }
       }

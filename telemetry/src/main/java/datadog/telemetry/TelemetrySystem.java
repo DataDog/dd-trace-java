@@ -25,7 +25,6 @@ import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
 import java.lang.instrument.Instrumentation;
-import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.List;
 import org.slf4j.Logger;
@@ -99,14 +98,9 @@ public class TelemetrySystem {
     boolean debug = config.isTelemetryDebugRequestsEnabled();
     boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
 
-    // CI Visibility bazel support writes telemetry to files instead of the network
+    // CI Visibility bazel mode writes telemetry to files instead of the network
     if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
-      Path telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
-      if (telemetryDir == null) {
-        log.warn(
-            "[bazel mode] Payload-in-files mode enabled but telemetry directory not resolved, disabling telemetry");
-        return;
-      }
+      String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
       log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
       DependencyService dependencyService = createDependencyService(instrumentation);
       TelemetryService telemetryService =

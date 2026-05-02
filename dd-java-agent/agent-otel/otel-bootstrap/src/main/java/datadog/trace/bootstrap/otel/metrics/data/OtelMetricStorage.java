@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import io.opentelemetry.api.common.Attributes;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -41,7 +42,7 @@ public final class OtelMetricStorage {
       Attributes.builder().put("otel.metric.overflow", true).build();
 
   private static final Map<ClassLoader, BiConsumer<Object, OtlpAttributeVisitor>>
-      ATTRIBUTE_READERS = new WeakHashMap<>();
+      ATTRIBUTE_READERS = Collections.synchronizedMap(new WeakHashMap<>());
 
   private final OtelInstrumentDescriptor descriptor;
   private final boolean resetOnCollect;
@@ -170,24 +171,28 @@ public final class OtelMetricStorage {
     ATTRIBUTE_READERS.put(cl, reader);
   }
 
-  private static void visitAttributes(Object attributes, OtlpMetricVisitor visitor) {
-    ClassLoader cl = attributes.getClass().getClassLoader();
-    BiConsumer<Object, OtlpAttributeVisitor> reader = ATTRIBUTE_READERS.get(cl);
-    if (reader != null) {
-      reader.accept(attributes, visitor);
-    }
-  }
-
   /** Collect data for CUMULATIVE temporality, keeping aggregators for future writes. */
   private void doCollect(OtlpMetricVisitor visitor) {
+    BiConsumer<Object, OtlpAttributeVisitor> attributesReader = null;
+    ClassLoader attributesClassLoader = null;
+
     // no need to hold writers back if we are not resetting metrics on collect
-    currentRecording.aggregators.forEach(
-        (attributes, aggregator) -> {
-          if (!aggregator.isEmpty()) {
-            visitAttributes(attributes, visitor);
-            visitor.visitDataPoint(aggregator.collect());
-          }
-        });
+    for (Map.Entry<Object, OtelAggregator> entry : currentRecording.aggregators.entrySet()) {
+      OtelAggregator aggregator = entry.getValue();
+      if (!aggregator.isEmpty()) {
+        Object attributes = entry.getKey();
+        ClassLoader cl = attributes.getClass().getClassLoader();
+        // avoid repeated lookups when attribute class-loader is same for all records
+        if (attributesReader == null || cl != attributesClassLoader) {
+          attributesReader = ATTRIBUTE_READERS.get(cl);
+          attributesClassLoader = cl;
+        }
+        if (attributesReader != null) {
+          attributesReader.accept(attributes, visitor);
+        }
+        visitor.visitDataPoint(aggregator.collect());
+      }
+    }
   }
 
   /**
@@ -216,13 +221,25 @@ public final class OtelMetricStorage {
       aggregators.values().removeIf(OtelAggregator::isEmpty);
     }
 
-    aggregators.forEach(
-        (attributes, aggregator) -> {
-          if (!aggregator.isEmpty()) {
-            visitAttributes(attributes, visitor);
-            visitor.visitDataPoint(aggregator.collectAndReset());
-          }
-        });
+    BiConsumer<Object, OtlpAttributeVisitor> attributesReader = null;
+    ClassLoader attributesClassLoader = null;
+
+    for (Map.Entry<Object, OtelAggregator> entry : aggregators.entrySet()) {
+      OtelAggregator aggregator = entry.getValue();
+      if (!aggregator.isEmpty()) {
+        Object attributes = entry.getKey();
+        ClassLoader cl = attributes.getClass().getClassLoader();
+        // avoid repeated lookups when attribute class-loader is same for all records
+        if (attributesReader == null || cl != attributesClassLoader) {
+          attributesReader = ATTRIBUTE_READERS.get(cl);
+          attributesClassLoader = cl;
+        }
+        if (attributesReader != null) {
+          attributesReader.accept(attributes, visitor);
+        }
+        visitor.visitDataPoint(aggregator.collectAndReset());
+      }
+    }
 
     previousRecording = recording;
   }

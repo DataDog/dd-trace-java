@@ -161,6 +161,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.service.name=" + getAppId(),
             "-Ddd.profiling.enabled=false",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
+            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.agent.core=debug",
             "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
             "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
             "-Ddd.jmxfetch.start-delay=0",
@@ -592,7 +593,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
-    private Function<RecordedRequest, MockResponse> dispatcher;
+    private volatile Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override
     public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
