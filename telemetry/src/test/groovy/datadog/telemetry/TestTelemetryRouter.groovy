@@ -7,6 +7,7 @@ import datadog.telemetry.api.DistributionSeries
 import datadog.telemetry.api.LogMessage
 import datadog.telemetry.api.Metric
 import datadog.telemetry.api.RequestType
+import datadog.trace.api.Config
 import datadog.trace.api.ConfigSetting
 import datadog.trace.api.telemetry.Endpoint
 import datadog.trace.api.telemetry.ProductChange
@@ -84,7 +85,8 @@ class TestTelemetryRouter extends TelemetryRouter {
         'DD-Client-Library-Language',
         'DD-Client-Library-Version',
         'DD-Telemetry-API-Version',
-        'DD-Telemetry-Request-Type'
+        'DD-Telemetry-Request-Type',
+        'DD-Session-ID'
       ])
       assert this.request.header('Content-Type') == 'application/json; charset=utf-8'
       assert this.request.header('Content-Length').toInteger() > 0
@@ -94,6 +96,17 @@ class TestTelemetryRouter extends TelemetryRouter {
       assert this.request.header('DD-Telemetry-Request-Type') == requestType.toString()
       def entityId = this.request.header('Datadog-Entity-ID')
       assert entityId == null || entityId.startsWith("in-") || entityId.startsWith("cin-")
+      def sessionId = this.request.header('DD-Session-ID')
+      assert sessionId =~ /[\da-f]{8}-([\da-f]{4}-){3}[\da-f]{12}/
+      assert sessionId == Config.get().getRuntimeId()
+      // DD-Root-Session-ID should only be present when inherited from a parent process
+      // (i.e., when rootSessionId != runtimeId). In normal test context, they're equal.
+      def rootSessionId = this.request.header('DD-Root-Session-ID')
+      if (Config.get().getRootSessionId() == Config.get().getRuntimeId()) {
+        assert rootSessionId == null
+      } else {
+        assert rootSessionId == Config.get().getRootSessionId()
+      }
       return this
     }
 
@@ -248,7 +261,7 @@ class TestTelemetryRouter extends TelemetryRouter {
     PayloadAssertions instrumentationConfigId(String id) {
       boolean checked = false
       this.payload['configuration'].each { v ->
-        if (v['name'] == 'instrumentation_config_id') {
+        if (v['name'] == 'DD_INSTRUMENTATION_CONFIG_ID') {
           assert v['value'] == id
           checked = true
         }

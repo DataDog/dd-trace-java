@@ -6,38 +6,31 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.cancelTask;
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
+import static java.util.Arrays.asList;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper;
 import datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureProfiling;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.concurrent.RunnableFuture;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
-@AutoService(InstrumenterModule.class)
-public class RejectedExecutionHandlerInstrumentation extends InstrumenterModule.Tracing
+public class RejectedExecutionHandlerInstrumentation
     implements Instrumenter.ForBootstrap,
         Instrumenter.CanShortcutTypeMatching,
         Instrumenter.HasMethodAdvice {
-
-  public RejectedExecutionHandlerInstrumentation() {
-    super(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler");
-  }
-
   @Override
   public boolean onlyMatchKnownTypes() {
-    return isShortcutMatchingEnabled(false);
+    return InstrumenterConfig.get()
+        .isIntegrationShortcutMatchingEnabled(
+            asList(EXECUTOR_INSTRUMENTATION_NAME, "rejected-execution-handler"), false);
   }
 
   @Override
@@ -60,15 +53,6 @@ public class RejectedExecutionHandlerInstrumentation extends InstrumenterModule.
     return implementsInterface(
         named("java.util.concurrent.RejectedExecutionHandler")
             .or(nameEndsWith("netty.util.concurrent.RejectedExecutionHandler")));
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    Map<String, String> contextStore = new HashMap<>(4);
-    contextStore.put("java.util.concurrent.RunnableFuture", State.class.getName());
-    // TODO get rid of this
-    contextStore.put("java.lang.Runnable", State.class.getName());
-    return Collections.unmodifiableMap(contextStore);
   }
 
   @Override

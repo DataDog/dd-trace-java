@@ -51,7 +51,7 @@ class AppSecActivationSmokeTest extends AbstractSmokeTest {
     waitForTelemetryFlat {
       final configurations = (List<Map<String, Object>>) it?.payload?.configuration ?: []
       final enabledConfig = configurations.find {
-        it.name == 'appsec_enabled'
+        it.name == 'DD_APPSEC_ENABLED'
       }
       if (!enabledConfig) {
         return false

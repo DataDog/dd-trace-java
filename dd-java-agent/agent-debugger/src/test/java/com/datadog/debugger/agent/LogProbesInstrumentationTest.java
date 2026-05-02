@@ -13,6 +13,8 @@ import static utils.InstrumentationTestHelper.getLineForLineProbe;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.ProbeCondition;
 import com.datadog.debugger.probe.LogProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
+import com.datadog.debugger.probe.Sampled;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.TestSnapshotListener;
@@ -55,7 +57,7 @@ public class LogProbesInstrumentationTest {
     if (currentTransformer != null) {
       instr.removeTransformer(currentTransformer);
     }
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
   }
 
   @Test
@@ -564,6 +566,11 @@ public class LogProbesInstrumentationTest {
         .thenReturn("http://localhost:8126/debugger/v1/input");
     when(config.getFinalDebuggerSymDBUrl()).thenReturn("http://localhost:8126/symdb/v1/input");
     when(config.getDynamicInstrumentationUploadBatchSize()).thenReturn(100);
+    for (ProbeDefinition probe : configuration.getDefinitions()) {
+      if (probe instanceof Sampled) {
+        ((Sampled) probe).initSamplers();
+      }
+    }
     ProbeMetadata probeMetadata = new ProbeMetadata();
     currentTransformer = new DebuggerTransformer(config, probeMetadata, configuration);
     instr.addTransformer(currentTransformer);

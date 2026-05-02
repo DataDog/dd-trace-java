@@ -1,5 +1,6 @@
 package datadog.appsec.benchmark;
 
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.api.gateway.Events.EVENTS;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
@@ -7,7 +8,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import com.datadog.appsec.AppSecSystem;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -187,7 +188,7 @@ public class AppSecBenchmark {
 
   static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
-      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), false, false);
+      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), V0_4, false);
     }
 
     @Override

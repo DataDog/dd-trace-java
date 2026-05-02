@@ -188,7 +188,7 @@ public final class JMSDecorator extends MessagingClientDecorator {
       span.setResourceName(resourceName);
     }
     if (null != serviceName) {
-      span.setServiceName(serviceName);
+      span.setServiceName(serviceName, component());
     }
   }
 

@@ -9,21 +9,33 @@ plugins {
 
 apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/version.gradle"
+apply from: "$rootDir/gradle/tries.gradle"
 
 dependencies {
   api libs.slf4j
   implementation project(':internal-api')
   implementation project(':communication')
+  implementation project(':products:metrics:metrics-api')
   implementation project(':telemetry')
   implementation group: 'io.sqreen', name: 'libsqreen', version: '17.3.0'
   implementation libs.moshi
 
+  compileOnly project(':dd-java-agent:agent-bootstrap')
+  testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
   testImplementation group: 'com.flipkart.zjsonpatch', name: 'zjsonpatch', version: '0.4.11'
   testImplementation libs.logback.classic
   testImplementation libs.jackson.databind
+}
+
+tasks.named("compileJava", JavaCompile) {
+  dependsOn("generateClassNameTries")
+}
+
+tasks.named("sourcesJar", Jar) {
+  dependsOn("generateClassNameTries")
 }
 
 tasks.named("shadowJar", ShadowJar) {

@@ -1,10 +1,14 @@
 package com.datadog.debugger.el.expressions;
 
+import static datadog.trace.bootstrap.debugger.util.Redaction.REDACTED_VALUE;
+
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.Generated;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
+import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 import datadog.trace.bootstrap.debugger.util.Redaction;
 import java.util.Objects;
@@ -19,19 +23,20 @@ public final class ValueRefExpression implements ValueExpression<Value<?>> {
 
   @Override
   public Value<?> evaluate(ValueReferenceResolver valueRefResolver) {
-    Object symbol;
+    CapturedContext.CapturedValue symbol;
     try {
       symbol = valueRefResolver.lookup(symbolName);
     } catch (RuntimeException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this));
     }
     if (symbol != null) {
-      String typeName = symbol.getClass().getTypeName();
-      if (symbol == Redaction.REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
+      String typeName = symbol.getType();
+      if (symbol.getValue() == REDACTED_VALUE || (Redaction.isRedactedType(typeName))) {
         ExpressionHelper.throwRedactedException(this);
       }
+      return Value.of(symbol.getValue(), ValueType.of(symbol.getType()));
     }
-    return Value.of(symbol);
+    return Value.nullValue();
   }
 
   @Generated

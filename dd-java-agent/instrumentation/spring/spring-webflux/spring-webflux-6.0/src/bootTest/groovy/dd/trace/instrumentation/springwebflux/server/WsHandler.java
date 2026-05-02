@@ -63,7 +63,7 @@ public class WsHandler implements WebSocketHandler {
         return;
       }
       try {
-        wait();
+        wait(1000);
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
       }

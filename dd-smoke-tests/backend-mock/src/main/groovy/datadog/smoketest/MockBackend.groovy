@@ -433,7 +433,7 @@ class MockBackend implements AutoCloseable {
   }
 
   List<Map<String, Object>> waitForLogs(int expectedCount) {
-    def traceReceiveConditions = new PollingConditions(timeout: 15, initialDelay: 1, delay: 0.5, factor: 1)
+    def traceReceiveConditions = new PollingConditions(timeout: 30, initialDelay: 1, delay: 0.5, factor: 1)
     traceReceiveConditions.eventually {
       assert receivedLogs.size() == expectedCount
     }

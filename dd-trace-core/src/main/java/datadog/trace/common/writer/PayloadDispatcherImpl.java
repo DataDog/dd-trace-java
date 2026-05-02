@@ -1,11 +1,11 @@
 package datadog.trace.common.writer;
 
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
 import datadog.communication.serialization.ByteBufferConsumer;
 import datadog.communication.serialization.FlushingBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;
@@ -79,14 +79,13 @@ public class PayloadDispatcherImpl implements ByteBufferConsumer, PayloadDispatc
       if (mapperDiscovery.getMapper() == null) {
         mapperDiscovery.discover();
       }
-
       mapper = mapperDiscovery.getMapper();
-      if (null != mapper && null == packer) {
-        batchTimer =
-            monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
-        packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
-        batchTimer.start();
-      }
+    }
+    if (null == packer && null != mapper) {
+      batchTimer =
+          monitoring.newTimer("tracer.trace.buffer.fill.time", "endpoint:" + mapper.endpoint());
+      packer = new MsgPackWriter(new FlushingBuffer(mapper.messageBufferSize(), this));
+      batchTimer.start();
     }
   }
 

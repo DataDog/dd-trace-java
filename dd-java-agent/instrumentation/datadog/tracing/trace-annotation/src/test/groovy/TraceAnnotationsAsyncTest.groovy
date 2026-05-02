@@ -31,6 +31,7 @@ class TraceAnnotationsAsyncTest extends InstrumentationSpecification {
           resourceName "SayTracedHello.sayHelloFuture"
           operationName "trace.annotation"
           tags {
+            serviceNameSource "m"
             defaultTags()
             "$Tags.COMPONENT" "trace"
           }

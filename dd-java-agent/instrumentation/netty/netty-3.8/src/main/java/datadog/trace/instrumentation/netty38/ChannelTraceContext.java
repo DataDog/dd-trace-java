@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty38;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -17,7 +18,7 @@ public class ChannelTraceContext {
   }
 
   AgentScope.Continuation connectionContinuation;
-  AgentSpan serverSpan;
+  Context serverContext;
   AgentSpan clientSpan;
   AgentSpan clientParentSpan;
   HttpHeaders requestHeaders;
@@ -29,7 +30,7 @@ public class ChannelTraceContext {
 
   public void reset() {
     this.connectionContinuation = null;
-    this.serverSpan = null;
+    this.serverContext = null;
     this.clientSpan = null;
     this.clientParentSpan = null;
     this.requestHeaders = null;
@@ -65,8 +66,12 @@ public class ChannelTraceContext {
     return connectionContinuation;
   }
 
+  public Context getServerContext() {
+    return serverContext;
+  }
+
   public AgentSpan getServerSpan() {
-    return serverSpan;
+    return AgentSpan.fromContext(serverContext);
   }
 
   public AgentSpan getClientSpan() {
@@ -81,8 +86,8 @@ public class ChannelTraceContext {
     this.connectionContinuation = connectionContinuation;
   }
 
-  public void setServerSpan(AgentSpan serverSpan) {
-    this.serverSpan = serverSpan;
+  public void setServerContext(Context serverContext) {
+    this.serverContext = serverContext;
   }
 
   public void setClientSpan(AgentSpan clientSpan) {

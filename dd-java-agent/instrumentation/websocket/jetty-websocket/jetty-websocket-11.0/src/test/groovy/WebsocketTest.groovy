@@ -16,17 +16,10 @@ import static datadog.trace.agent.test.base.HttpServerTest.websocketCloseSpan
 import static datadog.trace.agent.test.base.HttpServerTest.websocketReceiveSpan
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
-import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_ENABLED
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL
 
 class WebsocketTest extends InstrumentationSpecification {
-
-  @Override
-  protected void configurePreAgent() {
-    super.configurePreAgent()
-    injectSysConfig(TRACE_WEBSOCKET_MESSAGES_ENABLED, "true")
-  }
 
   def "test jetty advices with endpoint class #endpoint.class and message type #msgType"() {
     setup:

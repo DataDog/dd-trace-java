@@ -2,6 +2,7 @@ package context
 
 import datadog.trace.agent.test.AbortTransformationException
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.utils.ClasspathUtils
 import datadog.trace.api.InstrumenterConfig
 import datadog.trace.test.util.GCUtils
@@ -31,6 +32,13 @@ import static context.FieldInjectionTestInstrumentation.ValidInheritsSerializabl
 import static context.FieldInjectionTestInstrumentation.ValidSerializableKeyClass
 
 class FieldInjectionForkedTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Override
   void onDiscovery(String typeName, ClassLoader classLoader, JavaModule module, boolean loaded) {
@@ -219,6 +227,8 @@ class FieldInjectionForkedTest extends InstrumentationSpecification {
 class FieldInjectionDisabledForkedTest extends InstrumentationSpecification {
   void configurePreAgent() {
     super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
 
     injectSysConfig("dd.trace.runtime.context.field.injection", "false")
   }

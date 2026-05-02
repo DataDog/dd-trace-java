@@ -1,10 +1,11 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -43,7 +44,8 @@ public class ConflatingMetricsAggregatorBenchmark {
           HealthMetrics.NO_OP,
           new NullSink(),
           2048,
-          2048);
+          2048,
+          false);
   private final List<CoreSpan<?>> spans = generateTrace(64);
 
   static List<CoreSpan<?>> generateTrace(int len) {
@@ -71,7 +73,7 @@ public class ConflatingMetricsAggregatorBenchmark {
 
     public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
       // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, false, true);
+      super(null, Monitoring.DISABLED, null, V0_4, true);
       this.peerTags = peerTags;
       this.spanKinds = spanKinds;
     }

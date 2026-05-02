@@ -3,10 +3,13 @@ package datadog.trace.common.writer.ddagent;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 
 import datadog.communication.serialization.Codec;
+import datadog.communication.serialization.GenerationalUtf8Cache;
 import datadog.communication.serialization.GrowableBuffer;
+import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.Config;
+import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -68,11 +71,16 @@ public final class TraceMapperV0_4 implements TraceMapper {
       if (TAG_CACHE != null) TAG_CACHE.recalibrate();
       if (VALUE_CACHE != null) VALUE_CACHE.recalibrate();
 
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      TagMap tags = metadata.getTags();
+
+      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+      final boolean writeSamplingPriority =
+          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
       int metaSize =
           metadata.getBaggage().size()
-              + metadata.getTags().size()
+              + tags.size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
@@ -83,15 +91,17 @@ public final class TraceMapperV0_4 implements TraceMapper {
               + (metadata.topLevel() ? 1 : 0)
               + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
-      for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
-        Object value = tag.getValue();
-        if (value instanceof Number) {
+
+      for (TagMap.EntryReader entryReader : tags) {
+        if (entryReader.isNumber()) {
           ++metricsSize;
           --metaSize;
-        } else if (value instanceof Map) {
-          // Compute size based on amount of elements in tree
-          --metaSize;
-          metaSize += getFlatMapSize((Map) value);
+        } else {
+          Object value = entryReader.objectValue();
+          if (value instanceof Map) {
+            --metaSize;
+            metaSize += getFlatMapSize((Map) value);
+          }
         }
       }
       writable.writeUTF8(METRICS);
@@ -119,12 +129,36 @@ public final class TraceMapperV0_4 implements TraceMapper {
       }
       writable.writeUTF8(THREAD_ID);
       writable.writeLong(metadata.getThreadId());
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (entry.getValue() instanceof Number) {
-          writable.writeString(entry.getKey(), TAG_CACHE);
-          writable.writeObject(entry.getValue(), VALUE_CACHE);
-        }
-      }
+
+      tags.forEach(
+          writable,
+          (w, entry) -> {
+            if (!entry.isNumber()) return;
+
+            w.writeString(entry.tag(), TAG_CACHE);
+
+            switch (entry.type()) {
+              case TagMap.EntryReader.INT:
+                w.writeInt(entry.intValue());
+                break;
+
+              case TagMap.EntryReader.LONG:
+                w.writeLong(entry.longValue());
+                break;
+
+              case TagMap.EntryReader.FLOAT:
+                w.writeFloat(entry.floatValue());
+                break;
+
+              case TagMap.EntryReader.DOUBLE:
+                w.writeDouble(entry.doubleValue());
+                break;
+
+              default:
+                w.writeObject(entry.objectValue(), VALUE_CACHE);
+                break;
+            }
+          });
 
       writable.writeUTF8(META);
       writable.startMap(metaSize);
@@ -149,17 +183,22 @@ public final class TraceMapperV0_4 implements TraceMapper {
         writable.writeUTF8(PROCESS_TAGS_KEY);
         writable.writeUTF8(processTags);
       }
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
-        if (value instanceof Map) {
-          // Write map as flat map
-          writeFlatMap(key, (Map) value);
-        } else if (!(value instanceof Number)) {
-          writable.writeString(entry.getKey(), TAG_CACHE);
-          writable.writeObjectString(entry.getValue(), VALUE_CACHE);
-        }
-      }
+
+      tags.forEach(
+          writable,
+          (w, entryReader) -> {
+            if (entryReader.isNumber()) return;
+
+            String tag = entryReader.tag();
+            Object value = entryReader.objectValue();
+            if (value instanceof Map) {
+              // Write map as flat map
+              writeFlatMap(w, tag, (Map) value);
+            } else {
+              w.writeString(tag, TAG_CACHE);
+              w.writeObjectString(value, VALUE_CACHE);
+            }
+          });
     }
 
     /**
@@ -168,7 +207,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
      * @param map map to traverse
      * @return number of all elements in the tree
      */
-    private int getFlatMapSize(Map<String, Object> map) {
+    static int getFlatMapSize(Map<String, Object> map) {
       int size = 0;
       for (Object value : map.values()) {
         if (value instanceof Map) {
@@ -192,12 +231,12 @@ public final class TraceMapperV0_4 implements TraceMapper {
      * @param key key name used as base
      * @param mapValue map of tags that can contain sub-maps as values
      */
-    private void writeFlatMap(String key, Map<String, Object> mapValue) {
+    static void writeFlatMap(Writable writable, String key, Map<String, Object> mapValue) {
       for (Map.Entry<String, Object> entry : mapValue.entrySet()) {
         String newKey = key + '.' + entry.getKey();
         Object newValue = entry.getValue();
         if (newValue instanceof Map) {
-          writeFlatMap(newKey, (Map) newValue);
+          writeFlatMap(writable, newKey, (Map) newValue);
         } else {
           writable.writeString(newKey, TAG_CACHE);
           writable.writeObjectString(newValue, VALUE_CACHE);

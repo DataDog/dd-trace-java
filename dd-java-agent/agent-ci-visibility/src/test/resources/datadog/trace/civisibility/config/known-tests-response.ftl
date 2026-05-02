@@ -20,7 +20,12 @@
                         "test-name-2"
                     ]
                 }
-            }
+            }<#if pageInfo??>,
+            "page_info": {
+                "size": ${pageInfo.size},
+                "has_next": ${pageInfo.hasNext?c}<#if pageInfo.cursor??>,
+                "cursor": "${pageInfo.cursor}"</#if>
+            }</#if>
         }
     }
 }

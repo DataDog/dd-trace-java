@@ -116,19 +116,19 @@ public class ReferenceMatcher {
       }
       return checkMatch(reference, resolution.resolve(), mismatches);
     } catch (final Exception e) {
-      if (e.getMessage().startsWith("Cannot resolve type description for ")) {
+      String message = e.getMessage();
+      if (message != null && message.startsWith("Cannot resolve type description for ")) {
         // bytebuddy throws an illegal state exception with this message if it cannot resolve types
         // TODO: handle missing type resolutions without catching bytebuddy's exceptions
-        final String className = e.getMessage().replace("Cannot resolve type description for ", "");
+        final String className = message.replace("Cannot resolve type description for ", "");
         mismatches.add(new Mismatch.MissingClass(reference.sources, className));
-        return false;
       } else {
         // Shouldn't happen. Fail the reference check and add a mismatch for debug logging.
         mismatches.add(
             new Mismatch.ReferenceCheckError(
                 e, reference, null != loader ? loader.toString() : "<bootstrap>"));
-        return false;
       }
+      return false;
     }
   }
 

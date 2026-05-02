@@ -3,8 +3,7 @@ package datadog.trace.api.git;
 import datadog.trace.util.Strings;
 import java.util.Objects;
 
-public class CommitInfo {
-
+public final class CommitInfo {
   public static final CommitInfo NOOP =
       new CommitInfo(null, PersonInfo.NOOP, PersonInfo.NOOP, null);
 

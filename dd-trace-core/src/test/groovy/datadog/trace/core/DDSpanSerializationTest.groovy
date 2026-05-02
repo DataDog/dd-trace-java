@@ -186,7 +186,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       null,
-      injectBaggage)
+      injectBaggage,
+      true)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()
@@ -262,7 +263,8 @@ class DDSpanSerializationTest extends DDCoreSpecification {
       NoopPathwayContext.INSTANCE,
       false,
       null,
-      injectBaggage)
+      injectBaggage,
+      true)
     context.setAllTags(tags)
     def span = DDSpan.create("test", 0, context, null)
     CaptureBuffer capture = new CaptureBuffer()

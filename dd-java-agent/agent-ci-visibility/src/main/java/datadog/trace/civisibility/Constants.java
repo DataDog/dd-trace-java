@@ -22,4 +22,14 @@ public interface Constants {
    * the necessary data is not exposed by the CI provider
    */
   String DDCI_PULL_REQUEST_TARGET_SHA = "DDCI_PULL_REQUEST_TARGET_SHA";
+
+  /**
+   * Env var containing the DDCI mode used. When the legacy mode is used,
+   * DDCI_PULL_REQUEST_TARGET_SHA won't contain the expected value, but the previous base on the
+   * push event.
+   */
+  String DDCI_REQUEST_KIND = "DDCI_REQUEST_KIND";
+
+  // Legacy mode identifier
+  String DDCI_LEGACY_KIND = "REQUEST_KIND_LEGACY_REQUEST";
 }

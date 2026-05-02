@@ -6,35 +6,21 @@ import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtil
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.FORK_JOIN_TASK;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.exclude;
-import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
-import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.State;
-import java.util.Map;
 import net.bytebuddy.asm.Advice;
 import scala.concurrent.forkjoin.ForkJoinTask;
 
-@AutoService(InstrumenterModule.class)
-public final class ScalaForkJoinPoolInstrumentation extends InstrumenterModule.Tracing
+public final class ScalaForkJoinPoolInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-
-  public ScalaForkJoinPoolInstrumentation() {
-    super("java_concurrent", "scala_concurrent");
-  }
 
   @Override
   public String instrumentedType() {
     return "scala.concurrent.forkjoin.ForkJoinPool";
-  }
-
-  @Override
-  public Map<String, String> contextStore() {
-    return singletonMap("scala.concurrent.forkjoin.ForkJoinTask", State.class.getName());
   }
 
   @Override

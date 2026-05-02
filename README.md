@@ -35,7 +35,7 @@ Take a look at the [APM Glossary][visualization docs].
 
 Before contributing to the project, please take a moment to read our brief [Contribution Guidelines](CONTRIBUTING.md).
 Then check our guides:
-* [How to setup a development and build the project](BUILDING.md),
+* [How to set up a development environment and build the project](BUILDING.md),
 * [How to create a new instrumentation](docs/add_new_instrumentation.md),
 * [How to test](docs/how_to_test.md),
 
@@ -43,6 +43,6 @@ Or our reference documents:
 * [How instrumentations work](docs/how_instrumentations_work.md).
 
 ## Releases
-Datadog will generally create a new minor release the first full week of every month.
+Datadog will generally release a new minor version during the first full week of every month.
 
 See [release.md](docs/releases.md) for more information.

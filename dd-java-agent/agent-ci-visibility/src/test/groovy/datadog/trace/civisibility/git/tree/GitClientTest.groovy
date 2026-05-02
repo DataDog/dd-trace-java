@@ -23,6 +23,56 @@ class GitClientTest extends Specification {
   @TempDir
   private Path tempDir
 
+  def "test find git repo root with .git directory"() {
+    given:
+    givenGitRepo()
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root with .git file (worktree)"() {
+    given:
+    givenGitWorktree("ci/git/worktree")
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(tempDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+
+    when:
+    def subDir = tempDir.resolve("subdir")
+    Files.createDirectories(subDir)
+    repoRoot = ShellGitClient.findGitRepositoryRoot(subDir.toFile())
+
+    then:
+    repoRoot == tempDir.toAbsolutePath().toString()
+  }
+
+  def "test find git repo root defaults to original when no .git"() {
+    given:
+    def dirWithNoGit = tempDir.resolve("no_git_here")
+    Files.createDirectories(dirWithNoGit)
+
+    when:
+    def repoRoot = ShellGitClient.findGitRepositoryRoot(dirWithNoGit.toFile())
+
+    then:
+    repoRoot == dirWithNoGit.toAbsolutePath().toString()
+  }
+
   def "test is not shallow"() {
     given:
     givenGitRepo()
@@ -37,10 +87,10 @@ class GitClientTest extends Specification {
 
   def "test is shallow"() {
     given:
-    givenGitRepo("ci/git/shallow/git")
+    givenGitRepos(["ci/git/shallow_with_origin/origin", "ci/git/shallow_with_origin/repo"])
 
     when:
-    def gitClient = givenGitClient()
+    def gitClient = givenGitClient("repo")
     def shallow = gitClient.isShallow()
 
     then:
@@ -61,22 +111,22 @@ class GitClientTest extends Specification {
 
   def "test get upstream branch SHA"() {
     given:
-    givenGitRepo("ci/git/shallow/git")
+    givenGitRepos(["ci/git/shallow_with_origin/origin", "ci/git/shallow_with_origin/repo"])
 
     when:
-    def gitClient = givenGitClient()
+    def gitClient = givenGitClient("repo")
     def upstreamBranch = gitClient.getUpstreamBranchSha()
 
     then:
-    upstreamBranch == "98b944cc44f18bfb78e3021de2999cdcda8efdf6"
+    upstreamBranch == "c76ef954d23f8fdb42dcf2fe956d6af5a31fe7bd"
   }
 
   def "test unshallow: sha-#remoteSha"() {
     given:
-    givenGitRepo("ci/git/shallow/git")
+    givenGitRepos(["ci/git/shallow_with_origin/origin", "ci/git/shallow_with_origin/repo"])
 
     when:
-    def gitClient = givenGitClient()
+    def gitClient = givenGitClient("repo")
     def shallow = gitClient.isShallow()
     def commits = gitClient.getLatestCommits()
 
@@ -159,11 +209,11 @@ class GitClientTest extends Specification {
 
   def "test get commit info with fetching"() {
     given:
-    givenGitRepo("ci/git/shallow/git")
+    givenGitRepos(["ci/git/shallow_with_origin/origin", "ci/git/shallow_with_origin/repo"])
 
     when:
-    def commit = "f4377e97f10c2d58696192b170b2fef2a8464b04"
-    def gitClient = givenGitClient()
+    def commit = "6e55a15a35ad46f74e4203dd42f7797173a6edcb"
+    def gitClient = givenGitClient("repo")
     def commitInfo = gitClient.getCommitInfo(commit, false)
 
     then:
@@ -174,13 +224,13 @@ class GitClientTest extends Specification {
 
     then:
     commitInfo.sha == commit
-    commitInfo.author.name == "sullis"
-    commitInfo.author.email == "github@seansullivan.com"
-    commitInfo.author.iso8601Date == "2023-05-30T07:07:35-07:00"
-    commitInfo.committer.name == "GitHub"
-    commitInfo.committer.email == "noreply@github.com"
-    commitInfo.committer.iso8601Date == "2023-05-30T07:07:35-07:00"
-    commitInfo.fullMessage == "brotli4j 1.12.0 (#1592)"
+    commitInfo.author.name == "Test Author"
+    commitInfo.author.email == "test-author@example.com"
+    commitInfo.author.iso8601Date == "2026-03-12T17:02:46+01:00"
+    commitInfo.committer.name == "Test Author"
+    commitInfo.committer.email == "test-author@example.com"
+    commitInfo.committer.iso8601Date == "2026-03-12T17:02:46+01:00"
+    commitInfo.fullMessage == "Commit message 0"
   }
 
   def "test get latest commits"() {
@@ -397,7 +447,7 @@ class GitClientTest extends Specification {
     sortedBranches == expectedOrder
 
     where:
-    metrics                                                     | expectedOrder
+    metrics                                                       | expectedOrder
     [
       new ShellGitClient.BaseBranchMetric("main", 10, 2),
       new ShellGitClient.BaseBranchMetric("master", 15, 1),
@@ -406,7 +456,7 @@ class GitClientTest extends Specification {
       new ShellGitClient.BaseBranchMetric("main", 10, 2),
       new ShellGitClient.BaseBranchMetric("master", 15, 2),
       new ShellGitClient.BaseBranchMetric("origin/main", 5, 2)] | ["main", "origin/main", "master"]
-    []                                                          | []
+    []                                                            | []
   }
 
   def "test get base branch sha: #testcaseName"() {
@@ -427,6 +477,13 @@ class GitClientTest extends Specification {
 
   private void givenGitRepo() {
     givenGitRepo("ci/git/with_pack/git")
+  }
+
+  private void givenGitWorktree(String resourceName) {
+    // Worktree has a .git file (not directory) that points to the actual git dir
+    def gitFile = Paths.get(getClass().getClassLoader().getResource(resourceName + "/git").toURI())
+    def tempGitFile = tempDir.resolve(GIT_FOLDER)
+    Files.copy(gitFile, tempGitFile)
   }
 
   private void givenGitRepo(String resourceName) {

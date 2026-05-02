@@ -158,6 +158,9 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PENDING"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({ isDataStreamsEnabled() }){
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -226,6 +229,9 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$Tags.COMPONENT" "java-kafka"
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_PRODUCER
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
+            "$InstrumentationTags.PARTITION" { it >= 0 }
+            "$InstrumentationTags.OFFSET" { it >= 0 }
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             if ({isDataStreamsEnabled()}) {
               "$DDTags.PATHWAY_HASH" { String }
             }
@@ -269,6 +275,7 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
             "$InstrumentationTags.PARTITION" { it >= 0 }
             "$InstrumentationTags.OFFSET" 0
             "$InstrumentationTags.CONSUMER_GROUP" "sender"
+            "$InstrumentationTags.KAFKA_CLUSTER_ID" { String }
             "$InstrumentationTags.RECORD_QUEUE_TIME_MS" { it >= 0 }
             "$InstrumentationTags.MESSAGING_DESTINATION_NAME" "$STREAM_PROCESSED"
             "testing" 123

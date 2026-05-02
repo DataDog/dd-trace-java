@@ -2,6 +2,7 @@ package datadog.smoketest
 
 
 import datadog.trace.api.config.CiVisibilityConfig
+import datadog.trace.api.config.DebuggerConfig
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.civisibility.CiVisibilitySmokeTest
 import java.nio.file.FileVisitResult
@@ -52,7 +53,8 @@ class JUnitConsoleSmokeTest extends CiVisibilitySmokeTest {
 
     def exitCode = whenRunningJUnitConsole([
       (CiVisibilityConfig.CIVISIBILITY_FLAKY_RETRY_COUNT): "3",
-      (GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL): mockBackend.intakeUrl
+      (GeneralConfig.AGENTLESS_LOG_SUBMISSION_URL): mockBackend.intakeUrl,
+      (DebuggerConfig.DYNAMIC_INSTRUMENTATION_UPLOAD_FLUSH_INTERVAL): "999999" // avoid possible race conditions on shutdown
     ],
     [:])
     assert exitCode == 1

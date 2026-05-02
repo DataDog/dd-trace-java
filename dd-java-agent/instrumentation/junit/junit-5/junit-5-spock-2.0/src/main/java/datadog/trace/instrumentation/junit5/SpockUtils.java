@@ -89,7 +89,8 @@ public class SpockUtils {
       MethodSource methodSource = (MethodSource) testSource;
       String testSuiteName = methodSource.getClassName();
       String displayName = spockNode.getDisplayName();
-      String testParameters = JUnitPlatformUtils.getParameters(methodSource, displayName);
+      String testParameters =
+          JUnitPlatformUtils.getParameters(testDescriptor, methodSource, displayName);
       return new TestIdentifier(testSuiteName, displayName, testParameters);
 
     } else {

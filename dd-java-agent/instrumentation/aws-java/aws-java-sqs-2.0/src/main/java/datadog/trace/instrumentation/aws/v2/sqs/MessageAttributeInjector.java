@@ -16,14 +16,36 @@ public class MessageAttributeInjector implements CarrierSetter<Map<String, Messa
   @Override
   public void set(
       final Map<String, MessageAttributeValue> carrier, final String key, final String value) {
-    if (carrier.size() < 10
-        && !carrier.containsKey(DATADOG_KEY)
-        && Config.get().isSqsInjectDatadogAttributeEnabled()) {
-
-      String jsonPathway = String.format("{\"%s\": \"%s\"}", key, value);
+    if (!Config.get().isSqsInjectDatadogAttributeEnabled()) {
+      return;
+    }
+    // A single propagator.inject() call invokes set() once per header key (e.g.
+    // x-datadog-trace-id, x-datadog-parent-id, dd-pathway-ctx-base64). All of them must be
+    // accumulated into the same _datadog JSON attribute rather than overwriting each other.
+    if (!carrier.containsKey(DATADOG_KEY)) {
+      if (carrier.size() >= 10) {
+        return;
+      }
       carrier.put(
           DATADOG_KEY,
-          MessageAttributeValue.builder().dataType("String").stringValue(jsonPathway).build());
+          MessageAttributeValue.builder()
+              .dataType("String")
+              .stringValue(String.format("{\"%s\": \"%s\"}", key, value))
+              .build());
+    } else {
+      // _datadog was created by an earlier set() call in this same inject session; append to it.
+      String existing = carrier.get(DATADOG_KEY).stringValue();
+      if (existing == null) {
+        return;
+      }
+      int closingBrace = existing.lastIndexOf('}');
+      if (closingBrace >= 0) {
+        String updated =
+            existing.substring(0, closingBrace) + String.format(", \"%s\": \"%s\"}", key, value);
+        carrier.put(
+            DATADOG_KEY,
+            MessageAttributeValue.builder().dataType("String").stringValue(updated).build());
+      }
     }
   }
 }

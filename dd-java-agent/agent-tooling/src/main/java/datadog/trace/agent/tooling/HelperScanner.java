@@ -156,7 +156,10 @@ public final class HelperScanner extends ClassVisitor {
       final String descriptor,
       final String signature,
       final Object value) {
-    record(Type.getType(descriptor), REQUIRES);
+    // Field types are resolved lazily by the JVM, not during defineClass.
+    // Using USES (not REQUIRES) avoids false dependency cycles that can break
+    // topological sort ordering for superclass/interface relationships.
+    record(Type.getType(descriptor), USES);
     return null;
   }
 
@@ -167,8 +170,11 @@ public final class HelperScanner extends ClassVisitor {
       final String descriptor,
       final String signature,
       final String[] exceptions) {
-    record(Type.getMethodType(descriptor), REQUIRES);
-    record(exceptions, REQUIRES);
+    // Method parameter/return types and declared exceptions are resolved lazily
+    // by the JVM, not during defineClass. Only superclass and interfaces are
+    // eagerly resolved, which are handled by visit().
+    record(Type.getMethodType(descriptor), USES);
+    record(exceptions, USES);
     return methodScanner;
   }
 

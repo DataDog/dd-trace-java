@@ -13,6 +13,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
 import datadog.trace.core.DDSpan
 
 import java.util.concurrent.ConcurrentHashMap
+import javax.annotation.Nonnull
 
 /**
  * Decorator for {@link AgentSpan} that keeps track of the decorated span's finish location.
@@ -115,6 +116,11 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
+  AgentSpan setTag(TagMap.EntryReader entry) {
+    return delegate.setTag(entry)
+  }
+
+  @Override
   void setRequestBlockingAction(Flow.Action.RequestBlockingAction rba) {
     delegate.setRequestBlockingAction(rba)
   }
@@ -175,6 +181,11 @@ class TrackingSpanDecorator implements AgentSpan {
   }
 
   @Override
+  AgentSpan setMetric(CharSequence key, float value) {
+    return delegate.setMetric(key, value)
+  }
+
+  @Override
   AgentSpan setMetric(CharSequence key, long value) {
     return delegate.setMetric(key, value)
   }
@@ -182,6 +193,11 @@ class TrackingSpanDecorator implements AgentSpan {
   @Override
   AgentSpan setMetric(CharSequence key, double value) {
     return delegate.setMetric(key, value)
+  }
+
+  @Override
+  AgentSpan setMetric(TagMap.EntryReader entry) {
+    return delegate.setMetric(entry)
   }
 
   @Override
@@ -332,6 +348,11 @@ class TrackingSpanDecorator implements AgentSpan {
   @Override
   MutableSpan setServiceName(String serviceName) {
     return delegate.setServiceName(serviceName)
+  }
+
+  @Override
+  void setServiceName(@Nonnull String serviceName, @Nonnull CharSequence source) {
+    delegate.setServiceName(serviceName, source)
   }
 
   @Override

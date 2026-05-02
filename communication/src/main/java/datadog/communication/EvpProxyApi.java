@@ -42,7 +42,7 @@ public class EvpProxyApi implements BackendApi {
       OkHttpClient httpClient,
       boolean responseCompression) {
     this.traceId = traceId;
-    this.evpProxyUrl = evpProxyUrl.resolve(String.format("api/%s/", API_VERSION));
+    this.evpProxyUrl = evpProxyUrl.resolve("api/" + API_VERSION + "/");
     this.subdomain = subdomain;
     this.retryPolicyFactory = retryPolicyFactory;
     this.httpClient = httpClient;

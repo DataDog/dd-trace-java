@@ -42,7 +42,19 @@ if [ -z "$pr_number" ]; then
   exit 0
 fi
 
-echo "PR #${pr_number} found, checking labels..."
+echo "PR #${pr_number} found, checking target branch..."
+set +e
+base_branch=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json baseRefName --jq '.baseRefName' 2>&1)
+base_branch_status=$?
+set -e
+
+if [ $base_branch_status -eq 0 ] && [[ "$base_branch" == release/* ]]; then
+  echo "PR #$pr_number targets release branch '$base_branch' - skipping trigger"
+  add_dummy_job
+  exit 0
+fi
+
+echo "Checking labels..."
 set +e
 labels=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json labels --jq '.labels[].name' 2>&1)
 labels_status=$?
@@ -59,14 +71,40 @@ if [ -z "$labels" ] || ! echo "$labels" | grep -q "comp: ci visibility"; then
   exit 0
 fi
 
-echo "PR #$pr_number is a CI Visibility PR - triggering test environment"
+echo "PR #$pr_number is a CI Visibility PR"
+
+# Check for test-environment configuration in PR body
+set +e
+echo "Checking additional trigger configuration"
+target_branch="main"
+pr_body=$(gh pr view "$pr_number" --repo DataDog/dd-trace-java --json body --jq '.body' 2>&1)
+pr_body_status=$?
+if [ $pr_body_status -eq 0 ] && [ -n "$pr_body" ]; then
+  # Check for skip directive: "test-environment-trigger: skip" (must be at start of line)
+  if echo "$pr_body" | grep -qP '^test-environment-trigger:\s*skip'; then
+    echo "Found 'test-environment-trigger: skip' in PR body - skipping trigger"
+    add_dummy_job
+    exit 0
+  fi
+  # Look for "test-environment-branch: <branch-name>" at start of line in PR body
+  override_branch=$(echo "$pr_body" | grep -oP '^test-environment-branch:\s*\K[\S]+' | head -1)
+  if [ -n "$override_branch" ]; then
+    echo "Found test-environment branch override in PR body: '$override_branch'"
+    target_branch="$override_branch"
+  else
+    echo "No test-environment-branch override in PR body - using default 'main' for downstream pipeline"
+  fi
+else
+  echo "Could not read PR body (status=$pr_body_status) - using default 'main' for downstream pipeline"
+fi
+set -e
 
 cat <<EOF >>ci-visibility-test-environment.yml
 ci-visibility-test-environment:
   stage: ci-visibility-tests
   trigger:
     project: DataDog/apm-reliability/test-environment
-    branch: main
+    branch: $target_branch
     strategy: depend
   variables:
     UPSTREAM_PACKAGE_JOB: build

@@ -27,7 +27,7 @@ import net.bytebuddy.asm.Advice.This;
  */
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
-public class StructuredTaskScope25Instrumentation extends InstrumenterModule.Tracing
+public class StructuredTaskScope25Instrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public StructuredTaskScope25Instrumentation() {

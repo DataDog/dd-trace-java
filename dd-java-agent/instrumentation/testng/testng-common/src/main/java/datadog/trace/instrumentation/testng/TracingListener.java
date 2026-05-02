@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.testng;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
 import datadog.trace.instrumentation.testng.execution.RetryAnalyzer;
 import java.util.List;
@@ -93,31 +93,31 @@ public class TracingListener extends TestNGClassListener
         groups,
         testSourceData,
         null,
-        executionHistory(result));
+        executionTracker(result));
   }
 
   @Nullable
-  private TestExecutionHistory executionHistory(final ITestResult result) {
+  private TestExecutionTracker executionTracker(final ITestResult result) {
     IRetryAnalyzer retryAnalyzer = TestNGUtils.getRetryAnalyzer(result);
     if (retryAnalyzer instanceof RetryAnalyzer) {
       RetryAnalyzer datadogAnalyzer = (RetryAnalyzer) retryAnalyzer;
-      return datadogAnalyzer.getExecutionHistory();
+      return datadogAnalyzer.getExecutionTracker();
     }
     return null;
   }
 
   @Override
   public void onTestSuccess(final ITestResult result) {
-    TestExecutionHistory executionHistory = executionHistory(result);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionHistory);
+    TestExecutionTracker executionTracker = executionTracker(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionTracker);
   }
 
   @Override
   public void onTestFailure(final ITestResult result) {
     Throwable throwable = result.getThrowable();
-    TestExecutionHistory executionHistory = executionHistory(result);
+    TestExecutionTracker executionTracker = executionTracker(result);
     TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFailure(result, throwable);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionHistory);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionTracker);
   }
 
   @Override
@@ -139,7 +139,7 @@ public class TracingListener extends TestNGClassListener
       String reason = throwable != null ? throwable.getMessage() : null;
       TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestSkip(result, reason);
     }
-    TestExecutionHistory executionHistory = executionHistory(result);
-    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionHistory);
+    TestExecutionTracker executionTracker = executionTracker(result);
+    TestEventsHandlerHolder.TEST_EVENTS_HANDLER.onTestFinish(result, null, executionTracker);
   }
 }

@@ -1,16 +1,16 @@
 package datadog.trace.api.git
 
+import static java.nio.charset.StandardCharsets.UTF_16
+import static java.nio.charset.StandardCharsets.UTF_8
 
 import spock.lang.Specification
-
-import java.nio.charset.StandardCharsets
 
 class RawParseUtilsTest extends Specification {
 
   def "test decode no fallback"() {
     setup:
-    def str = new String("some-string".getBytes(), StandardCharsets.UTF_16)
-    def encoded = str.bytes
+    def str = new String("some-string".getBytes(), UTF_16)
+    def encoded = str.getBytes(UTF_8)
 
     when:
     def decoded = RawParseUtils.decode(encoded, 0, encoded.length)
@@ -21,8 +21,8 @@ class RawParseUtilsTest extends Specification {
 
   def "test extract binary string"() {
     setup:
-    def str = new String("some-string".getBytes(), StandardCharsets.UTF_8)
-    def encoded = str.bytes
+    def str = new String("some-string".getBytes(), UTF_8)
+    def encoded = str.getBytes(UTF_8)
 
     when:
     def decoded = RawParseUtils.extractBinaryString(encoded, 0, encoded.length)

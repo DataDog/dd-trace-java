@@ -1,5 +1,6 @@
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static java.nio.charset.StandardCharsets.UTF_8
+import datadog.trace.api.config.TraceInstrumentationConfig
 
 import com.amazon.sqs.javamessaging.ProviderConfiguration
 import com.amazon.sqs.javamessaging.SQSConnectionFactory
@@ -135,6 +136,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
               "$DDTags.PATHWAY_HASH" { String }
             }
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -213,6 +215,103 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     cleanup:
     client.close()
   }
+  def "APM trace context is injected into _datadog message attribute on send"() {
+    setup:
+    def client = SqsClient.builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue(CreateQueueRequest.builder().queueName('somequeue').build()).queueUrl()
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace('parent', {
+      client.sendMessage(SendMessageRequest.builder().queueUrl(queueUrl).messageBody('sometext').build())
+    })
+    def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
+
+    if (isDataStreamsEnabled()) {
+      TEST_DATA_STREAMS_WRITER.waitForGroups(2)
+    }
+
+    messages.forEach {/* consume to create message spans */ }
+
+    then:
+    def sendSpan
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, 'parent')
+        span {
+          serviceName expectedService("Sqs", "SendMessage")
+          operationName expectedOperation("Sqs", "SendMessage")
+          resourceName "Sqs.SendMessage"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.PEER_PORT" address.port
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "SendMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
+            defaultTags()
+          }
+        }
+        sendSpan = span(1)
+      }
+      trace(1) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTags(true)
+          }
+        }
+      }
+    }
+
+    def ddAttr = messages[0].messageAttributes()['_datadog']
+    ddAttr != null
+    ddAttr.dataType() == 'String'
+    ddAttr.stringValue().contains('"x-datadog-trace-id"')
+    ddAttr.stringValue().contains(sendSpan.traceId.toString())
+    ddAttr.stringValue().contains('"x-datadog-parent-id"')
+    ddAttr.stringValue().contains(Long.toUnsignedString(sendSpan.spanId))
+
+    cleanup:
+    client.close()
+  }
+
   @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
@@ -366,6 +465,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" "00000000-0000-0000-0000-000000000000"
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -435,6 +535,7 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
             "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
             "aws.requestId" { it.trim() == "00000000-0000-0000-0000-000000000000" } // the test server seem messing with request id and insert \n
             urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("DeleteMessage"))
+            serviceNameSource("java-aws-sdk")
             defaultTags()
           }
         }
@@ -568,6 +669,14 @@ class SqsClientV1DataStreamsForkedTest extends SqsClientTest {
   @Override
   int version() {
     1
+  }
+}
+
+class SqsClientV0ContextSwapForkedTest extends SqsClientV0Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
 

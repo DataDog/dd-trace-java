@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.netty40;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
@@ -13,12 +14,14 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.instrumentation.netty40.client.HttpClientRequestTracingHandler;
 import datadog.trace.instrumentation.netty40.client.HttpClientResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.client.HttpClientTracingHandler;
+import datadog.trace.instrumentation.netty40.server.HttpServerContextTrackingHandler;
 import datadog.trace.instrumentation.netty40.server.HttpServerRequestTracingHandler;
 import datadog.trace.instrumentation.netty40.server.HttpServerResponseTracingHandler;
 import datadog.trace.instrumentation.netty40.server.HttpServerTracingHandler;
@@ -77,6 +80,7 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
       packageName + ".server.NettyHttpServerDecorator$NettyBlockResponseFunction",
       packageName + ".server.BlockingResponseHandler",
       packageName + ".server.BlockingResponseHandler$IgnoreAllWritesHandler",
+      packageName + ".server.HttpServerContextTrackingHandler",
       packageName + ".server.HttpServerRequestTracingHandler",
       packageName + ".server.HttpServerResponseTracingHandler",
       packageName + ".server.HttpServerTracingHandler",
@@ -90,19 +94,43 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(namedOneOf("addFirst", "addLast"))
             .and(takesArgument(2, named("io.netty.channel.ChannelHandler"))),
+        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(namedOneOf("addBefore", "addAfter"))
             .and(takesArgument(3, named("io.netty.channel.ChannelHandler"))),
+        NettyChannelPipelineInstrumentation.class.getName() + "$ContextTrackingAddHandlerAdvice",
         NettyChannelPipelineInstrumentation.class.getName() + "$AddHandlerAdvice");
     transformer.applyAdvice(
         isMethod().and(named("connect")).and(returns(named("io.netty.channel.ChannelFuture"))),
         NettyChannelPipelineInstrumentation.class.getName() + "$ConnectAdvice");
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAddHandlerAdvice {
+    // No OnMethodEnter — avoids double-incrementing CallDepthThreadLocalMap,
+    // which would cause AddHandlerAdvice.OnMethodExit to see depth > 0 and skip.
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void addContextTrackingHandler(
+        @Advice.This final ChannelPipeline pipeline,
+        @Advice.Argument(value = 2, optional = true) final Object handler2,
+        @Advice.Argument(value = 3, optional = true) final ChannelHandler handler3) {
+      ChannelHandler handler =
+          handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
+      try {
+        if (handler instanceof HttpServerCodec || handler instanceof HttpRequestDecoder) {
+          NettyPipelineHelper.addHandlerAfter(
+              pipeline, handler, HttpServerContextTrackingHandler.INSTANCE);
+        }
+      } catch (final IllegalArgumentException e) {
+        // Prevented adding duplicate handlers.
+      }
+    }
   }
 
   /**

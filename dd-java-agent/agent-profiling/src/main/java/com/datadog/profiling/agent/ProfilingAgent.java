@@ -2,6 +2,11 @@ package com.datadog.profiling.agent;
 
 import static datadog.environment.JavaVirtualMachine.isJavaVersion;
 import static datadog.environment.JavaVirtualMachine.isJavaVersionAtLeast;
+import static datadog.environment.JavaVirtualMachine.isOracleJDK8;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_SCRUB_FAIL_OPEN_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_START_FORCE_FIRST_DEFAULT;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
@@ -32,6 +37,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.time.Duration;
+import java.util.List;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
@@ -137,6 +143,28 @@ public class ProfilingAgent {
 
         uploader = new ProfileUploader(config, configProvider);
 
+        RecordingDataListener listener = uploader::upload;
+        if (dumper != null) {
+          RecordingDataListener upload = listener;
+          listener =
+              (type, data, sync) -> {
+                dumper.onNewData(type, data, sync);
+                upload.onNewData(type, data, sync);
+              };
+        }
+        // Scrubber wraps the combined dumper+uploader so debug dumps also contain scrubbed data
+        // Oracle JDK 8 JFR format has quirks that make scrubbing unreliable — skip it to avoid
+        // corrupting customer data
+        if (configProvider.getBoolean(PROFILING_SCRUB_ENABLED, PROFILING_SCRUB_ENABLED_DEFAULT)
+            && !isOracleJDK8()) {
+          List<String> excludeEventTypes =
+              configProvider.getList(ProfilingConfig.PROFILING_SCRUB_EXCLUDE_EVENTS);
+          boolean failOpen =
+              configProvider.getBoolean(
+                  PROFILING_SCRUB_FAIL_OPEN, PROFILING_SCRUB_FAIL_OPEN_DEFAULT);
+          listener = wrapWithScrubber(listener, excludeEventTypes, failOpen);
+        }
+
         final Duration startupDelay = Duration.ofSeconds(config.getProfilingStartDelay());
         final Duration uploadPeriod = Duration.ofSeconds(config.getProfilingUploadPeriod());
 
@@ -149,12 +177,7 @@ public class ProfilingAgent {
                 configProvider,
                 controller,
                 context.snapshot(),
-                dumper == null
-                    ? uploader::upload
-                    : (type, data, sync) -> {
-                      dumper.onNewData(type, data, sync);
-                      uploader.upload(type, data, sync);
-                    },
+                listener,
                 startupDelay,
                 startupDelayRandomRange,
                 uploadPeriod,
@@ -179,6 +202,16 @@ public class ProfilingAgent {
       }
     }
     return false;
+  }
+
+  private static RecordingDataListener wrapWithScrubber(
+      RecordingDataListener listener, List<String> excludeEventTypes, boolean failOpen) {
+    try {
+      return ScrubRecordingDataListener.wrap(listener, excludeEventTypes, failOpen);
+    } catch (Exception e) {
+      log.warn(SEND_TELEMETRY, "Failed to initialize JFR scrubber", e);
+      return listener;
+    }
   }
 
   private static boolean isStartForceFirstSafe() {

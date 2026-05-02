@@ -93,6 +93,8 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onClientStatDowngraded() {}
 
+  public void onStatsAggregateDropped() {}
+
   /**
    * @return Human-readable summary of the current health metrics.
    */

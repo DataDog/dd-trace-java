@@ -247,7 +247,7 @@ abstract class SynapseTest extends VersionedNamingTestBase {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" "127.0.0.1"
         "$Tags.PEER_PORT" Integer
-        "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
+        "$Tags.HTTP_URL" query ? "/services/SimpleStockQuoteService?${query}" : "/services/SimpleStockQuoteService"
         "$DDTags.HTTP_QUERY" query
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
@@ -302,6 +302,9 @@ abstract class SynapseTest extends VersionedNamingTestBase {
       tags {
         "$Tags.COMPONENT" "synapse-client"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+        "$Tags.PEER_HOSTNAME" String
+        "$Tags.PEER_HOST_IPV4" "127.0.0.1"
+        "$Tags.PEER_PORT" Integer
         "$Tags.HTTP_URL" "/services/SimpleStockQuoteService"
         "$Tags.HTTP_METHOD" method
         "$Tags.HTTP_STATUS" statusCode
@@ -311,7 +314,6 @@ abstract class SynapseTest extends VersionedNamingTestBase {
   }
 }
 
-@Flaky("Occasionally times out when receiving traces")
 class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
 
@@ -321,7 +323,6 @@ class SynapseV0ForkedTest extends SynapseTest implements TestingGenericHttpNamin
   }
 }
 
-@Flaky("Occasionally times out when receiving traces")
 class SynapseV1ForkedTest extends SynapseTest implements TestingGenericHttpNamingConventions.ClientV1 {
 
   @Override

@@ -24,7 +24,8 @@ import net.bytebuddy.asm.Advice;
  * org.apache.pekko.dispatch.ForkJoinTask, because of its error handling.
  */
 @AutoService(InstrumenterModule.class)
-public final class PekkoForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
+public final class PekkoForkJoinExecutorTaskInstrumentation
+    extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public PekkoForkJoinExecutorTaskInstrumentation() {
     super("java_concurrent", "pekko_concurrent");

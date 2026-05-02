@@ -1,0 +1,182 @@
+package datadog.trace.api.openfeature;
+
+import static java.util.concurrent.TimeUnit.SECONDS;
+
+import de.thetaphi.forbiddenapis.SuppressForbidden;
+import dev.openfeature.sdk.EvaluationContext;
+import dev.openfeature.sdk.EventProvider;
+import dev.openfeature.sdk.Hook;
+import dev.openfeature.sdk.Metadata;
+import dev.openfeature.sdk.ProviderEvaluation;
+import dev.openfeature.sdk.ProviderEvent;
+import dev.openfeature.sdk.ProviderEventDetails;
+import dev.openfeature.sdk.Value;
+import dev.openfeature.sdk.exceptions.FatalError;
+import dev.openfeature.sdk.exceptions.OpenFeatureError;
+import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
+import java.lang.reflect.Constructor;
+import java.util.Collections;
+import java.util.List;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+public class Provider extends EventProvider implements Metadata {
+
+  private static final Logger log = LoggerFactory.getLogger(Provider.class);
+  static final String METADATA = "datadog-openfeature-provider";
+  private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+  private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
+  private volatile Evaluator evaluator;
+  private final Options options;
+  private final AtomicBoolean initialized = new AtomicBoolean(false);
+  private final FlagEvalMetrics flagEvalMetrics;
+  private final FlagEvalHook flagEvalHook;
+
+  public Provider() {
+    this(DEFAULT_OPTIONS, null);
+  }
+
+  public Provider(final Options options) {
+    this(options, null);
+  }
+
+  Provider(final Options options, final Evaluator evaluator) {
+    this.options = options;
+    this.evaluator = evaluator;
+    FlagEvalMetrics metrics = null;
+    FlagEvalHook hook = null;
+    try {
+      metrics = new FlagEvalMetrics();
+      hook = new FlagEvalHook(metrics);
+    } catch (LinkageError | Exception e) {
+      // FlagEvalMetrics logs the detailed error when it can load but OTel SDK init fails.
+      // This outer catch fires when the class itself can't load (OTel API absent entirely).
+      log.warn("Evaluation metrics unavailable — OTel classes not on classpath", e);
+    }
+    this.flagEvalMetrics = metrics;
+    this.flagEvalHook = hook;
+  }
+
+  @Override
+  public void initialize(final EvaluationContext context) throws Exception {
+    try {
+      evaluator = buildEvaluator();
+      final boolean init = evaluator.initialize(options.getTimeout(), options.getUnit(), context);
+      initialized.set(init);
+      if (!init) {
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration");
+      }
+    } catch (final OpenFeatureError e) {
+      throw e;
+    } catch (final Throwable e) {
+      throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
+    }
+  }
+
+  private void onConfigurationChange() {
+    if (initialized.getAndSet(true)) {
+      emit(
+          ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+          ProviderEventDetails.builder().message("New configuration received").build());
+    } else {
+      emit(
+          ProviderEvent.PROVIDER_READY,
+          ProviderEventDetails.builder().message("Provider ready").build());
+    }
+  }
+
+  private Evaluator buildEvaluator() throws Exception {
+    if (evaluator != null) {
+      return evaluator;
+    }
+    final Class<?> evaluatorClass = loadEvaluatorClass();
+    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
+    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+  }
+
+  @Override
+  public List<Hook> getProviderHooks() {
+    if (flagEvalHook == null) {
+      return Collections.emptyList();
+    }
+    return Collections.singletonList(flagEvalHook);
+  }
+
+  @Override
+  public void shutdown() {
+    if (flagEvalMetrics != null) {
+      flagEvalMetrics.shutdown();
+    }
+    if (evaluator != null) {
+      evaluator.shutdown();
+    }
+  }
+
+  @Override
+  public Metadata getMetadata() {
+    return this;
+  }
+
+  @Override
+  public String getName() {
+    return METADATA;
+  }
+
+  @Override
+  public ProviderEvaluation<Boolean> getBooleanEvaluation(
+      final String key, final Boolean defaultValue, final EvaluationContext ctx) {
+    return evaluator.evaluate(Boolean.class, key, defaultValue, ctx);
+  }
+
+  @Override
+  public ProviderEvaluation<String> getStringEvaluation(
+      final String key, final String defaultValue, final EvaluationContext ctx) {
+    return evaluator.evaluate(String.class, key, defaultValue, ctx);
+  }
+
+  @Override
+  public ProviderEvaluation<Integer> getIntegerEvaluation(
+      final String key, final Integer defaultValue, final EvaluationContext ctx) {
+    return evaluator.evaluate(Integer.class, key, defaultValue, ctx);
+  }
+
+  @Override
+  public ProviderEvaluation<Double> getDoubleEvaluation(
+      final String key, final Double defaultValue, final EvaluationContext ctx) {
+    return evaluator.evaluate(Double.class, key, defaultValue, ctx);
+  }
+
+  @Override
+  public ProviderEvaluation<Value> getObjectEvaluation(
+      final String key, final Value defaultValue, final EvaluationContext ctx) {
+    return evaluator.evaluate(Value.class, key, defaultValue, ctx);
+  }
+
+  @SuppressForbidden // Class#forName(String) used to lazy load internal-api dependencies
+  protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
+    return Class.forName(EVALUATOR_IMPL);
+  }
+
+  public static class Options {
+
+    private long timeout;
+    private TimeUnit unit;
+
+    public Options initTimeout(final long timeout, final TimeUnit unit) {
+      this.timeout = timeout;
+      this.unit = unit;
+      return this;
+    }
+
+    public long getTimeout() {
+      return timeout;
+    }
+
+    public TimeUnit getUnit() {
+      return unit;
+    }
+  }
+}

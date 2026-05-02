@@ -21,6 +21,7 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
       UTF8BytesString.create(DECORATE.operationName());
   public static final String DD_CONTEXT_PATH_ATTRIBUTE = "datadog.context.path";
   public static final String DD_SERVLET_PATH_ATTRIBUTE = "datadog.servlet.path";
+  public static final String DD_PARENT_CONTEXT_ATTRIBUTE = "datadog.parent-context";
 
   @Override
   protected String[] instrumentationNames() {
@@ -75,6 +76,11 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
   @Override
   protected boolean isAppSecOnResponseSeparate() {
     return true;
+  }
+
+  @Override
+  protected String getRequestHeader(final Request request, String key) {
+    return request.getHeader(key);
   }
 
   public AgentSpan onResponse(AgentSpan span, AbstractHttpConnection connection) {

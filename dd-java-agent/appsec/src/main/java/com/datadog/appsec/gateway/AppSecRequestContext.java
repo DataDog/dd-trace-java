@@ -11,8 +11,10 @@ import com.datadog.ddwaf.WafContext;
 import com.datadog.ddwaf.WafHandle;
 import com.datadog.ddwaf.WafMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.util.Numbers;
 import datadog.trace.util.stacktrace.StackTraceEvent;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.Closeable;
@@ -120,6 +122,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private String method;
   private String savedRawURI;
   private String route;
+  private String httpUrl;
+  private String endpoint;
+  private boolean endpointComputed = false;
   private final Map<String, List<String>> requestHeaders = new LinkedHashMap<>();
   private final Map<String, List<String>> responseHeaders = new LinkedHashMap<>();
   private volatile Map<String, List<String>> collectedCookies;
@@ -157,6 +162,8 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   private final AtomicInteger raspMetricsCounter = new AtomicInteger(0);
 
   private volatile boolean wafBlocked;
+  private volatile String blockingResponseContentType;
+  private volatile Integer blockingResponseContentLength;
   private volatile boolean wafErrors;
   private volatile boolean wafTruncated;
   private volatile boolean wafRequestBlockFailure;
@@ -230,6 +237,22 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public boolean isWafBlocked() {
     return wafBlocked;
+  }
+
+  public void setBlockingResponseContentType(String contentType) {
+    this.blockingResponseContentType = contentType;
+  }
+
+  public String getBlockingResponseContentType() {
+    return blockingResponseContentType;
+  }
+
+  public void setBlockingResponseContentLength(Integer contentLength) {
+    this.blockingResponseContentLength = contentLength;
+  }
+
+  public Integer getBlockingResponseContentLength() {
+    return blockingResponseContentLength;
   }
 
   public void setWafErrors() {
@@ -408,11 +431,9 @@ public class AppSecRequestContext implements DataBundle, Closeable {
   }
 
   void setRawURI(String savedRawURI) {
-    if (this.savedRawURI != null && this.savedRawURI.compareToIgnoreCase(savedRawURI) != 0) {
-      throw new IllegalStateException(
-          "Forbidden attempt to set different raw URI for given request context");
+    if (this.savedRawURI == null) {
+      this.savedRawURI = savedRawURI;
     }
-    this.savedRawURI = savedRawURI;
   }
 
   public String getRoute() {
@@ -421,6 +442,45 @@ public class AppSecRequestContext implements DataBundle, Closeable {
 
   public void setRoute(String route) {
     this.route = route;
+  }
+
+  public String getHttpUrl() {
+    return httpUrl;
+  }
+
+  public void setHttpUrl(String httpUrl) {
+    this.httpUrl = httpUrl;
+  }
+
+  /**
+   * Gets or computes the http.endpoint for this request. The endpoint is computed lazily on first
+   * access and cached to avoid recomputation.
+   *
+   * @return the http.endpoint value, or null if it cannot be computed
+   */
+  public String getOrComputeEndpoint() {
+    if (!endpointComputed) {
+      if (httpUrl != null && !httpUrl.isEmpty()) {
+        try {
+          endpoint = EndpointResolver.computeEndpoint(httpUrl);
+        } catch (Exception e) {
+          endpoint = null;
+        }
+      }
+      endpointComputed = true;
+    }
+    return endpoint;
+  }
+
+  /**
+   * Sets the endpoint directly without computing it. This is useful when the endpoint has already
+   * been computed elsewhere.
+   *
+   * @param endpoint the endpoint value to set
+   */
+  public void setEndpoint(String endpoint) {
+    this.endpoint = endpoint;
+    this.endpointComputed = true;
   }
 
   public void setKeepOpenForApiSecurityPostProcessing(final boolean flag) {
@@ -726,27 +786,6 @@ public class AppSecRequestContext implements DataBundle, Closeable {
     return stackTraces;
   }
 
-  /**
-   * Attempts to parse a string value as a number. Returns the parsed number if successful, null
-   * otherwise. Tries to parse as integer first, then as double if it contains a decimal point.
-   */
-  private static Number convertToNumericAttribute(String value) {
-    if (value == null || value.isEmpty()) {
-      return null;
-    }
-    try {
-      // Check if it contains a decimal point to determine if it's a double
-      if (value.contains(".")) {
-        return Double.parseDouble(value);
-      } else {
-        // Try to parse as integer first
-        return Long.parseLong(value);
-      }
-    } catch (NumberFormatException e) {
-      return null;
-    }
-  }
-
   public void reportDerivatives(Map<String, Object> data) {
     log.debug("Reporting derivatives: {}", data);
     if (data == null || data.isEmpty()) return;
@@ -968,7 +1007,7 @@ public class AppSecRequestContext implements DataBundle, Closeable {
           traceSegment.setTagTop(key, (Number) value);
         } else if (value instanceof String) {
           // Try to parse as numeric, otherwise use as string
-          Number parsedNumber = convertToNumericAttribute((String) value);
+          Number parsedNumber = Numbers.parseNumber((String) value);
           if (parsedNumber != null) {
             traceSegment.setTagTop(key, parsedNumber);
           } else {

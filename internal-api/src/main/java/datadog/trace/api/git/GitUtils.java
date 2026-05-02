@@ -290,7 +290,11 @@ public class GitUtils {
 
   /** Checks if the provided string is a valid system path for Git operations */
   public static boolean isValidPath(@Nonnull String path) {
-    return PATH_PATTERN.matcher(path).matches();
+    if (!PATH_PATTERN.matcher(path).matches()) {
+      return false;
+    }
+    // Reject path traversal sequences
+    return !path.contains("..");
   }
 
   /** Checks if the provided string is neither a valid commit SHA nor a valid Git reference */

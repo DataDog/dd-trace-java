@@ -176,4 +176,14 @@ public class LongRunningTracesTracker implements TracerFlare.Reporter {
   public void addReportToFlare(ZipOutputStream zip) throws IOException {
     TracerFlare.addText(zip, "long_running_traces.txt", getTracesAsJson());
   }
+
+  // @VisibleForTesting
+  int trackedCount() {
+    return traceArray.size();
+  }
+
+  // @VisibleForTesting
+  int getDropped() {
+    return dropped;
+  }
 }

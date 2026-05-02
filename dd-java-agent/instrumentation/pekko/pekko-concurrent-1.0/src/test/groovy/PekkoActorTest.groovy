@@ -121,3 +121,11 @@ class PekkoActorTest extends InstrumentationSpecification {
     }
   }
 }
+
+class PekkoActorContextSwapTest extends PekkoActorTest {
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED,  "false")
+  }
+}

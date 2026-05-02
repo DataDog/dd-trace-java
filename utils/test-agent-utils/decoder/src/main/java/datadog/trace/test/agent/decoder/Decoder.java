@@ -2,17 +2,17 @@ package datadog.trace.test.agent.decoder;
 
 import datadog.trace.test.agent.decoder.v04.raw.MessageV04;
 import datadog.trace.test.agent.decoder.v05.raw.MessageV05;
-import java.nio.ByteBuffer;
+import datadog.trace.test.agent.decoder.v1.raw.MessageV1;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 
 public class Decoder {
-  public static DecodedMessage decode(ByteBuffer buffer) {
-    return MessageV05.unpack(buffer);
+  public static DecodedMessage decodeV1(byte[] buffer) {
+    return MessageV1.unpack(buffer);
   }
 
-  public static DecodedMessage decode(byte[] buffer) {
+  public static DecodedMessage decodeV05(byte[] buffer) {
     return MessageV05.unpack(buffer);
   }
 

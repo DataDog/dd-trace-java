@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import com.datadog.debugger.el.DSL;
 import com.datadog.debugger.el.RefResolverHelper;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.values.BooleanValue;
 import com.datadog.debugger.el.values.ListValue;
 import com.datadog.debugger.el.values.MapValue;
@@ -46,9 +47,9 @@ class IsDefinedExpressionTest {
 
   @Test
   void testNumericLiteral() {
-    NumericValue zero = new NumericValue(0);
-    NumericValue one = new NumericValue(1);
-    NumericValue none = new NumericValue(null);
+    NumericValue zero = new NumericValue(0, ValueType.INT);
+    NumericValue one = new NumericValue(1, ValueType.INT);
+    NumericValue none = new NumericValue(null, ValueType.OBJECT);
 
     IsDefinedExpression expression = new IsDefinedExpression(zero);
     assertTrue(expression.evaluate(resolver));
@@ -65,7 +66,7 @@ class IsDefinedExpressionTest {
   void testBooleanLiteral() {
     BooleanValue yes = BooleanValue.TRUE;
     BooleanValue no = BooleanValue.FALSE;
-    BooleanValue none = new BooleanValue(null);
+    BooleanValue none = new BooleanValue(null, ValueType.OBJECT);
 
     IsDefinedExpression expression = new IsDefinedExpression(yes);
     assertTrue(expression.evaluate(resolver));

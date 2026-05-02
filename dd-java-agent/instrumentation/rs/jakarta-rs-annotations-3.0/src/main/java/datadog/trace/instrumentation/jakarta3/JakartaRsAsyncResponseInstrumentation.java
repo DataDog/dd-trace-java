@@ -46,8 +46,6 @@ public final class JakartaRsAsyncResponseInstrumentation extends InstrumenterMod
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.agent.tooling.ClassHierarchyIterable",
-      "datadog.trace.agent.tooling.ClassHierarchyIterable$ClassIterator",
       packageName + ".JakartaRsAnnotationsDecorator",
     };
   }

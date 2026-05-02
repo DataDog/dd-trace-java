@@ -41,7 +41,7 @@ public class PlayAdvice {
       // Do not extract the context.
       parentContext = getRootContext();
       span = startSpan("play", PLAY_REQUEST);
-      scope = span.attach();
+      scope = span.attachWithCurrent();
     }
 
     span.setMeasured(true);

@@ -18,7 +18,7 @@ import net.bytebuddy.asm.Advice;
 
 /** Active span capturing and continuation for Pekko's async scheduled tasks. */
 @AutoService(InstrumenterModule.class)
-public class PekkoSchedulerInstrumentation extends InstrumenterModule.Tracing
+public class PekkoSchedulerInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public PekkoSchedulerInstrumentation() {

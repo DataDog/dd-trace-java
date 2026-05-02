@@ -388,6 +388,7 @@ class AxisEngineTest extends InstrumentationSpecification {
       }
       topLevel parentSpan == null
       tags {
+        serviceNameSource "m"
         defaultTags()
       }
     }
@@ -414,6 +415,7 @@ class AxisEngineTest extends InstrumentationSpecification {
           "error.stack" String
         }
         "$Tags.COMPONENT" "axis2"
+        serviceNameSource "m"
         defaultTags()
       }
     }

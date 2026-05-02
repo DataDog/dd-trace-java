@@ -84,7 +84,7 @@ public final class FieldBackedContextRequestRewriter implements AsmVisitorWrappe
       final MethodList<?> methods,
       final int writerFlags,
       final int readerFlags) {
-    return new ClassVisitor(Opcodes.ASM8, classVisitor) {
+    return new ClassVisitor(Opcodes.ASM9, classVisitor) {
       @Override
       public MethodVisitor visitMethod(
           final int access,

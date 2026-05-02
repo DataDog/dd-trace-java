@@ -4,6 +4,7 @@ import datadog.trace.api.experimental.DataStreamsContextCarrier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Schema;
 import datadog.trace.bootstrap.instrumentation.api.SchemaIterator;
+import java.util.Map;
 
 public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
   public static final NoopDataStreamsMonitoring INSTANCE = new NoopDataStreamsMonitoring();
@@ -54,6 +55,20 @@ public class NoopDataStreamsMonitoring implements AgentDataStreamsMonitoring {
 
   @Override
   public void clearThreadServiceName() {}
+
+  @Override
+  public void trackTransaction(String transactionId, String checkpointName) {}
+
+  @Override
+  public void trackTransaction(
+      AgentSpan span,
+      DataStreamsTransactionExtractor.Type extractorType,
+      Object source,
+      TransactionSourceReader sourceReader) {}
+
+  @Override
+  public void reportKafkaConfig(
+      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config) {}
 
   @Override
   public void setConsumeCheckpoint(String type, String source, DataStreamsContextCarrier carrier) {}

@@ -13,8 +13,10 @@ import net.bytebuddy.asm.Advice;
 public class ThreadContextClassloaderInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
+  private static final String LIBERTY = "liberty";
+
   public ThreadContextClassloaderInstrumentation() {
-    super("liberty", "liberty-classloading");
+    super(LIBERTY, "liberty-classloading");
   }
 
   @Override

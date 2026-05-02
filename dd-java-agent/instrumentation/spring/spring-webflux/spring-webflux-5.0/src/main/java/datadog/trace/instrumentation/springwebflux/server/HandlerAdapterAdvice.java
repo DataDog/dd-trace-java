@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import static datadog.trace.instrumentation.springwebflux.server.AdviceUtils.constructOperationName;
 import static datadog.trace.instrumentation.springwebflux.server.SpringWebfluxHttpServerDecorator.DECORATE;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -71,7 +72,7 @@ public class HandlerAdapterAdvice {
       if (throwable != null) {
         DECORATE.onError(scope, throwable);
       } else if (mono != null) {
-        InstrumentationContext.get(Publisher.class, AgentSpan.class).put(mono, scope.span());
+        InstrumentationContext.get(Publisher.class, Context.class).put(mono, scope.span());
       }
       scope.close();
       // span finished in SpanFinishingSubscriber

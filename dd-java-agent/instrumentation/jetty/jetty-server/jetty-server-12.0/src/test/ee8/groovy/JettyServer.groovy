@@ -119,7 +119,7 @@ class JettyServer implements WebsocketServer {
     synchronized (Lock) {
       try {
         while (Lock.activeSession == null) {
-          Lock.wait()
+          Lock.wait(1000)
         }
       } catch (InterruptedException ie) {
         Thread.currentThread().interrupt()

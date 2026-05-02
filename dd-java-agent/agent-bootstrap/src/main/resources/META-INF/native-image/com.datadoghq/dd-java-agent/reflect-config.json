@@ -71,6 +71,31 @@
     ]
   },
   {
+    "name" : "datadog.trace.agent.core.datastreams.DataStreamsTransactionExtractors$DataStreamsTransactionExtractorAdapter",
+    "methods": [
+      {"name": "fromJson"},
+      {"name": "toJson"}
+    ]
+  },
+  {
+    "name" : "datadog.trace.agent.core.datastreams.DataStreamsTransactionExtractors$DataStreamsTransactionExtractorImpl",
+    "allDeclaredConstructors" : true,
+    "allPublicConstructors" : true,
+    "allDeclaredFields" : true,
+    "allPublicFields" : true
+  },
+  {
+    "name" : "datadog.trace.api.datastreams.DataStreamsTransactionExtractor$Type",
+    "allDeclaredFields" : true
+  },
+  {
+    "name" : "datadog.trace.agent.core.datastreams.DataStreamsTransactionExtractors$DataStreamsTransactionExtractorsAdapter",
+    "methods": [
+      {"name": "fromJson"},
+      {"name": "toJson"}
+    ]
+  },
+  {
     "name" : "datadog.trace.agent.core.DDSpanLink$SpanLinkAdapter",
     "methods": [
       {"name": "fromSpanLinkJson"},
@@ -180,6 +205,18 @@
     "name" : "datadog.jctools.queues.SpmcArrayQueueConsumerIndexField",
     "fields": [
       {"name": "consumerIndex", "allowUnsafeAccess": true}
+    ]
+  },
+  {
+    "name": "com.datadoghq.profiler.BufferWriter8",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
+    ]
+  },
+  {
+    "name": "com.datadoghq.profiler.BufferWriter9",
+    "methods": [
+      {"name": "<init>", "parameterTypes": []}
     ]
   }
 ]

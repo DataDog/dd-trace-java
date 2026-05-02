@@ -2,6 +2,7 @@ import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
+import datadog.trace.api.internal.util.LongStringUtils
 import datadog.trace.api.interceptor.MutableSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities
@@ -299,11 +300,20 @@ class OpenTracing32Test extends InstrumentationSpecification {
       "-${DDSpanId.toHexStringPadded(context.delegate.spanId)}" +
       "-" + (propagatedPriority > 0 ? "01" : "00")
     def expectedTracestate = "dd=s:${propagatedPriority};p:${DDSpanId.toHexStringPadded(context.delegate.spanId)}"
-    def expectedDatadogTags = null
+    def datadogTags = []
     if (propagatedPriority > 0) {
       def effectiveSamplingMechanism = contextPriority == UNSET ? AGENT_RATE : samplingMechanism
-      expectedDatadogTags = "_dd.p.dm=-" + effectiveSamplingMechanism
+      datadogTags << "_dd.p.dm=-" + effectiveSamplingMechanism
       expectedTracestate+= ";t.dm:-" + effectiveSamplingMechanism
+    }
+    def traceId = context.delegate.traceId as DDTraceId
+    if (traceId.toHighOrderLong() != 0) {
+      expectedTracestate+= ";t.tid:${traceId.toHexStringPadded(32).substring(0, 16)}"
+      datadogTags << "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+    }
+    if (contextPriority == UNSET) {
+      expectedTracestate+= ";t.ksr:1"
+      datadogTags << "_dd.p.ksr=1"
     }
     def expectedTextMap = [
       "x-datadog-trace-id"         : "$context.delegate.traceId",
@@ -312,8 +322,8 @@ class OpenTracing32Test extends InstrumentationSpecification {
       "traceparent"                : expectedTraceparent,
       "tracestate"                 : expectedTracestate
     ]
-    if (expectedDatadogTags != null) {
-      expectedTextMap.put("x-datadog-tags", expectedDatadogTags)
+    if (!datadogTags.empty) {
+      expectedTextMap.put("x-datadog-tags", datadogTags.join(','))
     }
     textMap == expectedTextMap
 

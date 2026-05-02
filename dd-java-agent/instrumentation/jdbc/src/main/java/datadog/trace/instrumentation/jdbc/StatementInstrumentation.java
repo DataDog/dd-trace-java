@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
@@ -17,13 +18,13 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.propagation.W3CTraceParent;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.jdbc.DBInfo;
-import datadog.trace.core.propagation.W3CTraceParent;
 import java.sql.Connection;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -60,10 +61,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.propagation.W3CTraceParent",
-      packageName + ".JDBCDecorator",
-      packageName + ".SQLCommenter",
-      "datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter",
+      packageName + ".JDBCDecorator", packageName + ".SQLCommenter",
     };
   }
 
@@ -148,10 +146,21 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             appendComment = true;
           }
 
+          final String dbService;
+          if (isOracle) {
+            String oracleService = DECORATE.getDbService(dbInfo);
+            if (oracleService != null) {
+              oracleService =
+                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+            }
+            dbService = oracleService;
+          } else {
+            dbService = span.getServiceName();
+          }
           sql =
               SQLCommenter.inject(
                   sql,
-                  span.getServiceName(),
+                  dbService,
                   dbInfo.getType(),
                   dbInfo.getHost(),
                   dbInfo.getDb(),
@@ -159,6 +168,7 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
                   appendComment);
         }
         DECORATE.onStatement(span, copy);
+        DECORATE.withBaseHash(span);
         return activateSpan(span);
       } catch (SQLException e) {
         // if we can't get the connection for any reason

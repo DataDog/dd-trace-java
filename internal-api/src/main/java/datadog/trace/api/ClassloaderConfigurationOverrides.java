@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.JEE_SPLIT_BY_DEPLOYMENT;
+
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -28,14 +30,20 @@ public class ClassloaderConfigurationOverrides {
 
   public static class ContextualInfo {
     private final String serviceName;
+    private final CharSequence serviceNameSource;
     private final Map<String, Object> tags = new HashMap<>();
 
-    public ContextualInfo(String serviceName) {
+    public ContextualInfo(String serviceName, CharSequence source) {
       this.serviceName = serviceName;
+      this.serviceNameSource = source;
     }
 
     public String getServiceName() {
       return serviceName;
+    }
+
+    public CharSequence getServiceNameSource() {
+      return serviceNameSource;
     }
 
     public void addTag(String name, Object value) {
@@ -48,7 +56,7 @@ public class ClassloaderConfigurationOverrides {
   }
 
   private static final Function<ClassLoader, ContextualInfo> EMPTY_CONTEXTUAL_INFO_ADDER =
-      ignored -> new ContextualInfo(null);
+      ignored -> new ContextualInfo(null, null);
 
   private final WeakHashMap<ClassLoader, ContextualInfo> weakCache = new WeakHashMap<>();
   private final String inferredServiceName =
@@ -86,7 +94,7 @@ public class ClassloaderConfigurationOverrides {
     if (!CAN_SPLIT_SERVICE_NAME_BY_DEPLOYMENT) {
       return null;
     }
-    final ContextualInfo contextualInfo = new ContextualInfo(serviceName);
+    final ContextualInfo contextualInfo = new ContextualInfo(serviceName, JEE_SPLIT_BY_DEPLOYMENT);
     addContextualInfo(classLoader, contextualInfo);
     return contextualInfo;
   }
@@ -135,7 +143,7 @@ public class ClassloaderConfigurationOverrides {
       final String currentServiceName = span.getServiceName();
       if (currentServiceName == null
           || currentServiceName.equals(Lazy.INSTANCE.inferredServiceName)) {
-        span.setServiceName(serviceName);
+        span.setServiceName(serviceName, contextualInfo.getServiceNameSource());
         ServiceNameCollector.get().addService(serviceName);
       }
     }

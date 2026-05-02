@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jaxrs.v1;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -19,6 +20,7 @@ import com.sun.jersey.api.client.ClientRequest;
 import com.sun.jersey.api.client.ClientResponse;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -52,11 +54,12 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("handle")
             .and(takesArgument(0, extendsClass(named("com.sun.jersey.api.client.ClientRequest"))))
             .and(returns(extendsClass(named("com.sun.jersey.api.client.ClientResponse")))),
-        JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice");
+        JaxRsClientV1Instrumentation.class.getName() + "$HandleAdvice",
+        JaxRsClientV1Instrumentation.class.getName() + "$HandleContextPropagationAdvice");
   }
 
   public static class HandleAdvice {
@@ -73,7 +76,6 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
         DECORATE.afterStart(span);
         DECORATE.onRequest(span, request);
         request.getProperties().put(DD_CONTEXT_ATTRIBUTE, span);
-        DECORATE.injectContext(getCurrentContext().with(span), request.getHeaders(), SETTER);
         return activateSpan(span);
       }
       return null;
@@ -93,6 +95,14 @@ public final class JaxRsClientV1Instrumentation extends InstrumenterModule.Traci
       DECORATE.beforeFinish(span);
       scope.close();
       scope.span().finish();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class HandleContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final ClientRequest request) {
+      DECORATE.injectContext(getCurrentContext(), request.getHeaders(), SETTER);
     }
   }
 }

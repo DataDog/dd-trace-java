@@ -8,7 +8,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.instrumentation.junit5.JUnitPlatformUtils;
@@ -58,7 +58,7 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "org.junit.platform.engine.TestDescriptor",
-        "datadog.trace.api.civisibility.execution.TestExecutionHistory");
+        "datadog.trace.api.civisibility.execution.TestExecutionTracker");
   }
 
   @Override
@@ -74,9 +74,9 @@ public class JUnit5ExecutionStoreInstrumentation extends InstrumenterModule.CiVi
   public static class ContextStoreAdvice {
     @Advice.OnMethodEnter
     public static void setContextStores() {
-      ContextStore<TestDescriptor, TestExecutionHistory> contextStore =
-          InstrumentationContext.get(TestDescriptor.class, TestExecutionHistory.class);
-      TestEventsHandlerHolder.setExecutionHistoryStore(contextStore);
+      ContextStore<TestDescriptor, TestExecutionTracker> contextStore =
+          InstrumentationContext.get(TestDescriptor.class, TestExecutionTracker.class);
+      TestEventsHandlerHolder.setExecutionTrackerStore(contextStore);
     }
 
     // JUnit 5.3.0 and above

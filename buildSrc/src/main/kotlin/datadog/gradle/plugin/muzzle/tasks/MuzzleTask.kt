@@ -66,22 +66,24 @@ abstract class MuzzleTask @Inject constructor(
   @get:Optional
   val muzzleDirective: Property<MuzzleDirective> = objects.property()
 
-  // This output is only used to make the task cacheable, this is not exposed
   @get:OutputFile
-  @get:Optional
-  protected val result: RegularFileProperty = objects.fileProperty().convention(
+  val result: RegularFileProperty = objects.fileProperty().convention(
     project.layout.buildDirectory.file("reports/$name.txt")
   )
 
   @TaskAction
   fun muzzle() {
     when {
+        // Version-specific task: created by MuzzlePlugin for each resolved artifact.
+        muzzleDirective.isPresent -> {
+          assertMuzzle(muzzleDirective.get())
+        }
+        // Fallback for the root "muzzle" lifecycle task when no pass{} directives are
+        // declared. In that case there are no version-specific pass tasks, so we assert
+        // the instrumentation against its own compile-time classpath as a basic sanity check.
         !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass } -> {
           project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
           assertMuzzle()
-        }
-        muzzleDirective.isPresent -> {
-          assertMuzzle(muzzleDirective.get())
         }
     }
   }

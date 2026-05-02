@@ -135,7 +135,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     config.addDataSourceProperty("prepStmtCacheSize", "250")
     config.addDataSourceProperty("prepStmtCacheSqlLimit", "2048")
     config.setMaximumPoolSize(1)
-    config.setConnectionTimeout(1000)
+    config.setConnectionTimeout(5000)
 
     return new HikariDataSource(config)
   }
@@ -948,7 +948,7 @@ abstract class JDBCInstrumentationTest extends VersionedNamingTestBase {
     connectionPoolName | exhaustPoolForMillis | expectException
     "hikari"           | 500                  | false
     "dbcp2"            | 500                  | false
-    "hikari"           | 1500                 | true
+    "hikari"           | 6000                 | true
     "dbcp2"            | 1500                 | true
   }
 

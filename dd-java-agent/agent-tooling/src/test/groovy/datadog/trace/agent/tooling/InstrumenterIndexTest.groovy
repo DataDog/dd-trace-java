@@ -1,9 +1,14 @@
 package datadog.trace.agent.tooling
 
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 class InstrumenterIndexTest extends DDSpecification {
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Shared
   def unknownInstrumentation = new InstrumenterModule('unknown') {}

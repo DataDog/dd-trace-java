@@ -2,10 +2,14 @@ package datadog.trace.core.datastreams;
 
 import datadog.trace.api.datastreams.Backlog;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.KafkaConfigReport;
 import datadog.trace.api.datastreams.SchemaRegistryUsage;
 import datadog.trace.api.datastreams.StatsPoint;
+import datadog.trace.api.datastreams.TransactionInfo;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 public class StatsBucket {
@@ -13,7 +17,9 @@ public class StatsBucket {
   private final long bucketDurationNanos;
   private final Map<Long, StatsGroup> hashToGroup = new HashMap<>();
   private final Map<DataStreamsTags, Long> backlogs = new HashMap<>();
+  private final TransactionContainer transactions = new TransactionContainer(1024);
   private final Map<SchemaKey, Long> schemaRegistryUsages = new HashMap<>();
+  private final List<KafkaConfigReport> kafkaConfigs = new ArrayList<>();
 
   public StatsBucket(long startTimeNanos, long bucketDurationNanos) {
     this.startTimeNanos = startTimeNanos;
@@ -54,6 +60,14 @@ public class StatsBucket {
     schemaRegistryUsages.merge(key, 1L, Long::sum);
   }
 
+  public void addKafkaConfig(KafkaConfigReport configReport) {
+    kafkaConfigs.add(configReport);
+  }
+
+  public void addTransaction(TransactionInfo transaction) {
+    transactions.add(transaction);
+  }
+
   public long getStartTimeNanos() {
     return startTimeNanos;
   }
@@ -70,8 +84,16 @@ public class StatsBucket {
     return backlogs.entrySet();
   }
 
+  public TransactionContainer getTransactions() {
+    return transactions;
+  }
+
   public Collection<Map.Entry<SchemaKey, Long>> getSchemaRegistryUsages() {
     return schemaRegistryUsages.entrySet();
+  }
+
+  public List<KafkaConfigReport> getKafkaConfigs() {
+    return kafkaConfigs;
   }
 
   /**

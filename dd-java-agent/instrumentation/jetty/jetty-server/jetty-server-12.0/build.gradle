@@ -86,6 +86,8 @@ dependencies {
   latestDepTestImplementation ("org.eclipse.jetty:jetty-session:12.+") {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+  // Jetty 12.1.6+ requires SLF4J 2.0+ for fluent logging API
+  latestDepTestImplementation 'org.slf4j:slf4j-api:2.0.+'
 
   ee8TestImplementation group: 'org.eclipse.jetty.ee8', name: 'jetty-ee8-servlet', version: '12.0.0' , {
     exclude group: 'org.slf4j', module: 'slf4j-api'

@@ -10,9 +10,8 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason
 import datadog.trace.civisibility.config.EarlyFlakeDetectionSettings
 import datadog.trace.civisibility.config.ExecutionSettings
-import datadog.trace.civisibility.config.ExecutionsByDuration
 import datadog.trace.civisibility.config.TestManagementSettings
-import datadog.trace.civisibility.execution.RunNTimes
+import datadog.trace.civisibility.execution.AttemptToFix
 import datadog.trace.civisibility.source.LinesResolver
 import datadog.trace.civisibility.source.SourcePathResolver
 import spock.lang.Specification
@@ -76,7 +75,7 @@ class ExecutionStrategyTest extends Specification {
     def strategy = givenAnExecutionStrategy(executionSettings)
 
     expect:
-    strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == RunNTimes
+    strategy.executionPolicy(testID, TestSourceData.UNKNOWN, []).class == AttemptToFix
   }
 
   def "test attempt to fix + efd"() {
@@ -86,7 +85,7 @@ class ExecutionStrategyTest extends Specification {
 
     def testManagementSettings = Stub(TestManagementSettings)
     testManagementSettings.isEnabled() >> true
-    testManagementSettings.getAttemptToFixExecutions() >> Collections.singletonList(new ExecutionsByDuration(Long.MAX_VALUE, 20))
+    testManagementSettings.getAttemptToFixRetries() >> 20
 
     def earlyFlakeDetectionSettings = Stub(EarlyFlakeDetectionSettings)
     earlyFlakeDetectionSettings.isEnabled() >> true
@@ -103,7 +102,7 @@ class ExecutionStrategyTest extends Specification {
     def policy = strategy.executionPolicy(testID, TestSourceData.UNKNOWN, [])
 
     then:
-    policy.class == RunNTimes
+    policy.class == AttemptToFix
 
     when:
     def outcome = policy.registerExecution(TestStatus.pass, 0)

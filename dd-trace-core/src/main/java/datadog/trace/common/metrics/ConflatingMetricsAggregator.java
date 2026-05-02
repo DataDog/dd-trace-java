@@ -1,8 +1,11 @@
 package datadog.trace.common.metrics;
 
-import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V6_METRICS_ENDPOINT;
+import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
+import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -27,6 +30,7 @@ import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
@@ -100,6 +104,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -115,12 +120,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         new OkHttpSink(
             sharedCommunicationObjects.agentHttpClient,
             sharedCommunicationObjects.agentUrl.toString(),
-            V6_METRICS_ENDPOINT,
+            V06_METRICS_ENDPOINT,
             config.isTracerMetricsBufferingEnabled(),
             false,
             DEFAULT_HEADERS),
         config.getTracerMetricsMaxAggregates(),
-        config.getTracerMetricsMaxPending());
+        config.getTracerMetricsMaxPending(),
+        config.isTraceResourceRenamingEnabled());
   }
 
   ConflatingMetricsAggregator(
@@ -130,7 +136,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       HealthMetrics healthMetric,
       Sink sink,
       int maxAggregates,
-      int queueSize) {
+      int queueSize,
+      boolean includeEndpointInMetrics) {
     this(
         wellKnownTags,
         ignoredResources,
@@ -140,7 +147,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         10,
-        SECONDS);
+        SECONDS,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -152,7 +160,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
         features,
@@ -162,7 +171,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         maxAggregates,
         queueSize,
         reportingInterval,
-        timeUnit);
+        timeUnit,
+        includeEndpointInMetrics);
   }
 
   ConflatingMetricsAggregator(
@@ -174,8 +184,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       int maxAggregates,
       int queueSize,
       long reportingInterval,
-      TimeUnit timeUnit) {
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
     this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
@@ -192,7 +204,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             keys.keySet(),
             maxAggregates,
             reportingInterval,
-            timeUnit);
+            timeUnit,
+            healthMetric);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -306,18 +319,38 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
+    // Extract HTTP method and endpoint only if the feature is enabled
+    String httpMethod = null;
+    String httpEndpoint = null;
+    if (includeEndpointInMetrics) {
+      Object httpMethodObj = span.unsafeGetTag(HTTP_METHOD);
+      httpMethod = httpMethodObj != null ? httpMethodObj.toString() : null;
+      Object httpEndpointObj = span.unsafeGetTag(HTTP_ENDPOINT);
+      httpEndpoint = httpEndpointObj != null ? httpEndpointObj.toString() : null;
+    }
+
+    CharSequence spanType = span.getType();
+    String grpcStatusCode = null;
+    if (spanType != null && RPC.contentEquals(spanType)) {
+      Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
+      grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
+    }
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
             SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
             span.getOperationName(),
-            span.getType(),
+            span.getServiceNameSource(),
+            spanType,
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()));
+            getPeerTags(span, spanKind.toString()),
+            httpMethod,
+            httpEndpoint,
+            grpcStatusCode);
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;

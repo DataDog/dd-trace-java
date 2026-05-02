@@ -17,7 +17,6 @@ import datadog.trace.util.Strings;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.junit.runner.Description;
 
@@ -32,8 +31,8 @@ public class JUnit4TestOrdererInstrumentation extends InstrumenterModule.CiVisib
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().getCiVisibilityTestOrder() != null;
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

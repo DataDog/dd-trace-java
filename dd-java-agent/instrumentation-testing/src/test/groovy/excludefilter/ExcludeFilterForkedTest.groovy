@@ -1,6 +1,7 @@
 package excludefilter
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.bootstrap.FieldBackedContextStores
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter
 
@@ -17,6 +18,13 @@ import static excludefilter.ExcludeFilterTestInstrumentation.NormalRunnable
 import static excludefilter.ExcludeFilterTestInstrumentation.RunnableExcludedExecutor
 
 class ExcludeFilterForkedTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   def "test ExcludeFilter #runnable.class.name"() {
     expect:

@@ -5,6 +5,19 @@ class CapturedSnapshot301 {
   }
 
   fun f2(value: Int): Int {
+    (1..3)
+      .filter {
+        it > 0
+      }
+      .forEach {
+        println(it)
+    }
+    return value
+  }
+
+  fun f3(value: Int): Int {
+    val list = listOf(value, 2, 3)
+    val max = list.maxOf { it -> it > 0 }
     return value
   }
 

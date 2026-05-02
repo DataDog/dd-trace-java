@@ -3,6 +3,7 @@ package datadog.trace.core.propagation.ptags;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.DECISION_MAKER_TAG;
+import static datadog.trace.core.propagation.ptags.PTagsCodec.KNUTH_SAMPLING_RATE_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_ID_TAG;
 import static datadog.trace.core.propagation.ptags.PTagsCodec.TRACE_SOURCE_TAG;
 
@@ -18,7 +19,7 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
 import javax.annotation.Nonnull;
 
 public class PTagsFactory implements PropagationTags.Factory {
@@ -84,8 +85,20 @@ public class PTagsFactory implements PropagationTags.Factory {
     // extracted decision maker tag for easier updates
     private volatile TagValue decisionMakerTagValue;
 
-    private final AtomicInteger traceSource;
+    private static final AtomicIntegerFieldUpdater<PTags> TRACE_SOURCE_UPDATER =
+        AtomicIntegerFieldUpdater.newUpdater(PTags.class, "traceSource");
+
+    private volatile int traceSource;
     private volatile String debugPropagation;
+
+    private volatile double knuthSamplingRate = Double.NaN;
+    private volatile TagValue knuthSamplingRateTagValue;
+
+    // Static cache for the most-recently-seen rate → TagValue. In steady state a service uses one
+    // rate, so this eliminates the char[] + String allocation on every new PTags instance.
+    // Writes are benign-racy: two threads computing the same rate produce equal TagValues.
+    private static volatile double cachedKsrRate = Double.NaN;
+    private static volatile TagValue cachedKsrTagValue;
 
     // xDatadogTagsSize of the tagPairs, does not include the decision maker tag
     private volatile int xDatadogTagsSize = -1;
@@ -152,7 +165,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.tagPairs = tagPairs;
       this.canChangeDecisionMaker = decisionMakerTagValue == null;
       this.decisionMakerTagValue = decisionMakerTagValue;
-      this.traceSource = new AtomicInteger(traceSource);
+      this.traceSource = traceSource;
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
@@ -230,7 +243,8 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public void addTraceSource(final int product) {
-      traceSource.updateAndGet(
+      TRACE_SOURCE_UPDATER.updateAndGet(
+          this,
           currentValue -> {
             // If the product is already marked, return the same value (no change)
             if (ProductTraceSource.isProductMarked(currentValue, product)) {
@@ -248,7 +262,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
     @Override
     public int getTraceSource() {
-      return traceSource.get();
+      return traceSource;
     }
 
     @Override
@@ -259,6 +273,66 @@ public class PTagsFactory implements PropagationTags.Factory {
     @Override
     public String getDebugPropagation() {
       return debugPropagation;
+    }
+
+    @Override
+    public void updateKnuthSamplingRate(double rate) {
+      if (Double.compare(knuthSamplingRate, rate) != 0) {
+        clearCachedHeader(DATADOG);
+        clearCachedHeader(W3C);
+        knuthSamplingRate = rate;
+        if (Double.isNaN(rate)) {
+          knuthSamplingRateTagValue = null;
+        } else {
+          TagValue tv;
+          if (Double.compare(cachedKsrRate, rate) == 0) {
+            tv = cachedKsrTagValue;
+          } else {
+            tv = TagValue.from(formatKnuthSamplingRate(rate));
+            cachedKsrTagValue = tv;
+            cachedKsrRate = rate;
+          }
+          knuthSamplingRateTagValue = tv;
+        }
+      }
+    }
+
+    /**
+     * Formats a sampling rate with up to 6 decimal digits of precision and no trailing zeros.
+     *
+     * <p>Values below 0.0000005 (which round to zero at 6 decimal places) return {@code "0"}.
+     * Values at or above 0.9999995 return {@code "1"}.
+     *
+     * <p>Uses char-array arithmetic to avoid {@link java.util.Formatter} allocations entirely.
+     */
+    static String formatKnuthSamplingRate(double rate) {
+      if (rate <= 0.0) return "0";
+      if (rate >= 1.0) return "1";
+
+      // Round to 6 decimal places.
+      long rounded = Math.round(rate * 1_000_000L);
+      if (rounded == 0) return "0";
+      if (rounded >= 1_000_000L) return "1";
+
+      // Build "0.DDDDDD" and trim trailing zeros in a single right-to-left pass.
+      char[] buf = new char[8]; // "0." + 6 digits
+      buf[0] = '0';
+      buf[1] = '.';
+      int end = 2; // exclusive end; updated on first non-zero digit found from the right
+      for (int i = 7; i >= 2; i--) {
+        int d = (int) (rounded % 10);
+        rounded /= 10;
+        buf[i] = (char) ('0' + d);
+        if (d != 0 && end == 2) {
+          end = i + 1;
+        }
+      }
+
+      return new String(buf, 0, end);
+    }
+
+    TagValue getKnuthSamplingRateTagValue() {
+      return knuthSamplingRateTagValue;
     }
 
     @Override
@@ -386,7 +460,10 @@ public class PTagsFactory implements PropagationTags.Factory {
         size = PTagsCodec.calcXDatadogTagsSize(getTagPairs());
         size = PTagsCodec.calcXDatadogTagsSize(size, DECISION_MAKER_TAG, decisionMakerTagValue);
         size = PTagsCodec.calcXDatadogTagsSize(size, TRACE_ID_TAG, traceIdHighOrderBitsHexTagValue);
-        int currentProductTraceSource = traceSource.get();
+        size =
+            PTagsCodec.calcXDatadogTagsSize(
+                size, KNUTH_SAMPLING_RATE_TAG, getKnuthSamplingRateTagValue());
+        int currentProductTraceSource = traceSource;
         if (currentProductTraceSource != ProductTraceSource.UNSET) {
           size =
               PTagsCodec.calcXDatadogTagsSize(

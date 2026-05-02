@@ -1,8 +1,11 @@
 package datadog.trace.instrumentation.junit5;
 
 import datadog.trace.api.civisibility.config.TestSourceData;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.TestFrameworkInstrumentation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.platform.engine.EngineExecutionListener;
@@ -119,7 +122,8 @@ public class TracingListener implements EngineExecutionListener {
 
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
-    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, testSource, displayName);
     List<String> tags = JUnitPlatformUtils.getTags(testDescriptor);
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
 
@@ -135,7 +139,14 @@ public class TracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             null,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
+
+    if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span != null) {
+        span.setTag(Tags.TEST_JUNIT_IS_DYNAMIC, true);
+      }
+    }
   }
 
   private void testCaseExecutionFinished(
@@ -160,11 +171,11 @@ public class TracingListener implements EngineExecutionListener {
             .onTestFailure(testDescriptor, throwable);
       }
     }
-    TestExecutionHistory executionHistory =
-        TestEventsHandlerHolder.getExecutionHistory(testDescriptor);
+    TestExecutionTracker executionTracker =
+        TestEventsHandlerHolder.getExecutionTracker(testDescriptor);
     TestEventsHandlerHolder.HANDLERS
         .get(TestFrameworkInstrumentation.JUNIT5)
-        .onTestFinish(testDescriptor, null, executionHistory);
+        .onTestFinish(testDescriptor, null, executionTracker);
   }
 
   @Override
@@ -224,7 +235,8 @@ public class TracingListener implements EngineExecutionListener {
 
     String displayName = testDescriptor.getDisplayName();
     String testName = testSource.getMethodName();
-    String testParameters = JUnitPlatformUtils.getParameters(testSource, displayName);
+    String testParameters =
+        JUnitPlatformUtils.getParameters(testDescriptor, testSource, displayName);
     List<String> tags =
         testDescriptor.getTags().stream().map(TestTag::getName).collect(Collectors.toList());
     TestSourceData testSourceData = JUnitPlatformUtils.toTestSourceData(testDescriptor);
@@ -241,6 +253,13 @@ public class TracingListener implements EngineExecutionListener {
             tags,
             testSourceData,
             reason,
-            TestEventsHandlerHolder.getExecutionHistory(testDescriptor));
+            TestEventsHandlerHolder.getExecutionTracker(testDescriptor));
+
+    if (JUnitPlatformUtils.isDynamicTest(testDescriptor)) {
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span != null) {
+        span.setTag(Tags.TEST_JUNIT_IS_DYNAMIC, true);
+      }
+    }
   }
 }

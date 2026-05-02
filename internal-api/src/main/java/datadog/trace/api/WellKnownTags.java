@@ -49,4 +49,21 @@ public class WellKnownTags {
   public UTF8BytesString getLanguage() {
     return language;
   }
+
+  public String toString() {
+    return "WellKnownTags{"
+        + "runtimeId="
+        + runtimeId
+        + ", hostname="
+        + hostname
+        + ", env="
+        + env
+        + ", service="
+        + service
+        + ", version="
+        + version
+        + ", language="
+        + language
+        + "}";
+  }
 }

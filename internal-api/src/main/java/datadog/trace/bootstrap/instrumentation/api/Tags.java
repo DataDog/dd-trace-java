@@ -19,6 +19,7 @@ public class Tags {
   public static final String HTTP_ROUTE = "http.route";
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
+  public static final String HTTP_ENDPOINT = "http.endpoint";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
   public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";
@@ -48,12 +49,14 @@ public class Tags {
   public static final String DB_SCHEMA = "db.schema";
   public static final String MESSAGE_BUS_DESTINATION = "message_bus.destination";
   public static final String DB_POOL_NAME = "db.pool.name";
+  public static final String BASE_HASH = "_dd.propagated_hash";
 
   public static final String TEST_SESSION_NAME = "test_session.name";
   public static final String TEST_MODULE = "test.module";
   public static final String TEST_SUITE = "test.suite";
   public static final String TEST_NAME = "test.name";
   public static final String TEST_STATUS = "test.status";
+  public static final String TEST_FINAL_STATUS = "test.final_status";
   public static final String TEST_FRAMEWORK = "test.framework";
   public static final String TEST_FRAMEWORK_VERSION = "test.framework_version";
   public static final String TEST_SKIP_REASON = "test.skip_reason";
@@ -95,6 +98,7 @@ public class Tags {
   public static final String TEST_IS_NEW = "test.is_new";
   public static final String TEST_IS_RETRY = "test.is_retry";
   public static final String TEST_RETRY_REASON = "test.retry_reason";
+  public static final String TEST_JUNIT_IS_DYNAMIC = "test.junit5.is_dynamic";
   public static final String TEST_IS_MODIFIED = "test.is_modified";
   public static final String TEST_HAS_FAILED_ALL_RETRIES = "test.has_failed_all_retries";
   public static final String TEST_FAILURE_SUPPRESSED = "test.failure_suppressed";
@@ -160,9 +164,13 @@ public class Tags {
   public static final String DD_ENV = "dd.env";
 
   public static final String ENV = "env";
+  public static final String VERSION = "version";
 
   /** ASM force tracer to keep the trace */
   public static final String ASM_KEEP = "asm.keep";
+
+  /** AI Guard force tracer to keep the trace */
+  public static final String AI_GUARD_KEEP = "ai_guard.keep";
 
   public static final String PROPAGATED_TRACE_SOURCE = "_dd.p.ts";
   public static final String PROPAGATED_DEBUG = "_dd.p.debug";
@@ -174,4 +182,6 @@ public class Tags {
   public static final String LLMOBS_TOOL_SPAN_KIND = "tool";
   public static final String LLMOBS_EMBEDDING_SPAN_KIND = "embedding";
   public static final String LLMOBS_RETRIEVAL_SPAN_KIND = "retrieval";
+  public static final String DSM_TRANSACTION_ID = "dsm.transaction.id";
+  public static final String DSM_TRANSACTION_CHECKPOINT = "dsm.transaction.checkpoint";
 }

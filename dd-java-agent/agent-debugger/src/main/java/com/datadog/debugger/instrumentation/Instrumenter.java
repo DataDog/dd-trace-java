@@ -9,6 +9,7 @@ import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
 import com.datadog.debugger.instrumentation.DiagnosticMessage.Kind;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.util.ClassFileLines;
+import com.datadog.debugger.util.JvmLanguage;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -69,7 +70,7 @@ public abstract class Instrumenter {
       argOffset += t.getSize();
     }
     localVarsBySlotArray = extractLocalVariables(argTypes);
-    this.language = JvmLanguage.of(classNode);
+    this.language = JvmLanguage.of(classNode.sourceFile);
   }
 
   public abstract InstrumentationResult.Status instrument();
@@ -293,33 +294,6 @@ public abstract class Instrumenter {
       this.startLabel = startLabel;
       this.endLabel = endLabel;
       this.handlerLabel = handlerLabel;
-    }
-  }
-
-  protected enum JvmLanguage {
-    JAVA,
-    KOTLIN,
-    SCALA,
-    GROOVY,
-    UNKNOWN;
-
-    public static JvmLanguage of(ClassNode classNode) {
-      if (classNode.sourceFile == null) {
-        return UNKNOWN;
-      }
-      if (classNode.sourceFile.endsWith(".java")) {
-        return JAVA;
-      }
-      if (classNode.sourceFile.endsWith(".kt")) {
-        return KOTLIN;
-      }
-      if (classNode.sourceFile.endsWith(".scala")) {
-        return SCALA;
-      }
-      if (classNode.sourceFile.endsWith(".groovy")) {
-        return GROOVY;
-      }
-      return UNKNOWN;
     }
   }
 }

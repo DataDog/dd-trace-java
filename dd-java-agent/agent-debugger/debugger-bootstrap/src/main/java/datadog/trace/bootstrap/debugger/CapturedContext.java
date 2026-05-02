@@ -24,7 +24,7 @@ public class CapturedContext implements ValueReferenceResolver {
   public static final CapturedContext EMPTY_CONTEXT = new CapturedContext(null);
   public static final CapturedContext EMPTY_CAPTURING_CONTEXT =
       new CapturedContext(ProbeImplementation.UNKNOWN);
-  private final transient Map<String, Object> extensions = new HashMap<>();
+  private final transient Map<String, CapturedValue> extensions = new HashMap<>();
 
   private Map<String, CapturedValue> arguments;
   private Map<String, CapturedValue> locals;
@@ -49,10 +49,15 @@ public class CapturedContext implements ValueReferenceResolver {
     this.throwable = throwable;
   }
 
-  private CapturedContext(CapturedContext other, Map<String, Object> extensions) {
+  private CapturedContext(CapturedContext other, Map<String, CapturedValue> extensions) {
     this.arguments = other.arguments;
     this.locals = other.getLocals();
     this.throwable = other.throwable;
+    this.staticFields = other.staticFields;
+    this.limits = other.limits;
+    this.thisClassName = other.thisClassName;
+    this.duration = other.duration;
+    this.captureExpressions = other.captureExpressions;
     this.extensions.putAll(other.extensions);
     this.extensions.putAll(extensions);
   }
@@ -80,11 +85,11 @@ public class CapturedContext implements ValueReferenceResolver {
   }
 
   @Override
-  public Object lookup(String name) {
+  public CapturedValue lookup(String name) {
     if (name == null || name.isEmpty()) {
       throw new IllegalArgumentException("empty name for lookup operation");
     }
-    Object target;
+    CapturedValue target;
     if (name.startsWith(ValueReferences.SYNTHETIC_PREFIX)) {
       String rawName = name.substring(ValueReferences.SYNTHETIC_PREFIX.length());
       target = tryRetrieveSynthetic(rawName);
@@ -93,36 +98,39 @@ public class CapturedContext implements ValueReferenceResolver {
       target = tryRetrieve(name);
       checkUndefined(target, name, "Cannot find symbol: ");
     }
-    return target instanceof CapturedValue ? ((CapturedValue) target).getValue() : target;
+    return target;
   }
 
-  private void checkUndefined(Object target, String name, String msg) {
-    if (target == Values.UNDEFINED_OBJECT) {
+  private void checkUndefined(CapturedValue target, String name, String msg) {
+    if (target == CapturedValue.UNDEFINED || target.notCapturedReason != null) {
       String errorMsg = msg + name;
       throw new RuntimeException(errorMsg);
     }
   }
 
   @Override
-  public Object getMember(Object target, String memberName) {
+  public CapturedValue getMember(Object target, String memberName) {
     if (target == Values.UNDEFINED_OBJECT) {
-      return target;
+      return CapturedValue.UNDEFINED;
     }
     if (Redaction.isRedactedKeyword(memberName)) {
-      return REDACTED_VALUE;
+      return CapturedValue.redacted(memberName, null);
     }
+    CapturedValue result;
     if (target instanceof CapturedValue) {
       Map<String, CapturedValue> fields = ((CapturedValue) target).fields;
       if (fields.containsKey(memberName)) {
-        target = fields.get(memberName);
+        result = fields.get(memberName);
       } else {
         CapturedValue capturedTarget = ((CapturedValue) target);
-        target = capturedTarget.getValue();
-        if (target != null) {
+        Object targetedValue = capturedTarget.getValue();
+        if (targetedValue != null) {
           // resolve to a CapturedValue instance
-          target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+          result =
+              ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+                  targetedValue.getClass(), targetedValue, memberName);
         } else {
-          target = Values.UNDEFINED_OBJECT;
+          result = CapturedValue.UNDEFINED;
         }
       }
     } else {
@@ -133,25 +141,27 @@ public class CapturedContext implements ValueReferenceResolver {
         if (specialFieldAccess != null) {
           CapturedValue specialField = specialFieldAccess.apply(target);
           if (specialField != null && specialField.getName().equals(memberName)) {
-            return specialField.getValue();
+            return specialField;
           }
         }
       }
-      target = ReflectiveFieldValueResolver.resolve(target, target.getClass(), memberName);
+      result =
+          ReflectiveFieldValueResolver.getFieldAsCapturedValue(
+              target.getClass(), target, memberName);
     }
-    checkUndefined(target, memberName, "Cannot dereference field: ");
-    return target;
+    checkUndefined(result, memberName, "Cannot dereference field: ");
+    return result;
   }
 
-  private Object tryRetrieveSynthetic(String name) {
+  private CapturedValue tryRetrieveSynthetic(String name) {
     if (extensions == null || extensions.isEmpty()) {
-      return Values.UNDEFINED_OBJECT;
+      return CapturedValue.UNDEFINED;
     }
-    return extensions.getOrDefault(name, Values.UNDEFINED_OBJECT);
+    return extensions.getOrDefault(name, CapturedValue.UNDEFINED);
   }
 
-  private Object tryRetrieve(String name) {
-    Object result = null;
+  private CapturedValue tryRetrieve(String name) {
+    CapturedValue result = null;
     if (arguments != null && !arguments.isEmpty()) {
       result = arguments.get(name);
     }
@@ -169,21 +179,29 @@ public class CapturedContext implements ValueReferenceResolver {
     }
     CapturedValue thisValue;
     if (arguments != null && (thisValue = arguments.get("this")) != null) {
-      result = getMember(thisValue.getValue(), name);
-      if (result != Values.UNDEFINED_OBJECT) {
+      result = getMember(thisValue, name);
+      if (result != CapturedValue.UNDEFINED) {
         return result;
       }
     }
-    return result != null ? result : Values.UNDEFINED_OBJECT;
+    return result != null ? result : CapturedValue.UNDEFINED;
+  }
+
+  public CapturedContext copyWithoutCaptureExpressions() {
+    CapturedContext newContext = new CapturedContext(this, Collections.emptyMap());
+    if (newContext.captureExpressions != null) {
+      newContext.captureExpressions = null;
+    }
+    return newContext;
   }
 
   @Override
-  public ValueReferenceResolver withExtensions(Map<String, Object> extensions) {
+  public ValueReferenceResolver withExtensions(Map<String, CapturedValue> extensions) {
     return new CapturedContext(this, extensions);
   }
 
   @Override
-  public void addExtension(String name, Object value) {
+  public void addExtension(String name, CapturedValue value) {
     extensions.put(name, value);
   }
 
@@ -222,8 +240,9 @@ public class CapturedContext implements ValueReferenceResolver {
   public void addThrowable(Throwable t) {
     addThrowable(new CapturedThrowable(t));
     // special local name for throwable
-    putInLocals(ValueReferences.EXCEPTION_REF, CapturedValue.of(t.getClass().getTypeName(), t));
-    extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, t);
+    CapturedValue capturedException = CapturedValue.of(t.getClass().getTypeName(), t);
+    putInLocals(ValueReferences.EXCEPTION_REF, capturedException);
+    extensions.put(ValueReferences.EXCEPTION_EXTENSION_NAME, capturedException);
   }
 
   public void addThrowable(CapturedThrowable capturedThrowable) {
@@ -306,7 +325,8 @@ public class CapturedContext implements ValueReferenceResolver {
     if (methodLocation == MethodLocation.EXIT && startTimestamp > 0) {
       duration = System.nanoTime() - startTimestamp;
       addExtension(
-          ValueReferences.DURATION_EXTENSION_NAME, duration / 1_000_000.0); // convert to ms
+          ValueReferences.DURATION_EXTENSION_NAME,
+          CapturedValue.of(duration / 1_000_000.0)); // convert to ms
     }
     this.thisClassName = thisClassName;
     boolean shouldEvaluate =
@@ -433,7 +453,7 @@ public class CapturedContext implements ValueReferenceResolver {
 
   /** Stores a captured value */
   public static class CapturedValue {
-    public static final CapturedValue UNDEFINED = CapturedValue.of(null, Values.UNDEFINED_OBJECT);
+    public static final CapturedValue UNDEFINED = CapturedValue.of(Values.UNDEFINED_OBJECT);
 
     private String name;
     private final String declaredType;
@@ -504,16 +524,16 @@ public class CapturedContext implements ValueReferenceResolver {
       this.name = name;
     }
 
+    public static CapturedValue of(Object value) {
+      return of(null, value);
+    }
+
     public static CapturedValue of(String declaredType, Object value) {
       return build(null, declaredType, value, Limits.DEFAULT, null);
     }
 
     public static CapturedValue of(String name, String declaredType, Object value) {
       return build(name, declaredType, value, Limits.DEFAULT, null);
-    }
-
-    public CapturedValue derive(String name, String type, Object value) {
-      return build(name, type, value, limits, null);
     }
 
     public static CapturedValue of(
