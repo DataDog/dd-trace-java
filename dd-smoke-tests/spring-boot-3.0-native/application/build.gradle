@@ -37,6 +37,8 @@ if (hasProperty('agentPath')) {
         buildArgs.add("-J-Dnet.bytebuddy.safe=false")
         if (withProfiler && property('profiler') == 'true') {
           buildArgs.add("-J-Ddd.profiling.enabled=true")
+          buildArgs.add("-J-Ddd.profiling.scrub.enabled=true")
+          buildArgs.add("-J-Ddd.profiling.start-force-first=true")
         }
         jvmArgs.add("-Xmx4096M")
       }

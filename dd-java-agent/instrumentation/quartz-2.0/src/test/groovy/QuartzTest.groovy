@@ -1,6 +1,15 @@
+import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
+import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_GROUP
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP
+import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
+
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
 import org.quartz.CronScheduleBuilder
 import org.quartz.JobBuilder
 import org.quartz.JobDetail
@@ -9,15 +18,6 @@ import org.quartz.Trigger
 import org.quartz.TriggerBuilder
 import org.quartz.impl.StdSchedulerFactory
 import spock.lang.Shared
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.TimeUnit
-
-import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_GROUP
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_JOB_NAME
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_GROUP
-import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.QUARTZ_TRIGGER_NAME
-import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class QuartzTest extends InstrumentationSpecification {
   public static final String JOB_NAME = "job"
@@ -63,7 +63,7 @@ class QuartzTest extends InstrumentationSpecification {
     Trigger cronTrigger = TriggerBuilder.newTrigger()
       .withIdentity(TRIGGER_NAME, GROUP_NAME)
       .forJob(jobDetail)
-      .withSchedule(CronScheduleBuilder.cronSchedule("0/5 * * ? * *")).build() // run every second
+      .withSchedule(CronScheduleBuilder.cronSchedule("0/5 * * ? * *")).build() // run every 5 seconds
     scheduler.scheduleJob(jobDetail, cronTrigger)
 
     when:

@@ -1,8 +1,11 @@
 package datadog.communication.ddagent;
 
-import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_ID;
 import static datadog.communication.http.OkHttpUtils.DATADOG_CONTAINER_TAGS_HASH;
+import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
+import static datadog.communication.http.OkHttpUtils.prepareRequest;
 import static datadog.communication.serialization.msgpack.MsgPackWriter.FIXARRAY;
+import static datadog.trace.api.ProtocolVersion.V0_4;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonList;
 import static java.util.Collections.unmodifiableSet;
@@ -11,15 +14,14 @@ import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.common.container.ContainerInfo;
-import datadog.communication.http.OkHttpUtils;
-import datadog.communication.monitor.DDAgentStatsDClientManager;
-import datadog.communication.monitor.Monitoring;
-import datadog.communication.monitor.Recording;
+import datadog.metrics.api.Monitoring;
+import datadog.metrics.api.Recording;
+import datadog.metrics.impl.statsd.DDAgentStatsDClientManager;
 import datadog.trace.api.BaseHash;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.api.telemetry.LogCollector;
 import datadog.trace.util.Strings;
 import java.nio.ByteBuffer;
-import java.security.NoSuchAlgorithmException;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -46,12 +48,13 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     (byte) FIXARRAY | 2, (byte) FIXARRAY, (byte) FIXARRAY
   };
 
-  public static final String V3_ENDPOINT = "v0.3/traces";
-  public static final String V4_ENDPOINT = "v0.4/traces";
-  public static final String V5_ENDPOINT = "v0.5/traces";
+  public static final String V03_ENDPOINT = "v0.3/traces";
+  public static final String V04_ENDPOINT = "v0.4/traces";
+  public static final String V05_ENDPOINT = "v0.5/traces";
+  public static final String V1_ENDPOINT = "v1.0/traces";
 
-  public static final String V6_METRICS_ENDPOINT = "v0.6/stats";
-  public static final String V7_CONFIG_ENDPOINT = "v0.7/config";
+  public static final String V06_METRICS_ENDPOINT = "v0.6/stats";
+  public static final String V07_CONFIG_ENDPOINT = "v0.7/config";
 
   public static final String V01_DATASTREAMS_ENDPOINT = "v0.1/pipeline_stats";
 
@@ -71,9 +74,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private final OkHttpClient client;
   private final HttpUrl agentBaseUrl;
   private final Recording discoveryTimer;
-  private final String[] traceEndpoints;
-  private final String[] metricsEndpoints = {V6_METRICS_ENDPOINT};
-  private final String[] configEndpoints = {V7_CONFIG_ENDPOINT};
+  private final ProtocolVersion protocolVersion;
+  private final String[] metricsEndpoints = {V06_METRICS_ENDPOINT};
+  private final String[] configEndpoints = {V07_CONFIG_ENDPOINT};
   private final boolean metricsEnabled;
   private final String[] dataStreamsEndpoints = {V01_DATASTREAMS_ENDPOINT};
   // ordered from most recent to least recent, as the logic will stick with the first one that is
@@ -106,15 +109,12 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       OkHttpClient client,
       Monitoring monitoring,
       HttpUrl agentUrl,
-      boolean enableV05Traces,
+      ProtocolVersion protocolVersion,
       boolean metricsEnabled) {
     this.client = client;
     this.agentBaseUrl = agentUrl;
     this.metricsEnabled = metricsEnabled;
-    this.traceEndpoints =
-        enableV05Traces
-            ? new String[] {V5_ENDPOINT, V4_ENDPOINT, V3_ENDPOINT}
-            : new String[] {V4_ENDPOINT, V3_ENDPOINT};
+    this.protocolVersion = protocolVersion != null ? protocolVersion : V0_4;
     this.discoveryTimer = monitoring.newTimer("trace.agent.discovery.time");
     this.discoveryState = new State();
   }
@@ -151,13 +151,9 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     // 3. fallback if the endpoint couldn't be found or the response couldn't be parsed
     try (Recording recording = discoveryTimer.start()) {
       boolean fallback = true;
-      final Request.Builder requestBuilder =
-          new Request.Builder().url(agentBaseUrl.resolve("info").url());
-      final String containerId = ContainerInfo.get().getContainerId();
-      if (containerId != null) {
-        requestBuilder.header(DATADOG_CONTAINER_ID, containerId);
-      }
-      try (Response response = client.newCall(requestBuilder.build()).execute()) {
+      final Request request =
+          prepareRequest(agentBaseUrl.resolve("info"), emptyMap()).get().build();
+      try (Response response = client.newCall(request).execute()) {
         if (response.isSuccessful()) {
           processInfoResponseHeaders(response);
           fallback = !processInfoResponse(newState, response.body().string());
@@ -176,37 +172,37 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
       // don't want to rewire the traces pipeline
       if (null == newState.traceEndpoint) {
-        newState.traceEndpoint = probeTracesEndpoint(newState, traceEndpoints);
+        newState.traceEndpoint = probeTracesEndpoint(newState, protocolVersion.endpointsToProbe());
       } else if (newState.state == null || newState.state.isEmpty()) {
         // Still need to probe so that state is correctly assigned
-        probeTracesEndpoint(newState, new String[] {newState.traceEndpoint});
+        probeTracesEndpoint(newState, singletonList(newState.traceEndpoint));
       }
     }
 
     if (log.isDebugEnabled()) {
       log.debug(
-          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
+          "discovered traceEndpoint={}, metricsEndpoint={}, supportsDropping={}, supportsLongRunning={}, dataStreamsEndpoint={}, configEndpoint={}, logEndpoint={}, snapshotEndpoint={}, diagnosticsEndpoint={}, evpProxyEndpoint={}, telemetryProxyEndpoint={}",
           newState.traceEndpoint,
           newState.metricsEndpoint,
           newState.supportsDropping,
           newState.supportsLongRunning,
           newState.dataStreamsEndpoint,
           newState.configEndpoint,
+          newState.debuggerLogEndpoint,
+          newState.debuggerSnapshotEndpoint,
+          newState.debuggerDiagnosticsEndpoint,
           newState.evpProxyEndpoint,
           newState.telemetryProxyEndpoint);
     }
   }
 
-  private String probeTracesEndpoint(State newState, String[] endpoints) {
+  private String probeTracesEndpoint(State newState, List<String> endpoints) {
     for (String candidate : endpoints) {
       try (Response response =
           client
               .newCall(
-                  new Request.Builder()
-                      .put(
-                          OkHttpUtils.msgpackRequestBodyOf(
-                              singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
-                      .url(agentBaseUrl.resolve(candidate))
+                  prepareRequest(agentBaseUrl.resolve(candidate), emptyMap())
+                      .put(msgpackRequestBodyOf(singletonList(ByteBuffer.wrap(PROBE_MESSAGE))))
                       .build())
               .execute()) {
         if (response.code() != 404) {
@@ -217,7 +213,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         errorQueryingEndpoint(candidate, e);
       }
     }
-    return V3_ENDPOINT;
+    return V03_ENDPOINT;
   }
 
   private void processInfoResponseHeaders(Response response) {
@@ -237,9 +233,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
   private boolean processInfoResponse(State newState, String response) {
     try {
       Map<String, Object> map = RESPONSE_ADAPTER.fromJson(response);
+      final Object endpointObj = map.get("endpoints");
+      if (!(endpointObj instanceof List)) {
+        log.debug("Bad response received from the agent. Ignoring it.");
+        return false;
+      }
       discoverStatsDPort(map);
       newState.version = (String) map.get("version");
-      Set<String> endpoints = new HashSet<>((List<String>) map.get("endpoints"));
+      Set<String> endpoints = new HashSet<>((List<String>) endpointObj);
 
       String foundMetricsEndpoint = null;
       if (metricsEnabled) {
@@ -254,7 +255,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       // This is done outside of the loop to set metricsEndpoint to null if not found
       newState.metricsEndpoint = foundMetricsEndpoint;
 
-      for (String endpoint : traceEndpoints) {
+      for (String endpoint : protocolVersion.endpointsToProbe()) {
         if (containsEndpoint(endpoints, endpoint)) {
           newState.traceEndpoint = endpoint;
           break;
@@ -268,19 +269,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
         }
       }
 
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
-        newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
-      }
-      // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
-      // because older agents support diagnostics from DD agent 7.49
-      if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
-      } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
-      if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
-        newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
-      }
+      setDebuggerEndpoints(newState, endpoints);
 
       for (String endpoint : dataStreamsEndpoints) {
         if (containsEndpoint(endpoints, endpoint)) {
@@ -324,7 +313,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       }
       try {
         newState.state = Strings.sha256(response);
-      } catch (NoSuchAlgorithmException ex) {
+      } catch (Throwable ex) {
         log.debug(
             "Failed to hash trace agent /info response. Will probe {}", newState.traceEndpoint, ex);
       }
@@ -333,6 +322,26 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
       log.debug("Error parsing trace agent /info response", error);
     }
     return false;
+  }
+
+  private static void setDebuggerEndpoints(State newState, Set<String> endpoints) {
+    // both debugger v2 and diagnostics endpoints are forwarding events to the DEBUGGER intake
+    // because older agents support diagnostics from DD agent 7.49
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerLogEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    } else if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V1)) {
+      newState.debuggerLogEndpoint = DEBUGGER_ENDPOINT_V1;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_ENDPOINT_V2)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_ENDPOINT_V2;
+    } else if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerSnapshotEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
+    if (containsEndpoint(endpoints, DEBUGGER_DIAGNOSTICS_ENDPOINT)) {
+      newState.debuggerDiagnosticsEndpoint = DEBUGGER_DIAGNOSTICS_ENDPOINT;
+    }
   }
 
   private static boolean containsEndpoint(Set<String> endpoints, String endpoint) {

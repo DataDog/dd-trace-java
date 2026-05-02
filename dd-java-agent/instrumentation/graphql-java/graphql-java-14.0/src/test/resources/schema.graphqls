@@ -13,6 +13,7 @@ type Book {
   pageCount: Int
   author: Author
   cover: String
+  asyncCover: String
   isbn: ID!
   bookHash: Int!
   year: Int

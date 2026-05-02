@@ -1,6 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
+import datadog.trace.api.ProtocolVersion;
 import datadog.trace.common.writer.RemoteMapper;
 import datadog.trace.common.writer.RemoteMapperDiscovery;
 
@@ -25,14 +26,28 @@ public class DDAgentMapperDiscovery implements RemoteMapperDiscovery {
   @Override
   public void discover() {
     reset();
+
     if (featuresDiscovery.getTraceEndpoint() == null) {
       featuresDiscovery.discover();
     }
-    String tracesUrl = featuresDiscovery.getTraceEndpoint();
-    if (DDAgentFeaturesDiscovery.V5_ENDPOINT.equalsIgnoreCase(tracesUrl)) {
-      this.traceMapper = new TraceMapperV0_5();
-    } else if (null != tracesUrl) {
-      this.traceMapper = new TraceMapperV0_4();
+
+    String tracesEndpoint = featuresDiscovery.getTraceEndpoint();
+    if (tracesEndpoint == null) {
+      return;
+    }
+
+    switch (ProtocolVersion.fromTraceEndpoint(tracesEndpoint)) {
+      case V1_0:
+        traceMapper = new TraceMapperV1();
+        break;
+
+      case V0_5:
+        traceMapper = new TraceMapperV0_5();
+        break;
+
+      default:
+        traceMapper = new TraceMapperV0_4();
+        break;
     }
   }
 

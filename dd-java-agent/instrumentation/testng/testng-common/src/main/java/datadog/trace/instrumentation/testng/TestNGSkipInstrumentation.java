@@ -13,7 +13,6 @@ import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.lang.reflect.Method;
 import java.util.List;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.testng.SkipException;
 import org.testng.annotations.DataProvider;
@@ -26,8 +25,8 @@ public class TestNGSkipInstrumentation extends InstrumenterModule.CiVisibility
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems)
+  public boolean isEnabled() {
+    return super.isEnabled()
         && (Config.get().isCiVisibilityTestSkippingEnabled()
             || Config.get().isCiVisibilityTestManagementEnabled());
   }

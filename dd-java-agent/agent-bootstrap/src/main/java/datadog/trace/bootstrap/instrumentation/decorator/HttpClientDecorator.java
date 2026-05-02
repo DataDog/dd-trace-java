@@ -11,6 +11,8 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.ProductActivation;
 import datadog.trace.api.appsec.HttpClientRequest;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -36,6 +38,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
 
   private static final Logger log = LoggerFactory.getLogger(HttpClientDecorator.class);
 
+  private static final String DATADOG_META_LANG_HEADER_NAME = "Datadog-Meta-Lang";
+  private static final String DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME = "DD-Client-Library-Language";
+
   private static final BitSet CLIENT_ERROR_STATUSES = Config.get().getHttpClientErrorStatuses();
 
   private static final UTF8BytesString DEFAULT_RESOURCE_NAME = UTF8BytesString.create("/");
@@ -47,6 +52,15 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   protected abstract String method(REQUEST request);
 
   protected abstract URI url(REQUEST request) throws URISyntaxException;
+
+  /**
+   * Returns {@code true} if the request was made by the Datadog agent itself. Such requests must
+   * not be traced to avoid self-tracing loops.
+   */
+  public boolean isAgentRequest(final REQUEST request) {
+    return getRequestHeader(request, DATADOG_META_LANG_HEADER_NAME) != null
+        || getRequestHeader(request, DD_CLIENT_LIBRARY_LANGUAGE_HEADER_NAME) != null;
+  }
 
   protected abstract int status(RESPONSE response);
 
@@ -68,8 +82,25 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     return true;
   }
 
+  private final DataStreamsTransactionTracker.TransactionSourceReader
+      DSM_TRANSACTION_SOURCE_READER =
+          (source, headerName) -> {
+            try {
+              return getRequestHeader((REQUEST) source, headerName);
+            } catch (Throwable ignored) {
+              return null;
+            }
+          };
+
   public AgentSpan onRequest(final AgentSpan span, final REQUEST request) {
     if (request != null) {
+      AgentTracer.get()
+          .getDataStreamsMonitoring()
+          .trackTransaction(
+              span,
+              DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS,
+              request,
+              DSM_TRANSACTION_SOURCE_READER);
 
       String method = method(request);
       span.setTag(Tags.HTTP_METHOD, method);

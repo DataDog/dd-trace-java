@@ -40,7 +40,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.core.propagation.W3CTraceParent", packageName + ".JDBCDecorator",
+      packageName + ".JDBCDecorator",
     };
   }
 
@@ -103,6 +103,7 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);
         DECORATE.onPreparedStatement(span, queryInfo);
+        DECORATE.withBaseHash(span);
 
         return activateSpan(span);
       } catch (SQLException e) {

@@ -97,9 +97,15 @@ class AndroidGradleUtils {
   }
 
   private static getJavaDestinations(variant) {
+    def javaCompileTask
     if (variant.hasProperty('javaCompileProvider')) {
-      return variant.javaCompileProvider.get().destinationDir
+      javaCompileTask = variant.javaCompileProvider.get()
+    } else {
+      javaCompileTask = variant.javaCompile
     }
-    return variant.javaCompile.destinationDir
+    if (javaCompileTask.hasProperty('destinationDirectory')) {
+      return javaCompileTask.destinationDirectory.asFile.get()
+    }
+    return javaCompileTask.destinationDir
   }
 }

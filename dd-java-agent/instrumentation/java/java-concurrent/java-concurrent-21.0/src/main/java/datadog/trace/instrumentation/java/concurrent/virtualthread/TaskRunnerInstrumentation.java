@@ -26,7 +26,7 @@ import net.bytebuddy.asm.Advice.OnMethodExit;
  */
 @SuppressWarnings("unused")
 @AutoService(InstrumenterModule.class)
-public final class TaskRunnerInstrumentation extends InstrumenterModule.Tracing
+public final class TaskRunnerInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap, Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
   public TaskRunnerInstrumentation() {
     super("java_concurrent", "task-runner");

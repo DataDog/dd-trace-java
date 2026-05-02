@@ -1,6 +1,7 @@
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.tooling.InstrumenterModule
 import datadog.trace.api.Config
+import datadog.trace.api.InstrumenterConfig
 import datadog.trace.api.ProductActivation
 import datadog.trace.api.config.AppSecConfig
 import datadog.trace.api.config.IastConfig
@@ -41,6 +42,9 @@ class IastInstrumentationForkedTest extends InstrumentationSpecification {
       injectSysConfig(AppSecConfig.APPSEC_ENABLED, "true")
     } else {
       injectSysConfig(AppSecConfig.APPSEC_ENABLED, "false")
+    }
+    if (InstrumenterConfig.get().isRaspEnabled()) {
+      enabledSystems.add(InstrumenterModule.TargetSystem.RASP)
     }
   }
 

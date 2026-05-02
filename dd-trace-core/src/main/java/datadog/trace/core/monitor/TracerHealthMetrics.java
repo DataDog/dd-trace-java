@@ -9,7 +9,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
-import datadog.trace.api.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
@@ -96,6 +96,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsRequests = new LongAdder();
   private final LongAdder clientStatsErrors = new LongAdder();
   private final LongAdder clientStatsDowngrades = new LongAdder();
+
+  private final LongAdder statsAggregateDropped = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -351,6 +353,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onStatsAggregateDropped() {
+    statsAggregateDropped.increment();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -366,8 +373,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SERIAL_FAILED_TAG = new String[] {"failure:serial"};
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
+    private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
 
-    private final long[] previousCounts = new long[50];
+    private final long[] previousCounts = new long[51];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -491,6 +499,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         reportIfChanged(target.statsd, "stats.flush_errors", target.clientStatsErrors, NO_TAGS);
         reportIfChanged(
             target.statsd, "stats.agent_downgrades", target.clientStatsDowngrades, NO_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "stats.dropped_aggregates",
+            target.statsAggregateDropped,
+            REASON_LRU_EVICTION_TAG);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -622,6 +635,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nclientStatsProcessedSpans="
         + clientStatsProcessedSpans.sum()
         + "\nclientStatsProcessedTraces="
-        + clientStatsProcessedTraces.sum();
+        + clientStatsProcessedTraces.sum()
+        + "\nstatsAggregateDropped="
+        + statsAggregateDropped.sum();
   }
 }

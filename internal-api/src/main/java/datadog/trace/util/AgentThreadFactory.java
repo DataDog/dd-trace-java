@@ -25,6 +25,8 @@ public final class AgentThreadFactory implements ThreadFactory {
     JMX_STARTUP("dd-agent-startup-jmxfetch"),
     JMX_COLLECTOR("dd-jmx-collector"),
 
+    OTLP_METRICS_EXPORTER("dd-otlp-metrics-exporter"),
+
     PROFILER_STARTUP("dd-agent-startup-datadog-profiler"),
     PROFILER_RECORDING_SCHEDULER("dd-profiler-recording-scheduler"),
     PROFILER_HTTP_DISPATCHER("dd-profiler-http-dispatcher"),

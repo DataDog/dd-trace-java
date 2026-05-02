@@ -4,6 +4,7 @@ import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROC
 
 import datadog.trace.api.env.CapturedEnvironment
 import datadog.trace.test.util.DDSpecification
+import datadog.trace.util.TraceUtils
 import java.nio.file.Paths
 
 class ProcessTagsForkedTest extends DDSpecification {
@@ -21,7 +22,6 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load default tags for jar #jar and main class #cls'() {
     given:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     CapturedEnvironment.useFixedProcessInfo(new CapturedEnvironment.ProcessInfo(cls, jar))
     ProcessTags.reset()
     def tags = ProcessTags.getTagsForSerialization()
@@ -35,9 +35,23 @@ class ProcessTagsForkedTest extends DDSpecification {
     null                                    | null            | "entrypoint.workdir:[^,]+"
   }
 
+  def 'should add process tags for service name set by user #userServiceName'() {
+    given:
+    if (userServiceName != null) {
+      injectSysConfig("service", userServiceName)
+    }
+    ProcessTags.reset()
+    def tags = ProcessTags.getTagsForSerialization()
+    expect:
+    tags =~ expected
+    where:
+    userServiceName | expected
+    null            | "svc.auto:${TraceUtils.normalizeServiceName(Config.get().getServiceName())}"
+    "custom"        | "svc.user:true"
+  }
+
   def 'should load default tags jboss (mode #mode)'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     if (jbossHome != null) {
       System.setProperty("jboss.home.dir", jbossHome)
     }
@@ -62,7 +76,6 @@ class ProcessTagsForkedTest extends DDSpecification {
 
   def 'should load websphere tags (#expected)'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.envGetter = key -> {
       switch (key) {
         case "WAS_CELL":
@@ -87,24 +100,24 @@ class ProcessTagsForkedTest extends DDSpecification {
     null     | "server1"  | "^((?!cluster.name|server.name|server.type).)*\$"
   }
 
-  def 'calculate process tags by default'() {
+  def 'can disable process tags'() {
     when:
+    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "false")
     ProcessTags.reset()
     def processTags = ProcessTags.tagsForSerialization
     then:
-    assert ProcessTags.enabled
-    assert (processTags != null)
+    assert !ProcessTags.enabled
+    assert (processTags == null)
     when:
     ProcessTags.addTag("test", "value")
     then:
-    assert (ProcessTags.tagsForSerialization != null)
-    assert (ProcessTags.tagsAsStringList != null)
-    assert (ProcessTags.tagsAsUTF8ByteStringList != null)
+    assert (ProcessTags.tagsForSerialization == null)
+    assert (ProcessTags.tagsAsStringList == null)
+    assert (ProcessTags.tagsAsUTF8ByteStringList == null)
   }
 
   def 'should lazily recalculate when a tag is added'() {
     setup:
-    injectSysConfig(EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED, "true")
     ProcessTags.reset()
     when:
     def processTags = ProcessTags.tagsForSerialization
@@ -129,9 +142,131 @@ class ProcessTagsForkedTest extends DDSpecification {
     assert ProcessTags.tagsAsUTF8ByteStringList[0].toString() == "0test:value"
   }
 
+  def 'should resolve process tag from system property via {prop} source'() {
+    setup:
+    System.setProperty("my.property", "my.value")
+    injectSysConfig("process.tags.mapping", "{prop}my.property:some_key")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("some_key:my.value")
+    cleanup:
+    System.clearProperty("my.property")
+  }
+
+  def 'should resolve process tag from environment variable via {env} source'() {
+    setup:
+    ProcessTags.envGetter = key -> key == "MY_ENV_VAR" ? "myvalue" : null
+    injectSysConfig("process.tags.mapping", "{env}MY_ENV_VAR:my_tag")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("my_tag:myvalue")
+    cleanup:
+    ProcessTags.envGetter = System::getenv
+    ProcessTags.reset()
+  }
+
+  def 'should not emit process tag when key is missing from source'() {
+    setup:
+    injectSysConfig("process.tags.mapping", "{prop}nonexistent.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+  }
+
+  def 'should not emit process tag when value is empty'() {
+    setup:
+    System.setProperty("empty.key", "")
+    injectSysConfig("process.tags.mapping", "{prop}empty.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+    cleanup:
+    System.clearProperty("empty.key")
+  }
+
+  def 'should not emit process tag for unsupported source'() {
+    setup:
+    injectSysConfig("process.tags.mapping", "{unknown}some.key:should_not_appear")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("should_not_appear:") }
+  }
+
+  def 'should ignore malformed process tag mapping entries'() {
+    setup:
+    injectSysConfig("process.tags.mapping", malformed)
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    !tags.any { it.startsWith("bad_tag:") }
+    where:
+    // all three cases reach parseMappingEntry and trigger a WARN
+    malformed                     | _
+    "no_braces:key:bad_tag"       | _ // loadMap splits on first ':', key="no_braces" has no {source} prefix
+    "{unclosed_brace key:bad_tag" | _ // key has a space, regex does not match
+    "{prop}:bad_tag"              | _ // key is "{prop}" with no config-key after '}'
+  }
+
+  def 'last mapping wins when same source key is repeated'() {
+    setup:
+    System.setProperty("my.key", "first_value")
+    // getMergedMap keeps the last value for the same map key
+    injectSysConfig("process.tags.mapping", "{prop}my.key:tag_v1,{prop}my.key:tag_v2")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("tag_v2:first_value")
+    !tags.any { it.startsWith("tag_v1:") }
+    cleanup:
+    System.clearProperty("my.key")
+  }
+
+  def 'should handle multiple valid mapping entries'() {
+    setup:
+    System.setProperty("prop.a", "valueA")
+    System.setProperty("prop.b", "valueB")
+    injectSysConfig("process.tags.mapping", "{prop}prop.a:tag_a,{prop}prop.b:tag_b")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    tags.contains("tag_a:valuea")
+    tags.contains("tag_b:valueb")
+    cleanup:
+    System.clearProperty("prop.a")
+    System.clearProperty("prop.b")
+  }
+
+  def 'should normalize mapped process tag key'() {
+    setup:
+    System.setProperty("my.prop", "some_value")
+    injectSysConfig("process.tags.mapping", "{prop}my.prop:1Tenant")
+    ProcessTags.reset()
+    when:
+    def tags = ProcessTags.getTagsAsStringList()
+    then:
+    // key '1Tenant' is valid (leading digit is allowed) but the colon in raw keys would be invalid;
+    // normalizeTagValue strips leading non-alphanumeric chars and replaces colons — verify the key is stored normalized
+    tags.any { it.startsWith("1tenant:") }
+    !tags.any { it.startsWith("1Tenant:") }
+    cleanup:
+    System.clearProperty("my.prop")
+  }
+
   def 'process tag value normalization'() {
     setup:
-    ProcessTags.reset()
     ProcessTags.addTag("test", testValue)
     expect:
     assert ProcessTags.tagsAsStringList != null

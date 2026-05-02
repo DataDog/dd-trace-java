@@ -11,9 +11,9 @@ import static org.mockito.Mockito.withSettings;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.SystemProperties;
+import datadog.logging.IOLogger;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.api.profiling.RecordingInputStream;
-import datadog.trace.relocate.api.IOLogger;
 import java.io.BufferedInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;

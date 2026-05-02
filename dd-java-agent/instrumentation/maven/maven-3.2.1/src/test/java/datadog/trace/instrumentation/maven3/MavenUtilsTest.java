@@ -498,22 +498,21 @@ public class MavenUtilsTest extends AbstractMavenTest {
         if (versionList.getLength() > 0) {
           String version = versionList.item(0).getTextContent();
           if (!version.contains("alpha") && !version.contains("beta")) {
-            LOGGER.info("Will run the 'latest' tests with version " + version);
+            LOGGER.info("Will run the 'latest' tests with version {}", version);
             return version;
           }
         }
       } else {
         LOGGER.warn(
-            "Could not get latest Maven Surefire version, response from repo.maven.apache.org is "
-                + response.code()
-                + ":"
-                + response.body().string());
+            "Could not get latest Maven Surefire version, response from repo.maven.apache.org is {}:{}",
+            response.code(),
+            response.body().string());
       }
     } catch (Exception e) {
       LOGGER.warn("Could not get latest Maven Surefire version", e);
     }
     String hardcodedLatestVersion = "3.5.0"; // latest version that is known to work
-    LOGGER.info("Will run the 'latest' tests with hard-coded version " + hardcodedLatestVersion);
+    LOGGER.info("Will run the 'latest' tests with hard-coded version {}", hardcodedLatestVersion);
     return hardcodedLatestVersion;
   }
 }

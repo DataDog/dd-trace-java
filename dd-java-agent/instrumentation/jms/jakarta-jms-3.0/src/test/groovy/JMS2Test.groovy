@@ -1,5 +1,6 @@
 import com.google.common.io.Files
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
@@ -252,5 +253,13 @@ class JMS2Test extends InstrumentationSpecification {
         }
       }
     }
+  }
+}
+
+class JMS2ContextSwapForkedTest extends JMS2Test {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }

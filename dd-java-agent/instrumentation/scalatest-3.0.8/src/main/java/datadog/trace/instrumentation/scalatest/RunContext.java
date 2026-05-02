@@ -7,8 +7,8 @@ import datadog.trace.api.civisibility.config.TestSourceData;
 import datadog.trace.api.civisibility.events.TestDescriptor;
 import datadog.trace.api.civisibility.events.TestEventsHandler;
 import datadog.trace.api.civisibility.events.TestSuiteDescriptor;
-import datadog.trace.api.civisibility.execution.TestExecutionHistory;
 import datadog.trace.api.civisibility.execution.TestExecutionPolicy;
+import datadog.trace.api.civisibility.execution.TestExecutionTracker;
 import datadog.trace.api.civisibility.telemetry.tag.SkipReason;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -158,12 +158,12 @@ public class RunContext {
   }
 
   @Nullable
-  public TestExecutionHistory getExecutionHistory(TestIdentifier testIdentifier) {
+  public TestExecutionTracker getExecutionTracker(TestIdentifier testIdentifier) {
     return executionPolicies.get(testIdentifier);
   }
 
   @Nullable
-  public TestExecutionHistory popExecutionHistory(TestIdentifier testIdentifier) {
+  public TestExecutionTracker popExecutionTracker(TestIdentifier testIdentifier) {
     TestExecutionPolicy[] holder = new TestExecutionPolicy[1];
     executionPolicies.computeIfPresent(
         testIdentifier,

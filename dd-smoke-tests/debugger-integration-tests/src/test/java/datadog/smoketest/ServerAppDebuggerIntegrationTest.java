@@ -166,7 +166,7 @@ public class ServerAppDebuggerIntegrationTest extends BaseIntegrationTest {
     RecordedRequest recordedRequest = controlServer.takeRequest(30, TimeUnit.SECONDS);
     assertNotNull(recordedRequest);
     String appUrl = recordedRequest.getBody().readUtf8Line();
-    LOG.info("AppUrl = " + appUrl);
+    LOG.info("AppUrl = {}", appUrl);
     return appUrl;
   }
 

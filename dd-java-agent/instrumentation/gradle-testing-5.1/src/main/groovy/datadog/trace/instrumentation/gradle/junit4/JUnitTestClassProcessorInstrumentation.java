@@ -10,7 +10,6 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.instrumentation.junit4.JUnit4Instrumentation;
-import java.util.Set;
 import net.bytebuddy.asm.Advice;
 import org.gradle.api.Action;
 
@@ -22,8 +21,8 @@ public class JUnitTestClassProcessorInstrumentation extends InstrumenterModule.C
   }
 
   @Override
-  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return super.isApplicable(enabledSystems) && Config.get().getCiVisibilityTestOrder() != null;
+  public boolean isEnabled() {
+    return super.isEnabled() && Config.get().getCiVisibilityTestOrder() != null;
   }
 
   @Override

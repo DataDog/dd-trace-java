@@ -13,6 +13,8 @@ import java.util.Map;
 import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import org.slf4j.Logger;
@@ -33,22 +35,68 @@ public class ProcessTags {
 
   private static class Lazy {
     // the tags are used to compute a hash for dsm hence that map must be sorted.
-    static final SortedMap<String, String> TAGS = loadTags();
+    static final SortedMap<String, String> TAGS = loadTags(Config.get());
     static volatile UTF8BytesString serializedForm;
     static volatile List<UTF8BytesString> utf8ListForm;
     static volatile List<String> stringListForm;
 
-    private static SortedMap<String, String> loadTags() {
+    private static SortedMap<String, String> loadTags(final Config config) {
       SortedMap<String, String> tags = new TreeMap<>();
       if (enabled) {
         try {
           fillBaseTags(tags);
+          fillServiceNameTags(tags, config);
           fillJeeTags(tags);
         } catch (Throwable t) {
           LOGGER.debug("Unable to calculate default process tags", t);
         }
+        fillMappingTags(tags, config.getProcessTagsMapping());
       }
       return tags;
+    }
+
+    private static void fillMappingTags(
+        SortedMap<String, String> tags, Map<String, String> mappings) {
+      if (mappings.isEmpty()) {
+        return;
+      }
+      final Pattern mappingKeyPattern = Pattern.compile("^\\{(\\w+)}(\\S+)$");
+      for (Map.Entry<String, String> entry : mappings.entrySet()) {
+        parseMappingEntry(tags, mappingKeyPattern, entry.getKey(), entry.getValue());
+      }
+    }
+
+    private static void parseMappingEntry(
+        SortedMap<String, String> tags,
+        Pattern mappingKeyPattern,
+        String sourceAndKey,
+        String processTagKey) {
+      // sourceAndKey format: {source}config_key (colon-split already done by getMergedMap)
+      final Matcher matcher = mappingKeyPattern.matcher(sourceAndKey != null ? sourceAndKey : "");
+      if (!matcher.matches()) {
+        LOGGER.warn("Malformed process.tags.mapping key: '{}'", sourceAndKey);
+        return;
+      }
+      String source = matcher.group(1);
+      String configKey = matcher.group(2);
+      String value;
+      if ("env".equals(source)) {
+        value = envGetter.apply(configKey);
+      } else if ("prop".equals(source)) {
+        value = SystemProperties.get(configKey);
+      } else {
+        LOGGER.warn(
+            "Unsupported source '{}' in process.tags.mapping for key: '{}' (supported sources: 'env', 'prop' — lowercase only)",
+            source,
+            sourceAndKey);
+        return;
+      }
+      if (value == null || value.isEmpty()) {
+        LOGGER.debug(
+            "No value for key '{}' from source '{}' in process.tags.mapping", configKey, source);
+        return;
+      }
+      tags.put(TraceUtils.normalizeTagValue(processTagKey), value);
     }
 
     private static void fillJeeTags(SortedMap<String, String> tags) {
@@ -112,8 +160,15 @@ public class ProcessTags {
         tags.put("entrypoint.type", "jar");
         insertLastPathSegmentIfPresent(tags, processInfo.jarFile.getParent(), ENTRYPOINT_BASEDIR);
       }
-
       insertLastPathSegmentIfPresent(tags, SystemProperties.get("user.dir"), ENTRYPOINT_WORKDIR);
+    }
+
+    private static void fillServiceNameTags(final Map<String, String> tags, final Config config) {
+      if (config.isServiceNameSetByUser()) {
+        tags.put("svc.user", "true");
+      } else {
+        tags.put("svc.auto", config.getServiceName());
+      }
     }
 
     private static boolean fillJbossTags(Map<String, String> tags) {
@@ -174,6 +229,7 @@ public class ProcessTags {
         Lazy.stringListForm = null;
         Lazy.utf8ListForm = null;
       }
+      BaseHash.recalcBaseHash();
     }
   }
 
@@ -233,7 +289,8 @@ public class ProcessTags {
     synchronized (Lazy.TAGS) {
       empty();
       enabled = config.isExperimentalPropagateProcessTagsEnabled();
-      Lazy.TAGS.putAll(Lazy.loadTags());
+      Lazy.TAGS.putAll(Lazy.loadTags(config));
+      BaseHash.recalcBaseHash();
     }
   }
 }

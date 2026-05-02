@@ -1,11 +1,10 @@
 package datadog.trace.instrumentation.reactor.core;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import javax.annotation.Nullable;
 import reactor.core.CoreSubscriber;
 import reactor.core.publisher.Mono;
-import reactor.util.context.Context;
 
 public class ContextSpanHelper {
 
@@ -33,20 +32,20 @@ public class ContextSpanHelper {
   private ContextSpanHelper() {}
 
   @Nullable
-  public static AgentSpan extractSpanFromSubscriberContext(final CoreSubscriber<?> subscriber) {
+  public static Context extractContextFromSubscriberContext(final CoreSubscriber<?> subscriber) {
     if (MONO_WITH_CONTEXT_CLASS == null || !MONO_WITH_CONTEXT_CLASS.isInstance(subscriber)) {
       return null;
     }
-    Context context = null;
+    reactor.util.context.Context reactorContext = null;
     try {
-      context = subscriber.currentContext();
+      reactorContext = subscriber.currentContext();
     } catch (Throwable ignored) {
     }
-    if (context == null) {
+    if (reactorContext == null) {
       return null;
     }
-    if (context.hasKey(DD_SPAN_KEY)) {
-      Object maybeSpan = context.get(DD_SPAN_KEY);
+    if (reactorContext.hasKey(DD_SPAN_KEY)) {
+      Object maybeSpan = reactorContext.get(DD_SPAN_KEY);
       if (maybeSpan instanceof WithAgentSpan) {
         return ((WithAgentSpan) maybeSpan).asAgentSpan();
       }

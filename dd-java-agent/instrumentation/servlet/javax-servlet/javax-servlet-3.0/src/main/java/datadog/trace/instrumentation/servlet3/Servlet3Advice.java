@@ -61,6 +61,8 @@ public class Servlet3Advice {
       }
     }
 
+    Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
+
     Object dispatchSpan = request.getAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
     if (dispatchSpan instanceof AgentSpan) {
       request.removeAttribute(DD_DISPATCH_SPAN_ATTRIBUTE);
@@ -71,13 +73,19 @@ public class Servlet3Advice {
       // the dispatch span was already activated in Jetty's HandleAdvice. We let it finish the span
       // to avoid trying to finish twice
       finishSpan = activeSpan() != dispatchSpan;
-      scope = castDispatchSpan.attach();
+      // If we have an existing context, create a new context with the dispatch span
+      // Otherwise just attach the dispatch span
+      if (contextAttr instanceof Context) {
+        Context contextWithDispatchSpan = ((Context) contextAttr).with(castDispatchSpan);
+        scope = contextWithDispatchSpan.attach();
+      } else {
+        scope = castDispatchSpan.attach();
+      }
       return false;
     }
 
     finishSpan = true;
 
-    Object contextAttr = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextAttr instanceof Context) {
       final Context existingContext = (Context) contextAttr;
       final AgentSpan span = spanFromContext(existingContext);

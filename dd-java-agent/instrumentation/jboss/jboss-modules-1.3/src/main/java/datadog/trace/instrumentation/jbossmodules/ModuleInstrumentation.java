@@ -21,8 +21,10 @@ import org.jboss.modules.ModuleLinkageHelper;
 @AutoService(InstrumenterModule.class)
 public final class ModuleInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+  private static final String JBOSS_MODULES = "jboss-modules";
+
   public ModuleInstrumentation() {
-    super("classloading", "jboss-modules");
+    super("classloading", JBOSS_MODULES);
   }
 
   @Override

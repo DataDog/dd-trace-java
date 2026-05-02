@@ -3,6 +3,7 @@ package com.datadog.debugger.el.expressions;
 import com.datadog.debugger.el.EvaluationException;
 import com.datadog.debugger.el.PrettyPrintVisitor;
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
 
@@ -37,7 +38,7 @@ public class SubStringExpression implements ValueExpression<Value<String>> {
 
   private Value<String> internalEvaluate(String sourceStr) {
     try {
-      return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex));
+      return (Value<String>) Value.of(sourceStr.substring(startIndex, endIndex), ValueType.OBJECT);
     } catch (StringIndexOutOfBoundsException ex) {
       throw new EvaluationException(ex.getMessage(), PrettyPrintVisitor.print(this), ex);
     }

@@ -1,10 +1,8 @@
 package datadog.trace.civisibility.config;
 
-import com.squareup.moshi.FromJson;
 import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.ToJson;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
@@ -27,10 +25,8 @@ import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import datadog.trace.civisibility.communication.TelemetryListener;
 import datadog.trace.util.RandomUtils;
-import java.io.File;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
-import java.util.Base64;
 import java.util.BitSet;
 import java.util.Collection;
 import java.util.Collections;
@@ -65,6 +61,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
   private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
   private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
+  private final JsonAdapter<EnvelopeDto<KnownTestsRequestDto>> knownTestsRequestAdapter;
   private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementDto>> testManagementRequestAdapter;
   private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
@@ -86,7 +83,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .add(ConfigurationsJsonAdapter.INSTANCE)
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
             .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
-            .add(MetaDtoJsonAdapter.INSTANCE)
+            .add(MetaDto.JsonAdapter.INSTANCE)
             .build();
 
     ParameterizedType requestType =
@@ -103,6 +100,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         Types.newParameterizedTypeWithOwner(
             ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifierJson.class);
     testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
+
+    ParameterizedType knownTestsRequestType =
+        Types.newParameterizedTypeWithOwner(
+            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsRequestDto.class);
+    knownTestsRequestAdapter = moshi.adapter(knownTestsRequestType);
 
     ParameterizedType testFullNamesResponseType =
         Types.newParameterizedTypeWithOwner(
@@ -202,7 +204,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     metricCollector.add(
         CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, response.data.size());
 
-    String correlationId = response.meta != null ? response.meta.correlation_id : null;
+    String correlationId = response.meta != null ? response.meta.correlationId : null;
     Map<String, BitSet> coveredLinesByRelativeSourcePath =
         response.meta != null && response.meta.coverage != null
             ? response.meta.coverage
@@ -269,28 +271,89 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .responseBytes(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_BYTES)
             .build();
 
-    String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", tracerEnvironment));
-    String json = requestAdapter.toJson(request);
-    RequestBody requestBody = RequestBody.create(JSON, json);
-    KnownTestsDto knownTests =
-        backendApi.post(
-            KNOWN_TESTS_URI,
-            requestBody,
-            is ->
-                testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is))).data.attributes,
-            telemetryListener,
-            false);
+    // Aggregate tests map across all pages: module -> suite -> tests
+    Map<String, Map<String, List<String>>> aggregateTests = new HashMap<>();
+    String pageState = null;
+    int pageNumber = 0;
 
-    return parseTestIdentifiers(knownTests);
+    do {
+      pageNumber += 1;
+      LOGGER.debug(
+          "Fetching known tests page #{}{}", pageNumber, pageState != null ? " with cursor" : "");
+      String uuid = uuidGenerator.get();
+      KnownTestsRequestDto requestDto = new KnownTestsRequestDto(tracerEnvironment, pageState);
+      EnvelopeDto<KnownTestsRequestDto> request =
+          new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", requestDto));
+      String json = knownTestsRequestAdapter.toJson(request);
+      RequestBody requestBody = RequestBody.create(JSON, json);
+      KnownTestsDto knownTests =
+          backendApi.post(
+              KNOWN_TESTS_URI,
+              requestBody,
+              is ->
+                  testFullNamesResponseAdapter.fromJson(Okio.buffer(Okio.source(is)))
+                      .data
+                      .attributes,
+              telemetryListener,
+              false);
+
+      // Merge page's tests into aggregate
+      mergeKnownTests(aggregateTests, knownTests.tests);
+
+      Integer pageSize = knownTests.getPageSize();
+      if (pageSize != null) {
+        LOGGER.debug("Received page #{} of size {} for known tests", pageNumber, pageSize);
+      } else {
+        LOGGER.debug("Received page #{} for known tests", pageNumber);
+      }
+
+      // Get cursor for next page (if any)
+      if (knownTests.hasNextPage()) {
+        pageState = knownTests.getNextPageCursor();
+      } else {
+        pageState = null;
+      }
+    } while (pageState != null);
+
+    LOGGER.debug("Finished fetching known tests after {} page(s)", pageNumber);
+
+    return parseTestIdentifiers(aggregateTests);
   }
 
-  private Map<String, Collection<TestFQN>> parseTestIdentifiers(KnownTestsDto knownTests) {
+  private void mergeKnownTests(
+      Map<String, Map<String, List<String>>> aggregate,
+      Map<String, Map<String, List<String>>> page) {
+    if (page == null) {
+      return;
+    }
+    for (Map.Entry<String, Map<String, List<String>>> moduleEntry : page.entrySet()) {
+      String moduleName = moduleEntry.getKey();
+      Map<String, List<String>> pageSuites = moduleEntry.getValue();
+
+      Map<String, List<String>> aggregateSuites =
+          aggregate.computeIfAbsent(moduleName, k -> new HashMap<>());
+
+      for (Map.Entry<String, List<String>> suiteEntry : pageSuites.entrySet()) {
+        String suiteName = suiteEntry.getKey();
+        List<String> pageTests = suiteEntry.getValue();
+
+        aggregateSuites.merge(
+            suiteName,
+            pageTests,
+            (existingTests, newTests) -> {
+              existingTests.addAll(newTests);
+              return existingTests;
+            });
+      }
+    }
+  }
+
+  private Map<String, Collection<TestFQN>> parseTestIdentifiers(
+      Map<String, Map<String, List<String>>> testsMap) {
     int knownTestsCount = 0;
 
     Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
-    for (Map.Entry<String, Map<String, List<String>>> e : knownTests.tests.entrySet()) {
+    for (Map.Entry<String, Map<String, List<String>>> e : testsMap.entrySet()) {
       String moduleName = e.getKey();
       Map<String, List<String>> testsBySuiteName = e.getValue();
 
@@ -432,6 +495,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   }
 
   private static final class DataDto<T> {
+    // TODO: extract all DTO logic to common utilities
     private final String id;
     private final String type;
     private final T attributes;
@@ -447,57 +511,71 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     }
   }
 
-  private static final class MetaDto {
-    private final String correlation_id;
-    private final Map<String, BitSet> coverage;
-
-    private MetaDto(String correlation_id, Map<String, BitSet> coverage) {
-      this.correlation_id = correlation_id;
-      this.coverage = coverage;
-    }
-  }
-
-  private static final class MetaDtoJsonAdapter {
-
-    private static final MetaDtoJsonAdapter INSTANCE = new MetaDtoJsonAdapter();
-
-    @FromJson
-    public MetaDto fromJson(Map<String, Object> json) {
-      if (json == null) {
-        return null;
-      }
-
-      Map<String, BitSet> coverage;
-      Map<String, String> encodedCoverage = (Map<String, String>) json.get("coverage");
-      if (encodedCoverage != null) {
-        coverage = new HashMap<>();
-        for (Map.Entry<String, String> e : encodedCoverage.entrySet()) {
-          String relativeSourceFilePath = e.getKey();
-          String normalizedSourceFilePath =
-              relativeSourceFilePath.startsWith(File.separator)
-                  ? relativeSourceFilePath.substring(1)
-                  : relativeSourceFilePath;
-          byte[] decodedLines = Base64.getDecoder().decode(e.getValue());
-          coverage.put(normalizedSourceFilePath, BitSet.valueOf(decodedLines));
-        }
-      } else {
-        coverage = null;
-      }
-
-      return new MetaDto((String) json.get("correlation_id"), coverage);
-    }
-
-    @ToJson
-    public Map<String, Object> toJson(MetaDto metaDto) {
-      throw new UnsupportedOperationException();
-    }
-  }
-
   private static final class KnownTestsDto {
     private final Map<String, Map<String, List<String>>> tests;
 
-    private KnownTestsDto(Map<String, Map<String, List<String>>> tests) {
+    @Json(name = "page_info")
+    private final PageInfoResponse pageInfo;
+
+    private KnownTestsDto(Map<String, Map<String, List<String>>> tests, PageInfoResponse pageInfo) {
       this.tests = tests;
+      this.pageInfo = pageInfo;
+    }
+
+    public boolean hasNextPage() {
+      return pageInfo != null && pageInfo.hasNext;
+    }
+
+    @Nullable
+    public Integer getPageSize() {
+      return pageInfo != null ? pageInfo.size : null;
+    }
+
+    @Nullable
+    public String getNextPageCursor() {
+      return pageInfo != null ? pageInfo.cursor : null;
+    }
+  }
+
+  private static final class PageInfoResponse {
+    private final String cursor;
+    private final int size;
+
+    @Json(name = "has_next")
+    private final boolean hasNext;
+
+    private PageInfoResponse(String cursor, int size, boolean hasNext) {
+      this.cursor = cursor;
+      this.size = size;
+      this.hasNext = hasNext;
+    }
+  }
+
+  private static final class KnownTestsRequestDto {
+    @Json(name = "repository_url")
+    private final String repositoryUrl;
+
+    private final String service;
+    private final String env;
+
+    @Json(name = "page_info")
+    private final PageInfoRequest pageInfo;
+
+    private KnownTestsRequestDto(TracerEnvironment tracerEnvironment, @Nullable String pageState) {
+      this.repositoryUrl = tracerEnvironment.getRepositoryUrl();
+      this.service = tracerEnvironment.getService();
+      this.env = tracerEnvironment.getEnv();
+      this.pageInfo = new PageInfoRequest(pageState);
+    }
+
+    private static final class PageInfoRequest {
+      @Json(name = "page_state")
+      @Nullable
+      private final String pageState;
+
+      private PageInfoRequest(@Nullable String pageState) {
+        this.pageState = pageState;
+      }
     }
   }
 
@@ -519,68 +597,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       this.module = module;
       this.sha = sha;
       this.branch = branch;
-    }
-  }
-
-  private static final class TestManagementTestsDto {
-    private static final class Properties {
-      private final Map<String, Boolean> properties;
-
-      private Properties(Map<String, Boolean> properties) {
-        this.properties = properties;
-      }
-
-      public Boolean isQuarantined() {
-        return properties != null
-            ? properties.getOrDefault(TestSetting.QUARANTINED.asString(), false)
-            : false;
-      }
-
-      public Boolean isDisabled() {
-        return properties != null
-            ? properties.getOrDefault(TestSetting.DISABLED.asString(), false)
-            : false;
-      }
-
-      public Boolean isAttemptToFix() {
-        return properties != null
-            ? properties.getOrDefault(TestSetting.ATTEMPT_TO_FIX.asString(), false)
-            : false;
-      }
-    }
-
-    private static final class Tests {
-      private final Map<String, Properties> tests;
-
-      private Tests(Map<String, Properties> tests) {
-        this.tests = tests;
-      }
-
-      public Map<String, Properties> getTests() {
-        return tests != null ? tests : Collections.emptyMap();
-      }
-    }
-
-    private static final class Suites {
-      private final Map<String, Tests> suites;
-
-      private Suites(Map<String, Tests> suites) {
-        this.suites = suites;
-      }
-
-      public Map<String, Tests> getSuites() {
-        return suites != null ? suites : Collections.emptyMap();
-      }
-    }
-
-    private final Map<String, Suites> modules;
-
-    private TestManagementTestsDto(Map<String, Suites> modules) {
-      this.modules = modules;
-    }
-
-    public Map<String, Suites> getModules() {
-      return modules != null ? modules : Collections.emptyMap();
     }
   }
 }

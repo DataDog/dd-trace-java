@@ -1,14 +1,19 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-
+import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.test.util.DDSpecification
 import spock.lang.Shared
 
 class BaseDecoratorTest extends DDSpecification {
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Shared
   def decorator = newDecorator()
@@ -25,13 +30,17 @@ class BaseDecoratorTest extends DDSpecification {
 
     then:
     1 * span.setSpanType(decorator.spanType())
-    1 * span.setTag(Tags.COMPONENT, "test-component")
+    1 * span.setTag(TagMap.Entry.create(Tags.COMPONENT, "test-component"))
     1 * span.context() >> spanContext
     1 * spanContext.setIntegrationName("test-component")
+    _ * span.setTag(_)
     _ * span.setTag(_, _) // Want to allow other calls from child implementations.
+    _ * span.setTag(_)
     _ * span.setMeasured(true)
+    _ * span.setMetric(_)
     _ * span.setMetric(_, _)
-    _ * span.setServiceName(_)
+    _ * span.setMetric(_)
+    _ * span.setServiceName(_, _)
     _ * span.setOperationName(_)
     _ * span.setSamplingPriority(_)
     0 * _

@@ -9,6 +9,10 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   String getServiceName();
 
+  default CharSequence getServiceNameSource() {
+    return null;
+  }
+
   CharSequence getOperationName();
 
   CharSequence getResourceName();
@@ -86,6 +90,9 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   void processServiceTags();
 
   void processTagsAndBaggage(MetadataConsumer consumer);
+
+  void processTagsAndBaggage(
+      MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags);
 
   T setSamplingPriority(int samplingPriority, int samplingMechanism);
 

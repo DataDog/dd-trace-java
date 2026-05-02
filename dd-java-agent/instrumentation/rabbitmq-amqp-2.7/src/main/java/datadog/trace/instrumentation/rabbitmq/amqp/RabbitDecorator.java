@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AM
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_QUEUE;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.AMQP_ROUTING_KEY;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.RECORD_QUEUE_TIME_MS;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 
 import com.rabbitmq.client.AMQP;
 import com.rabbitmq.client.Command;
@@ -159,7 +160,7 @@ public class RabbitDecorator extends MessagingClientDecorator {
   public void onTimeInQueue(final AgentSpan span, final String queue, final byte[] body) {
     String normalizedQueueName = normalizeQueueName(queue);
     if (Config.get().isMessageBrokerSplitByDestination()) {
-      span.setServiceName(normalizedQueueName);
+      span.setServiceName(normalizedQueueName, MESSAGE_BROKER_SPLIT_BY_DESTINATION);
     }
     span.setResourceName("amqp.deliver " + normalizedQueueName);
     if (null != body) {

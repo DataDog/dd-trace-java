@@ -116,7 +116,7 @@ public class AgentDebuggerIntegrationTest extends SimpleAppDebuggerIntegrationTe
               }
               if (line.contains("Started BatchUploader[Logs]")) {
                 return !line.matches(
-                    ".* Started BatchUploader\\[Logs] with target url http://localhost:\\d+/debugger/v1/input");
+                    ".* Started BatchUploader\\[Logs] with target url http://localhost:\\d+/debugger/v1/diagnostics");
               }
               if (line.contains("Started BatchUploader[SymDB]")) {
                 return !line.matches(

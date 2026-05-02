@@ -7,6 +7,8 @@ import datadog.communication.serialization.Mapper;
 import datadog.communication.serialization.Writable;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.trace.api.TagMap;
+import datadog.trace.api.TagMap.EntryReader;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.writer.Payload;
@@ -200,11 +202,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
 
     @Override
     public void accept(Metadata metadata) {
-      final boolean writeSamplingPriority = firstSpanInTrace || lastSpanInTrace;
+      // Also write on top-level spans so that inferred proxy spans (which may be in the middle
+      // of the serialized list due to phased-finish ordering) always carry the sampling decision.
+      final boolean writeSamplingPriority =
+          firstSpanInTrace || lastSpanInTrace || metadata.topLevel();
       final UTF8BytesString processTags = firstSpanInPayload ? metadata.processTags() : null;
+
+      TagMap tags = metadata.getTags();
+
       int metaSize =
           metadata.getBaggage().size()
-              + metadata.getTags().size()
+              + tags.size()
               + (null == metadata.getHttpStatusCode() ? 0 : 1)
               + (null == metadata.getOrigin() ? 0 : 1)
               + (null == processTags ? 0 : 1)
@@ -215,17 +223,20 @@ public final class TraceMapperV0_5 implements TraceMapper {
               + (metadata.topLevel() ? 1 : 0)
               + (metadata.longRunningVersion() != 0 ? 1 : 0)
               + 1;
-      for (Map.Entry<String, Object> tag : metadata.getTags().entrySet()) {
-        Object value = tag.getValue();
-        if (value instanceof Number) {
+
+      for (TagMap.EntryReader entry : tags) {
+        if (entry.isNumber()) {
           ++metricsSize;
           --metaSize;
-        } else if (value instanceof Map) {
-          // Compute size based on amount of elements in tree
-          --metaSize;
-          metaSize += getFlatMapSize((Map) value);
+        } else {
+          Object value = entry.objectValue();
+          if (value instanceof Map) {
+            --metaSize;
+            metaSize += getFlatMapSize((Map) value);
+          }
         }
       }
+
       writable.startMap(metaSize);
       // we don't need to deduplicate any overlap between tags and baggage here
       // since they will be accumulated into maps in the same order downstream,
@@ -248,13 +259,17 @@ public final class TraceMapperV0_5 implements TraceMapper {
         writeDictionaryEncoded(writable, PROCESS_TAGS_KEY);
         writeDictionaryEncoded(writable, processTags);
       }
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        String key = entry.getKey();
-        Object value = entry.getValue();
+
+      for (TagMap.EntryReader entry : tags) {
+        if (entry.isNumber()) continue;
+
+        String key = entry.tag();
+        Object value = entry.objectValue();
+
         if (value instanceof Map) {
           // Write map as flat map
           writeFlatMap(key, (Map) value);
-        } else if (!(value instanceof Number)) {
+        } else {
           writeDictionaryEncoded(writable, key);
           writeDictionaryEncoded(writable, value);
         }
@@ -283,10 +298,31 @@ public final class TraceMapperV0_5 implements TraceMapper {
       }
       writeDictionaryEncoded(writable, THREAD_ID);
       writable.writeLong(metadata.getThreadId());
-      for (Map.Entry<String, Object> entry : metadata.getTags().entrySet()) {
-        if (entry.getValue() instanceof Number) {
-          writeDictionaryEncoded(writable, entry.getKey());
-          writable.writeObject(entry.getValue(), null);
+
+      for (EntryReader entry : metadata.getTags()) {
+        if (!entry.isNumber()) continue;
+
+        writeDictionaryEncoded(writable, entry.tag());
+        switch (entry.type()) {
+          case TagMap.EntryReader.INT:
+            writable.writeInt(entry.intValue());
+            break;
+
+          case TagMap.EntryReader.LONG:
+            writable.writeLong(entry.longValue());
+            break;
+
+          case TagMap.EntryReader.FLOAT:
+            writable.writeFloat(entry.floatValue());
+            break;
+
+          case TagMap.EntryReader.DOUBLE:
+            writable.writeDouble(entry.doubleValue());
+            break;
+
+          default:
+            writable.writeObject(entry.objectValue(), null);
+            break;
         }
       }
     }
@@ -297,7 +333,7 @@ public final class TraceMapperV0_5 implements TraceMapper {
      * @param map map to traverse
      * @return number of all elements in the tree
      */
-    private int getFlatMapSize(Map<String, Object> map) {
+    int getFlatMapSize(Map<String, Object> map) {
       int size = 0;
       for (Object value : map.values()) {
         if (value instanceof Map) {

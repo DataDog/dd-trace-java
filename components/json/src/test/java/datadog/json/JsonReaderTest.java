@@ -215,7 +215,8 @@ class JsonReaderTest {
       assertEquals("\n", reader.nextString());
       assertEquals("\r", reader.nextString());
       assertEquals("\t", reader.nextString());
-      assertEquals("É", reader.nextString());
+      // Explicit escape for non-ASCII `É` to make test independent of container settings.
+      assertEquals("\u00C9", reader.nextString());
       reader.endArray();
     } catch (IOException e) {
       fail("Failed to read escaped JSON strings", e);

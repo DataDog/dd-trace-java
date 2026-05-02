@@ -1,6 +1,6 @@
 package datadog.trace.agent.jmxfetch;
 
-import datadog.trace.api.StatsDClient;
+import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.flare.TracerFlare;
 import java.io.IOException;
 import java.text.NumberFormat;

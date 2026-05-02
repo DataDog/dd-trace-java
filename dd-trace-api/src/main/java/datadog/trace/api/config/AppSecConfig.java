@@ -50,6 +50,8 @@ public final class AppSecConfig {
   public static final String APPSEC_MAX_STACK_TRACE_DEPTH = "appsec.max.stack-trace.depth";
   public static final String APPSEC_MAX_STACKTRACE_DEPTH_DEPRECATED =
       "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
+  public static final String APPSEC_MAX_FILE_CONTENT_BYTES = "appsec.max.file-content.bytes";
+  public static final String APPSEC_MAX_FILE_CONTENT_COUNT = "appsec.max.file-content.count";
 
   private AppSecConfig() {}
 }

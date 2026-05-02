@@ -23,27 +23,28 @@ public class SparkSQLUtils {
   public static void addSQLPlanToStageSpan(
       AgentSpan span,
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulatorToStageID,
+      SparkAggregatedTaskMetrics stageMetric,
       int stageId) {
     Set<Integer> parentStageIds = new HashSet<>();
     SparkPlanInfoForStage planForStage =
-        computeStageInfoForStage(plan, accumulators, stageId, parentStageIds, false);
+        computeStageInfoForStage(plan, accumulatorToStageID, stageId, parentStageIds, false);
 
     span.setTag("_dd.spark.sql_parent_stage_ids", parentStageIds.toString());
 
     if (planForStage != null) {
-      String json = planForStage.toJson(accumulators);
+      String json = planForStage.toJson(stageMetric);
       span.setTag("_dd.spark.sql_plan", json);
     }
   }
 
   public static SparkPlanInfoForStage computeStageInfoForStage(
       SparkPlanInfo plan,
-      Map<Long, AccumulatorWithStage> accumulators,
+      Map<Long, Integer> accumulatorToStageID,
       int stageId,
       Set<Integer> parentStageIds,
       boolean foundStage) {
-    Set<Integer> stageIds = stageIdsForPlan(plan, accumulators);
+    Set<Integer> stageIds = stageIdsForPlan(plan, accumulatorToStageID);
 
     boolean hasStageInfo = !stageIds.isEmpty();
     boolean isForStage = stageIds.contains(stageId);
@@ -63,7 +64,7 @@ public class SparkSQLUtils {
       List<SparkPlanInfoForStage> childrenForStage = new ArrayList<>();
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, true);
+            computeStageInfoForStage(child, accumulatorToStageID, stageId, parentStageIds, true);
 
         if (planForStage != null) {
           childrenForStage.add(planForStage);
@@ -75,7 +76,7 @@ public class SparkSQLUtils {
       // The expected stage was not found yet, searching in the children nodes
       for (SparkPlanInfo child : children) {
         SparkPlanInfoForStage planForStage =
-            computeStageInfoForStage(child, accumulators, stageId, parentStageIds, false);
+            computeStageInfoForStage(child, accumulatorToStageID, stageId, parentStageIds, false);
 
         if (planForStage != null) {
           // Early stopping if the stage was found, no need to keep searching
@@ -88,17 +89,17 @@ public class SparkSQLUtils {
   }
 
   private static Set<Integer> stageIdsForPlan(
-      SparkPlanInfo info, Map<Long, AccumulatorWithStage> accumulators) {
+      SparkPlanInfo info, Map<Long, Integer> accumulatorToStageID) {
     Set<Integer> stageIds = new HashSet<>();
 
     Collection<SQLMetricInfo> metrics =
         AbstractDatadogSparkListener.listener.getPlanInfoMetrics(info);
     for (SQLMetricInfo metric : metrics) {
       // Using the accumulators to associate a plan with its stage
-      AccumulatorWithStage acc = accumulators.get(metric.accumulatorId());
+      Integer stageId = accumulatorToStageID.get(metric.accumulatorId());
 
-      if (acc != null) {
-        stageIds.add(acc.stageId);
+      if (stageId != null) {
+        stageIds.add(stageId);
       }
     }
 
@@ -143,7 +144,7 @@ public class SparkSQLUtils {
       this.children = children;
     }
 
-    public String toJson(Map<Long, AccumulatorWithStage> accumulators) {
+    public String toJson(SparkAggregatedTaskMetrics stageMetric) {
       // Using the jackson JSON lib used by spark
       // https://mvnrepository.com/artifact/org.apache.spark/spark-core_2.12/3.5.0
       ObjectMapper mapper =
@@ -151,7 +152,7 @@ public class SparkSQLUtils {
 
       ByteArrayOutputStream baos = new ByteArrayOutputStream();
       try (JsonGenerator generator = mapper.getFactory().createGenerator(baos)) {
-        this.toJson(generator, accumulators, mapper);
+        this.toJson(generator, mapper, stageMetric);
       } catch (IOException e) {
         return null;
       }
@@ -160,7 +161,7 @@ public class SparkSQLUtils {
     }
 
     private void toJson(
-        JsonGenerator generator, Map<Long, AccumulatorWithStage> accumulators, ObjectMapper mapper)
+        JsonGenerator generator, ObjectMapper mapper, SparkAggregatedTaskMetrics stageMetric)
         throws IOException {
       generator.writeStartObject();
       generator.writeStringField("node", plan.nodeName());
@@ -199,11 +200,7 @@ public class SparkSQLUtils {
         generator.writeFieldName("metrics");
         generator.writeStartArray();
         for (SQLMetricInfo metric : metrics) {
-          long accumulatorId = metric.accumulatorId();
-          AccumulatorWithStage acc = accumulators.get(accumulatorId);
-          if (acc != null) {
-            acc.toJson(generator, metric);
-          }
+          stageMetric.externalAccumToJson(generator, metric);
         }
         generator.writeEndArray();
       }
@@ -213,7 +210,7 @@ public class SparkSQLUtils {
         generator.writeFieldName("children");
         generator.writeStartArray();
         for (SparkPlanInfoForStage child : children) {
-          child.toJson(generator, accumulators, mapper);
+          child.toJson(generator, mapper, stageMetric);
         }
         generator.writeEndArray();
       }

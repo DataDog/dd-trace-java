@@ -18,7 +18,6 @@ import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.Shared
 
 abstract class RedissonClientTest extends VersionedNamingTestBase {
-
   @Shared
   RedisServer redisServer = new RedisContainer(DockerImageName.parse("redis:6.2.6")).waitingFor(Wait.forListeningPort())
 
@@ -48,9 +47,17 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
   }
 
   def cleanupSpec() {
-    redissonClient.shutdown()
-    lowLevelRedisClient.shutdown()
-    redisServer.stop()
+    tryShutdown("low-level redis client") {
+      lowLevelRedisClient.shutdown()
+    }
+
+    tryShutdown("redisson client") {
+      redissonClient.shutdown()
+    }
+
+    tryShutdown("redis server") {
+      redisServer.stop()
+    }
   }
 
   def setup() {
@@ -62,6 +69,31 @@ abstract class RedissonClientTest extends VersionedNamingTestBase {
       RedisConnection conn = lowLevelRedisClient.connect()
       conn.sync(RedisCommands.FLUSHDB)
       conn.closeAsync().await()
+    }
+  }
+
+  // Some shutdown paths in old Redisson versions can block forever.
+  // In tests this is acceptable as best-effort cleanup, so run shutdown in
+  // a daemon helper thread to make sure teardown cannot keep the JVM alive.
+  private static void tryShutdown(String component, Closure shutdownAction) {
+    Thread shutdownThread = new Thread({
+      try {
+        shutdownAction.call()
+      } catch (Throwable e) {
+        println "Unexpected error during shutting down of ${component}: ${e.message}"
+      }
+    })
+    shutdownThread.daemon = true
+    shutdownThread.start()
+
+    try {
+      shutdownThread.join(10_000L)
+    } catch (InterruptedException ignored) {
+      Thread.currentThread().interrupt()
+    }
+
+    if (shutdownThread.isAlive()) {
+      println "Timed out shutting down of ${component}"
     }
   }
 
@@ -371,4 +403,3 @@ class RedissonClientV1ForkedTest extends RedissonClientTest {
     return "redis.command"
   }
 }
-

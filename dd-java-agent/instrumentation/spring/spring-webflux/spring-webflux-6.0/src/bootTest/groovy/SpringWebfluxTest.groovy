@@ -55,7 +55,6 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
   protected void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TRACE_ANNOTATION_ASYNC, "true")
-    injectSysConfig("trace.websocket.messages.enabled", "true")
   }
 
   def "Basic GET test #testName"() {

@@ -6,7 +6,7 @@ import java.util.Map;
 
 public class AssertionsUtils {
   private AssertionsUtils() {
-    // Bo-op.
+    // No-op.
   }
 
   public static void assertMapContainsKeyValues(Map<?, ?> actual, Map<?, ?> expectedSubset) {

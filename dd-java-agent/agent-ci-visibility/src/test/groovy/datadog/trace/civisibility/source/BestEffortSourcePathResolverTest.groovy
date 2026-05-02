@@ -5,54 +5,54 @@ import spock.lang.Specification
 
 class BestEffortSourcePathResolverTest extends Specification {
 
-  def "test get source info from delegate"() {
+  def "test get source paths from first delegate"() {
     setup:
-    def expectedPath = "source/path/TestClass.java"
+    def expectedPaths = ["source/path/TestClass.java"]
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
     def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
-    delegate.getSourcePath(TestClass) >> expectedPath
-    secondDelegate.getSourcePath(TestClass) >> null
+    delegate.getSourcePaths(TestClass) >> expectedPaths
+    secondDelegate.getSourcePaths(TestClass) >> []
 
     when:
-    def path = resolver.getSourcePath(TestClass)
+    def paths = resolver.getSourcePaths(TestClass)
 
     then:
-    path == expectedPath
+    paths == expectedPaths
   }
 
-  def "test get source info from second delegate"() {
+  def "test get source paths from second delegate when first returns empty"() {
     setup:
-    def expectedPath = "source/path/TestClass.java"
+    def expectedPaths = ["debug/path/TestClass.java", "release/path/TestClass.java"]
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
     def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
-    delegate.getSourcePath(TestClass) >> null
-    secondDelegate.getSourcePath(TestClass) >> expectedPath
+    delegate.getSourcePaths(TestClass) >> []
+    secondDelegate.getSourcePaths(TestClass) >> expectedPaths
 
     when:
-    def path = resolver.getSourcePath(TestClass)
+    def paths = resolver.getSourcePaths(TestClass)
 
     then:
-    path == expectedPath
+    paths == expectedPaths
   }
 
-  def "test failed to get info from both delegates"() {
+  def "test failed to get source paths from both delegates"() {
     setup:
     def delegate = Stub(SourcePathResolver)
     def secondDelegate = Stub(SourcePathResolver)
     def resolver = new BestEffortSourcePathResolver(delegate, secondDelegate)
 
-    delegate.getSourcePath(TestClass) >> null
-    secondDelegate.getSourcePath(TestClass) >> null
+    delegate.getSourcePaths(TestClass) >> []
+    secondDelegate.getSourcePaths(TestClass) >> []
 
     when:
-    def path = resolver.getSourcePath(TestClass)
+    def paths = resolver.getSourcePaths(TestClass)
 
     then:
-    path == null
+    paths.isEmpty()
   }
 
   private static final class TestClass {}

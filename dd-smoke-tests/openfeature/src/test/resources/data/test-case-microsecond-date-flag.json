@@ -1,0 +1,54 @@
+[
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "alice",
+    "attributes": {},
+    "result": {
+      "value": "active",
+      "variant": "active",
+      "flagMetadata": {
+        "allocationKey": "active-allocation",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "bob",
+    "attributes": {
+      "country": "US"
+    },
+    "result": {
+      "value": "active",
+      "variant": "active",
+      "flagMetadata": {
+        "allocationKey": "active-allocation",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  },
+  {
+    "flag": "microsecond-date-test",
+    "variationType": "STRING",
+    "defaultValue": "unknown",
+    "targetingKey": "charlie",
+    "attributes": {
+      "version": "1.0.0"
+    },
+    "result": {
+      "value": "active",
+      "variant": "active",
+      "flagMetadata": {
+        "allocationKey": "active-allocation",
+        "variationType": "string",
+        "doLog": true
+      }
+    }
+  }
+]

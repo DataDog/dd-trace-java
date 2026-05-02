@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.log.UnionMap;
 import datadog.trace.api.Config;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.api.DDSpanId;
@@ -17,6 +16,7 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.log.UnionMap;
 import java.util.HashMap;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
@@ -45,15 +45,6 @@ public class LogEntryInstrumentation extends InstrumenterModule.Tracing
     transformer.applyAdvice(
         isMethod().and(named("getContext")).and(takesArguments(0)),
         LogEntryInstrumentation.class.getName() + "$GetContextAdvice");
-  }
-
-  @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      "datadog.trace.agent.tooling.log.UnionMap",
-      "datadog.trace.agent.tooling.log.UnionMap$1",
-      "datadog.trace.agent.tooling.log.UnionMap$1$1",
-    };
   }
 
   public static class GetContextAdvice {

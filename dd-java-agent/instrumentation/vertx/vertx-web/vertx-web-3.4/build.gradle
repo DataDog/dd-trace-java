@@ -49,3 +49,4 @@ dependencies {
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web', version: '3.+'
   latestDepTestImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.+'
 }
+

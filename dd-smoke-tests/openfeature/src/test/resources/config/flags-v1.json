@@ -2891,6 +2891,61 @@
               "doLog": true
             }
           ]
+        },
+        "microsecond-date-test": {
+          "key": "microsecond-date-test",
+          "enabled": true,
+          "variationType": "STRING",
+          "variations": {
+            "expired": {
+              "key": "expired",
+              "value": "expired"
+            },
+            "active": {
+              "key": "active",
+              "value": "active"
+            },
+            "future": {
+              "key": "future",
+              "value": "future"
+            }
+          },
+          "allocations": [
+            {
+              "key": "expired-allocation",
+              "splits": [
+                {
+                  "variationKey": "expired",
+                  "shards": []
+                }
+              ],
+              "endAt": "2002-10-31T09:00:00.594321Z",
+              "doLog": true
+            },
+            {
+              "key": "future-allocation",
+              "splits": [
+                {
+                  "variationKey": "future",
+                  "shards": []
+                }
+              ],
+              "startAt": "2052-10-31T09:00:00.123456Z",
+              "doLog": true
+            },
+            {
+              "key": "active-allocation",
+              "splits": [
+                {
+                  "variationKey": "active",
+                  "shards": []
+                }
+              ],
+              "startAt": "2022-10-31T09:00:00.235982Z",
+              "endAt": "2050-10-31T09:00:00.987654Z",
+              "doLog": true
+            }
+          ]
         }
       }
     }

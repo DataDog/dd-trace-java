@@ -36,7 +36,7 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class RunnableFutureInstrumentation extends InstrumenterModule.Tracing
+public final class RunnableFutureInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForBootstrap,
         Instrumenter.ForTypeHierarchy,
         Instrumenter.HasMethodAdvice,

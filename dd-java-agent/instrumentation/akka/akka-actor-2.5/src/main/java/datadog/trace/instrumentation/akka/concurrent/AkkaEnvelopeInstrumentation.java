@@ -14,7 +14,7 @@ import java.util.Map;
 import net.bytebuddy.asm.Advice;
 
 @AutoService(InstrumenterModule.class)
-public class AkkaEnvelopeInstrumentation extends InstrumenterModule.Tracing
+public class AkkaEnvelopeInstrumentation extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public AkkaEnvelopeInstrumentation() {

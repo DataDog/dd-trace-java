@@ -112,9 +112,9 @@ class JMXFetchTest extends Specification {
     names               | enable | expectedConfig
     []                  | true   | []
     ["tomcat"]          | false  | []
-    ["tomcat"]          | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml"]
-    ["kafka"]           | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
-    ["tomcat", "kafka"] | true   | ["metrics/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml", "metrics/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
+    ["tomcat"]          | true   | ["jmxfetch/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml"]
+    ["kafka"]           | true   | ["jmxfetch/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
+    ["tomcat", "kafka"] | true   | ["jmxfetch/datadog/trace/agent/jmxfetch/metricconfigs/tomcat.yaml", "jmxfetch/datadog/trace/agent/jmxfetch/metricconfigs/kafka.yaml"]
     ["tomcat", "kafka"] | false  | []
     ["invalid"]         | true   | []
     // spotless:on

@@ -11,6 +11,7 @@ import com.datadog.debugger.instrumentation.InstrumentationResult;
 import com.datadog.debugger.instrumentation.MethodInfo;
 import com.datadog.debugger.sink.Snapshot;
 import datadog.trace.api.Pair;
+import datadog.trace.api.sampling.Sampler;
 import datadog.trace.bootstrap.debugger.CapturedContext;
 import datadog.trace.bootstrap.debugger.CapturedContextProbe;
 import datadog.trace.bootstrap.debugger.EvaluationError;
@@ -18,6 +19,7 @@ import datadog.trace.bootstrap.debugger.Limits;
 import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.debugger.ProbeRateLimiter;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.util.TagsHelper;
@@ -29,7 +31,7 @@ import java.util.Objects;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public class SpanDecorationProbe extends ProbeDefinition implements CapturedContextProbe {
+public class SpanDecorationProbe extends ProbeDefinition implements CapturedContextProbe, Sampled {
   private static final Logger LOGGER = LoggerFactory.getLogger(SpanDecorationProbe.class);
   private static final String PROBEID_DD_TAGS_FORMAT = "_dd.di.%s.probe_id";
   private static final String EVALERROR_DD_TAGS_FORMAT = "_dd.di.%s.evaluation_error";
@@ -156,6 +158,7 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   private final TargetSpan targetSpan;
   private final List<Decoration> decorations;
+  private transient Sampler errorSampler;
 
   // no-arg constructor is required by Moshi to avoid creating instance with unsafe and by-passing
   // constructors, including field initializers.
@@ -294,6 +297,10 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
     if (status.getErrors().isEmpty()) {
       return;
     }
+    boolean sampled = ProbeRateLimiter.tryProbe(errorSampler, true);
+    if (!sampled) {
+      return;
+    }
     Snapshot snapshot = new Snapshot(Thread.currentThread(), this, -1);
     snapshot.addEvaluationErrors(status.getErrors());
     DebuggerAgent.getSink().addSnapshot(snapshot);
@@ -310,6 +317,11 @@ public class SpanDecorationProbe extends ProbeDefinition implements CapturedCont
 
   public List<Decoration> getDecorations() {
     return decorations;
+  }
+
+  @Override
+  public void initSamplers() {
+    errorSampler = ProbeRateLimiter.createSampler(1.0);
   }
 
   @Generated

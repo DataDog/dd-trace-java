@@ -60,6 +60,11 @@ class TomcatServletTest extends AbstractServletTest<Tomcat, Context> {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   boolean testBlockingOnResponse() {
     true
   }

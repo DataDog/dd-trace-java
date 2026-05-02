@@ -1,8 +1,10 @@
 package datadog.trace.instrumentation.axis2;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_ASYNC_SPAN_KEY;
 import static datadog.trace.instrumentation.axis2.AxisMessageDecorator.AXIS2_TRANSPORT;
@@ -12,11 +14,12 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import java.util.HashMap;
 import java.util.Map;
+import java.util.TreeMap;
 import net.bytebuddy.asm.Advice;
 import org.apache.axis2.context.MessageContext;
 
@@ -38,11 +41,12 @@ public final class AxisTransportInstrumentation
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("invoke"))
             .and(takesArgument(0, named("org.apache.axis2.context.MessageContext"))),
-        getClass().getName() + "$TransportAdvice");
+        getClass().getName() + "$TransportAdvice",
+        getClass().getName() + "$TransportContextPropagationAdvice");
   }
 
   public static final class TransportAdvice {
@@ -54,19 +58,6 @@ public final class AxisTransportInstrumentation
         DECORATE.afterStart(span);
         DECORATE.onTransport(span, message);
         DECORATE.onMessage(span, message);
-
-        // the transport handler will copy TRANSPORT_HEADERS to the outgoing request
-        @SuppressWarnings({"unchecked", "rawtypes"})
-        Map<String, Object> headers = (Map) message.getProperty("TRANSPORT_HEADERS");
-        if (null == headers) {
-          headers = new HashMap<>();
-          message.setProperty("TRANSPORT_HEADERS", headers);
-        }
-        try {
-          defaultPropagator().inject(span, headers, SETTER);
-        } catch (Throwable ignore) {
-        }
-
         return activateSpan(span);
       }
       return null;
@@ -97,6 +88,26 @@ public final class AxisTransportInstrumentation
         }
         DECORATE.beforeFinish(span, message);
         span.finish();
+      }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class TransportContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(@Advice.Argument(0) final MessageContext message) {
+      AgentSpan span = activeSpan();
+      if (span == null) return;
+      // the transport handler will copy TRANSPORT_HEADERS to the outgoing request
+      @SuppressWarnings({"unchecked", "rawtypes"})
+      Map<String, Object> headers = (Map) message.getProperty("TRANSPORT_HEADERS");
+      if (null == headers) {
+        headers = new TreeMap<>(String.CASE_INSENSITIVE_ORDER);
+        message.setProperty("TRANSPORT_HEADERS", headers);
+      }
+      try {
+        defaultPropagator().inject(span, headers, SETTER);
+      } catch (Throwable ignore) {
       }
     }
   }

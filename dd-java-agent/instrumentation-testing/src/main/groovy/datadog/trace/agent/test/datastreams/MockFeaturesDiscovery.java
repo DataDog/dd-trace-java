@@ -1,14 +1,16 @@
 package datadog.trace.agent.test.datastreams;
 
+import static datadog.trace.api.ProtocolVersion.V0_5;
+
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.communication.monitor.Monitoring;
+import datadog.metrics.api.Monitoring;
 
 // TODO Ideally, DDAgentFeaturesDiscovery would be an interface to create a proper testable stubs
 public class MockFeaturesDiscovery extends DDAgentFeaturesDiscovery {
   private final boolean supportsDataStreams;
 
   public MockFeaturesDiscovery(boolean supportsDataStreams) {
-    super(null, Monitoring.DISABLED, null, true, true);
+    super(null, Monitoring.DISABLED, null, V0_5, true);
     this.supportsDataStreams = supportsDataStreams;
   }
 

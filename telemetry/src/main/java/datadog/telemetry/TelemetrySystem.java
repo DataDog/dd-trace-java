@@ -13,12 +13,14 @@ import datadog.telemetry.metric.CiVisibilityMetricPeriodicAction;
 import datadog.telemetry.metric.ConfigInversionMetricPeriodicAction;
 import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
+import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.api.iast.telemetry.Verbosity;
 import datadog.trace.api.rum.RumInjector;
 import datadog.trace.util.AgentThreadFactory;
@@ -64,6 +66,9 @@ public class TelemetrySystem {
       if (Config.get().isCiVisibilityEnabled() && Config.get().isCiVisibilityTelemetryEnabled()) {
         actions.add(new CiVisibilityMetricPeriodicAction());
       }
+      if (Config.get().isLlmObsEnabled()) {
+        actions.add(new LLMObsMetricPeriodicAction());
+      }
     }
     if (null != dependencyService) {
       actions.add(new DependencyPeriodicAction(dependencyService));
@@ -90,9 +95,24 @@ public class TelemetrySystem {
   public static void startTelemetry(
       Instrumentation instrumentation, SharedCommunicationObjects sco) {
     Config config = Config.get();
+    boolean debug = config.isTelemetryDebugRequestsEnabled();
+    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
+
+    // CI Visibility bazel mode writes telemetry to files instead of the network
+    if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+      String telemetryDir = BazelMode.get().getTelemetryPayloadsDir();
+      log.info("[bazel mode] Writing telemetry payloads to {}", telemetryDir);
+      DependencyService dependencyService = createDependencyService(instrumentation);
+      TelemetryService telemetryService =
+          TelemetryService.buildFileBased(new FileBasedTelemetryClient(telemetryDir), debug);
+      TELEMETRY_THREAD =
+          createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
+      TELEMETRY_THREAD.start();
+      return;
+    }
+
     sco.createRemaining(config);
     DependencyService dependencyService = createDependencyService(instrumentation);
-    boolean debug = config.isTelemetryDebugRequestsEnabled();
     DDAgentFeaturesDiscovery ddAgentFeaturesDiscovery = sco.featuresDiscovery(config);
 
     HttpRetryPolicy.Factory httpRetryPolicy =
@@ -110,7 +130,6 @@ public class TelemetrySystem {
         TelemetryService.build(
             ddAgentFeaturesDiscovery, agentClient, intakeClient, useIntakeClientByDefault, debug);
 
-    boolean telemetryMetricsEnabled = config.isTelemetryMetricsEnabled();
     TELEMETRY_THREAD =
         createTelemetryRunnable(telemetryService, dependencyService, telemetryMetricsEnabled);
     TELEMETRY_THREAD.start();

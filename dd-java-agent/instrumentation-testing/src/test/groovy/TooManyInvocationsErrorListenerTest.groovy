@@ -1,9 +1,17 @@
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.TestClassShadowingExtension
 import org.spockframework.mock.*
 import org.spockframework.mock.runtime.MockInvocation
 
 class TooManyInvocationsErrorListenerTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @SuppressWarnings('GroovyAccessibility')
   void 'test that listener modifies failure'() {

@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.kafka_streams;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.OFFSET;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PARTITION;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.PROCESSOR_NAME;
+import static datadog.trace.bootstrap.instrumentation.api.ServiceNameSources.MESSAGE_BROKER_SPLIT_BY_DESTINATION;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.Functions;
@@ -128,7 +129,7 @@ public class KafkaStreamsDecorator extends MessagingClientDecorator {
     String topic = topic2 == null ? "kafka" : topic2;
     span.setResourceName(topic);
     if (Config.get().isMessageBrokerSplitByDestination()) {
-      span.setServiceName(topic);
+      span.setServiceName(topic, MESSAGE_BROKER_SPLIT_BY_DESTINATION);
     }
   }
 }

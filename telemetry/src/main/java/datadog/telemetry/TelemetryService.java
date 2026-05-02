@@ -73,6 +73,11 @@ public class TelemetryService {
     return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
   }
 
+  public static TelemetryService buildFileBased(FileBasedTelemetryClient client, boolean debug) {
+    TelemetryRouter telemetryRouter = new TelemetryRouter(client);
+    return new TelemetryService(telemetryRouter, DEFAULT_MESSAGE_BYTES_SOFT_LIMIT, debug);
+  }
+
   // For testing purposes
   TelemetryService(
       final TelemetryRouter telemetryRouter,

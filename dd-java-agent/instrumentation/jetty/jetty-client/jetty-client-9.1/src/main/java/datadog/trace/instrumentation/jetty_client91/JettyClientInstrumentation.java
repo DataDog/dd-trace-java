@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jetty_client91;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
@@ -14,9 +15,11 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
+import datadog.context.Context;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -61,7 +64,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("send"))
             .and(
@@ -71,7 +74,8 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
                         "org.eclipse.jetty.client.api.Request",
                         "org.eclipse.jetty.client.HttpRequest")))
             .and(takesArgument(1, List.class)),
-        JettyClientInstrumentation.class.getName() + "$SendAdvice");
+        JettyClientInstrumentation.class.getName() + "$SendAdvice",
+        JettyClientInstrumentation.class.getName() + "$ContextPropagationAdvice");
   }
 
   @Override
@@ -90,7 +94,6 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
       responseListeners.add(0, new SpanFinishingCompleteListener(span));
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-      DECORATE.injectContext(getCurrentContext().with(span), request, SETTER);
       return span;
     }
 
@@ -102,6 +105,20 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
         DECORATE.beforeFinish(span);
         span.finish();
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(@Advice.Argument(0) final Request request) {
+      final AgentSpan span =
+          InstrumentationContext.get(Request.class, AgentSpan.class).get(request);
+      Context destination = getCurrentContext();
+      if (span != null) {
+        destination = destination.with(span);
+      }
+      DECORATE.injectContext(destination, request, SETTER);
     }
   }
 }

@@ -25,7 +25,8 @@ import net.bytebuddy.asm.Advice;
  * error handling.
  */
 @AutoService(InstrumenterModule.class)
-public final class AkkaForkJoinExecutorTaskInstrumentation extends InstrumenterModule.Tracing
+public final class AkkaForkJoinExecutorTaskInstrumentation
+    extends InstrumenterModule.ContextTracking
     implements Instrumenter.ForSingleType,
         Instrumenter.ForConfiguredType,
         Instrumenter.HasMethodAdvice {

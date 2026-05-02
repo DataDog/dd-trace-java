@@ -1,11 +1,15 @@
 package datadog.trace.instrumentation.jetty10;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
+import static datadog.trace.instrumentation.jetty10.JettyDecorator.DD_PARENT_CONTEXT_ATTRIBUTE;
 import static datadog.trace.instrumentation.jetty10.JettyDecorator.DECORATE;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.api.CorrelationIdentifier;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -13,6 +17,30 @@ import org.eclipse.jetty.server.HttpChannel;
 import org.eclipse.jetty.server.Request;
 
 public class HandleAdvice {
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class ContextTrackingAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void onEnter(
+        @Advice.This final HttpChannel channel,
+        @Advice.Local("parentScope") ContextScope parentScope) {
+      Request req = channel.getRequest();
+      if (req.getAttribute(DD_CONTEXT_ATTRIBUTE) instanceof Context) {
+        return; // re-entry: HandleAdvice will attach existing context
+      }
+      Context parentContext = DECORATE.extract(req);
+      req.setAttribute(DD_PARENT_CONTEXT_ATTRIBUTE, parentContext);
+      parentScope = parentContext.attach();
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
+    public static void closeScope(@Advice.Local("parentScope") ContextScope parentScope) {
+      if (parentScope != null) {
+        parentScope.close();
+      }
+    }
+  }
 
   @Advice.OnMethodEnter(suppress = Throwable.class)
   public static ContextScope onEnter(
@@ -24,7 +52,9 @@ public class HandleAdvice {
       return ((Context) existingContext).attach();
     }
 
-    final Context parentContext = DECORATE.extract(req);
+    final Object parentContextObj = req.getAttribute(DD_PARENT_CONTEXT_ATTRIBUTE);
+    final Context parentContext =
+        (parentContextObj instanceof Context) ? (Context) parentContextObj : getRootContext();
     final Context context = DECORATE.startSpan(req, parentContext);
     span = spanFromContext(context);
     DECORATE.afterStart(span);

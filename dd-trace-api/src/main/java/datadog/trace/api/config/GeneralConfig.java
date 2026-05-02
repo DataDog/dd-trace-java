@@ -34,7 +34,10 @@ public final class GeneralConfig {
   public static final String EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED =
       "experimental.propagate.process.tags.enabled";
 
+  public static final String PROCESS_TAGS_MAPPING = "process.tags.mapping";
+
   public static final String LOG_LEVEL = "log.level";
+  public static final String TRACE_LOG_LEVEL = "trace.log.level";
   public static final String TRACE_DEBUG = "trace.debug";
   public static final String TRACE_TRIAGE = "trace.triage";
   public static final String TRIAGE_REPORT_TRIGGER = "triage.report.trigger";
@@ -88,6 +91,8 @@ public final class GeneralConfig {
   public static final String DATA_STREAMS_ENABLED = "data.streams.enabled";
   public static final String DATA_STREAMS_BUCKET_DURATION_SECONDS =
       "data.streams.bucket_duration.seconds";
+  public static final String DATA_STREAMS_TRANSACTION_EXTRACTORS =
+      "data.streams.transaction_extractors";
 
   public static final String TELEMETRY_ENABLED = "instrumentation.telemetry.enabled";
   public static final String TELEMETRY_HEARTBEAT_INTERVAL = "telemetry.heartbeat.interval";

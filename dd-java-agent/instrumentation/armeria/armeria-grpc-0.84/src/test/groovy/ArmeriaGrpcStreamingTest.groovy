@@ -7,6 +7,7 @@ import com.linecorp.armeria.server.grpc.GrpcService
 import com.linecorp.armeria.testing.junit4.server.ServerRule
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import example.GreeterGrpc
 import example.Helloworld
@@ -178,6 +179,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
             "$Tags.RPC_SERVICE" "example.Greeter"
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             "request.type" "example.Helloworld\$Response"
             "response.type" "example.Helloworld\$Response"
             peerServiceFrom(Tags.RPC_SERVICE)
@@ -215,6 +217,7 @@ abstract class ArmeriaGrpcStreamingTest extends VersionedNamingTestBase {
             "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
             "status.code" "OK"
             "grpc.status.code" "OK"
+            "$InstrumentationTags.GRPC_STATUS_CODE" 0
             defaultTags(true)
           }
         }

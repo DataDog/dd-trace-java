@@ -44,6 +44,8 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
   public static final boolean SQS_LEGACY_TRACING = Config.get().isSqsLegacyTracingEnabled();
 
   private static final String SQS_SERVICE_NAME =
+      // this is probably wrong since it should use SpanNaming.instance()...
+      // but at this point changing the naming will be a breaking change
       AWS_LEGACY_TRACING || SQS_LEGACY_TRACING ? "sqs" : Config.get().getServiceName();
 
   private static final String SNS_SERVICE_NAME =
@@ -106,19 +108,17 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<Request, Response
       case "SQS.ReceiveMessage":
       case "SQS.DeleteMessage":
       case "SQS.DeleteMessageBatch":
-        if (SQS_SERVICE_NAME != null) {
-          span.setServiceName(SQS_SERVICE_NAME);
-        }
+        span.setServiceName(SQS_SERVICE_NAME, component());
         break;
       case "SNS.Publish":
       case "SNS.PublishBatch":
         if (SNS_SERVICE_NAME != null) {
-          span.setServiceName(SNS_SERVICE_NAME);
+          span.setServiceName(SNS_SERVICE_NAME, component());
         }
         break;
       default:
         if (GENERIC_SERVICE_NAME != null) {
-          span.setServiceName(GENERIC_SERVICE_NAME);
+          span.setServiceName(GENERIC_SERVICE_NAME, component());
         }
         break;
     }

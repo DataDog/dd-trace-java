@@ -110,7 +110,15 @@ public interface Instrumenter {
 
   /** Applies method advice from an instrumentation that {@link HasMethodAdvice}. */
   interface MethodTransformer {
-    void applyAdvice(ElementMatcher<? super MethodDescription> matcher, String adviceClass);
+    default void applyAdvice(
+        ElementMatcher<? super MethodDescription> matcher, String adviceClass) {
+      applyAdvices(matcher, adviceClass, (String[]) null);
+    }
+
+    void applyAdvices(
+        ElementMatcher<? super MethodDescription> matcher,
+        String adviceClass,
+        String... additionalAdviceClasses);
   }
 
   /** Contributes a transformation step to the dynamic type builder. */

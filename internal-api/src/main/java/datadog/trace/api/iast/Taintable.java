@@ -30,18 +30,23 @@ public interface Taintable {
     private static final Logger LOGGER;
 
     static {
-      try {
-        LOGGER = LoggerFactory.getLogger("Taintable tainted objects");
-        Class<?> levelCls = Class.forName("ch.qos.logback.classic.Level");
-        Method setLevel = LOGGER.getClass().getMethod("setLevel", levelCls);
-        Object debugLevel = levelCls.getField("DEBUG").get(null);
-        setLevel.invoke(LOGGER, debugLevel);
-      } catch (IllegalAccessException
-          | NoSuchFieldException
-          | ClassNotFoundException
-          | NoSuchMethodException
-          | InvocationTargetException e) {
-        throw new RuntimeException(e);
+      LOGGER = LoggerFactory.getLogger("Taintable tainted objects");
+
+      // Check logger class by name to avoid NoClassDefFoundError at runtime
+      // for tests without Logback.
+      if (LOGGER.getClass().getName().equals("ch.qos.logback.classic.Logger")) {
+        try {
+          Class<?> levelCls = Class.forName("ch.qos.logback.classic.Level");
+          Method setLevel = LOGGER.getClass().getMethod("setLevel", levelCls);
+          Object debugLevel = levelCls.getField("DEBUG").get(null);
+          setLevel.invoke(LOGGER, debugLevel);
+        } catch (IllegalAccessException
+            | NoSuchFieldException
+            | ClassNotFoundException
+            | NoSuchMethodException
+            | InvocationTargetException e) {
+          throw new RuntimeException(e);
+        }
       }
     }
 

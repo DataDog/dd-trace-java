@@ -1,6 +1,7 @@
 package com.datadog.debugger.el.values;
 
 import com.datadog.debugger.el.Value;
+import com.datadog.debugger.el.ValueType;
 import com.datadog.debugger.el.Visitor;
 import com.datadog.debugger.el.expressions.ValueExpression;
 import datadog.trace.bootstrap.debugger.el.ValueReferenceResolver;
@@ -99,7 +100,7 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
       throw new IllegalArgumentException("index[" + index + "] out of bounds: [0-" + len + "]");
     }
     if (listHolder instanceof List) {
-      return Value.of(((List<?>) listHolder).get(index));
+      return Value.of(((List<?>) listHolder).get(index), ValueType.OBJECT);
     } else if (listHolder instanceof Set) {
       throw new UnsupportedOperationException("Cannot access Set by index");
     } else if (listHolder instanceof Value) {
@@ -107,24 +108,24 @@ public class ListValue implements CollectionValue<Object>, ValueExpression<ListV
     } else if (arrayHolder != null) {
       if (arrayType.isPrimitive()) {
         if (arrayType == byte.class) {
-          return Value.of(Array.getByte(arrayHolder, index));
+          return Value.of(Array.getByte(arrayHolder, index), ValueType.BYTE);
         } else if (arrayType == char.class) {
-          return Value.of(Array.getChar(arrayHolder, index));
+          return Value.of(Array.getChar(arrayHolder, index), ValueType.CHAR);
         } else if (arrayType == short.class) {
-          return Value.of(Array.getShort(arrayHolder, index));
+          return Value.of(Array.getShort(arrayHolder, index), ValueType.SHORT);
         } else if (arrayType == int.class) {
-          return Value.of(Array.getInt(arrayHolder, index));
+          return Value.of(Array.getInt(arrayHolder, index), ValueType.INT);
         } else if (arrayType == long.class) {
-          return Value.of(Array.getLong(arrayHolder, index));
+          return Value.of(Array.getLong(arrayHolder, index), ValueType.LONG);
         } else if (arrayType == float.class) {
-          return Value.of(Array.getFloat(arrayHolder, index));
+          return Value.of(Array.getFloat(arrayHolder, index), ValueType.FLOAT);
         } else if (arrayType == double.class) {
-          return Value.of(Array.getDouble(arrayHolder, index));
+          return Value.of(Array.getDouble(arrayHolder, index), ValueType.DOUBLE);
         } else if (arrayType == boolean.class) {
-          return Value.of(Array.getBoolean(arrayHolder, index));
+          return Value.of(Array.getBoolean(arrayHolder, index), ValueType.BOOLEAN);
         }
       } else {
-        return Value.of(Array.get(arrayHolder, index));
+        return Value.of(Array.get(arrayHolder, index), ValueType.OBJECT);
       }
     }
     return Value.undefinedValue();

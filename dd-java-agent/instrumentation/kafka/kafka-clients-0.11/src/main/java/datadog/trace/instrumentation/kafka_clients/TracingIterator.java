@@ -9,20 +9,25 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateNe
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.BROKER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_DELIVER;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
 import static datadog.trace.instrumentation.kafka_clients.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients.TextMapInjectAdapter.SETTER;
 import static datadog.trace.instrumentation.kafka_common.StreamingContext.STREAMING_CONTEXT;
+import static datadog.trace.instrumentation.kafka_common.Utils.DSM_TRANSACTION_SOURCE_READER;
 import static datadog.trace.instrumentation.kafka_common.Utils.computePayloadSizeBytes;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
 import datadog.context.propagation.Propagator;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.datastreams.DataStreamsTags;
+import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
@@ -63,7 +68,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
     boolean moreRecords = delegateIterator.hasNext();
     if (!moreRecords) {
       // no more records, use this as a signal to close the last iteration scope
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else {
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
     }
     return moreRecords;
   }
@@ -77,7 +89,14 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
 
   protected void startNewRecordSpan(ConsumerRecord<?, ?> val) {
     try {
-      closePrevious(true);
+      if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+        closePrevious(true);
+      } else if (val == null) { // previous message span was the last
+        final AgentSpan previousSpan = spanFromContext(getRootContext().swap());
+        if (previousSpan != null) {
+          previousSpan.finishWithEndToEnd();
+        }
+      }
       AgentSpan span, queueSpan = null;
       if (val != null) {
         if (!Config.get().isKafkaClientPropagationDisabledForTopic(val.topic())) {
@@ -123,11 +142,26 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
           span.setTag(InstrumentationTags.TOMBSTONE, true);
         }
         decorator.afterStart(span);
-        decorator.onConsume(span, val, group, bootstrapServers);
-        activateNext(span);
+        decorator.onConsume(span, val, group, clusterId, bootstrapServers);
+        if (InstrumenterConfig.get().isLegacyContextManagerEnabled()) {
+          activateNext(span);
+        } else {
+          final AgentSpan previousSpan = spanFromContext(span.swap());
+          if (previousSpan != null) {
+            previousSpan.finishWithEndToEnd();
+          }
+        }
         if (null != queueSpan) {
           queueSpan.finish();
         }
+
+        AgentTracer.get()
+            .getDataStreamsMonitoring()
+            .trackTransaction(
+                span,
+                DataStreamsTransactionExtractor.Type.KAFKA_CONSUME_HEADERS,
+                val.headers(),
+                DSM_TRANSACTION_SOURCE_READER);
       }
     } catch (final Exception e) {
       log.debug("Error starting new record span", e);

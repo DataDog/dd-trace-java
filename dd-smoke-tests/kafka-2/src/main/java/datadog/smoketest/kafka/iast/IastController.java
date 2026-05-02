@@ -141,6 +141,8 @@ public class IastController {
     }
   }
 
+  // Intentionally not using logger placeholders to exercise this test case.
+  @SuppressWarnings("StringConcatenationArgumentToLogCall")
   private String handle(final String topic, final String key, final String value) {
     LOGGER.info("Received message from {}: {} {}", topic, key, value);
     if (isKey(key)) {

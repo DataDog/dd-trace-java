@@ -6,6 +6,7 @@ import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
 import datadog.context.Context;
 import datadog.context.ContextKey;
 import datadog.context.ImplicitContextKeyed;
+import javax.annotation.Nonnull;
 
 public class DataStreamsContext implements ImplicitContextKeyed {
   private static final ContextKey<DataStreamsContext> CONTEXT_KEY =
@@ -102,7 +103,7 @@ public class DataStreamsContext implements ImplicitContextKeyed {
   }
 
   @Override
-  public Context storeInto(Context context) {
+  public Context storeInto(@Nonnull Context context) {
     return context.with(CONTEXT_KEY, this);
   }
 }

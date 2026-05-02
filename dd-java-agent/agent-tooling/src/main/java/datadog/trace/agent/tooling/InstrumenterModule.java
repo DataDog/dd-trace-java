@@ -41,6 +41,8 @@ public abstract class InstrumenterModule implements Instrumenter {
    *   <li>{@link TargetSystem#IAST iast}
    *   <li>{@link TargetSystem#CIVISIBILITY ci-visibility}
    *   <li>{@link TargetSystem#USM usm}
+   *   <li>{@link TargetSystem#CONTEXT_TRACKING context-tracking}
+   *   <li>{@link TargetSystem#RASP rasp}
    * </ul>
    */
   public enum TargetSystem {
@@ -51,6 +53,8 @@ public abstract class InstrumenterModule implements Instrumenter {
     CIVISIBILITY,
     USM,
     LLMOBS,
+    CONTEXT_TRACKING,
+    RASP,
   }
 
   private static final Logger log = LoggerFactory.getLogger(InstrumenterModule.class);
@@ -86,6 +90,7 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   public List<Instrumenter> typeInstrumentations() {
+    preloadClasses();
     return singletonList(this);
   }
 
@@ -108,7 +113,12 @@ public abstract class InstrumenterModule implements Instrumenter {
   }
 
   /**
-   * @return Class names of helpers to inject into the user's classloader
+   * @return Class names of helpers to inject into the user's classloader.
+   *     <p><b>NOTE:</b> The order of the returned helper classes matters. If a muzzle check fails
+   *     with a NoClassDefFoundError, as logged in build/reports/muzzle-*.txt, it is likely that one
+   *     helper class depends on another that appears later in the list. In this case, the returned
+   *     list must be reordered so that the referred helper class appears before the one that refers
+   *     to it.
    */
   public String[] helperClassNames() {
     return NO_HELPERS;
@@ -205,6 +215,28 @@ public abstract class InstrumenterModule implements Instrumenter {
         .isIntegrationShortcutMatchingEnabled(singletonList(name()), defaultToShortcut);
   }
 
+  /**
+   * Force loading of classes that need to be instrumented, but are using during instrumentation.
+   */
+  @SuppressForbidden // allow this use of Class.forName()
+  protected void preloadClasses() {
+    String[] list = preloadClassNames();
+    if (list != null) {
+      for (String clazz : list) {
+        try {
+          Class.forName(clazz);
+        } catch (Throwable t) {
+          log.debug("Error force loading {} class", clazz);
+        }
+      }
+    }
+  }
+
+  /** Get classes to force load */
+  public String[] preloadClassNames() {
+    return null;
+  }
+
   /** Parent class for all tracing related instrumentations */
   public abstract static class Tracing extends InstrumenterModule {
     public Tracing(String instrumentationName, String... additionalNames) {
@@ -212,7 +244,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.TRACING);
     }
   }
@@ -224,7 +256,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.PROFILING);
     }
 
@@ -243,26 +275,19 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.APPSEC);
     }
   }
 
   /** Parent class for all IAST related instrumentations */
-  @SuppressForbidden
   public abstract static class Iast extends InstrumenterModule {
     public Iast(String instrumentationName, String... additionalNames) {
       super(instrumentationName, additionalNames);
     }
 
     @Override
-    public List<Instrumenter> typeInstrumentations() {
-      preloadClassNames();
-      return super.typeInstrumentations();
-    }
-
-    @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       if (enabledSystems.contains(TargetSystem.IAST)) {
         return true;
       }
@@ -271,27 +296,6 @@ public abstract class InstrumenterModule implements Instrumenter {
         return false;
       }
       return cfg.getAppSecActivation() == ProductActivation.FULLY_ENABLED;
-    }
-
-    /**
-     * Force loading of classes that need to be instrumented, but are using during instrumentation.
-     */
-    private void preloadClassNames() {
-      String[] list = getClassNamesToBePreloaded();
-      if (list != null) {
-        for (String clazz : list) {
-          try {
-            Class.forName(clazz);
-          } catch (Throwable t) {
-            log.debug("Error force loading {} class", clazz);
-          }
-        }
-      }
-    }
-
-    /** Get classes to force load* */
-    public String[] getClassNamesToBePreloaded() {
-      return null;
     }
 
     @Override
@@ -311,7 +315,7 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.USM);
     }
   }
@@ -323,8 +327,20 @@ public abstract class InstrumenterModule implements Instrumenter {
     }
 
     @Override
-    public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
       return enabledSystems.contains(TargetSystem.CIVISIBILITY);
+    }
+  }
+
+  /** Parent class for all the context tracking instrumentations */
+  public abstract static class ContextTracking extends InstrumenterModule {
+    public ContextTracking(String instrumentationName, String... additionalNames) {
+      super(instrumentationName, additionalNames);
+    }
+
+    @Override
+    public final boolean isApplicable(Set<TargetSystem> enabledSystems) {
+      return enabledSystems.contains(TargetSystem.CONTEXT_TRACKING);
     }
   }
 }

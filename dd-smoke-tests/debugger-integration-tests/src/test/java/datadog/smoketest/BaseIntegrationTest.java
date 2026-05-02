@@ -95,7 +95,7 @@ public abstract class BaseIntegrationTest {
   public static final String APM_TRACING_PRODUCT = "APM_TRACING";
 
   protected MockWebServer datadogAgentServer;
-  private MockDispatcher probeMockDispatcher;
+  protected MockDispatcher probeMockDispatcher;
   private StatsDServer statsDServer;
   private HttpUrl probeUrl;
   private HttpUrl snapshotUrl;
@@ -140,7 +140,7 @@ public abstract class BaseIntegrationTest {
     }
     datadogAgentServer.shutdown();
     statsDServer.close();
-    ProbeRateLimiter.resetAll();
+    ProbeRateLimiter.resetGlobalRate();
     LOG.info("===== Ending {} ====", testInfo.getDisplayName());
   }
 
@@ -161,6 +161,7 @@ public abstract class BaseIntegrationTest {
             "-Ddd.service.name=" + getAppId(),
             "-Ddd.profiling.enabled=false",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
+            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.agent.core=debug",
             "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
             "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
             "-Ddd.jmxfetch.start-delay=0",
@@ -174,7 +175,7 @@ public abstract class BaseIntegrationTest {
             // flush uploads every 100ms to have quick tests
             "-Ddd.dynamic.instrumentation.upload.flush.interval=100",
             // increase timeout for serialization
-            "-Ddd.dynamic.instrumentation.capture.timeout=1000"));
+            "-Ddd.dynamic.instrumentation.capture.timeout=30000"));
   }
 
   protected enum RequestType {
@@ -410,7 +411,7 @@ public abstract class BaseIntegrationTest {
     return statsDServer.waitForMessage(str);
   }
 
-  private MockResponse datadogAgentDispatch(RecordedRequest request) {
+  protected MockResponse datadogAgentDispatch(RecordedRequest request) {
     LOG.info("datadogAgentDispatch request path: {}", request.getPath());
     if (request.getPath().equals("/info")) {
       return AGENT_INFO_RESPONSE;
@@ -591,8 +592,8 @@ public abstract class BaseIntegrationTest {
     }
   }
 
-  private static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
-    private Function<RecordedRequest, MockResponse> dispatcher;
+  protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
+    private volatile Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override
     public MockResponse dispatch(RecordedRequest request) throws InterruptedException {
