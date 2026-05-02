@@ -194,13 +194,13 @@ public final class OtlpTraceProto {
 
   public static void writeTraceId(StreamingBuffer buf, DDTraceId traceId) {
     writeVarInt(buf, 16);
-    writeI64(buf, traceId.toLong());
-    writeI64(buf, traceId.toHighOrderLong());
+    buf.putLong(traceId.toHighOrderLong());
+    buf.putLong(traceId.toLong());
   }
 
   public static void writeSpanId(StreamingBuffer buf, long spanId) {
     writeVarInt(buf, 8);
-    writeI64(buf, spanId);
+    buf.putLong(spanId);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
