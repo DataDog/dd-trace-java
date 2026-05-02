@@ -51,7 +51,7 @@ public final class OtlpMetricsService {
         break;
       default:
         LOGGER.debug("Unsupported OTLP metrics protocol: {}", config.getOtlpMetricsProtocol());
-        this.collector = OtlpMetricsCollector.NOOP_COLLECTOR;
+        this.collector = NoopOtlpMetricsCollector.INSTANCE;
         this.sender = null;
     }
 
