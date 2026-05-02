@@ -2257,6 +2257,38 @@
         "aliases": []
       }
     ],
+    "DD_LOGS_OTEL_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_QUEUE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_BATCH_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
+        "aliases": []
+      }
+    ],
     "DD_OTLP_LOGS_ENDPOINT": [
       {
         "version": "A",
