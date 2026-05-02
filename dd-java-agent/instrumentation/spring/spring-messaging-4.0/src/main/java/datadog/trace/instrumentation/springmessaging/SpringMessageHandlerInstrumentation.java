@@ -55,6 +55,7 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
       packageName + ".SpringMessageExtractAdapter$1",
+      packageName + ".SpringMessageErrorHandlerHelper",
     };
   }
 
@@ -95,10 +96,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
         return;
       }
       AgentSpan span = scope.span();
-      scope.close();
       if (null != error) {
         DECORATE.onError(span, error);
+        if (SpringMessageErrorHandlerHelper.isInAwsListenerInvocation()) {
+          SpringMessageErrorHandlerHelper.capturePendingContinuation(span);
+        }
       }
+      scope.close();
       if (result != null) {
         Object wrappedResult =
             AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);

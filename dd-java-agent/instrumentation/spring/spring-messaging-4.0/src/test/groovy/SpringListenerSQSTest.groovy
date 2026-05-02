@@ -221,7 +221,8 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
       address,
       "SpringListenerSQSError",
       "ErrorHandlerListener.observeFailure",
-      "ObservingErrorHandler.handle")
+      "ObservingErrorHandler.handle",
+      "listener failurea")
 
     cleanup:
     context?.close()
@@ -248,7 +249,8 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
       address,
       "SpringListenerSQSAsyncError",
       "ErrorHandlerListener.observeAsyncFailure",
-      "ObservingAsyncErrorHandler.handle")
+      "ObservingAsyncErrorHandler.handle",
+      "async listener failure")
 
     cleanup:
     context?.close()
@@ -258,7 +260,8 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     InetSocketAddress address,
     String queueName,
     String listenerResourceName,
-    String errorHandlerResourceName) {
+    String errorHandlerResourceName,
+    String errorMessage) {
     def sendingSpan
     assertTraces(4, SORT_TRACES_BY_START) {
       sortSpansByStart()
@@ -272,7 +275,7 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         receiveMessage(it, address, sendingSpan, queueName)
       }
       trace(2) {
-        springErrorSqsListener(it, sendingSpan, listenerResourceName)
+        springErrorSqsListener(it, sendingSpan, listenerResourceName, errorMessage)
         tracedErrorHandler(it, span(0), errorHandlerResourceName)
       }
       trace(1) {
@@ -378,11 +381,12 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     }
   }
 
-  static springErrorSqsListener(TraceAssert traceAssert, DDSpan parentSpan, String resourceName) {
+  static springErrorSqsListener(
+    TraceAssert traceAssert, DDSpan parentSpan, String expectedResourceName, String errorMessage) {
     traceAssert.span {
       serviceName "my-service"
       operationName "spring.consume"
-      resourceName resourceName
+      resourceName expectedResourceName
       spanType DDSpanTypes.MESSAGE_CONSUMER
       errored true
       measured true
@@ -390,16 +394,18 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
       tags {
         "$Tags.COMPONENT" "spring-messaging"
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        errorTags(RuntimeException, errorMessage)
         defaultTags(true)
       }
     }
   }
 
-  static tracedErrorHandler(TraceAssert traceAssert, DDSpan parentSpan, String resourceName) {
+  static tracedErrorHandler(
+    TraceAssert traceAssert, DDSpan parentSpan, String expectedResourceName) {
     traceAssert.span {
       serviceName "my-service"
       operationName "error.handler"
-      resourceName resourceName
+      resourceName expectedResourceName
       childOf(parentSpan)
       errored false
     }
