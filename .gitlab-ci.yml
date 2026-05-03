@@ -312,7 +312,7 @@ dd-octo-sts-pre-release-check:
     when: always
 
 # Builds java-profiler from JAVA_PROFILER_REF and publishes custom-ddprof/ddprof.jar for downstream Gradle jobs.
-# Requires JDK 17+ for Gradle 9 and native toolchain for ddprof release (same base image as .gradle_build).
+# Uses :ddprof-lib:assembleReleaseJar (not assembleRelease, which is native-only). JDK 21+ for release + JDK 17+ for Gradle 9.
 build_java_profiler_ddprof:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
@@ -325,6 +325,30 @@ build_java_profiler_ddprof:
     KUBERNETES_CPU_REQUEST: 10
     KUBERNETES_MEMORY_REQUEST: 20Gi
     KUBERNETES_MEMORY_LIMIT: 20Gi
+  before_script:
+    - |
+      # java-profiler uses Gradle 9.x; Gradle requires JVM 17+. Builder image default java is often JDK 8.
+      if [ -n "${JAVA_21_HOME:-}" ] && [ -x "${JAVA_21_HOME}/bin/java" ]; then
+        export JAVA_HOME="$JAVA_21_HOME"
+      elif [ -n "${JAVA_17_HOME:-}" ] && [ -x "${JAVA_17_HOME}/bin/java" ]; then
+        export JAVA_HOME="$JAVA_17_HOME"
+      else
+        shopt -s nullglob
+        for d in /usr/lib/jvm/java-21-* /usr/lib/jvm/temurin-21-* /usr/lib/jvm/java-17-*; do
+          if [ -x "${d}/bin/java" ]; then
+            export JAVA_HOME="$d"
+            break
+          fi
+        done
+        shopt -u nullglob
+      fi
+      if [ -z "${JAVA_HOME:-}" ] || ! [ -x "${JAVA_HOME}/bin/java" ]; then
+        echo "Could not find JDK 17+ for Gradle 9 (set JAVA_21_HOME or JAVA_17_HOME, or install JDK 21 under /usr/lib/jvm)." >&2
+        ls -la /usr/lib/jvm 2>/dev/null || true
+        exit 1
+      fi
+      export PATH="${JAVA_HOME}/bin:${PATH}"
+      java -version
   script:
     - |
       set -euo pipefail
@@ -335,8 +359,14 @@ build_java_profiler_ddprof:
       cd "$SRCDIR"
       chmod +x ./gradlew
       ./gradlew --version
-      ./gradlew assembleRelease -Pskip-tests -Pskip-gtest
-      JAR=$(ls ddprof-lib/build/libs/ddprof-*.jar | grep -v -- '-sources' | head -1)
+      # assembleRelease is the native link/assemble task only; the packaged jar is assembleReleaseJar.
+      ./gradlew :ddprof-lib:assembleReleaseJar -Pskip-tests -Pskip-gtest
+      JAR=$(find ddprof-lib/build/libs -maxdepth 1 -type f \( -name 'ddprof-*.jar' \) ! -name '*-sources*' ! -name '*-javadoc*' | head -1)
+      if [ -z "$JAR" ] || [ ! -f "$JAR" ]; then
+        echo "No ddprof jar found under ddprof-lib/build/libs" >&2
+        ls -la ddprof-lib/build/libs 2>/dev/null || ls -laR ddprof-lib/build 2>/dev/null || true
+        exit 1
+      fi
       cp "$JAR" "${CI_PROJECT_DIR}/custom-ddprof/ddprof.jar"
       ls -la "${CI_PROJECT_DIR}/custom-ddprof/"
   artifacts:
