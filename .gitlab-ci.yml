@@ -26,6 +26,7 @@ stages:
   - java-spring-petclinic-parallel-slo
   - java-startup-parallel
   - java-load-parallel
+  - java-load-parallel-slo
   - java-dacapo-parallel
   - shared-pipeline
   - benchmarks
@@ -61,6 +62,10 @@ variables:
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
+
+  JAVA_PROFILER_REF:
+    description: "When non-empty, clone DataDog/java-profiler at this Git ref (branch or tag), build ddprof, and use it as ddprof.jar for Gradle jobs instead of the Maven dependency."
+    value: "paul.fournillon/wallclock_precheck"
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
@@ -165,9 +170,21 @@ default:
       echo "Failed to find base ref for PR" >&2
     fi
 
+# When build_java_profiler_ddprof ran, its artifact is available at custom-ddprof/ddprof.jar.
+# Append root project property expected by dd-java-agent/ddprof-lib/build.gradle.
+.inject_custom_ddprof_jar: &inject_custom_ddprof_jar
+  - |
+    if [ -f "${CI_PROJECT_DIR}/custom-ddprof/ddprof.jar" ]; then
+      echo "ddprof.jar=${CI_PROJECT_DIR}/custom-ddprof/ddprof.jar" >> gradle.properties
+      echo "Using custom ddprof.jar from java-profiler build"
+    fi
+
 .gradle_build: &gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
   variables:
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
     GRADLE_WORKERS: 6
@@ -217,6 +234,7 @@ default:
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
       EOF
+    - *inject_custom_ddprof_jar
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
@@ -292,8 +310,43 @@ dd-octo-sts-pre-release-check:
     max: 2
     when: always
 
+# Builds java-profiler from JAVA_PROFILER_REF and publishes custom-ddprof/ddprof.jar for downstream Gradle jobs.
+# Requires JDK 17+ for Gradle 9 and native toolchain for ddprof release (same base image as .gradle_build).
+build_java_profiler_ddprof:
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  stage: build
+  rules:
+    - if: '$JAVA_PROFILER_REF =~ /.+/'
+      when: on_success
+  variables:
+    FF_USE_FASTZIP: "true"
+    CACHE_COMPRESSION_LEVEL: "slowest"
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+  script:
+    - |
+      set -euo pipefail
+      mkdir -p "${CI_PROJECT_DIR}/custom-ddprof"
+      SRCDIR="${CI_PROJECT_DIR}/java-profiler-src"
+      rm -rf "$SRCDIR"
+      git clone --depth 1 --branch "$JAVA_PROFILER_REF" https://github.com/DataDog/java-profiler.git "$SRCDIR"
+      cd "$SRCDIR"
+      chmod +x ./gradlew
+      ./gradlew --version
+      ./gradlew assembleRelease -Pskip-tests -Pskip-gtest
+      JAR=$(ls ddprof-lib/build/libs/ddprof-*.jar | grep -v -- '-sources' | head -1)
+      cp "$JAR" "${CI_PROJECT_DIR}/custom-ddprof/ddprof.jar"
+      ls -la "${CI_PROJECT_DIR}/custom-ddprof/"
+  artifacts:
+    when: on_success
+    paths:
+      - custom-ddprof/ddprof.jar
+
 build:
   needs:
+    - job: build_java_profiler_ddprof
+      optional: true
     - job: maven-central-pre-release-check
       optional: true
     - job: dd-octo-sts-pre-release-check
@@ -404,7 +457,9 @@ publish-artifacts-to-s3:
 spotless:
   extends: .gradle_build
   stage: tests
-  needs: []
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
   variables:
     GRADLE_MEMORY_MAX: 6G
   script:
@@ -414,7 +469,9 @@ spotless:
 check-instrumentation-naming:
   extends: .gradle_build
   stage: tests
-  needs: [ ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
   script:
     - ./gradlew --version
     - ./gradlew checkInstrumentationNaming
@@ -422,7 +479,9 @@ check-instrumentation-naming:
 config-inversion-linter:
   extends: .gradle_build
   stage: tests
-  needs: []
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
   script:
     - ./gradlew --version
     - ./gradlew checkConfigurations
@@ -431,7 +490,10 @@ test_published_artifacts:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}7 # Needs Java7 for some tests
   stage: tests
-  needs: [ build ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build
   variables:
     CACHE_TYPE: "lib"
   script:
@@ -458,7 +520,10 @@ test_published_artifacts:
 
 .check_job:
   extends: .gradle_build
-  needs: [ build ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build
   stage: tests
   variables:
     CACHE_TYPE: "lib"
@@ -494,7 +559,9 @@ test_published_artifacts:
 
 check_build_src:
   extends: .check_job
-  needs: []
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
   variables:
     GRADLE_TARGET: ":buildSrc:build"
 
@@ -529,7 +596,10 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
-  needs: [ build_tests ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build_tests
   stage: tests
   parallel:
     matrix:
@@ -561,7 +631,10 @@ muzzle:
 
 muzzle-dep-report:
   extends: .gradle_build
-  needs: [ build_tests ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build_tests
   stage: tests
   variables:
     CACHE_TYPE: "inst"
@@ -598,7 +671,10 @@ muzzle-dep-report:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
   tags: [ "docker-in-docker:amd64" ] # use docker-in-docker runner for testcontainers
-  needs: [ build_tests ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build_tests
   stage: tests
   variables:
     GRADLE_PARAMS: "-PskipFlakyTests"
@@ -896,7 +972,10 @@ deploy_to_di_backend:manual:
 deploy_to_maven_central:
   extends: .gradle_build
   stage: publish
-  needs: [ build ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build
   variables:
     CACHE_TYPE: "lib"
   rules:
@@ -924,7 +1003,10 @@ deploy_to_maven_central:
 deploy_snapshot_with_ddprof_snapshot:
   extends: .gradle_build
   stage: publish
-  needs: [ build ]
+  needs:
+    - job: build_java_profiler_ddprof
+      optional: true
+    - build
   variables:
     CACHE_TYPE: "lib"
   rules:
