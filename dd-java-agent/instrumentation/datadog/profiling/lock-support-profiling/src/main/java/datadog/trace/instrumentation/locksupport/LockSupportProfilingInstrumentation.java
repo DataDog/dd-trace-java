@@ -43,6 +43,12 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
   }
 
   @Override
+  public String[] muzzleIgnoredClassNames() {
+    // Advice references this nested holder; it lives on the instrumentation classpath only.
+    return new String[] {getClass().getName() + "$State"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()

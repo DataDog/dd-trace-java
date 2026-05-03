@@ -49,6 +49,13 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
   }
 
   @Override
+  public String[] muzzleIgnoredClassNames() {
+    // Static helpers on the advice class produce intra-class references that core-JDK muzzle
+    // cannot resolve against an empty application classpath.
+    return new String[] {getClass().getName() + "$WaitAdvice"};
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
