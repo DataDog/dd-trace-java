@@ -8,10 +8,10 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.common.writer.RemoteMapper.HTTP_STATUS;
 import static datadog.trace.common.writer.ddagent.TraceMapper.ORIGIN_KEY;
 import static datadog.trace.common.writer.ddagent.TraceMapper.PROCESS_TAGS_KEY;
@@ -56,9 +56,9 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  static final int NO_TRACE_FLAGS = 0x00000000;
-  static final int SAMPLED_TRACE_FLAG = 0x00000001;
-  static final int REMOTE_TRACE_FLAG = 0x00000300;
+  public static final int NO_TRACE_FLAGS = 0x00000000;
+  public static final int SAMPLED_TRACE_FLAG = 0x00000001;
+  public static final int REMOTE_TRACE_FLAG = 0x00000300;
 
   private OtlpTraceProto() {}
 
@@ -138,7 +138,9 @@ public final class OtlpTraceProto {
     }
     writeSpanTag(buf, RESOURCE_NAME, span.getResourceName());
     writeSpanTag(buf, OPERATION_NAME, span.getOperationName());
-    writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    if (span.getSpanType() != null) {
+      writeSpanTag(buf, SPAN_TYPE, span.getSpanType());
+    }
 
     span.processTagsAndBaggage(metaWriter);
 
@@ -181,7 +183,7 @@ public final class OtlpTraceProto {
         .forEach(
             (key, value) -> {
               writeTag(buf, 4, LEN_WIRE_TYPE);
-              writeAttribute(buf, STRING, key, value);
+              writeAttribute(buf, STRING_ATTRIBUTE, key, value);
             });
 
     writeTag(buf, 6, I32_WIRE_TYPE);
@@ -192,31 +194,31 @@ public final class OtlpTraceProto {
 
   public static void writeTraceId(StreamingBuffer buf, DDTraceId traceId) {
     writeVarInt(buf, 16);
-    writeI64(buf, traceId.toLong());
-    writeI64(buf, traceId.toHighOrderLong());
+    buf.putLong(traceId.toHighOrderLong());
+    buf.putLong(traceId.toLong());
   }
 
   public static void writeSpanId(StreamingBuffer buf, long spanId) {
     writeVarInt(buf, 8);
-    writeI64(buf, spanId);
+    buf.putLong(spanId);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
     writeTag(buf, 9, LEN_WIRE_TYPE);
     switch (tagEntry.type()) {
       case TagMap.EntryReader.BOOLEAN:
-        writeAttribute(buf, BOOLEAN, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, BOOLEAN_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.INT:
       case TagMap.EntryReader.LONG:
-        writeAttribute(buf, LONG, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, LONG_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       case TagMap.EntryReader.FLOAT:
       case TagMap.EntryReader.DOUBLE:
-        writeAttribute(buf, DOUBLE, tagEntry.tag(), tagEntry.objectValue());
+        writeAttribute(buf, DOUBLE_ATTRIBUTE, tagEntry.tag(), tagEntry.objectValue());
         break;
       default:
-        writeAttribute(buf, STRING, tagEntry.tag(), tagEntry.stringValue());
+        writeAttribute(buf, STRING_ATTRIBUTE, tagEntry.tag(), tagEntry.stringValue());
     }
   }
 

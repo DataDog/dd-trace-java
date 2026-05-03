@@ -123,6 +123,7 @@ class GatewayBridgeSpecification extends DDSpecification {
   BiFunction<RequestContext, String, Flow<Void>> fileLoadedCB
   BiFunction<RequestContext, String, Flow<Void>> fileWrittenCB
   BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesFilenamesCB
+  BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesContentCB
   BiFunction<RequestContext, String, Flow<Void>> requestSessionCB
   BiFunction<RequestContext, String[], Flow<Void>> execCmdCB
   BiFunction<RequestContext, String, Flow<Void>> shellCmdCB
@@ -463,7 +464,7 @@ class GatewayBridgeSpecification extends DDSpecification {
 
   void callInitAndCaptureCBs() {
     // force all callbacks to be registered
-    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES]
+    _ * eventDispatcher.allSubscribedDataAddresses() >> [KnownAddresses.REQUEST_PATH_PARAMS, KnownAddresses.REQUEST_BODY_OBJECT, KnownAddresses.REQUEST_FILES_FILENAMES, KnownAddresses.REQUEST_FILES_CONTENT]
 
     1 * ig.registerCallback(EVENTS.requestStarted(), _) >> {
       requestStartedCB = it[1]; null
@@ -560,6 +561,9 @@ class GatewayBridgeSpecification extends DDSpecification {
     }
     1 * ig.registerCallback(EVENTS.requestFilesFilenames(), _) >> {
       requestFilesFilenamesCB = it[1]; null
+    }
+    1 * ig.registerCallback(EVENTS.requestFilesContent(), _) >> {
+      requestFilesContentCB = it[1]; null
     }
     0 * ig.registerCallback(_, _)
 
@@ -1136,6 +1140,38 @@ class GatewayBridgeSpecification extends DDSpecification {
   void 'process request files filenames with empty list returns noop'() {
     when:
     Flow<?> flow = requestFilesFilenamesCB.apply(ctx, [])
+
+    then:
+    flow == NoopFlow.INSTANCE
+    0 * eventDispatcher.publishDataEvent(*_)
+  }
+
+  void 'process request files content'() {
+    setup:
+    final filesContent = ['%PDF-1.4 malicious content', '#!/bin/bash\nrm -rf /']
+    eventDispatcher.getDataSubscribers({
+      KnownAddresses.REQUEST_FILES_CONTENT in it
+    }) >> nonEmptyDsInfo
+    DataBundle bundle
+    GatewayContext gatewayContext
+
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, filesContent)
+
+    then:
+    1 * eventDispatcher.publishDataEvent(nonEmptyDsInfo, ctx.data, _ as DataBundle, _ as GatewayContext) >> {
+      a, b, db, gw -> bundle = db; gatewayContext = gw; NoopFlow.INSTANCE
+    }
+    bundle.get(KnownAddresses.REQUEST_FILES_CONTENT) == filesContent
+    flow.result == null
+    flow.action == Flow.Action.Noop.INSTANCE
+    gatewayContext.isTransient == false
+    gatewayContext.isRasp == false
+  }
+
+  void 'process request files content with empty list returns noop'() {
+    when:
+    Flow<?> flow = requestFilesContentCB.apply(ctx, [])
 
     then:
     flow == NoopFlow.INSTANCE

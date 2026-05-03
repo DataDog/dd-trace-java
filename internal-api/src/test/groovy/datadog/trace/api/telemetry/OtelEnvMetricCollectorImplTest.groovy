@@ -198,8 +198,8 @@ class OtelEnvMetricCollectorImplTest extends DDSpecification {
 
     where:
     otelEnvKey              | otelEnvValue    ||  metricType  | metricValue  | metricNamespace  | metricName             | tagsOtelValue
-    'OTEL_METRICS_EXPORTER' | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_metrics_exporter'
+    'OTEL_METRICS_EXPORTER' | 'zipkin'        || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_metrics_exporter'
     'OTEL_TRACES_EXPORTER'  | 'zipkin'        || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_traces_exporter'
-    'OTEL_LOGS_EXPORTER'    | 'otlp'          || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_logs_exporter'
+    'OTEL_LOGS_EXPORTER'    | 'zipkin'        || 'count'      | 1            | 'tracers'        | 'otel.env.unsupported' | 'config_opentelemetry:otel_logs_exporter'
   }
 }
