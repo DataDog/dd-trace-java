@@ -2573,14 +2573,14 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           }
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
             "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
+              it == "0:0:0:0:0:0:0:1"
             }
             "$Tags.HTTP_CLIENT_IP" {
               it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
             }
           } else {
             "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
+              it == "127.0.0.1"
             }
             "$Tags.HTTP_CLIENT_IP" {
               it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)

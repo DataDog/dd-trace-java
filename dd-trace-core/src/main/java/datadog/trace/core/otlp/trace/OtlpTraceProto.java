@@ -56,9 +56,9 @@ public final class OtlpTraceProto {
   private static final UTF8BytesString OPERATION_NAME = UTF8BytesString.create("operation.name");
   private static final UTF8BytesString SPAN_TYPE = UTF8BytesString.create("span.type");
 
-  static final int NO_TRACE_FLAGS = 0x00000000;
-  static final int SAMPLED_TRACE_FLAG = 0x00000001;
-  static final int REMOTE_TRACE_FLAG = 0x00000300;
+  public static final int NO_TRACE_FLAGS = 0x00000000;
+  public static final int SAMPLED_TRACE_FLAG = 0x00000001;
+  public static final int REMOTE_TRACE_FLAG = 0x00000300;
 
   private OtlpTraceProto() {}
 
@@ -194,13 +194,13 @@ public final class OtlpTraceProto {
 
   public static void writeTraceId(StreamingBuffer buf, DDTraceId traceId) {
     writeVarInt(buf, 16);
-    writeI64(buf, traceId.toLong());
-    writeI64(buf, traceId.toHighOrderLong());
+    buf.putLong(traceId.toHighOrderLong());
+    buf.putLong(traceId.toLong());
   }
 
   public static void writeSpanId(StreamingBuffer buf, long spanId) {
     writeVarInt(buf, 8);
-    writeI64(buf, spanId);
+    buf.putLong(spanId);
   }
 
   private static void writeSpanTag(StreamingBuffer buf, TagMap.EntryReader tagEntry) {
