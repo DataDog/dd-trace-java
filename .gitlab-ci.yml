@@ -837,21 +837,30 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
-.test_job_arm64_poc:
+.test_job_arm64:
   image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG}
   tags: [ "docker-in-docker:arm64" ]
   stage: tests
   needs: []
+  rules:
+    - if: $testJvm =~ $DEFAULT_TEST_JVMS
+      when: manual
+      allow_failure: true
   cache:
-    - key: dependency-arm64-base
+    - key: dependency-$CACHE_TYPE
       paths:
         - .gradle/wrapper
         - .gradle/caches
         - .gradle/notifications
         - .mvn/caches
       policy: pull
+      fallback_keys:
+        - dependency-base
+        - dependency-lib
       unprotect: true
   variables:
+    # arm64 docker image installs only these JVMs; override the global default regex.
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
     GRADLE_WORKERS: 6
     GRADLE_MEMORY_MIN: 1G
@@ -909,7 +918,7 @@ muzzle-dep-report:
       - data_integrity_failure
 
 .test_job_arm64_with_test_agent:
-  extends: .test_job_arm64_poc
+  extends: .test_job_arm64
   variables:
     CI_USE_TEST_AGENT: "true"
     CI_AGENT_HOST: local-agent
@@ -924,7 +933,7 @@ muzzle-dep-report:
         DD_DISABLE_ERROR_RESPONSES: "true"
         ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
   script:
-    - !reference [.test_job_arm64_poc, script]
+    - !reference [.test_job_arm64, script]
     - .gitlab/check_test_agent_results.sh
 
 .test_job_with_test_agent:
@@ -997,15 +1006,12 @@ test_base_windows21:
         - buildSrc/build/test-results/**/*.xml
 
 test_base_arm64:
-  extends: .test_job_arm64_poc
-  when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "21"
     GRADLE_TARGET: ":baseTest"
+    CACHE_TYPE: "base"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix_4
 
 test_inst:
   extends: .test_job_with_test_agent
@@ -1017,14 +1023,11 @@ test_inst:
 
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
-  when: manual
-  allow_failure: true
   variables:
-    testJvm: "21"
     GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix_8
 
 test_inst_latest:
   extends: .test_job_with_test_agent
@@ -1040,14 +1043,15 @@ test_inst_latest:
 
 test_inst_latest_arm64:
   extends: .test_job_arm64_with_test_agent
-  when: manual
-  allow_failure: true
   variables:
-    testJvm: "21"
     GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestdep"
   parallel:
     matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
 
 test_flaky:
   extends: .test_job_with_test_agent
@@ -1090,15 +1094,12 @@ test_profiling:
     matrix: *test_matrix
 
 test_profiling_arm64:
-  extends: .test_job_arm64_poc
-  when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "21"
     GRADLE_TARGET: ":profilingTest"
+    CACHE_TYPE: "profiling"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix
 
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
@@ -1112,15 +1113,12 @@ test_debugger:
     matrix: *test_matrix
 
 test_debugger_arm64:
-  extends: .test_job_arm64_poc
-  when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "21"
     GRADLE_TARGET: ":debuggerTest"
+    CACHE_TYPE: "base"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix
 
 test_smoke:
   extends: .test_job
@@ -1132,16 +1130,13 @@ test_smoke:
     matrix: *test_matrix_8
 
 test_smoke_arm64:
-  extends: .test_job_arm64_poc
-  when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "21"
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
+    CACHE_TYPE: "smoke"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix_8
 
 test_ssi_smoke:
   extends: .test_job
@@ -1155,19 +1150,14 @@ test_ssi_smoke:
     matrix: *test_matrix_8
 
 test_ssi_smoke_arm64:
-  extends: .test_job_arm64_poc
-  rules:
-    - if: $CI_COMMIT_BRANCH == "master"
-      when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "21"
     GRADLE_TARGET: "stageMainDist :smokeTest"
+    CACHE_TYPE: "smoke"
     DD_INJECT_FORCE: "true"
     DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+    matrix: *test_matrix_8
 
 test_smoke_graalvm:
   extends: .test_job
@@ -1182,16 +1172,14 @@ test_smoke_graalvm:
       - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_graalvm_arm64:
-  extends: .test_job_arm64_poc
-  when: manual
-  allow_failure: true
+  extends: .test_job_arm64
   variables:
-    testJvm: "graalvm21"
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
-    NON_DEFAULT_JVMS: "true"
+    CACHE_TYPE: "smoke"
+    CI_NO_SPLIT: "true"
   parallel:
     matrix:
-      - CI_SPLIT: [ "1/4", "2/4", "3/4", "4/4" ]
+      - testJvm: ["graalvm21"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job
