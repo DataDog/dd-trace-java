@@ -59,6 +59,7 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
       "datadog.trace.instrumentation.tomcat7.ParameterCollector",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorNoop",
       "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl",
+      "datadog.trace.instrumentation.tomcat7.ParameterCollector$ParameterCollectorImpl$CachedMethods",
     };
   }
 
@@ -86,7 +87,12 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
         RequestContext requestContext = agentSpan.getRequestContext();
         if (requestContext != null && requestContext.getData(RequestContextSlot.APPSEC) != null) {
           reqCtx = requestContext;
-          collector = new ParameterCollector.ParameterCollectorImpl();
+          boolean inspectContent =
+              AgentTracer.get()
+                      .getCallbackProvider(RequestContextSlot.APPSEC)
+                      .getCallback(EVENTS.requestFilesContent())
+                  != null;
+          collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
           return;
         }
       }
@@ -117,9 +123,8 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
             if (blockResponseFunction != null) {
               blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              if (t == null) {
-                t = new BlockingException("Blocked request (for Request/parseParts)");
-              }
+              t = new BlockingException("Blocked request (for Request/parseParts)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
           }
         }
@@ -138,8 +143,31 @@ public class ParsePartsInstrumentation extends InstrumenterModule.AppSec
             BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
             if (brf != null) {
               brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              t = new BlockingException("Blocked request (multipart file upload)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
-            t = new BlockingException("Blocked request (multipart file upload)");
+          }
+        }
+      }
+
+      if (t == null) {
+        List<String> contents = collector.getContents();
+        if (!contents.isEmpty()) {
+          BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+              cbp.getCallback(EVENTS.requestFilesContent());
+          if (contentCb != null) {
+            Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
+            Flow.Action contentAction = contentFlow.getAction();
+            if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+              Flow.Action.RequestBlockingAction rba =
+                  (Flow.Action.RequestBlockingAction) contentAction;
+              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+              if (brf != null) {
+                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+                t = new BlockingException("Blocked request (multipart file upload content)");
+                reqCtx.getTraceSegment().effectivelyBlocked();
+              }
+            }
           }
         }
       }

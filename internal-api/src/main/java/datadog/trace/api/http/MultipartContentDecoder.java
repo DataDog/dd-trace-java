@@ -1,5 +1,7 @@
 package datadog.trace.api.http;
 
+import java.io.IOException;
+import java.io.InputStream;
 import java.nio.ByteBuffer;
 import java.nio.charset.CharacterCodingException;
 import java.nio.charset.Charset;
@@ -7,6 +9,17 @@ import java.nio.charset.CodingErrorAction;
 
 /** Decodes multipart file content bytes to String using the per-part Content-Type charset. */
 public final class MultipartContentDecoder {
+
+  public static String readInputStream(InputStream is, int maxBytes, String contentType)
+      throws IOException {
+    byte[] buf = new byte[maxBytes];
+    int total = 0;
+    int n;
+    while (total < maxBytes && (n = is.read(buf, total, maxBytes - total)) != -1) {
+      total += n;
+    }
+    return decodeBytes(buf, total, contentType);
+  }
 
   public static String decodeBytes(byte[] buf, int length, String contentType) {
     Charset charset = extractCharset(contentType);

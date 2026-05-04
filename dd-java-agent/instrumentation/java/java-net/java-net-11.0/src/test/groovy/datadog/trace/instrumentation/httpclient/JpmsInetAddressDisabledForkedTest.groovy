@@ -16,7 +16,7 @@ class JpmsInetAddressDisabledForkedTest extends InstrumentationSpecification {
     // Disable the JPMS instrumentation so java.net is NOT opened for deep reflection.
     // HostNameResolver will be unable to bypass the IP→hostname cache and will fall back
     // to the cache keyed by IP address.
-    injectSysConfig("dd.trace.java-net.enabled", "false")
+    injectSysConfig("dd.trace.java-module.enabled", "false")
   }
 
   /**

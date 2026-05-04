@@ -52,10 +52,10 @@ experiments:
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:tracing:Agent.start"
             thresholds:
-              - execution_time < 1194.03 ms
+              - execution_time < 1255.96 ms # generated with --significant-impact-threshold 0.15
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:(profiling|appsec|iast):Agent.start"
             thresholds:
-              - execution_time < 1442.46 ms
+              - execution_time < 1483.46 ms # generated with --significant-impact-threshold 0.15

@@ -26,7 +26,7 @@ public final class CrashTrackingConfig {
 
   public static final String CRASH_TRACKING_ERRORS_INTAKE_ENABLED =
       "crashtracking.errors-intake.enabled";
-  public static final boolean CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT = false;
+  public static final boolean CRASH_TRACKING_ERRORS_INTAKE_ENABLED_DEFAULT = true;
 
   public static final String CRASH_TRACKING_EXTENDED_INFO_ENABLED =
       "crashtracking.extended-info.enabled";
