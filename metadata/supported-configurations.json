@@ -7865,6 +7865,14 @@
         "aliases": ["DD_TRACE_INTEGRATION_LIBERTY_ENABLED", "DD_INTEGRATION_LIBERTY_ENABLED"]
       }
     ],
+    "DD_TRACE_LOCK_SUPPORT_PROFILING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_LOCK_SUPPORT_PROFILING_ENABLED", "DD_INTEGRATION_LOCK_SUPPORT_PROFILING_ENABLED"]
+      }
+    ],
     "DD_TRACE_LOG4J_1_ENABLED": [
       {
         "version": "A",
@@ -8287,6 +8295,14 @@
         "type": "string",
         "default": null,
         "aliases": ["DD_OBFUSCATION_QUERY_STRING_REGEXP"]
+      }
+    ],
+    "DD_TRACE_OBJECT_WAIT_PROFILING_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_OBJECT_WAIT_PROFILING_ENABLED", "DD_INTEGRATION_OBJECT_WAIT_PROFILING_ENABLED"]
       }
     ],
     "DD_TRACE_OGNL_ENABLED": [
