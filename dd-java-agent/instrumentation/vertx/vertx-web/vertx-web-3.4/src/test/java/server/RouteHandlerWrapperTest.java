@@ -1,6 +1,13 @@
 package server;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
+import static org.mockito.Mockito.when;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -10,11 +17,8 @@ import io.vertx.core.http.HttpServerRequest;
 import io.vertx.ext.web.Route;
 import io.vertx.ext.web.RoutingContext;
 import java.lang.reflect.InvocationHandler;
-import java.lang.reflect.Method;
 import java.lang.reflect.Proxy;
-import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
 
@@ -22,168 +26,162 @@ class RouteHandlerWrapperTest {
 
   @Test
   void updateRouteWritesRouteToBothSpans() {
-    RecordingProxy<RoutingContext> context = RecordingProxy.of(RoutingContext.class);
-    RecordingProxy<HttpServerRequest> request = RecordingProxy.of(HttpServerRequest.class);
-    RecordingProxy<Route> route = RecordingProxy.of(Route.class);
-    RecordingProxy<AgentSpan> parentSpan = RecordingProxy.of(AgentSpan.class);
-    RecordingProxy<AgentSpan> handlerSpan = RecordingProxy.of(AgentSpan.class);
-    route.returns("getPath", "/items/:id");
-    context.returns("mountPoint", null);
-    context.returns("request", request.instance);
-    request.returns("path", "/items/123");
-    request.returns("rawMethod", "GET");
-    context.returns("get", null);
-    handlerSpan.returns("getSpanName", "vertx.route-handler");
-    handlerSpan.returns("getResourceNamePriority", Byte.MIN_VALUE);
+    TestRoutingContext context = new TestRoutingContext("/items/123", "GET").route("/items/:id");
+    AgentSpan parentSpan = mock(AgentSpan.class);
+    AgentSpan handlerSpan = mock(AgentSpan.class);
+    when(handlerSpan.getSpanName()).thenReturn("vertx.route-handler");
+    when(handlerSpan.getResourceNamePriority()).thenReturn(Byte.MIN_VALUE);
 
     RouteUpdateHelper.updateRouteFromMatchedRoute(
-        context.instance, route.instance, parentSpan.instance, handlerSpan.instance);
+        context.instance(), context.route(), parentSpan, handlerSpan);
 
-    assertEquals(1, route.count("getPath"));
-    assertEquals(1, context.count("mountPoint"));
-    assertEquals(2, context.count("request"));
-    assertEquals(1, request.count("path"));
-    assertEquals(1, request.count("rawMethod"));
-    assertEquals(1, context.count("get", "dd." + Tags.HTTP_ROUTE));
-    assertEquals(1, context.count("put", "dd.vertx.matched_route", "/items/:id"));
-    assertEquals(1, context.count("put", "dd." + Tags.HTTP_ROUTE, "/items/:id"));
-    assertEquals(1, parentSpan.count("setTag", Tags.HTTP_ROUTE, "/items/:id"));
-    assertEquals(
-        1,
-        parentSpan.count(
-            "setResourceName", "GET /items/:id", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
-    assertEquals(1, handlerSpan.count("getSpanName"));
-    assertEquals(1, handlerSpan.count("getResourceNamePriority"));
-    assertEquals(1, handlerSpan.count("setTag", Tags.HTTP_ROUTE, "/items/:id"));
-    assertEquals(
-        1,
-        handlerSpan.count(
-            "setResourceName", "GET /items/:id", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
+    context.verify("dd.vertx.matched_route", "/items/:id");
+    context.verify("dd." + Tags.HTTP_ROUTE, "/items/:id");
+    verify(parentSpan).setTag(Tags.HTTP_ROUTE, (CharSequence) "/items/:id");
+    verify(parentSpan)
+        .setResourceName(any(CharSequence.class), eq(ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
+    verify(handlerSpan).getSpanName();
+    verify(handlerSpan).getResourceNamePriority();
+    verify(handlerSpan).setTag(Tags.HTTP_ROUTE, (CharSequence) "/items/:id");
+    verify(handlerSpan)
+        .setResourceName(any(CharSequence.class), eq(ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
+    verifyNoMoreInteractions(parentSpan, handlerSpan);
   }
 
   @Test
   void updateRouteDoesNotWriteRouteToNonVertxHandlerSpan() {
-    RecordingProxy<RoutingContext> context = RecordingProxy.of(RoutingContext.class);
-    RecordingProxy<HttpServerRequest> request = RecordingProxy.of(HttpServerRequest.class);
-    RecordingProxy<Route> route = RecordingProxy.of(Route.class);
-    RecordingProxy<AgentSpan> parentSpan = RecordingProxy.of(AgentSpan.class);
-    RecordingProxy<AgentSpan> handlerSpan = RecordingProxy.of(AgentSpan.class);
-    route.returns("getPath", "/items/:id");
-    context.returns("mountPoint", null);
-    context.returns("request", request.instance);
-    request.returns("path", "/items/123");
-    request.returns("rawMethod", "GET");
-    context.returns("get", null);
-    handlerSpan.returns("getSpanName", "some.other.span");
+    TestRoutingContext context = new TestRoutingContext("/items/123", "GET").route("/items/:id");
+    AgentSpan parentSpan = mock(AgentSpan.class);
+    AgentSpan handlerSpan = mock(AgentSpan.class);
+    when(handlerSpan.getSpanName()).thenReturn("some.other.span");
 
     RouteUpdateHelper.updateRouteFromMatchedRoute(
-        context.instance, route.instance, parentSpan.instance, handlerSpan.instance);
+        context.instance(), context.route(), parentSpan, handlerSpan);
 
-    assertEquals(1, route.count("getPath"));
-    assertEquals(1, context.count("mountPoint"));
-    assertEquals(2, context.count("request"));
-    assertEquals(1, request.count("path"));
-    assertEquals(1, request.count("rawMethod"));
-    assertEquals(1, context.count("get", "dd." + Tags.HTTP_ROUTE));
-    assertEquals(1, context.count("put", "dd.vertx.matched_route", "/items/:id"));
-    assertEquals(1, context.count("put", "dd." + Tags.HTTP_ROUTE, "/items/:id"));
-    assertEquals(1, parentSpan.count("setTag", Tags.HTTP_ROUTE, "/items/:id"));
-    assertEquals(
-        1,
-        parentSpan.count(
-            "setResourceName", "GET /items/:id", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
-    assertEquals(1, handlerSpan.count("getSpanName"));
-    assertEquals(0, handlerSpan.count("setTag"));
-    assertEquals(0, handlerSpan.count("setResourceName"));
+    context.verify("dd.vertx.matched_route", "/items/:id");
+    context.verify("dd." + Tags.HTTP_ROUTE, "/items/:id");
+    verify(parentSpan).setTag(Tags.HTTP_ROUTE, (CharSequence) "/items/:id");
+    verify(parentSpan)
+        .setResourceName(any(CharSequence.class), eq(ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE));
+    verify(handlerSpan).getSpanName();
+    verify(handlerSpan, never()).setTag(any(String.class), any(CharSequence.class));
+    verifyNoMoreInteractions(parentSpan, handlerSpan);
   }
 
   @Test
   void updateRouteDoesNotReplaceRootRouteWhenOneExists() {
-    RecordingProxy<RoutingContext> context = RecordingProxy.of(RoutingContext.class);
-    RecordingProxy<HttpServerRequest> request = RecordingProxy.of(HttpServerRequest.class);
-    RecordingProxy<Route> route = RecordingProxy.of(Route.class);
-    RecordingProxy<AgentSpan> parentSpan = RecordingProxy.of(AgentSpan.class);
-    RecordingProxy<AgentSpan> handlerSpan = RecordingProxy.of(AgentSpan.class);
-    route.returns("getPath", "/");
-    context.returns("mountPoint", null);
-    context.returns("request", request.instance);
-    request.returns("path", "/");
-    request.returns("rawMethod", "GET");
-    context.returns("get", null);
-    parentSpan.returns("getTag", "/existing");
+    TestRoutingContext context = new TestRoutingContext("/", "GET").route("/");
+    AgentSpan parentSpan = mock(AgentSpan.class);
+    AgentSpan handlerSpan = mock(AgentSpan.class);
+    when(parentSpan.getTag(Tags.HTTP_ROUTE)).thenReturn("/existing");
 
     RouteUpdateHelper.updateRouteFromMatchedRoute(
-        context.instance, route.instance, parentSpan.instance, handlerSpan.instance);
+        context.instance(), context.route(), parentSpan, handlerSpan);
 
-    assertEquals(1, route.count("getPath"));
-    assertEquals(1, context.count("mountPoint"));
-    assertEquals(2, context.count("request"));
-    assertEquals(1, request.count("path"));
-    assertEquals(1, request.count("rawMethod"));
-    assertEquals(1, context.count("get", "dd." + Tags.HTTP_ROUTE));
-    assertEquals(1, context.count("put", "dd.vertx.matched_route", "/"));
-    assertEquals(1, parentSpan.count("getTag", Tags.HTTP_ROUTE));
-    assertEquals(0, context.count("put", "dd." + Tags.HTTP_ROUTE, "/"));
-    assertEquals(0, parentSpan.count("setTag"));
-    assertEquals(0, handlerSpan.count("setTag"));
+    context.verify("dd.vertx.matched_route", "/");
+    context.verifyUnset("dd." + Tags.HTTP_ROUTE);
+    verify(parentSpan).getTag(Tags.HTTP_ROUTE);
+    verify(parentSpan, never()).setTag(any(String.class), any(CharSequence.class));
+    verify(handlerSpan, never()).setTag(any(String.class), any(CharSequence.class));
+    verifyNoMoreInteractions(parentSpan, handlerSpan);
   }
 
-  private static final class RecordingProxy<T> implements InvocationHandler {
-    private final Map<String, Object> returnValues = new HashMap<>();
-    private final List<Call> calls = new ArrayList<>();
-    private final T instance;
+  @Test
+  void updateRouteIgnoresUnavailableCurrentRouteFallback() {
+    TestRoutingContext context = new TestRoutingContext("/items/123", "GET");
+    context.currentRouteFailure = new NullPointerException("currentRoute");
+    AgentSpan parentSpan = mock(AgentSpan.class);
+    AgentSpan handlerSpan = mock(AgentSpan.class);
 
-    private RecordingProxy(Class<T> type) {
-      this.instance =
-          type.cast(Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] {type}, this));
+    assertDoesNotThrow(
+        () ->
+            RouteUpdateHelper.updateRouteFromMatchedRoute(
+                context.instance(), new Object(), parentSpan, handlerSpan));
+
+    context.verifyUnset("dd." + Tags.HTTP_ROUTE);
+    verifyNoMoreInteractions(parentSpan, handlerSpan);
+  }
+
+  private static final class TestRoutingContext implements InvocationHandler {
+    private final RoutingContext instance;
+    private final HttpServerRequest request;
+    private final Map<String, Object> data = new HashMap<>();
+    private String routePath;
+    private RuntimeException currentRouteFailure;
+
+    private TestRoutingContext(String requestPath, String rawMethod) {
+      this.instance = proxy(RoutingContext.class, this);
+      this.request = request(requestPath, rawMethod);
     }
 
-    static <T> RecordingProxy<T> of(Class<T> type) {
-      return new RecordingProxy<T>(type);
+    private TestRoutingContext route(String routePath) {
+      this.routePath = routePath;
+      return this;
     }
 
-    void returns(String method, Object value) {
-      returnValues.put(method, value);
+    private RoutingContext instance() {
+      return instance;
     }
 
-    int count(String method, Object... args) {
-      int count = 0;
-      for (Call call : calls) {
-        if (call.matches(method, args)) {
-          count++;
-        }
-      }
-      return count;
+    private Route route() {
+      return routePath == null ? null : routeProxy(routePath);
+    }
+
+    private void verify(String key, Object value) {
+      org.junit.jupiter.api.Assertions.assertEquals(value, data.get(key));
+    }
+
+    private void verifyUnset(String key) {
+      org.junit.jupiter.api.Assertions.assertFalse(data.containsKey(key));
     }
 
     @Override
-    public Object invoke(Object proxy, Method method, Object[] args) {
-      if (method.getDeclaringClass() == Object.class) {
-        return invokeObjectMethod(proxy, method, args);
+    public Object invoke(Object proxy, java.lang.reflect.Method method, Object[] args) {
+      switch (method.getName()) {
+        case "mountPoint":
+          return null;
+        case "request":
+          return request;
+        case "currentRoute":
+          if (currentRouteFailure != null) {
+            throw currentRouteFailure;
+          }
+          return route();
+        case "get":
+          return data.get(args[0]);
+        case "put":
+          data.put((String) args[0], args[1]);
+          return proxy;
+        default:
+          return defaultValue(method.getReturnType());
       }
-      Object[] arguments = args == null ? new Object[0] : args;
-      calls.add(new Call(method.getName(), arguments));
-      if (returnValues.containsKey(method.getName())) {
-        return returnValues.get(method.getName());
-      }
-      Class<?> returnType = method.getReturnType();
-      if (returnType.isInstance(proxy)) {
-        return proxy;
-      }
-      return defaultValue(returnType);
     }
 
-    private static Object invokeObjectMethod(Object proxy, Method method, Object[] args) {
-      if ("toString".equals(method.getName())) {
-        return proxy.getClass().getInterfaces()[0].getName() + " proxy";
-      }
-      if ("hashCode".equals(method.getName())) {
-        return System.identityHashCode(proxy);
-      }
-      if ("equals".equals(method.getName())) {
-        return proxy == args[0];
-      }
-      throw new UnsupportedOperationException(method.getName());
+    private static HttpServerRequest request(String path, String rawMethod) {
+      return proxy(
+          HttpServerRequest.class,
+          (proxy, method, args) -> {
+            switch (method.getName()) {
+              case "path":
+                return path;
+              case "rawMethod":
+                return rawMethod;
+              default:
+                return defaultValue(method.getReturnType());
+            }
+          });
+    }
+
+    private static Route routeProxy(String path) {
+      return proxy(
+          Route.class,
+          (proxy, method, args) ->
+              "getPath".equals(method.getName()) ? path : defaultValue(method.getReturnType()));
+    }
+
+    private static <T> T proxy(Class<T> type, InvocationHandler handler) {
+      return type.cast(
+          Proxy.newProxyInstance(type.getClassLoader(), new Class<?>[] {type}, handler));
     }
 
     private static Object defaultValue(Class<?> type) {
@@ -215,35 +213,6 @@ class RouteHandlerWrapperTest {
         return (char) 0;
       }
       return null;
-    }
-  }
-
-  private static final class Call {
-    private final String method;
-    private final Object[] args;
-
-    private Call(String method, Object[] args) {
-      this.method = method;
-      this.args = args;
-    }
-
-    private boolean matches(String method, Object[] args) {
-      if (!this.method.equals(method) || this.args.length != args.length) {
-        return false;
-      }
-      for (int i = 0; i < args.length; i++) {
-        if (!argumentMatches(this.args[i], args[i])) {
-          return false;
-        }
-      }
-      return true;
-    }
-
-    private static boolean argumentMatches(Object actual, Object expected) {
-      if (actual instanceof CharSequence && expected instanceof CharSequence) {
-        return actual.toString().contentEquals((CharSequence) expected);
-      }
-      return java.util.Objects.equals(actual, expected);
     }
   }
 }

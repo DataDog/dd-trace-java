@@ -21,8 +21,11 @@ public final class RouteUpdateHelper {
       final RoutingContext routingContext,
       final AgentSpan parentSpan,
       final AgentSpan handlerSpan) {
-    final Route currentRoute = routingContext.currentRoute();
-    if (currentRoute == null) {
+    Route currentRoute;
+    try {
+      currentRoute = routingContext.currentRoute();
+    } catch (final RuntimeException ignored) {
+      // Vert.x can call RouteState.matches before currentRoute is set on the context.
       return;
     }
     final String contextRoute = routePath(routingContext, currentRoute.getPath());
