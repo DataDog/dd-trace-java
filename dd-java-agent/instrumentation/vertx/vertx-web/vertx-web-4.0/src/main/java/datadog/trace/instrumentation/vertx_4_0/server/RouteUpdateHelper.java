@@ -24,6 +24,9 @@ public final class RouteUpdateHelper {
     Route currentRoute;
     try {
       currentRoute = routingContext.currentRoute();
+      if (currentRoute == null) {
+        return;
+      }
     } catch (final RuntimeException ignored) {
       // Vert.x can call RouteState.matches before currentRoute is set on the context.
       return;

@@ -105,6 +105,21 @@ class RouteHandlerWrapperTest {
     verifyNoMoreInteractions(parentSpan, handlerSpan);
   }
 
+  @Test
+  void updateRouteIgnoresNullCurrentRouteFallback() {
+    TestRoutingContext context = new TestRoutingContext("/items/123", HttpMethod.GET);
+    AgentSpan parentSpan = mock(AgentSpan.class);
+    AgentSpan handlerSpan = mock(AgentSpan.class);
+
+    assertDoesNotThrow(
+        () ->
+            RouteUpdateHelper.updateRouteFromMatchedRoute(
+                context.instance(), new Object(), parentSpan, handlerSpan));
+
+    context.verifyUnset("dd." + Tags.HTTP_ROUTE);
+    verifyNoMoreInteractions(parentSpan, handlerSpan);
+  }
+
   private static final class TestRoutingContext implements InvocationHandler {
     private final RoutingContext instance;
     private final HttpServerRequest request;
