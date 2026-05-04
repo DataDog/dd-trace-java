@@ -90,7 +90,7 @@ public class TracingIterator<L extends Iterator<Message>> implements Iterator<Me
             if (timeInQueueStart > 0) {
               queueSpan =
                   startSpan(
-                      "aws-sdk",
+                      COMPONENT_NAME.toString(),
                       SQS_TIME_IN_QUEUE_OPERATION,
                       spanContext,
                       MILLISECONDS.toMicros(timeInQueueStart));
