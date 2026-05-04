@@ -62,4 +62,3 @@ jobs:
         with:
           branch: cloudfoundry
           command: push
-          commits: "${{ steps.create-commit.outputs.commit }}"
