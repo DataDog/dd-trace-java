@@ -15,6 +15,13 @@ muzzle {
     extraDependency 'org.apache.tomcat:tomcat-catalina:7.0.4'
     assertInverse = true
   }
+  pass {
+    name = 'glassfish'
+    group = 'org.glassfish.main.extras'
+    module = 'glassfish-embedded-all'
+    versions = '[4.0,]'
+    skipVersions += '6.1.0'
+  }
 }
 
 apply from: "$rootDir/gradle/java.gradle"

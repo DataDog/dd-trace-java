@@ -24,8 +24,8 @@ import net.bytebuddy.asm.Advice;
 /**
  * GlassFish/Payara does not have {@code Request.parseParts()} — instead {@code Request.getParts()}
  * delegates to {@code org.apache.catalina.fileupload.Multipart.getParts()}. This instrumentation
- * hooks that GlassFish-specific class to report uploaded file names to the AppSec WAF via the
- * {@code requestFilesFilenames} IG event.
+ * hooks that GlassFish-specific class to report uploaded file names and contents to the AppSec WAF
+ * via the {@code requestFilesFilenames} and {@code requestFilesContent} IG events.
  *
  * <p>Because {@code org.apache.catalina.fileupload.Multipart} does not exist in standard Tomcat,
  * this instrumentation is automatically skipped by ByteBuddy on non-GlassFish containers.
@@ -36,6 +36,11 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
   public GlassFishMultipartInstrumentation() {
     super("tomcat");
+  }
+
+  @Override
+  public String muzzleDirective() {
+    return "glassfish";
   }
 
   @Override
@@ -61,6 +66,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
   }
 
   public static class GetPartsAdvice {
+
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.Return Collection<?> parts, @Advice.Thrown(readOnly = false) Throwable t) {
@@ -77,18 +83,13 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      ParameterCollector collector =
-          new ParameterCollector.ParameterCollectorImpl(
-              AgentTracer.get()
-                      .getCallbackProvider(RequestContextSlot.APPSEC)
-                      .getCallback(EVENTS.requestFilesContent())
-                  != null);
+      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
+      boolean inspectContent = cbp.getCallback(EVENTS.requestFilesContent()) != null;
 
+      ParameterCollector collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
       for (Object part : parts) {
         collector.addPart(part);
       }
-
-      CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
 
       List<String> filenames = collector.getFilenames();
       if (!filenames.isEmpty()) {
