@@ -166,6 +166,38 @@ class OpenTelemetryMetricsTest extends AbstractInstrumentationTest {
   }
 
   @Test
+  void testLongHistogramOverflow() {
+    io.opentelemetry.api.metrics.LongHistogram histogram =
+        meter.histogramBuilder("long-histogram-overflow").ofLongs().build();
+    histogram.record(20_000); // exceeds highest default boundary of 10_000
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(
+        new HistogramData(
+            1.0,
+            Arrays.asList(10_000.0, Double.POSITIVE_INFINITY),
+            Arrays.asList(0.0, 1.0),
+            20_000.0),
+        points.get("test:long-histogram-overflow"));
+  }
+
+  @Test
+  void testDoubleHistogramOverflow() {
+    io.opentelemetry.api.metrics.DoubleHistogram histogram =
+        meter.histogramBuilder("double-histogram-overflow").build();
+    histogram.record(20_000.5); // exceeds highest default boundary of 10_000
+    OtelMetricRegistry.INSTANCE.collectMetrics(meterReader);
+
+    assertEquals(
+        new HistogramData(
+            1.0,
+            Arrays.asList(10_000.0, Double.POSITIVE_INFINITY),
+            Arrays.asList(0.0, 1.0),
+            20_000.5),
+        points.get("test:double-histogram-overflow"));
+  }
+
+  @Test
   void testObservableLongCounter() {
     AutoCloseable observable =
         meter
