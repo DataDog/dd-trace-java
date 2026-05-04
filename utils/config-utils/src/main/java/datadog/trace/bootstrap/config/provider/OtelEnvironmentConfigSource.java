@@ -9,8 +9,12 @@ import static datadog.trace.api.config.GeneralConfig.RUNTIME_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
@@ -221,6 +225,17 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
   }
 
   private void setupLogsOtelEnvironment() {
+    capture(
+        LOGS_OTEL_INTERVAL,
+        getOtelProperty("otel.blrp.schedule.delay", "dd." + LOGS_OTEL_INTERVAL));
+    capture(
+        LOGS_OTEL_TIMEOUT, getOtelProperty("otel.blrp.export.timeout", "dd." + LOGS_OTEL_TIMEOUT));
+    capture(
+        LOGS_OTEL_QUEUE_SIZE,
+        getOtelProperty("otel.blrp.max.queue.size", "dd." + LOGS_OTEL_QUEUE_SIZE));
+    capture(
+        LOGS_OTEL_BATCH_SIZE,
+        getOtelProperty("otel.blrp.max.export.batch.size", "dd." + LOGS_OTEL_BATCH_SIZE));
     String exporter = getOtelProperty("otel.logs.exporter");
     if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // logs defaults to OTLP
       capture(LOGS_OTEL_EXPORTER, "otlp");

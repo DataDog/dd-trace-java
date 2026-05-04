@@ -723,8 +723,9 @@ class OtlpTraceProtoTest {
         assertNotNull(parsedTraceId, "trace_id must be present in every span");
         assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes");
         assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes");
-        parsedSpanIds.add(readLittleEndianLong(parsedSpanId));
-        parsedTraceIds.add(readLittleEndianLong(parsedTraceId));
+        parsedSpanIds.add(readBigEndianLong(parsedSpanId));
+        // low-order part of traceId occupies parsedTraceId[8..15] (big-endian)
+        parsedTraceIds.add(readBigEndianLong(copyOfRange(parsedTraceId, 8, 16)));
       } else {
         ss.skipField(ssTag);
       }
@@ -964,8 +965,8 @@ class OtlpTraceProtoTest {
     assertNotNull(parsedTraceId, "trace_id must be present [" + caseName + "]");
     assertEquals(16, parsedTraceId.length, "trace_id must be 16 bytes [" + caseName + "]");
     if (spec.use128BitTraceId) {
-      // high-order bytes occupy parsedTraceId[8..15] (little-endian in the wire format)
-      long highOrderBytes = readLittleEndianLong(copyOfRange(parsedTraceId, 8, 16));
+      // high-order part of traceId occupies parsedTraceId[0..7] (big-endian)
+      long highOrderBytes = readBigEndianLong(parsedTraceId);
       assertNotEquals(
           0L,
           highOrderBytes,
@@ -976,9 +977,7 @@ class OtlpTraceProtoTest {
     assertNotNull(parsedSpanId, "span_id must be present [" + caseName + "]");
     assertEquals(8, parsedSpanId.length, "span_id must be 8 bytes [" + caseName + "]");
     assertEquals(
-        span.getSpanId(),
-        readLittleEndianLong(parsedSpanId),
-        "span_id mismatch [" + caseName + "]");
+        span.getSpanId(), readBigEndianLong(parsedSpanId), "span_id mismatch [" + caseName + "]");
 
     // ── parent_span_id (field 4) ──────────────────────────────────────────────
     if (spec.parentIndex >= 0) {
@@ -988,14 +987,14 @@ class OtlpTraceProtoTest {
           8, parsedParentSpanId.length, "parent_span_id must be 8 bytes [" + caseName + "]");
       assertEquals(
           span.getParentId(),
-          readLittleEndianLong(parsedParentSpanId),
+          readBigEndianLong(parsedParentSpanId),
           "parent_span_id mismatch [" + caseName + "]");
     } else {
       // root spans either omit the field or write zero bytes
       if (parsedParentSpanId != null) {
         assertEquals(
             0L,
-            readLittleEndianLong(parsedParentSpanId),
+            readBigEndianLong(parsedParentSpanId),
             "root span parent_span_id must be zero [" + caseName + "]");
       }
     }
@@ -1191,10 +1190,10 @@ class OtlpTraceProtoTest {
     return key;
   }
 
-  /** Reads a little-endian 64-bit integer from the first 8 bytes of the given array. */
-  private static long readLittleEndianLong(byte[] bytes) {
+  /** Reads a big-endian 64-bit value from the first 8 bytes of the given array. */
+  private static long readBigEndianLong(byte[] bytes) {
     long value = 0;
-    for (int i = 7; i >= 0; i--) {
+    for (int i = 0; i < 8; i++) {
       value = (value << 8) | (bytes[i] & 0xFF);
     }
     return value;
