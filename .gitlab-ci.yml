@@ -9,16 +9,16 @@ include:
     ref: 'main'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
-    ref: 'sarahchen6/add-pr-comment-jobs'
+    ref: 'main'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-startup-parallel.yml'
-    ref: 'sarahchen6/add-pr-comment-jobs'
+    ref: 'main'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
-    ref: 'sarahchen6/add-pr-comment-jobs'
+    ref: 'main'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: 'sarahchen6/add-pr-comment-jobs'
+    ref: 'main'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
