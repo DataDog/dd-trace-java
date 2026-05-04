@@ -284,6 +284,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     captureApplicationParameters(builder);
     captureEmrStepId(builder);
+    captureOpenlineageJobInfo(builder);
 
     Optional<OpenlineageParentContext> openlineageParentContext =
         OpenlineageParentContext.from(sparkConf);
@@ -297,6 +298,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     applicationSpan = builder.start();
     setDataJobsSamplingPriority(applicationSpan);
     applicationSpan.setMeasured(true);
+  }
+
+  private void captureOpenlineageJobInfo(AgentTracer.SpanBuilder builder) {
+    String olAppName = sparkConf.get("spark.openlineage.appName", null);
+    if (olAppName != null) {
+      builder.withTag("spark.openlineage.appName", olAppName);
+    }
   }
 
   private void captureOpenlineageContextIfPresent(
