@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.otel.logs.data;
 
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
@@ -10,7 +11,6 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
 import java.util.Queue;
 import java.util.WeakHashMap;
 import java.util.concurrent.ArrayBlockingQueue;
@@ -18,7 +18,8 @@ import java.util.function.BiConsumer;
 
 /** Processes log records, grouping them by instrumentation scope. */
 public final class OtelLogRecordProcessor {
-  public static final OtelLogRecordProcessor INSTANCE = new OtelLogRecordProcessor();
+  private static final int MAX_QUEUE_SIZE = Config.get().getLogsOtelQueueSize();
+  private static final int MAX_BATCH_SIZE = Config.get().getLogsOtelBatchSize();
 
   private static final Comparator<OtlpLogRecord> BY_SCOPE =
       Comparator.comparing(o -> o.instrumentationScope);
@@ -26,7 +27,9 @@ public final class OtelLogRecordProcessor {
   private static final Map<ClassLoader, BiConsumer<Map<?, ?>, OtlpAttributeVisitor>>
       ATTRIBUTE_READERS = Collections.synchronizedMap(new WeakHashMap<>());
 
-  private final Queue<OtlpLogRecord> queue = new ArrayBlockingQueue<>(2048);
+  public static final OtelLogRecordProcessor INSTANCE = new OtelLogRecordProcessor();
+
+  private final Queue<OtlpLogRecord> queue = new ArrayBlockingQueue<>(MAX_QUEUE_SIZE);
 
   public void addLog(OtlpLogRecord logRecord) {
     queue.offer(logRecord);
@@ -46,7 +49,7 @@ public final class OtelLogRecordProcessor {
       if (!attributes.isEmpty()) {
         ClassLoader cl = getAttributesClassLoader(attributes);
         // avoid repeated lookups when attribute class-loader is same for all records
-        if (attributesReader == null || !Objects.equals(cl, attributesClassLoader)) {
+        if (attributesReader == null || cl != attributesClassLoader) {
           attributesReader = ATTRIBUTE_READERS.get(cl);
           attributesClassLoader = cl;
         }
@@ -70,7 +73,7 @@ public final class OtelLogRecordProcessor {
 
   private List<OtlpLogRecord> batchByScope() {
     // capture expected batch size; records emitted after here go into next batch
-    int batchSize = queue.size();
+    int batchSize = Math.min(queue.size(), MAX_BATCH_SIZE);
     List<OtlpLogRecord> batch = new ArrayList<>(batchSize);
     for (int i = 0; i < batchSize; i++) {
       OtlpLogRecord logRecord = queue.poll();

@@ -109,6 +109,10 @@ public final class OtlpCommonProto {
     writeString(buf, value.getBytes(UTF_8));
   }
 
+  public static void writeStringCached(StreamingBuffer buf, String value) {
+    writeString(buf, valueUtf8(value));
+  }
+
   public static int sizeTag(int fieldNum) {
     return sizeVarInt(fieldNum << 3);
   }

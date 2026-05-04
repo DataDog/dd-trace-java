@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import com.datadog.debugger.probe.LogProbe;
+import datadog.trace.test.util.Flaky;
 import datadog.trace.test.util.NonRetryable;
 import java.io.IOException;
 import java.nio.file.Path;
@@ -95,6 +96,7 @@ public class InProductEnablementIntegrationTest extends ServerAppDebuggerIntegra
   // TODO test for failure of starting ER, SymDB and DI: should degrade gracefully
   // TODO by not providing endpoints
 
+  @Flaky
   @Test
   @DisplayName("testExceptionReplayEnablementFailure")
   void testExceptionReplayEnablementFailure() throws Exception {

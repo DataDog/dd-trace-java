@@ -589,6 +589,9 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
+    public void flushLogs() {}
+
+    @Override
     public ProfilingContextIntegration getProfilingContext() {
       return ProfilingContextIntegration.NoOp.INSTANCE;
     }
