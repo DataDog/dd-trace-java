@@ -886,6 +886,14 @@ muzzle-dep-report:
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
       EOF
     - mkdir -p .gradle .mvn/caches
+    # The `dependency-$CACHE_TYPE` cache is populated by amd64's `populate_dep_cache`
+    # (running as root). arm64 runs as `non-root-user`, so when Gradle does `chmod 700`
+    # on the restored .gradle directory it fails with EPERM. Rewrite the tree under
+    # the runner user's ownership before invoking Gradle. Mirrors the dance in
+    # `.gradle_build` (.gitlab-ci.yml:239-247).
+    - cp -r .gradle .gradle-copy
+    - rm -rf .gradle
+    - mv .gradle-copy .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - *normalize_node_index
