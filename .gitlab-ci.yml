@@ -34,6 +34,7 @@ stages:
   - benchmarks
   - macrobenchmarks
   - tests
+  - tests-arm64
   - test-summary
   - exploration-tests
   - ci-visibility-tests
@@ -840,7 +841,7 @@ muzzle-dep-report:
 .test_job_arm64:
   image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG}
   tags: [ "docker-in-docker:arm64" ]
-  stage: tests
+  stage: tests-arm64
   needs: []
   rules:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
