@@ -5,6 +5,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public abstract class TestStringConcatFactorySuite {
+
   private static final Logger LOGGER = LoggerFactory.getLogger(TestStringConcatFactorySuite.class);
 
   private TestStringConcatFactorySuite() {}
@@ -32,8 +33,7 @@ public abstract class TestStringConcatFactorySuite {
 
   public static String plusWithUtfConstants(final String left, final String right) {
     LOGGER.debug("Before string plus {} {}", left, right);
-    // 𠆢 + left + ...
-    final String result = "\uD840\uDDA2" + left + "\uD840\uDDA2\u0001\uD840\uDDA2" + right + ".";
+    final String result = "𠆢" + left + "𠆢\u0001𠆢" + right + ".";
     LOGGER.debug("After string plus {}", result);
     return result;
   }

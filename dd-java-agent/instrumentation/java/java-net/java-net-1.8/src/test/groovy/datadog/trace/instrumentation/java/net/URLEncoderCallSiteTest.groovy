@@ -8,8 +8,7 @@ import foo.bar.TestURLEncoderCallSiteSuite
 import java.nio.charset.Charset
 
 class URLEncoderCallSiteTest extends InstrumentationSpecification {
-  // Explicit escape for non-ASCII `ståle` to make test independent of container settings.
-  private static final String NON_ASCII_QUERY = 'my test.asp?name=st\u00E5le&car=saab'
+  private static final String NON_ASCII_QUERY = 'my test.asp?name=ståle&car=saab'
   private static final String DEFAULT_CHARSET_ENCODED =
   URLEncoder.encode(NON_ASCII_QUERY, Charset.defaultCharset().name())
 

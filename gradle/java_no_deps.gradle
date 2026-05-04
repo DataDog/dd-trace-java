@@ -235,6 +235,7 @@ tasks.withType(Test).configureEach {
 [JavaCompile, ScalaCompile, GroovyCompile].each {
   type ->
   tasks.withType(type).configureEach {
+    options.encoding = "UTF-8"
     if (options.fork) {
       options.forkOptions.with {
         memoryMaximumSize = "256M"
