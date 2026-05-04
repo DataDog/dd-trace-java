@@ -1,5 +1,11 @@
 package datadog.trace.core;
 
+import static datadog.trace.api.DDTags.DJM_ENABLED;
+import static datadog.trace.api.DDTags.DSM_ENABLED;
+import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.api.DDTags.PROFILING_ENABLED;
+import static datadog.trace.api.DDTags.THREAD_ID;
+import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
@@ -9,6 +15,8 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.api.sampling.SamplingMechanism.SPAN_SAMPLING_RATE;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
+import static datadog.trace.core.DDSpanContext.SPAN_KIND_VALUES;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MAX_PER_SECOND_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
@@ -33,6 +41,7 @@ import datadog.trace.bootstrap.instrumentation.api.ServiceNameSources;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -41,9 +50,12 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverter;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(TableTestTypeConverters.class)
 public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   private ListWriter writer;
@@ -91,8 +103,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     if (!name.equals("some.tag")) {
       expectedTags.put("some.tag", "asdf");
     }
-    expectedTags.put(DDTags.THREAD_NAME, thread.getName());
-    expectedTags.put(DDTags.THREAD_ID, thread.getId());
+    expectedTags.put(THREAD_NAME, thread.getName());
+    expectedTags.put(THREAD_ID, thread.getId());
     expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
 
     assertTagmap(context.getTags(), expectedTags);
@@ -126,8 +138,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     Thread thread = Thread.currentThread();
     Map<String, Object> expectedTags = new HashMap<>();
-    expectedTags.put(DDTags.THREAD_NAME, thread.getName());
-    expectedTags.put(DDTags.THREAD_ID, thread.getId());
+    expectedTags.put(THREAD_NAME, thread.getName());
+    expectedTags.put(THREAD_ID, thread.getId());
     expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
     assertTagmap(context.getTags(), expectedTags);
 
@@ -175,8 +187,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     Thread thread = Thread.currentThread();
     Map<String, Object> expectedTags = new HashMap<>();
     expectedTags.put(name, value);
-    expectedTags.put(DDTags.THREAD_NAME, thread.getName());
-    expectedTags.put(DDTags.THREAD_ID, thread.getId());
+    expectedTags.put(THREAD_NAME, thread.getName());
+    expectedTags.put(THREAD_ID, thread.getId());
     expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
 
     assertTagmap(context.getTags(), expectedTags);
@@ -213,39 +225,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertTrue(expectedType.isInstance(context.getTag("test")));
 
     span.finish();
-  }
-
-  @TypeConverter
-  public static Number toNumber(String value) {
-    if (value == null) {
-      throw new IllegalArgumentException("Value cannot be null");
-    }
-    switch (value) {
-      case "Integer.MAX_VALUE":
-        return Integer.MAX_VALUE;
-      case "Integer.MIN_VALUE":
-        return Integer.MIN_VALUE;
-      case "Short.MAX_VALUE":
-        return Short.MAX_VALUE;
-      case "Short.MIN_VALUE":
-        return Short.MIN_VALUE;
-      case "Float.MAX_VALUE":
-        return Float.MAX_VALUE;
-      case "Float.MIN_VALUE":
-        return Float.MIN_VALUE;
-      case "Double.MAX_VALUE":
-        return Double.MAX_VALUE;
-      case "Double.MIN_VALUE":
-        return Double.MIN_VALUE;
-      default:
-        if (value.endsWith("f")) {
-          return Float.parseFloat(value);
-        }
-        if (value.endsWith("d")) {
-          return Double.parseDouble(value);
-        }
-        return Integer.decode(value);
-    }
   }
 
   @Test
@@ -320,12 +299,12 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario           | rate | limit     ",
-    "rate=1.0 limit=10  | 1.0  | 10        ",
-    "rate=0.5 limit=100 | 0.5  | 100       ",
-    "rate=0.25 no limit | 0.25 | 2147483647"
+    "rate | limit            ",
+    "1.0  | 10               ",
+    "0.5  | 100              ",
+    "0.25 | Integer.MAX_VALUE"
   })
-  void setSingleSpanSamplingTags(String scenario, double rate, int limit) {
+  void setSingleSpanSamplingTags(double rate, int limit) {
     AgentSpan span =
         tracer
             .buildSpan("fakeOperation")
@@ -439,33 +418,27 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void spanKindOrdinalConstantsAndSpanKindValuesArrayStayInSync() {
-    assertEquals(DDSpanContext.SPAN_KIND_CUSTOM + 1, DDSpanContext.SPAN_KIND_VALUES.length);
+    assertEquals(DDSpanContext.SPAN_KIND_CUSTOM + 1, SPAN_KIND_VALUES.length);
 
-    assertEquals(
-        Tags.SPAN_KIND_SERVER, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_SERVER]);
-    assertEquals(
-        Tags.SPAN_KIND_CLIENT, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CLIENT]);
-    assertEquals(
-        Tags.SPAN_KIND_PRODUCER, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_PRODUCER]);
-    assertEquals(
-        Tags.SPAN_KIND_CONSUMER, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CONSUMER]);
-    assertEquals(
-        Tags.SPAN_KIND_INTERNAL, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_INTERNAL]);
-    assertEquals(
-        Tags.SPAN_KIND_BROKER, DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_BROKER]);
+    assertEquals(Tags.SPAN_KIND_SERVER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_SERVER]);
+    assertEquals(Tags.SPAN_KIND_CLIENT, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CLIENT]);
+    assertEquals(Tags.SPAN_KIND_PRODUCER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_PRODUCER]);
+    assertEquals(Tags.SPAN_KIND_CONSUMER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CONSUMER]);
+    assertEquals(Tags.SPAN_KIND_INTERNAL, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_INTERNAL]);
+    assertEquals(Tags.SPAN_KIND_BROKER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_BROKER]);
 
-    assertNull(DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_UNSET]);
-    assertNull(DDSpanContext.SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CUSTOM]);
+    assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_UNSET]);
+    assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CUSTOM]);
   }
 
   @TableTest({
-    "scenario | kindString | expectedOrdinal",
-    "server   | server     | 1              ",
-    "client   | client     | 2              ",
-    "producer | producer   | 3              ",
-    "consumer | consumer   | 4              ",
-    "internal | internal   | 5              ",
-    "broker   | broker     | 6              "
+    "scenario | kindString | expectedOrdinal                 ",
+    "server   | server     | DDSpanContext.SPAN_KIND_SERVER  ",
+    "client   | client     | DDSpanContext.SPAN_KIND_CLIENT  ",
+    "producer | producer   | DDSpanContext.SPAN_KIND_PRODUCER",
+    "consumer | consumer   | DDSpanContext.SPAN_KIND_CONSUMER",
+    "internal | internal   | DDSpanContext.SPAN_KIND_INTERNAL",
+    "broker   | broker     | DDSpanContext.SPAN_KIND_BROKER  "
   })
   void setSpanKindOrdinalRoundTripsWithSpanKindValues(
       String scenario, String kindString, int expectedOrdinal) {
@@ -474,25 +447,49 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     context.setSpanKindOrdinal(kindString);
 
     assertEquals(expectedOrdinal, context.getSpanKindOrdinal());
-    assertEquals(kindString, DDSpanContext.SPAN_KIND_VALUES[expectedOrdinal]);
+    assertEquals(kindString, SPAN_KIND_VALUES[expectedOrdinal]);
 
     span.finish();
   }
 
-  @TableTest({
-    "scenario | kindString",
-    "server   | server    ",
-    "client   | client    ",
-    "producer | producer  ",
-    "consumer | consumer  ",
-    "internal | internal  ",
-    "broker   | broker    "
-  })
-  void setTagAndGetTagRoundTripForSpanKind(String scenario, String kindString) {
-    AgentSpan span = tracer.buildSpan("test", "test").start();
-    span.setTag(Tags.SPAN_KIND, kindString);
+  @TypeConverter
+  public static int toInt(String value) {
+    if (value == null) {
+      throw new IllegalArgumentException("Value cannot be null");
+    }
+    switch (value) {
+      case "DDSpanContext.SPAN_KIND_SERVER":
+        return DDSpanContext.SPAN_KIND_SERVER;
+      case "DDSpanContext.SPAN_KIND_CLIENT":
+        return DDSpanContext.SPAN_KIND_CLIENT;
+      case "DDSpanContext.SPAN_KIND_PRODUCER":
+        return DDSpanContext.SPAN_KIND_PRODUCER;
+      case "DDSpanContext.SPAN_KIND_CONSUMER":
+        return DDSpanContext.SPAN_KIND_CONSUMER;
+      case "DDSpanContext.SPAN_KIND_BROKER":
+        return DDSpanContext.SPAN_KIND_BROKER;
+      case "DDSpanContext.SPAN_KIND_INTERNAL":
+        return DDSpanContext.SPAN_KIND_INTERNAL;
+      default:
+        return TableTestTypeConverters.toInt(value);
+    }
+  }
 
-    assertEquals(kindString, span.getTag(Tags.SPAN_KIND));
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        Tags.SPAN_KIND_SERVER,
+        Tags.SPAN_KIND_CLIENT,
+        Tags.SPAN_KIND_PRODUCER,
+        Tags.SPAN_KIND_CONSUMER,
+        Tags.SPAN_KIND_INTERNAL,
+        Tags.SPAN_KIND_BROKER
+      })
+  void setTagAndGetTagRoundTripForSpanKind(String kindString) {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    span.setTag(SPAN_KIND, kindString);
+
+    assertEquals(kindString, span.getTag(SPAN_KIND));
 
     span.finish();
   }
@@ -501,29 +498,30 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void getTagReturnsNullWhenSpanKindNotSet() {
     AgentSpan span = tracer.buildSpan("test", "test").start();
 
-    assertNull(span.getTag(Tags.SPAN_KIND));
+    assertNull(span.getTag(SPAN_KIND));
 
     span.finish();
   }
 
-  @TableTest({
-    "scenario | kindString",
-    "server   | server    ",
-    "client   | client    ",
-    "producer | producer  ",
-    "consumer | consumer  ",
-    "internal | internal  ",
-    "broker   | broker    "
-  })
-  void setTagThenRemoveTagClearsSpanKind(String scenario, String kindString) {
+  @ParameterizedTest
+  @ValueSource(
+      strings = {
+        Tags.SPAN_KIND_SERVER,
+        Tags.SPAN_KIND_CLIENT,
+        Tags.SPAN_KIND_PRODUCER,
+        Tags.SPAN_KIND_CONSUMER,
+        Tags.SPAN_KIND_INTERNAL,
+        Tags.SPAN_KIND_BROKER
+      })
+  void setTagThenRemoveTagClearsSpanKind(String kindString) {
     AgentSpan span = tracer.buildSpan("test", "test").start();
-    span.setTag(Tags.SPAN_KIND, kindString);
+    span.setTag(SPAN_KIND, kindString);
 
-    assertEquals(kindString, span.getTag(Tags.SPAN_KIND));
+    assertEquals(kindString, span.getTag(SPAN_KIND));
 
-    ((DDSpan) span).context().removeTag(Tags.SPAN_KIND);
+    ((DDSpan) span).context().removeTag(SPAN_KIND);
 
-    assertNull(span.getTag(Tags.SPAN_KIND));
+    assertNull(span.getTag(SPAN_KIND));
 
     span.finish();
   }
@@ -531,9 +529,9 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   @Test
   void setTagWithCustomSpanKindFallsBackToTagMap() {
     AgentSpan span = tracer.buildSpan("test", "test").start();
-    span.setTag(Tags.SPAN_KIND, "custom-kind");
+    span.setTag(SPAN_KIND, "custom-kind");
 
-    assertEquals("custom-kind", span.getTag(Tags.SPAN_KIND));
+    assertEquals("custom-kind", span.getTag(SPAN_KIND));
 
     span.finish();
   }
@@ -550,13 +548,13 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     sourceWithoutCommonTags.remove("_sample_rate");
     sourceWithoutCommonTags.remove("process_id");
     sourceWithoutCommonTags.remove("_dd.trace_span_attribute_schema");
-    sourceWithoutCommonTags.remove(DDTags.PROFILING_ENABLED);
-    sourceWithoutCommonTags.remove(DDTags.PROFILING_CONTEXT_ENGINE);
-    sourceWithoutCommonTags.remove(DDTags.DSM_ENABLED);
-    sourceWithoutCommonTags.remove(DDTags.DJM_ENABLED);
+    sourceWithoutCommonTags.remove(PROFILING_ENABLED);
+    sourceWithoutCommonTags.remove(PROFILING_CONTEXT_ENGINE);
+    sourceWithoutCommonTags.remove(DSM_ENABLED);
+    sourceWithoutCommonTags.remove(DJM_ENABLED);
     if (removeThread) {
-      sourceWithoutCommonTags.remove(DDTags.THREAD_ID);
-      sourceWithoutCommonTags.remove(DDTags.THREAD_NAME);
+      sourceWithoutCommonTags.remove(THREAD_ID);
+      sourceWithoutCommonTags.remove(THREAD_NAME);
     }
     assertEquals(comparison, sourceWithoutCommonTags);
   }
