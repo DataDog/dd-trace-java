@@ -114,7 +114,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
     then:
     response.code() == 200
-    final responseBody = new JsonSlurper().parse(response.body().byteStream())
+    final responseBody = new JsonSlurper().parse(response.body().byteStream(), 'UTF-8')
     responseBody.value == testCase.result.value
     responseBody.variant == testCase.result.variant
     responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
@@ -137,7 +137,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     final slurper = new JsonSlurper()
     files.each {
       path ->
-      final testCases = slurper.parse(path.toFile()) as List<Map<String, Object>>
+      final testCases = slurper.parse(path.toFile(), 'UTF-8') as List<Map<String, Object>>
       testCases.eachWithIndex {
         testCase, index ->
         testCase.fileName = path.fileName.toString()
