@@ -7,6 +7,12 @@ import spock.lang.Shared
 import java.util.concurrent.Executors
 
 class PlayAsyncServerTest extends AbstractPlayServerTest {
+
+  @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
   @Shared
   def executor
 

@@ -34,8 +34,6 @@ import java.util.List;
  */
 public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
 
-  public static final OtlpTraceProtoCollector INSTANCE = new OtlpTraceProtoCollector();
-
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
 
