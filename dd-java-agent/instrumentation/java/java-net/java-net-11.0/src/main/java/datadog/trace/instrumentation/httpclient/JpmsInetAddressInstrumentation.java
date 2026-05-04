@@ -11,12 +11,14 @@ import java.util.Collection;
 public class JpmsInetAddressInstrumentation extends InstrumenterModule
     implements JavaModuleOpenProvider {
 
+  private static final Collection<String> TRIGGER_CLASSES = singleton("java.net.InetAddress");
+
   public JpmsInetAddressInstrumentation() {
     super("java-net");
   }
 
   @Override
   public Collection<String> triggerClasses() {
-    return singleton("java.net.InetAddress");
+    return TRIGGER_CLASSES;
   }
 }

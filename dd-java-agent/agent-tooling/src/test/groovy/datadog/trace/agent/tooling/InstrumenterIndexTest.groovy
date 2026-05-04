@@ -83,4 +83,26 @@ class InstrumenterIndexTest extends DDSpecification {
     index.instrumentationId(unknownInstrumentation) == -1
     index.transformationId(unknownTransformation) == -1
   }
+
+  def "JavaModuleOpenProvider-only module gets NEEDS_EARLY_LOAD_FLAG"() {
+    given:
+    def jpmsOnlyModule = new TestJpmsOnlyModule()
+
+    when:
+    byte flags = InstrumenterIndex.encodeModuleFlags(jpmsOnlyModule, false)
+
+    then:
+    InstrumenterIndex.decodeModuleNeedsEarlyLoad(flags)
+  }
+}
+
+class TestJpmsOnlyModule extends InstrumenterModule implements JavaModuleOpenProvider {
+  TestJpmsOnlyModule() {
+    super('jpms-test-only')
+  }
+
+  @Override
+  Collection<String> triggerClasses() {
+    return []
+  }
 }

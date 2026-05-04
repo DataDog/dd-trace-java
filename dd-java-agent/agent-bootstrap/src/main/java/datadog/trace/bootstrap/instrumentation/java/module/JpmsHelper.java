@@ -17,11 +17,17 @@ public final class JpmsHelper {
 
   private static final Set<String> TRIGGERS = new HashSet<>();
 
+  private static final Set<String> TRIGGERS_VIEW = unmodifiableSet(TRIGGERS);
+
   private static final ClassValue<AtomicBoolean> HAS_FIRED =
       GenericClassValue.constructing(AtomicBoolean.class);
 
-  public static final Logger LOGGER = LoggerFactory.getLogger(JpmsHelper.class);
+  private static final Logger LOGGER = LoggerFactory.getLogger(JpmsHelper.class);
 
+  /**
+   * Registers trigger class names whose constructors will open their enclosing module. Must be
+   * called at agent startup before instrumentation is applied; not thread-safe.
+   */
   public static void addTriggers(Collection<String> classes) {
     if (classes == null) {
       return;
@@ -29,11 +35,26 @@ public final class JpmsHelper {
     TRIGGERS.addAll(classes);
   }
 
+  /** Returns an unmodifiable view of all registered trigger class names. */
   public static Set<String> getAllTriggers() {
-    return unmodifiableSet(TRIGGERS);
+    return TRIGGERS_VIEW;
   }
 
+  /**
+   * Returns {@code true} and atomically marks {@code cls} as opened the first time this is called
+   * for a given class; returns {@code false} on all subsequent calls for the same class.
+   */
   public static boolean shouldBeOpened(Class<?> cls) {
     return HAS_FIRED.get(cls).compareAndSet(false, true);
+  }
+
+  /** Called from inlined ByteBuddy advice; logs when module opening fails. */
+  public static void logFailedToOpen(String pkg, Throwable t) {
+    LOGGER.debug("Unable to open package {} to the agent module or unnamed module", pkg, t);
+  }
+
+  /** Called from inlined ByteBuddy advice; logs when a class has no named module. */
+  public static void logNullModule(Class<?> cls) {
+    LOGGER.debug("Class {} has no named module; skipping module open", cls.getName());
   }
 }
