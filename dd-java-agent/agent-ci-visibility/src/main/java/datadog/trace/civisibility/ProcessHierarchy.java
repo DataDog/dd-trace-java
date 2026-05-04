@@ -90,7 +90,8 @@ public class ProcessHierarchy {
   private boolean isGradleLauncher() {
     ClassLoader contextClassLoader = Thread.currentThread().getContextClassLoader();
     return contextClassLoader.getResource("org/gradle/launcher/Main.class") != null
-        || contextClassLoader.getResource("org/gradle/launcher/GradleMain.class") != null;
+        || contextClassLoader.getResource("org/gradle/launcher/GradleMain.class") != null
+        || contextClassLoader.getResource("org/gradle/wrapper/GradleWrapperMain.class") != null;
   }
 
   @Nullable
