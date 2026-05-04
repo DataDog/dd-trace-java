@@ -109,7 +109,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
           if (filename == null) {
             continue;
           }
-          if (!filename.isEmpty()) {
+          if (filenamesCb != null && !filename.isEmpty()) {
             if (filenames == null) {
               filenames = new ArrayList<>();
             }
