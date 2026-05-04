@@ -8,6 +8,7 @@ import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DBM_TRACE_PREPARED_STATEMENTS;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
+import static datadog.trace.instrumentation.jdbc.JDBCDecorator.JAVA_JDBC;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logMissingQueryInfo;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.logSQLException;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
@@ -89,16 +90,16 @@ public abstract class AbstractPreparedStatementInstrumentation extends Instrumen
             span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
             span.setTag(DBM_TRACE_INJECTED, true);
           } else if (DECORATE.isPostgres(dbInfo) && DBM_TRACE_PREPARED_STATEMENTS) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+            span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
             DECORATE.setApplicationName(span, connection);
           } else if (DECORATE.isOracle(dbInfo)) {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+            span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
             DECORATE.setAction(span, connection);
           } else {
-            span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+            span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
           }
         } else {
-          span = startSpan("java-jdbc-prepared_statement", DATABASE_QUERY);
+          span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
         }
         DECORATE.afterStart(span);
         DECORATE.onConnection(span, dbInfo);

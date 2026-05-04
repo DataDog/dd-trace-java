@@ -11,7 +11,7 @@ import java.lang.reflect.Method;
 
 public class TraceDecorator extends AsyncResultDecorator {
   public static TraceDecorator DECORATE = new TraceDecorator();
-  private static final String INSTRUMENTATION_NAME = "trace-annotation";
+  private static final String INSTRUMENTATION_NAME = "trace";
 
   private static final boolean USE_LEGACY_OPERATION_NAME =
       InstrumenterConfig.get().isLegacyInstrumentationEnabled(true, "trace.annotations");
