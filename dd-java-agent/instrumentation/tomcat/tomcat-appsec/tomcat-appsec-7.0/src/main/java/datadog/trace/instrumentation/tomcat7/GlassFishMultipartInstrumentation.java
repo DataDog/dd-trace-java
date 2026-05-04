@@ -97,34 +97,37 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
       List<String> contents = null;
 
       for (Object partObj : parts) {
-        if (!(partObj instanceof Part)) {
-          continue;
-        }
-        Part part = (Part) partObj;
-        String filename = part.getSubmittedFileName();
-        // null means no filename parameter → form field, skip
-        // empty string means filename="" was sent → file upload without a name
-        if (filename == null) {
-          continue;
-        }
-        if (!filename.isEmpty()) {
-          if (filenames == null) {
-            filenames = new ArrayList<>();
+        try {
+          if (!(partObj instanceof Part)) {
+            continue;
           }
-          filenames.add(filename);
-        }
-        if (contentCb != null) {
-          if (contents == null) {
-            contents = new ArrayList<>();
+          Part part = (Part) partObj;
+          String filename = part.getSubmittedFileName();
+          // null means no filename parameter → form field, skip
+          // empty string means filename="" was sent → file upload without a name
+          if (filename == null) {
+            continue;
           }
-          if (contents.size() < maxFiles) {
-            try (InputStream is = part.getInputStream()) {
-              contents.add(
-                  MultipartContentDecoder.readInputStream(is, maxBytes, part.getContentType()));
-            } catch (Exception ignored) {
-              contents.add("");
+          if (!filename.isEmpty()) {
+            if (filenames == null) {
+              filenames = new ArrayList<>();
+            }
+            filenames.add(filename);
+          }
+          if (contentCb != null) {
+            if (contents == null) {
+              contents = new ArrayList<>();
+            }
+            if (contents.size() < maxFiles) {
+              try (InputStream is = part.getInputStream()) {
+                contents.add(
+                    MultipartContentDecoder.readInputStream(is, maxBytes, part.getContentType()));
+              } catch (Exception ignored) {
+                contents.add("");
+              }
             }
           }
+        } catch (Exception ignored) {
         }
       }
 
