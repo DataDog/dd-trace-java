@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DB
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.INJECT_COMMENT;
-import static datadog.trace.instrumentation.jdbc.JDBCDecorator.JAVA_JDBC;
 import static java.util.Collections.singletonMap;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -101,13 +100,13 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // we then force that pre-determined span ID for the span covering the actual query
             span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
           } else if (isOracle) {
-            span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
+            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
           } else {
-            span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
+            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
           }
         } else {
-          span = startSpan(JAVA_JDBC.toString(), DATABASE_QUERY);
+          span = startSpan("java-jdbc-statement", DATABASE_QUERY);
         }
 
         DECORATE.afterStart(span);
