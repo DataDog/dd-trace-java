@@ -24,7 +24,7 @@ public class CIProviderInfoFactory {
   public CIProviderInfo createCIProviderInfo(Path currentPath) {
     // bazel rule supplies CI/git data downstream
     BazelMode bazelMode = BazelMode.get();
-    if (bazelMode.isPayloadFilesEnabled() && bazelMode.getPayloadsDir() != null) {
+    if (bazelMode.isPayloadFilesEnabled()) {
       return new BazelInfo();
     }
 
