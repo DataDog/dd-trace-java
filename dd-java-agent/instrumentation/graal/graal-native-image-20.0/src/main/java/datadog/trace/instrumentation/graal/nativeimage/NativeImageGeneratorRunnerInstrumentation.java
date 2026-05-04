@@ -141,6 +141,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.QueueTimerHelper$RateLimiterHolder:run_time,"
               + "datadog.trace.bootstrap.instrumentation.java.concurrent.TPEHelper:build_time,"
+              + "datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionCountEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.exceptions.ExceptionSampleEvent:build_time,"
               + "datadog.trace.bootstrap.instrumentation.jfr.backpressure.BackpressureSampleEvent:build_time,"
