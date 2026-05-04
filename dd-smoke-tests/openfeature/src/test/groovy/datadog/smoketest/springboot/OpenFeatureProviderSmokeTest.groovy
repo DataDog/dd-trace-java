@@ -21,7 +21,7 @@ import spock.util.concurrent.PollingConditions
 class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json")).with { json ->
+  private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json"), 'UTF-8').with { json ->
     return JsonOutput.toJson(json.data.attributes)
   }
 
