@@ -36,9 +36,12 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   @Override
   public void handle(final RoutingContext routingContext) {
     AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    AgentSpan parentSpan = null;
     if (spanStarter) {
-      if (span == null) {
-        AgentSpan parentSpan = activeSpan();
+      if (span != null) {
+        parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
+      } else {
+        parentSpan = activeSpan();
         routingContext.put(PARENT_SPAN_CONTEXT_KEY, parentSpan);
 
         span = startSpan(INSTRUMENTATION_NAME);
@@ -48,27 +51,18 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
-      setRoute(routingContext);
     }
     try (final AgentScope scope = span != null ? activateSpan(span) : noopScope()) {
       try {
         actual.handle(routingContext);
       } catch (final Throwable t) {
-        if (spanStarter) {
-          setRoute(routingContext);
-        }
         DECORATE.onError(span, t);
         throw t;
+      } finally {
+        if (spanStarter) {
+          updateRouteFromContext(routingContext, parentSpan, span);
+        }
       }
     }
-  }
-
-  private void setRoute(RoutingContext routingContext) {
-    final AgentSpan parentSpan = routingContext.get(PARENT_SPAN_CONTEXT_KEY);
-    final AgentSpan handlerSpan = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
-    if (parentSpan == null && handlerSpan == null) {
-      return;
-    }
-    updateRouteFromContext(routingContext, parentSpan, handlerSpan);
   }
 }

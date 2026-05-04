@@ -5,26 +5,63 @@ import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourc
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import io.vertx.ext.web.Route;
 import io.vertx.ext.web.RoutingContext;
 
 public final class RouteUpdateHelper {
   public static final String PARENT_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".parent";
   public static final String HANDLER_SPAN_CONTEXT_KEY = AgentSpan.class.getName() + ".handler";
   public static final String ROUTE_CONTEXT_KEY = "dd." + Tags.HTTP_ROUTE;
+  private static final String MATCHED_ROUTE_CONTEXT_KEY = "dd.vertx.matched_route";
   private static final String VERTX_ROUTE_HANDLER_SPAN_NAME = "vertx.route-handler";
 
   private RouteUpdateHelper() {}
 
-  public static void updateRoute(
+  public static void updateRouteFromContext(
       final RoutingContext routingContext,
-      final String method,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    final Route currentRoute = routingContext.currentRoute();
+    if (currentRoute == null) {
+      return;
+    }
+    final String contextRoute = routePath(routingContext, routePath(currentRoute));
+    final String matchedRoute = routingContext.get(MATCHED_ROUTE_CONTEXT_KEY);
+    updateRoute(
+        routingContext,
+        matchedRoute != null ? matchedRoute : contextRoute,
+        parentSpan,
+        handlerSpan);
+  }
+
+  public static void updateRouteFromMatchedRoute(
+      final RoutingContext routingContext,
+      final Object route,
+      final AgentSpan parentSpan,
+      final AgentSpan handlerSpan) {
+    // try to get the route from the object, else, fallback to context
+    if (route instanceof Route) {
+      final String matchedRoute = routePath(routingContext, routePath((Route) route));
+      if (isConcreteRoute(routingContext, matchedRoute)) {
+        // Keep the leaf route found in matches(); later handler/finally code may only see a
+        // broader currentRoute, for example a subrouter mount route.
+        routingContext.put(MATCHED_ROUTE_CONTEXT_KEY, matchedRoute);
+        updateRoute(routingContext, matchedRoute, parentSpan, handlerSpan);
+        return;
+      }
+    }
+    updateRouteFromContext(routingContext, parentSpan, handlerSpan);
+  }
+
+  private static void updateRoute(
+      final RoutingContext routingContext,
       final String path,
       final AgentSpan parentSpan,
       final AgentSpan handlerSpan) {
-    if (method == null || path == null) {
-      return;
-    }
-    if (!shouldUpdateRoute(routingContext, parentSpan, handlerSpan, path)) {
+    final String method = routingContext.request().method().name();
+    if ((method == null || path == null)
+        || (parentSpan == null && handlerSpan == null)
+        || !shouldUpdateRoute(routingContext, parentSpan, handlerSpan, path)) {
       return;
     }
 
@@ -38,32 +75,49 @@ public final class RouteUpdateHelper {
     }
   }
 
-  public static void updateRouteFromContext(
-      final RoutingContext routingContext,
-      final AgentSpan parentSpan,
-      final AgentSpan handlerSpan) {
-    if (parentSpan == null && handlerSpan == null) {
-      return;
+  private static String routePath(final Route route) {
+    final String path = route.getPath();
+    if (path != null) {
+      return path;
     }
-    if (routingContext.currentRoute() == null) {
-      return;
-    }
+    // getName returns the name of the route, if not path or the pattern or null
+    return route.getName();
+  }
 
-    final String method = routingContext.request().method().name();
-    String path = routingContext.currentRoute().getPath();
+  private static String routePath(final RoutingContext routingContext, final String path) {
     if (path == null) {
-      // getName returns the name of the route, if not path or the pattern or null
-      path = routingContext.currentRoute().getName();
+      return null;
     }
     final String mountPoint = routingContext.mountPoint();
-    if (mountPoint != null && path != null) {
-      final String noBackslashhMountPoint =
-          mountPoint.endsWith("/")
-              ? mountPoint.substring(0, mountPoint.lastIndexOf("/"))
-              : mountPoint;
-      path = noBackslashhMountPoint + path;
+    if (mountPoint == null || mountPoint.isEmpty()) {
+      return path;
     }
-    updateRoute(routingContext, method, path, parentSpan, handlerSpan);
+    return trimTrailingSlash(mountPoint) + withLeadingSlash(path);
+  }
+
+  private static String trimTrailingSlash(final String path) {
+    if (path.charAt(path.length() - 1) == '/') {
+      return path.substring(0, path.length() - 1);
+    }
+    return path;
+  }
+
+  private static String withLeadingSlash(final String path) {
+    if (!path.isEmpty() && path.charAt(0) == '/') {
+      return path;
+    }
+    return "/" + path;
+  }
+
+  private static boolean isConcreteRoute(final RoutingContext routingContext, final String path) {
+    if (path == null || path.indexOf('*') >= 0) {
+      return false;
+    }
+    final String requestPath = routingContext.request().path();
+    return requestPath == null
+        || !path.endsWith("/")
+        || path.length() >= requestPath.length()
+        || !requestPath.startsWith(path);
   }
 
   private static boolean shouldUpdateRoute(
