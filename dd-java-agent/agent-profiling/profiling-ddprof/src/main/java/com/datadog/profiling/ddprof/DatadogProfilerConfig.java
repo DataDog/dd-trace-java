@@ -46,6 +46,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_LOCK_ENABLED_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_QUEUEING_TIME_ENABLED;
@@ -253,10 +255,17 @@ public class DatadogProfilerConfig {
     return isMemoryLeakProfilingEnabled(ConfigProvider.getInstance());
   }
 
-  // Note: ddprof does not currently implement a native lock sampler. The unified gate
-  // dd.profiling.lock.enabled (PROFILING_LOCK_ENABLED) is honored by the JFR controller
-  // for jdk.JavaMonitorEnter. If a ddprof-based lock profiler is added in the future,
-  // it should check PROFILING_LOCK_ENABLED here.
+  /**
+   * Returns whether lock profiling is enabled via the unified gate.
+   *
+   * <p><b>Note:</b> ddprof does not currently implement a native lock sampler. This method exists
+   * as an enforcement point so that a future ddprof lock profiler can simply call it rather than
+   * rediscovering the config key. The JFR controller already honors this gate for
+   * jdk.JavaMonitorEnter.
+   */
+  public static boolean isLockProfilerEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_LOCK_ENABLED, PROFILING_LOCK_ENABLED_DEFAULT);
+  }
 
   public static boolean isLiveHeapSizeTrackingEnabled(ConfigProvider configProvider) {
     return getBoolean(

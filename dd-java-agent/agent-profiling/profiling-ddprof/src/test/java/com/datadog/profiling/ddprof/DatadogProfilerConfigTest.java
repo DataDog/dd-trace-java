@@ -242,4 +242,27 @@ class DatadogProfilerConfigTest {
     ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
     assertFalse(DatadogProfilerConfig.isWallClockProfilerEnabled(config));
   }
+
+  @Test
+  void wallClockBothEnabledReturnsTrue() {
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_WALLTIME_ENABLED, "true");
+    props.put(ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertTrue(DatadogProfilerConfig.isWallClockProfilerEnabled(config));
+  }
+
+  @Test
+  void directMemoryLegacyAliasFallbackResolves() {
+    // Setting only the deprecated key — the new key is absent — must resolve to enabled via alias fallback.
+    Properties props = new Properties();
+    props.put(ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED, "true");
+    ConfigProvider config = ConfigProvider.withPropertiesOverride(props);
+    assertTrue(
+        config.getBoolean(
+            ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED,
+            ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT,
+            ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED),
+        "Legacy alias PROFILING_DIRECT_ALLOCATION_ENABLED must act as fallback for PROFILING_DIRECT_MEMORY_ENABLED");
+  }
 }

@@ -73,6 +73,13 @@ public final class OpenJdkController implements Controller {
   private static final String EXPLICITLY_ENABLED = "explicitly enabled by user";
   private static final String EXPENSIVE_ON_CURRENT_JVM =
       "expensive on this version of the JVM (" + JavaVirtualMachine.getRuntimeVersion() + ")";
+
+  /**
+   * jdk.JavaMonitorWait, jdk.ThreadPark, and jdk.ThreadSleep are intentionally NOT gated by
+   * PROFILING_WALLTIME_ENABLED. They serve timeline and queueing-time purposes independently of
+   * wall-clock profiling. This constant makes the design decision machine-checkable.
+   */
+  static final boolean GATE_WALLTIME_TIMELINE_EVENTS = false;
   private static final String CPUTIME_SAMPLE_JDK25 = "Switching to CPUTimeSample on JDK 25+";
 
   static final Duration RECORDING_MAX_AGE = Duration.ofMinutes(5);

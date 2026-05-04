@@ -399,6 +399,27 @@ public class OpenJdkControllerTest {
     }
   }
 
+  @Test
+  public void testWallGateEnabledDoesNotDisableTimelineEvents() throws Exception {
+    Properties props = getConfigProperties();
+    props.put(PROFILING_WALLTIME_ENABLED, "true");
+
+    ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
+    OpenJdkController controller = new OpenJdkController(configProvider);
+    try (final Recording recording =
+        ((OpenJdkRecordingData)
+                controller.createRecording(TEST_NAME, new ControllerContext().snapshot()).stop())
+            .getRecording()) {
+      // When wall profiling is enabled, timeline blocking events must still be enabled.
+      assertTrue(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.JavaMonitorWait#enabled")),
+          "JavaMonitorWait must remain enabled when wall profiling is enabled");
+      assertTrue(
+          Boolean.parseBoolean(recording.getSettings().get("jdk.ThreadPark#enabled")),
+          "ThreadPark must remain enabled when wall profiling is enabled");
+    }
+  }
+
   private static Properties getConfigProperties() {
     Properties props = new Properties();
     // make sure the async profiler is not force-enabled

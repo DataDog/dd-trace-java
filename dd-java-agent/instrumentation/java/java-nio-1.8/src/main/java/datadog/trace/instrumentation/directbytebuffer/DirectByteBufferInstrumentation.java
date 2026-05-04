@@ -27,6 +27,8 @@ public final class DirectByteBufferInstrumentation extends InstrumenterModule.Pr
     ConfigProvider cp = ConfigProvider.getInstance();
     return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
+        // PROFILING_DIRECT_MEMORY_ENABLED is the canonical gate; PROFILING_DIRECT_ALLOCATION_ENABLED
+        // is a backwards-compatibility fallback used only when the new key is unset.
         && cp.getBoolean(
             PROFILING_DIRECT_MEMORY_ENABLED,
             PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT,

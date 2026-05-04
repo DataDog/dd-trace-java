@@ -3173,7 +3173,7 @@
       {
         "version": "C",
         "type": "boolean",
-        "default": "true",
+        "default": "false",
         "aliases": []
       }
     ],

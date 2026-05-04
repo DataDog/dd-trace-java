@@ -9,7 +9,14 @@ package datadog.trace.api.config;
 public final class ProfilingConfig {
   public static final String PROFILING_ENABLED = "profiling.enabled";
   public static final boolean PROFILING_ENABLED_DEFAULT = false;
-  public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
+  /**
+   * @deprecated Not used directly. Allocation profiling is enabled when the JVM supports
+   *     ObjectAllocationSample events, determined dynamically by {@code
+   *     ProfilingSupport#isObjectAllocationSampleAvailable()} (in the {@code
+   *     com.datadog.profiling.controller} package). There is no static unified-gate replacement;
+   *     allocation availability is JVM-capability-driven, not user-configurable via a gate key.
+   */
+  @Deprecated public static final String PROFILING_ALLOCATION_ENABLED = "profiling.allocation.enabled";
 
   /**
    * @deprecated Not used. The actual default is computed dynamically by {@code
@@ -27,16 +34,31 @@ public final class ProfilingConfig {
    */
   @Deprecated public static final boolean PROFILING_HEAP_ENABLED_DEFAULT = false;
 
+  /** Unified gate for CPU profiling. Controls jdk.ExecutionSample, jdk.NativeMethodSample, and jdk.CPUTimeSample. */
   public static final String PROFILING_CPU_ENABLED = "profiling.cpu.enabled";
   public static final boolean PROFILING_CPU_ENABLED_DEFAULT = true;
+
+  /**
+   * Unified gate for wall-clock profiling (ddprof wall sampler). Controls ddprof wall-clock
+   * sampling only. <b>Does NOT</b> gate jdk.JavaMonitorWait, jdk.ThreadPark, or jdk.ThreadSleep —
+   * those events serve timeline and queueing-time purposes and remain enabled independently.
+   */
   public static final String PROFILING_WALLTIME_ENABLED = "profiling.walltime.enabled";
   public static final boolean PROFILING_WALLTIME_ENABLED_DEFAULT = true;
+
+  /** Unified gate for exception profiling. Controls datadog.ExceptionSample and datadog.ExceptionCount. */
   public static final String PROFILING_EXCEPTION_ENABLED = "profiling.exception.enabled";
   public static final boolean PROFILING_EXCEPTION_ENABLED_DEFAULT = true;
+
+  /** Unified gate for I/O profiling. Controls jdk.FileRead, jdk.FileWrite, jdk.FileForce, jdk.SocketRead, and jdk.SocketWrite. */
   public static final String PROFILING_IO_ENABLED = "profiling.io.enabled";
   public static final boolean PROFILING_IO_ENABLED_DEFAULT = true;
+
+  /** Unified gate for lock profiling. Controls jdk.JavaMonitorEnter and biased-lock JFR events (no-ops on JDK 18+). Currently only the JFR controller honors this gate; a future ddprof native lock sampler should also check it. */
   public static final String PROFILING_LOCK_ENABLED = "profiling.lock.enabled";
   public static final boolean PROFILING_LOCK_ENABLED_DEFAULT = true;
+
+  /** Unified gate for thread-lifecycle profiling. Controls jdk.ThreadStart and jdk.ThreadEnd. */
   public static final String PROFILING_THREAD_ENABLED = "profiling.thread.enabled";
   public static final boolean PROFILING_THREAD_ENABLED_DEFAULT = true;
 
@@ -116,12 +138,15 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_ENABLED = "profiling.ddprof.enabled";
 
   /**
-   * @deprecated Use {@link #PROFILING_DIRECT_MEMORY_ENABLED} instead.
+   * @deprecated Use {@link #PROFILING_DIRECT_MEMORY_ENABLED} instead. {@link
+   *     #PROFILING_DIRECT_MEMORY_ENABLED} takes priority; this key is accepted as a fallback only
+   *     when the new key is unset.
    */
   @Deprecated
   public static final String PROFILING_DIRECT_ALLOCATION_ENABLED =
       "profiling.directallocation.enabled";
 
+  /** @deprecated Use {@link #PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT} instead. */
   @Deprecated public static final boolean PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT = false;
 
   public static final String PROFILING_STACKDEPTH = "profiling.stackdepth";
