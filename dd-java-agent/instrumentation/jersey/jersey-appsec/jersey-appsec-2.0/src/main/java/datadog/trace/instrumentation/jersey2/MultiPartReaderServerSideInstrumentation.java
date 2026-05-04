@@ -114,15 +114,13 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
         }
       }
 
-      if (filesContent != null && !filesContent.isEmpty()) {
+      if (t == null && filesContent != null && !filesContent.isEmpty()) {
         Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
-        if (t == null) {
-          BlockingException be =
-              MultiPartHelper.tryBlock(
-                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
-          if (be != null) {
-            t = be;
-          }
+        BlockingException be =
+            MultiPartHelper.tryBlock(
+                reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+        if (be != null) {
+          t = be;
         }
       }
     }
