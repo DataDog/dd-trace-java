@@ -1,17 +1,25 @@
 package datadog.trace.common.writer
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.ProtocolVersion.V0_5
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
+import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.communication.http.OkHttpUtils
+import datadog.communication.serialization.ByteBufferConsumer
+import datadog.communication.serialization.FlushingBuffer
+import datadog.communication.serialization.Mapper
+import datadog.communication.serialization.msgpack.MsgPackWriter
+import datadog.metrics.api.statsd.StatsDClient
+import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.ProcessTags
-import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.api.datastreams.NoopPathwayContext
+import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.common.writer.ddagent.DDAgentApi
-import datadog.communication.ddagent.DDAgentFeaturesDiscovery
-import datadog.communication.http.OkHttpUtils
-import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.api.statsd.StatsDClient
 import datadog.trace.common.writer.ddagent.TraceMapperV0_4
 import datadog.trace.common.writer.ddagent.TraceMapperV0_5
 import datadog.trace.core.CoreTracer
@@ -19,28 +27,19 @@ import datadog.trace.core.DDSpan
 import datadog.trace.core.DDSpanContext
 import datadog.trace.core.PendingTrace
 import datadog.trace.core.monitor.HealthMetrics
-import datadog.communication.serialization.ByteBufferConsumer
-import datadog.communication.serialization.FlushingBuffer
-import datadog.communication.serialization.Mapper
-import datadog.communication.serialization.msgpack.MsgPackWriter
 import datadog.trace.core.monitor.TracerHealthMetrics
 import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.test.util.Flaky
-import okhttp3.HttpUrl
-import spock.lang.Timeout
-import spock.util.concurrent.PollingConditions
-
 import java.nio.ByteBuffer
 import java.util.concurrent.CountDownLatch
 import java.util.concurrent.Phaser
 import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.common.writer.DDAgentWriter.BUFFER_SIZE
-import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
+import okhttp3.HttpUrl
+import spock.lang.Timeout
+import spock.util.concurrent.PollingConditions
 
 @Timeout(10)
 class DDAgentWriterCombinedTest extends DDCoreSpecification {
@@ -321,7 +320,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -380,7 +379,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, true, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -512,7 +511,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
 
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion(V0_5)
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics)
@@ -610,7 +609,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
 
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion(V0_5)
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
@@ -677,7 +676,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def writer = DDAgentWriter.builder()
       .agentHost(agent.address.host)
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion(V0_5)
       .traceAgentPort(agent.address.port)
       .monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
@@ -711,7 +710,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     def statsd = Mock(StatsDClient)
     def healthMetrics = new TracerHealthMetrics(statsd, 100, TimeUnit.MILLISECONDS)
     def writer = DDAgentWriter.builder()
-      .traceAgentV05Enabled(true)
+      .traceAgentProtocolVersion(V0_5)
       .agentApi(api).monitoring(monitoring)
       .healthMetrics(healthMetrics).build()
     healthMetrics.start()

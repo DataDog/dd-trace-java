@@ -155,6 +155,28 @@ public class MsgPackWriterTest {
   }
 
   @Test
+  public void testWriteBinaryLongPair() {
+    final long hi = 0x1122334455667788L;
+    final long lo = 0x99AABBCCDDEEFF00L;
+    final byte[] data = ByteBuffer.allocate(16).putLong(hi).putLong(lo).array();
+    MessageFormatter messageFormatter =
+        new MsgPackWriter(
+            newBuffer(
+                25,
+                (messageCount, buffy) -> {
+                  try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffy)) {
+                    int length = unpacker.unpackBinaryHeader();
+                    assertEquals(16, length);
+                    assertArrayEquals(data, unpacker.readPayload(length));
+                  } catch (IOException e) {
+                    fail(e.getMessage());
+                  }
+                }));
+    messageFormatter.format(data, (ignored, writable) -> writable.writeBinary(hi, lo));
+    messageFormatter.flush();
+  }
+
+  @Test
   public void testWriteBinaryAsObject() {
     final byte[] data = new byte[] {1, 2, 3, 4};
     MessageFormatter messageFormatter =

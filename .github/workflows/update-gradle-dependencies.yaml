@@ -77,7 +77,7 @@ jobs:
 
       - name: Push core changes
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.core_branch }}"
@@ -137,7 +137,7 @@ jobs:
 
       - name: Push instrumentation changes
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"

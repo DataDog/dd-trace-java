@@ -85,7 +85,6 @@ public class LambdaHandler {
                     .build())
             .execute()) {
       if (response.isSuccessful()) {
-
         return extractContextAndGetSpanContext(
             response.headers(),
             (carrier, classifier) -> {
@@ -93,6 +92,8 @@ public class LambdaHandler {
                 classifier.accept(headerName, carrier.get(headerName));
               }
             });
+      } else {
+        log.debug("Extension call failed with status: {}", response.code());
       }
     } catch (Throwable ignored) {
       log.error("could not reach the extension");
@@ -107,6 +108,7 @@ public class LambdaHandler {
           "could not notify the extension as the lambda span is null or no sampling priority has been found");
       return false;
     }
+
     RequestBody body = RequestBody.create(jsonMediaType, writeValueAsString(result));
     Request.Builder builder =
         new Request.Builder()

@@ -25,6 +25,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import datadog.trace.core.otlp.common.OtlpCommonProto;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.ArrayDeque;
 import java.util.ArrayList;
@@ -33,7 +34,7 @@ import java.util.List;
 import java.util.function.Consumer;
 
 /**
- * Collects OpenTelemetry metrics and marshalls them into a chunked 'metrics.proto' payload.
+ * Collects OpenTelemetry metrics and marshals them into a chunked 'metrics.proto' payload.
  *
  * <p>This collector is designed to be called by a single thread. To minimize allocations each
  * collection returns a payload only to be used by the calling thread until the next collection.
@@ -83,7 +84,7 @@ public final class OtlpMetricsProtoCollector
   }
 
   /**
-   * Collects OpenTelemetry metrics and marshalls them into a chunked payload.
+   * Collects OpenTelemetry metrics and marshals them into a chunked payload.
    *
    * <p>This payload is only valid for the calling thread until the next collection.
    */
@@ -108,15 +109,18 @@ public final class OtlpMetricsProtoCollector
     startNanos = endNanos;
     endNanos = timeSource.getCurrentTimeNanos();
 
-    // clear payloadChunks in case it wasn't fully consumed via OtlpMetricsPayload
+    // clear payloadChunks in case it wasn't fully consumed via OtlpPayload
     payloadChunks.clear();
+
+    // remove stale entries from caches
+    OtlpCommonProto.recalibrateCaches();
   }
 
   /** Cleanup elements used to collect metrics data. */
   private void stop() {
     buf.reset();
 
-    // leave payloadChunks in place so it can be consumed via OtlpMetricsPayload
+    // leave payloadChunks in place so it can be consumed via OtlpPayload
     scopedChunks.clear();
     metricChunks.clear();
 
@@ -144,6 +148,31 @@ public final class OtlpMetricsProtoCollector
     }
     currentMetric = metric;
     return this;
+  }
+
+  @Override
+  public void visitAttribute(int type, String key, Object value) {
+    // add attribute to the data point currently being collected
+    writeTag(buf, currentMetric.getType() == HISTOGRAM ? 9 : 7, LEN_WIRE_TYPE);
+    writeAttribute(buf, type, key, value);
+  }
+
+  @Override
+  public void visitDataPoint(OtlpDataPoint point) {
+    OtelInstrumentType metricType = currentMetric.getType();
+
+    // gauges don't have a start time (no aggregation temporality)
+    if (metricType != GAUGE && metricType != OBSERVABLE_GAUGE) {
+      writeTag(buf, 2, I64_WIRE_TYPE);
+      writeI64(buf, startNanos);
+    }
+    writeTag(buf, 3, I64_WIRE_TYPE);
+    writeI64(buf, endNanos);
+
+    // add complete data point message to the metric chunks
+    byte[] pointMessage = recordDataPointMessage(buf, point);
+    metricChunks.add(pointMessage);
+    metricBytes += pointMessage.length;
   }
 
   // called once we've processed all scopes and metric messages
@@ -203,30 +232,5 @@ public final class OtlpMetricsProtoCollector
     currentMetric = null;
     metricChunks.clear();
     metricBytes = 0;
-  }
-
-  @Override
-  public void visitAttribute(int type, String key, Object value) {
-    // add attribute to the data point currently being collected
-    writeTag(buf, currentMetric.getType() == HISTOGRAM ? 9 : 7, LEN_WIRE_TYPE);
-    writeAttribute(buf, type, key, value);
-  }
-
-  @Override
-  public void visitDataPoint(OtlpDataPoint point) {
-    OtelInstrumentType metricType = currentMetric.getType();
-
-    // gauges don't have a start time (no aggregation temporality)
-    if (metricType != GAUGE && metricType != OBSERVABLE_GAUGE) {
-      writeTag(buf, 2, I64_WIRE_TYPE);
-      writeI64(buf, startNanos);
-    }
-    writeTag(buf, 3, I64_WIRE_TYPE);
-    writeI64(buf, endNanos);
-
-    // add complete data point message to the metric chunks
-    byte[] pointMessage = recordDataPointMessage(buf, point);
-    metricChunks.add(pointMessage);
-    metricBytes += pointMessage.length;
   }
 }

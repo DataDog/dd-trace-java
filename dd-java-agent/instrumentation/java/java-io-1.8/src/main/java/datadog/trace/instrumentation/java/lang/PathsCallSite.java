@@ -35,6 +35,23 @@ public class PathsCallSite {
     }
   }
 
+  // Java 11+: Path.of — equivalent to Paths.get but defined on the Path interface
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.of(java.lang.String, java.lang.String[])")
+  public static void beforeOf(
+      @CallSite.Argument @Nullable final String first,
+      @CallSite.Argument @Nullable final String[] more) {
+    if (first != null && more != null) {
+      raspCallback(first, more);
+    }
+  }
+
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.of(java.net.URI)")
+  public static void beforeOfUri(@CallSite.Argument @Nullable final URI uri) {
+    if (uri != null) {
+      raspCallback(uri);
+    }
+  }
+
   private static void iastCallback(URI uri) {
     final PathTraversalModule module = InstrumentationBridge.PATH_TRAVERSAL;
     if (module != null) {

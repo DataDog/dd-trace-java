@@ -73,14 +73,14 @@ public class DDSpanLink extends SpanLink {
     if (links == null || links.isEmpty()) {
       return null;
     }
-    // Manually encode as JSON array
+    // Build the JSON array half-manually to keep encoded JSON length less than TAG_MAX_LENGTH.
     StringBuilder builder = new StringBuilder("[");
     int index = 0;
     while (index < links.size()) {
       String linkAsJson = getEncoder().toJson(links.get(index));
       int arrayCharsNeeded = index == 0 ? 1 : 2; // Closing bracket and comma separator if needed
       if (linkAsJson.length() + builder.length() + arrayCharsNeeded >= TAG_MAX_LENGTH) {
-        // Do no more fit inside a span tag, stop adding span links
+        // No more links fit in the span tag; stop adding.
         break;
       }
       if (index > 0) {

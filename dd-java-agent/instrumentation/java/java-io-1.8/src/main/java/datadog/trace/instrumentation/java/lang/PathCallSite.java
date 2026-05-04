@@ -7,6 +7,7 @@ import datadog.trace.api.iast.InstrumentationBridge;
 import datadog.trace.api.iast.Sink;
 import datadog.trace.api.iast.VulnerabilityTypes;
 import datadog.trace.api.iast.sink.PathTraversalModule;
+import java.nio.file.Path;
 import javax.annotation.Nullable;
 
 @Sink(VulnerabilityTypes.PATH_TRAVERSAL)
@@ -21,6 +22,14 @@ public class PathCallSite {
     if (other != null) {
       iastCallback(other);
       raspCallback(other);
+    }
+  }
+
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.resolve(java.nio.file.Path)")
+  @CallSite.Before("java.nio.file.Path java.nio.file.Path.resolveSibling(java.nio.file.Path)")
+  public static void beforeResolveWithPath(@CallSite.Argument @Nullable final Path other) {
+    if (other != null) {
+      raspCallback(other.toString());
     }
   }
 

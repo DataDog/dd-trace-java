@@ -1,5 +1,8 @@
 package datadog.trace
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
+import static datadog.trace.api.ProtocolVersion.V0_4
+
 import com.squareup.moshi.JsonAdapter
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
@@ -10,6 +13,7 @@ import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.core.CoreTracer
 import datadog.trace.test.util.DDSpecification
+import java.lang.reflect.Type
 import okhttp3.HttpUrl
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -18,10 +22,6 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.wait.strategy.Wait
 import spock.lang.AutoCleanup
 import spock.lang.Shared
-
-import java.lang.reflect.Type
-
-import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_AGENT_PORT
 
 class TracerConnectionReliabilityTest extends DDSpecification {
   final static FEATURES_DISCOVERY_MIN_DELAY = 10
@@ -116,7 +116,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   def startTestAgentContainer() {
     //noinspection GrDeprecatedAPIUsage Use FixedHostPortGenericContainer against deprecation because we need to know the exposed to configure the tracer at start
-    def agentContainer = new FixedHostPortGenericContainer("ghcr.io/datadog/dd-apm-test-agent/ddapm-test-agent:v1.27.1")
+    def agentContainer = new FixedHostPortGenericContainer("registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0")
       .withFixedExposedPort(agentContainerPort, DEFAULT_TRACE_AGENT_PORT)
       .withEnv("ENABLED_CHECKS", "trace_count_header,meta_tracer_version_header,trace_content_length")
       .waitingFor(Wait.forHttp("/test/traces"))
@@ -147,7 +147,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   class FixedTraceEndpointFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     FixedTraceEndpointFeaturesDiscovery(SharedCommunicationObjects objects) {
-      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, false, false)
+      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, V0_4, false)
     }
 
     @Override

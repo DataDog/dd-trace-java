@@ -415,9 +415,11 @@ public class AgentTracer {
 
     CallbackProvider getUniversalCallbackProvider();
 
-    AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId);
+    AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId);
 
     void notifyExtensionEnd(AgentSpan span, Object result, boolean isError, String lambdaRequestId);
+
+    void notifyAppSecEnd(AgentSpan span);
 
     AgentDataStreamsMonitoring getDataStreamsMonitoring();
 
@@ -587,6 +589,9 @@ public class AgentTracer {
     public void flushMetrics() {}
 
     @Override
+    public void flushLogs() {}
+
+    @Override
     public ProfilingContextIntegration getProfilingContext() {
       return ProfilingContextIntegration.NoOp.INSTANCE;
     }
@@ -661,13 +666,16 @@ public class AgentTracer {
     }
 
     @Override
-    public AgentSpanContext notifyExtensionStart(Object event, String lambdaRequestId) {
+    public AgentSpanContext notifyLambdaStart(Object event, String lambdaRequestId) {
       return null;
     }
 
     @Override
     public void notifyExtensionEnd(
         AgentSpan span, Object result, boolean isError, String lambdaRequestId) {}
+
+    @Override
+    public void notifyAppSecEnd(AgentSpan span) {}
 
     @Override
     public AgentDataStreamsMonitoring getDataStreamsMonitoring() {

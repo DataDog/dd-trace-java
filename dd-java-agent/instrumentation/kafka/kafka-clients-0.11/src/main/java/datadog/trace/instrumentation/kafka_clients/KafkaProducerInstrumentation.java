@@ -167,7 +167,7 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
         callbackParentSpan = localActiveSpan;
       }
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+      PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
@@ -267,10 +267,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     public static void captureConfiguration(
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(0) ProducerConfig producerConfig) {
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .putIfAbsent(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));
       }

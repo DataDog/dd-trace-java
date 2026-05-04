@@ -26,6 +26,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
       'server.request.body.files_field_names',
       'server.request.body.filenames',
       'server.request.body.combined_file_size',
+      'server.request.body.files_content',
       'server.request.query',
       'server.request.headers.no_cookies',
       'grpc.server.method',
@@ -58,7 +59,7 @@ class KnownAddressesSpecificationForkedTest extends Specification {
 
   void 'number of known addresses is expected number'() {
     expect:
-    Address.instanceCount() == 46
+    Address.instanceCount() == 47
     KnownAddresses.WAF_CONTEXT_PROCESSOR.serial == Address.instanceCount() - 1
   }
 }
