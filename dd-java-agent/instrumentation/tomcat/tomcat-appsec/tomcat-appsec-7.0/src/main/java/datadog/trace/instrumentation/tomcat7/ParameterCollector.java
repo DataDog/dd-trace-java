@@ -172,19 +172,23 @@ public interface ParameterCollector {
       Method getFilename = null;
       try {
         getInputStream = partClass.getMethod("getInputStream");
+        getInputStream.setAccessible(true);
       } catch (Exception ignored) {
       }
       try {
         getContentType = partClass.getMethod("getContentType");
+        getContentType.setAccessible(true);
       } catch (Exception ignored) {
       }
       try {
         getFilename = partClass.getMethod("getSubmittedFileName");
+        getFilename.setAccessible(true);
       } catch (Exception ignored) {
       }
       if (getFilename == null) {
         try {
           getFilename = partClass.getMethod("getFilename");
+          getFilename.setAccessible(true);
         } catch (Exception ignored) {
         }
       }
