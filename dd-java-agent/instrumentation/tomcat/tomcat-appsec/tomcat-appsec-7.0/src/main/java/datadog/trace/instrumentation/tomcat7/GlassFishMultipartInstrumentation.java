@@ -84,51 +84,50 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
       }
 
       CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
-      boolean inspectContent = cbp.getCallback(EVENTS.requestFilesContent()) != null;
+      BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
+          cbp.getCallback(EVENTS.requestFilesFilenames());
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (filenamesCb == null && contentCb == null) {
+        return;
+      }
 
-      ParameterCollector collector = new ParameterCollector.ParameterCollectorImpl(inspectContent);
+      ParameterCollector collector =
+          new ParameterCollector.ParameterCollectorImpl(contentCb != null);
       for (Object part : parts) {
         collector.addPart(part);
       }
 
       List<String> filenames = collector.getFilenames();
-      if (!filenames.isEmpty()) {
-        BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb =
-            cbp.getCallback(EVENTS.requestFilesFilenames());
-        if (filenamesCb != null) {
-          Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
-          Flow.Action action = flow.getAction();
-          if (action instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-            if (brf != null) {
-              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              t = new BlockingException("Blocked request (GlassFish multipart file upload)");
-              reqCtx.getTraceSegment().effectivelyBlocked();
-            }
+      if (!filenames.isEmpty() && filenamesCb != null) {
+        Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
+        Flow.Action action = flow.getAction();
+        if (action instanceof Flow.Action.RequestBlockingAction) {
+          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
+          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+          if (brf != null) {
+            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            t = new BlockingException("Blocked request (GlassFish multipart file upload)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }
       }
 
       if (t == null) {
         List<String> contents = collector.getContents();
-        if (!contents.isEmpty()) {
-          BiFunction<RequestContext, List<String>, Flow<Void>> contentCb =
-              cbp.getCallback(EVENTS.requestFilesContent());
-          if (contentCb != null) {
-            Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
-            Flow.Action contentAction = contentFlow.getAction();
-            if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-              Flow.Action.RequestBlockingAction rba =
-                  (Flow.Action.RequestBlockingAction) contentAction;
-              BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-              if (brf != null) {
-                brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-                t =
-                    new BlockingException(
-                        "Blocked request (GlassFish multipart file upload content)");
-                reqCtx.getTraceSegment().effectivelyBlocked();
-              }
+        if (!contents.isEmpty() && contentCb != null) {
+          Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
+          Flow.Action contentAction = contentFlow.getAction();
+          if (contentAction instanceof Flow.Action.RequestBlockingAction) {
+            Flow.Action.RequestBlockingAction rba =
+                (Flow.Action.RequestBlockingAction) contentAction;
+            BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
+            if (brf != null) {
+              brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+              t =
+                  new BlockingException(
+                      "Blocked request (GlassFish multipart file upload content)");
+              reqCtx.getTraceSegment().effectivelyBlocked();
             }
           }
         }
