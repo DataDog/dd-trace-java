@@ -56,7 +56,7 @@ public class ProducerAdvice {
       callbackParentSpan = localActiveSpan;
     }
     PRODUCER_DECORATE.afterStart(span);
-    PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+    PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
     callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 

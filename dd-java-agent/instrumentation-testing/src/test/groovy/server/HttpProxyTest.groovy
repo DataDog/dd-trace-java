@@ -1,6 +1,7 @@
 package server
 
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.test.server.http.HttpProxy
 import datadog.trace.agent.test.utils.OkHttpUtils
 import okhttp3.MediaType
@@ -20,6 +21,13 @@ import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
   !System.getProperty("java.vm.name").contains("IBM J9 VM")
 })
 class HttpProxyTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @AutoCleanup
   @Shared

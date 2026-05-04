@@ -134,13 +134,24 @@ public final class OtlpMetricsProto {
       writeI64(buf, histogram.min);
       writeTag(buf, 12, I64_WIRE_TYPE);
       writeI64(buf, histogram.max);
-      for (double bucketCount : histogram.bucketCounts) {
-        writeTag(buf, 6, I64_WIRE_TYPE);
-        writeI64(buf, (long) bucketCount);
-      }
-      for (double bucketBoundary : histogram.bucketBoundaries) {
-        writeTag(buf, 7, I64_WIRE_TYPE);
-        writeI64(buf, bucketBoundary);
+      if (!histogram.bucketCounts.isEmpty()) {
+        boolean hasOverflow = false;
+        for (double bucketBoundary : histogram.bucketBoundaries) {
+          if (!Double.isInfinite(bucketBoundary)) {
+            writeTag(buf, 7, I64_WIRE_TYPE);
+            writeI64(buf, bucketBoundary);
+          } else {
+            hasOverflow = true; // don't write the overflow boundary
+          }
+        }
+        for (double bucketCount : histogram.bucketCounts) {
+          writeTag(buf, 6, I64_WIRE_TYPE);
+          writeI64(buf, (long) bucketCount);
+        }
+        if (!hasOverflow) { // write one more count than boundaries
+          writeTag(buf, 6, I64_WIRE_TYPE);
+          writeI64(buf, 0L);
+        }
       }
     }
 

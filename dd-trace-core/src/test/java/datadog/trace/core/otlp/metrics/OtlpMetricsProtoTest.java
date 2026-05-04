@@ -1,9 +1,9 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.stream.Collectors.toList;
@@ -257,19 +257,19 @@ class OtlpMetricsProtoTest {
   }
 
   private static AttrSpec strAttr(String key, String value) {
-    return new AttrSpec(STRING, key, value);
+    return new AttrSpec(STRING_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec longAttr(String key, long value) {
-    return new AttrSpec(LONG, key, value);
+    return new AttrSpec(LONG_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec boolAttr(String key, boolean value) {
-    return new AttrSpec(BOOLEAN, key, value);
+    return new AttrSpec(BOOLEAN_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec dblAttr(String key, double value) {
-    return new AttrSpec(DOUBLE, key, value);
+    return new AttrSpec(DOUBLE_ATTRIBUTE, key, value);
   }
 
   // ── test cases ─────────────────────────────────────────────────────────────
@@ -357,63 +357,92 @@ class OtlpMetricsProtoTest {
                         boolAttr("success", true),
                         dblAttr("rate", 0.5))))),
 
-        // ── histogram — no buckets ────────────────────────────────────────────
+        // ── histogram — overflow only (no explicit bounds) ────────────────────
         Arguments.of(
-            "histogram no buckets",
+            "histogram no explicit bounds — overflow bucket only",
             asList(
                 scope(
                     "io.hist",
-                    histogram("response.time", 1.0, emptyList(), asList(1.0), 0.5, 0.5, 0.5)))),
+                    histogram(
+                        "response.time",
+                        1.0,
+                        asList(Double.POSITIVE_INFINITY),
+                        asList(1.0),
+                        0.5,
+                        0.5,
+                        0.5)))),
 
-        // ── histogram — zero count and sum ────────────────────────────────────
+        // ── histogram — zero count and sum with overflow bucket ───────────────
         Arguments.of(
             "histogram zero count and sum",
             asList(
                 scope(
                     "io.hist",
-                    histogram("idle.time", 0.0, emptyList(), asList(0.0), 0.0, 0.0, 0.0)))),
+                    histogram(
+                        "idle.time",
+                        0.0,
+                        asList(Double.POSITIVE_INFINITY),
+                        asList(0.0),
+                        0.0,
+                        0.0,
+                        0.0)))),
 
-        // ── histogram — single explicit bound ─────────────────────────────────
+        // ── histogram — single explicit bound with overflow ───────────────────
         Arguments.of(
-            "histogram single bound",
+            "histogram single bound with overflow",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "request.size",
                         5.0,
-                        asList(100.0),
+                        asList(100.0, Double.POSITIVE_INFINITY),
                         asList(4.0, 1.0),
                         280.0,
                         20.0,
                         200.0)))),
 
-        // ── histogram — with explicit bounds and attrs ────────────────────────
+        // ── histogram — finite bounds only (no overflow) — extra zero appended ─
         Arguments.of(
-            "histogram with bounds and string attr",
+            "histogram finite bounds — no overflow — extra zero bucket appended",
+            asList(
+                scope(
+                    "io.hist",
+                    histogram(
+                        "queue.size",
+                        8.0,
+                        asList(50.0, 100.0),
+                        asList(3.0, 5.0),
+                        750.0,
+                        10.0,
+                        95.0)))),
+
+        // ── histogram — with explicit bounds, overflow, and attrs ─────────────
+        Arguments.of(
+            "histogram with bounds, overflow, and string attr",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "response.time",
                         10.0,
-                        asList(1.0, 5.0, 10.0),
+                        asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
                         asList(2.0, 3.0, 4.0, 1.0),
                         45.5,
                         0.5,
                         12.0,
                         strAttr("region", "us-east"))))),
 
-        // ── histogram — many buckets with multiple attrs ───────────────────────
+        // ── histogram — many buckets with overflow and multiple attrs ──────────
         Arguments.of(
-            "histogram many buckets with long and bool attrs",
+            "histogram many buckets with overflow, long and bool attrs",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "latency.ms",
                         100.0,
-                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0),
+                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
                         asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
                         4321.0,
                         0.5,
@@ -985,26 +1014,67 @@ class OtlpMetricsProtoTest {
     assertTrue(foundMin, "min required for histogram " + expected.name);
     assertTrue(foundMax, "max required for histogram " + expected.name);
 
-    assertEquals(
-        hp.bucketCounts.size(),
-        parsedBucketCounts.size(),
-        "bucket_counts size for " + expected.name);
-    for (int i = 0; i < hp.bucketCounts.size(); i++) {
+    // Input uses equal counts and boundaries; derive the expected OTLP wire output:
+    // - finite boundaries are written as explicit_bounds (+Infinity overflow marker is dropped)
+    // - when there is no overflow boundary, one extra zero count is appended so that
+    //   bucket_counts.size() == explicit_bounds.size() + 1, as required by the OTLP spec
+    List<Double> expectedBounds = new ArrayList<>();
+    boolean hasOverflow = false;
+    for (double b : hp.bucketBoundaries) {
+      if (Double.isInfinite(b)) {
+        hasOverflow = true;
+      } else {
+        expectedBounds.add(b);
+      }
+    }
+    List<Long> expectedCounts = new ArrayList<>();
+    for (double c : hp.bucketCounts) {
+      expectedCounts.add((long) c);
+    }
+    if (!expectedCounts.isEmpty() && !hasOverflow) {
+      expectedCounts.add(0L);
+    }
+
+    // OTLP spec: bucket_counts.size() == explicit_bounds.size() + 1, or both 0
+    if (expectedCounts.isEmpty()) {
       assertEquals(
-          (long) hp.bucketCounts.get(i).doubleValue(),
-          (long) parsedBucketCounts.get(i),
-          "bucket_counts[" + i + "] for " + expected.name);
+          0,
+          parsedBounds.size(),
+          "explicit_bounds must be 0 when bucket_counts is 0 for " + expected.name);
+      assertEquals(
+          0,
+          parsedBucketCounts.size(),
+          "bucket_counts must be 0 when explicit_bounds is 0 for " + expected.name);
+    } else {
+      assertEquals(
+          parsedBounds.size() + 1,
+          parsedBucketCounts.size(),
+          "OTLP spec: bucket_counts must be explicit_bounds + 1 for " + expected.name);
+    }
+
+    // +Infinity must never appear as an explicit bound on the wire
+    assertFalse(
+        parsedBounds.stream().anyMatch(b -> Double.isInfinite(b)),
+        "+Infinity must not appear in explicit_bounds for " + expected.name);
+
+    assertEquals(
+        expectedBounds.size(), parsedBounds.size(), "explicit_bounds size for " + expected.name);
+    for (int i = 0; i < expectedBounds.size(); i++) {
+      assertEquals(
+          Double.doubleToRawLongBits(expectedBounds.get(i)),
+          Double.doubleToRawLongBits(parsedBounds.get(i)),
+          "explicit_bounds[" + i + "] for " + expected.name);
     }
 
     assertEquals(
-        hp.bucketBoundaries.size(),
-        parsedBounds.size(),
-        "explicit_bounds size for " + expected.name);
-    for (int i = 0; i < hp.bucketBoundaries.size(); i++) {
+        expectedCounts.size(),
+        parsedBucketCounts.size(),
+        "bucket_counts size for " + expected.name);
+    for (int i = 0; i < expectedCounts.size(); i++) {
       assertEquals(
-          Double.doubleToRawLongBits(hp.bucketBoundaries.get(i)),
-          Double.doubleToRawLongBits(parsedBounds.get(i)),
-          "explicit_bounds[" + i + "] for " + expected.name);
+          (long) expectedCounts.get(i),
+          (long) parsedBucketCounts.get(i),
+          "bucket_counts[" + i + "] for " + expected.name);
     }
 
     assertEquals(

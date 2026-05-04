@@ -2,6 +2,7 @@ package datadog.trace.agent.test
 
 import datadog.environment.EnvironmentVariables
 import datadog.trace.agent.tooling.InstrumenterModule
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.agent.tooling.bytebuddy.matcher.DDElementMatchers
 import datadog.trace.agent.tooling.bytebuddy.outline.TypePoolFacade
 import datadog.trace.test.util.DDSpecification
@@ -10,6 +11,10 @@ class DefaultInstrumenterForkedTest extends DDSpecification {
   static {
     TypePoolFacade.registerAsSupplier()
     DDElementMatchers.registerAsSupplier()
+  }
+
+  def setupSpec() {
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
   }
 
   def "default enabled"() {

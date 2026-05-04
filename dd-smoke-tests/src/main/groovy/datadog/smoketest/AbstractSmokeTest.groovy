@@ -1,26 +1,31 @@
 package datadog.smoketest
 
+import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
+import static datadog.trace.api.ProtocolVersion.V0_4
+import static datadog.trace.api.ProtocolVersion.V0_5
+import static datadog.trace.api.ProtocolVersion.V1_0
+import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
+import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
+
 import datadog.environment.JavaVirtualMachine
 import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer
+import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
+import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.ResponseApi
+import datadog.trace.api.ProtocolVersion
 import datadog.trace.test.agent.decoder.DecodedMessage
 import datadog.trace.test.agent.decoder.DecodedSpan
 import datadog.trace.test.agent.decoder.DecodedTrace
 import datadog.trace.test.agent.decoder.Decoder
 import datadog.trace.util.Strings
 import groovy.json.JsonSlurper
-import spock.lang.AutoCleanup
-import spock.lang.Shared
-import spock.util.concurrent.PollingConditions
-
 import java.nio.charset.StandardCharsets
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.function.Function
-
-import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
-import static datadog.trace.test.util.ForkedTestUtils.getMaxMemoryArgumentForFork
-import static datadog.trace.test.util.ForkedTestUtils.getMinMemoryArgumentForFork
+import spock.lang.AutoCleanup
+import spock.lang.Shared
+import spock.util.concurrent.PollingConditions
 
 abstract class AbstractSmokeTest extends ProcessManager {
   @Shared
@@ -79,6 +84,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
           "endpoints": [
             "/v0.4/traces",
             "/v0.5/traces",
+            "/v1.0/traces",
             "/telemetry/proxy/",
             "/evp_proxy/v2/"
           ],
@@ -96,50 +102,13 @@ abstract class AbstractSmokeTest extends ProcessManager {
         }""")
       }
       prefix("/v0.4/traces") {
-        def countString = request.getHeader("X-Datadog-Trace-Count")
-        int count = countString != null ? Integer.parseInt(countString) : 0
-        def body = request.getBody()
-        if (body.length && decode) {
-          try {
-            DecodedMessage message = Decoder.decodeV04(body)
-            assert message.getTraces().size() == count
-            def traces = message.traces
-            decode(traces)
-            decodeTraces.addAll(traces)
-          } catch (Throwable t) {
-            println("=== Failure during message v0.4 decoding ===")
-            t.printStackTrace(System.out)
-            traceDecodingFailure = t
-            throw t
-          }
-        }
-        traceCount.addAndGet(count)
-        lastTraceRequestHeaders = request.headers
-        println("Received v0.4 traces: " + countString)
-        response.status(200).send()
+        handleTrace(V0_4, request, response)
       }
       prefix("/v0.5/traces") {
-        def countString = request.getHeader("X-Datadog-Trace-Count")
-        int count = countString != null ? Integer.parseInt(countString) : 0
-        def body = request.getBody()
-        if (body.length && decode) {
-          try {
-            DecodedMessage message = Decoder.decode(body)
-            assert message.getTraces().size() == count
-            def traces = message.traces
-            decode(traces)
-            decodeTraces.addAll(traces)
-          } catch (Throwable t) {
-            println("=== Failure during message v0.5 decoding ===")
-            t.printStackTrace(System.out)
-            traceDecodingFailure = t
-            throw t
-          }
-        }
-        traceCount.addAndGet(count)
-        lastTraceRequestHeaders = request.headers
-        println("Received v0.5 traces: " + countString)
-        response.status(200).send()
+        handleTrace(V0_5, request, response)
+      }
+      prefix("/v1.0/traces") {
+        handleTrace(V1_0, request, response)
       }
       prefix("/v0.6/stats") {
         response.status(200).send()
@@ -188,6 +157,41 @@ abstract class AbstractSmokeTest extends ProcessManager {
         response.status(200).send()
       }
     }
+  }
+
+  protected void handleTrace(ProtocolVersion protocol, RequestApi request, ResponseApi response) {
+    def countString = request.getHeader("X-Datadog-Trace-Count")
+    int count = countString != null ? Integer.parseInt(countString) : 0
+    def body = request.getBody()
+    if (body.length && decode) {
+      try {
+        DecodedMessage message
+        switch (protocol) {
+          case V0_4: message = Decoder.decodeV04(body)
+            break
+          case V0_5: message = Decoder.decodeV05(body)
+            break
+          case V1_0: message = Decoder.decodeV1(body)
+            break
+          default:
+            throw new IllegalArgumentException("Unsupported trace protocol: ${protocol}")
+        }
+
+        assert message.getTraces().size() == count
+        def traces = message.traces
+        decode(traces)
+        decodeTraces.addAll(traces)
+      } catch (Throwable t) {
+        println("=== Failure during message ${protocol} decoding ===")
+        t.printStackTrace(System.out)
+        traceDecodingFailure = t
+        throw t
+      }
+    }
+    traceCount.addAndGet(count)
+    lastTraceRequestHeaders = request.headers
+    println("Received ${protocol} traces: " + countString)
+    response.status(200).send()
   }
 
   @Shared

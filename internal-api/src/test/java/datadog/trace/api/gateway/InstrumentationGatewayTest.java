@@ -240,6 +240,12 @@ public class InstrumentationGatewayTest {
     assertEquals(
         Flow.Action.Noop.INSTANCE,
         cbp.getCallback(events.requestFilesFilenames()).apply(null, null).getAction());
+    ss.registerCallback(events.requestFilesContent(), callback);
+    assertEquals(
+        Flow.Action.Noop.INSTANCE,
+        cbp.getCallback(events.requestFilesContent()).apply(null, null).getAction());
+    ss.registerCallback(events.fileWritten(), callback);
+    cbp.getCallback(events.fileWritten()).apply(null, null);
     assertEquals(Events.MAX_EVENTS, callback.count);
   }
 
@@ -329,6 +335,11 @@ public class InstrumentationGatewayTest {
     ss.registerCallback(events.requestFilesFilenames(), throwback);
     assertEquals(
         Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesFilenames()).apply(null, null));
+    ss.registerCallback(events.requestFilesContent(), throwback);
+    assertEquals(
+        Flow.ResultFlow.empty(), cbp.getCallback(events.requestFilesContent()).apply(null, null));
+    ss.registerCallback(events.fileWritten(), throwback);
+    cbp.getCallback(events.fileWritten()).apply(null, null);
     assertEquals(Events.MAX_EVENTS, throwback.count);
   }
 

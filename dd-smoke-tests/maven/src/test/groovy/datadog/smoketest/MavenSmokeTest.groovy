@@ -121,11 +121,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
     mockBackend.givenAttemptToFixRetries(5)
 
     mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_failed")
-    mockBackend.givenQuarantinedTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
 
-    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeed")
+    mockBackend.givenDisabledTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_succeeded")
 
-    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestFailed", "test_another_failed")
+    mockBackend.givenAttemptToFixTests("Maven Smoke Tests Project maven-surefire-plugin default-test", "datadog.smoke.TestSucceeded", "test_another_succeeded")
 
     def exitCode = whenRunningMavenBuild([:], [], [:])
     assert exitCode == 0

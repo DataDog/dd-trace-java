@@ -8,7 +8,7 @@ plugins {
 ext {
   serverName = 'tomcat'
   serverModule = 'tomcat-9'
-  serverVersion = '9.0.115'
+  serverVersion = '9.0.117'
   serverExtension = 'zip'
 }
 

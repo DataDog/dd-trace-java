@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.ProtocolVersion.V0_4;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
@@ -72,7 +73,7 @@ public class ConflatingMetricsAggregatorBenchmark {
 
     public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
       // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, false, true);
+      super(null, Monitoring.DISABLED, null, V0_4, true);
       this.peerTags = peerTags;
       this.spanKinds = spanKinds;
     }

@@ -39,25 +39,30 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
     0.123456d       | "0.123456"
     0.100000d       | "0.1"
     0.250d          | "0.25"
-    // [0.01, 0.1) magnitude bucket (scale=7)
     0.05d           | "0.05"
-    0.0123456789d   | "0.0123457"
-    // [0.001, 0.01) magnitude bucket (scale=8)
+    // 6 decimal places: round(0.0123456789 * 1e6) = round(12345.6789) = 12346
+    0.0123456789d   | "0.012346"
     0.001d          | "0.001"
     0.00500d        | "0.005"
-    0.00123456789d  | "0.00123457"
-    // [0.0001, 0.001) magnitude bucket (scale=9)
+    // 6 decimal places: round(0.00123456789 * 1e6) = round(1234.56789) = 1235
+    0.00123456789d  | "0.001235"
     0.0001d         | "0.0001"
     0.000500d       | "0.0005"
-    0.000123456789d | "0.000123457"
-    // rounding boundary: 0.9999995 rounds up to 1.0
+    // 6 decimal places: round(0.000123456789 * 1e6) = round(123.456789) = 123
+    0.000123456789d | "0.000123"
+    // rounding boundary: round(0.9999995 * 1e6) = round(999999.5) = 1000000 >= 1e6 -> "1"
     0.9999995d      | "1"
-    // scientific notation (rate < 1e-4)
-    0.00001d        | "1e-05"
-    0.000050d       | "5e-05"
-    1.23456789e-5d  | "1.23457e-05"
-    1e-7d           | "1e-07"
-    5.5e-10d        | "5.5e-10"
+    // values in (0, 1e-4): fixed 6 decimal places, no scientific notation
+    0.00001d        | "0.00001"
+    0.000050d       | "0.00005"
+    // round(1.23456789e-5 * 1e6) = round(12.3456789) = 12
+    1.23456789e-5d  | "0.000012"
+    // below 6-decimal-place precision: round to 0
+    1e-7d           | "0"
+    5.5e-10d        | "0"
+    // system-tests Test_Knuth_Sample_Rate boundary cases
+    0.000001d       | "0.000001" // six_decimal_precision_boundary
+    0.00000051d     | "0.000001" // rounds_up_to_one_millionth
   }
 
   def "agent rate sampler sets ksr propagated tag"() {
