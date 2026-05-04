@@ -447,6 +447,9 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   // only visible for tests
   Map<String, ProbeDefinition> getAppliedDefinitions() {
+    if (currentTransformer == null) {
+      return Collections.emptyMap();
+    }
     return currentConfiguration.getDefinitions().stream()
         .collect(
             Collectors.toMap(

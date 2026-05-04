@@ -17,6 +17,7 @@ import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Predicate;
@@ -81,6 +82,7 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   @Override
   public void commit(PollingRateHinter pollingRateHinter) {
-    configurationAcceptor.accept(REMOTE_CONFIG, probeByConfigId.values());
+    // create a snapshot of the actual probes stored into probeByConfigId map
+    configurationAcceptor.accept(REMOTE_CONFIG, new ArrayList<>(probeByConfigId.values()));
   }
 }
