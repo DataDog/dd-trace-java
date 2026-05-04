@@ -35,7 +35,7 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
     implements Instrumenter.ForBootstrap, Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public ObjectWaitProfilingInstrumentation() {
-    super("object-wait-profiling");
+    super("object-wait");
   }
 
   @Override

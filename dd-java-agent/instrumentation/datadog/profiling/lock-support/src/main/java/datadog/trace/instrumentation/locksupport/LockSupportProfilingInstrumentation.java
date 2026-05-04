@@ -34,7 +34,7 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
 
   public LockSupportProfilingInstrumentation() {
-    super("lock-support-profiling");
+    super("lock-support");
   }
 
   @Override
