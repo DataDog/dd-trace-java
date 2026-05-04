@@ -82,8 +82,10 @@ class BaggagePropagatorTelemetryTest {
 
     baggageMetrics.onBaggageInjected();
     baggageMetrics.onBaggageMalformed();
-    baggageMetrics.onBaggageTruncatedByByteLimit();
-    baggageMetrics.onBaggageTruncatedByItemLimit();
+    baggageMetrics.onBaggageTruncatedByInjectByteLimit();
+    baggageMetrics.onBaggageTruncatedByInjectItemLimit();
+    baggageMetrics.onBaggageTruncatedByExtractByteLimit();
+    baggageMetrics.onBaggageTruncatedByExtractItemLimit();
     collector.prepareMetrics();
     Collection<CoreMetricCollector.CoreMetric> metrics = collector.drain();
 
@@ -126,6 +128,28 @@ class BaggagePropagatorTelemetryTest {
             .orElse(null);
     assertNotNull(itemsTruncatedMetric);
     assertEquals(1, itemsTruncatedMetric.value.longValue());
+
+    CoreMetricCollector.CoreMetric extractBytesTruncatedMetric =
+        metrics.stream()
+            .filter(
+                m ->
+                    "context_header.truncated".equals(m.metricName)
+                        && m.tags.contains("truncation_reason:baggage_extract_byte_exceeded"))
+            .findFirst()
+            .orElse(null);
+    assertNotNull(extractBytesTruncatedMetric);
+    assertEquals(1, extractBytesTruncatedMetric.value.longValue());
+
+    CoreMetricCollector.CoreMetric extractItemsTruncatedMetric =
+        metrics.stream()
+            .filter(
+                m ->
+                    "context_header.truncated".equals(m.metricName)
+                        && m.tags.contains("truncation_reason:baggage_extract_item_exceeded"))
+            .findFirst()
+            .orElse(null);
+    assertNotNull(extractItemsTruncatedMetric);
+    assertEquals(1, extractItemsTruncatedMetric.value.longValue());
   }
 
   @Test
