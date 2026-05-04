@@ -47,11 +47,8 @@ import java.util.function.Consumer;
  * points) to the payload. Once all the metrics data has been chunked we add the enclosing resource
  * metrics message to the start of the payload.
  */
-public final class OtlpMetricsProtoCollector
-    implements OtlpMetricsVisitor,
-        OtlpScopedMetricsVisitor,
-        OtlpMetricVisitor,
-        OtlpMetricsCollector {
+public final class OtlpMetricsProtoCollector extends OtlpMetricsCollector
+    implements OtlpMetricsVisitor, OtlpScopedMetricsVisitor, OtlpMetricVisitor {
 
   public static final OtlpMetricsProtoCollector INSTANCE =
       new OtlpMetricsProtoCollector(SystemTimeSource.INSTANCE);
