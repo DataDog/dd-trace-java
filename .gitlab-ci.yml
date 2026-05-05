@@ -912,9 +912,15 @@ muzzle-dep-report:
     - ./gradlew --version
   script:
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
+  after_script:
+    # Forked test JVMs hardcode -XX:ErrorFile=/tmp/... in build.gradle.kts, so their
+    # hs_err_pid*.log files land in /tmp (outside $CI_PROJECT_DIR) and are missed by the
+    # artifact globs below. collect_reports.sh copies them into ./reports/ and tars them up.
+    - .gitlab/collect_reports.sh
   artifacts:
     when: always
     paths:
+      - ./reports.tar
       - workspace/**/build/test-results/**
       - workspace/**/build/reports/tests/**
       - buildSrc/build/test-results/**
