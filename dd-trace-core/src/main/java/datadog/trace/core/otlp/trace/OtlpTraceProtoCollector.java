@@ -32,7 +32,7 @@ import java.util.List;
  * to the payload. Once all the span data has been chunked we add the enclosing resource span
  * message to the start of the payload.
  */
-public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
+public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
