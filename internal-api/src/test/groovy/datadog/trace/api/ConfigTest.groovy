@@ -3347,6 +3347,30 @@ class ConfigTest extends DDSpecification {
     "false" | "true"  | false   // sys prop takes precedence
   }
 
+  def "dbm propagation mode #propagationMode enables base hash injection #expectedBaseHashInjection"() {
+    setup:
+    System.setProperty("dd.dbm.propagation.mode", propagationMode)
+    if (injectBaseHash != null) {
+      System.setProperty("dd.dbm.inject.sql.basehash", injectBaseHash)
+    }
+
+    when:
+    def config = new Config()
+
+    then:
+    config.isDbmCommentInjectionEnabled() == expectedCommentInjection
+    config.isDbmInjectSqlBaseHash() == expectedBaseHashInjection
+
+    where:
+    propagationMode | injectBaseHash | expectedCommentInjection | expectedBaseHashInjection
+    "disabled"      | null           | false                    | false
+    "service"       | null           | true                     | false
+    "full"          | null           | true                     | false
+    "fingerprint"   | null           | true                     | true
+    "fingerprint"   | "false"        | true                     | true
+    "service"       | "true"         | true                     | true
+  }
+
   def "db client info fetching enabled with sys = #sys env = #env"() {
     setup:
     if (sys != null) {

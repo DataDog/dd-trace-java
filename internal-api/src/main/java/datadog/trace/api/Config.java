@@ -1778,8 +1778,10 @@ public class Config {
         configProvider.getBoolean(
             DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
+    boolean dbmFingerprintPropagationMode =
+        DBM_PROPAGATION_MODE_FINGERPRINT.equals(dbmPropagationMode);
     dbmInjectSqlBaseHash =
-        DBM_PROPAGATION_MODE_FINGERPRINT.equals(dbmPropagationMode)
+        dbmFingerprintPropagationMode
             || configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
