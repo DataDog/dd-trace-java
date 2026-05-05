@@ -252,6 +252,14 @@ abstract class AbstractSmokeTest extends ProcessManager {
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
+    // Disable CDS on Linux arm64: Temurin 11.0.31 / 21.0.10 hit a SIGSEGV during
+    // shared-class restore (ClassLoaderData::add_handle, Klass::class_loader)
+    // before any user code runs.
+    def os = System.getProperty("os.name").toLowerCase()
+    def arch = System.getProperty("os.arch").toLowerCase()
+    if (os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64"))) {
+      ret += "-Xshare:off"
+    }
     ret as String[]
   }
 
