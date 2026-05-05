@@ -91,7 +91,7 @@ class DDAgentFeaturesDiscoveryTest extends DDSpecification {
     setup:
     OkHttpClient client = Mock(OkHttpClient)
     DDAgentFeaturesDiscovery features =
-      new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, null, true)
+      new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, null, true, false)
 
     when:
     features.discover()
