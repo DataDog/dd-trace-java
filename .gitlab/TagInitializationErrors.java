@@ -1,28 +1,32 @@
-import org.w3c.dom.Element;
-import javax.xml.XMLConstants;
-import javax.xml.parsers.DocumentBuilderFactory;
-import javax.xml.transform.OutputKeys;
-import javax.xml.transform.TransformerFactory;
-import javax.xml.transform.dom.DOMSource;
-import javax.xml.transform.stream.StreamResult;
 import java.io.File;
 import java.nio.file.Files;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilderFactory;
+import javax.xml.transform.OutputKeys;
+import javax.xml.transform.TransformerFactory;
+import javax.xml.transform.dom.DOMSource;
+import javax.xml.transform.stream.StreamResult;
+import org.w3c.dom.Document;
+import org.w3c.dom.Element;
 
 /// Tags synthetic testcases (`initializationError`, `executionError`, `test exception`) with
 /// `dd_tags[test.final_status]=skip` so Test Optimization does not treat them as real failures.
 /// The script is idempotent — testcases that already carry a `dd_tags[test.final_status]` property
 /// are left unchanged.
 ///
-/// **`initializationError`** — Gradle generates these for setup methods. When retried and eventually
+/// **`initializationError`** — Gradle generates these for setup methods. When retried and
+// eventually
 /// successful, multiple testcases appear; only the last one passes. All intermediate attempts are
-/// tagged skip. Groups with only one (or zero) `initializationError` entries per classname are left unmodified.
+/// tagged skip. Groups with only one (or zero) `initializationError` entries per classname are left
+// unmodified.
 ///
 /// **`executionError`** and **`test exception`** — Framework-level synthetic failures that do not
-/// represent real test results. Tagged skip unconditionally so Test Optimization treats them as non-failures.
+/// represent real test results. Tagged skip unconditionally so Test Optimization treats them as
+// non-failures.
 ///
 /// Before (two retries of the same class — first is intermediate, second is the final outcome):
 ///
@@ -75,18 +79,22 @@ class TagInitializationErrors {
       }
     }
     for (var group : byClassname.values()) {
-      if (group.size() <= 1) continue;
       for (int i = 0; i < group.size() - 1; i++) {
-        if (tagSkip(doc, group.get(i))) modified = true;
+        if (tagSkip(doc, group.get(i))) {
+          modified = true;
+        }
       }
     }
-    if (!modified) return;
+    if (!modified) {
+      return;
+    }
     var tmpFile = File.createTempFile("TagInitializationErrors", ".xml", xmlFile.getParentFile());
     try {
       var transformer = TransformerFactory.newInstance().newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
       transformer.transform(new DOMSource(doc), new StreamResult(tmpFile));
-      Files.move(tmpFile.toPath(), xmlFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+      Files.move(
+          tmpFile.toPath(), xmlFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
     } catch (Exception e) {
       tmpFile.delete();
       throw e;
@@ -97,12 +105,14 @@ class TagInitializationErrors {
     var children = parent.getChildNodes();
     for (int i = 0; i < children.getLength(); i++) {
       var child = children.item(i);
-      if (child instanceof Element e && tagName.equals(e.getTagName())) return e;
+      if (child instanceof Element e && tagName.equals(e.getTagName())) {
+        return e;
+      }
     }
     return null;
   }
 
-  static boolean tagSkip(org.w3c.dom.Document doc, Element testcase) {
+  static boolean tagSkip(Document doc, Element testcase) {
     var props = firstChildElement(testcase, "properties");
     if (props != null) {
       var children = props.getChildNodes();
