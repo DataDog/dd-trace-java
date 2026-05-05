@@ -118,3 +118,36 @@ class DBMBaseHashInjectionForkedTest extends InjectionTest {
     }
   }
 }
+
+class DBMFingerprintInjectionForkedTest extends InjectionTest {
+
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig(TraceInstrumentationConfig.DB_DBM_PROPAGATION_MODE_MODE, "fingerprint")
+  }
+
+  def "fingerprint mode injects base hash without trace context"() {
+    setup:
+    ProcessTags.reset()
+    BaseHash.updateBaseHash(123456789L)
+    def connection = new TestConnection(false)
+
+    when:
+    def statement = connection.createStatement() as TestStatement
+    statement.executeQuery(query)
+
+    then:
+    assert statement.sql == "/*${serviceInjection},ddsh='123456789'*/ ${query}"
+    assertTraces(1) {
+      trace(1) {
+        span {
+          spanType DDSpanTypes.SQL
+          tags(false) {
+            "$Tags.BASE_HASH" "123456789"
+          }
+        }
+      }
+    }
+  }
+}

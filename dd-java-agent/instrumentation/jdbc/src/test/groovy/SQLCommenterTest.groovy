@@ -146,6 +146,20 @@ class SQLCommenterTest extends InstrumentationSpecification {
     "/*ddsh='-3750763034362895579'*/ SELECT *" | true       | 234563   | true               | ""    | "/*ddsh='-3750763034362895579'*/ SELECT *"
   }
 
+  def "fingerprint propagation mode enables base hash injection"() {
+    setup:
+    injectSysConfig("dd.service", "")
+    injectSysConfig("dd.env", "")
+    injectSysConfig("dbm.propagation.mode", "fingerprint")
+    ProcessTags.reset()
+    BaseHash.updateBaseHash(234563L)
+
+    expect:
+    Config.get().isDbmCommentInjectionEnabled()
+    Config.get().isDbmInjectSqlBaseHash()
+    SQLCommenter.inject("SELECT *", "", "", "", "", null, false) == "/*ddsh='234563'*/ SELECT *"
+  }
+
   def "test encode Sql Comment with peer service"() {
     setup:
     injectSysConfig("dd.service", "SqlCommenter")

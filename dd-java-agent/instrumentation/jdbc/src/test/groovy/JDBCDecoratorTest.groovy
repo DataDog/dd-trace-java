@@ -57,6 +57,18 @@ class JDBCDecoratorServicePropagationForkedTest extends JDBCDecoratorTest {
   }
 }
 
+class JDBCDecoratorFingerprintPropagationForkedTest extends JDBCDecoratorTest {
+  @Override
+  protected void setupPropagationMode() {
+    injectSysConfig(DB_DBM_PROPAGATION_MODE_MODE, "fingerprint")
+  }
+
+  @Override
+  protected boolean expectedFromConfig() {
+    return false
+  }
+}
+
 class JDBCDecoratorNoPropagationForkedTest extends JDBCDecoratorTest {
   @Override
   protected void setupPropagationMode() {
