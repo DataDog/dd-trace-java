@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.java.lang.module;
 
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.logFailedToOpen;
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.logNoNamedModule;
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.shouldBeOpened;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -51,7 +54,7 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This(typing = Assigner.Typing.DYNAMIC) Object self) {
       final Class<?> cls = self.getClass();
-      if (JpmsHelper.shouldBeOpened(cls)) {
+      if (shouldBeOpened(cls)) {
         final Module module = cls.getModule();
         final String pkg = cls.getPackageName();
         if (module != null) {
@@ -65,10 +68,10 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
               module.addOpens(pkg, loader.getUnnamedModule());
             }
           } catch (Throwable t) {
-            JpmsHelper.logFailedToOpen(pkg, t);
+            logFailedToOpen(pkg, t);
           }
         } else {
-          JpmsHelper.logNullModule(cls);
+          logNoNamedModule(cls);
         }
       }
     }

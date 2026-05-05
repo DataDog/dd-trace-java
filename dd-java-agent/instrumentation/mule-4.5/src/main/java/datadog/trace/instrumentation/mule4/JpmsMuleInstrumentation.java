@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.mule4;
 
 import static java.util.Arrays.asList;
-import static java.util.Collections.unmodifiableList;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.InstrumenterModule;
@@ -12,12 +11,6 @@ import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
 public class JpmsMuleInstrumentation extends InstrumenterModule implements JavaModuleOpenProvider {
-  private static final Collection<String> TRIGGER_CLASSES =
-      unmodifiableList(
-          asList(
-              "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo",
-              "org.mule.runtime.tracer.customization.impl.provider.LazyInitialSpanInfo"));
-
   public JpmsMuleInstrumentation() {
     super("mule", "mule-jpms");
   }
@@ -44,6 +37,8 @@ public class JpmsMuleInstrumentation extends InstrumenterModule implements JavaM
 
   @Override
   public Collection<String> triggerClasses() {
-    return TRIGGER_CLASSES;
+    return asList(
+        "org.mule.runtime.tracer.customization.impl.info.ExecutionInitialSpanInfo",
+        "org.mule.runtime.tracer.customization.impl.provider.LazyInitialSpanInfo");
   }
 }
