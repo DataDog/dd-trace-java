@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 
 import argparse
-import email.utils
 import json
 import os
 import re
 import sys
-import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -19,11 +17,6 @@ GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 DEFAULT_MIN_AGE_HOURS = 48
 GRADLE_PRERELEASE_PATTERN = re.compile(r"(?:^|[.\-])(rc|milestone)(?:[.\-\d]|$)", re.IGNORECASE)
-AKKA_REPOSITORY_URL = os.environ.get("DEPENDENCY_AGE_AKKA_REPOSITORY_URL", "https://repo.akka.io/maven")
-REPOSITORY_FALLBACKS: tuple[tuple[str, str], ...] = (
-    ("com.typesafe.akka", AKKA_REPOSITORY_URL),
-    ("io.akka", AKKA_REPOSITORY_URL),
-)
 
 
 @dataclass(frozen=True)
@@ -35,7 +28,6 @@ class Candidate:
 # Entry point for GitHub Actions workflows
 # select-gradle: get newest Gradle release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
 # select-maven: get newest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
-# validate-lockfiles: validate changed Gradle lockfile entries
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Dependency age helpers for GitHub workflows.")
     subparsers = parser.add_subparsers(dest="command", required=True)
@@ -57,15 +49,6 @@ def parse_args() -> argparse.Namespace:
         default=[],
         help="Case-insensitive regex fragment used to exclude prerelease versions.",
     )
-
-    validate = subparsers.add_parser("validate-lockfiles", help="Validate changed Gradle lockfile entries.")
-    validate.add_argument("--baseline-dir", required=True)
-    validate.add_argument("--current-dir", default=".")
-    validate.add_argument("--metadata-file")
-    validate.add_argument("--search-url", default=MAVEN_SEARCH_URL)
-    validate.add_argument("--min-age-hours", type=int, default=default_min_age_hours())
-    validate.add_argument("--now")
-    validate.add_argument("--github-output", default=None)
 
     return parser.parse_args()
 
@@ -310,258 +293,12 @@ def emit_selection_result(
     return 0
 
 
-# ensure every changed Gradle lockfile entry is at least MIN_DEPENDENCY_AGE_HOURS hours old
-def validate_lockfiles(args: argparse.Namespace) -> int:
-    cutoff = now_utc(args.now) - timedelta(hours=args.min_age_hours)
-    baseline_dir = Path(args.baseline_dir)
-    current_dir = Path(args.current_dir)
-    metadata = load_metadata_overrides(args.metadata_file)
-
-    changed = changed_lockfile_coordinates(baseline_dir=baseline_dir, current_dir=current_dir)
-    outputs = {
-        "cutoff_at": format_datetime(cutoff),
-        "validated_coordinates": len(changed),
-        "reverted_coordinates": 0,
-    }
-    if not changed:
-        emit_outputs(outputs, args.github_output)
-        print("No dependency version changes detected across Gradle lockfiles.")
-        return 0
-
-    changed_by_file: dict[str, list[str]] = {}
-    for relative_path, gav in changed:
-        changed_by_file.setdefault(relative_path, []).append(gav)
-
-    timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
-    violations_by_file: dict[str, list[tuple[str, str]]] = {}
-    for relative_path, gavs in sorted(changed_by_file.items()):
-        for gav in gavs:
-            if gav not in timestamp_cache:
-                timestamp_cache[gav] = resolve_gav_timestamp(
-                    gav=gav,
-                    metadata=metadata,
-                    search_url=args.search_url,
-                )
-            published_at, reason = timestamp_cache[gav]
-            if published_at is None:
-                violations_by_file.setdefault(relative_path, []).append(
-                    (gav, reason or "Unable to determine publish timestamp.")
-                )
-                continue
-            if published_at > cutoff:
-                violations_by_file.setdefault(relative_path, []).append(
-                    (
-                        gav,
-                        f"Published at {format_datetime(published_at)}, which is newer than cutoff "
-                        f"{format_datetime(cutoff)}.",
-                    )
-                )
-                continue
-            print(
-                f"Verified {gav} in {relative_path} "
-                f"(published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})"
-            )
-
-    if violations_by_file:
-        revert_lockfiles_to_baseline(
-            violations_by_file=violations_by_file,
-            baseline_dir=baseline_dir,
-            current_dir=current_dir,
-        )
-        outputs["reverted_coordinates"] = sum(len(entries) for entries in violations_by_file.values())
-        for path, entries in sorted(violations_by_file.items()):
-            for gav, message in entries:
-                print(f"::warning file={path}::{gav}: {message} Reverted lockfile to baseline.")
-
-    emit_outputs(outputs, args.github_output)
-    print(
-        f"Validated {len(changed)} changed dependency selections against cutoff {format_datetime(cutoff)}. "
-        f"{len(violations_by_file)} lockfiles reverted."
-    )
-    return 0
-
-
-# restore each violating lockfile to its baseline copy to keep the file internally consistent
-def revert_lockfiles_to_baseline(
-    *,
-    violations_by_file: dict[str, list[tuple[str, str]]],
-    baseline_dir: Path,
-    current_dir: Path,
-) -> None:
-    for relative_path in sorted(violations_by_file):
-        current_path = current_dir / relative_path
-        baseline_path = baseline_dir / relative_path
-        if baseline_path.exists():
-            current_path.write_text(baseline_path.read_text(encoding="utf-8"), encoding="utf-8")
-            print(f"Reverted lockfile {relative_path} to baseline.")
-        else:
-            current_path.unlink(missing_ok=True)
-            print(f"Removed new lockfile {relative_path} because it has no baseline copy to restore.")
-
-
-# load metadata overrides from file
-def load_metadata_overrides(path: str | None) -> dict[str, Any]:
-    if not path:
-        return {}
-    return load_json(path, None)
-
-
-# find publish time for given group:artifact:version
-def resolve_gav_timestamp(
-    *,
-    gav: str,
-    metadata: dict[str, Any],
-    search_url: str,
-) -> tuple[datetime | None, str | None]:
-    if gav in metadata:
-        override = metadata[gav]
-        return parse_metadata_override(gav, override)
-
-    group_id, artifact_id, version = gav.split(":", 2)
-    query = urllib.parse.urlencode(
-        {
-            "q": f'g:"{group_id}" AND a:"{artifact_id}" AND v:"{version}"',
-            "core": "gav",
-            "rows": 20,
-            "wt": "json",
-        }
-    )
-    try:
-        payload = load_json(None, f"{search_url}?{query}")
-        docs = payload.get("response", {}).get("docs", [])
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError):
-        docs = []
-    for document in docs:
-        if document.get("v") != version:
-            continue
-        timestamp = document.get("timestamp")
-        if timestamp is None:
-            return None, "Maven Central search result did not include a publish timestamp."
-        return parse_datetime(timestamp), None
-
-    fallback_timestamp = resolve_repository_fallback_timestamp(
-        group_id=group_id,
-        artifact_id=artifact_id,
-        version=version,
-    )
-    if fallback_timestamp is not None:
-        return fallback_timestamp, None
-
-    return None, "No metadata was found for this coordinate in Maven Central search or configured repository fallbacks."
-
-
-def resolve_repository_fallback_timestamp(
-    *,
-    group_id: str,
-    artifact_id: str,
-    version: str,
-) -> datetime | None:
-    relative_dir = "/".join(group_id.split(".")) + f"/{artifact_id}/{version}"
-    candidate_files = [
-        f"{artifact_id}-{version}.pom",
-        f"{artifact_id}-{version}.module",
-        f"{artifact_id}-{version}.jar",
-    ]
-    for prefix, base_url in REPOSITORY_FALLBACKS:
-        if group_id != prefix and not group_id.startswith(f"{prefix}."):
-            continue
-        for filename in candidate_files:
-            timestamp = fetch_last_modified(f"{base_url.rstrip('/')}/{relative_dir}/{filename}")
-            if timestamp is not None:
-                return timestamp
-    return None
-
-
-def fetch_last_modified(url: str) -> datetime | None:
-    for method in ("HEAD", "GET"):
-        request = urllib.request.Request(url, method=method)
-        try:
-            with urllib.request.urlopen(request, timeout=30) as response:
-                header = response.headers.get("Last-Modified")
-        except urllib.error.HTTPError as error:
-            if error.code in {403, 404, 405}:
-                continue
-            return None
-        except urllib.error.URLError:
-            return None
-        if not header:
-            continue
-        try:
-            parsed = email.utils.parsedate_to_datetime(header)
-        except (TypeError, ValueError, IndexError):
-            continue
-        if parsed.tzinfo is None:
-            parsed = parsed.replace(tzinfo=timezone.utc)
-        return parsed.astimezone(timezone.utc)
-    return None
-
-
-# parse override format for given group:artifact:version
-def parse_metadata_override(gav: str, override: Any) -> tuple[datetime | None, str | None]:
-    if isinstance(override, dict):
-        if "reason" in override:
-            return None, str(override["reason"])
-        for key in ("timestamp", "published_at", "timestamp_ms"):
-            if key in override:
-                return parse_datetime(override[key]), None
-        return None, f"Metadata override for {gav} is missing a timestamp."
-    if isinstance(override, (int, float, str)):
-        return parse_datetime(override), None
-    return None, f"Unsupported metadata override format for {gav}."
-
-
-# compare baseline and current lockfiles to find changed coordinates
-def changed_lockfile_coordinates(*, baseline_dir: Path, current_dir: Path) -> list[tuple[str, str]]:
-    changed: list[tuple[str, str]] = []
-    baseline_lockfiles = collect_lockfiles(baseline_dir)
-    current_lockfiles = collect_lockfiles(current_dir)
-
-    for relative_path in sorted(set(baseline_lockfiles) | set(current_lockfiles)):
-        before = baseline_lockfiles.get(relative_path, set())
-        after = current_lockfiles.get(relative_path, set())
-        for gav in sorted(after - before):
-            changed.append((relative_path, gav))
-    return changed
-
-
-# parse_lockfile helper to read lockfile into group:artifact:version coordinates
-def read_lockfile_lines(path: Path) -> dict[str, str]:
-    """Maps group:artifact:version to the full lockfile line for a given file."""
-    lines: dict[str, str] = {}
-    for raw_line in path.read_text(encoding="utf-8").splitlines():
-        line = raw_line.strip()
-        if not line or line.startswith("#"):
-            continue
-        coordinate = line.split("=", 1)[0]
-        if coordinate.count(":") != 2:
-            continue
-        lines[coordinate] = line
-    return lines
-
-
-# recursively collect all gradle.lockfile paths from given root
-def collect_lockfiles(root: Path) -> dict[str, set[str]]:
-    lockfiles: dict[str, set[str]] = {}
-    if not root.exists():
-        return lockfiles
-    for path in root.rglob("gradle.lockfile"):
-        lockfiles[str(path.relative_to(root))] = parse_lockfile(path)
-    return lockfiles
-
-
-# parse lockfile into a set of group:artifact:version coordinates
-def parse_lockfile(path: Path) -> set[str]:
-    return set(read_lockfile_lines(path))
-
-
 def main() -> int:
     args = parse_args()
     if args.command == "select-gradle":
         return select_gradle_release(args)
     if args.command == "select-maven":
         return select_maven_release(args)
-    if args.command == "validate-lockfiles":
-        return validate_lockfiles(args)
     raise ValueError(f"Unsupported command: {args.command}")
 
 
