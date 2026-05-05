@@ -11,23 +11,25 @@ import com.aerospike.client.async.NioEventLoops
 import com.aerospike.client.listener.WriteListener
 import com.aerospike.client.policy.ClientPolicy
 import datadog.trace.api.Config
+import spock.lang.Shared
 
 abstract class AerospikeAsyncClientTest extends AerospikeBaseTest {
-  private AerospikeClient client
-  private EventLoops eventLoops
+
+  @Shared
+  AerospikeClient client
+
+  @Shared
+  EventLoops eventLoops = new NioEventLoops(1)
 
   def setup() throws Exception {
-    eventLoops = new NioEventLoops(1)
-
     ClientPolicy clientPolicy = new ClientPolicy()
     clientPolicy.eventLoops = eventLoops
-
     client = new AerospikeClient(clientPolicy, aerospikeHost, aerospikePort)
   }
 
   def cleanup() throws Exception {
-    client?.close()
-    eventLoops?.close()
+    client.close()
+    eventLoops.close()
   }
 
   def "test put then get"() {
