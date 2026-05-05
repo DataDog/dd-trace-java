@@ -90,13 +90,13 @@ public class BaggagePropagator implements Propagator {
       processedItems++;
       // reached the max number of baggage items allowed
       if (processedItems == this.maxItems) {
-        BAGGAGE_METRICS.onBaggageTruncatedByItemLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByInjectItemLimit();
         break;
       }
       // Drop newest k/v pair if adding it leads to exceeding the limit
       if (currentBytes + escapedKey.size + escapedVal.size + extraBytes > this.maxBytes) {
         baggageText.setLength(currentBytes);
-        BAGGAGE_METRICS.onBaggageTruncatedByByteLimit();
+        BAGGAGE_METRICS.onBaggageTruncatedByInjectByteLimit();
         break;
       }
       currentBytes += escapedKey.size + escapedVal.size + extraBytes;
@@ -163,7 +163,14 @@ public class BaggagePropagator implements Propagator {
       int kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR);
       while (kvSeparatorInd != -1) {
         int end = pairSeparatorInd;
-        boolean limitReached = baggage.size() >= maxItems || end > maxBytes;
+        boolean limitReached = false;
+        if (baggage.size() >= maxItems) {
+          limitReached = true;
+          BAGGAGE_METRICS.onBaggageTruncatedByExtractItemLimit();
+        } else if (end > maxBytes) {
+          limitReached = true;
+          BAGGAGE_METRICS.onBaggageTruncatedByExtractByteLimit();
+        }
         if (limitReached) {
           // if header was not invalidated already, and we go out of range:
           // - fully invalidate if it's after the first k/v pair,
