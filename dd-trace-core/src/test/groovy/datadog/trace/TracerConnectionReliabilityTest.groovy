@@ -147,7 +147,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   class FixedTraceEndpointFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     FixedTraceEndpointFeaturesDiscovery(SharedCommunicationObjects objects) {
-      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, V0_4, false)
+      super(objects.agentHttpClient, Monitoring.DISABLED, objects.agentUrl, V0_4, false, false)
     }
 
     @Override
