@@ -58,7 +58,7 @@ docs/                     Developer documentation (see below)
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
-- **Test frameworks**: JUnit 5 (preferred for unit tests), Spock 2 (for complex scenarios needing Groovy)
+- **Test frameworks**: Always use JUnit 5. **Do not write new Groovy / Spock tests** and migrate the existing one to JUnit 5 if it is written in Groovy.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 
