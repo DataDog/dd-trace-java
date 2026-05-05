@@ -4,21 +4,15 @@ import static datadog.trace.agent.test.utils.PortUtils.waitForPortToOpen
 import static java.util.concurrent.TimeUnit.SECONDS
 import static org.testcontainers.containers.wait.strategy.Wait.forLogMessage
 
-import datadog.environment.OperatingSystem
+import com.github.dockerjava.api.model.Ulimit
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import org.testcontainers.containers.GenericContainer
-import spock.lang.IgnoreIf
 import spock.lang.Shared
 
-// aerospike:5.5.0.9 has no arm64 variant; aerospike adds arm64 support starting ce-6.2.0.2.
-// Skip on arm64-Linux until we move to a newer image.
-@IgnoreIf({
-  OperatingSystem.isArm64() && OperatingSystem.isLinux()
-})
 abstract class AerospikeBaseTest extends VersionedNamingTestBase {
 
   @Shared
@@ -31,8 +25,14 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
   int aerospikePort = 3000
 
   def setup() throws Exception {
-    aerospike = new GenericContainer('aerospike:5.5.0.9')
+    // arm64 supported since ce-6.2.0.2
+    aerospike = new GenericContainer('aerospike:ce-6.2.0.2')
       .withExposedPorts(3000)
+      // proto-fd-max default is 15000, but container default is 1024.
+      // see: https://aerospike.com/docs/database/reference/config#service__proto-fd-max
+      .withCreateContainerCmdModifier({ cmd ->
+        cmd.getHostConfig().withUlimits([new Ulimit('nofile', 15000L, 15000L)] as Ulimit[])
+      })
       .waitingFor(forLogMessage(".*heartbeat-received.*\\n", 1))
 
     aerospike.start()
