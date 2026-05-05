@@ -1,9 +1,12 @@
 package datadog.trace.instrumentation.httpclient;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
+import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.test.AbstractInstrumentationTest;
 import datadog.trace.bootstrap.instrumentation.java.net.HostNameResolver;
+import datadog.trace.junit.utils.config.WithConfig;
 import java.net.InetAddress;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
@@ -12,14 +15,8 @@ import org.junit.jupiter.api.condition.JRE;
 // Forked test: runs in an isolated JVM with JPMS instrumentation DISABLED.
 // --illegal-access=deny is only enforced from Java 16 onward.
 @EnabledForJreRange(min = JRE.JAVA_16)
+@WithConfig(key = "trace.java-module.enabled", value = "false")
 class JpmsInetAddressDisabledForkedTest extends AbstractInstrumentationTest {
-
-  static {
-    // Disable the JPMS instrumentation so java.net is NOT opened for deep reflection.
-    // HostNameResolver will be unable to bypass the IP→hostname cache and will fall back
-    // to the cache keyed by IP address.
-    System.setProperty("dd.trace.java-module.enabled", "false");
-  }
 
   /**
    * Verifies the fallback behaviour when the JPMS instrumentation is disabled: HostNameResolver
@@ -32,6 +29,7 @@ class JpmsInetAddressDisabledForkedTest extends AbstractInstrumentationTest {
    */
   @Test
   void withoutJpmsInstrumentationIpCausesStaleHostnameToBeReturned() throws Exception {
+    assumeFalse(JavaVirtualMachine.isJ9(), "Does not work on J9");
     // different subnet from the enabled-test to avoid cross-test cache pollution
     byte[] ip = {(byte) 192, 0, 2, 2};
     InetAddress addr1 = InetAddress.getByAddress("service1.example.com", ip);
