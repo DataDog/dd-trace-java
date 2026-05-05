@@ -62,7 +62,6 @@ docs/                     Developer documentation (see below)
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
 - **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
-- **SLF4J logging**: Pass objects directly to logger calls (`LOGGER.debug("{}", cls)`), not the result of calling methods on them (`LOGGER.debug("{}", cls.getName())`). SLF4J evaluates the argument lazily (via `toString()`) only when the log level is active.
 
 ## PR conventions
 
