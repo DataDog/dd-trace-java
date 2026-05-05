@@ -2571,22 +2571,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
+          def peerHostTag = Tags.PEER_HOST_IPV4
+          def expectedPeerIp = "127.0.0.1"
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1"
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-          } else {
-            "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1"
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
+            peerHostTag = Tags.PEER_HOST_IPV6
+            expectedPeerIp = "0:0:0:0:0:0:0:1"
           }
+          tag(peerHostTag, expectedPeerIp)
+          "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
+          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
         } else {
+          // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
+          "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host

@@ -16,6 +16,9 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
     ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-post-pr-comment.yml'
+    ref: 'main'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
@@ -30,6 +33,7 @@ stages:
   - java-load-parallel-slo
   - java-dacapo-parallel
   - java-dacapo-parallel-slo
+  - java-post-pr-comment
   - shared-pipeline
   - benchmarks
   - macrobenchmarks

@@ -40,6 +40,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
+import java.util.function.Function;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import org.slf4j.Logger;
@@ -91,7 +92,6 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
       new EnumMap<>(Source.class);
   private volatile Configuration currentConfiguration;
   private DebuggerTransformer currentTransformer;
-  private final Map<String, ProbeDefinition> appliedDefinitions = new ConcurrentHashMap<>();
   private final ProbeMetadata probeMetadata = new ProbeMetadata();
   private final DebuggerSink sink;
   private final ClassesToRetransformFinder finder;
@@ -201,7 +201,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void handleProbesChanges(ConfigurationComparer changes, Configuration newConfiguration) {
     removeCurrentTransformer();
-    storeDebuggerDefinitions(changes);
+    updateProbeMetadata(changes);
     installNewDefinitions(newConfiguration);
     reportReceived(changes);
     if (!finder.hasChangedClasses(changes)) {
@@ -359,7 +359,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   private void installNewDefinitions(Configuration newConfiguration) {
     DebuggerContext.initClassFilter(new DenyListHelper(newConfiguration.getDenyList()));
-    if (appliedDefinitions.isEmpty()) {
+    if (newConfiguration.getDefinitions().isEmpty()) {
       return;
     }
     // install new probe definitions
@@ -372,7 +372,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
             sink);
     instrumentation.addTransformer(newTransformer, true);
     currentTransformer = newTransformer;
-    LOGGER.debug("New transformer installed");
+    LOGGER.debug("New transformer installed with probes: {}", newConfiguration.getDefinitions());
   }
 
   private void recordInstrumentationProgress(
@@ -418,15 +418,10 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     }
   }
 
-  private void storeDebuggerDefinitions(ConfigurationComparer changes) {
+  private void updateProbeMetadata(ConfigurationComparer changes) {
     for (ProbeDefinition definition : changes.getRemovedDefinitions()) {
-      appliedDefinitions.remove(definition.getProbeId().getEncodedId());
       probeMetadata.removeProbe(definition.getProbeId().getEncodedId());
     }
-    for (ProbeDefinition definition : changes.getAddedDefinitions()) {
-      appliedDefinitions.put(definition.getProbeId().getEncodedId(), definition);
-    }
-    LOGGER.debug("Stored appliedDefinitions: {}", appliedDefinitions.values());
   }
 
   // /!\ This is called potentially by multiple threads from the instrumented code /!\
@@ -452,7 +447,14 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
 
   // only visible for tests
   Map<String, ProbeDefinition> getAppliedDefinitions() {
-    return appliedDefinitions;
+    if (currentTransformer == null) {
+      return Collections.emptyMap();
+    }
+    return currentConfiguration.getDefinitions().stream()
+        .collect(
+            Collectors.toMap(
+                probeDefinition -> probeDefinition.getProbeId().getEncodedId(),
+                Function.identity()));
   }
 
   Map<String, InstrumentationResult> getInstrumentationResults() {

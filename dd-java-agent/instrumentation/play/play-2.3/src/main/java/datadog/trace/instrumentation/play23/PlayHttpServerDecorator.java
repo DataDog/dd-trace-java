@@ -142,16 +142,20 @@ public class PlayHttpServerDecorator
   }
 
   /**
-   * If the span already carries a peer IP (set by the upstream akka/netty instrumentation from the
-   * real TCP socket peer), wrap the request so {@code remoteAddress()} returns that value instead
-   * of Play's X-Forwarded-For-resolved one.
+   * Wraps the connection so that {@code remoteAddress()} returns the real socket peer IP instead of
+   * Play's X-Forwarded-For-resolved value. We look up the local root span (the upstream akka/netty
+   * span) because the play span is a fresh child that has no peer tags yet when {@code onRequest}
+   * is called. When called on the root span itself (e.g. to propagate route info), we use the root
+   * span's existing peer IP so the forwarded value cannot overwrite it.
    */
   private static Request<?> withCapturedPeer(final AgentSpan span, final Request<?> connection) {
     if (connection == null) {
       return null;
     }
-    final Object capturedIp = span.getTag(Tags.PEER_HOST_IPV4);
-    final Object peerIp = capturedIp != null ? capturedIp : span.getTag(Tags.PEER_HOST_IPV6);
+    final AgentSpan source = span.getLocalRootSpan();
+    final AgentSpan peerSource = source != null ? source : span;
+    final Object capturedIp = peerSource.getTag(Tags.PEER_HOST_IPV4);
+    final Object peerIp = capturedIp != null ? capturedIp : peerSource.getTag(Tags.PEER_HOST_IPV6);
     if (peerIp != null) {
       return new RequestWithCapturedPeer(connection, peerIp.toString());
     }
