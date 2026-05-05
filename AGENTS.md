@@ -61,6 +61,7 @@ docs/                     Developer documentation (see below)
 - **Test frameworks**: Always use JUnit 5. **Do not write new Groovy / Spock tests** and migrate the existing one to JUnit 5 if it is written in Groovy.
 - **Forked tests**: Use `ForkedTest` suffix when tests need a separate JVM
 - **Flaky tests**: Annotate with `@Flaky` — they are skipped in CI by default
+- **Instrumentation one-shot methods**: Never extract the return values of `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, or `methodAdvice()` into static constants. These are called once by the framework — extracting to a constant adds constant-pool bloat with no benefit.
 
 ## PR conventions
 
