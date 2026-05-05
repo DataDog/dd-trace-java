@@ -1,8 +1,8 @@
 # Auto-generated SLO Thresholds
-# Generated: 2026-03-31
+# Generated: 2026-05-05
 #
 # Generation Strategy: tight
-#   Formula: CI_bound / (1 ± T) (T = 10.0%)
+#   Formula: CI_bound / (1 ± T) (T = 15.0%)
 #
 # SLO Checking:
 #   - BREACH: 90% CI boundary crosses threshold
@@ -31,31 +31,31 @@ experiments:
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fonly-tracing&trendsType=scenario
           - name: normal_operation/only-tracing
             thresholds:
-              - agg_http_req_duration_p50 < 2.526 ms
-              - agg_http_req_duration_p99 < 8.5 ms
+              - agg_http_req_duration_p50 < 2.438 ms
+              - agg_http_req_duration_p99 < 8.353 ms
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=normal_operation%2Fotel-latest&trendsType=scenario
           - name: normal_operation/otel-latest
             thresholds:
-              - agg_http_req_duration_p50 < 2.5 ms
-              - agg_http_req_duration_p99 < 10 ms
+              - agg_http_req_duration_p50 < 2.412 ms
+              - agg_http_req_duration_p99 < 10.475 ms
 
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fonly-tracing&trendsType=scenario
           - name: high_load/only-tracing
             thresholds:
-              - throughput > 1100.0 op/s
+              - throughput > 1042.35 op/s
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=high_load%2Fotel-latest&trendsType=scenario
           - name: high_load/otel-latest
             thresholds:
-              - throughput > 1100.0 op/s
+              - throughput > 1065.01 op/s
 
           # Startup macrobenchmarks
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Atracing%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:tracing:Agent.start"
             thresholds:
-              - execution_time < 1255.96 ms # generated with --significant-impact-threshold 0.15
+              - execution_time < 1255.96 ms
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aprofiling%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aappsec%3AAgent.start&trendsType=scenario
           # https://benchmarking.us1.prod.dog/trends?projectId=4&branch=master&trendsTab=per_scenario&scenario=startup%3Apetclinic%3Aiast%3AAgent.start&trendsType=scenario
           - name: "startup:petclinic:(profiling|appsec|iast):Agent.start"
             thresholds:
-              - execution_time < 1483.46 ms # generated with --significant-impact-threshold 0.15
+              - execution_time < 1483.46 ms
