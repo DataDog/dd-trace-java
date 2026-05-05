@@ -55,7 +55,7 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  ARM64_BUILDER_IMAGE_REPO: "ghcr.io/datadog/dd-trace-java-docker-build"
+  ARM64_BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build"
   ARM64_BUILDER_IMAGE_TAG: "alexeyk_arm64-test-arm64-base"
   WINDOWS_JDK8_VERSION: "8u482-b08" # keep pinned to Temurin GA patch releases and bump periodically
   WINDOWS_JDK11_VERSION: "11.0.30+7"
