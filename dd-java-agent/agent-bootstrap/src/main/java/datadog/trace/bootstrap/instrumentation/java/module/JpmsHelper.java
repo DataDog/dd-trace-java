@@ -55,6 +55,6 @@ public final class JpmsHelper {
 
   /** Called from inlined ByteBuddy advice; logs when a class has no named module. */
   public static void logNoNamedModule(Class<?> cls) {
-    LOGGER.debug("Class {} has no named module; skipping module open", cls.getName());
+    LOGGER.debug("{} has no named module; skipping module open", cls);
   }
 }
