@@ -5,10 +5,9 @@ import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.List;
 
 /** Collects traces ready for export. */
-public interface OtlpTraceCollector {
-  OtlpTraceCollector NOOP_COLLECTOR = () -> OtlpPayload.EMPTY;
+public abstract class OtlpTraceCollector {
 
-  OtlpPayload collectTraces();
+  public abstract void addTrace(List<? extends CoreSpan<?>> spans);
 
-  default void addTrace(List<? extends CoreSpan<?>> spans) {}
+  public abstract OtlpPayload collectTraces();
 }

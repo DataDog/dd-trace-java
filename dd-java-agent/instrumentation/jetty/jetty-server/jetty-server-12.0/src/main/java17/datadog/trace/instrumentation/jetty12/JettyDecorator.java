@@ -7,6 +7,12 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.net.SocketAddress;
+import org.eclipse.jetty.io.Connection;
+import org.eclipse.jetty.io.EndPoint;
+import org.eclipse.jetty.server.ConnectionMetaData;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
 import org.eclipse.jetty.server.internal.HttpChannelState;
@@ -71,12 +77,48 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
 
   @Override
   protected String peerHostIP(final Request request) {
+    // Avoid Request.getRemoteAddr() since ForwardedRequestCustomizer wraps
+    // ConnectionMetaData.getRemoteSocketAddress() with the value resolved from
+    // x-forwarded-for and similar proxy headers. Peer information must be the actual
+    // socket peer.
+    final InetSocketAddress remote = remoteSocketAddress(request);
+    if (remote != null) {
+      final InetAddress address = remote.getAddress();
+      if (address != null) {
+        return address.getHostAddress();
+      }
+      return Request.getRemoteAddr(request);
+    }
     return Request.getRemoteAddr(request);
   }
 
   @Override
   protected int peerPort(final Request request) {
+    final InetSocketAddress remote = remoteSocketAddress(request);
+    if (remote != null) {
+      return remote.getPort();
+    }
     return Request.getRemotePort(request);
+  }
+
+  private static InetSocketAddress remoteSocketAddress(final Request request) {
+    final ConnectionMetaData metaData = request.getConnectionMetaData();
+    if (metaData == null) {
+      return null;
+    }
+    final Connection connection = metaData.getConnection();
+    if (connection == null) {
+      return null;
+    }
+    final EndPoint endPoint = connection.getEndPoint();
+    if (endPoint == null) {
+      return null;
+    }
+    final SocketAddress remote = endPoint.getRemoteSocketAddress();
+    if (remote instanceof InetSocketAddress) {
+      return (InetSocketAddress) remote;
+    }
+    return null;
   }
 
   @Override
