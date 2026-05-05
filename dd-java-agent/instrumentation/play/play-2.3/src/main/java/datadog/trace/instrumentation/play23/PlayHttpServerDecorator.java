@@ -153,7 +153,7 @@ public class PlayHttpServerDecorator
       return null;
     }
     final AgentSpan source = span.getLocalRootSpan();
-    final AgentSpan peerSource = (source != null && source != span) ? source : span;
+    final AgentSpan peerSource = source != null ? source : span;
     final Object capturedIp = peerSource.getTag(Tags.PEER_HOST_IPV4);
     final Object peerIp = capturedIp != null ? capturedIp : peerSource.getTag(Tags.PEER_HOST_IPV6);
     if (peerIp != null) {
