@@ -163,13 +163,13 @@ public class BaggagePropagator implements Propagator {
       int kvSeparatorInd = input.indexOf(KEY_VALUE_SEPARATOR);
       while (kvSeparatorInd != -1) {
         int end = pairSeparatorInd;
-        boolean limitReached = true;
+        boolean limitReached = false;
         if (baggage.size() >= maxItems) {
+          limitReached = true;
           BAGGAGE_METRICS.onBaggageTruncatedByExtractItemLimit();
         } else if (end > maxBytes) {
+          limitReached = true;
           BAGGAGE_METRICS.onBaggageTruncatedByExtractByteLimit();
-        } else {
-          limitReached = false;
         }
         if (limitReached) {
           // if header was not invalidated already, and we go out of range:
