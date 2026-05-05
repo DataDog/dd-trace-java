@@ -866,9 +866,12 @@ muzzle-dep-report:
     GRADLE_WORKERS: 6
     GRADLE_MEMORY_MIN: 1G
     GRADLE_MEMORY_MAX: 4G
-    KUBERNETES_CPU_REQUEST: 10
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
+    # Sized for the arm64 microvm runner pool (smaller than amd64).
+    # Observed peak on equivalent amd64 workload: ~14.5 GB / ~1.5 vCPU avg.
+    # Bump back up if jobs OOM or we see CPU throttling in cgroup-info.
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_MEMORY_REQUEST: 12Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
