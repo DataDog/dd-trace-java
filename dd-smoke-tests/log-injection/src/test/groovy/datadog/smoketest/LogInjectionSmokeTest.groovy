@@ -6,9 +6,6 @@ import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
-import java.io.ByteArrayOutputStream
-import java.io.InputStream
-import java.io.RandomAccessFile
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 import spock.lang.AutoCleanup
@@ -461,7 +458,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       sb << "capturedStdout=${logFilePath} (does not exist)\n"
     }
 
-    if (outputLogFile != null && outputLogFile.exists()) {
+    if (outputLogFile?.exists()) {
       sb << "appLogFile=${outputLogFile.absolutePath} size=${outputLogFile.length()}\n"
       sb << "--- app log (last 30 lines) ---\n"
       sb << tailFile(outputLogFile, 30)
