@@ -26,6 +26,7 @@ import datadog.instrument.classinject.ClassInjector;
 import datadog.instrument.utils.ClassLoaderValue;
 import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.Platform;
 import datadog.trace.api.WithGlobalTracer;
 import datadog.trace.api.appsec.AppSecEventTracker;
@@ -898,6 +899,13 @@ public class Agent {
     if (jmxFetchEnabled) {
       startJmxFetch();
     }
+    // OTLP runtime metrics start unconditionally when both DD_METRICS_OTEL_ENABLED
+    // and DD_RUNTIME_METRICS_ENABLED are set, regardless of whether the application
+    // imports the OTel API. The OTLP exporter (OtlpMetricsService) is already started
+    // by CoreTracer; this just registers the JVM metric callbacks with OtelMeterProvider.
+    if (Config.get().isRuntimeMetricsEnabled() && InstrumenterConfig.get().isMetricsOtelEnabled()) {
+      startOtlpRuntimeMetrics();
+    }
     initializeJmxSystemAccessProvider(AGENT_CLASSLOADER);
     if (crashTrackingEnabled && CRASHTRACKER_INIT_AFTER_JMX != null) {
       try {
@@ -986,6 +994,27 @@ public class Agent {
       enableJmxMethod.invoke(null);
     } catch (final Throwable ex) {
       log.error("Throwable thrown while initializing JMX system access provider", ex);
+    }
+  }
+
+  /**
+   * Registers OTLP runtime metric callbacks (JVM heap, CPU, threads, classes, etc.) with the
+   * agent's OtelMeterProvider. The periodic OTLP exporter started by CoreTracer then collects and
+   * exports them — this is the same pattern Node and .NET use to start their runtime metrics
+   * unconditionally during tracer init, independent of any app-side OTel API usage.
+   */
+  private static synchronized void startOtlpRuntimeMetrics() {
+    final ClassLoader contextLoader = Thread.currentThread().getContextClassLoader();
+    try {
+      Thread.currentThread().setContextClassLoader(AGENT_CLASSLOADER);
+      final Class<?> jvmOtlpClass =
+          AGENT_CLASSLOADER.loadClass("datadog.opentelemetry.shim.metrics.JvmOtlpRuntimeMetrics");
+      final Method startMethod = jvmOtlpClass.getMethod("start");
+      startMethod.invoke(null);
+    } catch (final Throwable ex) {
+      log.error("Throwable thrown while starting OTLP runtime metrics", ex);
+    } finally {
+      safelySetContextClassLoader(contextLoader);
     }
   }
 
