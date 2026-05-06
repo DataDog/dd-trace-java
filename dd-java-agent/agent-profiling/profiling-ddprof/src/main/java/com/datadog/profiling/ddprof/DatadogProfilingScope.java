@@ -36,7 +36,8 @@ public class DatadogProfilingScope implements ProfilingScope {
 
   @Override
   public void close() {
-    // ddprof 1.41.0 removed the int-encoding setter; snapshot/restore of tag
-    // context across nested scopes is no longer supported by the library.
+    // ddprof 1.41.0 removed the int-encoding setter; snapshot/restore is no longer possible.
+    // Context values written via setContextValue() inside this scope persist after close();
+    // nested scope isolation is not maintained.
   }
 }

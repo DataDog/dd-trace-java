@@ -138,7 +138,7 @@ final class ScrubRecordingDataListener implements RecordingDataListener {
     }
 
     @Override
-    public void release() {
+    protected void doRelease() {
       try {
         Files.deleteIfExists(scrubbedFile);
       } catch (IOException e) {
