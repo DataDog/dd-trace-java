@@ -8,6 +8,8 @@ jobs:
   update-gradle-dependencies:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
+    env:
+      MIN_DEPENDENCY_AGE_HOURS: 48
     permissions:
       contents: read
       id-token: write # Required for OIDC token federation
@@ -41,6 +43,11 @@ jobs:
           echo "core_branch=ci/update-gradle-dependencies-${DATE}" >> $GITHUB_OUTPUT
           echo "instrumentation_branch=ci/update-gradle-dependencies-instrumentation-${DATE}" >> $GITHUB_OUTPUT
 
+      - name: Snapshot current Gradle lock files
+        run: |
+          mkdir -p /tmp/gradle-lockfiles-before
+          find . -name 'gradle.lockfile' -exec cp --parents {} /tmp/gradle-lockfiles-before/ \;
+
       - name: Update Gradle dependencies
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
@@ -48,6 +55,14 @@ jobs:
           find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Validate changed lock files meet dependency age policy
+        run: |
+          python3 .github/scripts/dependency_age.py validate-lockfiles \
+            --baseline-dir /tmp/gradle-lockfiles-before \
+            --current-dir . \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
         run: |
