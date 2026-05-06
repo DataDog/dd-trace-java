@@ -181,25 +181,21 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    W3CPTags result =
-        new W3CPTags(
-            tagsFactory,
-            tagPairs,
-            decisionMakerTagValue,
-            traceIdTagValue,
-            traceSource,
-            samplingPriority,
-            origin,
-            value,
-            firstMemberStart,
-            ddMemberStart,
-            ddMemberValueEnd,
-            maxUnknownSize,
-            lastParentId);
-    if (orgPropagationMarkerTagValue != null) {
-      result.updateOrgPropagationMarker(orgPropagationMarkerTagValue);
-    }
-    return result;
+    return new W3CPTags(
+        tagsFactory,
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        traceSource,
+        samplingPriority,
+        origin,
+        value,
+        firstMemberStart,
+        ddMemberStart,
+        ddMemberValueEnd,
+        maxUnknownSize,
+        lastParentId,
+        orgPropagationMarkerTagValue);
   }
 
   @Override
@@ -701,16 +697,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     return size;
   }
 
-  /**
-   * Returns a {@link W3CPTags} that wraps {@code original} so its non-{@code dd} vendor members are
-   * preserved on re-encoding while every Datadog-side value (sampling priority, origin, {@code
-   * _dd.p.*} tags) is empty. Used by {@code PropagationTags.Factory#emptyW3C(String)}.
-   */
-  static W3CPTags emptyPreservingTracestate(PTagsFactory factory, String original) {
-    return empty(factory, original);
-  }
-
-  private static W3CPTags empty(PTagsFactory factory, String original) {
+  static W3CPTags empty(PTagsFactory factory, String original) {
     return empty(factory, original, 0, -1, -1);
   }
 
@@ -733,6 +720,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         ddMemberStart,
         ddMemberValueEnd,
         0,
+        null,
         null);
   }
 
@@ -767,7 +755,8 @@ public class W3CPTagsCodec extends PTagsCodec {
         int ddMemberStart,
         int ddMemberValueEnd,
         int maxUnknownSize,
-        CharSequence lastParentId) {
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue) {
       super(
           factory,
           tagPairs,
@@ -776,7 +765,8 @@ public class W3CPTagsCodec extends PTagsCodec {
           traceSource,
           samplingPriority,
           origin,
-          lastParentId);
+          lastParentId,
+          orgPropagationMarkerTagValue);
       this.tracestate = original;
       this.firstMemberStart = firstMemberStart;
       this.ddMemberStart = ddMemberStart;

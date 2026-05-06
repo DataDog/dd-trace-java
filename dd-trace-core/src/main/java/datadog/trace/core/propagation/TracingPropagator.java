@@ -15,6 +15,7 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.HttpCodec.Extractor;
 import datadog.trace.core.propagation.HttpCodec.Injector;
+import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /** Propagator for tracing concern. */
@@ -49,7 +50,7 @@ public class TracingPropagator implements Propagator {
       boolean enabled,
       Injector injector,
       Extractor extractor,
-      @javax.annotation.Nullable OrgGuardEnforcer orgGuardEnforcer) {
+      @Nullable OrgGuardEnforcer orgGuardEnforcer) {
     this.enabled = enabled;
     this.injector = injector;
     this.extractor = extractor;

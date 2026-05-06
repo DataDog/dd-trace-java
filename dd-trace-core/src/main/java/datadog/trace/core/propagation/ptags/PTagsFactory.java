@@ -63,7 +63,7 @@ public class PTagsFactory implements PropagationTags.Factory {
     if (originalTracestate == null || originalTracestate.isEmpty()) {
       return empty();
     }
-    return W3CPTagsCodec.emptyPreservingTracestate(this, originalTracestate);
+    return W3CPTagsCodec.empty(this, originalTracestate);
   }
 
   PropagationTags createValid(
@@ -71,7 +71,22 @@ public class PTagsFactory implements PropagationTags.Factory {
       TagValue decisionMakerTagValue,
       TagValue traceIdTagValue,
       int productTraceSource) {
-    return new PTags(this, tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource);
+    return createValid(tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource, null);
+  }
+
+  PropagationTags createValid(
+      List<TagElement> tagPairs,
+      TagValue decisionMakerTagValue,
+      TagValue traceIdTagValue,
+      int productTraceSource,
+      TagValue orgPropagationMarkerTagValue) {
+    return new PTags(
+        this,
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        productTraceSource,
+        orgPropagationMarkerTagValue);
   }
 
   PropagationTags createInvalid(String error) {
@@ -151,6 +166,16 @@ public class PTagsFactory implements PropagationTags.Factory {
         TagValue decisionMakerTagValue,
         TagValue traceIdTagValue,
         int traceSource) {
+      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, traceSource, null);
+    }
+
+    PTags(
+        PTagsFactory factory,
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
+        int traceSource,
+        TagValue orgPropagationMarkerTagValue) {
       this(
           factory,
           tagPairs,
@@ -159,7 +184,8 @@ public class PTagsFactory implements PropagationTags.Factory {
           traceSource,
           PrioritySampling.UNSET,
           null,
-          null);
+          null,
+          orgPropagationMarkerTagValue);
     }
 
     PTags(
@@ -171,6 +197,28 @@ public class PTagsFactory implements PropagationTags.Factory {
         int samplingPriority,
         CharSequence origin,
         CharSequence lastParentId) {
+      this(
+          factory,
+          tagPairs,
+          decisionMakerTagValue,
+          traceIdTagValue,
+          traceSource,
+          samplingPriority,
+          origin,
+          lastParentId,
+          null);
+    }
+
+    PTags(
+        PTagsFactory factory,
+        List<TagElement> tagPairs,
+        TagValue decisionMakerTagValue,
+        TagValue traceIdTagValue,
+        int traceSource,
+        int samplingPriority,
+        CharSequence origin,
+        CharSequence lastParentId,
+        TagValue orgPropagationMarkerTagValue) {
       assert tagPairs == null || tagPairs.size() % 2 == 0;
       this.factory = factory;
       this.tagPairs = tagPairs;
@@ -180,6 +228,7 @@ public class PTagsFactory implements PropagationTags.Factory {
       this.samplingPriority = samplingPriority;
       this.origin = origin;
       this.lastParentId = lastParentId;
+      this.orgPropagationMarkerTagValue = orgPropagationMarkerTagValue;
       if (traceIdTagValue != null) {
         CharSequence traceIdHighOrderBitsHex = traceIdTagValue.forType(TagElement.Encoding.DATADOG);
         this.traceIdHighOrderBits =
@@ -199,6 +248,7 @@ public class PTagsFactory implements PropagationTags.Factory {
               null,
               ProductTraceSource.UNSET,
               PrioritySampling.UNSET,
+              null,
               null,
               null);
       pTags.error = error;
