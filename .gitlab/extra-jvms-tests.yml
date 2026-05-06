@@ -1,0 +1,29 @@
+extra-jvms-trigger:
+  stage: extra-jvms-tests
+  image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
+  tags: [ "arch:amd64" ]
+  needs: [ publish-artifacts-to-s3 ]
+  id_tokens:
+    DDOCTOSTS_ID_TOKEN:
+      aud: dd-octo-sts
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    # Skip in pipelines triggered by another pipeline to prevent infinite loops
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
+  before_script:
+    - dd-octo-sts version
+    - dd-octo-sts debug --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read
+    - dd-octo-sts token --scope DataDog/dd-trace-java --policy self.gitlab.github-access.read > github-token.txt
+    - gh auth login --with-token < github-token.txt
+  script:
+    - .gitlab/extra_jvms_generate_jobs.sh
+  after_script:
+    - dd-octo-sts revoke -t $(cat github-token.txt) || true
+  retry:
+    max: 2
+    when: always

@@ -4,6 +4,7 @@ include:
   - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
+  - local: ".gitlab/extra-jvms-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
     ref: 'main'
@@ -41,6 +42,7 @@ stages:
   - test-summary
   - exploration-tests
   - ci-visibility-tests
+  - extra-jvms-tests
   - generate-signing-key
 
 variables:
@@ -64,6 +66,9 @@ variables:
   NON_DEFAULT_JVMS:
     description: "Enable tests on JVMs that are not the default"
     value: "false"
+  EXTRA_TEST_JVMS:
+    description: "Regex matching specific JVMs to test (e.g. /^(semeru17|zulu11)$/). Set automatically by the label-triggered pipeline. Takes priority over NON_DEFAULT_JVMS and DEFAULT_TEST_JVMS."
+    value: ""
   RUN_FLAKY_TESTS:
     description: "Enable flaky tests"
     value: "false"
@@ -621,11 +626,17 @@ muzzle-dep-report:
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
       when: on_success
-    # Enable for default test JVMs or for NON_DEFAULT_JVMS
+    # EXTRA_TEST_JVMS takes priority: only the matching JVMs run (set by label-triggered pipelines)
+    - if: '$EXTRA_TEST_JVMS != "" && $testJvm =~ $EXTRA_TEST_JVMS'
+      when: on_success
+    - if: '$EXTRA_TEST_JVMS != ""'
+      when: never
+    # Enable all non-default JVMs
     - if: '$NON_DEFAULT_JVMS == "true"'
       when: on_success
     - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
       when: on_success
+    # Default: only run default JVMs
     - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: on_success
   script:
