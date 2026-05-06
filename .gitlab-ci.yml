@@ -88,6 +88,9 @@ workflow:
     - if: '$CI_COMMIT_BRANCH =~ /^v[0-9]+\.[0-9]+\.[0-9]+$/'
       auto_cancel:
         on_new_commit: none
+    # Don't run a full pipeline when triggered by extra-jvms-trigger with nothing to do
+    - if: '$CI_PIPELINE_SOURCE == "pipeline" && $EXTRA_TEST_JVMS == "" && $NON_DEFAULT_JVMS != "true"'
+      when: never
     - when: always
 
 .test_matrix: &test_matrix

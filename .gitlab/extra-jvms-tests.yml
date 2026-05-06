@@ -1,4 +1,4 @@
-extra-jvms-trigger:
+extra-jvms-check:
   stage: extra-jvms-tests
   image: registry.ddbuild.io/images/dd-octo-sts-ci-base:2025.06-1
   tags: [ "arch:amd64" ]
@@ -24,6 +24,31 @@ extra-jvms-trigger:
     - .gitlab/extra_jvms_generate_jobs.sh
   after_script:
     - dd-octo-sts revoke -t $(cat github-token.txt) || true
+  artifacts:
+    reports:
+      dotenv: extra-jvms.env
   retry:
     max: 2
     when: always
+
+extra-jvms-trigger:
+  stage: extra-jvms-tests
+  needs:
+    - job: extra-jvms-check
+      artifacts: true
+  rules:
+    - if: '$POPULATE_CACHE'
+      when: never
+    # Skip in pipelines triggered by another pipeline to prevent infinite loops
+    - if: '$CI_PIPELINE_SOURCE == "pipeline"'
+      when: never
+    - if: '$CI_COMMIT_BRANCH && $CI_COMMIT_BRANCH !~ /^(master|release\/)/'
+      when: on_success
+    - when: never
+  trigger:
+    project: $CI_PROJECT_PATH
+    branch: $CI_COMMIT_BRANCH
+    strategy: depend
+  variables:
+    EXTRA_TEST_JVMS: $EXTRA_TEST_JVMS
+    NON_DEFAULT_JVMS: $NON_DEFAULT_JVMS

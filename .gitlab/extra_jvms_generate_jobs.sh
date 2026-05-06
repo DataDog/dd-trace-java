@@ -2,6 +2,11 @@
 
 set -e
 
+DOTENV_FILE="extra-jvms.env"
+
+# Initialise with empty values so the bridge job always has the variables defined
+printf 'EXTRA_TEST_JVMS=\nNON_DEFAULT_JVMS=false\n' > "$DOTENV_FILE"
+
 if [ -z "$CI_COMMIT_BRANCH" ]; then
   echo "No branch detected - skipping extra JVM tests"
   exit 0
@@ -35,31 +40,10 @@ if [ $labels_status -ne 0 ]; then
   exit 0
 fi
 
-trigger_pipeline() {
-  local variables_json="$1"
-  local description="$2"
-  echo "Triggering extra JVM pipeline: $description"
-  set +e
-  response=$(curl --fail --silent --request POST \
-    --header "JOB-TOKEN: ${CI_JOB_TOKEN}" \
-    --header "Content-Type: application/json" \
-    --data "{\"ref\":\"${CI_COMMIT_BRANCH}\",\"variables\":${variables_json}}" \
-    "${CI_API_V4_URL}/projects/${CI_PROJECT_ID}/pipeline")
-  curl_status=$?
-  set -e
-  if [ $curl_status -ne 0 ]; then
-    echo "Failed to trigger pipeline (curl exit $curl_status)"
-    exit 1
-  fi
-  pipeline_id=$(echo "$response" | jq -r '.id')
-  pipeline_url=$(echo "$response" | jq -r '.web_url')
-  echo "Triggered pipeline #${pipeline_id}: ${pipeline_url}"
-}
-
 # Check for run-tests: all to run every non-default JVM without filtering
 if echo "$labels" | grep -qF 'run-tests: all'; then
-  echo "PR #$pr_number has 'run-tests: all' label - triggering all non-default JVM tests"
-  trigger_pipeline '[{"key":"NON_DEFAULT_JVMS","value":"true"}]' "all non-default JVMs"
+  echo "PR #$pr_number has 'run-tests: all' label - will trigger all non-default JVM tests"
+  printf 'EXTRA_TEST_JVMS=\nNON_DEFAULT_JVMS=true\n' > "$DOTENV_FILE"
   exit 0
 fi
 
@@ -82,6 +66,7 @@ fi
 # Build the EXTRA_TEST_JVMS regex matching the format used by DEFAULT_TEST_JVMS in .gitlab-ci.yml
 jvm_pattern=$(IFS='|'; echo "${requested_jvms[*]}")
 extra_test_jvms="/^($jvm_pattern)\$/"
+echo "Will trigger extra JVM tests for: ${requested_jvms[*]}"
 echo "EXTRA_TEST_JVMS: $extra_test_jvms"
 
-trigger_pipeline "[{\"key\":\"EXTRA_TEST_JVMS\",\"value\":\"${extra_test_jvms}\"}]" "${requested_jvms[*]}"
+printf 'EXTRA_TEST_JVMS=%s\nNON_DEFAULT_JVMS=false\n' "$extra_test_jvms" > "$DOTENV_FILE"
