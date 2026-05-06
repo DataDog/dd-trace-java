@@ -89,6 +89,9 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder longRunningTracesDropped = new LongAdder();
   private final LongAdder longRunningTracesExpired = new LongAdder();
 
+  private final LongAdder orgGuardEnforceMismatch = new LongAdder();
+  private final LongAdder orgGuardEnforceStrictMissing = new LongAdder();
+
   private final LongAdder clientStatsProcessedSpans = new LongAdder();
   private final LongAdder clientStatsProcessedTraces = new LongAdder();
   private final LongAdder clientStatsP0DroppedSpans = new LongAdder();
@@ -287,6 +290,15 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onOrgGuardEnforce(final String reason) {
+    if ("mismatch".equals(reason)) {
+      orgGuardEnforceMismatch.increment();
+    } else if ("strict_missing".equals(reason)) {
+      orgGuardEnforceStrictMissing.increment();
+    }
+  }
+
+  @Override
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {
     onSendAttempt(traceCount, sizeInBytes, response);
@@ -381,8 +393,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
     private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
+    private static final String[] ORG_GUARD_MISMATCH_TAGS = new String[] {"reason:mismatch"};
+    private static final String[] ORG_GUARD_STRICT_MISSING_TAGS =
+        new String[] {"reason:strict_missing"};
 
-    private final long[] previousCounts = new long[52];
+    private final long[] previousCounts = new long[54];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -494,6 +509,17 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             target.statsd, "long-running.dropped", target.longRunningTracesDropped, NO_TAGS);
         reportIfChanged(
             target.statsd, "long-running.expired", target.longRunningTracesExpired, NO_TAGS);
+
+        reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceMismatch,
+            ORG_GUARD_MISMATCH_TAGS);
+        reportIfChanged(
+            target.statsd,
+            "org_guard.enforce",
+            target.orgGuardEnforceStrictMissing,
+            ORG_GUARD_STRICT_MISSING_TAGS);
 
         reportIfChanged(
             target.statsd, "stats.traces_in", target.clientStatsProcessedTraces, NO_TAGS);

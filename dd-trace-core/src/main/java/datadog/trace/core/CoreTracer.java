@@ -100,6 +100,8 @@ import datadog.trace.core.otlp.metrics.OtlpMetricsService;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
 import datadog.trace.core.propagation.InferredProxyPropagator;
+import datadog.trace.core.propagation.OpmStampingInjector;
+import datadog.trace.core.propagation.OrgGuardEnforcer;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.propagation.TracingPropagator;
 import datadog.trace.core.propagation.XRayPropagator;
@@ -828,11 +830,22 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     sharedCommunicationObjects.whenReady(this.dataStreamsMonitoring::start);
 
+    propagationTagsFactory = PropagationTags.factory(config);
+
     // Register context propagators
     HttpCodec.Extractor tracingExtractor =
         extractor == null ? HttpCodec.createExtractor(config, this::captureTraceConfig) : extractor;
+    HttpCodec.Injector tracingInjector =
+        new OpmStampingInjector(injector, featuresDiscovery::getOrgPropagationMarker);
+    OrgGuardEnforcer orgGuardEnforcer =
+        new OrgGuardEnforcer(
+            config,
+            featuresDiscovery::getOrgPropagationMarker,
+            propagationTagsFactory,
+            this.healthMetrics);
     TracingPropagator tracingPropagator =
-        new TracingPropagator(config.isApmTracingEnabled(), injector, tracingExtractor);
+        new TracingPropagator(
+            config.isApmTracingEnabled(), tracingInjector, tracingExtractor, orgGuardEnforcer);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (config.isDataStreamsEnabled()) {
@@ -890,7 +903,6 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     StatusLogger.logStatus(config);
 
-    propagationTagsFactory = PropagationTags.factory(config);
     this.profilingContextIntegration = profilingContextIntegration;
     this.injectBaggageAsTags = injectBaggageAsTags;
     this.injectLinksAsTags = injectLinksAsTags;
