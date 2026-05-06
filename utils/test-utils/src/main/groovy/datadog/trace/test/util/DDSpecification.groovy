@@ -1,6 +1,7 @@
 package datadog.trace.test.util
 
 import datadog.environment.EnvironmentVariables
+import datadog.trace.config.inversion.ConfigHelper
 import de.thetaphi.forbiddenapis.SuppressForbidden
 import java.lang.reflect.Constructor
 import java.lang.reflect.Field
@@ -21,6 +22,7 @@ abstract class DDSpecification extends Specification {
   private static Constructor instConfigConstructor
   private static Field configInstanceField
   private static Constructor configConstructor
+  private static ConfigHelper.StrictnessPolicy previousStrictnessPolicy
 
   static {
     allowContextTesting()
@@ -90,6 +92,17 @@ abstract class DDSpecification extends Specification {
     }
   }
 
+  private void enableStrictTestPolicy() {
+    previousStrictnessPolicy = ConfigHelper.get().configInversionStrictFlag()
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.STRICT_TEST)
+  }
+
+  private void restoreStrictnessPolicy() {
+    if (previousStrictnessPolicy != null) {
+      ConfigHelper.get().setConfigInversionStrict(previousStrictnessPolicy)
+    }
+  }
+
   private void saveProperties() {
     originalSystemProperties = new Properties()
     originalSystemProperties.putAll(System.properties)
@@ -117,9 +130,11 @@ abstract class DDSpecification extends Specification {
     }
 
     saveProperties()
+    enableStrictTestPolicy()
   }
 
   void cleanupSpec() {
+    restoreStrictnessPolicy()
     restoreProperties()
 
     assert EnvironmentVariables.getAll().findAll { it.key.startsWith("DD_") }.isEmpty()
@@ -154,6 +169,12 @@ abstract class DDSpecification extends Specification {
   }
 
   void cleanup() {
+    // Assert no unsupported configs were encountered during the test
+    def unsupported = ConfigHelper.get().drainUnsupportedConfigs()
+    assert unsupported.isEmpty(): "Unsupported configurations found during test. " +
+    "Add these to metadata/supported-configurations.json or opt out with StrictnessPolicy.TEST:\n  " +
+    unsupported.join("\n  ")
+
     environmentVariables.clear()
 
     restoreProperties()

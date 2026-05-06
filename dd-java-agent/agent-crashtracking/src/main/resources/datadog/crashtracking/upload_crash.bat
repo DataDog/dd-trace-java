@@ -4,6 +4,11 @@ setlocal enabledelayedexpansion
 :: Check if PID is provided
 if "%1"=="" (
     echo "Error: No PID provided. Running in legacy mode."
+    :: Clear environment variables that the parent JVM may have set
+    set JDK_JAVA_OPTIONS=
+    set JAVA_TOOL_OPTIONS=
+    set _JAVA_OPTIONS=
+
     "!JAVA_HOME!\bin\java" -jar "!AGENT_JAR!" uploadCrash "!JAVA_ERROR_FILE!"
     if %ERRORLEVEL% EQU 0 (
         echo "Uploaded error file \"!JAVA_ERROR_FILE!\""
@@ -127,6 +132,12 @@ echo Agent Jar: %config_agent%
 echo Error Log: %config_hs_err%
 echo JAVA_HOME: %config_java_home%
 echo PID: %PID%
+
+:: Clear environment variables that the parent JVM may have set so the child JVM
+:: starts with a minimal configuration (avoids port conflicts, memory contention, etc.)
+set JDK_JAVA_OPTIONS=
+set JAVA_TOOL_OPTIONS=
+set _JAVA_OPTIONS=
 
 :: Execute the Java command with the loaded values
 "%config_java_home%\bin\java" -jar "%config_agent%" uploadCrash -c "%configFile%" "%config_hs_err%"

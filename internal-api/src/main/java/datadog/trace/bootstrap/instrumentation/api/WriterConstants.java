@@ -7,6 +7,7 @@ public final class WriterConstants {
   public static final String PRINTING_WRITER_TYPE = "PrintingWriter";
   public static final String TRACE_STRUCTURE_WRITER_TYPE = "TraceStructureWriter";
   public static final String MULTI_WRITER_TYPE = "MultiWriter";
+  public static final String OTLP_WRITER_TYPE = "OtlpWriter";
 
   private WriterConstants() {}
 }

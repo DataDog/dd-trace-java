@@ -1,5 +1,6 @@
 plugins {
   `java-library`
+  `java-test-fixtures`
   id("dd-trace-java.supported-config-generator")
 }
 
@@ -59,6 +60,8 @@ dependencies {
   api(project(":utils:filesystem-utils"))
   implementation(libs.slf4j)
   implementation("org.snakeyaml", "snakeyaml-engine", "2.9")
+
+  testFixturesImplementation(libs.junit.jupiter)
 
   testImplementation(project(":utils:test-utils"))
   testImplementation("org.snakeyaml:snakeyaml-engine:2.9")

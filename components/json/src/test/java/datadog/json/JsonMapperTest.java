@@ -17,6 +17,8 @@ import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.provider.NullSource;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.Scenario;
 import org.tabletest.junit.TableTest;
 
@@ -77,39 +79,27 @@ class JsonMapperTest {
             "{\"key1\":null,\"key2\":\"bar\",\"key3\":3,\"key4\":3456789123,\"key5\":3.142,\"key6\":3.141592653589793,\"key7\":true,\"key8\":\"toString\"}"));
   }
 
-  @TableTest({
-    "Scenario     | Json  ",
-    "null         |       ",
-    "null string  | 'null'",
-    "empty string | ''    ",
-    "empty object | '{}'  "
-  })
   @ParameterizedTest(name = "test mapping to Map from empty JSON object: {0}")
+  @NullSource
+  @ValueSource(strings = {"null", "", "{}"})
   void testMappingToMapFromEmptyJsonObject(String json) throws IOException {
     Map<String, Object> parsed = JsonMapper.fromJsonToMap(json);
     assertEquals(emptyMap(), parsed);
   }
 
-  // temporary disable spotless, will open issue to fix this.
-  // spotless:off
-  @TableTest({
-      "Scenario | Json  ",
-      "integer  | 1     ",
-      "array    | [1, 2]"
-  })
-  // spotless:on
   @ParameterizedTest(name = "test mapping to Map from non-object JSON: {0}")
+  @ValueSource(strings = {"1", "[1, 2]"})
   void testMappingToMapFromNonObjectJson(String json) {
     assertThrows(IOException.class, () -> JsonMapper.fromJsonToMap(json));
   }
 
   @TableTest({
-    "Scenario      | Input                | Expected                          ",
-    "null input    |                      | '[]'                              ",
-    "empty list    | []                   | '[]'                              ",
-    "single value  | [value1]             | '[\"value1\"]'                    ",
-    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'         ",
-    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]' "
+    "Scenario      | Input                | Expected                         ",
+    "null input    |                      | '[]'                             ",
+    "empty list    | []                   | '[]'                             ",
+    "single value  | [value1]             | '[\"value1\"]'                   ",
+    "two values    | [value1, value2]     | '[\"value1\",\"value2\"]'        ",
+    "quoted values | [va\"lu\"e1, value2] | '[\"va\\\"lu\\\"e1\",\"value2\"]'"
   })
   @ParameterizedTest(name = "test mapping iterable to JSON array: {0}")
   void testMappingIterableToJsonArray(List<String> input, String expected) throws IOException {
@@ -138,28 +128,23 @@ class JsonMapperTest {
     assertArrayEquals(input != null ? input : new String[] {}, parsed);
   }
 
-  @TableTest({
-    "Scenario      | Json  ",
-    "null          |       ",
-    "null string   | 'null'",
-    "empty string  | ''    ",
-    "empty array   | '[]'  "
-  })
   @ParameterizedTest(name = "test mapping to List from empty JSON object: {0}")
+  @NullSource
+  @ValueSource(strings = {"null", "", "[]"})
   void testMappingToListFromEmptyJsonObject(String json) throws IOException {
     List<String> parsed = JsonMapper.fromJsonToList(json);
     assertEquals(emptyList(), parsed);
   }
 
   @TableTest({
-    "Scenario      | input  | expected   ",
-    " null value   |        | ''         ",
-    " empty string | ''     | ''         ",
-    " \\b          | '\b'   | '\"\\b\"'  ",
-    " \\t          | '\t'   | '\"\\t\"'  ",
-    " \\f          | '\f'   | '\"\\f\"'  ",
-    " a            | 'a'    | '\"a\"'    ",
-    " /            | '/'    | '\"\\/\"'  ",
+    "Scenario     | input | expected ",
+    "null value   |       | ''       ",
+    "empty string | ''    | ''       ",
+    "\\b          | '\b'  | '\"\\b\"'",
+    "\\t          | '\t'  | '\"\\t\"'",
+    "\\f          | '\f'  | '\"\\f\"'",
+    "a            | 'a'   | '\"a\"'  ",
+    "/            | '/'   | '\"\\/\"'"
   })
   @ParameterizedTest(name = "test mapping to JSON string: {0}")
   @MethodSource("testMappingToJsonStringArguments")

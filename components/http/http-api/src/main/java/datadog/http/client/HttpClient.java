@@ -41,7 +41,7 @@ public interface HttpClient {
    * @return a new http client builder
    */
   static Builder newBuilder() {
-    return HttpProviders.newClientBuilder();
+    return HttpProviders.get().newClientBuilder();
   }
 
   /** Builder for constructing {@link HttpClient} instances. */

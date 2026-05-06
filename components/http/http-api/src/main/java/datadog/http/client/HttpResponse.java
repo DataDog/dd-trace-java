@@ -13,7 +13,6 @@ import javax.annotation.Nullable;
  * <p>HttpResponse instances must be closed after use to release resources.
  */
 public interface HttpResponse {
-
   /**
    * Returns the HTTP status code.
    *

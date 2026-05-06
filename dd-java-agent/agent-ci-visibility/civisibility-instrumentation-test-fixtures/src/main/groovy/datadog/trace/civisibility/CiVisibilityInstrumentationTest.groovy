@@ -128,9 +128,9 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     def metricCollector = Stub(CiVisibilityMetricCollectorImpl)
 
     def sourcePathResolver = Stub(SourcePathResolver)
-    sourcePathResolver.getSourcePath(_ as Class) >> DUMMY_SOURCE_PATH
-    sourcePathResolver.getResourcePath(_ as String) >> {
-      String path -> path
+    sourcePathResolver.getSourcePaths(_ as Class) >> [DUMMY_SOURCE_PATH]
+    sourcePathResolver.getResourcePaths(_ as String) >> {
+      String path -> [path]
     }
 
     def codeowners = Stub(Codeowners)
@@ -248,7 +248,8 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       settings.quarantinedTests,
       settings.disabledTests,
       settings.attemptToFixTests,
-      settings.diff)
+      settings.diff,
+      ConfigurationErrors.NONE)
     }
   }
 

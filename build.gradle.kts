@@ -11,9 +11,9 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.2.1"
+  id("com.diffplug.spotless") version "8.4.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
-  id("com.github.spotbugs") version "6.4.8"
+  id("com.github.spotbugs") version "6.5.0"
   id("de.thetaphi.forbiddenapis") version "3.10"
   id("io.github.gradle-nexus.publish-plugin") version "2.0.0"
   id("com.gradleup.shadow") version "8.3.9" apply false
@@ -38,7 +38,8 @@ with(extensions["spotlessPredeclare"] as SpotlessExtension) {
   java {
     removeUnusedImports()
 
-    googleJavaFormat("1.34.1")
+    googleJavaFormat("1.35.0")
+    tableTestFormatter("1.1.1")
   }
   groovyGradle {
     greclipse()

@@ -23,6 +23,8 @@ public class Histograms {
 
     Histogram newHistogram(double relativeAccuracy, int maxNumBins);
 
-    Histogram newHistogram(List<Double> binBoundaries);
+    HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins);
+
+    HistogramWithSum newHistogramWithSum(List<Double> binBoundaries);
   }
 }

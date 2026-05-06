@@ -57,7 +57,7 @@ public interface HttpRequest {
    * @return a new builder
    */
   static Builder newBuilder() {
-    return HttpProviders.newRequestBuilder();
+    return HttpProviders.get().newRequestBuilder();
   }
 
   /** Builder for constructing {@link HttpRequest} instances. */

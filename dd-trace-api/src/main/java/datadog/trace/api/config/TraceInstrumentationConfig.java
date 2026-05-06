@@ -10,9 +10,10 @@ package datadog.trace.api.config;
  */
 public final class TraceInstrumentationConfig {
   public static final String CODE_ORIGIN_FOR_SPANS_ENABLED = "code.origin.for.spans.enabled";
+  public static final String CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT =
+      "code.origin.for.spans.interface.support";
   public static final String CODE_ORIGIN_MAX_USER_FRAMES = "code.origin.max.user.frames";
   public static final String TRACE_ENABLED = "trace.enabled";
-  public static final String TRACE_OTEL_ENABLED = "trace.otel.enabled";
   public static final String INTEGRATIONS_ENABLED = "integrations.enabled";
 
   public static final String TRACE_EXTENSIONS_PATH = "trace.extensions.path";
@@ -24,11 +25,13 @@ public final class TraceInstrumentationConfig {
   public static final String TRACE_EXECUTORS_ALL = "trace.executors.all";
   public static final String TRACE_EXECUTORS = "trace.executors";
   public static final String TRACE_METHODS = "trace.methods";
+  public static final String TRACE_NATIVE_METHODS = "trace.native.methods";
   /*
   format for measure.methods is the same as for trace.methods:
   https://docs.datadoghq.com/tracing/trace_collection/custom_instrumentation/java/
    */
   public static final String MEASURE_METHODS = "measure.methods";
+  public static final String MEASURE_NATIVE_METHODS = "measure.native.methods";
   public static final String TRACE_CLASSES_EXCLUDE = "trace.classes.exclude";
   public static final String TRACE_CLASSES_EXCLUDE_FILE = "trace.classes.exclude.file";
   public static final String TRACE_CLASSLOADERS_EXCLUDE = "trace.classloaders.exclude";

@@ -4,12 +4,15 @@ import datadog.trace.api.Pair;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class StratumExt extends AbstractStratum implements Stratum {
   private final List<FileInfo> fileInfo = new ArrayList<>();
+  private Map<String, FileInfo> fileInfoMap;
 
   private int[] lineStart = null;
 
@@ -57,11 +60,28 @@ public class StratumExt extends AbstractStratum implements Stratum {
     if (fileInfo.isEmpty()) {
       return null;
     }
-    return fileInfo.stream()
-        .filter(f -> f.getFileId().equals(fileId))
-        .findFirst()
-        .map(FileInfo::getInputFilePath)
-        .orElse(null);
+    populateFileInfoMap();
+    FileInfo fileInfo = fileInfoMap.get(fileId);
+    return fileInfo != null ? fileInfo.getInputFilePath() : null;
+  }
+
+  public String getSourceFileName(String fileId) {
+    if (fileInfo.isEmpty()) {
+      return null;
+    }
+    populateFileInfoMap();
+    FileInfo fileInfo = fileInfoMap.get(fileId);
+    return fileInfo != null ? fileInfo.getInputFileName() : null;
+  }
+
+  private void populateFileInfoMap() {
+    if (fileInfoMap != null) {
+      return;
+    }
+    fileInfoMap = new HashMap<>();
+    for (FileInfo fileInfo : fileInfo) {
+      fileInfoMap.put(fileInfo.getFileId(), fileInfo);
+    }
   }
 
   public List<FileInfo> getFileInfo() {

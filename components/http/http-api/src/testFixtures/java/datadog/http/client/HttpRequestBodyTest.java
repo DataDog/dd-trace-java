@@ -129,13 +129,13 @@ public class HttpRequestBodyTest {
     HttpRequestBody originalBody = HttpRequestBody.of(content);
     HttpRequestBody gzippedBody = HttpRequestBody.gzip(originalBody);
     assertNotNull(gzippedBody);
-    // Content length is known since compression is done eagerly
-    assertTrue(gzippedBody.contentLength() > 0);
+    // Content length is unknown since compression is done lazily
+    assertEquals(-1, gzippedBody.contentLength());
     // Dump zipped content to bytes
     ByteArrayOutputStream compressedOut = new ByteArrayOutputStream();
     gzippedBody.writeTo(compressedOut);
     byte[] compressedBytes = compressedOut.toByteArray();
-    // Decompress and verify content matches original
+    // Decompress and verify content matches the original content
     try (GZIPInputStream gzipIn = new GZIPInputStream(new ByteArrayInputStream(compressedBytes));
         ByteArrayOutputStream decompressedOut = new ByteArrayOutputStream()) {
       byte[] buffer = new byte[1024];

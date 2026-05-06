@@ -8,7 +8,7 @@ muzzle {
     versions = "[4.1.0,)"
     // broken POMs: depend on non-existent org.eclipse.jetty:jetty-bom:9.4.59
     // can be fixed after https://github.com/confluentinc/kafka-connect-storage-common/issues/468 is resolved
-    skipVersions += ['7.4.14', '7.5.13', '7.6.10', '7.7.8', '7.8.7']
+    skipVersions += ['7.4.14', '7.5.13', '7.6.10', '7.7.8', '7.8.7', '7.9.6']
     excludeDependency "org.codehaus.jackson:jackson-mapper-asl" // missing on some releases
     assertInverse = true
   }
@@ -30,4 +30,3 @@ dependencies {
 
   latestDepTestImplementation group: 'io.confluent', name: 'kafka-avro-serializer', version: '+'
 }
-

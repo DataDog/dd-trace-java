@@ -79,15 +79,15 @@ class TelemetryRequestBodySpecification extends DDSpecification {
 
     then:
     drainToString(req) == ',"configuration":[' +
-      '{"name":"string","value":"bar","origin":"remote_config","seq_id":0},' +
-      '{"name":"int","value":"2342","origin":"default","seq_id":0},' +
-      '{"name":"double","value":"123.456","origin":"env_var","seq_id":0},' +
-      '{"name":"map","value":"key1:value1,key2:432.32,key3:324","origin":"jvm_prop","seq_id":0},' +
-      '{"name":"list","value":"1,2,3","origin":"default","seq_id":0},' +
-      '{"name":"null","value":null,"origin":"default","seq_id":0}]'
+      '{"name":"DD_STRING","value":"bar","origin":"remote_config","seq_id":0},' +
+      '{"name":"DD_INT","value":"2342","origin":"default","seq_id":0},' +
+      '{"name":"DD_DOUBLE","value":"123.456","origin":"env_var","seq_id":0},' +
+      '{"name":"DD_MAP","value":"key1:value1,key2:432.32,key3:324","origin":"jvm_prop","seq_id":0},' +
+      '{"name":"DD_LIST","value":"1,2,3","origin":"default","seq_id":0},' +
+      '{"name":"DD_NULL","value":null,"origin":"default","seq_id":0}]'
   }
 
-  def 'use snake_case for setting keys'() {
+  def 'use environment variable for setting keys'() {
     setup:
     TelemetryRequestBody req = new TelemetryRequestBody(RequestType.APP_CLIENT_CONFIGURATION_CHANGE)
 
@@ -102,7 +102,7 @@ class TelemetryRequestBodySpecification extends DDSpecification {
     req.endConfiguration()
 
     then:
-    drainToString(req) == ',"configuration":[{"name":"this_is_a_key","value":"value","origin":"remote_config","seq_id":0}]'
+    drainToString(req) == ',"configuration":[{"name":"DD_THIS_IS_A_KEY","value":"value","origin":"remote_config","seq_id":0}]'
   }
 
   def 'add debug flag'() {

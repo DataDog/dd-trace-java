@@ -220,13 +220,11 @@ public class DebuggerSink {
     for (DiagnosticMessage msg : messages) {
       switch (msg.getKind()) {
         case INFO:
-          LOGGER.info(msg.getMessage());
-          break;
         case WARN:
-          LOGGER.warn(msg.getMessage());
+          LOGGER.debug(msg.getMessage());
           break;
         case ERROR:
-          LOGGER.error(msg.getMessage());
+          LOGGER.debug(msg.getMessage());
           reportError(probeId, msg);
           break;
       }

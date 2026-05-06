@@ -72,7 +72,8 @@ dependencies {
   // selected bootstrap types shared across multiple OpenTelemetry instrumentations
   embeddedClasspath group: 'io.opentelemetry.javaagent.instrumentation', name: 'opentelemetry-javaagent-servlet-common-bootstrap', version: "$otelInstrumentationApiVersion-alpha"
 
-  compileOnly project(':dd-java-agent:agent-bootstrap')
+  implementation project(':dd-java-agent:agent-bootstrap')
+  implementation project(':utils:logging-utils')
 }
 
 tasks.named("shadowJar", ShadowJar) {
@@ -105,6 +106,7 @@ tasks.named("shadowJar", ShadowJar) {
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/InClassLoaderMatcher*'
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/InstrumentationConfig*'
   include 'datadog/trace/bootstrap/otel/**'
+  include 'datadog/trace/bootstrap/otlp/**'
 
   relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
   relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'

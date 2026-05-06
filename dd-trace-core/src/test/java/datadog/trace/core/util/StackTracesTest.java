@@ -1,0 +1,203 @@
+package datadog.trace.core.util;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.params.provider.Arguments.arguments;
+
+import java.util.stream.Stream;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
+import org.junit.jupiter.params.provider.MethodSource;
+
+class StackTracesTest {
+
+  private static final String TRACE =
+      "\n"
+          + "Exception in thread \"main\" com.example.app.MainException: Unexpected application failure\n"
+          + "    at com.example.app.Application$Runner.run(Application.java:102)\n"
+          + "    at com.example.app.Application.lambda$start$0(Application.java:75)\n"
+          + "    at java.base/java.util.Optional.ifPresent(Optional.java:178)\n"
+          + "    at com.example.app.Application.start(Application.java:74)\n"
+          + "    at com.example.app.Main.main(Main.java:21)\n"
+          + "    at sun.reflect.NativeMethodAccessorImpl.invoke0(Native Method)\n"
+          + "    at sun.reflect.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\n"
+          + "    at sun.reflect.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n"
+          + "    at java.base/java.lang.reflect.Method.invoke(Method.java:566)\n"
+          + "    at com.example.launcher.Bootstrap.run(Bootstrap.java:39)\n"
+          + "    at com.example.launcher.Bootstrap.main(Bootstrap.java:25)\n"
+          + "    at com.example.internal.$Proxy1.start(Unknown Source)\n"
+          + "    at com.example.internal.Initializer$1.run(Initializer.java:47)\n"
+          + "    at com.example.internal.Initializer.lambda$init$0(Initializer.java:38)\n"
+          + "    at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\n"
+          + "    at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\n"
+          + "    at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n"
+          + "    at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n"
+          + "    at java.base/java.lang.Thread.run(Thread.java:834)\n"
+          + "    at com.example.synthetic.Helper.access$100(Helper.java:14)\n"
+          + "Caused by: com.example.db.DatabaseException: Failed to load user data\n"
+          + "    at com.example.db.UserDao.findUser(UserDao.java:88)\n"
+          + "    at com.example.db.UserDao.lambda$cacheLookup$1(UserDao.java:64)\n"
+          + "    at com.example.cache.Cache$Entry.computeIfAbsent(Cache.java:111)\n"
+          + "    at com.example.cache.Cache.get(Cache.java:65)\n"
+          + "    at com.example.service.UserService.loadUser(UserService.java:42)\n"
+          + "    at com.example.service.UserService.lambda$loadUserAsync$0(UserService.java:36)\n"
+          + "    at com.example.util.SafeRunner.run(SafeRunner.java:27)\n"
+          + "    at java.base/java.util.concurrent.Executors$RunnableAdapter.call(Executors.java:515)\n"
+          + "    at java.base/java.util.concurrent.FutureTask.run(FutureTask.java:264)\n"
+          + "    at java.base/java.util.concurrent.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n"
+          + "    at java.base/java.util.concurrent.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n"
+          + "    at java.base/java.lang.Thread.run(Thread.java:834)\n"
+          + "    at com.example.synthetic.UserDao$1.run(UserDao.java:94)\n"
+          + "    at com.example.synthetic.UserDao$1.run(UserDao.java:94)\n"
+          + "    at com.example.db.ConnectionManager.getConnection(ConnectionManager.java:55)\n"
+          + "Suppressed: java.io.IOException: Resource cleanup failed\n"
+          + "    at com.example.util.ResourceManager.close(ResourceManager.java:23)\n"
+          + "    at com.example.service.UserService.lambda$loadUserAsync$0(UserService.java:38)\n"
+          + "    ... 3 more\n"
+          + "Caused by: java.nio.file.AccessDeniedException: /data/user/config.json\n"
+          + "    at java.base/sun.nio.fs.UnixException.translateToIOException(UnixException.java:90)\n"
+          + "    at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:111)\n"
+          + "    at java.base/sun.nio.fs.UnixException.rethrowAsIOException(UnixException.java:116)\n"
+          + "    at java.base/sun.nio.fs.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:219)\n"
+          + "    at java.base/java.nio.file.Files.newByteChannel(Files.java:375)\n"
+          + "    at java.base/java.nio.file.Files.newInputStream(Files.java:489)\n"
+          + "    at com.example.util.FileUtils.readFile(FileUtils.java:22)\n"
+          + "    at com.example.util.ResourceManager.close(ResourceManager.java:21)\n"
+          + "    ... 3 more\n";
+
+  @ParameterizedTest(name = "truncation limit {0}")
+  @MethodSource("testTruncateArguments")
+  void testTruncate(int limit, String expected) {
+    assertEquals(expected, StackTraces.truncate(TRACE, limit));
+  }
+
+  static Stream<Arguments> testTruncateArguments() {
+    return Stream.of(
+        arguments(1000, expected1000()),
+        arguments(2500, expected2500()),
+        arguments(3000, expected3000()));
+  }
+
+  private static String expected1000() {
+    return "\n"
+        + "Exception in thread \"main\" com.example.app.MainException: Unexpected application failure\n"
+        + "\tat c.e.a.Application$Runner.run(Application.java:102)\n"
+        + "\tat c.e.a.Application.lambda$start$0(Application.java:75)\n"
+        + "\tat j.b.u.Optional.ifPresent(Optional.java:178)\n"
+        + "\tat c.e.a.Application.start(Application.java:74)\n"
+        + "\tat c.e.a.Main.main(Main.java:21)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke0(Native Method)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\n"
+        + "\tat s.r.Delegat\n"
+        + "\t... trace centre-cut to 1000 chars ...\n"
+        + "ToIOException(UnixException.java:90)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:111)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:116)\n"
+        + "\tat j.b.n.f.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:219)\n"
+        + "\tat j.b.n.f.Files.newByteChannel(Files.java:375)\n"
+        + "\tat j.b.n.f.Files.newInputStream(Files.java:489)\n"
+        + "\tat c.e.u.FileUtils.readFile(FileUtils.java:22)\n"
+        + "\tat c.e.u.ResourceManager.close(ResourceManager.java:21)\n"
+        + "    ... 3 more\n";
+  }
+
+  private static String expected2500() {
+    return "\n"
+        + "Exception in thread \"main\" com.example.app.MainException: Unexpected application failure\n"
+        + "\tat c.e.a.Application$Runner.run(Application.java:102)\n"
+        + "\tat c.e.a.Application.lambda$start$0(Application.java:75)\n"
+        + "\tat j.b.u.Optional.ifPresent(Optional.java:178)\n"
+        + "\tat c.e.a.Application.start(Application.java:74)\n"
+        + "\tat c.e.a.Main.main(Main.java:21)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke0(Native Method)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\n"
+        + "\tat s.r.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n"
+        + "\t... 8 trimmed ...\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n"
+        + "\tat j.b.l.Thread.run(Thread.java:834)\n"
+        + "\tat c.e.s.Helper.access$100(Helper.java:14)\n"
+        + "Caused by: com.example.db.DatabaseException: Failed to load user data\n"
+        + "\tat c.e.d.UserDao.findUser(UserDao.java:88)\n"
+        + "\tat c.e.d.UserDao.lambda$cacheLookup$1(UserDao.java:64)\n"
+        + "\tat c.e.c.Cache$Entry.computeIfAbsent(Cache.java:111)\n"
+        + "\tat c.e.c.Cache.get(Cache.java:65)\n"
+        + "\tat c.e.s.UserService.loadUser(UserService.java:42)\n"
+        + "\tat c.e.s.UserService.lambda$loadUserAsync$0(UserService.java:36)\n"
+        + "\tat c.e.u.SafeRunner.run(SafeRunner.java:27)\n"
+        + "\tat j.b.u.c.Executors$RunnableAdapter.call(Executors.java:515)\n"
+        + "\t... 3 trimmed ...\n"
+        + "\tat j.b.l.Thread.run(Thread.java:834)\n"
+        + "\tat c.e.s.UserDao$1.run(UserDao.java:94)\n"
+        + "\tat c.e.s.UserDao$1.run(UserDao.java:94)\n"
+        + "\tat c.e.d.ConnectionManager.getConnection(ConnectionManager.java:55)\n"
+        + "Suppressed: java.io.IOException: Resource cleanup failed\n"
+        + "\tat c.e.u.ResourceManager.close(ResourceManager.java:23)\n"
+        + "\tat c.e.s.UserService.lambda$loadUserAsync$0(UserService.java:38)\n"
+        + "    ... 3 more\n"
+        + "Caused by: java.nio.file.AccessDeniedException: /data/user/config.json\n"
+        + "\tat j.b.n.f.UnixException.translateToIOException(UnixException.java:90)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:111)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:116)\n"
+        + "\tat j.b.n.f.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:219)\n"
+        + "\tat j.b.n.f.Files.newByteChannel(Files.java:375)\n"
+        + "\tat j.b.n.f.Files.newInputStream(Files.java:489)\n"
+        + "\tat c.e.u.FileUtils.readFile(FileUtils.java:22)\n"
+        + "\tat c.e.u.ResourceManager.close(ResourceManager.java:21)\n"
+        + "    ... 3 more\n";
+  }
+
+  private static String expected3000() {
+    return "\n"
+        + "Exception in thread \"main\" com.example.app.MainException: Unexpected application failure\n"
+        + "\tat c.e.a.Application$Runner.run(Application.java:102)\n"
+        + "\tat c.e.a.Application.lambda$start$0(Application.java:75)\n"
+        + "\tat j.b.u.Optional.ifPresent(Optional.java:178)\n"
+        + "\tat c.e.a.Application.start(Application.java:74)\n"
+        + "\tat c.e.a.Main.main(Main.java:21)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke0(Native Method)\n"
+        + "\tat s.r.NativeMethodAccessorImpl.invoke(NativeMethodAccessorImpl.java:62)\n"
+        + "\tat s.r.DelegatingMethodAccessorImpl.invoke(DelegatingMethodAccessorImpl.java:43)\n"
+        + "\tat j.b.l.r.Method.invoke(Method.java:566)\n"
+        + "\tat c.e.l.Bootstrap.run(Bootstrap.java:39)\n"
+        + "\tat c.e.l.Bootstrap.main(Bootstrap.java:25)\n"
+        + "\tat c.e.i.$Proxy1.start(Unknown Source)\n"
+        + "\tat c.e.i.Initializer$1.run(Initializer.java:47)\n"
+        + "\tat c.e.i.Initializer.lambda$init$0(Initializer.java:38)\n"
+        + "\tat j.b.u.c.Executors$RunnableAdapter.call(Executors.java:515)\n"
+        + "\tat j.b.u.c.FutureTask.run(FutureTask.java:264)\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n"
+        + "\tat j.b.l.Thread.run(Thread.java:834)\n"
+        + "\tat c.e.s.Helper.access$100(Helper.java:14)\n"
+        + "Caused by: com.example.db.DatabaseException: Failed to load user data\n"
+        + "\tat c.e.d.UserDao.findUser(UserDao.java:88)\n"
+        + "\tat c.e.d.UserDao.lambda$cacheLookup$1(UserDao.java:64)\n"
+        + "\tat c.e.c.Cache$Entry.computeIfAbsent(Cache.java:111)\n"
+        + "\tat c.e.c.Cache.get(Cache.java:65)\n"
+        + "\tat c.e.s.UserService.loadUser(UserService.java:42)\n"
+        + "\tat c.e.s.UserService.lambda$loadUserAsync$0(UserService.java:36)\n"
+        + "\tat c.e.u.SafeRunner.run(SafeRunner.java:27)\n"
+        + "\tat j.b.u.c.Executors$RunnableAdapter.call(Executors.java:515)\n"
+        + "\tat j.b.u.c.FutureTask.run(FutureTask.java:264)\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor.runWorker(ThreadPoolExecutor.java:1128)\n"
+        + "\tat j.b.u.c.ThreadPoolExecutor$Worker.run(ThreadPoolExecutor.java:628)\n"
+        + "\tat j.b.l.Thread.run(Thread.java:834)\n"
+        + "\tat c.e.s.UserDao$1.run(UserDao.java:94)\n"
+        + "\tat c.e.s.UserDao$1.run(UserDao.java:94)\n"
+        + "\tat c.e.d.ConnectionManager.getConnection(ConnectionManager.java:55)\n"
+        + "Suppressed: java.io.IOException: Resource cleanup failed\n"
+        + "\tat c.e.u.ResourceManager.close(ResourceManager.java:23)\n"
+        + "\tat c.e.s.UserService.lambda$loadUserAsync$0(UserService.java:38)\n"
+        + "    ... 3 more\n"
+        + "Caused by: java.nio.file.AccessDeniedException: /data/user/config.json\n"
+        + "\tat j.b.n.f.UnixException.translateToIOException(UnixException.java:90)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:111)\n"
+        + "\tat j.b.n.f.UnixException.rethrowAsIOException(UnixException.java:116)\n"
+        + "\tat j.b.n.f.UnixFileSystemProvider.newByteChannel(UnixFileSystemProvider.java:219)\n"
+        + "\tat j.b.n.f.Files.newByteChannel(Files.java:375)\n"
+        + "\tat j.b.n.f.Files.newInputStream(Files.java:489)\n"
+        + "\tat c.e.u.FileUtils.readFile(FileUtils.java:22)\n"
+        + "\tat c.e.u.ResourceManager.close(ResourceManager.java:21)\n"
+        + "    ... 3 more\n";
+  }
+}

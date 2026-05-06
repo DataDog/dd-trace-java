@@ -101,7 +101,7 @@ dependencies {
   implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
-  implementation project(':dd-java-agent:agent-builder')
+  implementation project(':dd-java-agent:agent-installer')
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {

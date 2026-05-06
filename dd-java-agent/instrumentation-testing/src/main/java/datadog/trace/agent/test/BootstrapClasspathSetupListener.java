@@ -87,7 +87,7 @@ public class BootstrapClasspathSetupListener implements LauncherSessionListener 
   static {
     TEST_BOOTSTRAP_PREFIXES =
         Arrays.copyOf(BOOTSTRAP_PACKAGE_PREFIXES_COPY, BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 3);
-    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "datadog.trace.relocate.api";
+    TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length] = "datadog.logging";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 1] = "org.slf4j";
     TEST_BOOTSTRAP_PREFIXES[BOOTSTRAP_PACKAGE_PREFIXES_COPY.length + 2] = "ch.qos.logback";
 

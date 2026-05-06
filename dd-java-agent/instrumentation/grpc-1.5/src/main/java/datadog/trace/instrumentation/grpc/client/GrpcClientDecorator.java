@@ -16,6 +16,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.datastreams.DataStreamsContext;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -92,10 +93,12 @@ public class GrpcClientDecorator extends ClientDecorator {
 
   public <ReqT, RespT> AgentSpan startCall(MethodDescriptor<ReqT, RespT> method) {
     if (IGNORED_METHODS.contains(method.getFullMethodName())) {
-      return null;
+      // if the method is ignored we want to preserve the old behaviour and not make injection
+      // happen
+      return AgentTracer.blackholeSpan();
     }
     AgentSpan span =
-        startSpan(OPERATION_NAME)
+        startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method))
             // method.getServiceName() may not be available on some grpc versions

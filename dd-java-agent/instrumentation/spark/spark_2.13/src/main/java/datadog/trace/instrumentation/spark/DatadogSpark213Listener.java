@@ -13,6 +13,7 @@ import org.apache.spark.sql.execution.SparkPlanInfo;
 import org.apache.spark.sql.execution.metric.SQLMetricInfo;
 import org.apache.spark.util.AccumulatorV2;
 import scala.Function1;
+import scala.collection.Seq;
 import scala.collection.mutable.ArrayBuffer;
 import scala.jdk.javaapi.CollectionConverters;
 
@@ -91,7 +92,9 @@ public class DatadogSpark213Listener extends AbstractDatadogSparkListener {
     }
 
     // withExternalAccums didn't work, try the legacy method
-    ArrayBuffer<AccumulatorV2> accumulators = methodLoader.invoke(externalAccums, metrics);
+    // Use Seq (not ArrayBuffer) since some Spark distributions (e.g. Amazon EMR) return a
+    // JListWrapper which implements Seq but cannot be cast to ArrayBuffer
+    Seq<AccumulatorV2> accumulators = methodLoader.invoke(externalAccums, metrics);
     if (accumulators != null && !accumulators.isEmpty()) {
       return CollectionConverters.asJava(accumulators);
     }

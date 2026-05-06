@@ -168,7 +168,7 @@ class AIGuardInternalTests extends DDSpecification {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], tag_probs: suite.tagProbabilities ?: [:], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -190,6 +190,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
     1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
+    1 * localRootSpan.setTag(AIGuardInternal.EVENT_TAG, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
@@ -210,12 +211,14 @@ class AIGuardInternalTests extends DDSpecification {
       error.action == suite.action
       error.reason == suite.reason
       error.tags == suite.tags
+      error.tagProbabilities == suite.tagProbabilities
       error.sds == []
     } else {
       error == null
       eval.action == suite.action
       eval.reason == suite.reason
       eval.tags == suite.tags
+      eval.tagProbabilities == suite.tagProbabilities
       eval.sds == []
     }
     assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
@@ -555,6 +558,9 @@ class AIGuardInternalTests extends DDSpecification {
     if (suite.tags) {
       assert meta.attack_categories == suite.tags
     }
+    if (suite.tagProbabilities)  {
+      assert meta.tag_probs == suite.tagProbabilities
+    }
     final receivedMessages = snakeCaseJson(meta.messages)
     final expectedMessages = snakeCaseJson(suite.messages)
     JSONAssert.assertEquals(expectedMessages, receivedMessages, JSONCompareMode.NON_EXTENSIBLE)
@@ -774,15 +780,17 @@ class AIGuardInternalTests extends DDSpecification {
     private final AIGuard.Action action
     private final String reason
     private final List<String> tags
+    private final Map<String, Double> tagProbabilities
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, Map<String, Double> tagProbabilities, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
-      this.tags = tags
+      this.tags = new ArrayList<>(tagProbabilities.keySet())
+      this.tagProbabilities = tagProbabilities
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -791,9 +799,9 @@ class AIGuardInternalTests extends DDSpecification {
 
     static List<TestSuite> build() {
       def actionValues = [
-        [ALLOW, 'Go ahead', []],
-        [DENY, 'Nope', ['deny_everything', 'test_deny']],
-        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+        [ALLOW, 'Go ahead', [:]],
+        [DENY, 'Nope', ['deny_everything': 0.2D, 'test_deny': 0.8D]],
+        [ABORT, 'Kill it with fire', ['alarm_tag': 0.1D, 'abort_everything': 0.9D]]
       ]
       def blockingValues = [true, false]
       def suiteValues = [
@@ -816,7 +824,7 @@ class AIGuardInternalTests extends DDSpecification {
       ", reason='" + reason + '\'' +
       ", blocking=" + blocking +
       ", target='" + target + '\'' +
-      ", messages=" + messages + '\'' +
+      ", messages=" + messages.collect {it.content } + '\'' +
       ", tags=" + tags +
       '}'
     }
