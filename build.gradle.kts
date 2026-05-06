@@ -91,15 +91,6 @@ allprojects {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp"
       )
-      // Disable CDS on Linux arm64: Temurin 11.0.31 / 21.0.10 hit a SIGSEGV
-      // during shared-class restore (ClassLoaderData::add_handle,
-      // Klass::class_loader) before any user code runs.
-      val os = System.getProperty("os.name").lowercase()
-      val arch = System.getProperty("os.arch").lowercase()
-      val isLinuxArm64 = os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64"))
-      if (isLinuxArm64) {
-        jvmArgs("-Xshare:off")
-      }
     }
   }
 }

@@ -57,13 +57,6 @@ variables:
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   ARM64_BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build"
   ARM64_BUILDER_IMAGE_TAG: "alexeyk_arm64-test-arm64-base"
-  WINDOWS_JDK8_VERSION: "8u482-b08" # keep pinned to Temurin GA patch releases and bump periodically
-  WINDOWS_JDK11_VERSION: "11.0.30+7"
-  WINDOWS_JDK17_VERSION: "17.0.18+8"
-  WINDOWS_JDK21_VERSION: "21.0.10+7"
-  WINDOWS_JDK25_VERSION: "25.0.2+10"
-  WINDOWS_BOOTSTRAP_CACHE_POLICY: pull
-  WINDOWS_DEPENDENCY_CACHE_POLICY: pull
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
   BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
@@ -385,18 +378,6 @@ populate_dep_cache:
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
 
-populate_dep_cache_windows:
-  extends: .windows_base_test_job
-  when: manual
-  allow_failure: true
-  variables:
-    WINDOWS_BOOTSTRAP_CACHE_POLICY: pull-push
-    WINDOWS_DEPENDENCY_CACHE_POLICY: push
-  script:
-    - |
-      .\gradlew.bat :baseTest -PskipTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
   stage: publish
@@ -622,156 +603,6 @@ muzzle-dep-report:
 .restore_pretest_env: &restore_pretest_env
   - source pretest.env
 
-.windows_test_cache:
-  cache:
-    - key: "windows-jdks-temurin-${WINDOWS_JDK8_VERSION}-${WINDOWS_JDK11_VERSION}-${WINDOWS_JDK17_VERSION}-${WINDOWS_JDK21_VERSION}-${WINDOWS_JDK25_VERSION}-x64"
-      paths:
-        - .tools/jdk-8/
-        - .tools/jdk-11/
-        - .tools/jdk-17/
-        - .tools/jdk-21/
-        - .tools/jdk-25/
-      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
-      unprotect: true
-    - key:
-        files:
-          - gradle/wrapper/gradle-wrapper.properties
-        prefix: "windows-gradle-wrapper"
-      paths:
-        - .gradle/wrapper/
-      policy: $WINDOWS_BOOTSTRAP_CACHE_POLICY
-      unprotect: true
-    - key:
-        files:
-          - settings.gradle.kts
-          - "**/gradle.lockfile"
-        prefix: "windows-base-deps-jdk21"
-      fallback_keys:
-        - "windows-base-deps-jdk21-default"
-      paths:
-        - .gradle/caches/
-        - .gradle/notifications/
-        - .mvn/caches/
-      policy: $WINDOWS_DEPENDENCY_CACHE_POLICY
-      unprotect: true
-
-.windows_base_test_job:
-  extends: .windows_test_cache
-  stage: tests
-  tags: [ "windows-v2:2025" ]
-  needs: []
-  variables:
-    GIT_STRATEGY: none
-    GIT_SUBMODULE_STRATEGY: normal
-    GIT_SUBMODULE_DEPTH: 1
-    SKIP_BUILDSCAN: "true"
-    TESTCONTAINERS_CHECKS_DISABLE: "true"
-    TESTCONTAINERS_RYUK_DISABLED: "true"
-  before_script:
-    - |
-      $ErrorActionPreference = "Stop"
-      [Net.ServicePointManager]::SecurityProtocol = [Net.SecurityProtocolType]::Tls12
-
-      $toolsDir = Join-Path $env:CI_PROJECT_DIR ".tools"
-      $tmpDir = Join-Path $env:CI_PROJECT_DIR ".tmp"
-      $tmpDirJava = $tmpDir.Replace("\", "/")
-      $jdk8ArchiveVersion = $env:WINDOWS_JDK8_VERSION.Replace("-", "")
-      $jdk11ArchiveVersion = $env:WINDOWS_JDK11_VERSION.Replace("+", "_")
-      $jdk17ArchiveVersion = $env:WINDOWS_JDK17_VERSION.Replace("+", "_")
-      $jdk21ArchiveVersion = $env:WINDOWS_JDK21_VERSION.Replace("+", "_")
-      $jdk25ArchiveVersion = $env:WINDOWS_JDK25_VERSION.Replace("+", "_")
-      $jdk8Home = Join-Path $toolsDir "jdk-8"
-      $jdk11Home = Join-Path $toolsDir "jdk-11"
-      $jdk17Home = Join-Path $toolsDir "jdk-17"
-      $jdk21Home = Join-Path $toolsDir "jdk-21"
-      $jdk25Home = Join-Path $toolsDir "jdk-25"
-
-      New-Item -ItemType Directory -Force -Path $toolsDir, $tmpDir, ".gradle", ".mvn\caches" | Out-Null
-      try {
-        New-Item -ItemType Directory -Force -Path "C:\tmp" | Out-Null
-      } catch {
-        Write-Host "Unable to create C:\tmp: $($_.Exception.Message)"
-      }
-
-      git --version
-      git config --global --add safe.directory $env:CI_PROJECT_DIR
-      if (-not (Test-Path ".git")) {
-        git init .
-        git remote add origin $env:CI_REPOSITORY_URL
-      } else {
-        git remote remove origin 2>$null
-        git remote add origin $env:CI_REPOSITORY_URL
-      }
-      git config core.longpaths true
-      git fetch --depth 1 origin $env:CI_COMMIT_SHA
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      git checkout --force --detach FETCH_HEAD
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-      @(
-        "DD_SERVICE",
-        "DD_ENTITY_ID",
-        "DD_SITE",
-        "DD_ENV",
-        "DD_DATACENTER",
-        "DD_PARTITION",
-        "DD_CLOUDPROVIDER"
-      ) | ForEach-Object {
-        if (Test-Path "Env:$_") {
-          Remove-Item "Env:$_"
-        }
-      }
-
-      function Install-TemurinJdk([string]$jdkHome, [string]$jdkUrl, [string]$zipName) {
-        $jdkZip = Join-Path $env:TEMP $zipName
-        $jdkExtract = "$jdkHome-extract"
-        if (-not (Test-Path (Join-Path $jdkHome "bin\java.exe"))) {
-          if (Test-Path $jdkExtract) { Remove-Item $jdkExtract -Recurse -Force }
-          (New-Object System.Net.WebClient).DownloadFile($jdkUrl, $jdkZip)
-          Expand-Archive -Path $jdkZip -DestinationPath $jdkExtract -Force
-          if (Test-Path $jdkHome) { Remove-Item $jdkHome -Recurse -Force }
-          $expandedJdkDir = Get-ChildItem $jdkExtract -Directory | Select-Object -First 1
-          Move-Item $expandedJdkDir.FullName $jdkHome
-          Remove-Item $jdkZip -Force
-          Remove-Item $jdkExtract -Recurse -Force
-        }
-      }
-
-      Install-TemurinJdk $jdk8Home "https://github.com/adoptium/temurin8-binaries/releases/download/jdk$($env:WINDOWS_JDK8_VERSION)/OpenJDK8U-jdk_x64_windows_hotspot_$jdk8ArchiveVersion.zip" "temurin-jdk-$jdk8ArchiveVersion-windows-x64.zip"
-      Install-TemurinJdk $jdk11Home "https://github.com/adoptium/temurin11-binaries/releases/download/jdk-$($env:WINDOWS_JDK11_VERSION)/OpenJDK11U-jdk_x64_windows_hotspot_$jdk11ArchiveVersion.zip" "temurin-jdk-$jdk11ArchiveVersion-windows-x64.zip"
-      Install-TemurinJdk $jdk17Home "https://github.com/adoptium/temurin17-binaries/releases/download/jdk-$($env:WINDOWS_JDK17_VERSION)/OpenJDK17U-jdk_x64_windows_hotspot_$jdk17ArchiveVersion.zip" "temurin-jdk-$jdk17ArchiveVersion-windows-x64.zip"
-      Install-TemurinJdk $jdk21Home "https://github.com/adoptium/temurin21-binaries/releases/download/jdk-$($env:WINDOWS_JDK21_VERSION)/OpenJDK21U-jdk_x64_windows_hotspot_$jdk21ArchiveVersion.zip" "temurin-jdk-$jdk21ArchiveVersion-windows-x64.zip"
-      Install-TemurinJdk $jdk25Home "https://github.com/adoptium/temurin25-binaries/releases/download/jdk-$($env:WINDOWS_JDK25_VERSION)/OpenJDK25U-jdk_x64_windows_hotspot_$jdk25ArchiveVersion.zip" "temurin-jdk-$jdk25ArchiveVersion-windows-x64.zip"
-
-      $env:JAVA_HOME = $jdk21Home
-      $env:JAVA_8_HOME = $jdk8Home
-      $env:JAVA_11_HOME = $jdk11Home
-      $env:JAVA_17_HOME = $jdk17Home
-      $env:JAVA_21_HOME = $jdk21Home
-      $env:JAVA_25_HOME = $jdk25Home
-      $env:Path = "$($env:JAVA_HOME)\bin;$env:Path"
-      $env:GRADLE_USER_HOME = Join-Path $env:CI_PROJECT_DIR ".gradle"
-      $env:ORG_GRADLE_PROJECT_mavenRepositoryProxy = $env:MAVEN_REPOSITORY_PROXY
-      $env:ORG_GRADLE_PROJECT_gradlePluginProxy = $env:GRADLE_PLUGIN_PROXY
-
-      if ($env:MAVEN_REPOSITORY_PROXY) {
-        (Get-Content ".mvn\wrapper\maven-wrapper.properties") `
-          -replace "https://repo.maven.apache.org/maven2/", $env:MAVEN_REPOSITORY_PROXY `
-          | Set-Content ".mvn\wrapper\maven-wrapper.properties" -Encoding ASCII
-      }
-
-      Add-Content gradle.properties "org.gradle.java.installations.auto-detect=false" -Encoding ASCII
-      Add-Content gradle.properties "org.gradle.java.installations.auto-download=false" -Encoding ASCII
-      Add-Content gradle.properties "org.gradle.java.installations.fromEnv=JAVA_HOME,JAVA_8_HOME,JAVA_11_HOME,JAVA_17_HOME,JAVA_21_HOME,JAVA_25_HOME" -Encoding ASCII
-      Add-Content gradle.properties "org.gradle.jvmargs=-Xms1g -Xmx4g -Djava.util.prefs.userRoot=$tmpDirJava/java-prefs -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M -XX:ErrorFile=$tmpDirJava/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$tmpDirJava" -Encoding ASCII
-
-      & "$env:JAVA_8_HOME\bin\java.exe" -version
-      & "$env:JAVA_11_HOME\bin\java.exe" -version
-      & "$env:JAVA_17_HOME\bin\java.exe" -version
-      & "$env:JAVA_21_HOME\bin\java.exe" -version
-      & "$env:JAVA_25_HOME\bin\java.exe" -version
-      java -version
-      .\gradlew.bat --version
-
 .test_job:
   extends: .gradle_build
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
@@ -911,14 +742,12 @@ muzzle-dep-report:
     # inherit these flags still write hs_err_pid*.log to their CWD (a module build dir);
     # the wide artifact patterns below capture both locations.
     - mkdir -p "$CI_PROJECT_DIR/crash-dumps"
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=$CI_PROJECT_DIR/crash-dumps/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$CI_PROJECT_DIR/crash-dumps -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=$CI_PROJECT_DIR/crash-dumps/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$CI_PROJECT_DIR/crash-dumps -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
-    # Disable CDS (Class Data Sharing) for every JVM spawned during the build.
+    # Disable CDS (Class Data Sharing) for the Gradle daemon.
     # Temurin 11 on the arm64 microvm runner SIGSEGVs in ClassLoaderData::add_handle
     # while restoring archived class mirrors from classes.jsa during JVM startup;
-    # -Xshare:off bypasses the crashing path. JAVA_TOOL_OPTIONS propagates to the
-    # Gradle daemon, worker daemons (compile/test), and forked test JVMs.
-    - export JAVA_TOOL_OPTIONS="-Xshare:off"
+    # -Xshare:off bypasses the crashing path.
     - ./gradlew --version
   script:
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
@@ -1020,28 +849,6 @@ test_base:
   script:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
-
-test_base_windows21:
-  extends: .windows_base_test_job
-  when: manual
-  allow_failure: true
-  script:
-    - |
-      .\gradlew.bat :baseTest -PskipFlakyTests -PtestJvm=21 --stacktrace --no-daemon --parallel --max-workers=4 --continue
-      if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  artifacts:
-    when: always
-    paths:
-      - workspace/**/build/test-results/**
-      - workspace/**/build/reports/tests/**
-      - buildSrc/build/test-results/**
-      - buildSrc/build/reports/tests/**
-      - .gradle/daemon/*/*.out.log
-      - .tmp/**
-    reports:
-      junit:
-        - workspace/**/build/test-results/**/*.xml
-        - buildSrc/build/test-results/**/*.xml
 
 test_base_arm64:
   extends: .test_job_arm64
