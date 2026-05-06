@@ -652,6 +652,8 @@ public final class HotspotCrashLogParser {
       return State.REGISTERS;
     }
     if (line.startsWith("siginfo:")) {
+      // siginfo is handled directly in the STACKTRACE case; returning null here does not change the
+      // parser state
       return null;
     }
     if (line.contains("P R O C E S S")) {
