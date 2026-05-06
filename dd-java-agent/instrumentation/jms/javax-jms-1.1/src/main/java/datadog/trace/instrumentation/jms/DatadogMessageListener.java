@@ -44,12 +44,13 @@ public class DatadogMessageListener implements MessageListener {
     }
     long startMillis = GETTER.extractTimeInQueueStart(message);
     if (startMillis == 0 || !TIME_IN_QUEUE_ENABLED) {
-      span = startSpan(JMS_CONSUME, propagatedContext);
+      span = startSpan("jms", JMS_CONSUME, propagatedContext);
     } else {
       long batchId = GETTER.extractMessageBatchId(message);
       AgentSpan timeInQueue = consumerState.getTimeInQueueSpan(batchId);
       if (null == timeInQueue) {
-        timeInQueue = startSpan(JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
+        timeInQueue =
+            startSpan("jms", JMS_DELIVER, propagatedContext, MILLISECONDS.toMicros(startMillis));
         BROKER_DECORATE.afterStart(timeInQueue);
         BROKER_DECORATE.onTimeInQueue(
             timeInQueue,
@@ -57,7 +58,7 @@ public class DatadogMessageListener implements MessageListener {
             consumerState.getBrokerServiceName());
         consumerState.setTimeInQueueSpan(batchId, timeInQueue);
       }
-      span = startSpan(JMS_CONSUME, timeInQueue.context());
+      span = startSpan("jms", JMS_CONSUME, timeInQueue.context());
     }
     CONSUMER_DECORATE.afterStart(span);
     CONSUMER_DECORATE.onConsume(span, message, consumerState.getConsumerResourceName());
