@@ -5,12 +5,8 @@ import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.propagation.CodecModule
 import datadog.trace.api.iast.propagation.PropagationModule
 import foo.bar.TestURLEncoderCallSiteSuite
-import java.nio.charset.Charset
 
 class URLEncoderCallSiteTest extends InstrumentationSpecification {
-  private static final String NON_ASCII_QUERY = 'my test.asp?name=ståle&car=saab'
-  private static final String DEFAULT_CHARSET_ENCODED =
-  URLEncoder.encode(NON_ASCII_QUERY, Charset.defaultCharset().name())
 
   @Override
   protected void configurePreAgent() {
@@ -31,9 +27,9 @@ class URLEncoderCallSiteTest extends InstrumentationSpecification {
     0 * _
 
     where:
-    args                       | expected
-    [NON_ASCII_QUERY]          | DEFAULT_CHARSET_ENCODED
-    [NON_ASCII_QUERY, 'UTF-8'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
+    args                                         | expected
+    ['my test.asp?name=ståle&car=saab']          | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
+    ['my test.asp?name=ståle&car=saab', 'UTF-8'] | 'my+test.asp%3Fname%3Dst%C3%A5le%26car%3Dsaab'
   }
 
   void 'test encode with null args'() {

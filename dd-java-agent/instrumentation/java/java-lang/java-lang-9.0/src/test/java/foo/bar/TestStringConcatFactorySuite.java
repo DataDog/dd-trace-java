@@ -50,8 +50,7 @@ public abstract class TestStringConcatFactorySuite {
     LOGGER.debug("Before string plus {}", Arrays.toString(target));
     String result = "";
     for (final Object item : target) {
-      //noinspection StringConcatenationInLoop
-      result += item; // intentional `+` in loop for test.
+      result += item;
     }
     LOGGER.debug("After string plus {}", result);
     return result;
