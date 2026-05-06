@@ -91,6 +91,16 @@ allprojects {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp"
       )
+      // GRADLE_OPTS / org.gradle.jvmargs only reaches the Gradle daemon, not the
+      // forked Test executor — Temurin 11/21 on Linux arm64 SIGSEGVs in
+      // SystemDictionary::define_instance_class during shared-class restore, so
+      // CDS must be disabled on the fork itself.
+      val os = System.getProperty("os.name").lowercase()
+      val arch = System.getProperty("os.arch").lowercase()
+      val isLinuxArm64 = os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64"))
+      if (isLinuxArm64) {
+        jvmArgs("-Xshare:off")
+      }
     }
   }
 }
