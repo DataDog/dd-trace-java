@@ -244,6 +244,17 @@ tasks.withType(Test).configureEach {
   }
 }
 
+// `options.encoding` above only configures the Java compiler. Groovy and Scala
+// compilers read source files via their own encoding settings; without these,
+// they fall back to the platform default (US-ASCII on the arm64 CI runner),
+// which corrupts non-ASCII literals like `ståle` in test sources.
+tasks.withType(GroovyCompile).configureEach {
+  groovyOptions.encoding = "UTF-8"
+}
+tasks.withType(ScalaCompile).configureEach {
+  scalaCompileOptions.encoding = "UTF-8"
+}
+
 if (project.plugins.hasPlugin('kotlin')) {
   ['compileKotlin', 'compileTestKotlin'].each {
     type ->
