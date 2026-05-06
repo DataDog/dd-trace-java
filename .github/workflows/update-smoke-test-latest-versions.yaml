@@ -121,12 +121,10 @@ jobs:
 
       - name: Create commit
         if: steps.check-changes.outputs.has_changes == 'true'
-        id: create-commit
         run: |
           git add dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties \
                   dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
           git commit -m "chore: Update smoke test latest tool versions"
-          echo "commit=$(git rev-parse HEAD)" >> "$GITHUB_OUTPUT"
 
       - name: Push changes
         if: steps.check-changes.outputs.has_changes == 'true'
@@ -137,7 +135,6 @@ jobs:
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-commit.outputs.commit }}"
 
       - name: Create pull request
         if: steps.check-changes.outputs.has_changes == 'true'
