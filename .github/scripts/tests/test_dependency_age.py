@@ -88,6 +88,19 @@ class DependencyAgeScriptTest(unittest.TestCase):
         outputs = self.parse_outputs(result.stdout)
         self.assertEqual(outputs["version"], "3.9.8")
 
+    def test_filters_rc_and_milestone_releases_by_json_fields(self) -> None:
+        result = self.run_script(
+            "select-gradle",
+            "--now",
+            NOW,
+            "--versions-file",
+            str(FIXTURES / "gradle-prerelease-filtering.json"),
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        outputs = self.parse_outputs(result.stdout)
+        self.assertEqual(outputs["version"], "9.4.1")
+
     def test_exact_48_hour_boundary_is_accepted(self) -> None:
         result = self.run_script(
             "select-maven",

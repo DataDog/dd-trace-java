@@ -16,7 +16,7 @@ from typing import Any
 GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 DEFAULT_MIN_AGE_HOURS = 48
-GRADLE_PRERELEASE_PATTERN = re.compile(r"(?:^|[.\-])(rc|milestone)(?:[.\-\d]|$)", re.IGNORECASE)
+
 
 
 @dataclass(frozen=True)
@@ -142,7 +142,7 @@ def select_gradle_release(args: argparse.Namespace) -> int:
             continue
         if any(bool(entry.get(flag)) for flag in ("snapshot", "nightly", "releaseNightly", "broken", "activeRc")):
             continue
-        if entry.get("rcFor") or GRADLE_PRERELEASE_PATTERN.search(version):
+        if entry.get("rcFor") or entry.get("milestoneFor"):
             continue
         published_at = parse_datetime(build_time)
         if published_at <= cutoff:
