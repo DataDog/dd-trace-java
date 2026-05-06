@@ -91,6 +91,7 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
       }
       AgentSpan span =
           startSpan(
+              "tibco_bw",
               TibcoDecorator.TIBCO_ACTIVITY_OPERATION,
               parentSpan != null ? parentSpan.context() : null);
       TibcoDecorator.DECORATE.afterStart(span);
@@ -141,6 +142,7 @@ public class BehaviorInstrumentation extends AbstractTibcoInstrumentation
         }
         AgentSpan span =
             startSpan(
+                "tibco_bw",
                 TibcoDecorator.TIBCO_PROCESS_OPERATION,
                 parent != null ? parentSpan.context() : null);
         TibcoDecorator.DECORATE.afterStart(span);

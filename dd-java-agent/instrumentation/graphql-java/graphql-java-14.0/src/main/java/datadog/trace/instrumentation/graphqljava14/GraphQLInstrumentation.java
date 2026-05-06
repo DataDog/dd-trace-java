@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.graphqljava14;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_JAVA;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_PARSING;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_REQUEST;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_VALIDATION;
@@ -61,7 +62,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   @Override
   public InstrumentationContext<ExecutionResult> beginExecution(
       InstrumentationExecutionParameters parameters) {
-    final AgentSpan requestSpan = startSpan(GRAPHQL_REQUEST);
+    final AgentSpan requestSpan = startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_REQUEST);
     DECORATE.afterStart(requestSpan);
 
     State state = parameters.getInstrumentationState();
@@ -100,7 +101,8 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
   public InstrumentationContext<Document> beginParse(
       InstrumentationExecutionParameters parameters) {
     State state = parameters.getInstrumentationState();
-    final AgentSpan parsingSpan = startSpan(GRAPHQL_PARSING, state.getRequestSpan().context());
+    final AgentSpan parsingSpan =
+        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_PARSING, state.getRequestSpan().context());
     DECORATE.afterStart(parsingSpan);
     return new ParsingInstrumentationContext(parsingSpan, state, parameters.getQuery());
   }
@@ -111,7 +113,7 @@ public final class GraphQLInstrumentation extends SimpleInstrumentation {
     State state = parameters.getInstrumentationState();
 
     final AgentSpan validationSpan =
-        startSpan(GRAPHQL_VALIDATION, state.getRequestSpan().context());
+        startSpan(GRAPHQL_JAVA.toString(), GRAPHQL_VALIDATION, state.getRequestSpan().context());
     DECORATE.afterStart(validationSpan);
     return new ValidationInstrumentationContext(validationSpan);
   }
