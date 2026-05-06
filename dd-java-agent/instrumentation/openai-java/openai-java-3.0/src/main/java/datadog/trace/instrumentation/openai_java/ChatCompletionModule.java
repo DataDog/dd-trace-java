@@ -18,6 +18,7 @@ public class ChatCompletionModule extends InstrumenterModule.Tracing {
       packageName + ".CommonTags",
       packageName + ".ChatCompletionDecorator",
       packageName + ".OpenAiDecorator",
+      packageName + ".JsonValueUtils",
       packageName + ".HttpResponseWrapper",
       packageName + ".HttpStreamResponseWrapper",
       packageName + ".HttpStreamResponseStreamWrapper",

@@ -1,20 +1,21 @@
 package datadog.trace.civisibility.source;
 
+import java.util.Collection;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public interface SourcePathResolver {
+
   /**
-   * @return path to the source file corresponding to the provided class, relative to repository
-   *     root. {@code null} is returned if the path could not be resolved
+   * @return paths to the source files corresponding to the provided class, relative to repository
+   *     root. Returns all candidate paths when multiple matches exist (e.g. duplicate trie keys in
+   *     repo index approach). Empty collection is returned if no paths could be resolved.
    */
-  @Nullable
-  String getSourcePath(@Nonnull Class<?> c) throws SourceResolutionException;
+  Collection<String> getSourcePaths(@Nonnull Class<?> c);
 
   /**
    * @param relativePath Path to a resource in current run's repository, relative to a resource root
-   * @return Path relative to repository root
+   * @return Candidate paths relative to repository root
    */
-  @Nullable
-  String getResourcePath(@Nullable String relativePath) throws SourceResolutionException;
+  Collection<String> getResourcePaths(@Nullable String relativePath);
 }

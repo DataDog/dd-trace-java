@@ -1,10 +1,7 @@
 package datadog.trace.instrumentation.aws.v2.sns;
 
 import static datadog.context.propagation.Propagators.defaultPropagator;
-import static datadog.trace.api.datastreams.DataStreamsTags.Direction.OUTBOUND;
-import static datadog.trace.api.datastreams.DataStreamsTags.create;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
-import static datadog.trace.instrumentation.aws.v2.sns.TextMapInjectAdapter.SETTER;
 
 import datadog.context.Context;
 import datadog.trace.api.Config;
@@ -28,6 +25,9 @@ import software.amazon.awssdk.services.sns.model.PublishRequest;
 
 public class SnsInterceptor implements ExecutionInterceptor {
 
+  // SQS subscriber limit; SNS inherits it when SQS is used as a subscriber
+  private static final int MAX_MESSAGE_ATTRIBUTES = 10;
+
   public static final ExecutionAttribute<Context> CONTEXT_ATTRIBUTE =
       InstanceStore.of(ExecutionAttribute.class)
           .putIfAbsent("DatadogContext", () -> new ExecutionAttribute<>("DatadogContext"));
@@ -38,10 +38,12 @@ public class SnsInterceptor implements ExecutionInterceptor {
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
     if (traceConfig().isDataStreamsEnabled()) {
-      DataStreamsContext dsmContext = DataStreamsContext.fromTags(getTags(snsTopicName));
+      DataStreamsTags tags =
+          DataStreamsTags.create("sns", DataStreamsTags.Direction.OUTBOUND, snsTopicName);
+      DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }
-    defaultPropagator().inject(context, jsonBuilder, SETTER);
+    defaultPropagator().inject(context, jsonBuilder, TextMapInjectAdapter.SETTER);
     jsonBuilder.setLength(jsonBuilder.length() - 1); // Remove the last comma
     jsonBuilder.append('}');
     return SdkBytes.fromString(jsonBuilder.toString(), StandardCharsets.UTF_8);
@@ -57,9 +59,7 @@ public class SnsInterceptor implements ExecutionInterceptor {
     // Injecting the trace context into SNS messageAttributes.
     if (context.request() instanceof PublishRequest) {
       PublishRequest request = (PublishRequest) context.request();
-      // 10 messageAttributes is a limit from SQS, which is often used as a subscriber, therefore
-      // the limit still applies here
-      if (request.messageAttributes().size() < 10) {
+      if (request.messageAttributes().size() < MAX_MESSAGE_ATTRIBUTES) {
         // Get topic name for DSM
         String snsTopicArn = request.topicArn();
         if (null == snsTopicArn) {
@@ -70,17 +70,11 @@ public class SnsInterceptor implements ExecutionInterceptor {
         }
 
         String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
-        Map<String, MessageAttributeValue> modifiedMessageAttributes =
-            new HashMap<>(request.messageAttributes());
-        modifiedMessageAttributes.put(
-            "_datadog", // Use Binary since SNS subscription filter policies fail silently with JSON
-            // strings https://github.com/DataDog/datadog-lambda-js/pull/269
-            MessageAttributeValue.builder()
-                .dataType("Binary")
-                .binaryValue(
-                    this.getMessageAttributeValueToInject(executionAttributes, snsTopicName))
-                .build());
-        return request.toBuilder().messageAttributes(modifiedMessageAttributes).build();
+        Map<String, MessageAttributeValue> messageAttributes =
+            withDatadogAttribute(
+                request.messageAttributes(),
+                this.getMessageAttributeValueToInject(executionAttributes, snsTopicName));
+        return request.toBuilder().messageAttributes(messageAttributes).build();
       }
       return request;
     } else if (context.request() instanceof PublishBatchRequest) {
@@ -89,24 +83,28 @@ public class SnsInterceptor implements ExecutionInterceptor {
       String snsTopicArn = request.topicArn();
       String snsTopicName = snsTopicArn.substring(snsTopicArn.lastIndexOf(':') + 1);
       ArrayList<PublishBatchRequestEntry> entries = new ArrayList<>();
-      final SdkBytes sdkBytes =
-          this.getMessageAttributeValueToInject(executionAttributes, snsTopicName);
+      SdkBytes value = this.getMessageAttributeValueToInject(executionAttributes, snsTopicName);
       for (PublishBatchRequestEntry entry : request.publishBatchRequestEntries()) {
-        if (entry.messageAttributes().size() < 10) {
-          Map<String, MessageAttributeValue> modifiedMessageAttributes =
-              new HashMap<>(entry.messageAttributes());
-          modifiedMessageAttributes.put(
-              "_datadog",
-              MessageAttributeValue.builder().dataType("Binary").binaryValue(sdkBytes).build());
-          entries.add(entry.toBuilder().messageAttributes(modifiedMessageAttributes).build());
+        if (entry.messageAttributes().size() < MAX_MESSAGE_ATTRIBUTES) {
+          Map<String, MessageAttributeValue> messageAttributes =
+              withDatadogAttribute(entry.messageAttributes(), value);
+          entry = entry.toBuilder().messageAttributes(messageAttributes).build();
         }
+        entries.add(entry);
       }
       return request.toBuilder().publishBatchRequestEntries(entries).build();
     }
     return context.request();
   }
 
-  private DataStreamsTags getTags(String snsTopicName) {
-    return create("sns", OUTBOUND, snsTopicName);
+  private static Map<String, MessageAttributeValue> withDatadogAttribute(
+      Map<String, MessageAttributeValue> attributes, SdkBytes value) {
+    // copy since the original map may be unmodifiable
+    Map<String, MessageAttributeValue> modified = new HashMap<>(attributes);
+    // Use Binary since SNS subscription filter policies fail silently with JSON strings
+    // https://github.com/DataDog/datadog-lambda-js/pull/269
+    modified.put(
+        "_datadog", MessageAttributeValue.builder().dataType("Binary").binaryValue(value).build());
+    return modified;
   }
 }

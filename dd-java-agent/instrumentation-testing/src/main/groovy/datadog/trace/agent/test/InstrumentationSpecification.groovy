@@ -10,6 +10,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -25,13 +26,14 @@ import com.datadog.debugger.sink.DebuggerSink
 import com.datadog.debugger.sink.ProbeStatusSink
 import com.google.common.collect.Sets
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery
+import datadog.instrument.classinject.ClassInjector
 import datadog.metrics.agent.AgentMeter
 import datadog.metrics.api.Monitoring
+import datadog.metrics.api.statsd.StatsDClient
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
-import datadog.metrics.api.statsd.StatsDClient
-import datadog.instrument.classinject.ClassInjector
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -387,8 +389,10 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       // emit traces to the APM Test-Agent for Cross-Tracer Testing Trace Checks
       HttpUrl agentUrl = HttpUrl.get("http://" + agentHost + ":" + DEFAULT_TRACE_AGENT_PORT)
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
-      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, Config.get().isTraceAgentV05Enabled(), Config.get().isTracerMetricsEnabled())
-      TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, Config.get().isTracerMetricsEnabled())
+
+      Config cfg = Config.get()
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled(), cfg.isTracerMetricsIgnoreAgentVersion())
+      TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, cfg.isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
 
@@ -404,15 +408,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
-    TEST_TRACER.startSpan(*_) >> {
-      AgentSpan agentSpan = callRealMethod()
-      if (!enabledFinishTimingChecks) {
-        return agentSpan
-      }
-
-      def trackingSpan = new TrackingSpanDecorator(agentSpan, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
-      originalToTrackingSpan[agentSpan] = trackingSpan
-      return trackingSpan
+    TEST_TRACER.startSpan(*_) >> { args ->
+      trackStartSpan(callRealMethod(), args[0] as String, enabledFinishTimingChecks)
     }
 
     ClassInjector.enableClassInjection(INSTRUMENTATION)
@@ -568,6 +565,16 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   boolean useStrictTraceWrites() {
     return true
+  }
+
+  protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
+    TagsAssert.INSTRUMENTATION_NAMES[span.spanId] = instrName
+    if (!enabledFinishTimingChecks) {
+      return span
+    }
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    originalToTrackingSpan[span] = trackingSpan
+    return trackingSpan
   }
 
   void assertTraces(

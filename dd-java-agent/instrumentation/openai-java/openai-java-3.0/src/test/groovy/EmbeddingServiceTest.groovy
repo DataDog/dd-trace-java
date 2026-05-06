@@ -40,6 +40,9 @@ class EmbeddingServiceTest extends OpenAiTest {
   }
 
   private void assertEmbeddingTrace() {
+    List<LLMObs.Document> inputTagsOut = []
+    Map<String, Object> metadataOut = [:]
+
     assertTraces(1) {
       trace(3) {
         sortSpansByStart()
@@ -59,11 +62,23 @@ class EmbeddingServiceTest extends OpenAiTest {
             "_ml_obs_tag.model_provider" "openai"
             "_ml_obs_tag.model_name" "text-embedding-ada-002-v2"
             "_ml_obs_tag.input" List<LLMObs.Document>
+            def inputTags = tag("_ml_obs_tag.input")
+            if (inputTags != null) {
+              inputTagsOut.addAll(inputTags)
+            }
             "_ml_obs_tag.metadata" Map
+            def metadata = tag("_ml_obs_tag.metadata")
+            if (metadata != null) {
+              metadataOut.putAll(metadata)
+            }
             "_ml_obs_tag.output" "[1 embedding(s) returned with size 1536]"
             "_ml_obs_tag.parent_id" "undefined"
             "_ml_obs_tag.ml_app" String
             "_ml_obs_tag.service" String
+            "$CommonTags.DDTRACE_VERSION" String
+            "$CommonTags.SOURCE" "integration"
+            "$CommonTags.INTEGRATION" "openai"
+            "$CommonTags.ERROR" 0
             "_ml_obs_metric.input_tokens" Long
             "_ml_obs_metric.total_tokens" Long
             "openai.request.method" "POST"
@@ -90,5 +105,9 @@ class EmbeddingServiceTest extends OpenAiTest {
         }
       }
     }
+
+    assert inputTagsOut.size() == 1
+    assert inputTagsOut[0].text == "hello world"
+    assert metadataOut == [encoding_format: "base64"]
   }
 }

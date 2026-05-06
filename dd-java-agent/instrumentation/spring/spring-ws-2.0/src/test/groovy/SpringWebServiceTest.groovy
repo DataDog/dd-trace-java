@@ -77,6 +77,7 @@ class SpringWebServiceTest extends WithHttpServer<ConfigurableApplicationContext
             "$Tags.COMPONENT" "tomcat-server"
             "$Tags.SPAN_KIND" "$Tags.SPAN_KIND_SERVER"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             "$Tags.HTTP_HOSTNAME" "localhost"
             "$Tags.HTTP_METHOD" "POST"
             "$Tags.HTTP_STATUS" { failed ? "500" : "200" }

@@ -3,18 +3,28 @@ package datadog.trace.agent.test.assertions;
 import static datadog.trace.agent.test.assertions.Matchers.any;
 import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
+import static datadog.trace.api.DDTags.BASE_SERVICE;
+import static datadog.trace.api.DDTags.DD_INTEGRATION;
+import static datadog.trace.api.DDTags.DJM_ENABLED;
+import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.ERROR_MSG;
 import static datadog.trace.api.DDTags.ERROR_STACK;
 import static datadog.trace.api.DDTags.ERROR_TYPE;
 import static datadog.trace.api.DDTags.LANGUAGE_TAG_KEY;
+import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.DDTags.PID_TAG;
+import static datadog.trace.api.DDTags.PROFILING_CONTEXT_ENGINE;
+import static datadog.trace.api.DDTags.PROFILING_ENABLED;
 import static datadog.trace.api.DDTags.REQUIRED_CODE_ORIGIN_TAGS;
 import static datadog.trace.api.DDTags.RUNTIME_ID_TAG;
+import static datadog.trace.api.DDTags.SCHEMA_VERSION_TAG_KEY;
+import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
+import static datadog.trace.api.DDTags.TRACER_HOST;
 import static datadog.trace.common.sampling.RateByServiceTraceSampler.SAMPLING_AGENT_RATE;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 
-import datadog.trace.api.DDTags;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -34,15 +44,17 @@ public final class TagsMatcher {
     tagMatchers.put(SAMPLING_AGENT_RATE, any());
     tagMatchers.put(SAMPLING_PRIORITY_KEY.toString(), any());
     tagMatchers.put("_sample_rate", any());
-    tagMatchers.put(DDTags.PID_TAG, any());
-    tagMatchers.put(DDTags.SCHEMA_VERSION_TAG_KEY, any());
-    tagMatchers.put(DDTags.PROFILING_ENABLED, any());
-    tagMatchers.put(DDTags.PROFILING_CONTEXT_ENGINE, any());
-    tagMatchers.put(DDTags.BASE_SERVICE, any());
-    tagMatchers.put(DDTags.DSM_ENABLED, any());
-    tagMatchers.put(DDTags.DJM_ENABLED, any());
-    tagMatchers.put(DDTags.PARENT_ID, any());
-    tagMatchers.put(DDTags.SPAN_LINKS, any()); // this is checked by LinksAsserter
+    tagMatchers.put(PID_TAG, any());
+    tagMatchers.put(SCHEMA_VERSION_TAG_KEY, any());
+    tagMatchers.put(PROFILING_ENABLED, any());
+    tagMatchers.put(PROFILING_CONTEXT_ENGINE, any());
+    tagMatchers.put(BASE_SERVICE, any());
+    tagMatchers.put(DSM_ENABLED, any());
+    tagMatchers.put(DJM_ENABLED, any());
+    tagMatchers.put(PARENT_ID, any());
+    tagMatchers.put(SPAN_LINKS, any()); // this is checked by LinksAsserter
+    tagMatchers.put(DD_INTEGRATION, any());
+    tagMatchers.put(TRACER_HOST, any());
 
     for (String tagName : REQUIRED_CODE_ORIGIN_TAGS) {
       tagMatchers.put(tagName, any());

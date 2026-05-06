@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.PRODUCER_DECORATE;
 
@@ -13,6 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.Callback;
@@ -29,7 +31,9 @@ public class ProducerAdvice {
       @Advice.FieldValue("metadata") Metadata metadata,
       @Advice.Argument(value = 0, readOnly = false) ProducerRecord record,
       @Advice.Argument(value = 1, readOnly = false) Callback callback) {
-    String clusterId = InstrumentationContext.get(Metadata.class, String.class).get(metadata);
+    MetadataState metadataState =
+        InstrumentationContext.get(Metadata.class, MetadataState.class).get(metadata);
+    String clusterId = metadataState != null ? metadataState.clusterId : null;
 
     // Set cluster ID for Schema Registry instrumentation
     if (clusterId != null) {
@@ -46,14 +50,14 @@ public class ProducerAdvice {
     final AgentSpan callbackParentSpan;
 
     if (extractedContext != null) {
-      span = startSpan(KAFKA_PRODUCE, extractedContext);
+      span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
       callbackParentSpan = span;
     } else {
-      span = startSpan(KAFKA_PRODUCE);
+      span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
       callbackParentSpan = localActiveSpan;
     }
     PRODUCER_DECORATE.afterStart(span);
-    PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+    PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
     callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 

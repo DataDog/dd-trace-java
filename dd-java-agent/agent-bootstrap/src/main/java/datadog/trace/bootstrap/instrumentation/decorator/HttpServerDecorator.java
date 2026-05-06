@@ -166,7 +166,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
    * @return A new context bundling the span, child of the given parent context.
    */
   public Context startSpan(REQUEST_CARRIER carrier, Context parentContext) {
-    String instrumentationName = primaryInstrumentationName();
+    String instrumentationName = component().toString();
     AgentSpanContext extracted = getExtractedSpanContext(parentContext);
     // Call IG callbacks
     extracted = callIGCallbackStart(extracted);
@@ -369,6 +369,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(Tags.PEER_HOST_IPV6, peerIp);
       } else {
         span.setTag(Tags.PEER_HOST_IPV4, peerIp);
+      }
+      if (clientIpResolverEnabled) {
+        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
       }
     }
     setPeerPort(span, peerPort);

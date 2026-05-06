@@ -62,7 +62,7 @@ class TestSuiteImplTest extends SpanWriterTest {
     linesResolver.getClassLines(MyClass) >> classLines
 
     def resolver = Stub(SourcePathResolver)
-    resolver.getSourcePath(MyClass) >> "MyClass.java"
+    resolver.getSourcePaths(MyClass) >> ["MyClass.java"]
 
     def codeowners = Stub(NoCodeowners)
     codeowners.getOwners("MyClass.java") >> ["@global-owner1", "@global-owner2"]

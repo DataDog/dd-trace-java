@@ -28,7 +28,8 @@ public final class SqsClientInstrumentation
   public static class AwsSqsBuilderAdvice {
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void methodExit(@Advice.Return final List<ExecutionInterceptor> interceptors) {
-      if (Config.get().isDataStreamsEnabled()) {
+      if (Config.get().isDataStreamsEnabled()
+          || Config.get().isSqsInjectDatadogAttributeEnabled()) {
         for (ExecutionInterceptor interceptor : interceptors) {
           if (interceptor instanceof SqsInterceptor) {
             return; // list already has our interceptor, return to builder

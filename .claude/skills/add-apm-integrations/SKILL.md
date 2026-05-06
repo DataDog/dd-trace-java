@@ -78,6 +78,19 @@ Conventions to enforce:
 - Declare `contextStore()` entries if context stores are needed (key class → value class)
 - Keep method matchers as narrow as possible (name, parameter types, visibility)
 
+### Must NOT do in InstrumenterModule
+
+- **Do not extract one-shot method return values into static constants.**
+  Methods like `triggerClasses()`, `contextStore()`, `classLoaderMatcher()`, and `methodAdvice()`
+  are called **once** by `AgentInstaller` / the framework wiring. Extracting their return value
+  into a `private static final` constant provides no performance benefit and needlessly bloats
+  the constant pool of the instrumentation class.
+
+  ❌ `private static final String[] TRIGGER_CLASSES = new String[]{"com.example.Foo"};`
+     `public String[] triggerClasses() { return TRIGGER_CLASSES; }`
+
+  ✅ `public String[] triggerClasses() { return new String[]{"com.example.Foo"}; }`
+
 ## Step 6 – Write the Decorator
 
 - Extend the most specific available base decorator:
@@ -200,6 +213,7 @@ Output this checklist and confirm each item is satisfied:
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
 - [ ] Advice methods are `static` with `@Advice.OnMethodEnter` / `@Advice.OnMethodExit` annotations
 - [ ] `suppress = Throwable.class` on enter/exit (unless the hooked method is a constructor)
+- [ ] No static constants holding return values of one-shot instrumenter methods (`triggerClasses()`, `contextStore()`, etc.)
 - [ ] No logger field in the Advice class or InstrumenterModule class
 - [ ] No `inline=false` left in production code
 - [ ] No `java.util.logging.*` / `java.nio.*` / `javax.management.*` in bootstrap path

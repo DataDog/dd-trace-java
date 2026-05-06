@@ -4,7 +4,9 @@ muzzle {
   pass {
     module = 'opentelemetry-api'
     group = 'io.opentelemetry'
-    versions = "[$openTelemetryVersion,)"
+    versions = "[1.38,)" // we're binary compatible with 1.38+
+    assertInverse = true
+    skipVersions = ['0.13.0'] // bad release
   }
 }
 

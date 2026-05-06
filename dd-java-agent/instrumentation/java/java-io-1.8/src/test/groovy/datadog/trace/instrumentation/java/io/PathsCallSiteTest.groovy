@@ -2,7 +2,7 @@ package datadog.trace.instrumentation.java.io
 
 import datadog.trace.api.iast.InstrumentationBridge
 import datadog.trace.api.iast.sink.PathTraversalModule
-import datadog.trace.instrumentation.java.lang.FileLoadedRaspHelper
+import datadog.trace.instrumentation.java.lang.FileIORaspHelper
 import foo.bar.TestPathsSuite
 
 class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
@@ -39,8 +39,8 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP get path from strings'(final String first, final String... other) {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
 
     when:
     TestPathsSuite.get(first, other)
@@ -56,8 +56,8 @@ class PathsCallSiteTest extends BaseIoRaspCallSiteTest {
 
   void 'test RASP get path from uri'() {
     setup:
-    final helper = Mock(FileLoadedRaspHelper)
-    FileLoadedRaspHelper.INSTANCE = helper
+    final helper = Mock(FileIORaspHelper)
+    FileIORaspHelper.INSTANCE = helper
     final file = new URI('file:/test.txt')
 
     when:

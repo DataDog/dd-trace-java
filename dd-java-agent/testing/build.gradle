@@ -51,7 +51,8 @@ dependencies {
   api group: 'com.squareup.okhttp3', name: 'logging-interceptor', version: libs.versions.okhttp.legacy.get()
 
   api project(':dd-java-agent:agent-tooling')
-  api project(':dd-java-agent:agent-builder')
+  api project(':dd-java-agent:agent-installer')
+  api project(':dd-trace-core')
   api project(':utils:test-utils')
   api project(':utils:time-utils')
 

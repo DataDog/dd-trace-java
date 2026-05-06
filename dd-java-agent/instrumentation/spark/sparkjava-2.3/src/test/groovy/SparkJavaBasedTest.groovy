@@ -63,6 +63,7 @@ class SparkJavaBasedTest extends InstrumentationSpecification {
             "$Tags.HTTP_ROUTE" String
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }

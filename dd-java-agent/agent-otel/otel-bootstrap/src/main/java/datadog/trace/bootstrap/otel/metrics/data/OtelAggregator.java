@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.otel.metrics.data;
 
+import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
+
 /** Common behaviour shared across all aggregators. */
 abstract class OtelAggregator {
   private volatile boolean empty = true;

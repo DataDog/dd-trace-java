@@ -29,7 +29,7 @@ class BuildTimeInstrumentationPluginTest {
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8' // just to build TestPlugin
     }
 
     buildTimeInstrumentation.plugins = [
@@ -84,7 +84,7 @@ class BuildTimeInstrumentationPluginTest {
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3'
+        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       }
 
       buildTimeInstrumentation {
@@ -129,7 +129,7 @@ class BuildTimeInstrumentationPluginTest {
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3'
+        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       }
 
       buildTimeInstrumentation {

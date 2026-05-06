@@ -127,8 +127,7 @@ public class ExecutionStrategy {
 
     if (isAttemptToFix(test)) {
       return new AttemptToFix(
-          executionSettings.getTestManagementSettings().getAttemptToFixRetries(),
-          isQuarantined(test) || isDisabled(test));
+          executionSettings.getTestManagementSettings().getAttemptToFixRetries());
     }
 
     if (isEFDApplicable(test, testSource, testTags)) {
@@ -197,10 +196,11 @@ public class ExecutionStrategy {
       return false;
     }
     try {
-      String sourcePath = sourcePathResolver.getSourcePath(testClass);
-      if (sourcePath == null) {
+      Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(testClass);
+      if (sourcePaths.size() != 1) {
         return false;
       }
+      String sourcePath = sourcePaths.iterator().next();
 
       LinesResolver.Lines lines = getLines(testSourceData.getTestMethod());
       return executionSettings

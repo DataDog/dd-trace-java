@@ -45,6 +45,7 @@ import java.util.regex.Pattern;
  * </ul>
  */
 public final class J9JavacoreParser {
+  private static final String J9_USER_ARG_PREFIX = "2CIUSERARG";
 
   private final BuildIdCollector buildIdCollector;
 
@@ -117,10 +118,17 @@ public final class J9JavacoreParser {
     boolean foundThreadSection = false;
 
     Map<String, String> registers = null;
+    RuntimeArgs j9UserArgs = new RuntimeArgs();
 
     String[] lines = NEWLINE_SPLITTER.split(javacoreContent);
 
     for (String line : lines) {
+      // Full command line is available under 1CICMDLINE, but it's harder to parse properly,
+      // than adding them from 2CIUSERARGS
+      if (line.startsWith(J9_USER_ARG_PREFIX)) {
+        j9UserArgs.addArg(line.substring(J9_USER_ARG_PREFIX.length()).trim());
+      }
+
       // Track section changes
       if (line.startsWith(SECTION_MARKER)) {
         currentSection = detectSection(line);
@@ -290,8 +298,12 @@ public final class J9JavacoreParser {
     Metadata metadata = new Metadata("dd-trace-java", VersionInfo.VERSION, "java", null);
     Integer parsedPid = safelyParseInt(pid);
     ProcInfo procInfo = parsedPid != null ? new ProcInfo(parsedPid) : null;
+    List<String> runtimeArgs = j9UserArgs.build();
     Experimental experimental =
-        (registers != null && !registers.isEmpty()) ? new Experimental(registers) : null;
+        (registers != null && !registers.isEmpty())
+                || (runtimeArgs != null && !runtimeArgs.isEmpty())
+            ? new Experimental(registers, runtimeArgs)
+            : null;
 
     return new CrashLog(
         uuid,
@@ -303,7 +315,8 @@ public final class J9JavacoreParser {
         procInfo,
         sigInfo,
         "1.0",
-        experimental);
+        experimental,
+        null);
   }
 
   private static Integer safelyParseInt(String value) {

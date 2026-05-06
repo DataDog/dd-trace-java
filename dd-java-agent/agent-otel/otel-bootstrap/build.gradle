@@ -74,9 +74,6 @@ dependencies {
 
   implementation project(':dd-java-agent:agent-bootstrap')
   implementation project(':utils:logging-utils')
-  implementation project(':communication')
-
-  testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.14.0'
 }
 
 tasks.named("shadowJar", ShadowJar) {
@@ -109,6 +106,7 @@ tasks.named("shadowJar", ShadowJar) {
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/InClassLoaderMatcher*'
   exclude 'io/opentelemetry/javaagent/bootstrap/internal/InstrumentationConfig*'
   include 'datadog/trace/bootstrap/otel/**'
+  include 'datadog/trace/bootstrap/otlp/**'
 
   relocate 'io.opentelemetry.api', 'datadog.trace.bootstrap.otel.api'
   relocate 'io.opentelemetry.context', 'datadog.trace.bootstrap.otel.context'

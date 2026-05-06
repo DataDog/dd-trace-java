@@ -218,6 +218,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * this.span.setTag(Tags.HTTP_FORWARDED_HOST, "somehost")
     if (conn?.peerIp) {
       1 * this.span.setTag(ipv4 ? Tags.PEER_HOST_IPV4 : Tags.PEER_HOST_IPV6, conn.peerIp)
+      1 * this.span.setTag(Tags.NETWORK_CLIENT_IP, conn.peerIp)
     }
     if (conn?.ip) {
       1 * this.span.setTag(Tags.HTTP_CLIENT_IP, conn.ip)
@@ -253,6 +254,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
 
     then:
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, result)
+    1 * this.span.setTag(Tags.NETWORK_CLIENT_IP, peerIpAddr)
 
     where:
     headerIpAddr | peerIpAddr  | result
@@ -277,6 +279,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * extracted.getForwarded()
     0 * span.setTag(Tags.HTTP_FORWARDED, _)
     0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+    0 * this.span.setTag(Tags.NETWORK_CLIENT_IP, _)
   }
 
   void 'disabling appsec disables header collection and ip address resolution'() {
@@ -294,6 +297,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     0 * extracted.getForwarded()
     0 * span.setTag(Tags.HTTP_FORWARDED, _)
     0 * this.span.setTag(Tags.HTTP_CLIENT_IP, _)
+    0 * this.span.setTag(Tags.NETWORK_CLIENT_IP, _)
   }
 
   void 'disabling appsec but enabling client_ip_without_appsec enables header collection and ip address resolution'() {
@@ -313,6 +317,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     2 * extracted.getXForwardedFor() >> '2.3.4.5'
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
     1 * this.span.setTag(Tags.HTTP_FORWARDED_IP, '2.3.4.5')
+    1 * this.span.setTag(Tags.NETWORK_CLIENT_IP, '4.4.4.4')
 
     // Forwarded doesn't participate in client ip resolution anymore
     1 * extracted.getForwarded() >> 'for=9.9.9.9'
@@ -333,6 +338,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     then:
     1 * extracted.getCustomIpHeader() >> '5.5.5.5'
     1 * this.span.setTag(Tags.HTTP_CLIENT_IP, '5.5.5.5')
+    1 * this.span.setTag(Tags.NETWORK_CLIENT_IP, '4.4.4.4')
   }
 
   def "test onResponse"() {

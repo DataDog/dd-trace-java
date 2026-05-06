@@ -5,12 +5,15 @@ import static dev.openfeature.sdk.ErrorCode.TARGETING_KEY_MISSING;
 import static dev.openfeature.sdk.Reason.DEFAULT;
 import static dev.openfeature.sdk.Reason.DISABLED;
 import static dev.openfeature.sdk.Reason.ERROR;
+import static dev.openfeature.sdk.Reason.SPLIT;
+import static dev.openfeature.sdk.Reason.STATIC;
 import static dev.openfeature.sdk.Reason.TARGETING_MATCH;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static org.hamcrest.CoreMatchers.equalTo;
+import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.Matchers.hasEntry;
 import static org.hamcrest.Matchers.oneOf;
@@ -172,8 +175,8 @@ public class DDEvaluatorTest {
 
     details = evaluator.evaluate(Integer.class, "empty-allocation", 23, ctx);
     assertThat(details.getValue(), equalTo(23));
-    assertThat(details.getReason(), equalTo(ERROR.name()));
-    assertThat(details.getErrorCode(), equalTo(ErrorCode.GENERAL));
+    assertThat(details.getReason(), equalTo(DEFAULT.name()));
+    assertThat(details.getErrorCode(), nullValue());
   }
 
   private static Arguments[] flatteningTestCases() {
@@ -215,7 +218,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             // no .targetingKey() -- null by default
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         // Null targeting key on sharded flag must return TARGETING_KEY_MISSING
         new TestCase<>("default")
             .flag("shard-flag")
@@ -231,7 +234,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             .targetingKey("")
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         new TestCase<>("default")
             .flag("non-existent-flag")
             .targetingKey("user-123")
@@ -243,15 +246,15 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("simple-string")
             .targetingKey("user-123")
-            .result(new Result<>("test-value").reason(TARGETING_MATCH.name()).variant("on")),
+            .result(new Result<>("test-value").reason(STATIC.name()).variant("on")),
         new TestCase<>(false)
             .flag("boolean-flag")
             .targetingKey("user-123")
-            .result(new Result<>(true).reason(TARGETING_MATCH.name()).variant("enabled")),
+            .result(new Result<>(true).reason(STATIC.name()).variant("enabled")),
         new TestCase<>(0)
             .flag("integer-flag")
             .targetingKey("user-123")
-            .result(new Result<>(42).reason(TARGETING_MATCH.name()).variant("forty-two")),
+            .result(new Result<>(42).reason(STATIC.name()).variant("forty-two")),
         new TestCase<>("default")
             .flag("rule-based-flag")
             .targetingKey("user-premium")
@@ -261,7 +264,7 @@ public class DDEvaluatorTest {
             .flag("rule-based-flag")
             .targetingKey("user-basic")
             .context("email", "john@gmail.com")
-            .result(new Result<>("basic").reason(TARGETING_MATCH.name()).variant("basic")),
+            .result(new Result<>("basic").reason(STATIC.name()).variant("basic")),
         new TestCase<>("default")
             .flag("numeric-rule-flag")
             .targetingKey("user-vip")
@@ -287,11 +290,39 @@ public class DDEvaluatorTest {
             .result(
                 new Result<>("default")
                     // Result depends on shard calculation - either match or default
-                    .reason(TARGETING_MATCH.name(), DEFAULT.name())),
+                    .reason(SPLIT.name(), DEFAULT.name())),
+        // Type mismatch: STRING flag evaluated as Integer
         new TestCase<>(0)
             .flag("string-number-flag")
             .targetingKey("user-123")
-            .result(new Result<>(123).reason(TARGETING_MATCH.name()).variant("string-num")),
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: STRING flag evaluated as Boolean
+        new TestCase<>(false)
+            .flag("simple-string")
+            .targetingKey("user-123")
+            .result(new Result<>(false).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: BOOLEAN flag evaluated as String
+        new TestCase<>("default")
+            .flag("boolean-flag")
+            .targetingKey("user-123")
+            .result(
+                new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: NUMERIC flag evaluated as Integer
+        new TestCase<>(0)
+            .flag("double-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Type mismatch: INTEGER flag evaluated as Double
+        new TestCase<>(0.0)
+            .flag("integer-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0.0).reason(ERROR.name()).errorCode(ErrorCode.TYPE_MISMATCH)),
+        // Variant stores "not-a-number" for an INTEGER flag; Double.parseDouble fails ->
+        // PARSE_ERROR
+        new TestCase<>(0)
+            .flag("integer-string-variant-flag")
+            .targetingKey("user-123")
+            .result(new Result<>(0).reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
         new TestCase<>("default")
             .flag("broken-flag")
             .targetingKey("user-123")
@@ -342,7 +373,7 @@ public class DDEvaluatorTest {
             .targetingKey("user-123")
             .result(
                 new Result<>("tracked-value")
-                    .reason(TARGETING_MATCH.name())
+                    .reason(STATIC.name())
                     .variant("tracked")
                     .flagMetadata("allocationKey", "exposure-alloc")
                     .flagMetadata("doLog", true)),
@@ -415,8 +446,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("shard-matching-flag")
             .targetingKey("specific-key-that-matches-shard")
-            .result(
-                new Result<>("shard-matched").reason(TARGETING_MATCH.name()).variant("matched")),
+            .result(new Result<>("shard-matched").reason(SPLIT.name()).variant("matched")),
         new TestCase<>("default")
             .flag("future-allocation-flag")
             .targetingKey("user-123")
@@ -462,7 +492,17 @@ public class DDEvaluatorTest {
             .result(
                 new Result<>("null-handled")
                     .reason(TARGETING_MATCH.name())
-                    .variant("null-variant")));
+                    .variant("null-variant")),
+        new TestCase<>("default")
+            .flag("invalid-regex-flag")
+            .targetingKey("user-123")
+            .context("email", "user@example.com")
+            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)),
+        new TestCase<>("default")
+            .flag("invalid-regex-not-matches-flag")
+            .targetingKey("user-123")
+            .context("email", "user@example.com")
+            .result(new Result<>("default").reason(ERROR.name()).errorCode(ErrorCode.PARSE_ERROR)));
   }
 
   @MethodSource("evaluateTestCases")
@@ -551,6 +591,11 @@ public class DDEvaluatorTest {
     flags.put("not-one-of-false-flag", createNotOneOfFalseFlag());
     flags.put("null-context-values-flag", createNullContextValuesFlag());
     flags.put("country-rule-flag", createCountryRuleFlag());
+    flags.put(
+        "integer-string-variant-flag",
+        createSimpleFlag("integer-string-variant-flag", ValueType.INTEGER, "not-a-number", "bad"));
+    flags.put("invalid-regex-flag", createInvalidRegexFlag());
+    flags.put("invalid-regex-not-matches-flag", createInvalidRegexNotMatchesFlag());
     return new ServerConfiguration(null, null, null, flags);
   }
 
@@ -1234,6 +1279,43 @@ public class DDEvaluatorTest {
         ValueType.STRING,
         variants,
         asList(usAllocation, globalAllocation));
+  }
+
+  private Flag createInvalidRegexFlag() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("matched", new Variant("matched", "matched-value"));
+
+    // Condition with an intentionally invalid regex pattern (unclosed bracket)
+    final List<ConditionConfiguration> conditions =
+        singletonList(new ConditionConfiguration(ConditionOperator.MATCHES, "email", "[invalid"));
+    final List<Rule> rules = singletonList(new Rule(conditions));
+    final List<Split> splits = singletonList(new Split(emptyList(), "matched", null));
+    final Allocation allocation =
+        new Allocation("invalid-regex-alloc", rules, null, null, splits, false);
+
+    return new Flag(
+        "invalid-regex-flag", true, ValueType.STRING, variants, singletonList(allocation));
+  }
+
+  private Flag createInvalidRegexNotMatchesFlag() {
+    final Map<String, Variant> variants = new HashMap<>();
+    variants.put("excluded", new Variant("excluded", "excluded-value"));
+
+    // Condition with an intentionally invalid regex pattern (unclosed bracket) under NOT_MATCHES
+    final List<ConditionConfiguration> conditions =
+        singletonList(
+            new ConditionConfiguration(ConditionOperator.NOT_MATCHES, "email", "[invalid"));
+    final List<Rule> rules = singletonList(new Rule(conditions));
+    final List<Split> splits = singletonList(new Split(emptyList(), "excluded", null));
+    final Allocation allocation =
+        new Allocation("invalid-regex-not-matches-alloc", rules, null, null, splits, false);
+
+    return new Flag(
+        "invalid-regex-not-matches-flag",
+        true,
+        ValueType.STRING,
+        variants,
+        singletonList(allocation));
   }
 
   private static Map<String, Object> mapOf(final Object... props) {

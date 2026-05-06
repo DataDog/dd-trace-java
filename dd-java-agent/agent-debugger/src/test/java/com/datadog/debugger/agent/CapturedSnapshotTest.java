@@ -2824,7 +2824,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                     .probeId(PROBE_ID)
                     .where(where)
                     .targetSpan(SpanDecorationProbe.TargetSpan.ACTIVE)
-                    .decorate(
+                    .decorations(
                         new SpanDecorationProbe.Decoration(
                             null,
                             Arrays.asList(
@@ -2842,7 +2842,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                     .where(where)
                     .build())
             .add(LogProbe.builder().probeId(PROBE_ID3).where(where).build())
-            .add(new TriggerProbe(PROBE_ID4, where))
+            .add(TriggerProbe.builder().probeId(PROBE_ID4).where(where).build())
             .build();
 
     CoreTracer tracer = CoreTracer.builder().build();
@@ -3008,6 +3008,47 @@ public class CapturedSnapshotTest extends CapturingTestBase {
                         "typed",
                         new ValueScript(DSL.ref("typed"), "typed"),
                         new LogProbe.Capture(1, 1, 3, 20))))
+            .build();
+    TestSnapshotListener listener = installProbes(probe);
+    Class<?> testClass = compileAndLoadClass(CLASS_NAME);
+    int result = Reflect.onClass(testClass).call("main", "1").get();
+    assertEquals(3, result);
+    Snapshot snapshot = assertOneSnapshot(listener);
+    CapturedContext.CapturedValue msgValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed_fld_fld_msg"));
+    assertEquals("hel", msgValue.getValue());
+    assertEquals("truncated", msgValue.getNotCapturedReason());
+    CapturedContext.CapturedValue typedValue =
+        deserializeCapturedValue(
+            snapshot.getCaptures().getReturn().getCaptureExpressions().get("typed"));
+    Map<String, CapturedContext.CapturedValue> fields =
+        (Map<String, CapturedContext.CapturedValue>) typedValue.getValue();
+    CapturedContext.CapturedValue fldValue = fields.get("fld");
+    assertEquals("depth", fldValue.getNotCapturedReason());
+  }
+
+  @Test
+  public void captureExpressionsWithInheritedCaptureLimits()
+      throws IOException, URISyntaxException {
+    final String CLASS_NAME = "CapturedSnapshot08";
+    LogProbe probe =
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "doit", null)
+            .evaluateAt(MethodLocation.EXIT)
+            .captureSnapshot(false)
+            .capture(new LogProbe.Capture(1, 10, 3, 1))
+            .captureExpressions(
+                Arrays.asList(
+                    new LogProbe.CaptureExpression(
+                        "typed_fld_fld_msg",
+                        new ValueScript(
+                            DSL.getMember(
+                                DSL.getMember(DSL.getMember(DSL.ref("typed"), "fld"), "fld"),
+                                "msg"),
+                            "typed.fld.fld.msg"),
+                        null),
+                    new LogProbe.CaptureExpression(
+                        "typed", new ValueScript(DSL.ref("typed"), "typed"), null)))
             .build();
     TestSnapshotListener listener = installProbes(probe);
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);

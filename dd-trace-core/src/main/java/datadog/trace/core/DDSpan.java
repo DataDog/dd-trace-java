@@ -30,7 +30,6 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -774,6 +773,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+    context.processTagsAndBaggage(
+        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
+  }
+
+  @Override
   public boolean isError() {
     return context.getErrorFlag();
   }
@@ -884,7 +890,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
-  List<? extends AgentSpanLink> getLinks() {
+  public List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
@@ -895,7 +901,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     // If links are initially null / empty, then the shared placeholder List EMPTY is used.
-    // Bacause EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
     // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
 
@@ -943,8 +949,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public boolean isOutbound() {
-    Object spanKind = context.getTag(Tags.SPAN_KIND);
-    return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+    byte ordinal = context.getSpanKindOrdinal();
+    return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
   }
 
   @Override

@@ -138,9 +138,9 @@ class MUnitTest extends CiVisibilityInstrumentationTest {
     testcaseName                                | success | tests              | attemptToFix                                                    | quarantined                                                     | disabled
     "test-attempt-to-fix-failed"                | false   | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []                                                              | []
     "test-attempt-to-fix-succeeded"             | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | []
-    "test-attempt-to-fix-quarantined-failed"    | true    | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []
+    "test-attempt-to-fix-quarantined-failed"    | false   | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []
     "test-attempt-to-fix-quarantined-succeeded" | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []
-    "test-attempt-to-fix-disabled-failed"       | true    | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []                                                              | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
+    "test-attempt-to-fix-disabled-failed"       | false   | [TestFailedMUnit]  | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]  | []                                                              | [new TestFQN("org.example.TestFailedMUnit", "Calculator.add")]
     "test-attempt-to-fix-disabled-succeeded"    | true    | [TestSucceedMUnit] | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")] | []                                                              | [new TestFQN("org.example.TestSucceedMUnit", "Calculator.add")]
   }
 

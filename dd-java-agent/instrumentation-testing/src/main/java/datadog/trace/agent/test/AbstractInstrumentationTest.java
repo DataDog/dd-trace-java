@@ -1,6 +1,6 @@
 package datadog.trace.agent.test;
 
-import static java.util.function.Function.identity;
+import static java.util.function.UnaryOperator.identity;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,63 +14,72 @@ import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
+import datadog.trace.junit.utils.context.AllowContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.util.List;
 import java.util.ServiceLoader;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
-import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.function.UnaryOperator;
 import net.bytebuddy.agent.ByteBuddyAgent;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.opentest4j.AssertionFailedError;
 
 /**
- * This class is an experimental base to run instrumentation tests using JUnit Jupiter. It is still
- * early development, and the overall API is expected to change to leverage its extension model. The
- * current implementation is inspired and kept close to it Groovy / Spock counterpart, the {@code
- * InstrumentationSpecification}.
+ * Base class for instrumentation tests using JUnit Jupiter.
+ *
+ * <p>It is still early development, and the overall API might change to leverage its extension
+ * model. The current implementation is inspired and kept close to its Groovy / Spock counterpart,
+ * the {@code InstrumentationSpecification}.
+ *
+ * <ul>
+ *   <li>{@code @BeforeAll}: Installs the agent and creates a shared tracer
+ *   <li>{@code @BeforeEach}: Flushes and resets the writer
+ *   <li>{@code @AfterEach}: Flushes the tracer
+ *   <li>{@code @AfterAll}: Closes the tracer and removes the agent transformer
+ * </ul>
  */
-@ExtendWith(TestClassShadowingExtension.class)
+@ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
 
   static final long TIMEOUT_MILLIS = TimeUnit.SECONDS.toMillis(20);
 
-  protected AgentTracer.TracerAPI tracer;
+  protected static final InstrumentationTestConfig testConfig = new InstrumentationTestConfig();
 
-  protected ListWriter writer;
+  protected static TracerAPI tracer;
+  protected static ListWriter writer;
+  private static ClassFileTransformer activeTransformer;
+  private static ClassFileTransformerListener transformerListener;
 
-  protected ClassFileTransformer activeTransformer;
-  protected ClassFileTransformerListener transformerLister;
-
-  @BeforeEach
-  public void init() {
+  @BeforeAll
+  static void initAll() {
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath.
-    // If one test extends AgentTestRunner in a module, all tests must extend
     assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");
 
-    // Initialize test tracer
-    this.writer = new ListWriter();
-    // Initialize test tracer
-    CoreTracer tracer =
+    // Create shared test writer and tracer
+    writer = new ListWriter();
+    CoreTracer coreTracer =
         CoreTracer.builder()
-            .writer(this.writer)
-            .idGenerationStrategy(IdGenerationStrategy.fromName(idGenerationStrategyName()))
-            .strictTraceWrites(useStrictTraceWrites())
+            .writer(writer)
+            .idGenerationStrategy(IdGenerationStrategy.fromName(testConfig.idGenerationStrategy))
+            .strictTraceWrites(testConfig.strictTraceWrites)
             .build();
-    TracerInstaller.forceInstallGlobalTracer(tracer);
-    this.tracer = tracer;
+    TracerInstaller.forceInstallGlobalTracer(coreTracer);
+    tracer = coreTracer;
 
     ClassInjector.enableClassInjection(INSTRUMENTATION);
 
@@ -84,33 +93,43 @@ public abstract class AbstractInstrumentationTest {
             .iterator()
             .hasNext(),
         "No instrumentation found");
-    this.transformerLister = new ClassFileTransformerListener();
-    this.activeTransformer =
+    transformerListener = new ClassFileTransformerListener();
+    activeTransformer =
         AgentInstaller.installBytebuddyAgent(
-            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this.transformerLister);
+            INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
   }
 
-  protected String idGenerationStrategyName() {
-    return "SEQUENTIAL";
-  }
-
-  private boolean useStrictTraceWrites() {
-    return true;
+  @BeforeEach
+  public void init() {
+    tracer.flush();
+    writer.start();
   }
 
   @AfterEach
   public void tearDown() {
-    this.tracer.close();
-    this.writer.close();
-    if (this.activeTransformer != null) {
-      INSTRUMENTATION.removeTransformer(this.activeTransformer);
-      this.activeTransformer = null;
-    }
+    tracer.flush();
+  }
 
-    // All cleanups should happen before these assertions.
+  @AfterAll
+  static void tearDownAll() {
+    if (tracer != null) {
+      tracer.close();
+      tracer = null;
+    }
+    if (writer != null) {
+      writer.close();
+      writer = null;
+    }
+    if (activeTransformer != null) {
+      INSTRUMENTATION.removeTransformer(activeTransformer);
+      activeTransformer = null;
+    }
+    // All cleanups should happen before this verify call.
     // If not, a failing assertion may prevent cleanup
-    this.transformerLister.verify();
-    this.transformerLister = null;
+    if (transformerListener != null) {
+      transformerListener.verify();
+      transformerListener = null;
+    }
   }
 
   /**
@@ -129,15 +148,14 @@ public abstract class AbstractInstrumentationTest {
    * @param matchers The matchers to verify the trace collection, one matcher by expected trace.
    */
   protected void assertTraces(
-      Function<TraceAssertions.Options, TraceAssertions.Options> options,
-      TraceMatcher... matchers) {
+      UnaryOperator<TraceAssertions.Options> options, TraceMatcher... matchers) {
     int expectedTraceCount = matchers.length;
     try {
-      this.writer.waitForTraces(expectedTraceCount);
+      writer.waitForTraces(expectedTraceCount);
     } catch (InterruptedException | TimeoutException e) {
       throw new AssertionFailedError("Timeout while waiting for traces", e);
     }
-    TraceAssertions.assertTraces(this.writer, options, matchers);
+    TraceAssertions.assertTraces(writer, options, matchers);
   }
 
   /**
@@ -148,7 +166,7 @@ public abstract class AbstractInstrumentationTest {
    */
   protected void blockUntilTracesMatch(Predicate<List<List<DDSpan>>> predicate) {
     long deadline = System.currentTimeMillis() + TIMEOUT_MILLIS;
-    while (!predicate.test(this.writer)) {
+    while (!predicate.test(writer)) {
       if (System.currentTimeMillis() > deadline) {
         throw new RuntimeException(new TimeoutException("Timed out waiting for traces/spans."));
       }
@@ -160,8 +178,8 @@ public abstract class AbstractInstrumentationTest {
     }
   }
 
-  protected void blockUntilChildSpansFinished(final int numberOfSpans) {
-    blockUntilChildSpansFinished(this.tracer.activeSpan(), numberOfSpans);
+  protected void blockUntilChildSpansFinished(int numberOfSpans) {
+    blockUntilChildSpansFinished(tracer.activeSpan(), numberOfSpans);
   }
 
   static void blockUntilChildSpansFinished(AgentSpan span, int numberOfSpans) {
@@ -187,6 +205,22 @@ public abstract class AbstractInstrumentationTest {
           Thread.currentThread().interrupt();
         }
       }
+    }
+  }
+
+  /** Configuration for {@link AbstractInstrumentationTest}. */
+  protected static class InstrumentationTestConfig {
+    private String idGenerationStrategy = "SEQUENTIAL";
+    private boolean strictTraceWrites = true;
+
+    public InstrumentationTestConfig idGenerationStrategy(String strategy) {
+      this.idGenerationStrategy = strategy;
+      return this;
+    }
+
+    public InstrumentationTestConfig strictTraceWrites(boolean strict) {
+      this.strictTraceWrites = strict;
+      return this;
     }
   }
 }

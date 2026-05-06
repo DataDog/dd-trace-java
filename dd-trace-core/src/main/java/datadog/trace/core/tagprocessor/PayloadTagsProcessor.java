@@ -212,7 +212,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     private boolean notRedacted(PathCursor path) {
       if (redactionRules.findMatching(path) != null) {
-        collectedTags.put(path.toString(tagPrefix), REDACTED);
+        collectedTags.set(path.toString(tagPrefix), REDACTED);
         return false;
       }
       return true;
@@ -220,32 +220,32 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
 
     @Override
     public void booleanValue(PathCursor path, boolean value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void stringValue(PathCursor path, String value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void intValue(PathCursor path, int value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void longValue(PathCursor path, long value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void doubleValue(PathCursor path, double value) {
-      collectedTags.put(path.toString(tagPrefix), value);
+      collectedTags.set(path.toString(tagPrefix), value);
     }
 
     @Override
     public void nullValue(PathCursor path) {
-      collectedTags.put(path.toString(tagPrefix), null);
+      collectedTags.set(path.toString(tagPrefix), null);
     }
 
     @Override
@@ -257,7 +257,7 @@ public final class PayloadTagsProcessor extends TagsPostProcessor {
       if (collectedTags.size() < maxTags) {
         return true;
       }
-      collectedTags.put(DD_PAYLOAD_TAGS_INCOMPLETE, true);
+      collectedTags.set(DD_PAYLOAD_TAGS_INCOMPLETE, true);
       return false;
     }
 

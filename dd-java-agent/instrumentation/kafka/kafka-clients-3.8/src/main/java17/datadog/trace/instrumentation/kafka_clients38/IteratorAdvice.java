@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.kafka_clients38;
 
 import datadog.trace.bootstrap.InstrumentationContext;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.Iterator;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
@@ -19,7 +20,7 @@ public class IteratorAdvice {
       String group = KafkaConsumerInstrumentationHelper.extractGroup(kafkaConsumerInfo);
       String clusterId =
           KafkaConsumerInstrumentationHelper.extractClusterId(
-              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, String.class));
+              kafkaConsumerInfo, InstrumentationContext.get(Metadata.class, MetadataState.class));
       String bootstrapServers =
           KafkaConsumerInstrumentationHelper.extractBootstrapServers(kafkaConsumerInfo);
       iterator =
