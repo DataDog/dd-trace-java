@@ -3,6 +3,8 @@ package datadog.trace.core.propagation;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.core.DDSpanContext;
@@ -12,7 +14,6 @@ import java.util.function.Supplier;
 import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 @DisplayName("OpmStampingInjector")
 class OpmStampingInjectorTest {
@@ -25,8 +26,8 @@ class OpmStampingInjectorTest {
     PropagationTags.Factory factory = PropagationTags.factory();
     PropagationTags tags = factory.fromHeaderValue(PropagationTags.HeaderType.W3C, "");
 
-    DDSpanContext ctx = Mockito.mock(DDSpanContext.class);
-    Mockito.when(ctx.getPropagationTags()).thenReturn(tags);
+    DDSpanContext ctx = mock(DDSpanContext.class);
+    when(ctx.getPropagationTags()).thenReturn(tags);
 
     HttpCodec.Injector delegate = new NoopInjector();
     Supplier<String> supplier = () -> "local-opm-1";
@@ -46,8 +47,8 @@ class OpmStampingInjectorTest {
     PropagationTags tags =
         factory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.opm=upstream-abc");
 
-    DDSpanContext ctx = Mockito.mock(DDSpanContext.class);
-    Mockito.when(ctx.getPropagationTags()).thenReturn(tags);
+    DDSpanContext ctx = mock(DDSpanContext.class);
+    when(ctx.getPropagationTags()).thenReturn(tags);
 
     HttpCodec.Injector delegate = new NoopInjector();
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> null);
@@ -66,8 +67,8 @@ class OpmStampingInjectorTest {
     PropagationTags tags =
         factory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.opm=upstream-abc");
 
-    DDSpanContext ctx = Mockito.mock(DDSpanContext.class);
-    Mockito.when(ctx.getPropagationTags()).thenReturn(tags);
+    DDSpanContext ctx = mock(DDSpanContext.class);
+    when(ctx.getPropagationTags()).thenReturn(tags);
 
     HttpCodec.Injector delegate = new NoopInjector();
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> "local-xyz");
@@ -84,8 +85,8 @@ class OpmStampingInjectorTest {
     PropagationTags.Factory factory = PropagationTags.factory();
     PropagationTags tags = factory.empty();
 
-    DDSpanContext ctx = Mockito.mock(DDSpanContext.class);
-    Mockito.when(ctx.getPropagationTags()).thenReturn(tags);
+    DDSpanContext ctx = mock(DDSpanContext.class);
+    when(ctx.getPropagationTags()).thenReturn(tags);
 
     CountingInjector delegate = new CountingInjector();
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> null);

@@ -1,11 +1,17 @@
 package datadog.trace.core.propagation;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
@@ -19,7 +25,6 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 @DisplayName("OrgGuardEnforcer truth table")
 class OrgGuardEnforcerTest {
@@ -30,7 +35,7 @@ class OrgGuardEnforcerTest {
   @BeforeEach
   void setUp() {
     factory = PropagationTags.factory();
-    healthMetrics = Mockito.mock(HealthMetrics.class);
+    healthMetrics = mock(HealthMetrics.class);
   }
 
   @Test
@@ -39,7 +44,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(false, false, Collections.emptySet(), () -> "L");
     ExtractedContext ctx = ctxWithOpm("X");
     assertSame(ctx, enforcer.maybeStrip(ctx));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -48,7 +53,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(true, false, Collections.emptySet(), () -> null);
     ExtractedContext ctx = ctxWithOpm("X");
     assertSame(ctx, enforcer.maybeStrip(ctx));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -57,7 +62,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(true, false, Collections.emptySet(), () -> "L");
     ExtractedContext ctx = ctxWithOpm(null);
     assertSame(ctx, enforcer.maybeStrip(ctx));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -68,7 +73,7 @@ class OrgGuardEnforcerTest {
     TagContext result = enforcer.maybeStrip(ctx);
     assertNotSame(ctx, result);
     assertStripped((ExtractedContext) result, ctx);
-    Mockito.verify(healthMetrics, times(1)).onOrgGuardEnforce("strict_missing");
+    verify(healthMetrics, times(1)).onOrgGuardEnforce("strict_missing");
   }
 
   @Test
@@ -77,7 +82,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(true, false, Collections.emptySet(), () -> "L");
     ExtractedContext ctx = ctxWithOpm("L");
     assertSame(ctx, enforcer.maybeStrip(ctx));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -89,7 +94,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(true, false, trusted, () -> "L");
     ExtractedContext ctx = ctxWithOpm("X");
     assertSame(ctx, enforcer.maybeStrip(ctx));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -100,7 +105,7 @@ class OrgGuardEnforcerTest {
     TagContext result = enforcer.maybeStrip(ctx);
     assertNotSame(ctx, result);
     assertStripped((ExtractedContext) result, ctx);
-    Mockito.verify(healthMetrics, times(1)).onOrgGuardEnforce("mismatch");
+    verify(healthMetrics, times(1)).onOrgGuardEnforce("mismatch");
   }
 
   @Test
@@ -111,7 +116,7 @@ class OrgGuardEnforcerTest {
     TagContext result = enforcer.maybeStrip(ctx);
     assertNotSame(ctx, result);
     assertStripped((ExtractedContext) result, ctx);
-    Mockito.verify(healthMetrics, times(1)).onOrgGuardEnforce("mismatch");
+    verify(healthMetrics, times(1)).onOrgGuardEnforce("mismatch");
   }
 
   @Test
@@ -120,7 +125,7 @@ class OrgGuardEnforcerTest {
     OrgGuardEnforcer enforcer = enforcer(true, true, Collections.emptySet(), () -> "L");
     TagContext partial = new TagContext("upstream", null);
     assertSame(partial, enforcer.maybeStrip(partial));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -128,7 +133,7 @@ class OrgGuardEnforcerTest {
   void nullInput() {
     OrgGuardEnforcer enforcer = enforcer(true, true, Collections.emptySet(), () -> "L");
     assertNull(enforcer.maybeStrip(null));
-    Mockito.verify(healthMetrics, never()).onOrgGuardEnforce(Mockito.anyString());
+    verify(healthMetrics, never()).onOrgGuardEnforce(anyString());
   }
 
   @Test
@@ -146,13 +151,10 @@ class OrgGuardEnforcerTest {
     assertNotSame(ctx, result);
     ExtractedContext stripped = (ExtractedContext) result;
     String reEncoded = stripped.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
-    org.junit.jupiter.api.Assertions.assertNotNull(reEncoded);
-    org.junit.jupiter.api.Assertions.assertTrue(
-        !reEncoded.contains("dd="), "dd= should be dropped: " + reEncoded);
-    org.junit.jupiter.api.Assertions.assertTrue(
-        reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
-    org.junit.jupiter.api.Assertions.assertTrue(
-        reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
+    assertNotNull(reEncoded);
+    assertFalse(reEncoded.contains("dd="), "dd= should be dropped: " + reEncoded);
+    assertTrue(reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
+    assertTrue(reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
   }
 
   // ---- helpers ----
@@ -184,7 +186,6 @@ class OrgGuardEnforcerTest {
     assertNull(stripped.getOrigin());
     assertNull(stripped.getPropagationTags().getOrgPropagationMarker());
     assertNull(stripped.getPropagationTags().getOrigin());
-    org.junit.jupiter.api.Assertions.assertEquals(
-        PrioritySampling.UNSET, stripped.getPropagationTags().getSamplingPriority());
+    assertEquals(PrioritySampling.UNSET, stripped.getPropagationTags().getSamplingPriority());
   }
 }
