@@ -82,6 +82,14 @@ allprojects {
     dependsOn(tasks.withType<AbstractCompile>())
   }
 
+  // Temurin 11/21 on Linux arm64 SIGSEGVs in SystemDictionary::define_instance_class
+  // during CDS shared-class restore. GRADLE_OPTS / org.gradle.jvmargs only reaches the
+  // Gradle daemon, so every forked JVM (Test executor, JavaCompile worker daemon when
+  // the toolchain differs from the daemon's JDK) must disable CDS on its own.
+  val os = System.getProperty("os.name").lowercase()
+  val arch = System.getProperty("os.arch").lowercase()
+  val isLinuxArm64 = os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64"))
+
   tasks.configureEach {
     if (this is JavaForkOptions) {
       maxHeapSize = System.getProperty("datadog.forkedMaxHeapSize")
@@ -91,16 +99,18 @@ allprojects {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp"
       )
-      // GRADLE_OPTS / org.gradle.jvmargs only reaches the Gradle daemon, not the
-      // forked Test executor — Temurin 11/21 on Linux arm64 SIGSEGVs in
-      // SystemDictionary::define_instance_class during shared-class restore, so
-      // CDS must be disabled on the fork itself.
-      val os = System.getProperty("os.name").lowercase()
-      val arch = System.getProperty("os.arch").lowercase()
-      val isLinuxArm64 = os.contains("linux") && (arch.contains("aarch64") || arch.contains("arm64"))
       if (isLinuxArm64) {
         jvmArgs("-Xshare:off")
       }
+    }
+  }
+
+  if (isLinuxArm64) {
+    tasks.withType<JavaCompile>().configureEach {
+      options.forkOptions.jvmArgs?.add("-Xshare:off")
+    }
+    tasks.withType<GroovyCompile>().configureEach {
+      groovyOptions.forkOptions.jvmArgs?.add("-Xshare:off")
     }
   }
 }
