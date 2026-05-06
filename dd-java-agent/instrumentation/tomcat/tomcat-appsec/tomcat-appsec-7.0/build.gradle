@@ -20,7 +20,8 @@ muzzle {
     group = 'org.glassfish.main.extras'
     module = 'glassfish-embedded-all'
     versions = '[4.0,]'
-    skipVersions += '6.1.0'
+    skipVersions += '6.1.0' // GlassFish 6.1.0+ uses jakarta.* namespace; our advice uses javax.servlet.http.Part
+    assertInverse = true
   }
 }
 

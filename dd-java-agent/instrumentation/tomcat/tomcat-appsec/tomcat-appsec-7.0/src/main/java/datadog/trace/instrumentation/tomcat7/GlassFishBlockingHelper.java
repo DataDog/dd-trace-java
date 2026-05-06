@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.tomcat7;
 
 import datadog.appsec.api.blocking.BlockingContentType;
+import datadog.trace.api.Config;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.bootstrap.blocking.BlockingActionHelper;
 import java.io.OutputStream;
@@ -9,6 +10,9 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 
 public final class GlassFishBlockingHelper {
+
+  static final int MAX_FILE_CONTENT_COUNT = Config.get().getAppSecMaxFileContentCount();
+  static final int MAX_FILE_CONTENT_BYTES = Config.get().getAppSecMaxFileContentBytes();
 
   public static boolean commitBlocking(
       HttpServletRequest request,
@@ -34,9 +38,9 @@ public final class GlassFishBlockingHelper {
         if (body != null) {
           response.setHeader("Content-Type", BlockingActionHelper.getContentType(type));
           response.setHeader("Content-Length", Integer.toString(body.length));
-          OutputStream os = response.getOutputStream();
-          os.write(body);
-          os.close();
+          try (OutputStream os = response.getOutputStream()) {
+            os.write(body);
+          }
         }
       }
       response.flushBuffer();

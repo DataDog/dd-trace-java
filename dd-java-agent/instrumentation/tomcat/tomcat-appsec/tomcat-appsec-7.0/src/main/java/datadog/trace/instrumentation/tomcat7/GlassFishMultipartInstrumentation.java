@@ -9,7 +9,6 @@ import com.google.auto.service.AutoService;
 import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.Config;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -127,8 +126,8 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
       } catch (Exception ignored) {
       }
 
-      int maxFiles = Config.get().getAppSecMaxFileContentCount();
-      int maxBytes = Config.get().getAppSecMaxFileContentBytes();
+      int maxFiles = GlassFishBlockingHelper.MAX_FILE_CONTENT_COUNT;
+      int maxBytes = GlassFishBlockingHelper.MAX_FILE_CONTENT_BYTES;
 
       List<String> filenames = null;
       List<String> contents = null;
