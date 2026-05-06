@@ -22,7 +22,12 @@ dependencies {
 
   testRuntimeOnly project(":dd-java-agent:instrumentation:websocket:javax-websocket-1.0")
   testImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '2.0.0'
-  latestDepTestImplementation group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '+'
+  latestDepTestImplementation(group: 'org.glassfish.tyrus', name: 'tyrus-container-inmemory', version: '+') {
+    version {
+      reject '2.3.0-M1'
+    }
+    because 'Tyrus 2.3.0-M1 depends on broken Grizzly 5.0.0 POM metadata'
+  }
 }
 
 tasks.named('latestDepTest', Test) {
