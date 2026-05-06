@@ -250,6 +250,7 @@ tasks.withType(Test).configureEach {
 tasks.withType(GroovyCompile).configureEach {
   groovyOptions.encoding = "UTF-8"
 }
+
 tasks.withType(ScalaCompile).configureEach {
   scalaCompileOptions.encoding = "UTF-8"
 }

@@ -682,22 +682,6 @@ muzzle-dep-report:
   tags: [ "docker-in-docker:arm64" ]
   stage: tests-arm64
   needs: []
-  rules:
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
-      when: manual
-      allow_failure: true
-  cache:
-    - key: dependency-$CACHE_TYPE
-      paths:
-        - .gradle/wrapper
-        - .gradle/caches
-        - .gradle/notifications
-        - .mvn/caches
-      policy: pull
-      fallback_keys:
-        - dependency-base
-        - dependency-lib
-      unprotect: true
   variables:
     # arm64 docker image installs only these JVMs; override the global default regex.
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/
@@ -717,6 +701,22 @@ muzzle-dep-report:
     JETTY_AVAILABLE_PROCESSORS: 4
     GIT_SUBMODULE_STRATEGY: normal
     GIT_SUBMODULE_DEPTH: 1
+  rules:
+    - if: $testJvm =~ $DEFAULT_TEST_JVMS
+      when: manual
+      allow_failure: true
+  cache:
+    - key: dependency-$CACHE_TYPE
+      paths:
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+        - .mvn/caches
+      policy: pull
+      fallback_keys:
+        - dependency-base
+        - dependency-lib
+      unprotect: true
   before_script:
     - git config --global --add safe.directory "$CI_PROJECT_DIR"
     - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
@@ -741,12 +741,7 @@ muzzle-dep-report:
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - *normalize_node_index
     - *prepare_test_env
-    # JVM crash dumps go under $CI_PROJECT_DIR so GitLab can upload them as artifacts.
-    # /tmp is outside the working directory and would be lost. Forked test JVMs that don't
-    # inherit these flags still write hs_err_pid*.log to their CWD (a module build dir);
-    # the wide artifact patterns below capture both locations.
-    - mkdir -p "$CI_PROJECT_DIR/crash-dumps"
-    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=$CI_PROJECT_DIR/crash-dumps/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=$CI_PROJECT_DIR/crash-dumps -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     # Disable CDS (Class Data Sharing) for the Gradle daemon.
     # Temurin 11 on the arm64 microvm runner SIGSEGVs in ClassLoaderData::add_handle
@@ -756,28 +751,20 @@ muzzle-dep-report:
   script:
     - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
   after_script:
-    # Forked test JVMs hardcode -XX:ErrorFile=/tmp/... in build.gradle.kts, so their
-    # hs_err_pid*.log files land in /tmp (outside $CI_PROJECT_DIR) and are missed by the
-    # artifact globs below. collect_reports.sh copies them into ./reports/ and tars them up.
+    - *cgroup_info
+    - gitlab_section_start "collect-reports" "Collecting reports"
     - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
   artifacts:
     when: always
     paths:
       - ./reports.tar
-      - workspace/**/build/test-results/**
-      - workspace/**/build/reports/tests/**
-      - buildSrc/build/test-results/**
-      - buildSrc/build/reports/tests/**
-      - .gradle/daemon/*/*.out.log
-      # JVM fatal-error dumps from any crashing JVM (Gradle daemon, worker daemons, forked test JVMs)
-      - crash-dumps/**
-      - "**/hs_err_pid*.log"
-      - "**/replay_pid*.log"
-      - "**/*.hprof"
+      - ./profiles.tar
+      - ./results
+      - './test_counts_*.json'
+      - '.gradle/daemon/*/*.out.log'
     reports:
-      junit:
-        - workspace/**/build/test-results/**/*.xml
-        - buildSrc/build/test-results/**/*.xml
+      junit: results/*.xml
   retry:
     max: 2
     when:
