@@ -50,7 +50,7 @@ public class DatadogRequestTracer implements RequestTracer {
       seedNodes = parent.getTag(InstrumentationTags.COUCHBASE_SEED_NODES);
     }
 
-    AgentTracer.SpanBuilder builder = tracer.singleSpanBuilder(spanName);
+    AgentTracer.SpanBuilder builder = tracer.singleSpanBuilder("couchbase", spanName);
     if (null != parent) {
       builder.asChildOf(parent.context());
     }

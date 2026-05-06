@@ -346,17 +346,6 @@ public class AgentTracer {
       return new BlackHoleSpan(active != null ? active.getTraceId() : DDTraceId.ZERO);
     }
 
-    /** Deprecated. Use {@link #buildSpan(String, CharSequence)} instead. */
-    @Deprecated
-    default SpanBuilder buildSpan(CharSequence spanName) {
-      return buildSpan("datadog", spanName);
-    }
-
-    @Deprecated
-    default SpanBuilder singleSpanBuilder(CharSequence spanName) {
-      return singleSpanBuilder("datadog", spanName);
-    }
-
     /**
      * Returns a SpanBuilder that can be used to produce multiple spans. To minimize overhead, use
      * of {@link #singleSpanBuilder(String, CharSequence)} is preferred when only a single span is

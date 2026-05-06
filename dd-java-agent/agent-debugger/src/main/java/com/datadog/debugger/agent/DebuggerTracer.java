@@ -25,7 +25,7 @@ public class DebuggerTracer implements DebuggerContext.Tracer {
       return DebuggerSpan.NOOP_SPAN;
     }
     AgentSpan dynamicSpan =
-        tracerAPI.buildSpan(OPERATION_NAME).withResourceName(resourceName).start();
+        tracerAPI.buildSpan("debugger", OPERATION_NAME).withResourceName(resourceName).start();
     if (tags != null) {
       for (String tag : tags) {
         int idx = tag.indexOf(':');
