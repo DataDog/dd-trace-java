@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.datastax.cassandra4;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.JAVA_CASSANDRA;
 import static datadog.trace.instrumentation.datastax.cassandra4.CassandraClientDecorator.OPERATION_NAME;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TRACE_CASSANDRA_ASYNC_SESSION;
 
@@ -54,7 +55,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private ResultSet wrapSyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());
@@ -78,7 +79,7 @@ public class TracingSession extends SessionWrapper implements CqlSession {
   }
 
   private CompletionStage<AsyncResultSet> wrapAsyncRequest(Statement request) {
-    AgentSpan span = startSpan(OPERATION_NAME);
+    AgentSpan span = startSpan(JAVA_CASSANDRA.toString(), OPERATION_NAME);
 
     DECORATE.afterStart(span);
     DECORATE.onConnection(span, getDelegate());

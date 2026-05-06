@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_POLL;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -251,7 +252,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
 
       if (traceConfig().isDataStreamsEnabled()) {
-        final AgentSpan span = startSpan(KAFKA_POLL);
+        final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
         return activateSpan(span);
       }
       return null;
