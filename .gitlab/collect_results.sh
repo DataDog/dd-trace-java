@@ -90,7 +90,7 @@ do
     echo " (non-stable test names detected)"
   fi
 
-  echo "Add dd_tags[test.final_status] property on retried synthetics testcase initializationErrors"
+  echo "Add dd_tags[test.final_status] property on retried synthetics testcase initializationErrors, and all executionError and test exception synthetic testcases"
   $JAVA_25_HOME/bin/java "$(dirname "$0")/TagInitializationErrors.java" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
 
   echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
