@@ -277,6 +277,12 @@ public class IntegrationTestUtils {
     }
     commands.addAll(mainMethodArgs);
     final ProcessBuilder processBuilder = new ProcessBuilder(commands.toArray(new String[0]));
+    // Drop JAVA_TOOL_OPTIONS before applying the test's explicit envVars.
+    // Tests like ListIntegrationsTest assert the spawned JVM writes nothing to
+    // stderr; if JAVA_TOOL_OPTIONS is set in the parent shell (e.g. CI exports
+    // -Xshare:off on arm64), the child JVM unconditionally prints
+    // "Picked up JAVA_TOOL_OPTIONS: ..." to stderr and contaminates the assertion.
+    processBuilder.environment().remove("JAVA_TOOL_OPTIONS");
     processBuilder.environment().putAll(envVars);
 
     return processBuilder.start();
