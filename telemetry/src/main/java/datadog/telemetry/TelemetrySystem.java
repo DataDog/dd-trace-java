@@ -15,6 +15,7 @@ import datadog.telemetry.metric.CoreMetricsPeriodicAction;
 import datadog.telemetry.metric.IastMetricPeriodicAction;
 import datadog.telemetry.metric.LLMObsMetricPeriodicAction;
 import datadog.telemetry.metric.OtelEnvMetricPeriodicAction;
+import datadog.telemetry.metric.OtelSpiMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
@@ -57,6 +58,7 @@ public class TelemetrySystem {
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
       actions.add(new OtelEnvMetricPeriodicAction());
+      actions.add(new OtelSpiMetricPeriodicAction());
       actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
