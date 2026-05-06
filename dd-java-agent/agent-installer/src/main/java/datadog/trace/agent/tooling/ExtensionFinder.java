@@ -3,6 +3,7 @@ package datadog.trace.agent.tooling;
 import static datadog.opentelemetry.tooling.OtelExtensionHandler.OPENTELEMETRY;
 import static datadog.trace.agent.tooling.ExtensionHandler.DATADOG;
 
+import datadog.trace.api.telemetry.OtelSpiCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.io.File;
 import java.io.FileNotFoundException;
@@ -13,6 +14,7 @@ import java.net.URLClassLoader;
 import java.net.URLConnection;
 import java.net.URLStreamHandler;
 import java.util.ArrayList;
+import java.util.Enumeration;
 import java.util.List;
 import java.util.jar.JarEntry;
 import java.util.jar.JarFile;
@@ -25,6 +27,11 @@ public final class ExtensionFinder {
   private static final Logger log = LoggerFactory.getLogger(ExtensionFinder.class);
 
   private static final ExtensionHandler[] handlers = {OPENTELEMETRY, DATADOG};
+
+  private static final String EXTENSIONS_PATH_SOURCE = "extensions_path";
+
+  private static final String SERVICES_PREFIX = "META-INF/services/";
+  private static final String OTEL_NAMESPACE = "io.opentelemetry.";
 
   /**
    * Discovers extensions on the configured path and creates a classloader for each extension.
@@ -40,6 +47,7 @@ public final class ExtensionFinder {
     String[] descriptors = descriptors(extensionTypes);
 
     for (JarFile jar : findExtensionJars(extensionsPath)) {
+      recordOtelSpiTelemetry(jar);
       URL extensionURL = findExtensionURL(jar, descriptors);
       if (null != extensionURL) {
         log.debug("Found extension jar {}", jar.getName());
@@ -58,6 +66,24 @@ public final class ExtensionFinder {
     }
 
     return !classLoaders.isEmpty();
+  }
+
+  /**
+   * Reports telemetry for any OpenTelemetry SPI service descriptors present in the jar — any entry
+   * under {@code META-INF/services/} whose name lives in the {@code io.opentelemetry.*} namespace.
+   * The jar's existing handle is reused; no new file resources are opened or held.
+   */
+  static void recordOtelSpiTelemetry(JarFile jar) {
+    Enumeration<JarEntry> entries = jar.entries();
+    while (entries.hasMoreElements()) {
+      String name = entries.nextElement().getName();
+      if (name.startsWith(SERVICES_PREFIX)) {
+        String fqn = name.substring(SERVICES_PREFIX.length());
+        if (fqn.startsWith(OTEL_NAMESPACE)) {
+          OtelSpiCollector.getInstance().recordSpiDetected(fqn, EXTENSIONS_PATH_SOURCE);
+        }
+      }
+    }
   }
 
   /** Closes jar resources from the extension path which did not contain any extensions. */
