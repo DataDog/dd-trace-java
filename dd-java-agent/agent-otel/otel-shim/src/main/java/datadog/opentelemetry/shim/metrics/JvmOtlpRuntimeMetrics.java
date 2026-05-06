@@ -47,7 +47,6 @@ public final class JvmOtlpRuntimeMetrics {
       registerThreadMetrics(meter);
       registerClassLoadingMetrics(meter);
       registerCpuMetrics(meter);
-      registerFileDescriptorMetrics(meter);
       log.debug("Started OTLP runtime metrics with OTel-native naming (jvm.*)");
     } catch (Exception e) {
       log.error("Failed to start JVM OTLP runtime metrics", e);
@@ -124,8 +123,7 @@ public final class JvmOtlpRuntimeMetrics {
               long heapMax = memoryBean.getHeapMemoryUsage().getMax();
               if (heapMax > 0) {
                 measurement.record(
-                    heapMax,
-                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                    heapMax, Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
               }
               long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
               if (nonHeapMax > 0) {
@@ -157,8 +155,7 @@ public final class JvmOtlpRuntimeMetrics {
               long heapInit = memoryBean.getHeapMemoryUsage().getInit();
               if (heapInit > 0) {
                 measurement.record(
-                    heapInit,
-                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                    heapInit, Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
               }
               long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
               if (nonHeapInit > 0) {
@@ -300,7 +297,12 @@ public final class JvmOtlpRuntimeMetrics {
 
   /**
    * jvm.cpu.time (Counter, Stable), jvm.cpu.count (UpDownCounter, Stable),
-   * jvm.cpu.recent_utilization (Gauge, Stable), jvm.system.cpu.utilization (Gauge, Development).
+   * jvm.cpu.recent_utilization (Gauge, Stable).
+   *
+   * <p>jvm.system.cpu.utilization, jvm.system.cpu.load_1m are Opt-In per OTel semconv and are
+   * intentionally not emitted; gating those behind a future DD_METRICS_OTEL_OPTIN_ENABLED flag is
+   * tracked separately. See
+   * https://opentelemetry.io/docs/specs/semconv/general/metric-requirement-level/#opt-in.
    */
   private static void registerCpuMetrics(Meter meter) {
     // jvm.cpu.time — Counter per spec (cumulative CPU time in seconds)
@@ -353,75 +355,6 @@ public final class JvmOtlpRuntimeMetrics {
                 }
               } catch (Exception e) {
                 // com.sun.management may not be available
-              }
-            });
-
-    // jvm.system.cpu.utilization — Gauge, Development
-    meter
-        .gaugeBuilder("jvm.system.cpu.utilization")
-        .setDescription("Recent CPU utilization for the whole system as reported by the JVM.")
-        .setUnit("1")
-        .buildWithCallback(
-            measurement -> {
-              try {
-                java.lang.management.OperatingSystemMXBean osBean =
-                    ManagementFactory.getOperatingSystemMXBean();
-                if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-                  double load =
-                      ((com.sun.management.OperatingSystemMXBean) osBean).getSystemCpuLoad();
-                  if (load >= 0) {
-                    measurement.record(load);
-                  }
-                }
-              } catch (Exception e) {
-                // com.sun.management may not be available
-              }
-            });
-  }
-
-  /** jvm.file_descriptor.count and jvm.file_descriptor.limit (UpDownCounter, Development). */
-  private static void registerFileDescriptorMetrics(Meter meter) {
-    meter
-        .upDownCounterBuilder("jvm.file_descriptor.count")
-        .setDescription("Number of open file descriptors.")
-        .setUnit("{file_descriptor}")
-        .buildWithCallback(
-            measurement -> {
-              try {
-                java.lang.management.OperatingSystemMXBean osBean =
-                    ManagementFactory.getOperatingSystemMXBean();
-                if (osBean instanceof com.sun.management.UnixOperatingSystemMXBean) {
-                  long count =
-                      ((com.sun.management.UnixOperatingSystemMXBean) osBean)
-                          .getOpenFileDescriptorCount();
-                  if (count >= 0) {
-                    measurement.record(count);
-                  }
-                }
-              } catch (Exception e) {
-                // UnixOperatingSystemMXBean not available on Windows
-              }
-            });
-
-    meter
-        .upDownCounterBuilder("jvm.file_descriptor.limit")
-        .setDescription("Maximum number of open file descriptors allowed.")
-        .setUnit("{file_descriptor}")
-        .buildWithCallback(
-            measurement -> {
-              try {
-                java.lang.management.OperatingSystemMXBean osBean =
-                    ManagementFactory.getOperatingSystemMXBean();
-                if (osBean instanceof com.sun.management.UnixOperatingSystemMXBean) {
-                  long limit =
-                      ((com.sun.management.UnixOperatingSystemMXBean) osBean)
-                          .getMaxFileDescriptorCount();
-                  if (limit >= 0) {
-                    measurement.record(limit);
-                  }
-                }
-              } catch (Exception e) {
-                // UnixOperatingSystemMXBean not available on Windows
               }
             });
   }

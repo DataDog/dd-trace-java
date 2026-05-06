@@ -37,6 +37,11 @@ class JvmOtlpRuntimeMetricsTest extends InstrumentationSpecification {
     then:
     def names = collector.metricNames.collect { it.toString() }
 
+    // Per OTel semconv, jvm.system.cpu.utilization, jvm.system.cpu.load_1m,
+    // jvm.file_descriptor.count and jvm.file_descriptor.limit are Opt-In and are
+    // intentionally not emitted yet — gating those behind a future
+    // DD_METRICS_OTEL_OPTIN_ENABLED flag is tracked separately.
+    // https://opentelemetry.io/docs/specs/semconv/general/metric-requirement-level/#opt-in
     def expectedMetrics = [
       // Memory (5 metrics)
       "jvm.memory.used",
@@ -54,21 +59,17 @@ class JvmOtlpRuntimeMetricsTest extends InstrumentationSpecification {
       "jvm.class.loaded",
       "jvm.class.count",
       "jvm.class.unloaded",
-      // CPU (4 metrics)
+      // CPU (3 metrics — jvm.system.cpu.utilization is Opt-In, omitted)
       "jvm.cpu.time",
       "jvm.cpu.count",
       "jvm.cpu.recent_utilization",
-      "jvm.system.cpu.utilization",
-      // File descriptors (2 metrics)
-      "jvm.file_descriptor.count",
-      "jvm.file_descriptor.limit",
     ]
 
     for (metric in expectedMetrics) {
       assert metric in names : "Expected metric '${metric}' not found. Got: ${names.sort()}"
     }
 
-    names.size() == 18
+    names.size() == 15
 
     // No DD-proprietary names should be present
     def ddNames = names.findAll { it.startsWith("jvm.heap_memory") || it.startsWith("jvm.thread_count") }
