@@ -114,12 +114,12 @@ final class DatadogPTagsCodec extends PTagsCodec {
       }
       tagPos = tagValueEndsAt + 1;
     }
-    PropagationTags result =
-        tagsFactory.createValid(tagPairs, decisionMakerTagValue, traceIdTagValue, traceSource);
-    if (orgPropagationMarkerTagValue != null) {
-      result.updateOrgPropagationMarker(orgPropagationMarkerTagValue);
-    }
-    return result;
+    return tagsFactory.createValid(
+        tagPairs,
+        decisionMakerTagValue,
+        traceIdTagValue,
+        traceSource,
+        orgPropagationMarkerTagValue);
   }
 
   @Override
