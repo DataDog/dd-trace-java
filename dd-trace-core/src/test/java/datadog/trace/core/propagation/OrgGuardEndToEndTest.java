@@ -5,6 +5,9 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.RETURNS_DEFAULTS;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
 import datadog.context.propagation.CarrierSetter;
@@ -28,7 +31,6 @@ import java.util.function.Supplier;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-import org.mockito.Mockito;
 
 @DisplayName("Org Propagation Guard end-to-end propagator wiring")
 class OrgGuardEndToEndTest {
@@ -43,8 +45,8 @@ class OrgGuardEndToEndTest {
   @BeforeEach
   void setUp() {
     factory = PropagationTags.factory();
-    healthMetrics = Mockito.mock(HealthMetrics.class);
-    TraceConfig tc = Mockito.mock(TraceConfig.class);
+    healthMetrics = mock(HealthMetrics.class);
+    TraceConfig tc = mock(TraceConfig.class);
     traceConfigSupplier = () -> tc;
   }
 
@@ -147,17 +149,17 @@ class OrgGuardEndToEndTest {
 
   private TracingPropagator buildPropagator(
       boolean enabled, boolean strict, Set<String> trusted, Supplier<String> localOpmSupplier) {
-    Config config = Mockito.mock(Config.class, Mockito.RETURNS_DEFAULTS);
-    Mockito.when(config.getxDatadogTagsMaxLength()).thenReturn(512);
-    Mockito.when(config.getTracePropagationStylesToExtract())
+    Config config = mock(Config.class, RETURNS_DEFAULTS);
+    when(config.getxDatadogTagsMaxLength()).thenReturn(512);
+    when(config.getTracePropagationStylesToExtract())
         .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
-    Mockito.when(config.getTracePropagationStylesToInject())
+    when(config.getTracePropagationStylesToInject())
         .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
-    Mockito.when(config.isTracePropagationExtractFirst()).thenReturn(false);
-    Mockito.when(config.isAwsPropagationEnabled()).thenReturn(false);
-    Mockito.when(config.getBaggageMapping()).thenReturn(Collections.emptyMap());
-    Mockito.when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(false);
-    Mockito.when(config.isApmTracingEnabled()).thenReturn(true);
+    when(config.isTracePropagationExtractFirst()).thenReturn(false);
+    when(config.isAwsPropagationEnabled()).thenReturn(false);
+    when(config.getBaggageMapping()).thenReturn(Collections.emptyMap());
+    when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(false);
+    when(config.isApmTracingEnabled()).thenReturn(true);
 
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, traceConfigSupplier);
     HttpCodec.Injector injector =
@@ -178,17 +180,17 @@ class OrgGuardEndToEndTest {
     if (preExistingOpm != null) {
       tags.updateOrgPropagationMarker(preExistingOpm);
     }
-    DDSpanContext ddCtx = Mockito.mock(DDSpanContext.class);
-    Mockito.when(ddCtx.getTraceId()).thenReturn(DDTraceId.from(123L));
-    Mockito.when(ddCtx.getSpanId()).thenReturn(456L);
-    Mockito.when(ddCtx.getSamplingPriority()).thenReturn(2);
-    Mockito.when(ddCtx.lockSamplingPriority()).thenReturn(true);
-    Mockito.when(ddCtx.getOrigin()).thenReturn(null);
-    Mockito.when(ddCtx.getEndToEndStartTime()).thenReturn(0L);
-    Mockito.when(ddCtx.baggageItems()).thenReturn(Collections.emptySet());
-    Mockito.when(ddCtx.getPropagationTags()).thenReturn(tags);
-    TraceCollector collector = Mockito.mock(TraceCollector.class);
-    Mockito.when(ddCtx.getTraceCollector()).thenReturn(collector);
+    DDSpanContext ddCtx = mock(DDSpanContext.class);
+    when(ddCtx.getTraceId()).thenReturn(DDTraceId.from(123L));
+    when(ddCtx.getSpanId()).thenReturn(456L);
+    when(ddCtx.getSamplingPriority()).thenReturn(2);
+    when(ddCtx.lockSamplingPriority()).thenReturn(true);
+    when(ddCtx.getOrigin()).thenReturn(null);
+    when(ddCtx.getEndToEndStartTime()).thenReturn(0L);
+    when(ddCtx.baggageItems()).thenReturn(Collections.emptySet());
+    when(ddCtx.getPropagationTags()).thenReturn(tags);
+    TraceCollector collector = mock(TraceCollector.class);
+    when(ddCtx.getTraceCollector()).thenReturn(collector);
     return AgentSpan.fromSpanContext(ddCtx);
   }
 
