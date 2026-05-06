@@ -97,6 +97,7 @@ public class W3CPTagsCodec extends PTagsCodec {
     int traceSource = ProductTraceSource.UNSET;
     int maxUnknownSize = 0;
     CharSequence lastParentId = null;
+    TagValue orgPropagationMarkerTagValue = null;
     while (tagPos < ddMemberValueEnd) {
       int tagKeyEndsAt =
           validateCharsUntilSeparatorOrEnd(
@@ -159,6 +160,8 @@ public class W3CPTagsCodec extends PTagsCodec {
               traceIdTagValue = tagValue;
             } else if (tagKey.equals(TRACE_SOURCE_TAG)) {
               traceSource = ProductTraceSource.parseBitfieldHex(tagValue.toString());
+            } else if (tagKey.equals(ORG_PROPAGATION_MARKER_TAG)) {
+              orgPropagationMarkerTagValue = tagValue;
             } else {
               if (tagPairs == null) {
                 // This is roughly the size of a two element linked list but can hold six
@@ -178,20 +181,25 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
       tagPos = nextTagPos;
     }
-    return new W3CPTags(
-        tagsFactory,
-        tagPairs,
-        decisionMakerTagValue,
-        traceIdTagValue,
-        traceSource,
-        samplingPriority,
-        origin,
-        value,
-        firstMemberStart,
-        ddMemberStart,
-        ddMemberValueEnd,
-        maxUnknownSize,
-        lastParentId);
+    W3CPTags result =
+        new W3CPTags(
+            tagsFactory,
+            tagPairs,
+            decisionMakerTagValue,
+            traceIdTagValue,
+            traceSource,
+            samplingPriority,
+            origin,
+            value,
+            firstMemberStart,
+            ddMemberStart,
+            ddMemberValueEnd,
+            maxUnknownSize,
+            lastParentId);
+    if (orgPropagationMarkerTagValue != null) {
+      result.updateOrgPropagationMarker(orgPropagationMarkerTagValue);
+    }
+    return result;
   }
 
   @Override
@@ -691,6 +699,15 @@ public class W3CPTagsCodec extends PTagsCodec {
       }
     }
     return size;
+  }
+
+  /**
+   * Returns a {@link W3CPTags} that wraps {@code original} so its non-{@code dd} vendor members are
+   * preserved on re-encoding while every Datadog-side value (sampling priority, origin, {@code
+   * _dd.p.*} tags) is empty. Used by {@code PropagationTags.Factory#emptyW3C(String)}.
+   */
+  static W3CPTags emptyPreservingTracestate(PTagsFactory factory, String original) {
+    return empty(factory, original);
   }
 
   private static W3CPTags empty(PTagsFactory factory, String original) {

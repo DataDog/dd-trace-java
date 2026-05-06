@@ -65,6 +65,13 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onScopeStackOverflow() {}
 
+  /**
+   * Reports that the Org Propagation Guard dropped the inbound Datadog context for an extracted
+   * trace. {@code reason} is one of {@code "mismatch"} (inbound and local OPMs differ) or {@code
+   * "strict_missing"} (strict mode + inbound OPM absent).
+   */
+  public void onOrgGuardEnforce(final String reason) {}
+
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}
 

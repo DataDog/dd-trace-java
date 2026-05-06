@@ -1,0 +1,211 @@
+package datadog.trace.core.propagation;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.context.Context;
+import datadog.context.propagation.CarrierSetter;
+import datadog.context.propagation.CarrierVisitor;
+import datadog.trace.api.Config;
+import datadog.trace.api.DDTraceId;
+import datadog.trace.api.TraceConfig;
+import datadog.trace.api.TracePropagationStyle;
+import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.TraceCollector;
+import datadog.trace.core.monitor.HealthMetrics;
+import java.util.Collections;
+import java.util.EnumSet;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Map;
+import java.util.Set;
+import java.util.function.Supplier;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Test;
+import org.mockito.Mockito;
+
+@DisplayName("Org Propagation Guard end-to-end propagator wiring")
+class OrgGuardEndToEndTest {
+
+  private static final MapSetter SETTER = new MapSetter();
+  private static final MapVisitor VISITOR = new MapVisitor();
+
+  private PropagationTags.Factory factory;
+  private HealthMetrics healthMetrics;
+  private Supplier<TraceConfig> traceConfigSupplier;
+
+  @BeforeEach
+  void setUp() {
+    factory = PropagationTags.factory();
+    healthMetrics = Mockito.mock(HealthMetrics.class);
+    TraceConfig tc = Mockito.mock(TraceConfig.class);
+    traceConfigSupplier = () -> tc;
+  }
+
+  @Test
+  @DisplayName("inject stamps the local OPM into x-datadog-tags and tracestate")
+  void injectStampsLocalOpm() {
+    TracingPropagator propagator = buildPropagator(true, false, Collections.emptySet(), () -> "L1");
+
+    Map<String, String> carrier = new HashMap<>();
+    Context ctx = Context.root().with(buildSpanForInjection(/*opmInTags*/ null));
+    propagator.inject(ctx, carrier, SETTER);
+
+    String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
+    assertNotNull(datadogTags, "x-datadog-tags missing: " + carrier);
+    assertTrue(datadogTags.contains("_dd.p.opm=L1"), "datadog-tags = " + datadogTags);
+
+    String tracestate = carrier.get("tracestate");
+    assertNotNull(tracestate, "tracestate missing: " + carrier);
+    assertTrue(tracestate.contains("t.opm:L1"), "tracestate = " + tracestate);
+  }
+
+  @Test
+  @DisplayName("inject overrides any inherited OPM with the local one")
+  void injectOverridesInheritedOpm() {
+    TracingPropagator propagator = buildPropagator(true, false, Collections.emptySet(), () -> "L1");
+
+    Map<String, String> carrier = new HashMap<>();
+    Context ctx = Context.root().with(buildSpanForInjection("upstream-X"));
+    propagator.inject(ctx, carrier, SETTER);
+
+    String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
+    assertNotNull(datadogTags);
+    assertTrue(datadogTags.contains("_dd.p.opm=L1"), "datadog-tags = " + datadogTags);
+    assertFalse(datadogTags.contains("_dd.p.opm=upstream-X"), "datadog-tags = " + datadogTags);
+  }
+
+  @Test
+  @DisplayName("extract drops dd context when OPM mismatches and enforcement is on")
+  void extractStripsOnMismatch() {
+    TracingPropagator propagator = buildPropagator(true, false, Collections.emptySet(), () -> "L1");
+
+    Map<String, String> headers = new HashMap<>();
+    headers.put(DatadogHttpCodec.TRACE_ID_KEY, "123");
+    headers.put(DatadogHttpCodec.SPAN_ID_KEY, "456");
+    headers.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "2");
+    headers.put(DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.opm=X1,_dd.p.dm=-4");
+
+    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
+    AgentSpan span = AgentSpan.fromContext(extracted);
+    assertNotNull(span, "extracted span missing");
+    ExtractedContext ec = (ExtractedContext) span.context();
+    assertEquals(DDTraceId.from(123L), ec.getTraceId());
+    assertEquals(456L, ec.getSpanId());
+    assertEquals(PrioritySampling.UNSET, ec.getSamplingPriority());
+    assertNull(ec.getOrigin());
+    assertNull(ec.getPropagationTags().getOrgPropagationMarker());
+  }
+
+  @Test
+  @DisplayName("extract honors trusted OPMs even when they differ from the local one")
+  void extractTrustedOpm() {
+    Set<String> trusted = new HashSet<>();
+    trusted.add("TRUSTED1");
+    TracingPropagator propagator = buildPropagator(true, false, trusted, () -> "L1");
+
+    Map<String, String> headers = new HashMap<>();
+    headers.put(DatadogHttpCodec.TRACE_ID_KEY, "123");
+    headers.put(DatadogHttpCodec.SPAN_ID_KEY, "456");
+    headers.put(DatadogHttpCodec.SAMPLING_PRIORITY_KEY, "2");
+    headers.put(DatadogHttpCodec.DATADOG_TAGS_KEY, "_dd.p.opm=TRUSTED1,_dd.p.dm=-4");
+
+    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
+    assertEquals(2, ec.getSamplingPriority());
+    assertEquals("TRUSTED1", ec.getPropagationTags().getOrgPropagationMarker().toString());
+  }
+
+  @Test
+  @DisplayName("extract+inject preserves non-dd tracestate vendors after stripping")
+  void roundTripPreservesForeignVendors() {
+    TracingPropagator propagator = buildPropagator(true, false, Collections.emptySet(), () -> "L1");
+
+    Map<String, String> headers = new HashMap<>();
+    headers.put(
+        "traceparent",
+        "00-0000000000000000000000000000007b-00000000000001c8-01"); // 0x7b=123, 0x1c8=456
+    headers.put("tracestate", "dd=s:2;o:foo;t.opm:upstream-X;t.dm:-4,vendor1=abc,vendor2=def");
+
+    Context extracted = propagator.extract(Context.root(), headers, VISITOR);
+    ExtractedContext ec = (ExtractedContext) AgentSpan.fromContext(extracted).context();
+    assertEquals(PrioritySampling.UNSET, ec.getSamplingPriority(), "should be stripped");
+
+    String reEncoded = ec.getPropagationTags().headerValue(PropagationTags.HeaderType.W3C);
+    assertNotNull(reEncoded, "re-encoded tracestate is null");
+    assertTrue(reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
+    assertTrue(reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
+  }
+
+  // ---- helpers ----
+
+  private TracingPropagator buildPropagator(
+      boolean enabled, boolean strict, Set<String> trusted, Supplier<String> localOpmSupplier) {
+    Config config = Mockito.mock(Config.class, Mockito.RETURNS_DEFAULTS);
+    Mockito.when(config.getxDatadogTagsMaxLength()).thenReturn(512);
+    Mockito.when(config.getTracePropagationStylesToExtract())
+        .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
+    Mockito.when(config.getTracePropagationStylesToInject())
+        .thenReturn(EnumSet.of(TracePropagationStyle.DATADOG, TracePropagationStyle.TRACECONTEXT));
+    Mockito.when(config.isTracePropagationExtractFirst()).thenReturn(false);
+    Mockito.when(config.isAwsPropagationEnabled()).thenReturn(false);
+    Mockito.when(config.getBaggageMapping()).thenReturn(Collections.emptyMap());
+    Mockito.when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(false);
+    Mockito.when(config.isApmTracingEnabled()).thenReturn(true);
+
+    HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, traceConfigSupplier);
+    HttpCodec.Injector injector =
+        HttpCodec.createInjector(
+            config, config.getTracePropagationStylesToInject(), Collections.emptyMap());
+    HttpCodec.Injector wrapped = new OpmStampingInjector(injector, localOpmSupplier);
+    OrgGuardEnforcer enforcer =
+        new OrgGuardEnforcer(enabled, strict, trusted, localOpmSupplier, factory, healthMetrics);
+    return new TracingPropagator(true, wrapped, extractor, enforcer);
+  }
+
+  /**
+   * Build a minimal AgentSpan wrapping a (mocked) DDSpanContext whose propagation tags can be
+   * controlled by the test.
+   */
+  private AgentSpan buildSpanForInjection(String preExistingOpm) {
+    PropagationTags tags = factory.empty();
+    if (preExistingOpm != null) {
+      tags.updateOrgPropagationMarker(preExistingOpm);
+    }
+    DDSpanContext ddCtx = Mockito.mock(DDSpanContext.class);
+    Mockito.when(ddCtx.getTraceId()).thenReturn(DDTraceId.from(123L));
+    Mockito.when(ddCtx.getSpanId()).thenReturn(456L);
+    Mockito.when(ddCtx.getSamplingPriority()).thenReturn(2);
+    Mockito.when(ddCtx.lockSamplingPriority()).thenReturn(true);
+    Mockito.when(ddCtx.getOrigin()).thenReturn(null);
+    Mockito.when(ddCtx.getEndToEndStartTime()).thenReturn(0L);
+    Mockito.when(ddCtx.baggageItems()).thenReturn(Collections.emptySet());
+    Mockito.when(ddCtx.getPropagationTags()).thenReturn(tags);
+    TraceCollector collector = Mockito.mock(TraceCollector.class);
+    Mockito.when(ddCtx.getTraceCollector()).thenReturn(collector);
+    return AgentSpan.fromSpanContext(ddCtx);
+  }
+
+  private static final class MapSetter implements CarrierSetter<Map<String, String>> {
+    @Override
+    public void set(Map<String, String> carrier, String key, String value) {
+      carrier.put(key, value);
+    }
+  }
+
+  private static final class MapVisitor implements CarrierVisitor<Map<String, String>> {
+    @Override
+    public void forEachKeyValue(
+        Map<String, String> carrier, java.util.function.BiConsumer<String, String> classifier) {
+      for (Map.Entry<String, String> e : carrier.entrySet()) {
+        classifier.accept(e.getKey(), e.getValue());
+      }
+    }
+  }
+}
