@@ -19,10 +19,14 @@ import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.InputStream;
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.function.BiFunction;
+import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 
@@ -58,6 +62,13 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      "datadog.trace.instrumentation.tomcat7.GlassFishBlockingHelper",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         named("getParts").and(takesArguments(0)).and(isPublic()),
@@ -68,7 +79,9 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
-        @Advice.Return Collection<?> parts, @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.This Object thisMultipart,
+        @Advice.Return Collection<?> parts,
+        @Advice.Thrown(readOnly = false) Throwable t) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -89,6 +102,29 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
           cbp.getCallback(EVENTS.requestFilesContent());
       if (filenamesCb == null && contentCb == null) {
         return;
+      }
+
+      // Extract servlet request/response for fallback blocking when no BlockResponseFunction is
+      // registered (Payara: TomcatServerInstrumentation is muzzled out for Payara's response type).
+      // setAccessible works here because this code is inlined into Multipart.getParts() —
+      // the same module as the private field's owner class.
+      HttpServletRequest fallbackReq = null;
+      HttpServletResponse fallbackResp = null;
+      try {
+        Field f = thisMultipart.getClass().getDeclaredField("request");
+        f.setAccessible(true);
+        Object catReq = f.get(thisMultipart);
+        if (catReq instanceof HttpServletRequest) {
+          fallbackReq = (HttpServletRequest) catReq;
+        }
+        if (catReq != null) {
+          Method m = catReq.getClass().getMethod("getResponse");
+          Object catResp = m.invoke(catReq);
+          if (catResp instanceof HttpServletResponse) {
+            fallbackResp = (HttpServletResponse) catResp;
+          }
+        }
+      } catch (Exception ignored) {
       }
 
       int maxFiles = Config.get().getAppSecMaxFileContentCount();
@@ -142,6 +178,9 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
             t = new BlockingException("Blocked request (GlassFish multipart file upload)");
             reqCtx.getTraceSegment().effectivelyBlocked();
+          } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
+            t = new BlockingException("Blocked request (GlassFish multipart file upload)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }
       }
@@ -154,6 +193,9 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+            t = new BlockingException("Blocked request (GlassFish multipart file upload content)");
+            reqCtx.getTraceSegment().effectivelyBlocked();
+          } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
             t = new BlockingException("Blocked request (GlassFish multipart file upload content)");
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
