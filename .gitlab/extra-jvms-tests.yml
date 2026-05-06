@@ -46,7 +46,7 @@ extra-jvms-trigger:
       when: on_success
     - when: never
   trigger:
-    project: $CI_PROJECT_PATH
+    project: DataDog/apm-reliability/dd-trace-java
     branch: $CI_COMMIT_BRANCH
     strategy: depend
   variables:
