@@ -6,7 +6,6 @@ import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.appsec.api.blocking.BlockingException;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -22,6 +21,7 @@ import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
@@ -79,8 +79,8 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     static void after(
         @Advice.This Object thisMultipart,
-        @Advice.Return Collection<?> parts,
-        @Advice.Thrown(readOnly = false) Throwable t) {
+        @Advice.Return(readOnly = false) Collection<?> parts,
+        @Advice.Thrown Throwable t) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -167,6 +167,8 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
         }
       }
 
+      boolean blocked = false;
+
       if (filenames != null && !filenames.isEmpty() && filenamesCb != null) {
         Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
@@ -175,16 +177,18 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t = new BlockingException("Blocked request (GlassFish multipart file upload)");
+            parts = Collections.emptyList();
             reqCtx.getTraceSegment().effectivelyBlocked();
+            blocked = true;
           } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
-            t = new BlockingException("Blocked request (GlassFish multipart file upload)");
+            parts = Collections.emptyList();
             reqCtx.getTraceSegment().effectivelyBlocked();
+            blocked = true;
           }
         }
       }
 
-      if (t == null && contents != null && !contents.isEmpty() && contentCb != null) {
+      if (!blocked && contents != null && !contents.isEmpty() && contentCb != null) {
         Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
         Flow.Action contentAction = contentFlow.getAction();
         if (contentAction instanceof Flow.Action.RequestBlockingAction) {
@@ -192,10 +196,10 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
           BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
           if (brf != null) {
             brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t = new BlockingException("Blocked request (GlassFish multipart file upload content)");
+            parts = Collections.emptyList();
             reqCtx.getTraceSegment().effectivelyBlocked();
           } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
-            t = new BlockingException("Blocked request (GlassFish multipart file upload content)");
+            parts = Collections.emptyList();
             reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }
