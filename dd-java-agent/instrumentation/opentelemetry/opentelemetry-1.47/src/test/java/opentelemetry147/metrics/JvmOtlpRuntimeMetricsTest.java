@@ -1,6 +1,7 @@
 package opentelemetry147.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -14,13 +15,16 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -69,10 +73,10 @@ public class JvmOtlpRuntimeMetricsTest {
     for (String metric : expectedMetrics) {
       assertTrue(
           names.contains(metric),
-          "Expected metric '" + metric + "' not found. Got: " + new java.util.TreeSet<>(names));
+          "Expected metric '" + metric + "' not found. Got: " + new TreeSet<>(names));
     }
 
-    assertEquals(15, names.size(), "Expected 15 metrics, got: " + new java.util.TreeSet<>(names));
+    assertEquals(15, names.size(), "Expected 15 metrics, got: " + new TreeSet<>(names));
 
     // No DD-proprietary names should be present
     List<String> ddNames =
@@ -103,7 +107,7 @@ public class JvmOtlpRuntimeMetricsTest {
         points.stream()
             .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type")))
             .collect(Collectors.toList());
-    assertTrue(!heapPoints.isEmpty(), "jvm.memory.used should have heap data point");
+    assertFalse(heapPoints.isEmpty(), "jvm.memory.used should have heap data point");
     assertTrue(
         heapPoints.get(0).value.longValue() > 0,
         "jvm.memory.used heap value should be positive, got " + heapPoints.get(0).value);
@@ -116,7 +120,7 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> threadPoints = collector.points.get("jvm.thread.count");
     assertNotNull(threadPoints, "jvm.thread.count should have data points");
-    assertTrue(!threadPoints.isEmpty(), "jvm.thread.count should have data points");
+    assertFalse(threadPoints.isEmpty(), "jvm.thread.count should have data points");
     assertTrue(
         threadPoints.get(0).value.longValue() > 0,
         "jvm.thread.count value should be positive, got " + threadPoints.get(0).value);
@@ -149,7 +153,7 @@ public class JvmOtlpRuntimeMetricsTest {
     public OtlpMetricVisitor visitMetric(OtelInstrumentDescriptor descriptor) {
       currentInstrument = descriptor.getName().toString();
       metricNames.add(currentInstrument);
-      points.computeIfAbsent(currentInstrument, k -> new java.util.ArrayList<>());
+      points.computeIfAbsent(currentInstrument, k -> new ArrayList<>());
       return this;
     }
 
@@ -169,7 +173,7 @@ public class JvmOtlpRuntimeMetricsTest {
         value = ((OtlpDoublePoint) point).value;
       }
       points
-          .computeIfAbsent(currentInstrument, k -> new java.util.ArrayList<>())
+          .computeIfAbsent(currentInstrument, k -> new ArrayList<>())
           .add(new DataPointEntry(attrs, value));
     }
 
@@ -180,7 +184,7 @@ public class JvmOtlpRuntimeMetricsTest {
       }
       return entries.stream()
           .map(e -> e.attrs.get(attrKey))
-          .filter(java.util.Objects::nonNull)
+          .filter(Objects::nonNull)
           .map(Object::toString)
           .collect(Collectors.toCollection(LinkedHashSet::new));
     }

@@ -847,14 +847,14 @@ public class Agent {
       initTelemetry.onFatalError(ex);
     }
 
-    // OTLP runtime metrics start unconditionally when both DD_METRICS_OTEL_ENABLED
-    // and DD_RUNTIME_METRICS_ENABLED are set, regardless of whether the application
-    // imports the OTel API. The OTLP exporter (OtlpMetricsService) was just started
-    // by CoreTracer above; this registers the JVM metric callbacks with
-    // OtelMeterProvider so the periodic export has data to collect. Done here
-    // (not in startJmx, which is delayed 15s) so callbacks are registered before
-    // the exporter's first scheduled flush — otherwise short-lived tests miss data.
-    if (Config.get().isRuntimeMetricsEnabled() && InstrumenterConfig.get().isMetricsOtelEnabled()) {
+    // Register JVM runtime metric callbacks against the OtelMeterProvider after
+    // CoreTracer has started OtlpMetricsService. Skip when OTEL_METRICS_EXPORTER=none
+    // since there's no exporter to collect against. Done here (not in the delayed
+    // startJmx) so callbacks are in place before the exporter's first flush.
+    Config cfg = Config.get();
+    if (cfg.isRuntimeMetricsEnabled()
+        && InstrumenterConfig.get().isMetricsOtelEnabled()
+        && cfg.isMetricsOtlpExporterEnabled()) {
       startOtlpRuntimeMetrics();
     }
 

@@ -222,6 +222,7 @@
   {
     "name": "datadog.trace.bootstrap.otel.shim.metrics.JvmOtlpRuntimeMetrics",
     "methods": [
+      {"name": "<init>", "parameterTypes": []},
       {"name": "start", "parameterTypes": []}
     ]
   }

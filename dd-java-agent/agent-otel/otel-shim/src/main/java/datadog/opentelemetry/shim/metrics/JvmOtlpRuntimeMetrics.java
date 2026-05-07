@@ -11,6 +11,8 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
+import java.util.Locale;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.ToLongFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,15 +30,16 @@ public final class JvmOtlpRuntimeMetrics {
       AttributeKey.stringKey("jvm.memory.pool.name");
   private static final AttributeKey<String> BUFFER_POOL =
       AttributeKey.stringKey("jvm.buffer.pool.name");
+  private static final Attributes HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "heap");
+  private static final Attributes NON_HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "non_heap");
 
-  private static volatile boolean started = false;
+  private static final AtomicBoolean started = new AtomicBoolean(false);
 
   /** Registers all JVM runtime metric instruments on the OTel MeterProvider. */
   public static void start() {
-    if (started) {
+    if (!started.compareAndSet(false, true)) {
       return;
     }
-    started = true;
 
     try {
       Meter meter = OtelMeterProvider.INSTANCE.get(INSTRUMENTATION_SCOPE);
@@ -47,6 +50,8 @@ public final class JvmOtlpRuntimeMetrics {
       registerCpuMetrics(meter);
       log.debug("Started OTLP runtime metrics with OTel-native naming (jvm.*)");
     } catch (Exception e) {
+      // Roll back so a subsequent retry can re-register if the failure was transient.
+      started.set(false);
       log.error("Failed to start JVM OTLP runtime metrics", e);
     }
   }
@@ -67,11 +72,8 @@ public final class JvmOtlpRuntimeMetrics {
         .setUnit("By")
         .buildWithCallback(
             measurement -> {
-              measurement.record(
-                  memoryBean.getHeapMemoryUsage().getUsed(), Attributes.of(MEMORY_TYPE, "heap"));
-              measurement.record(
-                  memoryBean.getNonHeapMemoryUsage().getUsed(),
-                  Attributes.of(MEMORY_TYPE, "non_heap"));
+              measurement.record(memoryBean.getHeapMemoryUsage().getUsed(), HEAP_ATTRS);
+              measurement.record(memoryBean.getNonHeapMemoryUsage().getUsed(), NON_HEAP_ATTRS);
               for (MemoryPoolMXBean pool : pools) {
                 measurement.record(pool.getUsage().getUsed(), poolAttributes(pool));
               }
@@ -83,12 +85,8 @@ public final class JvmOtlpRuntimeMetrics {
         .setUnit("By")
         .buildWithCallback(
             measurement -> {
-              measurement.record(
-                  memoryBean.getHeapMemoryUsage().getCommitted(),
-                  Attributes.of(MEMORY_TYPE, "heap"));
-              measurement.record(
-                  memoryBean.getNonHeapMemoryUsage().getCommitted(),
-                  Attributes.of(MEMORY_TYPE, "non_heap"));
+              measurement.record(memoryBean.getHeapMemoryUsage().getCommitted(), HEAP_ATTRS);
+              measurement.record(memoryBean.getNonHeapMemoryUsage().getCommitted(), NON_HEAP_ATTRS);
               for (MemoryPoolMXBean pool : pools) {
                 measurement.record(pool.getUsage().getCommitted(), poolAttributes(pool));
               }
@@ -102,11 +100,11 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               long heapMax = memoryBean.getHeapMemoryUsage().getMax();
               if (heapMax > 0) {
-                measurement.record(heapMax, Attributes.of(MEMORY_TYPE, "heap"));
+                measurement.record(heapMax, HEAP_ATTRS);
               }
               long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
               if (nonHeapMax > 0) {
-                measurement.record(nonHeapMax, Attributes.of(MEMORY_TYPE, "non_heap"));
+                measurement.record(nonHeapMax, NON_HEAP_ATTRS);
               }
               for (MemoryPoolMXBean pool : pools) {
                 long max = pool.getUsage().getMax();
@@ -124,11 +122,11 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               long heapInit = memoryBean.getHeapMemoryUsage().getInit();
               if (heapInit > 0) {
-                measurement.record(heapInit, Attributes.of(MEMORY_TYPE, "heap"));
+                measurement.record(heapInit, HEAP_ATTRS);
               }
               long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
               if (nonHeapInit > 0) {
-                measurement.record(nonHeapInit, Attributes.of(MEMORY_TYPE, "non_heap"));
+                measurement.record(nonHeapInit, NON_HEAP_ATTRS);
               }
             });
 
@@ -292,7 +290,7 @@ public final class JvmOtlpRuntimeMetrics {
   /** Returns Attributes carrying jvm.memory.type and jvm.memory.pool.name for the given pool. */
   private static Attributes poolAttributes(MemoryPoolMXBean pool) {
     return Attributes.of(
-        MEMORY_TYPE, pool.getType().name().toLowerCase(),
+        MEMORY_TYPE, pool.getType().name().toLowerCase(Locale.ROOT),
         MEMORY_POOL, pool.getName());
   }
 
