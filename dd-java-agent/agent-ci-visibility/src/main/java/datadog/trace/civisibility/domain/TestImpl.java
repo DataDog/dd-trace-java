@@ -77,6 +77,7 @@ public class TestImpl implements DDTest {
       String testName,
       @Nullable String testParameters,
       @Nullable String itrCorrelationId,
+      boolean testSkippingEnabled,
       @Nullable Long startTime,
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
@@ -157,6 +158,10 @@ public class TestImpl implements DDTest {
     }
 
     testDecorator.afterStart(span);
+
+    if (testSkippingEnabled) {
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+    }
 
     configurationErrors.applyTags(span);
 
