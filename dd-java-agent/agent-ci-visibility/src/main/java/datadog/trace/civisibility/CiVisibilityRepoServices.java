@@ -189,6 +189,16 @@ public class CiVisibilityRepoServices {
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isEnabled()) {
+      String bazelRepoRoot = bazelMode.getRepoRoot();
+      if (bazelRepoRoot != null) {
+        // The on-disk repo is unreachable from a Bazel test sandbox, so the runfiles workspace
+        // dir is used as a virtual repo root for source-path resolution.
+        return bazelRepoRoot;
+      }
+    }
+
     String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;

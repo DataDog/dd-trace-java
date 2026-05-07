@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.AkkaHttpHeaders;
 import static datadog.trace.instrumentation.akkahttp.AkkaHttpClientHelpers.OnCompleteHandler;
@@ -77,7 +78,7 @@ public final class AkkaHttpSingleRequestInstrumentation extends InstrumenterModu
         return null;
       }
 
-      final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
+      final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       return activateSpan(span);

@@ -7,12 +7,17 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.JavaModuleOpenProvider;
 import datadog.trace.agent.tooling.muzzle.Reference;
 import java.util.Collection;
+import java.util.Set;
 
 @AutoService(InstrumenterModule.class)
-public class JpmsMuleInstrumentation extends InstrumenterModule.Tracing
-    implements JavaModuleOpenProvider {
+public class JpmsMuleInstrumentation extends InstrumenterModule implements JavaModuleOpenProvider {
   public JpmsMuleInstrumentation() {
     super("mule", "mule-jpms");
+  }
+
+  @Override
+  public boolean isApplicable(Set<TargetSystem> enabledSystems) {
+    return true;
   }
 
   @Override

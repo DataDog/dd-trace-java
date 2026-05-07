@@ -16,6 +16,9 @@ include:
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
     ref: 'main'
+  - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
+    file: '.gitlab/ci-java-post-pr-comment.yml'
+    ref: 'main'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
@@ -30,6 +33,7 @@ stages:
   - java-load-parallel-slo
   - java-dacapo-parallel
   - java-dacapo-parallel-slo
+  - java-post-pr-comment
   - shared-pipeline
   - benchmarks
   - macrobenchmarks
@@ -715,15 +719,19 @@ muzzle-dep-report:
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
     JETTY_AVAILABLE_PROCESSORS: 4 # Jetty incorrectly calculates processor count in containers
   rules:
-    - if: $testJvm =~ $DEFAULT_TEST_JVMS
-      when: on_success
-    - if: $NON_DEFAULT_JVMS == "true"
-      when: on_success
-    - if: $CI_COMMIT_BRANCH == "master"
+    # Protected branches (master/mq/gh-readonly): all JVMs run unconditionally
+    - if: '$CI_COMMIT_BRANCH == "master"'
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
+    # Enable for default test JVMs or for NON_DEFAULT_JVMS
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: on_success
+    - if: '$CI_COMMIT_MESSAGE =~ /\[ci: NON_DEFAULT_JVMS\]/'
+      when: on_success
+    - if: '$testJvm =~ $DEFAULT_TEST_JVMS'
       when: on_success
   script:
     - *gitlab_base_ref_params
@@ -900,7 +908,13 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
-  rules: *master_only
+  rules:
+    - if: $CI_COMMIT_BRANCH == "master"
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: on_success
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: on_success
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"

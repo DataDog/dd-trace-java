@@ -12,7 +12,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -77,47 +76,51 @@ public class MultiPartReaderServerSideInstrumentation extends InstrumenterModule
           cbp.getCallback(EVENTS.requestBodyProcessed());
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
           cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null && filenamesCallback == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (callback == null && filenamesCallback == null && contentCallback == null) {
         return;
       }
 
       Map<String, List<String>> map = callback != null ? new HashMap<>() : null;
       List<String> filenames = filenamesCallback != null ? new ArrayList<>() : null;
+      List<String> filesContent = contentCallback != null ? new ArrayList<>() : null;
       for (BodyPart bodyPart : ret.getBodyParts()) {
         if (!(bodyPart instanceof FormDataBodyPart)) {
           continue;
         }
-        MultiPartHelper.collectBodyPart((FormDataBodyPart) bodyPart, map, filenames);
+        MultiPartHelper.collectBodyPart((FormDataBodyPart) bodyPart, map, filenames, filesContent);
       }
 
       if (map != null) {
         Flow<Void> flow = callback.apply(reqCtx, map);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-          if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t =
-                new BlockingException(
-                    "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
+        BlockingException be =
+            MultiPartHelper.tryBlock(
+                reqCtx, flow, "Blocked request (for MultiPartReaderServerSide/readMultiPart)");
+        if (be != null) {
+          t = be;
         }
       }
 
       if (filenames != null && !filenames.isEmpty()) {
         Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
-        Flow.Action filenamesAction = filenamesFlow.getAction();
-        if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba =
-              (Flow.Action.RequestBlockingAction) filenamesAction;
-          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-          if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t = new BlockingException("Blocked request (multipart file upload)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
+        if (t == null) {
+          BlockingException be =
+              MultiPartHelper.tryBlock(
+                  reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+          if (be != null) {
+            t = be;
           }
+        }
+      }
+
+      if (t == null && filesContent != null && !filesContent.isEmpty()) {
+        Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+        BlockingException be =
+            MultiPartHelper.tryBlock(
+                reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+        if (be != null) {
+          t = be;
         }
       }
     }
