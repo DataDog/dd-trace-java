@@ -13,6 +13,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.trace.api.cache.RadixTreeCache;
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.List;
@@ -290,11 +291,14 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onOrgGuardEnforce(final String reason) {
-    if ("mismatch".equals(reason)) {
-      orgGuardEnforceMismatch.increment();
-    } else if ("strict_missing".equals(reason)) {
-      orgGuardEnforceStrictMissing.increment();
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {
+    switch (reason) {
+      case MISMATCH:
+        orgGuardEnforceMismatch.increment();
+        break;
+      case STRICT_MISSING:
+        orgGuardEnforceStrictMissing.increment();
+        break;
     }
   }
 

@@ -1,9 +1,11 @@
-package datadog.trace.core.propagation;
+package datadog.trace.core.propagation.opg;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import java.util.Set;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -15,11 +17,11 @@ import org.slf4j.LoggerFactory;
  * (sampling priority, origin, {@code _dd.p.*} propagated tags) is dropped while parent identifiers,
  * baggage, and non-{@code dd} tracestate vendor sections are preserved.
  *
- * <p>Behavior is gated by three configuration knobs:
+ * <p>The master {@code DD_TRACE_ORG_GUARD_ENABLED} switch is handled at the {@link OrgGuard}
+ * factory; when disabled this class is never instantiated. Two configuration knobs shape behavior
+ * once enabled:
  *
  * <ul>
- *   <li>{@code DD_TRACE_ORG_GUARD_ENABLED} — master switch; when {@code false} this class is a
- *       no-op.
  *   <li>{@code DD_TRACE_ORG_GUARD_STRICT} — when {@code true}, also enforces when the inbound OPM
  *       is absent.
  *   <li>{@code DD_TRACE_ORG_GUARD_TRUSTED_OPMS} — comma-separated allow-list of inbound OPMs that
@@ -28,27 +30,22 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Enforcement never runs when the local OPM is unknown (the agent has not yet reported one).
  */
-public final class OrgGuardEnforcer {
+final class OrgGuardEnforcer {
 
   private static final Logger log = LoggerFactory.getLogger(OrgGuardEnforcer.class);
 
-  static final String REASON_MISMATCH = "mismatch";
-  static final String REASON_STRICT_MISSING = "strict_missing";
-
-  private final boolean enabled;
   private final boolean strict;
   private final Set<String> trustedOpms;
   private final Supplier<String> localOpmSupplier;
   private final PropagationTags.Factory factory;
   private final HealthMetrics healthMetrics;
 
-  public OrgGuardEnforcer(
+  OrgGuardEnforcer(
       Config config,
       Supplier<String> localOpmSupplier,
       PropagationTags.Factory factory,
       HealthMetrics healthMetrics) {
     this(
-        config.isTraceOrgGuardEnabled(),
         config.isTraceOrgGuardStrict(),
         config.getTraceOrgGuardTrustedOpms(),
         localOpmSupplier,
@@ -58,13 +55,11 @@ public final class OrgGuardEnforcer {
 
   // Visible for testing.
   OrgGuardEnforcer(
-      boolean enabled,
       boolean strict,
       Set<String> trustedOpms,
       Supplier<String> localOpmSupplier,
       PropagationTags.Factory factory,
       HealthMetrics healthMetrics) {
-    this.enabled = enabled;
     this.strict = strict;
     this.trustedOpms = trustedOpms;
     this.localOpmSupplier = localOpmSupplier;
@@ -72,12 +67,16 @@ public final class OrgGuardEnforcer {
     this.healthMetrics = healthMetrics;
   }
 
+  Supplier<String> localOpmSupplier() {
+    return localOpmSupplier;
+  }
+
   /**
    * Returns {@code extracted} unchanged unless OPG enforcement applies, in which case it returns a
    * fresh {@link ExtractedContext} with the Datadog-side context dropped.
    */
-  public TagContext maybeStrip(TagContext extracted) {
-    if (!enabled || !(extracted instanceof ExtractedContext)) {
+  public TagContext enforce(TagContext extracted) {
+    if (!(extracted instanceof ExtractedContext)) {
       return extracted;
     }
     ExtractedContext ctx = (ExtractedContext) extracted;
@@ -93,19 +92,19 @@ public final class OrgGuardEnforcer {
       if (!strict) {
         return extracted;
       }
-      return strip(ctx, REASON_STRICT_MISSING, localOpm, null);
+      return strip(ctx, OrgGuard.Reason.STRICT_MISSING, localOpm, null);
     }
     if (localOpm.equals(inbound) || trustedOpms.contains(inbound)) {
       return extracted;
     }
-    return strip(ctx, REASON_MISMATCH, localOpm, inbound);
+    return strip(ctx, OrgGuard.Reason.MISMATCH, localOpm, inbound);
   }
 
   private ExtractedContext strip(
-      ExtractedContext ctx, String reason, String localOpm, String inbound) {
+      ExtractedContext ctx, OrgGuard.Reason reason, String localOpm, String inbound) {
     log.debug(
         "OPG enforcement: dropping dd context (reason={}, inbound={}, local={})",
-        reason,
+        reason.tag(),
         inbound,
         localOpm);
     healthMetrics.onOrgGuardEnforce(reason);
