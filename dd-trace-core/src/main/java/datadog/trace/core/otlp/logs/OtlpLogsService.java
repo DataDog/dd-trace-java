@@ -1,15 +1,13 @@
 package datadog.trace.core.otlp.logs;
 
 import static datadog.trace.util.AgentThreadFactory.AgentThread.OTLP_LOGS_EXPORTER;
+import static datadog.trace.util.AgentThreadFactory.newAgentThread;
 
 import datadog.trace.api.Config;
 import datadog.trace.core.otlp.common.OtlpGrpcSender;
 import datadog.trace.core.otlp.common.OtlpHttpSender;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
-import datadog.trace.util.AgentTaskScheduler;
-import java.util.concurrent.ThreadLocalRandom;
-import java.util.concurrent.TimeUnit;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,17 +17,14 @@ public final class OtlpLogsService {
 
   public static final OtlpLogsService INSTANCE = new OtlpLogsService(Config.get());
 
-  private final AgentTaskScheduler scheduler;
+  private final int intervalMillis;
   private final OtlpLogsCollector collector;
   private final OtlpSender sender;
 
-  private final int intervalMillis;
-
-  private AgentTaskScheduler.Scheduled<?> scheduledTask = null;
+  private volatile Thread exporterThread;
 
   private OtlpLogsService(Config config) {
-    this.scheduler = new AgentTaskScheduler(OTLP_LOGS_EXPORTER);
-
+    intervalMillis = config.getLogsOtelInterval();
     switch (config.getOtlpLogsProtocol()) {
       case GRPC:
         this.collector = OtlpLogsProtoCollector.INSTANCE;
@@ -53,11 +48,9 @@ public final class OtlpLogsService {
         break;
       default:
         LOGGER.debug("Unsupported OTLP logs protocol: {}", config.getOtlpLogsProtocol());
-        this.collector = NoopOtlpLogsCollector.INSTANCE;
+        this.collector = null;
         this.sender = null;
     }
-
-    this.intervalMillis = config.getLogsOtelInterval();
   }
 
   public void start() {
@@ -65,29 +58,26 @@ public final class OtlpLogsService {
       return;
     }
 
-    // add random jitter of up to 5 seconds to initial delay; avoids a fleet
-    // of apps starting at the same time from exporting OTLP logs in sync
-    long initialMillis =
-        intervalMillis
-            + Math.min(
-                (long)
-                    (500d
-                        * Math.log(ThreadLocalRandom.current().nextDouble())
-                        / Math.log(1 - 0.25)),
-                5_000);
-
-    scheduledTask =
-        scheduler.scheduleAtFixedRate(
-            this::export, initialMillis, intervalMillis, TimeUnit.MILLISECONDS);
+    exporterThread = newAgentThread(OTLP_LOGS_EXPORTER, this::export);
+    exporterThread.start();
   }
 
   public void flush() {
-    scheduler.execute(this::export);
+    Thread thread = exporterThread;
+    if (thread != null) {
+      thread.interrupt();
+    }
   }
 
   public void shutdown() {
-    if (scheduledTask != null) {
-      scheduledTask.cancel();
+    Thread thread = exporterThread;
+    if (thread != null) {
+      exporterThread = null;
+      thread.interrupt();
+      try {
+        thread.join(1_000);
+      } catch (InterruptedException ignore) {
+      }
     }
     if (sender != null) {
       sender.shutdown();
@@ -95,9 +85,15 @@ public final class OtlpLogsService {
   }
 
   private void export() {
-    OtlpPayload payload = collector.collectLogs();
-    if (payload != OtlpPayload.EMPTY) {
-      sender.send(payload);
+    while (Thread.currentThread() == exporterThread) {
+      try {
+        OtlpPayload payload = collector.waitForLogs(intervalMillis);
+        if (payload != OtlpPayload.EMPTY) {
+          sender.send(payload);
+        }
+      } catch (RuntimeException e) {
+        LOGGER.debug("Uncaught exception exporting logs", e);
+      }
     }
   }
 }

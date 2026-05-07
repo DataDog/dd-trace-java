@@ -24,6 +24,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
+import datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
 import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.common.writer.LoggingWriter;
@@ -47,7 +48,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#collectLogs}.
+ * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#waitForLogs}.
  *
  * <p>Each test case constructs {@link OtlpLogRecord} instances (using real {@link DDSpan} contexts
  * where needed), collects them via {@link OtlpLogsProtoCollector}, drains the resulting chunked
@@ -366,7 +367,7 @@ class OtlpLogsProtoTest {
 
     OtlpPayload payload =
         OtlpLogsProtoCollector.INSTANCE.collectLogs(
-            visitor -> {
+            (visitor, interval) -> {
               OtelInstrumentationScope lastScope = null;
               OtlpScopedLogsVisitor scoped = null;
               for (LogSpec spec : specs) {
@@ -390,7 +391,8 @@ class OtlpLogsProtoTest {
                         ctx,
                         spec.eventName));
               }
-            });
+            },
+            0);
 
     if (specs.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty specs must produce empty payload");
