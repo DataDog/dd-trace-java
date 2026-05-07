@@ -1,5 +1,6 @@
 package datadog.opentelemetry.shim.metrics;
 
+import com.sun.management.OperatingSystemMXBean;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
@@ -10,26 +11,23 @@ import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
 import java.util.List;
+import java.util.function.ToLongFunction;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Registers JVM runtime metrics using OTel semantic convention names via the dd-trace-java OTLP
- * metrics pipeline. These metrics flow via OTLP without requiring a Datadog Agent or DogStatsD.
- *
- * <p>Only includes metrics where we can match the exact OTel spec type. Metrics requiring Histogram
- * type (jvm.gc.duration) are excluded because JMX cannot produce distribution data.
- *
- * <p>OTel JVM runtime metrics conventions:
- * https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/
- *
- * <p>Semantic-core equivalence mappings:
- * https://github.com/DataDog/semantic-core/blob/main/sor/domains/metrics/integrations/java/_equivalence/
+ * Registers JVM runtime metrics with OTel-native names against the agent's MeterProvider. See
+ * https://opentelemetry.io/docs/specs/semconv/runtime/jvm-metrics/.
  */
 public final class JvmOtlpRuntimeMetrics {
 
   private static final Logger log = LoggerFactory.getLogger(JvmOtlpRuntimeMetrics.class);
   private static final String INSTRUMENTATION_SCOPE = "datadog.jvm.runtime";
+  private static final AttributeKey<String> MEMORY_TYPE = AttributeKey.stringKey("jvm.memory.type");
+  private static final AttributeKey<String> MEMORY_POOL =
+      AttributeKey.stringKey("jvm.memory.pool.name");
+  private static final AttributeKey<String> BUFFER_POOL =
+      AttributeKey.stringKey("jvm.buffer.pool.name");
 
   private static volatile boolean started = false;
 
@@ -53,9 +51,7 @@ public final class JvmOtlpRuntimeMetrics {
     }
   }
 
-  // Note: jvm.gc.duration is excluded — OTel spec requires Histogram type but JMX only provides
-  // cumulative milliseconds via GarbageCollectorMXBean.getCollectionTime(), not individual
-  // GC event durations needed to build a distribution.
+  // jvm.gc.duration is excluded — spec requires Histogram, JMX only exposes cumulative time.
 
   /**
    * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.init,
@@ -65,7 +61,6 @@ public final class JvmOtlpRuntimeMetrics {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
     List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
 
-    // jvm.memory.used (UpDownCounter, Stable)
     meter
         .upDownCounterBuilder("jvm.memory.used")
         .setDescription("Measure of memory used.")
@@ -73,23 +68,15 @@ public final class JvmOtlpRuntimeMetrics {
         .buildWithCallback(
             measurement -> {
               measurement.record(
-                  memoryBean.getHeapMemoryUsage().getUsed(),
-                  Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                  memoryBean.getHeapMemoryUsage().getUsed(), Attributes.of(MEMORY_TYPE, "heap"));
               measurement.record(
                   memoryBean.getNonHeapMemoryUsage().getUsed(),
-                  Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+                  Attributes.of(MEMORY_TYPE, "non_heap"));
               for (MemoryPoolMXBean pool : pools) {
-                measurement.record(
-                    pool.getUsage().getUsed(),
-                    Attributes.of(
-                        AttributeKey.stringKey("jvm.memory.type"),
-                        pool.getType().name().toLowerCase(),
-                        AttributeKey.stringKey("jvm.memory.pool.name"),
-                        pool.getName()));
+                measurement.record(pool.getUsage().getUsed(), poolAttributes(pool));
               }
             });
 
-    // jvm.memory.committed (UpDownCounter, Stable)
     meter
         .upDownCounterBuilder("jvm.memory.committed")
         .setDescription("Measure of memory committed.")
@@ -98,22 +85,15 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               measurement.record(
                   memoryBean.getHeapMemoryUsage().getCommitted(),
-                  Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                  Attributes.of(MEMORY_TYPE, "heap"));
               measurement.record(
                   memoryBean.getNonHeapMemoryUsage().getCommitted(),
-                  Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+                  Attributes.of(MEMORY_TYPE, "non_heap"));
               for (MemoryPoolMXBean pool : pools) {
-                measurement.record(
-                    pool.getUsage().getCommitted(),
-                    Attributes.of(
-                        AttributeKey.stringKey("jvm.memory.type"),
-                        pool.getType().name().toLowerCase(),
-                        AttributeKey.stringKey("jvm.memory.pool.name"),
-                        pool.getName()));
+                measurement.record(pool.getUsage().getCommitted(), poolAttributes(pool));
               }
             });
 
-    // jvm.memory.limit (UpDownCounter, Stable)
     meter
         .upDownCounterBuilder("jvm.memory.limit")
         .setDescription("Measure of max obtainable memory.")
@@ -122,30 +102,20 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               long heapMax = memoryBean.getHeapMemoryUsage().getMax();
               if (heapMax > 0) {
-                measurement.record(
-                    heapMax, Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                measurement.record(heapMax, Attributes.of(MEMORY_TYPE, "heap"));
               }
               long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
               if (nonHeapMax > 0) {
-                measurement.record(
-                    nonHeapMax,
-                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+                measurement.record(nonHeapMax, Attributes.of(MEMORY_TYPE, "non_heap"));
               }
               for (MemoryPoolMXBean pool : pools) {
                 long max = pool.getUsage().getMax();
                 if (max > 0) {
-                  measurement.record(
-                      max,
-                      Attributes.of(
-                          AttributeKey.stringKey("jvm.memory.type"),
-                          pool.getType().name().toLowerCase(),
-                          AttributeKey.stringKey("jvm.memory.pool.name"),
-                          pool.getName()));
+                  measurement.record(max, poolAttributes(pool));
                 }
               }
             });
 
-    // jvm.memory.init (UpDownCounter, Development)
     meter
         .upDownCounterBuilder("jvm.memory.init")
         .setDescription("Measure of initial memory requested.")
@@ -154,18 +124,14 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               long heapInit = memoryBean.getHeapMemoryUsage().getInit();
               if (heapInit > 0) {
-                measurement.record(
-                    heapInit, Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+                measurement.record(heapInit, Attributes.of(MEMORY_TYPE, "heap"));
               }
               long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
               if (nonHeapInit > 0) {
-                measurement.record(
-                    nonHeapInit,
-                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+                measurement.record(nonHeapInit, Attributes.of(MEMORY_TYPE, "non_heap"));
               }
             });
 
-    // jvm.memory.used_after_last_gc (UpDownCounter, Stable)
     meter
         .upDownCounterBuilder("jvm.memory.used_after_last_gc")
         .setDescription("Measure of memory used after the most recent garbage collection event.")
@@ -174,84 +140,43 @@ public final class JvmOtlpRuntimeMetrics {
             measurement -> {
               for (MemoryPoolMXBean pool : pools) {
                 MemoryUsage collectionUsage = pool.getCollectionUsage();
-                if (collectionUsage != null) {
-                  long used = collectionUsage.getUsed();
-                  if (used >= 0) {
-                    measurement.record(
-                        used,
-                        Attributes.of(
-                            AttributeKey.stringKey("jvm.memory.type"),
-                            pool.getType().name().toLowerCase(),
-                            AttributeKey.stringKey("jvm.memory.pool.name"),
-                            pool.getName()));
-                  }
+                if (collectionUsage != null && collectionUsage.getUsed() >= 0) {
+                  measurement.record(collectionUsage.getUsed(), poolAttributes(pool));
                 }
               }
             });
   }
 
-  /** jvm.thread.count (UpDownCounter, Stable) */
-  /** jvm.buffer.* (UpDownCounter, Development) — JVM buffer pool metrics (direct, mapped). */
+  /** jvm.buffer.* (UpDownCounter, Development) — direct + mapped pool metrics. */
   private static void registerBufferMetrics(Meter meter) {
     List<BufferPoolMXBean> bufferPools =
         ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
-
-    meter
-        .upDownCounterBuilder("jvm.buffer.memory.used")
-        .setDescription("Measure of memory used by buffers.")
-        .setUnit("By")
-        .buildWithCallback(
-            measurement -> {
-              for (BufferPoolMXBean pool : bufferPools) {
-                long used = pool.getMemoryUsed();
-                if (used >= 0) {
-                  measurement.record(
-                      used,
-                      Attributes.of(
-                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
-                }
-              }
-            });
-
-    meter
-        .upDownCounterBuilder("jvm.buffer.memory.limit")
-        .setDescription("Measure of total memory capacity of buffers.")
-        .setUnit("By")
-        .buildWithCallback(
-            measurement -> {
-              for (BufferPoolMXBean pool : bufferPools) {
-                long limit = pool.getTotalCapacity();
-                if (limit >= 0) {
-                  measurement.record(
-                      limit,
-                      Attributes.of(
-                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
-                }
-              }
-            });
-
-    meter
-        .upDownCounterBuilder("jvm.buffer.count")
-        .setDescription("Number of buffers in the pool.")
-        .setUnit("{buffer}")
-        .buildWithCallback(
-            measurement -> {
-              for (BufferPoolMXBean pool : bufferPools) {
-                long count = pool.getCount();
-                if (count >= 0) {
-                  measurement.record(
-                      count,
-                      Attributes.of(
-                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
-                }
-              }
-            });
+    bufferPoolMetric(
+        meter,
+        "jvm.buffer.memory.used",
+        "Measure of memory used by buffers.",
+        "By",
+        bufferPools,
+        BufferPoolMXBean::getMemoryUsed);
+    bufferPoolMetric(
+        meter,
+        "jvm.buffer.memory.limit",
+        "Measure of total memory capacity of buffers.",
+        "By",
+        bufferPools,
+        BufferPoolMXBean::getTotalCapacity);
+    bufferPoolMetric(
+        meter,
+        "jvm.buffer.count",
+        "Number of buffers in the pool.",
+        "{buffer}",
+        bufferPools,
+        BufferPoolMXBean::getCount);
   }
 
-  /** jvm.thread.count (UpDownCounter, Stable) */
+  /** jvm.thread.count (UpDownCounter, Stable). */
   private static void registerThreadMetrics(Meter meter) {
     ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
-
     meter
         .upDownCounterBuilder("jvm.thread.count")
         .setDescription("Number of executing platform threads.")
@@ -260,12 +185,10 @@ public final class JvmOtlpRuntimeMetrics {
   }
 
   /**
-   * jvm.class.loaded (Counter, Stable) — cumulative total loaded since JVM start.
-   * jvm.class.unloaded (Counter, Stable) — cumulative total unloaded since JVM start.
-   * jvm.class.count (UpDownCounter, Stable) — currently loaded count.
+   * jvm.class.loaded (Counter), jvm.class.unloaded (Counter), jvm.class.count (UpDownCounter) — all
+   * Stable per spec.
    */
   private static void registerClassLoadingMetrics(Meter meter) {
-    // jvm.class.loaded — Counter per spec (cumulative total, only goes up)
     meter
         .counterBuilder("jvm.class.loaded")
         .setDescription("Number of classes loaded since JVM start.")
@@ -275,7 +198,6 @@ public final class JvmOtlpRuntimeMetrics {
                 measurement.record(
                     ManagementFactory.getClassLoadingMXBean().getTotalLoadedClassCount()));
 
-    // jvm.class.count — UpDownCounter per spec (current count, can decrease)
     meter
         .upDownCounterBuilder("jvm.class.count")
         .setDescription("Number of classes currently loaded.")
@@ -285,7 +207,6 @@ public final class JvmOtlpRuntimeMetrics {
                 measurement.record(
                     ManagementFactory.getClassLoadingMXBean().getLoadedClassCount()));
 
-    // jvm.class.unloaded — Counter per spec
     meter
         .counterBuilder("jvm.class.unloaded")
         .setDescription("Number of classes unloaded since JVM start.")
@@ -297,16 +218,10 @@ public final class JvmOtlpRuntimeMetrics {
   }
 
   /**
-   * jvm.cpu.time (Counter, Stable), jvm.cpu.count (UpDownCounter, Stable),
-   * jvm.cpu.recent_utilization (Gauge, Stable).
-   *
-   * <p>jvm.system.cpu.utilization, jvm.system.cpu.load_1m are Opt-In per OTel semconv and are
-   * intentionally not emitted; gating those behind a future DD_METRICS_OTEL_OPTIN_ENABLED flag is
-   * tracked separately. See
-   * https://opentelemetry.io/docs/specs/semconv/general/metric-requirement-level/#opt-in.
+   * jvm.cpu.time (Counter), jvm.cpu.count (UpDownCounter), jvm.cpu.recent_utilization (Gauge) — all
+   * Stable per spec.
    */
   private static void registerCpuMetrics(Meter meter) {
-    // jvm.cpu.time — Counter per spec (cumulative CPU time in seconds)
     meter
         .counterBuilder("jvm.cpu.time")
         .ofDoubles()
@@ -314,22 +229,16 @@ public final class JvmOtlpRuntimeMetrics {
         .setUnit("s")
         .buildWithCallback(
             measurement -> {
-              try {
-                java.lang.management.OperatingSystemMXBean osBean =
-                    ManagementFactory.getOperatingSystemMXBean();
-                if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-                  long nanos =
-                      ((com.sun.management.OperatingSystemMXBean) osBean).getProcessCpuTime();
-                  if (nanos >= 0) {
-                    measurement.record(nanos / 1e9);
-                  }
-                }
-              } catch (Exception e) {
-                // com.sun.management may not be available
+              OperatingSystemMXBean osBean = sunOsBean();
+              if (osBean == null) {
+                return;
+              }
+              long nanos = osBean.getProcessCpuTime();
+              if (nanos >= 0) {
+                measurement.record(nanos / 1e9);
               }
             });
 
-    // jvm.cpu.count — UpDownCounter per spec
     meter
         .upDownCounterBuilder("jvm.cpu.count")
         .setDescription("Number of processors available to the JVM.")
@@ -337,27 +246,60 @@ public final class JvmOtlpRuntimeMetrics {
         .buildWithCallback(
             measurement -> measurement.record(Runtime.getRuntime().availableProcessors()));
 
-    // jvm.cpu.recent_utilization — Gauge per spec
     meter
         .gaugeBuilder("jvm.cpu.recent_utilization")
         .setDescription("Recent CPU utilization for the process as reported by the JVM.")
         .setUnit("1")
         .buildWithCallback(
             measurement -> {
-              try {
-                java.lang.management.OperatingSystemMXBean osBean =
-                    ManagementFactory.getOperatingSystemMXBean();
-                if (osBean instanceof com.sun.management.OperatingSystemMXBean) {
-                  double cpuLoad =
-                      ((com.sun.management.OperatingSystemMXBean) osBean).getProcessCpuLoad();
-                  if (cpuLoad >= 0) {
-                    measurement.record(cpuLoad);
-                  }
-                }
-              } catch (Exception e) {
-                // com.sun.management may not be available
+              OperatingSystemMXBean osBean = sunOsBean();
+              if (osBean == null) {
+                return;
+              }
+              double cpuLoad = osBean.getProcessCpuLoad();
+              if (cpuLoad >= 0) {
+                measurement.record(cpuLoad);
               }
             });
+  }
+
+  /**
+   * Builds an UpDownCounter that iterates each platform buffer pool and records {@code getter} with
+   * the {@code jvm.buffer.pool.name} attribute. Skips negative readings.
+   */
+  private static void bufferPoolMetric(
+      Meter meter,
+      String name,
+      String description,
+      String unit,
+      List<BufferPoolMXBean> bufferPools,
+      ToLongFunction<BufferPoolMXBean> getter) {
+    meter
+        .upDownCounterBuilder(name)
+        .setDescription(description)
+        .setUnit(unit)
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long value = getter.applyAsLong(pool);
+                if (value >= 0) {
+                  measurement.record(value, Attributes.of(BUFFER_POOL, pool.getName()));
+                }
+              }
+            });
+  }
+
+  /** Returns Attributes carrying jvm.memory.type and jvm.memory.pool.name for the given pool. */
+  private static Attributes poolAttributes(MemoryPoolMXBean pool) {
+    return Attributes.of(
+        MEMORY_TYPE, pool.getType().name().toLowerCase(),
+        MEMORY_POOL, pool.getName());
+  }
+
+  /** Returns the com.sun.management OperatingSystemMXBean if available, otherwise null. */
+  private static OperatingSystemMXBean sunOsBean() {
+    java.lang.management.OperatingSystemMXBean bean = ManagementFactory.getOperatingSystemMXBean();
+    return bean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) bean : null;
   }
 
   private JvmOtlpRuntimeMetrics() {}
