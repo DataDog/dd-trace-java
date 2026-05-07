@@ -537,6 +537,12 @@ muzzle:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: never
+    - when: on_success
   parallel:
     matrix:
       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
@@ -569,6 +575,12 @@ muzzle-dep-report:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: never
+    - when: on_success
   variables:
     CACHE_TYPE: "inst"
   script:
