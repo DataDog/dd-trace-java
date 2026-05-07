@@ -77,6 +77,9 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
+    # skip gitlab pipeline for github merge queue - we are currently using the datadog merge queue
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       auto_cancel:
         on_new_commit: none
