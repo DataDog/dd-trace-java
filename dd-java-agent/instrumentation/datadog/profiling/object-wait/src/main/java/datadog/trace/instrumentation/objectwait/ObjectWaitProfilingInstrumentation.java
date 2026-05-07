@@ -10,10 +10,7 @@ import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
-import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskBlockHelper;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -68,75 +65,22 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
 
   public static final class WaitAdvice {
 
-    // 1 ms — matches the default LockSupport park threshold in parkExit0
-    static final long MIN_WAIT_NANOS = 1_000_000L;
-
-    // State array indices — package-private for readability in tests
-    static final int IDX_BLOCKER = 0;
-    static final int IDX_SPAN_ID = 1;
-    static final int IDX_ROOT_SPAN_ID = 2;
-    static final int IDX_START_TICKS = 3;
-    static final int IDX_START_NANOS = 4;
-
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static long[] before(@Advice.This Object monitor) {
-      return captureState(
-          monitor, AgentTracer.get().getProfilingContext(), AgentTracer.activeSpan());
+    public static TaskBlockHelper.State before(@Advice.This Object monitor) {
+      return captureState(monitor);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter long[] state) {
-      if (state == null) {
-        return;
-      }
-      ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
-      if (profiling == null) {
-        return;
-      }
-      emitIfLongEnough(state, profiling);
+    public static void after(@Advice.Enter TaskBlockHelper.State state) {
+      finish(state);
     }
 
-    /**
-     * Captures wait-entry state. Package-private to allow direct unit-testing without a live agent.
-     *
-     * @return a 5-element {@code long[]} on success, or {@code null} when the preconditions are not
-     *     met (no profiling context, no active span, or span context is not a {@link
-     *     ProfilerContext})
-     */
-    static long[] captureState(
-        Object monitor, ProfilingContextIntegration profiling, AgentSpan span) {
-      if (profiling == null) {
-        return null;
-      }
-      if (span == null || !(span.context() instanceof ProfilerContext)) {
-        return null;
-      }
-      ProfilerContext ctx = (ProfilerContext) span.context();
-      return new long[] {
-        System.identityHashCode(monitor), // [IDX_BLOCKER]    monitor identity
-        ctx.getSpanId(), // [IDX_SPAN_ID]
-        ctx.getRootSpanId(), // [IDX_ROOT_SPAN_ID]
-        profiling.getCurrentTicks(), // [IDX_START_TICKS] TSC ticks for event timing
-        System.nanoTime() // [IDX_START_NANOS]  wall-clock nanos for duration filter
-      };
+    static TaskBlockHelper.State captureState(Object monitor) {
+      return TaskBlockHelper.capture(System.identityHashCode(monitor));
     }
 
-    /**
-     * Emits a TaskBlock event if the elapsed wall time since entry exceeds {@link #MIN_WAIT_NANOS}.
-     * Package-private to allow direct unit-testing without a live agent.
-     */
-    static void emitIfLongEnough(long[] state, ProfilingContextIntegration profiling) {
-      if (System.nanoTime() - state[IDX_START_NANOS] < MIN_WAIT_NANOS) {
-        return;
-      }
-      // unblockingSpanId = 0: notify/notifyAll are native in JDK 21+,
-      // so the notifying thread cannot be identified via BCI.
-      profiling.recordTaskBlock(
-          state[IDX_START_TICKS],
-          state[IDX_SPAN_ID],
-          state[IDX_ROOT_SPAN_ID],
-          state[IDX_BLOCKER],
-          0L);
+    static void finish(TaskBlockHelper.State state) {
+      TaskBlockHelper.finish(state);
     }
   }
 }
