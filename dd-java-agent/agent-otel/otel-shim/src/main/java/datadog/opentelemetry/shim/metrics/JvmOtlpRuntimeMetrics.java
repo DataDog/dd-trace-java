@@ -3,6 +3,7 @@ package datadog.opentelemetry.shim.metrics;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
@@ -42,6 +43,7 @@ public final class JvmOtlpRuntimeMetrics {
     try {
       Meter meter = OtelMeterProvider.INSTANCE.get(INSTRUMENTATION_SCOPE);
       registerMemoryMetrics(meter);
+      registerBufferMetrics(meter);
       registerThreadMetrics(meter);
       registerClassLoadingMetrics(meter);
       registerCpuMetrics(meter);
@@ -56,11 +58,8 @@ public final class JvmOtlpRuntimeMetrics {
   // GC event durations needed to build a distribution.
 
   /**
-   * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.used_after_last_gc — all
-   * UpDownCounter per spec.
-   *
-   * <p>jvm.memory.init is Development per OTel semconv and is intentionally not emitted yet —
-   * gating it behind a future DD_METRICS_OTEL_OPTIN_ENABLED flag is tracked separately.
+   * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.init,
+   * jvm.memory.used_after_last_gc — all UpDownCounter per spec.
    */
   private static void registerMemoryMetrics(Meter meter) {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
@@ -146,6 +145,26 @@ public final class JvmOtlpRuntimeMetrics {
               }
             });
 
+    // jvm.memory.init (UpDownCounter, Development)
+    meter
+        .upDownCounterBuilder("jvm.memory.init")
+        .setDescription("Measure of initial memory requested.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              long heapInit = memoryBean.getHeapMemoryUsage().getInit();
+              if (heapInit > 0) {
+                measurement.record(
+                    heapInit, Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "heap"));
+              }
+              long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
+              if (nonHeapInit > 0) {
+                measurement.record(
+                    nonHeapInit,
+                    Attributes.of(AttributeKey.stringKey("jvm.memory.type"), "non_heap"));
+              }
+            });
+
     // jvm.memory.used_after_last_gc (UpDownCounter, Stable)
     meter
         .upDownCounterBuilder("jvm.memory.used_after_last_gc")
@@ -166,6 +185,64 @@ public final class JvmOtlpRuntimeMetrics {
                             AttributeKey.stringKey("jvm.memory.pool.name"),
                             pool.getName()));
                   }
+                }
+              }
+            });
+  }
+
+  /** jvm.thread.count (UpDownCounter, Stable) */
+  /** jvm.buffer.* (UpDownCounter, Development) — JVM buffer pool metrics (direct, mapped). */
+  private static void registerBufferMetrics(Meter meter) {
+    List<BufferPoolMXBean> bufferPools =
+        ManagementFactory.getPlatformMXBeans(BufferPoolMXBean.class);
+
+    meter
+        .upDownCounterBuilder("jvm.buffer.memory.used")
+        .setDescription("Measure of memory used by buffers.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long used = pool.getMemoryUsed();
+                if (used >= 0) {
+                  measurement.record(
+                      used,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
+                }
+              }
+            });
+
+    meter
+        .upDownCounterBuilder("jvm.buffer.memory.limit")
+        .setDescription("Measure of total memory capacity of buffers.")
+        .setUnit("By")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long limit = pool.getTotalCapacity();
+                if (limit >= 0) {
+                  measurement.record(
+                      limit,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
+                }
+              }
+            });
+
+    meter
+        .upDownCounterBuilder("jvm.buffer.count")
+        .setDescription("Number of buffers in the pool.")
+        .setUnit("{buffer}")
+        .buildWithCallback(
+            measurement -> {
+              for (BufferPoolMXBean pool : bufferPools) {
+                long count = pool.getCount();
+                if (count >= 0) {
+                  measurement.record(
+                      count,
+                      Attributes.of(
+                          AttributeKey.stringKey("jvm.buffer.pool.name"), pool.getName()));
                 }
               }
             });

@@ -43,33 +43,24 @@ public class JvmOtlpRuntimeMetricsTest {
   }
 
   @Test
-  void registersExactly11RecommendedJvmMetrics() {
+  void registersExpectedJvmMetrics() {
     MetricCollector collector = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(collector);
 
-    // Per OTel semconv, the following are Opt-In or Development-stability and are intentionally
-    // not emitted yet — gating them behind a future DD_METRICS_OTEL_OPTIN_ENABLED flag is tracked
-    // separately. Same partitioning OTel Java upstream uses (see JmxRuntimeMetricsFactory's
-    // emitExperimentalTelemetry branch):
-    //   Opt-In:        jvm.system.cpu.utilization, jvm.system.cpu.load_1m,
-    //                  jvm.file_descriptor.count, jvm.file_descriptor.limit
-    //   Development:   jvm.memory.init, jvm.buffer.memory.used, jvm.buffer.memory.limit,
-    //                  jvm.buffer.count
-    // https://opentelemetry.io/docs/specs/semconv/general/metric-requirement-level/#opt-in
     List<String> expectedMetrics =
         Arrays.asList(
-            // Memory (4 metrics)
             "jvm.memory.used",
             "jvm.memory.committed",
             "jvm.memory.limit",
+            "jvm.memory.init",
             "jvm.memory.used_after_last_gc",
-            // Threads (1 metric)
+            "jvm.buffer.memory.used",
+            "jvm.buffer.memory.limit",
+            "jvm.buffer.count",
             "jvm.thread.count",
-            // Classes (3 metrics)
             "jvm.class.loaded",
             "jvm.class.count",
             "jvm.class.unloaded",
-            // CPU (3 metrics)
             "jvm.cpu.time",
             "jvm.cpu.count",
             "jvm.cpu.recent_utilization");
@@ -81,7 +72,7 @@ public class JvmOtlpRuntimeMetricsTest {
           "Expected metric '" + metric + "' not found. Got: " + new java.util.TreeSet<>(names));
     }
 
-    assertEquals(11, names.size(), "Expected 11 metrics, got: " + new java.util.TreeSet<>(names));
+    assertEquals(15, names.size(), "Expected 15 metrics, got: " + new java.util.TreeSet<>(names));
 
     // No DD-proprietary names should be present
     List<String> ddNames =
