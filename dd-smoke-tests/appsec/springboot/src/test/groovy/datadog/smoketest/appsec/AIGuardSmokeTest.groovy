@@ -10,6 +10,10 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
   @Shared
   protected String[] defaultAIGuardProperties = [
     '-Ddd.ai_guard.enabled=true',
+    // Make sure AI Guard features (e.g. client IP tags collection) do not depend on AppSec.
+    '-Ddd.appsec.enabled=false',
+    '-Ddd.trace.client-ip.enabled=false',
+    '-Dsmoketest.skipAppSecActivation=true',
     "-Ddd.ai_guard.endpoint=http://localhost:${httpPort}/aiguard".toString(),
   ]
 
@@ -29,7 +33,6 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     final springBootShadowJar = System.getProperty("datadog.smoketest.appsec.springboot.shadowJar.path")
     final command = [javaPath()]
     command.addAll(defaultJavaProperties)
-    command.addAll(defaultAppSecProperties)
     command.addAll(defaultAIGuardProperties)
     command.addAll(['-jar', springBootShadowJar, "--server.port=${httpPort}".toString()])
     final builder = new ProcessBuilder(command).directory(new File(buildDirectory))
@@ -132,6 +135,36 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     } as DecodedSpan
     assert span.meta.get('ai_guard.action') == 'DENY'
     assert span.meta.get('ai_guard.blocked') == 'true'
+  }
+
+  void 'client ip tags are added to the local root span when an ai_guard span is created'() {
+    given:
+    final publicIp = '5.6.7.9'
+    final request = new Request.Builder()
+    .url("http://localhost:${httpPort}/aiguard/allow")
+    .header('X-Forwarded-For', publicIp)
+    .get()
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+
+    and:
+    waitForTraceCount(2) // /aiguard/allow + internal /aiguard/evaluate mock
+    final aiGuardSpan = traces*.spans
+    ?.flatten()
+    ?.find { it.resource == 'ai_guard' } as DecodedSpan
+    aiGuardSpan != null
+    final rootSpan = traces*.spans
+    ?.flatten()
+    ?.find { it.traceId == aiGuardSpan.traceId && it.parentId == 0 } as DecodedSpan
+    rootSpan != null
+    rootSpan.meta.get('http.client_ip') == publicIp
+    rootSpan.meta.get('network.client.ip') != null
+    rootSpan.meta.get('network.client.ip') != publicIp
   }
 
   void 'test multimodal content parts evaluation'() {
