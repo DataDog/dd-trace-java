@@ -248,7 +248,7 @@ def load_maven_documents(
     return docs
 
 
-# parse a version string into a tuple of ints for numeric comparison (e.g. "3.9.11" -> (3, 9, 11))
+# parse a version string into a sortable tuple for comparison; numeric segments sort before non-numeric
 def _version_sort_key(version: str) -> tuple:
     parts = []
     for segment in re.split(r"([.\-])", version):
@@ -310,6 +310,15 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     current_dir = Path(args.current_dir)
     metadata = load_metadata_overrides(args.metadata_file)
 
+    # Guard against a silent snapshot failure: if baseline is empty but current has lockfiles,
+    # every coordinate would appear "new" and the age check would be meaningless
+    baseline_has_lockfiles = baseline_dir.exists() and any(baseline_dir.rglob("gradle.lockfile"))
+    current_has_lockfiles = any(current_dir.rglob("gradle.lockfile"))
+    if not baseline_has_lockfiles and current_has_lockfiles:
+        print("::error::Baseline has no lockfiles but current directory does — the snapshot step may have failed.")
+        emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": 0}, args.github_output)
+        return 1
+
     changed = changed_lockfile_coordinates(baseline_dir=baseline_dir, current_dir=current_dir)
     if not changed:
         print("No dependency version changes detected across Gradle lockfiles.")
@@ -328,9 +337,11 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, search_url=args.search_url)
             published_at, reason = timestamp_cache[gav]
             if published_at is None:
-                print(f"::warning file={relative_path}::{gav}: {reason} Skipping age check.")
-                continue
-            if published_at > cutoff:
+                # Cannot verify age — treat as a violation
+                violations_by_file.setdefault(relative_path, []).append(
+                    (gav, f"Cannot verify age: {reason}")
+                )
+            elif published_at > cutoff:
                 violations_by_file.setdefault(relative_path, []).append(
                     (gav, f"Published at {format_datetime(published_at)}, cutoff {format_datetime(cutoff)}.")
                 )
@@ -369,6 +380,7 @@ def revert_lockfiles_to_baseline(
 
 # look up the publish timestamp for a group:artifact:version coordinate in Maven Central
 # returns (datetime, None) on success, (None, reason) when the timestamp cannot be determined
+# retries once on transient 5xx / network errors; 4xx fails immediately (permanent client error)
 def resolve_gav_timestamp(
     *,
     gav: str,
@@ -385,43 +397,66 @@ def resolve_gav_timestamp(
         "rows": 20,
         "wt": "json",
     })
-    try:
-        payload = load_json(None, f"{search_url}?{query}")
-        docs = payload.get("response", {}).get("docs", [])
-    except (urllib.error.HTTPError, urllib.error.URLError, TimeoutError, ValueError):
-        return None, "Maven Central search was unreachable."
-    for doc in docs:
+    url = f"{search_url}?{query}"
+    payload = None
+    fetch_error = None
+    for attempt in range(2):
+        try:
+            payload = load_json(None, url)
+            fetch_error = None
+            break
+        except urllib.error.HTTPError as exc:
+            if exc.code < 500:
+                return None, (
+                    f"Maven Central returned HTTP {exc.code} for {gav}. "
+                    "Add an entry in --metadata-file to bypass."
+                )
+            fetch_error = f"Maven Central search failed (HTTP {exc.code})."
+        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
+            fetch_error = "Maven Central search was unreachable."
+
+    if fetch_error:
+        return None, fetch_error
+
+    for doc in payload.get("response", {}).get("docs", []):
         if doc.get("v") != version:
             continue
         timestamp = doc.get("timestamp")
         if timestamp is None:
             return None, "Maven Central search result did not include a publish timestamp."
-        return parse_datetime(timestamp), None
-    return None, f"No metadata found in Maven Central for {gav}."
+        try:
+            return parse_datetime(timestamp), None
+        except (ValueError, TypeError) as exc:
+            return None, f"Maven Central returned an unparseable timestamp for {gav}: {exc}"
+    return None, f"{gav} was not found in Maven Central. Add an entry in --metadata-file to bypass."
 
 
-# load optional metadata overrides from a JSON file (group:artifact:version -> timestamp or skip reason)
+# load optional metadata overrides from a JSON file (group:artifact:version -> timestamp)
 def load_metadata_overrides(path: str | None) -> dict[str, Any]:
     if not path:
         return {}
     return load_json(path, None)
 
 
-# parse a single metadata override value: a timestamp string/number, or a dict with "reason" to skip
+# parse a single metadata override value: a timestamp string/number, or a dict with a timestamp key
 def parse_metadata_override(gav: str, override: Any) -> tuple[datetime | None, str | None]:
     if isinstance(override, dict):
-        if "reason" in override:
-            return None, str(override["reason"])
         for key in ("timestamp", "published_at", "timestamp_ms"):
             if key in override:
-                return parse_datetime(override[key]), None
-        return None, f"Metadata override for {gav} is missing a timestamp."
+                try:
+                    return parse_datetime(override[key]), None
+                except (ValueError, TypeError) as exc:
+                    return None, f"Metadata override for {gav} has an invalid timestamp: {exc}"
+        return None, f"Metadata override for {gav} is missing a timestamp key (expected: timestamp, published_at, or timestamp_ms)."
     if isinstance(override, (int, float, str)):
-        return parse_datetime(override), None
+        try:
+            return parse_datetime(override), None
+        except (ValueError, TypeError) as exc:
+            return None, f"Metadata override for {gav} has an invalid timestamp: {exc}"
     return None, f"Unsupported metadata override format for {gav}."
 
 
-# diff baseline and current lockfile directories; return (relative_path, gav) for each new coordinate
+# diff baseline and current lockfile directories; return (relative_path, gav) for each added or changed coordinate
 def changed_lockfile_coordinates(*, baseline_dir: Path, current_dir: Path) -> list[tuple[str, str]]:
     changed: list[tuple[str, str]] = []
     baseline_lockfiles = collect_lockfiles(baseline_dir)

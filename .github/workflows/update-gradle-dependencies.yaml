@@ -46,7 +46,7 @@ jobs:
       - name: Snapshot current Gradle lock files
         run: |
           mkdir -p /tmp/gradle-lockfiles-before
-          find . -name 'gradle.lockfile' -exec cp --parents {} /tmp/gradle-lockfiles-before/ \;
+          find . -name 'gradle.lockfile' -print0 | xargs -0 -r cp --parents -t /tmp/gradle-lockfiles-before/
 
       - name: Update Gradle dependencies
         env:
@@ -57,6 +57,7 @@ jobs:
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Validate changed lock files meet dependency age policy
+        id: validate-lockfiles
         run: |
           python3 .github/scripts/dependency_age.py validate-lockfiles \
             --baseline-dir /tmp/gradle-lockfiles-before \
