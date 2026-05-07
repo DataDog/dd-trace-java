@@ -58,7 +58,9 @@ public class TelemetrySystem {
     if (telemetryMetricsEnabled) {
       actions.add(new CoreMetricsPeriodicAction());
       actions.add(new OtelEnvMetricPeriodicAction());
-      actions.add(new OtelSpiMetricPeriodicAction());
+      if (InstrumenterConfig.get().getTraceExtensionsPath() != null) {
+        actions.add(new OtelSpiMetricPeriodicAction());
+      }
       actions.add(new ConfigInversionMetricPeriodicAction());
       actions.add(new IntegrationPeriodicAction());
       actions.add(new WafMetricPeriodicAction());
