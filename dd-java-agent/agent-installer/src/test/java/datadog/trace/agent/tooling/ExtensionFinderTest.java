@@ -25,7 +25,7 @@ public class ExtensionFinderTest {
   private static final String AUTOCONFIGURE_RESOURCE =
       "io.opentelemetry.sdk.autoconfigure.spi.ResourceProvider";
   private static final String AUTOCONFIGURE_SAMPLER =
-      "io.opentelemetry.sdk.autoconfigure.spi.ConfigurableSamplerProvider";
+      "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSamplerProvider";
   private static final String AUTOCONFIGURE_EXPORTER =
       "io.opentelemetry.sdk.autoconfigure.spi.traces.ConfigurableSpanExporterProvider";
   private static final String JAVAAGENT_INSTRUMENTATION_MODULE =
@@ -96,20 +96,6 @@ public class ExtensionFinderTest {
         new HashSet<>(
             java.util.Arrays.asList(JAVAAGENT_INSTRUMENTATION_MODULE, JAVAAGENT_AGENT_LISTENER)),
         reportedFqns(collector.drain()));
-  }
-
-  @Test
-  public void shadedJavaagentSpiIsReported(@TempDir Path tempDir) throws IOException {
-    Path jarPath = buildJar(tempDir, "ext.jar", SHADED_AUTOCONFIGURE_SAMPLER);
-
-    try (JarFile jar = new JarFile(jarPath.toFile(), false)) {
-      ExtensionFinder.recordOtelSpiTelemetry(jar);
-    }
-
-    Collection<OtelSpiCollector.OtelSpiMetric> drained = collector.drain();
-    assertEquals(1, drained.size());
-    assertTrue(
-        drained.iterator().next().tags.contains("spi_class:" + SHADED_AUTOCONFIGURE_SAMPLER));
   }
 
   @Test
