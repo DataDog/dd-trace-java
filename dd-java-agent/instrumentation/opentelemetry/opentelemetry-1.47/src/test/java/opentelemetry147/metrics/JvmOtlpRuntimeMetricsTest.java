@@ -126,6 +126,23 @@ public class JvmOtlpRuntimeMetricsTest {
         "jvm.thread.count value should be positive, got " + threadPoints.get(0).value);
   }
 
+  @Test
+  void startIsIdempotent() {
+    MetricCollector before = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(before);
+    int countBefore = before.metricNames.size();
+
+    JvmOtlpRuntimeMetrics.start();
+    JvmOtlpRuntimeMetrics.start();
+
+    MetricCollector after = new MetricCollector();
+    OtelMetricRegistry.INSTANCE.collectMetrics(after);
+    assertEquals(
+        countBefore,
+        after.metricNames.size(),
+        "Repeated start() must not register duplicate instruments");
+  }
+
   static final class DataPointEntry {
     final Map<String, Object> attrs;
     final Number value;

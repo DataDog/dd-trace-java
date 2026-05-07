@@ -5,6 +5,7 @@ import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
 import java.lang.management.BufferPoolMXBean;
+import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
@@ -50,8 +51,6 @@ public final class JvmOtlpRuntimeMetrics {
       registerCpuMetrics(meter);
       log.debug("Started OTLP runtime metrics with OTel-native naming (jvm.*)");
     } catch (Exception e) {
-      // Roll back so a subsequent retry can re-register if the failure was transient.
-      started.set(false);
       log.error("Failed to start JVM OTLP runtime metrics", e);
     }
   }
@@ -187,32 +186,27 @@ public final class JvmOtlpRuntimeMetrics {
    * Stable per spec.
    */
   private static void registerClassLoadingMetrics(Meter meter) {
+    ClassLoadingMXBean classLoadingBean = ManagementFactory.getClassLoadingMXBean();
     meter
         .counterBuilder("jvm.class.loaded")
         .setDescription("Number of classes loaded since JVM start.")
         .setUnit("{class}")
         .buildWithCallback(
-            measurement ->
-                measurement.record(
-                    ManagementFactory.getClassLoadingMXBean().getTotalLoadedClassCount()));
+            measurement -> measurement.record(classLoadingBean.getTotalLoadedClassCount()));
 
     meter
         .upDownCounterBuilder("jvm.class.count")
         .setDescription("Number of classes currently loaded.")
         .setUnit("{class}")
         .buildWithCallback(
-            measurement ->
-                measurement.record(
-                    ManagementFactory.getClassLoadingMXBean().getLoadedClassCount()));
+            measurement -> measurement.record(classLoadingBean.getLoadedClassCount()));
 
     meter
         .counterBuilder("jvm.class.unloaded")
         .setDescription("Number of classes unloaded since JVM start.")
         .setUnit("{class}")
         .buildWithCallback(
-            measurement ->
-                measurement.record(
-                    ManagementFactory.getClassLoadingMXBean().getUnloadedClassCount()));
+            measurement -> measurement.record(classLoadingBean.getUnloadedClassCount()));
   }
 
   /**
@@ -220,22 +214,37 @@ public final class JvmOtlpRuntimeMetrics {
    * Stable per spec.
    */
   private static void registerCpuMetrics(Meter meter) {
-    meter
-        .counterBuilder("jvm.cpu.time")
-        .ofDoubles()
-        .setDescription("CPU time used by the process as reported by the JVM.")
-        .setUnit("s")
-        .buildWithCallback(
-            measurement -> {
-              OperatingSystemMXBean osBean = sunOsBean();
-              if (osBean == null) {
-                return;
-              }
-              long nanos = osBean.getProcessCpuTime();
-              if (nanos >= 0) {
-                measurement.record(nanos / 1e9);
-              }
-            });
+    java.lang.management.OperatingSystemMXBean rawOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    OperatingSystemMXBean osBean =
+        rawOsBean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) rawOsBean : null;
+
+    if (osBean != null) {
+      meter
+          .counterBuilder("jvm.cpu.time")
+          .ofDoubles()
+          .setDescription("CPU time used by the process as reported by the JVM.")
+          .setUnit("s")
+          .buildWithCallback(
+              measurement -> {
+                long nanos = osBean.getProcessCpuTime();
+                if (nanos >= 0) {
+                  measurement.record(nanos / 1e9);
+                }
+              });
+
+      meter
+          .gaugeBuilder("jvm.cpu.recent_utilization")
+          .setDescription("Recent CPU utilization for the process as reported by the JVM.")
+          .setUnit("1")
+          .buildWithCallback(
+              measurement -> {
+                double cpuLoad = osBean.getProcessCpuLoad();
+                if (cpuLoad >= 0) {
+                  measurement.record(cpuLoad);
+                }
+              });
+    }
 
     meter
         .upDownCounterBuilder("jvm.cpu.count")
@@ -243,22 +252,6 @@ public final class JvmOtlpRuntimeMetrics {
         .setUnit("{cpu}")
         .buildWithCallback(
             measurement -> measurement.record(Runtime.getRuntime().availableProcessors()));
-
-    meter
-        .gaugeBuilder("jvm.cpu.recent_utilization")
-        .setDescription("Recent CPU utilization for the process as reported by the JVM.")
-        .setUnit("1")
-        .buildWithCallback(
-            measurement -> {
-              OperatingSystemMXBean osBean = sunOsBean();
-              if (osBean == null) {
-                return;
-              }
-              double cpuLoad = osBean.getProcessCpuLoad();
-              if (cpuLoad >= 0) {
-                measurement.record(cpuLoad);
-              }
-            });
   }
 
   /**
@@ -292,12 +285,6 @@ public final class JvmOtlpRuntimeMetrics {
     return Attributes.of(
         MEMORY_TYPE, pool.getType().name().toLowerCase(Locale.ROOT),
         MEMORY_POOL, pool.getName());
-  }
-
-  /** Returns the com.sun.management OperatingSystemMXBean if available, otherwise null. */
-  private static OperatingSystemMXBean sunOsBean() {
-    java.lang.management.OperatingSystemMXBean bean = ManagementFactory.getOperatingSystemMXBean();
-    return bean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) bean : null;
   }
 
   private JvmOtlpRuntimeMetrics() {}
