@@ -23,32 +23,32 @@ import org.tabletest.junit.TableTest;
 public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
 
   @TableTest({
-    "scenario                         | rate            | expected",
-    "1.0                              | 1.0             | 1       ",
-    "0.5                              | 0.5             | 0.5     ",
-    "0.1                              | 0.1             | 0.1     ",
-    "0.0                              | 0.0             | 0       ",
-    "0.765432                         | 0.765432        | 0.765432",
-    "0.7654321 rounds to 6 decimal    | 0.7654321       | 0.765432",
-    "0.123456                         | 0.123456        | 0.123456",
-    "0.100000 trailing zeros          | 0.100000        | 0.1     ",
-    "0.250 trailing zero              | 0.250           | 0.25    ",
-    "0.05                             | 0.05            | 0.05    ",
-    "0.0123456789 rounds at 6dp       | 0.0123456789    | 0.012346",
-    "0.001                            | 0.001           | 0.001   ",
-    "0.00500 trailing zeros           | 0.00500         | 0.005   ",
-    "0.00123456789 rounds at 6dp      | 0.00123456789   | 0.001235",
-    "0.0001                           | 0.0001          | 0.0001  ",
-    "0.000500 trailing zeros          | 0.000500        | 0.0005  ",
-    "0.000123456789 rounds at 6dp     | 0.000123456789  | 0.000123",
-    "0.9999995 rounds up to 1         | 0.9999995       | 1       ",
-    "0.00001                          | 0.00001         | 0.00001 ",
-    "0.000050 trailing zeros          | 0.000050        | 0.00005 ",
-    "1.23456789e-5 rounds at 6dp      | 0.0000123456789 | 0.000012",
-    "1e-7 below precision rounds to 0 | 0.0000001       | 0       ",
-    "5.5e-10 below precision          | 0.00000000055   | 0       ",
-    "0.000001 six decimal boundary    | 0.000001        | 0.000001",
-    "0.00000051 rounds up             | 0.00000051      | 0.000001"
+    "scenario                                  | rate            | expected",
+    "1.0                                       | 1.0             | 1       ",
+    "0.5                                       | 0.5             | 0.5     ",
+    "0.1                                       | 0.1             | 0.1     ",
+    "0.0                                       | 0.0             | 0       ",
+    "0.765432                                  | 0.765432        | 0.765432",
+    "0.7654321 rounds to 6 decimal             | 0.7654321       | 0.765432",
+    "0.123456                                  | 0.123456        | 0.123456",
+    "0.100000 trailing zeros                   | 0.100000        | 0.1     ",
+    "0.250 trailing zero                       | 0.250           | 0.25    ",
+    "0.05                                      | 0.05            | 0.05    ",
+    "0.0123456789 rounds at 6 decimal places   | 0.0123456789    | 0.012346",
+    "0.001                                     | 0.001           | 0.001   ",
+    "0.00500 trailing zeros                    | 0.00500         | 0.005   ",
+    "0.00123456789 rounds at 6 decimal places  | 0.00123456789   | 0.001235",
+    "0.0001                                    | 0.0001          | 0.0001  ",
+    "0.000500 trailing zeros                   | 0.000500        | 0.0005  ",
+    "0.000123456789 rounds at 6 decimal places | 0.000123456789  | 0.000123",
+    "0.9999995 rounds up to 1                  | 0.9999995       | 1       ",
+    "0.00001                                   | 0.00001         | 0.00001 ",
+    "0.000050 trailing zeros                   | 0.000050        | 0.00005 ",
+    "1.23456789e-5 rounds at 6dp               | 0.0000123456789 | 0.000012",
+    "1e-7 below precision rounds to 0          | 0.0000001       | 0       ",
+    "5.5e-10 below precision                   | 0.00000000055   | 0       ",
+    "0.000001 six decimal boundary             | 0.000001        | 0.000001",
+    "0.00000051 rounds up                      | 0.00000051      | 0.000001"
   })
   void updateKnuthSamplingRateFormatsRateCorrectly(String scenario, double rate, String expected) {
     PropagationTags pTags = PropagationTags.factory().empty();
@@ -91,10 +91,10 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | jsonRules                                            | expectedKsr",
-    "rate 1 matches   | '[{\"service\": \"service\", \"sample_rate\": 1}]'   | 1          ",
-    "rate 0.5 matches | '[{\"service\": \"service\", \"sample_rate\": 0.5}]' | 0.5        ",
-    "rate 0 matches   | '[{\"service\": \"service\", \"sample_rate\": 0}]'   | 0          "
+    "scenario                                                        | jsonRules                                            | expectedKsr",
+    "Matching rule with rate 1 -> ksr is 1                           | '[{\"service\": \"service\", \"sample_rate\": 1}]'   | 1          ",
+    "Matching rule with rate 0.5 -> ksr is 0.5                       | '[{\"service\": \"service\", \"sample_rate\": 0.5}]' | 0.5        ",
+    "Matching rule with rate 0 -> ksr is 0 (drop, but ksr still set) | '[{\"service\": \"service\", \"sample_rate\": 0}]'   | 0          "
   })
   void ruleBasedSamplerSetsKsrPropagatedTagWhenRuleMatches(
       String scenario, String jsonRules, String expectedKsr) {
@@ -124,6 +124,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
   @Test
   void ruleBasedSamplerFallbackToAgentSamplerSetsKsr() {
     Properties properties = new Properties();
+    // Rule that does NOT match "service"
     properties.setProperty(
         TRACE_SAMPLING_RULES, "[{\"service\": \"nomatch\", \"sample_rate\": 0.5}]");
     properties.setProperty(TRACE_RATE_LIMIT, "50");
@@ -142,7 +143,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
 
     Map<String, String> propagationMap = span.context().getPropagationTags().createTagMap();
     String ksr = propagationMap.get("_dd.p.ksr");
-
+    // When falling back to agent sampler, ksr should still be set (agent rate = 1.0 by default)
     assertEquals("1", ksr);
     assertEquals(SAMPLER_KEEP, (int) span.getSamplingPriority());
     tracer.close();

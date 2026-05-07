@@ -123,6 +123,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span.finish();
     long total = System.nanoTime() - start;
 
+    // Generous 5 seconds to execute this test
     assertTrue(
         Math.abs(
                 TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
@@ -140,8 +141,9 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     DDSpan span = (DDSpan) tracer.buildSpan("test").start();
     long between = System.nanoTime();
     long betweenDur = System.nanoTime() - between;
-
+    // calling publish before phasedFinish
     span.publish();
+    // has no effect
     assertEquals(0, span.getDurationNano());
     assertEquals(1, pendingReferenceCount(span));
     assertEquals(0, writer.size());
@@ -153,9 +155,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertEquals(1, pendingReferenceCount(span));
     assertTrue(spans(span).isEmpty());
     assertTrue(writer.isEmpty());
-
+    // duration is recorded as negative to allow publishing
     assertTrue(span.getDurationNano() < 0);
     long actualDurationNano = span.getDurationNano() & Long.MAX_VALUE;
+    // Generous 5 seconds to execute this test
     assertTrue(
         Math.abs(
                 TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
@@ -163,22 +166,25 @@ public class DDSpanTest extends DDCoreJavaSpecification {
             < 5);
     assertTrue(actualDurationNano > betweenDur);
     assertTrue(actualDurationNano < total);
-    assertTrue(actualDurationNano % mod > 0);
-
+    assertTrue(actualDurationNano % mod > 0); // Very slim chance of a false negative.
+    // extra finishes
     finish = span.phasedFinish();
-    span.finish();
+    // have no effect
+    span.finish(); // verify conflicting finishes are ignored
     assertFalse(finish);
     assertEquals(1, pendingReferenceCount(span));
     assertTrue(spans(span).isEmpty());
     assertTrue(writer.isEmpty());
 
     span.publish();
+    // duration is flipped to positive
     assertTrue(span.getDurationNano() > 0);
     assertEquals(actualDurationNano, span.getDurationNano());
     assertEquals(0, pendingReferenceCount(span));
     assertEquals(1, writer.size());
-
+    // duplicate call to publish"
     span.publish();
+    // has no effect
     assertEquals(0, pendingReferenceCount(span));
     assertEquals(1, writer.size());
   }
@@ -198,6 +204,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span.finish();
     long total = Math.max(1, System.currentTimeMillis() - start);
 
+    // Generous 5 seconds to execute this test
     assertTrue(
         Math.abs(
                 TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
@@ -218,6 +225,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span.finish(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis() + 1));
     long total = System.currentTimeMillis() - start + 1;
 
+    // Generous 5 seconds to execute this test
     assertTrue(
         Math.abs(
                 TimeUnit.NANOSECONDS.toSeconds(span.getStartTime())
@@ -225,12 +233,14 @@ public class DDSpanTest extends DDCoreJavaSpecification {
             < 5);
     assertTrue(span.getDurationNano() >= TimeUnit.MILLISECONDS.toNanos(betweenDur));
     assertTrue(span.getDurationNano() <= TimeUnit.MILLISECONDS.toNanos(total));
+    // true span duration can be <1ms if clock was about to tick over, so allow for that
     assertTrue(span.getDurationNano() % mod == 0 || span.getDurationNano() == 1);
   }
 
   @Test
   void stoppingWithTimestampBeforeStartTimeYieldsMinDurationOfOne() {
     DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    // remove tick precision part of our internal time to match previous test condition
     span.finish(
         TimeUnit.MILLISECONDS.toMicros(TimeUnit.NANOSECONDS.toMillis(span.getStartTimeNano()))
             - 10);
@@ -284,10 +294,12 @@ public class DDSpanTest extends DDCoreJavaSpecification {
         (DDSpanContext) tracer.buildSpan("testChild1").asChildOf(parent).start().context();
 
     assertEquals("some-origin", parent.getOrigin().toString());
+    // Access field directly instead of getter.
     Field originField = DDSpanContext.class.getDeclaredField("origin");
     originField.setAccessible(true);
     assertEquals("some-origin", originField.get(parent).toString());
     assertEquals("some-origin", child.getOrigin().toString());
+    // Access field directly instead of getter.
     assertNull(originField.get(child));
   }
 
@@ -343,6 +355,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
     assertEquals(root, root.getLocalRootSpan());
     assertEquals(root, child.getLocalRootSpan());
+    // Checking for backward compatibility method names
     assertEquals(root, root.getRootSpan());
     assertEquals(root, child.getRootSpan());
 
@@ -448,6 +461,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     assertEquals(
         limit == Integer.MAX_VALUE ? null : (double) limit,
         span.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG));
+    // single span sampling should not change the trace sampling priority
     assertEquals(UNSET, span.samplingPriority());
   }
 

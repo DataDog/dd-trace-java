@@ -22,9 +22,8 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -44,11 +43,9 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.junit.utils.tabletest.TableTestTypeConverters;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
@@ -73,16 +70,9 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .build();
   }
 
-  // spotless:off
-  @TableTest({
-      "scenario      | name",
-      "SERVICE_NAME  | " + DDTags.SERVICE_NAME,
-      "RESOURCE_NAME | " + DDTags.RESOURCE_NAME,
-      "SPAN_TYPE     | " + DDTags.SPAN_TYPE,
-      "spme.tag      | some.tag"
-  })
-  //spotless:on
-  void nullValuesForTagsDeleteExistingTags(String scenario, String name) throws Exception {
+  @ParameterizedTest
+  @ValueSource(strings = {DDTags.SERVICE_NAME, DDTags.RESOURCE_NAME, DDTags.SPAN_TYPE, "some.tag"})
+  void nullValuesForTagsDeleteExistingTags(String name) throws Exception {
     AgentSpan span =
         tracer
             .buildSpan("fakeOperation")
@@ -93,19 +83,15 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     DDSpanContext context = (DDSpanContext) span.context();
 
     context.setTag("some.tag", "asdf");
-    context.setTag(name, (String) null);
+    context.setTag(name, null);
     context.setErrorFlag(true, ErrorPriorities.DEFAULT);
     span.finish();
     writer.waitForTraces(1);
 
-    Thread thread = Thread.currentThread();
-    Map<String, Object> expectedTags = new HashMap<>();
-    if (!name.equals("some.tag")) {
+    Map<String, Object> expectedTags = createExpectedTagsFromCurrentThread();
+    if (!"some.tag".equals(name)) {
       expectedTags.put("some.tag", "asdf");
     }
-    expectedTags.put(THREAD_NAME, thread.getName());
-    expectedTags.put(THREAD_ID, thread.getId());
-    expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
 
     assertTagmap(context.getTags(), expectedTags);
     assertEquals("fakeService", context.getServiceName());
@@ -113,15 +99,24 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals("fakeType", context.getSpanType().toString());
   }
 
+  private static Map<String, Object> createExpectedTagsFromCurrentThread() {
+    Thread thread = Thread.currentThread();
+    Map<String, Object> expectedTags = new HashMap<>();
+    expectedTags.put(THREAD_NAME, thread.getName());
+    expectedTags.put(THREAD_ID, thread.getId());
+    expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
+    return expectedTags;
+  }
+
   // spotless:off
   @TableTest({
-    "scenario          | name                          | value              | method       ",
+    "scenario          | name                          | expected              | method       ",
     "SERVICE_NAME tag  | " + DDTags.SERVICE_NAME   + " | different service  | serviceName  ",
     "RESOURCE_NAME tag | " + DDTags.RESOURCE_NAME  + " | different resource | resourceName ",
     "SPAN_TYPE tag     | " + DDTags.SPAN_TYPE      + " | different type     | spanType     "
   })
   //spotless:on
-  void specialTagsSetCertainValues(String scenario, String name, String value, String method)
+  void specialTagsSetCertainValues(String scenario, String name, String expected, String method)
       throws Exception {
     AgentSpan span =
         tracer
@@ -132,40 +127,37 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .start();
     DDSpanContext context = (DDSpanContext) span.context();
 
-    context.setTag(name, value);
+    context.setTag(name, expected);
     span.finish();
     writer.waitForTraces(1);
 
-    Thread thread = Thread.currentThread();
-    Map<String, Object> expectedTags = new HashMap<>();
-    expectedTags.put(THREAD_NAME, thread.getName());
-    expectedTags.put(THREAD_ID, thread.getId());
-    expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
+    Map<String, Object> expectedTags = createExpectedTagsFromCurrentThread();
     assertTagmap(context.getTags(), expectedTags);
 
-    Object actualValue;
+    String value;
     switch (method) {
       case "serviceName":
-        actualValue = context.getServiceName();
+        value = context.getServiceName();
         break;
       case "resourceName":
-        actualValue = context.getResourceName().toString();
+        value = context.getResourceName().toString();
         break;
       case "spanType":
-        actualValue = context.getSpanType().toString();
+        value = context.getSpanType().toString();
         break;
       default:
         throw new IllegalArgumentException("Unknown method: " + method);
     }
-    assertEquals(value, actualValue);
+    assertEquals(expected, value);
   }
 
-  static Stream<Arguments> tagsCanBeAddedToContextArguments() {
-    return Stream.of(
-        arguments("tag.name", "some value"),
-        arguments("tag with int", 1234),
-        arguments("tag-with-bool", false),
-        arguments("tag_with_float", 0.321));
+  static Object[][] tagsCanBeAddedToContextArguments() {
+    return new Object[][] {
+      {"tag.name", "some value"},
+      {"tag with int", 1234},
+      {"tag-with-bool", false},
+      {"tag_with_float", 0.321}
+    };
   }
 
   @ParameterizedTest
@@ -184,13 +176,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     span.finish();
     writer.waitForTraces(1);
 
-    Thread thread = Thread.currentThread();
-    Map<String, Object> expectedTags = new HashMap<>();
+    Map<String, Object> expectedTags = createExpectedTagsFromCurrentThread();
     expectedTags.put(name, value);
-    expectedTags.put(THREAD_NAME, thread.getName());
-    expectedTags.put(THREAD_ID, thread.getId());
-    expectedTags.put(DDTags.DD_SVC_SRC, ServiceNameSources.MANUAL);
-
     assertTagmap(context.getTags(), expectedTags);
   }
 
@@ -212,6 +199,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     "java.lang.Integer | 0x55             "
   })
   void metricsUseExpectedTypes(Class<?> expectedType, Number value) {
+    // floats should be converted to doubles.
     AgentSpan span =
         tracer
             .buildSpan("fakeOperation")
@@ -222,7 +210,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     context.setMetric("test", value);
 
-    assertTrue(expectedType.isInstance(context.getTag("test")));
+    assertInstanceOf(expectedType, context.getTag("test"));
 
     span.finish();
   }
@@ -312,7 +300,6 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .withResourceName("fakeResource")
             .start();
     DDSpanContext context = (DDSpanContext) span.context();
-
     assertEquals(UNSET, context.getSamplingPriority());
 
     context.setSpanSamplingPriority(rate, limit);
@@ -322,7 +309,9 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals(
         limit == Integer.MAX_VALUE ? null : Double.valueOf(limit),
         context.getTag(SPAN_SAMPLING_MAX_PER_SECOND_TAG));
+    // single span sampling should not change the trace sampling priority
     assertEquals(UNSET, context.getSamplingPriority());
+    // make sure the `_dd.p.dm` tag has not been set by single span sampling
     assertFalse(context.getPropagationTags().createTagMap().containsKey("_dd.p.dm"));
 
     span.finish();
@@ -397,6 +386,9 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     DDSpanContext context = (DDSpanContext) span.context();
 
+    // even though span ID and parent ID are setup as negative numbers, they should be printed as
+    // their unsigned value
+    // asserting there is no negative sign after ids is the best I can do.
     assertFalse(context.toString().contains("id=-"));
 
     span.finish();
@@ -418,8 +410,10 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void spanKindOrdinalConstantsAndSpanKindValuesArrayStayInSync() {
+    // SPAN_KIND_VALUES array covers all ordinals
     assertEquals(DDSpanContext.SPAN_KIND_CUSTOM + 1, SPAN_KIND_VALUES.length);
 
+    // each known ordinal maps to the correct Tags constant"
     assertEquals(Tags.SPAN_KIND_SERVER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_SERVER]);
     assertEquals(Tags.SPAN_KIND_CLIENT, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CLIENT]);
     assertEquals(Tags.SPAN_KIND_PRODUCER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_PRODUCER]);
@@ -427,6 +421,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals(Tags.SPAN_KIND_INTERNAL, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_INTERNAL]);
     assertEquals(Tags.SPAN_KIND_BROKER, SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_BROKER]);
 
+    // UNSET and CUSTOM map to null
     assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_UNSET]);
     assertNull(SPAN_KIND_VALUES[DDSpanContext.SPAN_KIND_CUSTOM]);
   }
