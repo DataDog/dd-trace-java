@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -173,16 +172,9 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
         Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
         Flow.Action action = flow.getAction();
         if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (GlassFishBlockingHelper.tryBlock(
+              reqCtx, fallbackReq, fallbackResp, (Flow.Action.RequestBlockingAction) action)) {
             parts = Collections.emptyList();
-            reqCtx.getTraceSegment().effectivelyBlocked();
-            blocked = true;
-          } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
-            parts = Collections.emptyList();
-            reqCtx.getTraceSegment().effectivelyBlocked();
             blocked = true;
           }
         }
@@ -192,15 +184,12 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
         Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
         Flow.Action contentAction = contentFlow.getAction();
         if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) contentAction;
-          BlockResponseFunction brf = reqCtx.getBlockResponseFunction();
-          if (brf != null) {
-            brf.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
+          if (GlassFishBlockingHelper.tryBlock(
+              reqCtx,
+              fallbackReq,
+              fallbackResp,
+              (Flow.Action.RequestBlockingAction) contentAction)) {
             parts = Collections.emptyList();
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          } else if (GlassFishBlockingHelper.commitBlocking(fallbackReq, fallbackResp, rba)) {
-            parts = Collections.emptyList();
-            reqCtx.getTraceSegment().effectivelyBlocked();
           }
         }
       }
