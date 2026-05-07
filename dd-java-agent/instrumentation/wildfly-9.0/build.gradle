@@ -1,6 +1,13 @@
 repositories {
   maven {
     url = 'https://maven.repository.redhat.com/ga/'
+    // Restrict this repository to Red Hat / WildFly / JBoss artifacts only.
+    // Without this filter, Gradle may probe this host for unrelated dependencies
+    // (for example JUnit), which makes the build flaky when the host is unreachable.
+    content {
+      includeGroupAndSubgroups 'org.wildfly'
+      includeGroupAndSubgroups 'org.jboss'
+    }
   }
 }
 
