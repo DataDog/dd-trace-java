@@ -72,6 +72,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       "moduleName",
       "suiteName",
       "",
+      false,
       MyClass,
       null,
       false,

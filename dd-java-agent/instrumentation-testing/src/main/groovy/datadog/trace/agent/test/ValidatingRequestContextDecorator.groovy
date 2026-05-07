@@ -4,6 +4,7 @@ import datadog.trace.api.gateway.BlockResponseFunction
 import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 
 import java.util.function.Function
 
@@ -54,6 +55,16 @@ class ValidatingRequestContextDecorator implements RequestContext {
   @Override
   <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
     return delegate.getOrCreateMetaStructTop(key, defaultValue)
+  }
+
+  @Override
+  void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {
+    delegate.setClientIpAddressData(clientIpAddressData)
+  }
+
+  @Override
+  ClientIpAddressData getClientIpAddressData() {
+    return delegate.getClientIpAddressData()
   }
 
   @Override

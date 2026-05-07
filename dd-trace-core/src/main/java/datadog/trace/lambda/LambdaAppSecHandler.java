@@ -17,6 +17,7 @@ import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
@@ -799,6 +800,16 @@ public class LambdaAppSecHandler {
 
     @Override
     public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null;
+    }
+
+    @Override
+    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {
+      // No-op for temporary context
+    }
+
+    @Override
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 
