@@ -5,7 +5,16 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
+import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import datadog.trace.instrumentation.locksupport.LockSupportProfilingInstrumentation.ParkState;
 import datadog.trace.instrumentation.locksupport.LockSupportProfilingInstrumentation.State;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
@@ -21,6 +30,11 @@ import org.junit.jupiter.api.Test;
  * communicate the unblocking span ID from {@code UnparkAdvice} to {@code ParkAdvice}.
  */
 class LockSupportProfilingInstrumentationTest {
+
+  private static final long SPAN_ID = 1234L;
+  private static final long ROOT_SPAN_ID = 5678L;
+
+  private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
 
   @BeforeEach
   void clearState() {
@@ -149,6 +163,66 @@ class LockSupportProfilingInstrumentationTest {
   void parkAdvice_after_null_state_isNoOp() {
     LockSupportProfilingInstrumentation.ParkAdvice.after(null);
     assertTrue(State.UNPARKING_SPAN.isEmpty());
+  }
+
+  @Test
+  void parkAdvice_captureState_nullProfiling_returnsNull() {
+    AgentSpan span = mock(AgentSpan.class);
+
+    assertNull(
+        LockSupportProfilingInstrumentation.ParkAdvice.captureState(new Object(), null, span));
+  }
+
+  @Test
+  void parkAdvice_captureState_spanless_callsParkEnterWithZeroIds() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+
+    ParkState state =
+        LockSupportProfilingInstrumentation.ParkAdvice.captureState(new Object(), profiling, null);
+
+    assertNotNull(state);
+    assertEquals(0L, state.spanId);
+    assertEquals(0L, state.rootSpanId);
+    verify(profiling).parkEnter(0L, 0L);
+  }
+
+  @Test
+  void parkAdvice_captureState_activeSpan_callsParkEnterWithSpanIds() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    AgentSpan span = mock(AgentSpan.class);
+    ProfilerSpanContext context = mock(ProfilerSpanContext.class);
+    Object blocker = new Object();
+    when(span.context()).thenReturn(context);
+    when(context.getSpanId()).thenReturn(SPAN_ID);
+    when(context.getRootSpanId()).thenReturn(ROOT_SPAN_ID);
+
+    ParkState state =
+        LockSupportProfilingInstrumentation.ParkAdvice.captureState(blocker, profiling, span);
+
+    assertNotNull(state);
+    assertEquals(System.identityHashCode(blocker), state.blockerHash);
+    assertEquals(SPAN_ID, state.spanId);
+    assertEquals(ROOT_SPAN_ID, state.rootSpanId);
+    verify(profiling).parkEnter(SPAN_ID, ROOT_SPAN_ID);
+  }
+
+  @Test
+  void parkAdvice_finish_callsOriginalProfilingContext() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    ParkState state = new ParkState(profiling, 42L, SPAN_ID, ROOT_SPAN_ID);
+
+    LockSupportProfilingInstrumentation.ParkAdvice.finish(state, 99L);
+
+    verify(profiling).parkExit(42L, 99L);
+  }
+
+  @Test
+  void parkAdvice_finish_nullState_doesNotTouchProfiling() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+
+    LockSupportProfilingInstrumentation.ParkAdvice.finish(null, 99L);
+
+    verifyNoInteractions(profiling);
   }
 
   /**

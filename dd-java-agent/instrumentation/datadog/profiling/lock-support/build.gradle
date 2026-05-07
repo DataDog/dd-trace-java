@@ -8,4 +8,5 @@ muzzle {
 
 dependencies {
   testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }

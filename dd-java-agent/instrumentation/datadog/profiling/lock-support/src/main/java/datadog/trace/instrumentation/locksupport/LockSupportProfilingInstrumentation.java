@@ -18,12 +18,13 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.matcher.ElementMatchers;
 
 /**
- * Instruments {@link java.util.concurrent.locks.LockSupport#park} variants to emit {@code
- * datadog.TaskBlock} JFR events. These events record the span, root-span, and duration of every
- * blocking interval, enabling critical-path analysis across async handoffs.
+ * Instruments {@link java.util.concurrent.locks.LockSupport#park} variants as the Java entry point
+ * for native parked-state tracking. The native profiler uses this state to suppress wall-clock
+ * signals while the thread is parked and, when the interval belongs to an active span, to emit a
+ * replacement {@code datadog.TaskBlock} event on {@code parkExit}.
  *
  * <p>Also instruments {@link java.util.concurrent.locks.LockSupport#unpark} to capture the span ID
- * of the unblocking thread, which is then recorded in the TaskBlock event.
+ * of the unblocking thread, which is then recorded in the native TaskBlock event.
  *
  * <p>{@code parkEnter} runs even without an active span (span id 0) so the native wall-clock
  * precheck can suppress {@code SIGVTALRM} for the whole park interval. TaskBlock JFR emission is
@@ -44,8 +45,13 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public String[] muzzleIgnoredClassNames() {
-    // Advice references this nested holder; it lives on the instrumentation classpath only.
-    return new String[] {getClass().getName() + "$State"};
+    // Static helpers on the advice class produce intra-class references that core-JDK muzzle
+    // cannot resolve against an empty application classpath.
+    return new String[] {
+      getClass().getName() + "$ParkAdvice",
+      getClass().getName() + "$State",
+      getClass().getName() + "$ParkState"
+    };
   }
 
   @Override
@@ -70,21 +76,39 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
     public static final ConcurrentHashMap<Thread, Long> UNPARKING_SPAN = new ConcurrentHashMap<>();
   }
 
+  static final class ParkState {
+    final ProfilingContextIntegration profiling;
+    final long blockerHash;
+    final long spanId;
+    final long rootSpanId;
+
+    ParkState(
+        ProfilingContextIntegration profiling, long blockerHash, long spanId, long rootSpanId) {
+      this.profiling = profiling;
+      this.blockerHash = blockerHash;
+      this.spanId = spanId;
+      this.rootSpanId = rootSpanId;
+    }
+  }
+
   public static final class ParkAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static long[] before(@Advice.Argument(value = 0, optional = true) Object blocker) {
-      ProfilingContextIntegration profiling = AgentTracer.get().getProfilingContext();
+    public static ParkState before(@Advice.Argument(value = 0, optional = true) Object blocker) {
+      return captureState(
+          blocker, AgentTracer.get().getProfilingContext(), AgentTracer.activeSpan());
+    }
+
+    static ParkState captureState(
+        Object blocker, ProfilingContextIntegration profiling, AgentSpan span) {
       if (profiling == null) {
         return null;
       }
       // Always call parkEnter for signal suppression, even without an active span.
-      // spanId/rootSpanId = 0 when no active span — no JFR event will be emitted at exit for
-      // zero-span intervals (the native code filters those out by duration threshold and span
-      // check).
+      // spanId/rootSpanId = 0 when no active span, and native TaskBlock eligibility filters out
+      // zero-span intervals at exit.
       long spanId = 0L;
       long rootSpanId = 0L;
-      AgentSpan span = AgentTracer.activeSpan();
       if (span != null && span.context() instanceof ProfilerContext) {
         ProfilerContext ctx = (ProfilerContext) span.context();
         spanId = ctx.getSpanId();
@@ -92,23 +116,25 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       }
       profiling.parkEnter(spanId, rootSpanId);
       long blockerHash = blocker != null ? System.identityHashCode(blocker) : 0L;
-      return new long[] {blockerHash, spanId, rootSpanId};
+      return new ParkState(profiling, blockerHash, spanId, rootSpanId);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void after(@Advice.Enter long[] state) {
+    public static void after(@Advice.Enter ParkState state) {
       // Always drain the map entry before any early return. If we returned first, a stale
       // unblocking-span ID placed by a prior unpark() would persist and be incorrectly
       // attributed to the next TaskBlock event emitted on this thread.
       Long unblockingSpanId = State.UNPARKING_SPAN.remove(Thread.currentThread());
+      finish(state, unblockingSpanId != null ? unblockingSpanId : 0L);
+    }
+
+    static void finish(ParkState state, long unblockingSpanId) {
       if (state == null) {
         return;
       }
-      // state = [blockerHash, spanId, rootSpanId] — set in before().
-      // parkExit() records the TaskBlock JFR event using the start tick saved by parkEnter().
-      AgentTracer.get()
-          .getProfilingContext()
-          .parkExit(state[0], unblockingSpanId != null ? unblockingSpanId : 0L);
+      // parkExit() clears native parked state and records an eligible TaskBlock using the entry
+      // tick saved by parkEnter().
+      state.profiling.parkExit(state.blockerHash, unblockingSpanId);
     }
   }
 
