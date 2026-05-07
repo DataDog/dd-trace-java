@@ -41,6 +41,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final String moduleName;
   private final String testSuiteName;
   private final String itrCorrelationId;
+  private final boolean testSkippingEnabled;
   private final Class<?> testClass;
   private final InstrumentationType instrumentationType;
   private final TestFrameworkInstrumentation instrumentation;
@@ -63,6 +64,7 @@ public class TestSuiteImpl implements DDTestSuite {
       String moduleName,
       String testSuiteName,
       String itrCorrelationId,
+      boolean testSkippingEnabled,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized,
@@ -83,6 +85,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
     this.itrCorrelationId = itrCorrelationId;
+    this.testSkippingEnabled = testSkippingEnabled;
     this.parallelized = parallelized;
     this.instrumentationType = instrumentationType;
     this.instrumentation = instrumentation;
@@ -133,6 +136,10 @@ public class TestSuiteImpl implements DDTestSuite {
     }
 
     testDecorator.afterStart(span);
+
+    if (testSkippingEnabled) {
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
+    }
 
     configurationErrors.applyTags(span);
 
@@ -252,6 +259,7 @@ public class TestSuiteImpl implements DDTestSuite {
         testName,
         testParameters,
         itrCorrelationId,
+        testSkippingEnabled,
         startTime,
         testClass,
         testMethod,
