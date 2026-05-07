@@ -11,6 +11,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
+import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapExtractAdapter.GETTER;
 import static datadog.trace.instrumentation.kafka_clients38.TextMapInjectAdapter.SETTER;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
@@ -100,16 +101,17 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
               extractContextAndGetSpanContext(val.headers(), GETTER);
           long timeInQueueStart = GETTER.extractTimeInQueueStart(val.headers());
           if (timeInQueueStart == 0 || !KafkaDecorator.TIME_IN_QUEUE_ENABLED) {
-            span = startSpan(operationName, spanContext);
+            span = startSpan(JAVA_KAFKA.toString(), operationName, spanContext);
           } else {
             queueSpan =
                 startSpan(
+                    JAVA_KAFKA.toString(),
                     KafkaDecorator.KAFKA_DELIVER,
                     spanContext,
                     MILLISECONDS.toMicros(timeInQueueStart));
             KafkaDecorator.BROKER_DECORATE.afterStart(queueSpan);
             KafkaDecorator.BROKER_DECORATE.onTimeInQueue(queueSpan, val);
-            span = startSpan(operationName, queueSpan.context());
+            span = startSpan(JAVA_KAFKA.toString(), operationName, queueSpan.context());
             KafkaDecorator.BROKER_DECORATE.beforeFinish(queueSpan);
             // The queueSpan will be finished after inner span has been activated to ensure that
             // spans are written out together by TraceStructureWriter when running in strict mode
@@ -135,7 +137,7 @@ public class TracingIterator implements Iterator<ConsumerRecord<?, ?>> {
             }
           }
         } else {
-          span = startSpan(operationName, null);
+          span = startSpan(JAVA_KAFKA.toString(), operationName, null);
         }
         if (val.value() == null) {
           span.setTag(InstrumentationTags.TOMBSTONE, true);

@@ -16,7 +16,7 @@ public final class Descendant implements Runnable {
 
   @Override
   public void run() {
-    AgentSpan span = startSpan(parent + "-child");
+    AgentSpan span = startSpan("test", parent + "-child");
     try (AgentScope scope = activateSpan(span)) {
 
     } finally {

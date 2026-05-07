@@ -83,7 +83,7 @@ class AxisTransportForkedTest extends InstrumentationSpecification {
     message1.setProperty("TRANSPORT_HEADERS", ["foo":"bar"] as HashMap)
     def message2 = testMessage()
     // no action, expect span to use testDestination
-    AgentSpan span0 = startSpan('test')
+    AgentSpan span0 = startSpan('test', 'test')
     span0.setServiceName('testSpan')
     activateSpan(span0).withCloseable {
       AxisEngine.send(message1)

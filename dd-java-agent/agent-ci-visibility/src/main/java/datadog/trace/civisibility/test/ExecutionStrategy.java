@@ -127,8 +127,7 @@ public class ExecutionStrategy {
 
     if (isAttemptToFix(test)) {
       return new AttemptToFix(
-          executionSettings.getTestManagementSettings().getAttemptToFixRetries(),
-          isQuarantined(test) || isDisabled(test));
+          executionSettings.getTestManagementSettings().getAttemptToFixRetries());
     }
 
     if (isEFDApplicable(test, testSource, testTags)) {

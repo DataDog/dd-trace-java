@@ -2,12 +2,20 @@ package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
 import static com.datadog.debugger.agent.DebuggerProductChangesListener.LOG_PROBE_PREFIX;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeLogProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeLogProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeSpanDecorationProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeTriggerProbe;
 import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -23,12 +31,19 @@ import com.datadog.debugger.probe.MetricProbe;
 import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.DebuggerSink;
 import com.datadog.debugger.sink.ProbeStatusSink;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.Config;
+import datadog.trace.bootstrap.debugger.CapturedContext;
+import datadog.trace.bootstrap.debugger.EvaluationError;
+import datadog.trace.bootstrap.debugger.MethodLocation;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.IOException;
 import java.lang.instrument.Instrumentation;
 import java.lang.instrument.UnmodifiableClassException;
@@ -707,6 +722,100 @@ public class ConfigurationUpdaterTest {
         singletonList(LogProbe.builder().probeId(PROBE_ID).where(CLASS_NAME, "parse").build()));
     verify(inst).getAllLoadedClasses();
     verify(inst, times(0)).retransformClasses(any());
+  }
+
+  @Test
+  public void logProbeSamplers() throws IOException {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    LogProbe probe1 =
+        LogProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build();
+    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+    assertTrue(probe1.isReadyToCapture());
+
+    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+    // LogProbe objects.
+    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+    LogProbe probe1Deserialized = deserializeLogProbe(serializeLogProbe(probe1).getBytes());
+    LogProbe probe2 =
+        LogProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build();
+    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+    assertTrue(probe1Deserialized.isReadyToCapture());
+    assertTrue(probe2.isReadyToCapture());
+  }
+
+  @Test
+  public void spanDecorationProbeSamplers() throws IOException {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    SpanDecorationProbe probe1 =
+        SpanDecorationProbe.builder()
+            .probeId(PROBE_ID)
+            .where("java.lang.String", "concat")
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+
+    assertCommitSpanDecorationProbe(probe1);
+
+    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+    // SpanDecorationProbe objects.
+    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+    SpanDecorationProbe probe1Deserialized =
+        deserializeSpanDecorationProbe(serializeSpanDecorationProbe(probe1).getBytes());
+    SpanDecorationProbe probe2 =
+        SpanDecorationProbe.builder()
+            .probeId(PROBE_ID2)
+            .where("java.lang.String", "concat")
+            .evaluateAt(MethodLocation.EXIT)
+            .build();
+    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+    assertCommitSpanDecorationProbe(probe1Deserialized);
+    assertCommitSpanDecorationProbe(probe2);
+  }
+
+  private static void assertCommitSpanDecorationProbe(SpanDecorationProbe spanDecorationProbe) {
+    DebuggerSink sinkMock = mock(DebuggerSink.class);
+    DebuggerAgent.initSink(sinkMock);
+    CapturedContext capturedContext = mock(CapturedContext.class);
+    CapturedContext.Status status = spanDecorationProbe.createStatus();
+    status.addError(new EvaluationError(null, null));
+    when(capturedContext.getStatus(anyString())).thenReturn(status);
+    spanDecorationProbe.commit(null, capturedContext, null);
+    verify(sinkMock).addSnapshot(any());
+  }
+
+  @Test
+  public void triggerProbeSamplers() throws IOException {
+    when(inst.getAllLoadedClasses()).thenReturn(new Class[] {String.class});
+    ConfigurationUpdater configurationUpdater = createConfigUpdater(debuggerSinkWithMockStatusSink);
+    TriggerProbe probe1 =
+        TriggerProbe.builder().probeId(PROBE_ID).where("java.lang.String", "concat").build();
+    configurationUpdater.accept(REMOTE_CONFIG, singletonList(probe1));
+
+    assertEvaluateTriggerProbe(probe1);
+
+    // Simulate JSON round-trip: in production, each remote config delivery deserializes fresh
+    // LogProbe objects.
+    // Moshi skips transient fields, so sampler need to be initialized with initSamplers.
+    TriggerProbe probe1Deserialized =
+        deserializeTriggerProbe(serializeTriggerProbe(probe1).getBytes());
+    TriggerProbe probe2 =
+        TriggerProbe.builder().probeId(PROBE_ID2).where("java.lang.String", "concat").build();
+    configurationUpdater.accept(REMOTE_CONFIG, Arrays.asList(probe1Deserialized, probe2));
+    assertEvaluateTriggerProbe(probe1Deserialized);
+    assertEvaluateTriggerProbe(probe2);
+  }
+
+  private static void assertEvaluateTriggerProbe(TriggerProbe triggerProbe) {
+    AgentTracer.TracerAPI tracerAPIMock = mock(AgentTracer.TracerAPI.class);
+    AgentSpan spanMock = mock(AgentSpan.class);
+    when(tracerAPIMock.activeSpan()).thenReturn(spanMock);
+    when(spanMock.getLocalRootSpan()).thenReturn(spanMock);
+    AgentTracer.forceRegister(tracerAPIMock);
+    triggerProbe.evaluate(
+        new CapturedContext(), triggerProbe.createStatus(), MethodLocation.ENTRY, true);
+    verify(spanMock).setTag(eq(Tags.PROPAGATED_DEBUG), anyString());
   }
 
   private DebuggerTransformer createTransformer(

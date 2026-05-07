@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.sp
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_DISPATCH_SPAN_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator.DECORATE;
+import static datadog.trace.instrumentation.servlet3.AsyncDispatcherDecorator.JAVA_WEB_SERVLET_DISPATCHER;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_CONTEXT_PATH_ATTRIBUTE;
 import static datadog.trace.instrumentation.servlet3.Servlet3Decorator.DD_SERVLET_PATH_ATTRIBUTE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -96,7 +97,8 @@ public final class AsyncContextInstrumentation extends InstrumenterModule.Tracin
         return true;
       }
 
-      final AgentSpan span = startSpan(SERVLET_DISPATCH, parent.context());
+      final AgentSpan span =
+          startSpan(JAVA_WEB_SERVLET_DISPATCHER.toString(), SERVLET_DISPATCH, parent.context());
       // This span should get finished by Servlet3Advice
       // However, when using Jetty without servlets (directly org.eclipse.jetty.server.Handler),
       // that's not the case (see jetty's HandleAdvice)
