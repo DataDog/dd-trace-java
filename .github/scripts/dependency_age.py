@@ -248,15 +248,24 @@ def load_maven_documents(
 
 # parse a version string into a tuple of ints for numeric comparison (e.g. "3.9.11" → (3, 9, 11))
 def _version_sort_key(version: str) -> tuple:
-    parts = []
+    segments = []
     for segment in re.split(r"([.\-])", version):
         if segment in {"", ".", "-"}:
             continue
         try:
-            parts.append((0, int(segment)))
+            segments.append((0, int(segment)))
         except ValueError:
-            parts.append((1, segment))
-    return tuple(parts)
+            segments.append((1, segment))
+
+    release = []
+    prerelease = []
+    for i, seg in enumerate(segments):
+        if seg[0] == 1:  # first string segment starts the prerelease part
+            prerelease = segments[i:]
+            break
+        release.append(seg)
+
+    return (tuple(release), not bool(prerelease), tuple(prerelease))
 
 
 # emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven

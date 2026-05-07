@@ -123,6 +123,33 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["published_at"], "2026-04-22")
 
 
+    def test_ga_version_overrides_current_prerelease(self) -> None:
+        result = self.run_script(
+            "select-maven",
+            "--now",
+            NOW,
+            "--group-id",
+            "org.apache.maven",
+            "--artifact-id",
+            "apache-maven",
+            "--search-response-file",
+            str(FIXTURES / "maven-ga-replaces-beta.json"),
+            "--prerelease-pattern",
+            "alpha",
+            "--prerelease-pattern",
+            "beta",
+            "--prerelease-pattern",
+            "rc",
+            "--current-version",
+            "4.0.0-beta-3",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        outputs = self.parse_outputs(result.stdout)
+        self.assertEqual(outputs["found"], "true")
+        self.assertEqual(outputs["version"], "4.0.0")
+        self.assertEqual(outputs["published_at"], "2026-04-20")
+
     def test_keeps_current_version_when_higher_than_eligible(self) -> None:
         result = self.run_script(
             "select-maven",
