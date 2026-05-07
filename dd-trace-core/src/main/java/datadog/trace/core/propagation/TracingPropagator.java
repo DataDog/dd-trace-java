@@ -15,7 +15,6 @@ import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.HttpCodec.Extractor;
 import datadog.trace.core.propagation.HttpCodec.Injector;
-import javax.annotation.Nullable;
 import javax.annotation.ParametersAreNonnullByDefault;
 
 /** Propagator for tracing concern. */
@@ -24,7 +23,6 @@ public class TracingPropagator implements Propagator {
   private final boolean enabled;
   private final Injector injector;
   private final Extractor extractor;
-  private final OrgGuardEnforcer orgGuardEnforcer;
 
   /**
    * Constructor.
@@ -34,27 +32,9 @@ public class TracingPropagator implements Propagator {
    * @param extractor The {@link Extractor} used for tracing context extraction.
    */
   public TracingPropagator(boolean enabled, Injector injector, Extractor extractor) {
-    this(enabled, injector, extractor, null);
-  }
-
-  /**
-   * Constructor with Org Propagation Guard enforcement.
-   *
-   * @param enabled Whether APM tracing is enabled.
-   * @param injector The {@link Injector} used for tracing context injection.
-   * @param extractor The {@link Extractor} used for tracing context extraction.
-   * @param orgGuardEnforcer Optional enforcer applied to the extracted context. May be {@code null}
-   *     for no enforcement.
-   */
-  public TracingPropagator(
-      boolean enabled,
-      Injector injector,
-      Extractor extractor,
-      @Nullable OrgGuardEnforcer orgGuardEnforcer) {
     this.enabled = enabled;
     this.injector = injector;
     this.extractor = extractor;
-    this.orgGuardEnforcer = orgGuardEnforcer;
   }
 
   @Override
@@ -86,9 +66,6 @@ public class TracingPropagator implements Propagator {
       return context;
     }
     TagContext spanContext = this.extractor.extract(carrier, toContextVisitor(visitor));
-    if (this.orgGuardEnforcer != null) {
-      spanContext = this.orgGuardEnforcer.maybeStrip(spanContext);
-    }
     // If the extraction fails, return the original context
     if (spanContext == null) {
       return context;

@@ -1,7 +1,8 @@
-package datadog.trace.core.propagation;
+package datadog.trace.core.propagation.opg;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.HttpCodec;
 import java.util.function.Supplier;
 
 /**
@@ -13,12 +14,12 @@ import java.util.function.Supplier;
  * <p>If the supplier returns {@code null} (the agent hasn't reported an OPM yet), this is a no-op
  * and any inbound OPM is forwarded as-is, per the RFC.
  */
-public final class OpmStampingInjector implements HttpCodec.Injector {
+final class OpmStampingInjector implements HttpCodec.Injector {
 
   private final HttpCodec.Injector delegate;
   private final Supplier<String> localOpmSupplier;
 
-  public OpmStampingInjector(HttpCodec.Injector delegate, Supplier<String> localOpmSupplier) {
+  OpmStampingInjector(HttpCodec.Injector delegate, Supplier<String> localOpmSupplier) {
     this.delegate = delegate;
     this.localOpmSupplier = localOpmSupplier;
   }

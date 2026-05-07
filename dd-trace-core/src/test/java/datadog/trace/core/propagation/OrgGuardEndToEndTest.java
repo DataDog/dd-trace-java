@@ -21,6 +21,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.TraceCollector;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.Collections;
 import java.util.EnumSet;
 import java.util.HashMap;
@@ -160,15 +161,17 @@ class OrgGuardEndToEndTest {
     when(config.getBaggageMapping()).thenReturn(Collections.emptyMap());
     when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(false);
     when(config.isApmTracingEnabled()).thenReturn(true);
+    when(config.isTraceOrgGuardEnabled()).thenReturn(enabled);
+    when(config.isTraceOrgGuardStrict()).thenReturn(strict);
+    when(config.getTraceOrgGuardTrustedOpms()).thenReturn(trusted);
 
     HttpCodec.Extractor extractor = HttpCodec.createExtractor(config, traceConfigSupplier);
     HttpCodec.Injector injector =
         HttpCodec.createInjector(
             config, config.getTracePropagationStylesToInject(), Collections.emptyMap());
-    HttpCodec.Injector wrapped = new OpmStampingInjector(injector, localOpmSupplier);
-    OrgGuardEnforcer enforcer =
-        new OrgGuardEnforcer(enabled, strict, trusted, localOpmSupplier, factory, healthMetrics);
-    return new TracingPropagator(true, wrapped, extractor, enforcer);
+    OrgGuard orgGuard = OrgGuard.create(config, localOpmSupplier, factory, healthMetrics);
+    return new TracingPropagator(
+        true, orgGuard.decorateInjector(injector), orgGuard.decorateExtractor(extractor));
   }
 
   /**

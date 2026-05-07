@@ -2,6 +2,7 @@ package datadog.trace.core.monitor;
 
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.List;
 
 /**
@@ -67,10 +68,9 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   /**
    * Reports that the Org Propagation Guard dropped the inbound Datadog context for an extracted
-   * trace. {@code reason} is one of {@code "mismatch"} (inbound and local OPMs differ) or {@code
-   * "strict_missing"} (strict mode + inbound OPM absent).
+   * trace.
    */
-  public void onOrgGuardEnforce(final String reason) {}
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {}
 
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}

@@ -1,4 +1,4 @@
-package datadog.trace.core.propagation;
+package datadog.trace.core.propagation.opg;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
@@ -8,6 +8,8 @@ import static org.mockito.Mockito.when;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.HttpCodec;
+import datadog.trace.core.propagation.PropagationTags;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;

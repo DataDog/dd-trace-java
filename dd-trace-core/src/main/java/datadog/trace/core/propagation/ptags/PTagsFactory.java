@@ -50,7 +50,7 @@ public class PTagsFactory implements PropagationTags.Factory {
 
   @Override
   public final PropagationTags empty() {
-    return createValid(null, null, null, ProductTraceSource.UNSET);
+    return createValid(null, null, null, ProductTraceSource.UNSET, null);
   }
 
   @Override
@@ -64,14 +64,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       return empty();
     }
     return W3CPTagsCodec.empty(this, originalTracestate);
-  }
-
-  PropagationTags createValid(
-      List<TagElement> tagPairs,
-      TagValue decisionMakerTagValue,
-      TagValue traceIdTagValue,
-      int productTraceSource) {
-    return createValid(tagPairs, decisionMakerTagValue, traceIdTagValue, productTraceSource, null);
   }
 
   PropagationTags createValid(
@@ -160,15 +152,6 @@ public class PTagsFactory implements PropagationTags.Factory {
      */
     private volatile CharSequence lastParentId;
 
-    public PTags(
-        PTagsFactory factory,
-        List<TagElement> tagPairs,
-        TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue,
-        int traceSource) {
-      this(factory, tagPairs, decisionMakerTagValue, traceIdTagValue, traceSource, null);
-    }
-
     PTags(
         PTagsFactory factory,
         List<TagElement> tagPairs,
@@ -186,27 +169,6 @@ public class PTagsFactory implements PropagationTags.Factory {
           null,
           null,
           orgPropagationMarkerTagValue);
-    }
-
-    PTags(
-        PTagsFactory factory,
-        List<TagElement> tagPairs,
-        TagValue decisionMakerTagValue,
-        TagValue traceIdTagValue,
-        int traceSource,
-        int samplingPriority,
-        CharSequence origin,
-        CharSequence lastParentId) {
-      this(
-          factory,
-          tagPairs,
-          decisionMakerTagValue,
-          traceIdTagValue,
-          traceSource,
-          samplingPriority,
-          origin,
-          lastParentId,
-          null);
     }
 
     PTags(
