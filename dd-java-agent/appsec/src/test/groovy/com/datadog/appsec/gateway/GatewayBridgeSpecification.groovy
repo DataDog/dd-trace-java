@@ -84,7 +84,7 @@ class GatewayBridgeSpecification extends DDSpecification {
     void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
 
     @Override
-    ClientIpAddressData getAndResetClientIpAddressData() {
+    ClientIpAddressData getClientIpAddressData() {
       return null
     }
 
@@ -1266,7 +1266,7 @@ class GatewayBridgeSpecification extends DDSpecification {
       void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
 
       @Override
-      ClientIpAddressData getAndResetClientIpAddressData() {
+      ClientIpAddressData getClientIpAddressData() {
         return null
       }
 

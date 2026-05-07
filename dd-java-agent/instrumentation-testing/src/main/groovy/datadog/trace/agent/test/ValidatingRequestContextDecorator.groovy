@@ -63,8 +63,8 @@ class ValidatingRequestContextDecorator implements RequestContext {
   }
 
   @Override
-  ClientIpAddressData getAndResetClientIpAddressData() {
-    return delegate.getAndResetClientIpAddressData()
+  ClientIpAddressData getClientIpAddressData() {
+    return delegate.getClientIpAddressData()
   }
 
   @Override

@@ -1363,11 +1363,8 @@ public class DDSpanContext
   }
 
   @Override
-  public ClientIpAddressData getAndResetClientIpAddressData() {
-    final DDSpanContext rootSpanContext = getRootSpanContextOrThis();
-    final ClientIpAddressData clientIpAddressData = rootSpanContext.clientIpAddressData;
-    rootSpanContext.clientIpAddressData = null;
-    return clientIpAddressData;
+  public ClientIpAddressData getClientIpAddressData() {
+    return getRootSpanContextOrThis().clientIpAddressData;
   }
 
   public PropagationTags getPropagationTags() {

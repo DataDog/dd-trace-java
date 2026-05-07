@@ -325,6 +325,7 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     _ * extracted.getCfConnectingIp() >> null
     _ * extracted.getCfConnectingIpv6() >> null
     _ * this.span.getRequestContext() >> requestContext
+    _ * requestContext.getClientIpAddressData() >> null
     1 * requestContext.setClientIpAddressData({ ClientIpAddressData data ->
       data.peerIp == '4.4.4.4' && data.inferredClientIp == '2.3.4.5'
     })

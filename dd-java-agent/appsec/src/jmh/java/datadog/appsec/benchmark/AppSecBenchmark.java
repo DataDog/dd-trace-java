@@ -259,7 +259,7 @@ public class AppSecBenchmark {
     public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
 
     @Override
-    public ClientIpAddressData getAndResetClientIpAddressData() {
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 

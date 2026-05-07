@@ -278,7 +278,7 @@ class AIGuardInternalTests extends DDSpecification {
     given:
     final requestContext = Mock(RequestContext)
     localRootSpan.getRequestContext() >> requestContext
-    requestContext.getAndResetClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    requestContext.getClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
     final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
 
     when:
@@ -295,7 +295,7 @@ class AIGuardInternalTests extends DDSpecification {
     given:
     final requestContext = Mock(RequestContext)
     localRootSpan.getRequestContext() >> requestContext
-    requestContext.getAndResetClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    requestContext.getClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
     final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
 
     when:
@@ -312,7 +312,7 @@ class AIGuardInternalTests extends DDSpecification {
     given:
     final requestContext = Mock(RequestContext)
     localRootSpan.getRequestContext() >> requestContext
-    requestContext.getAndResetClientIpAddressData() >> null
+    requestContext.getClientIpAddressData() >> null
     final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
 
     when:

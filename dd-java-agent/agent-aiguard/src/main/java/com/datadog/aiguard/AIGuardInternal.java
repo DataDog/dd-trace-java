@@ -227,7 +227,7 @@ public class AIGuardInternal implements Evaluator {
     if (requestContext == null) {
       return;
     }
-    final ClientIpAddressData clientIpAddressData = requestContext.getAndResetClientIpAddressData();
+    final ClientIpAddressData clientIpAddressData = requestContext.getClientIpAddressData();
     if (clientIpAddressData == null) {
       return;
     }

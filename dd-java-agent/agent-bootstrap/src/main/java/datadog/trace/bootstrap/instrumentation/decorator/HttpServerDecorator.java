@@ -400,7 +400,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     }
     if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
       RequestContext requestContext = span.getRequestContext();
-      if (requestContext != null) {
+      if (requestContext != null && requestContext.getClientIpAddressData() == null) {
         requestContext.setClientIpAddressData(new ClientIpAddressData(peerIp, inferredAddressStr));
       }
     }

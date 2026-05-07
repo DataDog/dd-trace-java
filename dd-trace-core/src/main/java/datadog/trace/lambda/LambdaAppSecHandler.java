@@ -809,7 +809,7 @@ public class LambdaAppSecHandler {
     }
 
     @Override
-    public ClientIpAddressData getAndResetClientIpAddressData() {
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 

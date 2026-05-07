@@ -29,10 +29,9 @@ public interface RequestContext extends Closeable {
   void setClientIpAddressData(ClientIpAddressData clientIpAddressData);
 
   /**
-   * Returns the previously stored {@link ClientIpAddressData} and clears it from the request
-   * context, or {@code null} if none was stored. Designed to be consumed at most once.
+   * Returns the previously stored {@link ClientIpAddressData}, or {@code null} if none was stored.
    */
-  ClientIpAddressData getAndResetClientIpAddressData();
+  ClientIpAddressData getClientIpAddressData();
 
   class Noop implements RequestContext {
     public static final RequestContext INSTANCE = new Noop();
@@ -66,7 +65,7 @@ public interface RequestContext extends Closeable {
     public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
 
     @Override
-    public ClientIpAddressData getAndResetClientIpAddressData() {
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 
