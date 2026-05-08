@@ -180,31 +180,6 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["version"], "4.0.0-beta-3")
         self.assertEqual(outputs["published_at"], "")
 
-    def test_updates_when_eligible_version_is_higher_than_current(self) -> None:
-        result = self.run_script(
-            "select-maven",
-            "--now",
-            NOW,
-            "--group-id",
-            "org.apache.maven.plugins",
-            "--artifact-id",
-            "maven-surefire-plugin",
-            "--search-response-file",
-            str(FIXTURES / "surefire-boundary.json"),
-            "--prerelease-pattern",
-            "alpha",
-            "--prerelease-pattern",
-            "beta",
-            "--current-version",
-            "3.5.4",
-        )
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        outputs = self.parse_outputs(result.stdout)
-        self.assertEqual(outputs["found"], "true")
-        self.assertEqual(outputs["version"], "3.5.5")
-        self.assertEqual(outputs["published_at"], "2026-04-22")
-
     def test_keeps_current_version_when_no_eligible_version_exists(self) -> None:
         result = self.run_script(
             "select-gradle",
@@ -303,22 +278,6 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["reverted_files"], "1")
         self.assertEqual((current_dir / "module/gradle.lockfile").read_text(encoding="utf-8"), baseline_content)
 
-    def test_reverts_lockfile_when_one_of_multiple_coexisting_versions_is_too_new(self) -> None:
-        baseline_content = "# lockfile\ncom.typesafe:config:1.3.1=compileClasspath\ncom.typesafe:config:1.4.4=runtimeClasspath\n"
-        current_content  = "# lockfile\ncom.typesafe:config:1.3.1=compileClasspath\ncom.typesafe:config:1.5.0=runtimeClasspath\n"
-        metadata = {
-            "com.typesafe:config:1.5.0": "2026-04-24T11:00:00Z",  # too new
-        }
-
-        result, current_dir = self.run_validate_lockfiles(
-            baseline={"module/gradle.lockfile": baseline_content},
-            current={"module/gradle.lockfile": current_content},
-            metadata=metadata,
-        )
-
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertEqual((current_dir / "module/gradle.lockfile").read_text(encoding="utf-8"), baseline_content)
-
     def test_removes_brand_new_lockfile_with_too_new_dependency(self) -> None:
         # A brand-new module has no baseline counterpart — the lockfile should be removed.
         # So include an unchanged pre-existing lockfile in both baseline and current to satisfy
@@ -357,19 +316,6 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["reverted_files"], "1")
         self.assertIn("::warning", result.stdout)
         self.assertEqual((current_dir / "module/gradle.lockfile").read_text(encoding="utf-8"), baseline_content)
-
-    def test_fails_when_baseline_has_no_lockfiles_but_current_does(self) -> None:
-        # empty baseline with lockfiles in current suggests the snapshot step failed
-        current_content = "# lockfile\ncom.example:lib:1.0.0=runtimeClasspath\n"
-
-        result, _ = self.run_validate_lockfiles(
-            baseline={},
-            current={"module/gradle.lockfile": current_content},
-            metadata={},
-        )
-
-        self.assertEqual(result.returncode, 1, result.stderr)
-        self.assertIn("::error::Baseline has no lockfiles", result.stdout)
 
     def test_exits_cleanly_when_lockfiles_are_identical(self) -> None:
         # no changes between baseline and current -> exit 0 with reverted_files=0

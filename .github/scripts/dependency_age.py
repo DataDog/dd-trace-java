@@ -166,7 +166,6 @@ def select_gradle_release(args: argparse.Namespace) -> int:
 
     return emit_selection_result(
         label="Gradle",
-        cutoff=cutoff,
         github_output=args.github_output,
         candidates=candidates,
         not_found_reason=(
@@ -199,7 +198,6 @@ def select_maven_release(args: argparse.Namespace) -> int:
 
     return emit_selection_result(
         label=f"{args.group_id}:{args.artifact_id}",
-        cutoff=cutoff,
         github_output=args.github_output,
         candidates=candidates,
         not_found_reason=(
@@ -282,7 +280,6 @@ def _version_sort_key(version: str) -> tuple:
 def emit_selection_result(
     *,
     label: str,
-    cutoff: datetime,
     github_output: str | None,
     candidates: list[Candidate],
     not_found_reason: str,
@@ -423,7 +420,7 @@ def revert_lockfiles_to_baseline(
 
 # look up the publish timestamp for a group:artifact:version coordinate in Maven Central
 # returns (datetime, None) on success, (None, reason) when the timestamp cannot be determined
-# retries once on transient 5xx / network errors; 4xx fails immediately (permanent client error)
+# retries once on any error
 def resolve_gav_timestamp(
     *,
     gav: str,
@@ -449,11 +446,6 @@ def resolve_gav_timestamp(
             fetch_error = None
             break
         except urllib.error.HTTPError as exc:
-            if exc.code < 500:
-                return None, (
-                    f"Maven Central returned HTTP {exc.code} for {gav}. "
-                    "Add an entry in --metadata-file to bypass."
-                )
             fetch_error = f"Maven Central search failed (HTTP {exc.code})."
         except (urllib.error.URLError, TimeoutError, OSError, ValueError):
             fetch_error = "Maven Central search was unreachable."

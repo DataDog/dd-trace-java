@@ -45,6 +45,7 @@ jobs:
 
       - name: Snapshot current Gradle lock files
         run: |
+          rm -rf /tmp/gradle-lockfiles-before
           mkdir -p /tmp/gradle-lockfiles-before
           find . -name 'gradle.lockfile' -print0 | xargs -0 -r cp --parents -t /tmp/gradle-lockfiles-before/
 
