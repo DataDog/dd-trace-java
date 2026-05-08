@@ -5,8 +5,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
+import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -92,6 +94,124 @@ public class TagMapTest {
 
     TagMap emptyMap = factory.empty();
     assertEquals(optimized, emptyMap.isOptimized());
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void entrySet_removeIf(TagMapType type) {
+    TagMap map = type.create();
+    map.set("a", 1);
+    map.set("b", 2);
+    map.set("c", 3);
+
+    boolean removed =
+        map.entrySet().removeIf(e -> "a".equals(e.getKey()) || "c".equals(e.getKey()));
+
+    assertTrue(removed);
+    assertEquals(1, map.size());
+    assertNull(map.getEntry("a"));
+    assertNotNull(map.getEntry("b"));
+    assertNull(map.getEntry("c"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void keySet_removeAll(TagMapType type) {
+    TagMap map = type.create();
+    map.set("a", 1);
+    map.set("b", 2);
+    map.set("c", 3);
+
+    boolean removed = map.keySet().removeAll(Arrays.asList("a", "c"));
+
+    assertTrue(removed);
+    assertEquals(1, map.size());
+    assertNull(map.getEntry("a"));
+    assertNotNull(map.getEntry("b"));
+    assertNull(map.getEntry("c"));
+  }
+
+  @ParameterizedTest
+  @EnumSource(TagMapType.class)
+  public void values_removeIf(TagMapType type) {
+    TagMap map = type.create();
+    map.set("a", 1);
+    map.set("b", 2);
+    map.set("c", 3);
+
+    boolean removed = map.values().removeIf(v -> v.equals(1) || v.equals(3));
+
+    assertTrue(removed);
+    assertEquals(1, map.size());
+    assertNull(map.getEntry("a"));
+    assertNotNull(map.getEntry("b"));
+    assertNull(map.getEntry("c"));
+  }
+
+  @Test
+  public void optimizedIterator_remove() {
+    TagMap map = TagMapType.OPTIMIZED.create();
+    map.set("a", 1);
+    map.set("b", 2);
+
+    Iterator<TagMap.EntryReader> iter = map.iterator();
+    while (iter.hasNext()) {
+      if ("a".equals(iter.next().tag())) {
+        iter.remove();
+      }
+    }
+
+    assertEquals(1, map.size());
+    assertNull(map.getEntry("a"));
+    assertNotNull(map.getEntry("b"));
+  }
+
+  @Test
+  public void optimizedIterator_remove_acrossBucketCollisions() {
+    // OptimizedTagMap uses 16 buckets, so 64 entries guarantees BucketGroup chains.
+    TagMap map = TagMapType.OPTIMIZED.create();
+    for (int i = 0; i < 64; i++) {
+      map.set("k" + i, i);
+    }
+    assertEquals(64, map.size());
+
+    Iterator<TagMap.EntryReader> iter = map.iterator();
+    while (iter.hasNext()) {
+      iter.next();
+      iter.remove();
+    }
+
+    assertEquals(0, map.size());
+    assertTrue(map.isEmpty());
+  }
+
+  @Test
+  public void optimizedIterator_remove_beforeNext_throws() {
+    TagMap map = TagMapType.OPTIMIZED.create();
+    map.set("a", 1);
+    Iterator<TagMap.EntryReader> iter = map.iterator();
+    assertThrows(IllegalStateException.class, iter::remove);
+  }
+
+  @Test
+  public void optimizedIterator_remove_twice_throws() {
+    TagMap map = TagMapType.OPTIMIZED.create();
+    map.set("a", 1);
+    Iterator<TagMap.EntryReader> iter = map.iterator();
+    iter.next();
+    iter.remove();
+    assertThrows(IllegalStateException.class, iter::remove);
+  }
+
+  @Test
+  public void optimizedIterator_remove_onFrozenMap_throws() {
+    TagMap map = TagMapType.OPTIMIZED.create();
+    map.set("a", 1);
+    map.set("b", 2);
+    Iterator<TagMap.EntryReader> iter = map.iterator();
+    iter.next();
+    map.freeze();
+    assertThrows(IllegalStateException.class, iter::remove);
   }
 
   @ParameterizedTest

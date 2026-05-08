@@ -2082,9 +2082,11 @@ final class OptimizedTagMap implements TagMap {
   }
 
   abstract static class IteratorBase {
+    private final OptimizedTagMap map;
     private final Object[] buckets;
 
     private Entry nextEntry;
+    private Entry lastReturnedEntry;
 
     private int bucketIndex = -1;
 
@@ -2092,6 +2094,7 @@ final class OptimizedTagMap implements TagMap {
     private int groupIndex = 0;
 
     IteratorBase(OptimizedTagMap map) {
+      this.map = map;
       this.buckets = map.buckets;
     }
 
@@ -2108,12 +2111,14 @@ final class OptimizedTagMap implements TagMap {
 
     final Entry nextEntryOrThrowNoSuchElement() {
       if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
+        Entry result = this.nextEntry;
         this.nextEntry = null;
-        return nextEntry;
+        this.lastReturnedEntry = result;
+        return result;
       }
 
       if (this.hasNext()) {
+        this.lastReturnedEntry = this.nextEntry;
         return this.nextEntry;
       } else {
         throw new NoSuchElementException();
@@ -2122,12 +2127,26 @@ final class OptimizedTagMap implements TagMap {
 
     final Entry nextEntryOrNull() {
       if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
+        Entry result = this.nextEntry;
         this.nextEntry = null;
-        return nextEntry;
+        this.lastReturnedEntry = result;
+        return result;
       }
 
-      return this.hasNext() ? this.nextEntry : null;
+      if (this.hasNext()) {
+        this.lastReturnedEntry = this.nextEntry;
+        return this.nextEntry;
+      }
+      return null;
+    }
+
+    public final void remove() {
+      Entry last = this.lastReturnedEntry;
+      if (last == null) {
+        throw new IllegalStateException("next() must be called before remove()");
+      }
+      this.lastReturnedEntry = null;
+      this.map.getAndRemove(last.tag);
     }
 
     private final Entry advance() {
