@@ -6,7 +6,6 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
-import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -91,7 +90,7 @@ public class GenerationalUtf8CacheTest {
   }
 
   @Test
-  public void getUtf8_perCallAccessTime_overridesField() throws Exception {
+  public void getUtf8_perCallAccessTime_overridesField() {
     GenerationalUtf8Cache cache = create();
     // The field value should not leak into the entry when an explicit time is supplied.
     cache.updateAccessTime(0L);
@@ -236,27 +235,22 @@ public class GenerationalUtf8CacheTest {
     return baseString + valueSuffix;
   }
 
-  static long lookupEdenLastUsedMs(GenerationalUtf8Cache cache, String value) throws Exception {
-    return lookupLastUsedMs(cache, "edenEntries", value);
+  static long lookupEdenLastUsedMs(GenerationalUtf8Cache cache, String value) {
+    return lookupLastUsedMs(cache.edenEntries, "edenEntries", value);
   }
 
-  static long lookupTenuredLastUsedMs(GenerationalUtf8Cache cache, String value) throws Exception {
-    return lookupLastUsedMs(cache, "tenuredEntries", value);
+  static long lookupTenuredLastUsedMs(GenerationalUtf8Cache cache, String value) {
+    return lookupLastUsedMs(cache.tenuredEntries, "tenuredEntries", value);
   }
 
-  private static long lookupLastUsedMs(GenerationalUtf8Cache cache, String fieldName, String value)
-      throws Exception {
-    Field arrayField = GenerationalUtf8Cache.class.getDeclaredField(fieldName);
-    arrayField.setAccessible(true);
-    GenerationalUtf8Cache.CacheEntry[] entries =
-        (GenerationalUtf8Cache.CacheEntry[]) arrayField.get(cache);
-
+  private static long lookupLastUsedMs(
+      GenerationalUtf8Cache.CacheEntry[] entries, String arrayName, String value) {
     for (GenerationalUtf8Cache.CacheEntry entry : entries) {
       if (entry != null && value.equals(entry.value)) {
         return entry.lastUsedMs();
       }
     }
-    throw new AssertionError("entry for value '" + value + "' not found in " + fieldName);
+    throw new AssertionError("entry for value '" + value + "' not found in " + arrayName);
   }
 
   static final void printStats(GenerationalUtf8Cache cache) {

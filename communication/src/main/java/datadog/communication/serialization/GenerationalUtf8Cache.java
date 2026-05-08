@@ -85,10 +85,10 @@ public final class GenerationalUtf8Cache implements EncodingCache {
 
   static final int MAX_ENTRY_LEN = 256;
 
-  private final CacheEntry[] edenEntries;
+  final CacheEntry[] edenEntries;
   private final int[] edenMarkers;
 
-  private final CacheEntry[] tenuredEntries;
+  final CacheEntry[] tenuredEntries;
 
   private long accessTimeMs;
   private double promotionThreshold = INITIAL_PROMOTION_THRESHOLD;
@@ -145,6 +145,12 @@ public final class GenerationalUtf8Cache implements EncodingCache {
   /** Updates access time to the @link {@link System#currentTimeMillis()} */
   public void refreshAccessTime() {
     this.updateAccessTime(System.currentTimeMillis());
+  }
+
+  /** Deprecated in favor of {@link #refreshAccessTime()} - retained for binary compatibility. */
+  @Deprecated
+  public void refreshAcessTime() {
+    this.refreshAccessTime();
   }
 
   public synchronized void recalibrate() {
