@@ -20,7 +20,7 @@ import java.util.ArrayDeque;
 import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
-import java.util.function.Consumer;
+import java.util.function.ObjIntConsumer;
 
 /**
  * Collects OpenTelemetry logs and marshals them into a chunked 'logs.proto' payload.
@@ -61,14 +61,14 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
    * <p>This payload is only valid for the calling thread until the next collection.
    */
   @Override
-  public OtlpPayload collectLogs() {
-    return collectLogs(OtelLogRecordProcessor.INSTANCE::collectLogs);
+  public OtlpPayload waitForLogs(int intervalMillis) {
+    return collectLogs(OtelLogRecordProcessor.INSTANCE::waitForLogs, intervalMillis);
   }
 
-  OtlpPayload collectLogs(Consumer<OtlpLogsVisitor> processor) {
+  OtlpPayload collectLogs(ObjIntConsumer<OtlpLogsVisitor> processor, int intervalMillis) {
     start();
     try {
-      processor.accept(this);
+      processor.accept(this, intervalMillis);
       return completePayload();
     } finally {
       stop();

@@ -77,6 +77,9 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
+    # skip gitlab pipeline for github merge queue - we are currently using the datadog merge queue
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       auto_cancel:
         on_new_commit: none
@@ -231,15 +234,9 @@ default:
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
-    # for weird reasons, Gradle will always "chmod 700" the .gradle folder
-    # with Gitlab caching, .gradle is always owned by root and thus Gradle's chmod invocation fails
-    # This dance is a hack to have .gradle owned by the Gitlab runner user
-    - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
-    - cp -r .gradle .gradle-copy
-    - rm -rf .gradle
-    - mv .gradle-copy .gradle
-    - ls -la
-    - gitlab_section_end "gradle-dance"
+    # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
+    # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
+    - sudo chown -R 1001:1001 .gradle
   after_script:
     - *cgroup_info
     - *container_info
