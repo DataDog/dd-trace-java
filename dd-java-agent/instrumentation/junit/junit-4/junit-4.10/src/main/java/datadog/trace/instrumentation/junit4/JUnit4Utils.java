@@ -117,10 +117,11 @@ public abstract class JUnit4Utils {
   }
 
   /**
-   * Walks through {@link RunNotifier} wrappers (e.g. Bazel's {@code RunNotifierWrapper}) so the
-   * effective {@code listeners} field is read, not the wrapper's own (forwarded) one.
+   * Walks through {@link RunNotifier} wrappers (e.g. Bazel's {@code RunNotifierWrapper}) and
+   * returns the inner notifier whose {@code listeners} field actually receives {@code addListener}
+   * calls. Returns the input untouched when it is not a known wrapper.
    */
-  private static RunNotifier unwrapRunNotifier(RunNotifier notifier) {
+  public static RunNotifier unwrapRunNotifier(RunNotifier notifier) {
     RunNotifier current = notifier;
     for (int i = 0; i < 8 && current != null; i++) {
       if (!isBazelRunNotifierWrapper(current.getClass())) {
