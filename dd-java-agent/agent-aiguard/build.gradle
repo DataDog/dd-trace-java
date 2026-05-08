@@ -23,6 +23,8 @@ dependencies {
   implementation project(':communication')
 
   testImplementation project(':utils:test-utils')
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
   testImplementation('org.skyscreamer:jsonassert:1.5.3')
   testImplementation('com.fasterxml.jackson.core:jackson-databind:2.20.0')
 }
