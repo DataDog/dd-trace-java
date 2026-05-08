@@ -67,6 +67,7 @@ def parse_args() -> argparse.Namespace:
 def add_common_selection_args(parser: argparse.ArgumentParser) -> None:
     parser.add_argument("--min-age-hours", type=int, default=default_min_age_hours())
     parser.add_argument("--now")
+    parser.add_argument("--current-version", default=None)
     parser.add_argument("--github-output", default=None)
 
 
@@ -115,6 +116,11 @@ def parse_datetime(value: Any) -> datetime:
 # normalize datetime to YYYY-MM-DDTHH:MM:SSZ for GitHub Actions outputs
 def format_datetime(value: datetime) -> str:
     return value.astimezone(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+# normalize datetime to YYYY-MM-DD date for more readable PR comment outputs
+def format_date(value: datetime) -> str:
+    return value.astimezone(timezone.utc).strftime("%Y-%m-%d")
 
 
 # emit key=value lines to stdout and GitHub Actions output file
@@ -166,6 +172,7 @@ def select_gradle_release(args: argparse.Namespace) -> int:
         not_found_reason=(
             f"No eligible stable Gradle release is at least {args.min_age_hours} hours old."
         ),
+        current_version=args.current_version,
     )
 
 
@@ -199,6 +206,7 @@ def select_maven_release(args: argparse.Namespace) -> int:
             f"No eligible stable release found for {args.group_id}:{args.artifact_id} "
             f"that is at least {args.min_age_hours} hours old."
         ),
+        current_version=args.current_version,
     )
 
 
@@ -250,15 +258,24 @@ def load_maven_documents(
 
 # parse a version string into a sortable tuple for comparison; numeric segments sort before non-numeric
 def _version_sort_key(version: str) -> tuple:
-    parts = []
+    segments = []
     for segment in re.split(r"([.\-])", version):
         if segment in {"", ".", "-"}:
             continue
         try:
-            parts.append((0, int(segment)))
+            segments.append((0, int(segment)))
         except ValueError:
-            parts.append((1, segment))
-    return tuple(parts)
+            segments.append((1, segment))
+
+    release = []
+    prerelease = []
+    for i, seg in enumerate(segments):
+        if seg[0] == 1:  # first string segment starts the prerelease part
+            prerelease = segments[i:]
+            break
+        release.append(seg)
+
+    return (tuple(release), not bool(prerelease), tuple(prerelease))
 
 
 # emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven
@@ -269,11 +286,37 @@ def emit_selection_result(
     github_output: str | None,
     candidates: list[Candidate],
     not_found_reason: str,
+    current_version: str | None = None,
 ) -> int:
     selected = max(candidates, key=lambda candidate: _version_sort_key(candidate.version), default=None)
-    outputs: dict[str, Any] = {
-        "cutoff_at": format_datetime(cutoff),
-    }
+    outputs: dict[str, Any] = {}
+
+    # If the current version is already >= the best candidate, keep it
+    if current_version and (
+        not selected
+        or _version_sort_key(current_version) >= _version_sort_key(selected.version)
+    ):
+        outputs.update(
+            {
+                "found": "true",
+                "version": current_version,
+                "published_at": "",
+                "reason": "",
+            }
+        )
+        emit_outputs(outputs, github_output)
+        if selected:
+            print(
+                f"Current version {current_version} for {label} is already >= "
+                f"latest eligible {selected.version}; keeping current version."
+            )
+        else:
+            print(
+                f"No eligible version found for {label}; "
+                f"keeping current version {current_version}."
+            )
+        return 0
+
     if not selected:
         outputs.update(
             {
@@ -291,14 +334,14 @@ def emit_selection_result(
         {
             "found": "true",
             "version": selected.version,
-            "published_at": format_datetime(selected.published_at),
+            "published_at": format_date(selected.published_at),
             "reason": "",
         }
     )
     emit_outputs(outputs, github_output)
     print(
         f"Selected latest eligible stable version for {label}: "
-        f"{selected.version} (published {format_datetime(selected.published_at)}, cutoff {format_datetime(cutoff)})"
+        f"{selected.version} (published {format_date(selected.published_at)})"
     )
     return 0
 

@@ -26,6 +26,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -181,6 +182,8 @@ public class DDSpanContext
   private volatile PathwayContext pathwayContext;
 
   private volatile BlockResponseFunction blockResponseFunction;
+
+  private volatile ClientIpAddressData clientIpAddressData;
 
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
@@ -1352,6 +1355,16 @@ public class DDSpanContext
   @Override
   public BlockResponseFunction getBlockResponseFunction() {
     return getRootSpanContextOrThis().blockResponseFunction;
+  }
+
+  @Override
+  public void setClientIpAddressData(final ClientIpAddressData clientIpAddressData) {
+    getRootSpanContextOrThis().clientIpAddressData = clientIpAddressData;
+  }
+
+  @Override
+  public ClientIpAddressData getClientIpAddressData() {
+    return getRootSpanContextOrThis().clientIpAddressData;
   }
 
   public PropagationTags getPropagationTags() {
