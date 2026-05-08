@@ -1,3 +1,9 @@
+import datadog.gradle.plugin.HostPlatform
+import org.gradle.playframework.tasks.RoutesCompile
+import org.gradle.playframework.tasks.internal.RoutesCompileWorkAction
+import org.gradle.playframework.tools.internal.routes.DefaultRoutesCompileSpec
+import org.gradle.playframework.tools.internal.routes.RoutesCompilerFactory
+
 plugins {
   id 'org.gradle.playframework'
 }
@@ -91,6 +97,40 @@ tasks.withType(ScalaCompile).configureEach {
 tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+if (HostPlatform.isLinuxArm64()) {
+  tasks.named("compilePlayRoutes", RoutesCompile) { RoutesCompile task ->
+    // org.gradle.playframework.tasks.RoutesCompile does not expose worker fork options, but its
+    // worker JVM needs CDS disabled on Linux arm64 like the other forked JVMs in this build.
+    def workerExecutorField = RoutesCompile.getDeclaredField("workerExecutor")
+    workerExecutorField.accessible = true
+
+    task.actions.clear()
+    task.doLast {
+      def spec = new DefaultRoutesCompileSpec(
+        task.source.files,
+        task.outputDirectory.get().asFile,
+        task.javaProject,
+        task.namespaceReverseRouter.get(),
+        task.generateReverseRoutes.get(),
+        task.injectedRoutesGenerator.get(),
+        task.additionalImports.get(),
+        projectDir
+        )
+
+      def workerExecutor = workerExecutorField.get(task)
+      workerExecutor.processIsolation { workerSpec ->
+        workerSpec.forkOptions { options ->
+          options.jvmArgs("-XX:MaxMetaspaceSize=256m", "-Xshare:off")
+        }
+        workerSpec.classpath.from(task.routesCompilerClasspath)
+      }.submit(RoutesCompileWorkAction) { parameters ->
+        parameters.compiler.set(RoutesCompilerFactory.create(task.platform.get()))
+        parameters.spec.set(spec)
+      }
+    }
+  }
 }
 
 spotless {
