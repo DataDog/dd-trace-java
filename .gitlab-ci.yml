@@ -168,6 +168,24 @@ default:
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
+.tier_m:
+  variables: &tier_m_variables
+    GRADLE_WORKERS: 4
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 5G
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+
+.tier_l:
+  variables: &tier_l_variables
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 6G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
     export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
@@ -692,18 +710,10 @@ muzzle-dep-report:
   stage: tests-arm64
   needs: []
   variables:
+    <<: *tier_m_variables
     # arm64 docker image installs only these JVMs; override the global default regex.
     DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
-    GRADLE_WORKERS: 6
-    GRADLE_MEMORY_MIN: 1G
-    GRADLE_MEMORY_MAX: 4G
-    # Sized for the arm64 microvm runner pool (smaller than amd64).
-    # Observed peak on equivalent amd64 workload: ~14.5 GB / ~1.5 vCPU avg.
-    # Bump back up if jobs OOM or we see CPU throttling in cgroup-info.
-    KUBERNETES_CPU_REQUEST: 6
-    KUBERNETES_MEMORY_REQUEST: 12Gi
-    KUBERNETES_MEMORY_LIMIT: 16Gi
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
     TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
@@ -869,6 +879,7 @@ test_inst:
 test_inst_arm64:
   extends: .test_job_arm64_with_test_agent
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
@@ -889,6 +900,7 @@ test_inst_latest:
 test_inst_latest_arm64:
   extends: .test_job_arm64_with_test_agent
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationLatestDepTest"
     CACHE_TYPE: "latestdep"
   parallel:
@@ -977,6 +989,7 @@ test_smoke:
 test_smoke_arm64:
   extends: .test_job_arm64
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
@@ -1003,6 +1016,7 @@ test_ssi_smoke:
 test_ssi_smoke_arm64:
   extends: .test_job_arm64
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
     DD_INJECT_FORCE: "true"
@@ -1025,6 +1039,7 @@ test_smoke_graalvm:
 test_smoke_graalvm_arm64:
   extends: .test_job_arm64
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
