@@ -78,6 +78,15 @@ public class AIGuardInternal implements Evaluator {
   static final String META_STRUCT_SDS = "sds";
   static final String META_STRUCT_TAG_PROBS = "tag_probs";
 
+  /**
+   * Anomaly detection tags copied from the local root span onto every {@code ai_guard} span with
+   * the {@code ai_guard.} prefix, so the AI Guard backend can correlate AI Guard requests with the
+   * request context (client IP, user, session) without depending on the local root span.
+   */
+  static final String[] ANOMALY_DETECTION_TAGS = {
+    Tags.HTTP_CLIENT_IP, Tags.NETWORK_CLIENT_IP, Tags.HTTP_USER_AGENT, "usr.id", "usr.session_id"
+  };
+
   public static void install() {
     final Config config = Config.get();
     final String apiKey = config.getApiKey();
@@ -241,6 +250,16 @@ public class AIGuardInternal implements Evaluator {
     }
   }
 
+  private static void copyAnomalyDetectionTags(
+      final AgentSpan span, final AgentSpan localRootSpan) {
+    for (final String tag : ANOMALY_DETECTION_TAGS) {
+      final Object value = localRootSpan.getTag(tag);
+      if (value != null) {
+        span.setTag("ai_guard." + tag, value.toString());
+      }
+    }
+  }
+
   @Override
   public Evaluation evaluate(final List<Message> messages, final Options options) {
     if (messages == null || messages.isEmpty()) {
@@ -258,6 +277,9 @@ public class AIGuardInternal implements Evaluator {
       localRootSpan.setTag(Tags.AI_GUARD_KEEP, true);
       localRootSpan.setTag(EVENT_TAG, true);
       applyClientIpTags(localRootSpan);
+      // copyAnomalyDetectionTags MUST run after applyClientIpTags, to make
+      // sure client IP tags were populated.
+      copyAnomalyDetectionTags(span, localRootSpan);
     }
     try (final AgentScope scope = tracer.activateSpan(span)) {
       final Message last = messages.get(messages.size() - 1);
