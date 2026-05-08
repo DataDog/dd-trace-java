@@ -27,6 +27,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.TracePropagationBehaviorExtract;
 import datadog.trace.api.datastreams.NoopPathwayContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
@@ -45,6 +46,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -417,6 +419,48 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     assertNotEquals(extractedContext.getSpanId(), span.getParentId());
     assertEquals(PrioritySampling.UNSET, span.samplingPriority());
     assertTrue(span.getLinks().isEmpty());
+  }
+
+  @Test
+  void extractBehaviorReadsTracerConfigNotGlobalSingleton() {
+    // Build a tracer with a Properties-based config that selects RESTART. The global
+    // Config.get() singleton is unaffected (default CONTINUE). The span build path must
+    // read the tracer's own config — not Config.get() — so the resulting span should
+    // reflect RESTART behavior (parent dropped, parent context attached as a link).
+    Properties props = new Properties();
+    props.setProperty("trace.propagation.behavior.extract", "restart");
+    CoreTracer customTracer = tracerBuilder().withProperties(props).writer(writer).build();
+    assertEquals(
+        TracePropagationBehaviorExtract.RESTART,
+        customTracer.initialConfig.getTracePropagationBehaviorExtract(),
+        "precondition: customTracer's config must reflect Properties override");
+
+    ExtractedContext extractedContext =
+        new ExtractedContext(
+            DDTraceId.ONE,
+            2,
+            PrioritySampling.SAMPLER_DROP,
+            null,
+            0,
+            Collections.<String, String>emptyMap(),
+            Collections.<String, Object>emptyMap(),
+            null,
+            PropagationTags.factory()
+                .fromHeaderValue(
+                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=934086a686-4,_dd.p.anytag=value"),
+            null,
+            DATADOG);
+    DDSpan span =
+        (DDSpan) customTracer.buildSpan("test", "op name").asChildOf(extractedContext).start();
+
+    assertNotEquals(extractedContext.getTraceId(), span.getTraceId());
+    assertNotEquals(extractedContext.getSpanId(), span.getParentId());
+
+    List<? extends AgentSpanLink> spanLinks = span.getLinks();
+    assertEquals(1, spanLinks.size());
+    AgentSpanLink link = spanLinks.get(0);
+    assertEquals(extractedContext.getTraceId(), link.traceId());
+    assertEquals(extractedContext.getSpanId(), link.spanId());
   }
 
   @TableTest({

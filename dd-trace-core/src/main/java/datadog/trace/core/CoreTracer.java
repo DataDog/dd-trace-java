@@ -1778,7 +1778,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
       // Handle remote terminated context as span links
       if (parentContext != null && parentContext.isRemote()) {
-        switch (Config.get().getTracePropagationBehaviorExtract()) {
+        switch (tracer.initialConfig.getTracePropagationBehaviorExtract()) {
           case RESTART:
             links = addParentContextLink(links, parentContext);
             parentContext = null;
