@@ -12,20 +12,16 @@ import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
-import datadog.trace.api.http.MultipartContentDecoder;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.io.InputStream;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
-import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
-import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -125,73 +121,9 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
       } catch (Exception ignored) {
       }
 
-      int maxFiles = GlassFishBlockingHelper.MAX_FILE_CONTENT_COUNT;
-      int maxBytes = GlassFishBlockingHelper.MAX_FILE_CONTENT_BYTES;
-
-      List<String> filenames = null;
-      List<String> contents = null;
-
-      for (Object partObj : parts) {
-        try {
-          if (!(partObj instanceof Part)) {
-            continue;
-          }
-          Part part = (Part) partObj;
-          String filename = part.getSubmittedFileName();
-          // null means no filename parameter → form field, skip
-          // empty string means filename="" was sent → file upload without a name
-          if (filename == null) {
-            continue;
-          }
-          if (filenamesCb != null && !filename.isEmpty()) {
-            if (filenames == null) {
-              filenames = new ArrayList<>();
-            }
-            filenames.add(filename);
-          }
-          if (contentCb != null) {
-            if (contents == null) {
-              contents = new ArrayList<>();
-            }
-            if (contents.size() < maxFiles) {
-              try (InputStream is = part.getInputStream()) {
-                contents.add(
-                    MultipartContentDecoder.readInputStream(is, maxBytes, part.getContentType()));
-              } catch (Exception ignored) {
-                contents.add("");
-              }
-            }
-          }
-        } catch (Exception ignored) {
-        }
-      }
-
-      boolean blocked = false;
-
-      if (filenames != null && !filenames.isEmpty() && filenamesCb != null) {
-        Flow<Void> flow = filenamesCb.apply(reqCtx, filenames);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          if (GlassFishBlockingHelper.tryBlock(
-              reqCtx, fallbackReq, fallbackResp, (Flow.Action.RequestBlockingAction) action)) {
-            parts = Collections.emptyList();
-            blocked = true;
-          }
-        }
-      }
-
-      if (!blocked && contents != null && !contents.isEmpty() && contentCb != null) {
-        Flow<Void> contentFlow = contentCb.apply(reqCtx, contents);
-        Flow.Action contentAction = contentFlow.getAction();
-        if (contentAction instanceof Flow.Action.RequestBlockingAction) {
-          if (GlassFishBlockingHelper.tryBlock(
-              reqCtx,
-              fallbackReq,
-              fallbackResp,
-              (Flow.Action.RequestBlockingAction) contentAction)) {
-            parts = Collections.emptyList();
-          }
-        }
+      if (GlassFishBlockingHelper.processPartsAndBlock(
+          parts, reqCtx, fallbackReq, fallbackResp, filenamesCb, contentCb)) {
+        parts = Collections.emptyList();
       }
     }
   }

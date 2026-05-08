@@ -18,10 +18,15 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.internal.TraceSegment;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
+import java.util.function.BiFunction;
 import javax.servlet.ServletOutputStream;
 import javax.servlet.WriteListener;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
+import javax.servlet.http.Part;
 import org.junit.jupiter.api.Test;
 
 class GlassFishBlockingHelperTest {
@@ -170,6 +175,146 @@ class GlassFishBlockingHelperTest {
     assertTrue(GlassFishBlockingHelper.tryBlock(reqCtx, null, null, rba(403)));
   }
 
+  // ------- processPartsAndBlock() -------
+
+  @Test
+  void processPartsAndBlock_formField_skipped() throws Exception {
+    Part formField = mockPart(null, "text/plain", new byte[0]);
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(formField), reqCtx, null, null, filenamesCb, null));
+    verify(formField).getSubmittedFileName();
+    verify(formField, never()).getInputStream();
+  }
+
+  @Test
+  void processPartsAndBlock_emptyFilename_notAddedToFilenames_butContentRead() throws Exception {
+    byte[] content = "data".getBytes();
+    Part filePart = mockPart("", "application/octet-stream", content);
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, null, filenamesCb, contentCb));
+
+    verify(filePart).getInputStream();
+    verify(filenamesCb, never()).apply(any(), any());
+    verify(contentCb).apply(eq(reqCtx), any());
+  }
+
+  @Test
+  void processPartsAndBlock_normalFilename_reportedViaFilenamesCb() throws Exception {
+    Part filePart = mockPart("file.txt", "text/plain", "hello".getBytes());
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, null, filenamesCb, null));
+
+    verify(filenamesCb).apply(eq(reqCtx), eq(Collections.singletonList("file.txt")));
+  }
+
+  @Test
+  void processPartsAndBlock_contentRead_reportedViaContentCb() throws Exception {
+    Part filePart = mockPart("file.bin", "application/octet-stream", new byte[] {1, 2, 3});
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, null, null, contentCb));
+
+    verify(contentCb).apply(eq(reqCtx), any());
+  }
+
+  @Test
+  void processPartsAndBlock_maxFilesLimit_enforced() throws Exception {
+    int limit = GlassFishBlockingHelper.MAX_FILE_CONTENT_COUNT;
+    Part[] tooMany = new Part[limit + 1];
+    for (int i = 0; i <= limit; i++) {
+      tooMany[i] = mockPart("f" + i + ".bin", "application/octet-stream", new byte[0]);
+    }
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Arrays.asList(tooMany), reqCtx, null, null, null, contentCb));
+
+    verify(contentCb).apply(eq(reqCtx), any(List.class));
+    verify(tooMany[limit], never()).getInputStream();
+  }
+
+  @Test
+  @SuppressWarnings("unchecked")
+  void processPartsAndBlock_getInputStreamThrows_emptyStringFallback() throws Exception {
+    Part filePart = mock(Part.class);
+    when(filePart.getSubmittedFileName()).thenReturn("bad.bin");
+    when(filePart.getInputStream()).thenThrow(new IOException("disk error"));
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, null, null, contentCb));
+
+    verify(contentCb).apply(eq(reqCtx), eq(Collections.singletonList("")));
+  }
+
+  @Test
+  void processPartsAndBlock_filenamesCbBlocks_contentCbNotFired() throws Exception {
+    Part filePart = mockPart("evil.exe", "application/octet-stream", "content".getBytes());
+    TraceSegment segment = mock(TraceSegment.class);
+    RequestContext reqCtx = mockReqCtx(null, segment);
+    TestServletOutputStream out = new TestServletOutputStream();
+    HttpServletResponse resp = mock(HttpServletResponse.class);
+    when(resp.isCommitted()).thenReturn(false);
+    when(resp.getOutputStream()).thenReturn(out);
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockBlockingCb(403);
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
+
+    assertTrue(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, resp, filenamesCb, contentCb));
+
+    verify(contentCb, never()).apply(any(), any());
+  }
+
+  @Test
+  void processPartsAndBlock_contentCbBlocks_returnsTrue() throws Exception {
+    Part filePart = mockPart("upload.bin", "application/octet-stream", "payload".getBytes());
+    TraceSegment segment = mock(TraceSegment.class);
+    RequestContext reqCtx = mockReqCtx(null, segment);
+    TestServletOutputStream out = new TestServletOutputStream();
+    HttpServletResponse resp = mock(HttpServletResponse.class);
+    when(resp.isCommitted()).thenReturn(false);
+    when(resp.getOutputStream()).thenReturn(out);
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
+    BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockBlockingCb(403);
+
+    assertTrue(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList(filePart), reqCtx, null, resp, filenamesCb, contentCb));
+  }
+
+  @Test
+  void processPartsAndBlock_nonPartObject_skipped() {
+    RequestContext reqCtx = mockReqCtx(null, mock(TraceSegment.class));
+    BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
+
+    assertFalse(
+        GlassFishBlockingHelper.processPartsAndBlock(
+            Collections.singletonList("not-a-part"), reqCtx, null, null, filenamesCb, null));
+
+    verify(filenamesCb, never()).apply(any(), any());
+  }
+
   // ------- Helpers -------
 
   private static Flow.Action.RequestBlockingAction rba(int statusCode) {
@@ -181,6 +326,35 @@ class GlassFishBlockingHelperTest {
     when(reqCtx.getBlockResponseFunction()).thenReturn(brf);
     when(reqCtx.getTraceSegment()).thenReturn(segment);
     return reqCtx;
+  }
+
+  private static Part mockPart(String submittedFilename, String contentType, byte[] content)
+      throws Exception {
+    Part part = mock(Part.class);
+    when(part.getSubmittedFileName()).thenReturn(submittedFilename);
+    when(part.getContentType()).thenReturn(contentType);
+    when(part.getInputStream()).thenAnswer(ignored -> new java.io.ByteArrayInputStream(content));
+    return part;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static BiFunction<RequestContext, List<String>, Flow<Void>> mockPassThroughCb() {
+    BiFunction<RequestContext, List<String>, Flow<Void>> cb = mock(BiFunction.class);
+    Flow<Void> flow = mock(Flow.class);
+    when(flow.getAction()).thenReturn(Flow.Action.Noop.INSTANCE);
+    when(cb.apply(any(), any())).thenReturn(flow);
+    return cb;
+  }
+
+  @SuppressWarnings("unchecked")
+  private static BiFunction<RequestContext, List<String>, Flow<Void>> mockBlockingCb(
+      int statusCode) {
+    BiFunction<RequestContext, List<String>, Flow<Void>> cb = mock(BiFunction.class);
+    Flow<Void> flow = mock(Flow.class);
+    when(flow.getAction())
+        .thenReturn(new Flow.Action.RequestBlockingAction(statusCode, BlockingContentType.AUTO));
+    when(cb.apply(any(), any())).thenReturn(flow);
+    return cb;
   }
 
   private static final class TestServletOutputStream extends ServletOutputStream {
