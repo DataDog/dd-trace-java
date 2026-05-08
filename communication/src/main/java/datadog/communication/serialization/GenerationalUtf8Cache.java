@@ -147,12 +147,6 @@ public final class GenerationalUtf8Cache implements EncodingCache {
     this.updateAccessTime(System.currentTimeMillis());
   }
 
-  /** Deprecated in favor of {@link #refreshAccessTime()} - retained for binary compatibility. */
-  @Deprecated
-  public void refreshAcessTime() {
-    this.refreshAccessTime();
-  }
-
   public synchronized void recalibrate() {
     this.recalibrate(System.currentTimeMillis());
   }
