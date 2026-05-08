@@ -1,7 +1,5 @@
 package com.datadog.profiling.controller;
 
-import static datadog.environment.OperatingSystem.Architecture.ARM64;
-
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
@@ -243,11 +241,7 @@ public final class EnvironmentChecker {
           .filter(e -> e.getName().contains("libjavaProfiler.so"))
           .filter(
               e ->
-                  e.getName()
-                          .contains(
-                              OperatingSystem.architecture() == ARM64
-                                  ? "/linux-arm64/"
-                                  : "/linux-x64/")
+                  e.getName().contains(OperatingSystem.isArm64() ? "/linux-arm64/" : "/linux-x64/")
                       && (!OperatingSystem.isMusl() || e.getName().contains("-musl")))
           .findFirst()
           .map(

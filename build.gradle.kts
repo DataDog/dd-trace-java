@@ -1,4 +1,5 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
@@ -82,6 +83,12 @@ allprojects {
     dependsOn(tasks.withType<AbstractCompile>())
   }
 
+  // Temurin 11/21 on Linux arm64 SIGSEGVs in SystemDictionary::define_instance_class
+  // during CDS shared-class restore. GRADLE_OPTS / org.gradle.jvmargs only reaches the
+  // Gradle daemon, so every forked JVM (Test executor, JavaCompile worker daemon when
+  // the toolchain differs from the daemon's JDK) must disable CDS on its own.
+  val isLinuxArm64 = HostPlatform.isLinuxArm64()
+
   tasks.configureEach {
     if (this is JavaForkOptions) {
       maxHeapSize = System.getProperty("datadog.forkedMaxHeapSize")
@@ -91,6 +98,18 @@ allprojects {
         "-XX:+HeapDumpOnOutOfMemoryError",
         "-XX:HeapDumpPath=/tmp"
       )
+      if (isLinuxArm64) {
+        jvmArgs("-Xshare:off")
+      }
+    }
+  }
+
+  if (isLinuxArm64) {
+    tasks.withType<JavaCompile>().configureEach {
+      options.forkOptions.jvmArgs?.add("-Xshare:off")
+    }
+    tasks.withType<GroovyCompile>().configureEach {
+      groovyOptions.forkOptions.jvmArgs?.add("-Xshare:off")
     }
   }
 }

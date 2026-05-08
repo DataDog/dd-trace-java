@@ -2,11 +2,13 @@ import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_CLIENT_HOST_SPLIT_BY_INSTANCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.DB_DBM_TRACE_PREPARED_STATEMENTS
+import static org.junit.jupiter.api.Assumptions.assumeTrue
 
 import com.mchange.v2.c3p0.ComboPooledDataSource
 import com.microsoft.sqlserver.jdbc.SQLServerException
 import com.zaxxer.hikari.HikariConfig
 import com.zaxxer.hikari.HikariDataSource
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.api.Config
@@ -90,6 +92,10 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   @Shared
   private Map<String, Map<String, DataSource>> cpDatasources = new HashMap<>()
 
+  private static boolean dockerImageSupported(String db) {
+    return !(db == SQLSERVER && OperatingSystem.isArm64() && OperatingSystem.isLinux())
+  }
+
   def peerConnectionProps(String db){
     def props = new Properties()
     props.setProperty("user", jdbcUserNames.get(db))
@@ -158,6 +164,11 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
 
   def createDS(String connectionPoolName, String dbType, String jdbcUrl) {
     DataSource ds = null
+
+    if (!dockerImageSupported(dbType)) {
+      return ds
+    }
+
     if (connectionPoolName == "tomcat") {
       ds = createTomcatDS(dbType, jdbcUrl)
     }
@@ -196,10 +207,12 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
     jdbcUrls.put(MYSQL, "${mysql.getJdbcUrl()}")
 
     // SQLSERVER
-    sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE).acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
-    sqlserver.start()
-    PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
-    jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+    if (dockerImageSupported(SQLSERVER)) {
+      sqlserver = new MSSQLServerContainer(MSSQLServerContainer.IMAGE).acceptLicense().withPassword(jdbcPasswords.get(SQLSERVER))
+      sqlserver.start()
+      PortUtils.waitForPortToOpen(sqlserver.getHost(), sqlserver.getMappedPort(MSSQLServerContainer.MS_SQL_SERVER_PORT), 5, TimeUnit.SECONDS)
+      jdbcUrls.put(SQLSERVER, "${sqlserver.getJdbcUrl()};DatabaseName=${dbName.get(SQLSERVER)}")
+    }
 
     // ORACLE
     // Earlier Oracle version images (oracle-xe) don't work on arm64
@@ -1026,6 +1039,8 @@ abstract class RemoteJDBCInstrumentationTest extends VersionedNamingTestBase {
   }
 
   Connection setupConnection(String pool, String db) {
+    assumeTrue(dockerImageSupported(db))
+
     def conn =  pool ? cpDatasources.get(pool).get(db).getConnection() : connectTo(db, peerConnectionProps(db))
 
     // Clear any traces that pool or db can emmit on connection creation.
