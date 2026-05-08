@@ -180,6 +180,31 @@ class DependencyAgeScriptTest(unittest.TestCase):
         self.assertEqual(outputs["version"], "4.0.0-beta-3")
         self.assertEqual(outputs["published_at"], "")
 
+    def test_updates_when_eligible_version_is_higher_than_current(self) -> None:
+        result = self.run_script(
+            "select-maven",
+            "--now",
+            NOW,
+            "--group-id",
+            "org.apache.maven.plugins",
+            "--artifact-id",
+            "maven-surefire-plugin",
+            "--search-response-file",
+            str(FIXTURES / "surefire-boundary.json"),
+            "--prerelease-pattern",
+            "alpha",
+            "--prerelease-pattern",
+            "beta",
+            "--current-version",
+            "3.5.4",
+        )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        outputs = self.parse_outputs(result.stdout)
+        self.assertEqual(outputs["found"], "true")
+        self.assertEqual(outputs["version"], "3.5.5")
+        self.assertEqual(outputs["published_at"], "2026-04-22")
+
     def test_keeps_current_version_when_no_eligible_version_exists(self) -> None:
         result = self.run_script(
             "select-gradle",
