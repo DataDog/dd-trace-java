@@ -378,7 +378,7 @@ public class DefaultConfigurationPoller
       fleetResponse = maybeFleetResp.get();
     } catch (Exception e) {
       // no error can be reported, as we don't have the data client.state.targets_version avail
-      ratelimitedLogger.warn("Error parsing remote config response", e);
+      ratelimitedLogger.warn("Error parsing remote config response: {}", e.toString());
       return;
     }
 
