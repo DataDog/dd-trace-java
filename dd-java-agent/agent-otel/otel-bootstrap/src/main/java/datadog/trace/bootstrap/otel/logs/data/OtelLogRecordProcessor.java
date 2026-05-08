@@ -72,6 +72,7 @@ public final class OtelLogRecordProcessor {
           logsReady.poll(waitNanos, TimeUnit.NANOSECONDS);
         }
       } catch (InterruptedException ignore) {
+        // don't set interrupt flag as we might then busy-loop, just return batch as-is
         break;
       } finally {
         logsNeeded = Integer.MAX_VALUE;

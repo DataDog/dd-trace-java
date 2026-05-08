@@ -77,6 +77,7 @@ public final class OtlpLogsService {
       try {
         thread.join(1_000);
       } catch (InterruptedException ignore) {
+        // don't set interrupt flag as we're mid-shutdown
       }
     }
     if (sender != null) {
