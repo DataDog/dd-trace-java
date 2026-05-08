@@ -6,6 +6,7 @@ import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
+import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Random;
 import java.util.concurrent.ThreadLocalRandom;
@@ -34,6 +35,13 @@ public class GenerationalUtf8CacheTest {
     GenerationalUtf8Cache cache = new GenerationalUtf8Cache(192);
     assertEquals(64, cache.edenCapacity());
     assertEquals(128, cache.tenuredCapacity());
+  }
+
+  @Test
+  public void capacity_twoArg() {
+    GenerationalUtf8Cache cache = new GenerationalUtf8Cache(64, 256);
+    assertEquals(64, cache.edenCapacity());
+    assertEquals(256, cache.tenuredCapacity());
   }
 
   @Test
@@ -80,6 +88,29 @@ public class GenerationalUtf8CacheTest {
     assertSame(second, third);
 
     assertNotEquals(0, cache.edenHits);
+  }
+
+  @Test
+  public void getUtf8_perCallAccessTime_overridesField() throws Exception {
+    GenerationalUtf8Cache cache = create();
+    // The field value should not leak into the entry when an explicit time is supplied.
+    cache.updateAccessTime(0L);
+
+    String value = "bar";
+    long callTime = 12345L;
+
+    // First call only marks; the second call creates the entry.
+    cache.getUtf8(value, callTime);
+    cache.getUtf8(value, callTime);
+
+    assertEquals(callTime, lookupEdenLastUsedMs(cache, value));
+
+    // Drive enough hits to promote into tenured.
+    while (cache.promotions == 0) {
+      cache.getUtf8(value, callTime);
+    }
+
+    assertEquals(callTime, lookupTenuredLastUsedMs(cache, value));
   }
 
   @Test
@@ -203,6 +234,29 @@ public class GenerationalUtf8CacheTest {
 
     int valueSuffix = random.nextInt(2 * baseIndex + 1);
     return baseString + valueSuffix;
+  }
+
+  static long lookupEdenLastUsedMs(GenerationalUtf8Cache cache, String value) throws Exception {
+    return lookupLastUsedMs(cache, "edenEntries", value);
+  }
+
+  static long lookupTenuredLastUsedMs(GenerationalUtf8Cache cache, String value) throws Exception {
+    return lookupLastUsedMs(cache, "tenuredEntries", value);
+  }
+
+  private static long lookupLastUsedMs(GenerationalUtf8Cache cache, String fieldName, String value)
+      throws Exception {
+    Field arrayField = GenerationalUtf8Cache.class.getDeclaredField(fieldName);
+    arrayField.setAccessible(true);
+    GenerationalUtf8Cache.CacheEntry[] entries =
+        (GenerationalUtf8Cache.CacheEntry[]) arrayField.get(cache);
+
+    for (GenerationalUtf8Cache.CacheEntry entry : entries) {
+      if (entry != null && value.equals(entry.value)) {
+        return entry.lastUsedMs();
+      }
+    }
+    throw new AssertionError("entry for value '" + value + "' not found in " + fieldName);
   }
 
   static final void printStats(GenerationalUtf8Cache cache) {
