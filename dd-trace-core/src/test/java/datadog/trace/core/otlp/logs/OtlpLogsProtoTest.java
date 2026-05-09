@@ -48,7 +48,7 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 
 /**
- * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#collectLogs}.
+ * Tests for {@link OtlpLogsProto} via {@link OtlpLogsProtoCollector#waitForLogs}.
  *
  * <p>Each test case constructs {@link OtlpLogRecord} instances (using real {@link DDSpan} contexts
  * where needed), collects them via {@link OtlpLogsProtoCollector}, drains the resulting chunked
@@ -334,7 +334,7 @@ class OtlpLogsProtoTest {
 
     OtlpPayload payload =
         OtlpLogsProtoCollector.INSTANCE.collectLogs(
-            visitor -> {
+            (visitor, interval) -> {
               for (List<LogSpec> scopeGroup : groupByScope(specs).values()) {
                 OtlpScopedLogsVisitor scoped = visitor.visitScopedLogs(scopeGroup.get(0).scope);
                 for (LogSpec spec : scopeGroup) {
@@ -355,7 +355,8 @@ class OtlpLogsProtoTest {
                           spec.eventName));
                 }
               }
-            });
+            },
+            0);
 
     if (specs.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty specs must produce empty payload");

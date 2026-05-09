@@ -56,6 +56,7 @@ docs/                     Developer documentation (see below)
 ## Code conventions
 
 - **Formatting**: google-java-format enforced via Spotless. Run `./gradlew spotlessApply` before committing.
+- **Static imports**: Prefer static imports over class-qualified calls for call-style helpers — JUnit `Assertions`, Mockito (`mock`, `when`, `verify`, `anyString`, `RETURNS_DEFAULTS`, ...), Hamcrest/AssertJ matchers, internal test DSLs, and similar. Same goes for production code: `Collections.emptyList()` is fine, but if you find yourself repeatedly writing `Foo.bar(...)` where `Foo` adds no information at the call site, static-import `bar`. Wildcard `import static x.*` is disallowed (enforced by IDE config in CONTRIBUTING.md).
 - **Instrumentation layout**: `dd-java-agent/instrumentation/{framework}/{framework}-{minVersion}/`
 - **Instrumentation pattern**: Type matching → Method matching → Advice class (bytecode advice, not AOP)
 - **Test frameworks**: Always use JUnit 5. **Do not write new Groovy / Spock tests** and migrate the existing one to JUnit 5 if it is written in Groovy.

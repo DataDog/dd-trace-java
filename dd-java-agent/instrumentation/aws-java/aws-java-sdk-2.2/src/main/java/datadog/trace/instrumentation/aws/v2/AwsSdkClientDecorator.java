@@ -133,14 +133,14 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
 
     // S3
     request.getValueForField("Bucket", String.class).ifPresent(name -> setBucketName(span, name));
-    if ("s3".equalsIgnoreCase(awsServiceName) && traceConfig().isDataStreamsEnabled()) {
-      request
-          .getValueForField("Key", String.class)
-          .ifPresent(key -> span.setTag(InstrumentationTags.AWS_OBJECT_KEY, key));
-      span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
+    if ("s3".equalsIgnoreCase(awsServiceName)) {
+      // gate "Key" extraction to S3 — DynamoDB's Key is Map<String, AttributeValue>, would CCE
+      request.getValueForField("Key", String.class).ifPresent(key -> setObjectKey(span, key));
+      if (traceConfig().isDataStreamsEnabled()) {
+        span.setTag(Tags.HTTP_REQUEST_CONTENT_LENGTH, getRequestContentLength(httpRequest));
+      }
     }
 
-    getRequestKey(request).ifPresent(key -> setObjectKey(span, key));
     request
         .getValueForField("StorageClass", String.class)
         .ifPresent(
@@ -277,17 +277,6 @@ public class AwsSdkClientDecorator extends HttpClientDecorator<SdkHttpRequest, S
     span.setTag(InstrumentationTags.AWS_BUCKET_NAME, name);
     span.setTag(InstrumentationTags.BUCKET_NAME, name);
     setPeerService(span, InstrumentationTags.AWS_BUCKET_NAME, name);
-  }
-
-  private static Optional<String> getRequestKey(SdkRequest request) {
-    Optional<String> key = Optional.empty();
-    try {
-      key = request.getValueForField("Key", String.class);
-    } catch (ClassCastException ignored) {
-      // Key is not always a string, like for dynamodb GetItemRequest
-    }
-
-    return key;
   }
 
   private static void setObjectKey(AgentSpan span, String key) {
