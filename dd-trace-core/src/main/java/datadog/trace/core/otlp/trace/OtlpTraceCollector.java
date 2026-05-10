@@ -1,5 +1,7 @@
 package datadog.trace.core.otlp.trace;
 
+import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
+
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import java.util.List;
@@ -12,4 +14,9 @@ public abstract class OtlpTraceCollector {
 
   /** Collects all spans added since the last collection. */
   public abstract OtlpPayload collectTraces();
+
+  protected final boolean shouldExport(CoreSpan<?> span) {
+    return span.samplingPriority() > 0 // trace-level sampling priority
+        || span.getTag(SPAN_SAMPLING_MECHANISM_TAG) != null; // span-level sampling priority
+  }
 }
