@@ -167,6 +167,52 @@ class AIGuardSmokeTest extends AbstractAppSecServerSmokeTest {
     rootSpan.meta.get('network.client.ip') != publicIp
   }
 
+  void 'anomaly detection tags are copied from the local root span to the ai_guard span'() {
+    given:
+    final publicIp = '5.6.7.9'
+    final userId = 'u12345'
+    final sessionId = 's12345'
+    final userAgent = 'AIGuardSmokeTest/1.0'
+    final request = new Request.Builder()
+    .url("http://localhost:${httpPort}/aiguard/allow")
+    .header('X-Forwarded-For', publicIp)
+    .header('X-User-Id', userId)
+    .header('X-Session-Id', sessionId)
+    .header('User-Agent', userAgent)
+    .get()
+    .build()
+
+    when:
+    final response = client.newCall(request).execute()
+
+    then:
+    response.code() == 200
+
+    and:
+    waitForTraceCount(2) // /aiguard/allow + internal /aiguard/evaluate mock
+    final aiGuardSpan = traces*.spans
+    ?.flatten()
+    ?.find { it.resource == 'ai_guard' } as DecodedSpan
+    aiGuardSpan != null
+    final rootSpan = traces*.spans
+    ?.flatten()
+    ?.find { it.traceId == aiGuardSpan.traceId && it.parentId == 0 } as DecodedSpan
+    rootSpan != null
+
+    // Tags must match what is on the root span
+    aiGuardSpan.meta.get('ai_guard.http.client_ip') == rootSpan.meta.get('http.client_ip')
+    aiGuardSpan.meta.get('ai_guard.network.client.ip') == rootSpan.meta.get('network.client.ip')
+    aiGuardSpan.meta.get('ai_guard.http.useragent') == rootSpan.meta.get('http.useragent')
+    aiGuardSpan.meta.get('ai_guard.usr.id') == rootSpan.meta.get('usr.id')
+    aiGuardSpan.meta.get('ai_guard.usr.session_id') == rootSpan.meta.get('usr.session_id')
+
+    // And carry the expected values
+    aiGuardSpan.meta.get('ai_guard.http.client_ip') == publicIp
+    aiGuardSpan.meta.get('ai_guard.http.useragent') == userAgent
+    aiGuardSpan.meta.get('ai_guard.usr.id') == userId
+    aiGuardSpan.meta.get('ai_guard.usr.session_id') == sessionId
+  }
+
   void 'test multimodal content parts evaluation'() {
     given:
     def request = new Request.Builder()
