@@ -1,7 +1,6 @@
 package datadog.trace.core.otlp.logs;
 
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 import static datadog.trace.core.otlp.common.OtlpResourceProto.RESOURCE_MESSAGE;
@@ -16,10 +15,7 @@ import datadog.trace.bootstrap.otlp.logs.OtlpLogsVisitor;
 import datadog.trace.bootstrap.otlp.logs.OtlpScopedLogsVisitor;
 import datadog.trace.core.otlp.common.OtlpCommonProto;
 import datadog.trace.core.otlp.common.OtlpPayload;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
-import java.util.List;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import java.util.function.ObjIntConsumer;
 
 /**
@@ -42,10 +38,7 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
   private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
 
   private final GrowableBuffer buf = new GrowableBuffer(512);
-
-  // temporary collections of chunks at different nesting levels
-  private final Deque<byte[]> payloadChunks = new ArrayDeque<>();
-  private final List<byte[]> scopedChunks = new ArrayList<>();
+  private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
   // total number of chunked bytes at different nesting levels
   private int payloadBytes;
@@ -78,9 +71,6 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
   /** Prepare temporary elements to collect logs data. */
   private void start() {
 
-    // clear payloadChunks in case it wasn't fully consumed via OtlpPayload
-    payloadChunks.clear();
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
   }
@@ -88,9 +78,7 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
   /** Cleanup elements used to collect logs data. */
   private void stop() {
     buf.reset();
-
-    // leave payloadChunks in place so it can be consumed via OtlpPayload
-    scopedChunks.clear();
+    protobuf.reset();
 
     payloadBytes = 0;
     scopedBytes = 0;
@@ -109,9 +97,7 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
   @Override
   public void visitLogRecord(OtlpLogRecord logRecord) {
-    byte[] logChunk = recordLogRecordMessage(buf, logRecord);
-    scopedChunks.add(logChunk);
-    scopedBytes += logChunk.length;
+    scopedBytes += recordLogRecordMessage(buf, logRecord, protobuf);
   }
 
   @Override
@@ -132,15 +118,11 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
     }
 
     // prepend the canned resource chunk
-    payloadChunks.addFirst(RESOURCE_MESSAGE);
-    payloadBytes += RESOURCE_MESSAGE.length;
+    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
 
     // finally prepend the total length of all collected chunks
-    byte[] prefix = recordMessage(buf, 1, payloadBytes);
-    payloadChunks.addFirst(prefix);
-    payloadBytes += prefix.length;
-
-    return new OtlpPayload(payloadChunks, payloadBytes, PROTOBUF_CONTENT_TYPE);
+    protobuf.recordMessage(buf, 1, payloadBytes);
+    return protobuf.toPayload();
   }
 
   // called once we've processed all logs in a specific scope
@@ -148,15 +130,11 @@ public final class OtlpLogsProtoCollector extends OtlpLogsCollector
 
     // add scoped logs message prefix to its nested chunks and promote to payload
     if (scopedBytes > 0) {
-      byte[] scopedPrefix = recordScopedLogsMessage(buf, currentScope, scopedBytes);
-      payloadChunks.add(scopedPrefix);
-      payloadChunks.addAll(scopedChunks);
-      payloadBytes += scopedPrefix.length + scopedBytes;
+      payloadBytes += recordScopedLogsMessage(buf, currentScope, scopedBytes, protobuf);
     }
 
     // reset temporary elements for next scope
     currentScope = null;
-    scopedChunks.clear();
     scopedBytes = 0;
   }
 }
