@@ -141,7 +141,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // ignores writes whose priority is below the current resource priority,
         // and the HTTP/JAX-RS instrumentation will already have written
         // HTTP_FRAMEWORK_ROUTE (3) by this point.
-        span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.MANUAL_INSTRUMENTATION);
+        span.setResourceName(INVOCATION_SPAN_NAME, ResourceNamePriorities.TAG_INTERCEPTOR);
         span.finish();
         AgentTracer.get().notifyExtensionEnd(span, result, null != throwable, lambdaRequestId);
       } finally {
