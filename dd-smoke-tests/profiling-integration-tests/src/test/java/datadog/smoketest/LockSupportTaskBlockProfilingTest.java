@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
+import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
 import datadog.trace.api.config.ProfilingConfig;
 import io.opentracing.Scope;
@@ -41,6 +42,7 @@ import org.openjdk.jmc.common.item.IMemberAccessor;
 import org.openjdk.jmc.common.item.ItemFilters;
 import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
+import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 
 @DisabledOnJ9
 final class LockSupportTaskBlockProfilingTest {
@@ -66,6 +68,8 @@ final class LockSupportTaskBlockProfilingTest {
           "numTaskBlockSkippedTooShort",
           "numTaskBlockSkippedTooShort",
           NUMBER);
+  private static final IAttribute<String> OPERATION =
+      attr("_dd.trace.operation", "_dd.trace.operation", "_dd.trace.operation", PLAIN_TEXT);
   private static final Path LOG_FILE_BASE =
       Paths.get(
           buildDirectory(),
@@ -109,6 +113,10 @@ final class LockSupportTaskBlockProfilingTest {
     assertFalse(stats.hasZeroSpanId, "TaskBlock events must have non-zero spanId");
     assertFalse(
         stats.hasZeroLocalRootSpanId, "TaskBlock events must have non-zero localRootSpanId");
+    assertFalse(stats.hasMissingEventThread, "TaskBlock events must resolve Event Thread");
+    assertTrue(
+        stats.hasExpectedOperation,
+        "Expected TaskBlock events to include LockSupport span operation names");
     assertFalse(logHasLockSupportInstrumentationError(), "LockSupport instrumentation failed");
   }
 
@@ -139,6 +147,7 @@ final class LockSupportTaskBlockProfilingTest {
                 "-Ddd." + ProfilingConfig.PROFILING_START_FORCE_FIRST + "=true",
                 "-Ddd.profiling.upload.period=1",
                 "-Ddd.profiling.hotspots.enabled=true",
+                "-Ddd." + ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED + "=true",
                 "-Ddd.profiling.debug.dump_path=" + dumpDir,
                 "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
                 "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
@@ -318,6 +327,8 @@ final class LockSupportTaskBlockProfilingTest {
     private long taskBlocksWithUnblockingSpan;
     private boolean hasZeroSpanId;
     private boolean hasZeroLocalRootSpanId;
+    private boolean hasMissingEventThread;
+    private boolean hasExpectedOperation;
 
     private void add(IItemCollection events) {
       addTaskBlocks(events);
@@ -333,14 +344,24 @@ final class LockSupportTaskBlockProfilingTest {
         IMemberAccessor<IQuantity, IItem> blockerAccessor = BLOCKER.getAccessor(items.getType());
         IMemberAccessor<IQuantity, IItem> unblockingSpanIdAccessor =
             UNBLOCKING_SPAN_ID.getAccessor(items.getType());
+        IMemberAccessor<String, IItem> eventThreadAccessor =
+            JdkAttributes.EVENT_THREAD_NAME.getAccessor(items.getType());
+        IMemberAccessor<String, IItem> operationAccessor = OPERATION.getAccessor(items.getType());
         for (IItem item : items) {
           taskBlockCount++;
           long spanId = spanIdAccessor.getMember(item).longValue();
           long localRootSpanId = localRootSpanIdAccessor.getMember(item).longValue();
           long blocker = blockerAccessor.getMember(item).longValue();
           long unblockingSpanId = unblockingSpanIdAccessor.getMember(item).longValue();
+          String eventThread =
+              eventThreadAccessor == null ? null : eventThreadAccessor.getMember(item);
+          String operation = operationAccessor == null ? null : operationAccessor.getMember(item);
           hasZeroSpanId |= spanId == 0;
           hasZeroLocalRootSpanId |= localRootSpanId == 0;
+          hasMissingEventThread |= eventThread == null || eventThread.isEmpty();
+          hasExpectedOperation |=
+              "locksupport.active".equals(operation)
+                  || "locksupport.unpark.parked".equals(operation);
           if (blocker != 0) {
             taskBlocksWithNonZeroBlocker++;
           }
