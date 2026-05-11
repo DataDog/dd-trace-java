@@ -115,14 +115,6 @@ tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
 }
 
-sourceSets {
-  test {
-    java {
-      srcDirs += [layout.buildDirectory.dir("generated/sources/proto/test/java")]
-    }
-  }
-}
-
 tasks.withType(JavaCompile).configureEach {
   if (name == 'compileJava') {
     options.errorprone {
