@@ -1,0 +1,78 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<configuration version="2.0" label="dd-overhead" description="Capture allocations, class loads, and CPU samples with stacks for instrumentation overhead measurement.">
+
+  <!-- Allocations: TLAB events fire on TLAB exhaustion (not per allocation), but
+       carry full stacks. Use for short instrumentation tests; for tight benchmarks
+       prefer ObjectAllocationSample at a tuned interval. -->
+  <event name="jdk.ObjectAllocationInNewTLAB">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+  <event name="jdk.ObjectAllocationOutsideTLAB">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+  <!-- Class footprint. NOTE: jdk.ClassLoad with stackTrace=true triggers a known
+       NPE in JDK 25's `jfr print` text printer when a frame has a null method.
+       Workaround: dump ClassLoad with stack-depth 0 for analysis. The data is
+       still recorded correctly. -->
+  <event name="jdk.ClassLoad">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+  <event name="jdk.ClassLoaderStatistics">
+    <setting name="enabled">true</setting>
+    <setting name="period">500 ms</setting>
+  </event>
+
+  <!-- CPU sampling. 1ms period gives ~1000 slots/s; on a short test JVM (~2s)
+       this yields 1-2k samples per active thread. -->
+  <event name="jdk.ExecutionSample">
+    <setting name="enabled">true</setting>
+    <setting name="period">1 ms</setting>
+  </event>
+  <event name="jdk.NativeMethodSample">
+    <setting name="enabled">true</setting>
+    <setting name="period">10 ms</setting>
+  </event>
+
+  <!-- CPU usage totals. -->
+  <event name="jdk.CPULoad">
+    <setting name="enabled">true</setting>
+    <setting name="period">500 ms</setting>
+  </event>
+  <event name="jdk.ThreadCPULoad">
+    <setting name="enabled">true</setting>
+    <setting name="period">500 ms</setting>
+  </event>
+
+  <!-- Thread/GC context for interpreting numbers. -->
+  <event name="jdk.ThreadAllocationStatistics">
+    <setting name="enabled">true</setting>
+    <setting name="period">500 ms</setting>
+  </event>
+  <event name="jdk.JavaThreadStatistics">
+    <setting name="enabled">true</setting>
+    <setting name="period">1000 ms</setting>
+  </event>
+  <event name="jdk.GCHeapSummary">
+    <setting name="enabled">true</setting>
+  </event>
+  <event name="jdk.GarbageCollection">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">0 ms</setting>
+  </event>
+
+  <!-- Compilation and deoptimization: useful when investigating whether
+       instrumentation defeats inlining of hot user code. -->
+  <event name="jdk.Compilation">
+    <setting name="enabled">true</setting>
+    <setting name="threshold">100 ms</setting>
+  </event>
+  <event name="jdk.Deoptimization">
+    <setting name="enabled">true</setting>
+    <setting name="stackTrace">true</setting>
+  </event>
+
+</configuration>

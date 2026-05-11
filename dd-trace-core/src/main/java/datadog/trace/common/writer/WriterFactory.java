@@ -5,6 +5,7 @@ import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_AGE
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.DD_INTAKE_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.LOGGING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.MULTI_WRITER_TYPE;
+import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.NOOP_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.OTLP_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.PRINTING_WRITER_TYPE;
 import static datadog.trace.bootstrap.instrumentation.api.WriterConstants.TRACE_STRUCTURE_WRITER_TYPE;
@@ -61,6 +62,8 @@ public class WriterFactory {
 
     if (LOGGING_WRITER_TYPE.equals(configuredType)) {
       return new LoggingWriter();
+    } else if (NOOP_WRITER_TYPE.equals(configuredType)) {
+      return new NoOpWriter();
     } else if (PRINTING_WRITER_TYPE.equals(configuredType)) {
       return new PrintingWriter(System.out, true);
     } else if (configuredType.startsWith(TRACE_STRUCTURE_WRITER_TYPE)) {
