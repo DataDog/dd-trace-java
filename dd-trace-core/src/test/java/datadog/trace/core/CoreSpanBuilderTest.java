@@ -78,7 +78,8 @@ public class CoreSpanBuilderTest extends DDCoreJavaSpecification {
     tags.put("2", "fakeString");
     tags.put("3", 42.0);
 
-    AgentTracer.SpanBuilder builder = tracer.buildSpan(expectedName).withServiceName("foo");
+    AgentTracer.SpanBuilder builder =
+        tracer.buildSpan("datadog", expectedName).withServiceName("foo");
     for (Map.Entry<String, Object> entry : tags.entrySet()) {
       builder = builder.withTag(entry.getKey(), entry.getValue());
     }

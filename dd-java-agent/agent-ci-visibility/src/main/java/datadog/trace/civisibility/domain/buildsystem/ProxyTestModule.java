@@ -199,6 +199,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),
+        config.isCiVisibilityTestSkippingEnabled(),
         testClass,
         startTime,
         parallelized,

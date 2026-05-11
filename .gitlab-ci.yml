@@ -1,7 +1,6 @@
 include:
   - local: ".gitlab/one-pipeline.locked.yml"
   - local: ".gitlab/benchmarks.yml"
-  - local: ".gitlab/macrobenchmarks.yml"
   - local: ".gitlab/exploration-tests.yml"
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
@@ -36,7 +35,6 @@ stages:
   - java-post-pr-comment
   - shared-pipeline
   - benchmarks
-  - macrobenchmarks
   - tests
   - test-summary
   - exploration-tests
@@ -77,6 +75,9 @@ workflow:
   auto_cancel:
     on_new_commit: interruptible
   rules:
+    # skip gitlab pipeline for github merge queue - we are currently using the datadog merge queue
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue\//'
+      when: never
     - if: '$CI_COMMIT_BRANCH == "master"'
       auto_cancel:
         on_new_commit: none
@@ -231,15 +232,9 @@ default:
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
-    # for weird reasons, Gradle will always "chmod 700" the .gradle folder
-    # with Gitlab caching, .gradle is always owned by root and thus Gradle's chmod invocation fails
-    # This dance is a hack to have .gradle owned by the Gitlab runner user
-    - gitlab_section_start "gradle-dance" "Fix .gradle directory permissions"
-    - cp -r .gradle .gradle-copy
-    - rm -rf .gradle
-    - mv .gradle-copy .gradle
-    - ls -la
-    - gitlab_section_end "gradle-dance"
+    # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
+    # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
+    - sudo chown -R 1001:1001 .gradle
   after_script:
     - *cgroup_info
     - *container_info
@@ -537,6 +532,12 @@ muzzle:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: never
+    - when: on_success
   parallel:
     matrix:
       - CI_SPLIT: ["1/8", "2/8", "3/8", "4/8", "5/8", "6/8", "7/8", "8/8"]
@@ -569,6 +570,12 @@ muzzle-dep-report:
   extends: .gradle_build
   needs: [ build_tests ]
   stage: tests
+  rules:
+    - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
+      when: never
+    - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
+      when: never
+    - when: on_success
   variables:
     CACHE_TYPE: "inst"
   script:
@@ -1120,3 +1127,4 @@ update_central_configurations_version_range_v2:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
+    SEND_ALIASES: "true"

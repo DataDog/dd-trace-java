@@ -101,7 +101,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
           return priority
         }
       })
-    tracer.buildSpan("test " + score).start().finish()
+    tracer.buildSpan("datadog", "test " + score).start().finish()
     if (score == TestInterceptor.priority) {
       // the interceptor didn't get added, so latch will never be released.
       writer.waitForTraces(1)
@@ -148,7 +148,7 @@ class TraceInterceptorTest extends DDCoreSpecification {
           return 1
         }
       })
-    tracer.buildSpan("test").start().finish()
+    tracer.buildSpan("datadog", "test").start().finish()
     writer.waitForTraces(1)
 
     expect:
