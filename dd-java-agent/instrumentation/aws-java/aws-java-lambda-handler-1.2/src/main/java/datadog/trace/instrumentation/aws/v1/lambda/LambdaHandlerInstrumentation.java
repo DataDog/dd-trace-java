@@ -137,7 +137,7 @@ public class LambdaHandlerInstrumentation extends InstrumenterModule.Tracing
         // would fail to dedup, leading to the placeholder leaking to the backend
         // with parent_id=0 and detaching the inferred apigateway root from the
         // rest of the trace.
-        // Use MANUAL_INSTRUMENTATION priority because DDSpanContext.setResourceName
+        // Use TAG_INTERCEPTOR priority because DDSpanContext.setResourceName
         // ignores writes whose priority is below the current resource priority,
         // and the HTTP/JAX-RS instrumentation will already have written
         // HTTP_FRAMEWORK_ROUTE (3) by this point.
