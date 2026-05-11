@@ -1129,3 +1129,4 @@ update_central_configurations_version_range_v2:
     LOCAL_JSON_PATH: "metadata/supported-configurations.json"
     LANGUAGE_NAME: "java"
     MULTIPLE_RELEASE_LINES: "false"
+    SEND_ALIASES: "true"
