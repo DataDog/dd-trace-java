@@ -67,7 +67,7 @@ class DDApiIntegrationTest extends AbstractTraceAgentTest {
 
   def setup() {
     tracer = CoreTracer.builder().writer(new ListWriter()).build()
-    span = tracer.buildSpan("fakeOperation").start()
+    span = tracer.buildSpan("datadog", "fakeOperation").start()
     Thread.sleep(1)
     span.finish()
   }
