@@ -5,6 +5,7 @@ import datadog.trace.api.ProcessTags
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
 import datadog.trace.bootstrap.instrumentation.api.Tags
+import datadog.trace.bootstrap.instrumentation.dbm.SharedDBCommenter
 import datadog.trace.instrumentation.jdbc.SQLCommenter
 
 import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
@@ -37,6 +38,7 @@ class SQLCommenterTest extends InstrumentationSpecification {
     injectSysConfig("dd.service", ddService)
     injectSysConfig("dd.env", ddEnv)
     injectSysConfig("dd.version", ddVersion)
+    SharedDBCommenter.resetStaticPrefixForTesting()
 
     when:
     String sqlWithComment = SQLCommenter.inject(query, dbService, dbType, host, dbName, traceParent, append)
@@ -124,6 +126,7 @@ class SQLCommenterTest extends InstrumentationSpecification {
     injectSysConfig("dd.experimental.propagate.process.tags.enabled", Boolean.toString(processTagsEnabled))
     ProcessTags.reset()
     BaseHash.updateBaseHash(baseHash)
+    SharedDBCommenter.resetStaticPrefixForTesting()
 
     expect:
     Config.get().isExperimentalPropagateProcessTagsEnabled() == processTagsEnabled
@@ -151,6 +154,7 @@ class SQLCommenterTest extends InstrumentationSpecification {
     injectSysConfig("dd.service", "SqlCommenter")
     injectSysConfig("dd.env", "Test")
     injectSysConfig("dd.version", "TestVersion")
+    SharedDBCommenter.resetStaticPrefixForTesting()
 
     when:
     String sqlWithComment = runUnderTrace("testTrace") {
