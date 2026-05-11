@@ -31,6 +31,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -147,6 +149,13 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> AgentScope activate(@Advice.This RunnableFuture<T> task) {
+      // Newer Netty versions may run scheduled tasks once before they expire to enqueue them.
+      if (task instanceof ScheduledFuture
+          && task.getClass().getName().endsWith(".netty.util.concurrent.ScheduledFutureTask")
+          && ((ScheduledFuture<?>) task).getDelay(TimeUnit.NANOSECONDS) > 0) {
+        return null;
+      }
+
       return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
     }
 
