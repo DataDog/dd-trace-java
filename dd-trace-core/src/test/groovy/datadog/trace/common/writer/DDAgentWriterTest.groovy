@@ -109,7 +109,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def "test writer.write publish succeeds"() {
     setup:
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when: "publish succeeds"
     writer.write(trace)
@@ -122,7 +122,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def "test writer.write publish for single span sampling"() {
     setup:
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when: "publish succeeds"
     writer.write(trace)
@@ -135,7 +135,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
 
   def "test writer.write publish fails"() {
     setup:
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when: "publish fails"
     writer.write(trace)
@@ -161,7 +161,7 @@ class DDAgentWriterTest extends DDCoreSpecification {
   def "test writer.write closed"() {
     setup:
     writer.close()
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when:
     writer.write(trace)

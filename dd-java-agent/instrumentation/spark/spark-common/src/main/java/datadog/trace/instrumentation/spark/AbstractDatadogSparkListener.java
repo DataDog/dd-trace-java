@@ -1092,7 +1092,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private AgentTracer.SpanBuilder buildSparkSpan(String spanName, Properties properties) {
     AgentTracer.SpanBuilder builder =
-        tracer.buildSpan(spanName).withSpanType("spark").withTag("app_id", appId);
+        tracer.buildSpan("spark", spanName).withSpanType("spark").withTag("app_id", appId);
 
     if (databricksServiceName != null) {
       builder.withServiceName(databricksServiceName);

@@ -39,7 +39,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "getters and setters"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanType("fakeType")
@@ -88,7 +88,7 @@ class DDSpanTest extends DDCoreSpecification {
     def span
 
     when:
-    span = tracer.buildSpan(opName).start()
+    span = tracer.buildSpan("datadog", opName).start()
     then:
     span.getResourceName() == opName
     span.getServiceName() != ""
@@ -97,7 +97,7 @@ class DDSpanTest extends DDCoreSpecification {
     final String resourceName = "fake"
     final String serviceName = "myService"
     span = tracer
-      .buildSpan(opName)
+      .buildSpan("datadog", opName)
       .withResourceName(resourceName)
       .withServiceName(serviceName)
       .start()
@@ -109,7 +109,7 @@ class DDSpanTest extends DDCoreSpecification {
   def "duration measured in nanoseconds"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("datadog", "test")
     def start = System.nanoTime()
     def span = builder.start()
     def between = System.nanoTime()
@@ -128,7 +128,7 @@ class DDSpanTest extends DDCoreSpecification {
   def "phasedFinish captures duration but doesn't publish immediately"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("datadog", "test")
     def start = System.nanoTime()
     def span = builder.start()
     def between = System.nanoTime()
@@ -192,7 +192,7 @@ class DDSpanTest extends DDCoreSpecification {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)
     def start = System.currentTimeMillis()
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("datadog", "test")
       .withStartTimestamp(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()))
     def span = builder.start()
     def between = System.currentTimeMillis()
@@ -211,7 +211,7 @@ class DDSpanTest extends DDCoreSpecification {
   def "stopping with a timestamp disables nanotime"() {
     setup:
     def mod = TimeUnit.MILLISECONDS.toNanos(1)
-    def builder = tracer.buildSpan("test")
+    def builder = tracer.buildSpan("datadog", "test")
     def start = System.currentTimeMillis()
     def span = builder.start()
     def between = System.currentTimeMillis()
@@ -230,7 +230,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "stopping with a timestamp before start time yields a min duration of 1"() {
     setup:
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
 
     // remove tick precision part of our internal time to match previous test condition
     span.finish(TimeUnit.MILLISECONDS.toMicros(TimeUnit.NANOSECONDS.toMillis(span.startTimeNano)) - 10)
@@ -241,14 +241,14 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "priority sampling metric set only on root span"() {
     setup:
-    def parent = tracer.buildSpan("testParent").start()
-    def child1 = tracer.buildSpan("testChild1").asChildOf(parent).start()
+    def parent = tracer.buildSpan("datadog", "testParent").start()
+    def child1 = tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start()
 
     child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP)
     child1.context().lockSamplingPriority()
     parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP)
     child1.finish()
-    def child2 = tracer.buildSpan("testChild2").asChildOf(parent).start()
+    def child2 = tracer.buildSpan("datadog", "testChild2").asChildOf(parent).start()
     child2.finish()
     parent.finish()
 
@@ -264,8 +264,8 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "origin set only on root span"() {
     setup:
-    def parent = tracer.buildSpan("testParent").asChildOf(extractedContext).start().context()
-    def child = tracer.buildSpan("testChild1").asChildOf(parent).start().context()
+    def parent = tracer.buildSpan("datadog", "testParent").asChildOf(extractedContext).start().context()
+    def child = tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().context()
 
     expect:
     parent.origin == "some-origin"
@@ -281,8 +281,8 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "isRootSpan() in and not in the context of distributed tracing"() {
     setup:
-    def root = tracer.buildSpan("root").asChildOf((AgentSpanContext) extractedContext).start()
-    def child = tracer.buildSpan("child").asChildOf(root).start()
+    def root = tracer.buildSpan("datadog", "root").asChildOf((AgentSpanContext) extractedContext).start()
+    def child = tracer.buildSpan("datadog", "child").asChildOf(root).start()
 
     expect:
     root.isRootSpan() == isTraceRootSpan
@@ -300,8 +300,8 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "getApplicationRootSpan() in and not in the context of distributed tracing"() {
     setup:
-    def root = tracer.buildSpan("root").asChildOf((AgentSpanContext) extractedContext).start()
-    def child = tracer.buildSpan("child").asChildOf(root).start()
+    def root = tracer.buildSpan("datadog", "root").asChildOf((AgentSpanContext) extractedContext).start()
+    def child = tracer.buildSpan("datadog", "child").asChildOf(root).start()
 
     expect:
     root.localRootSpan == root
@@ -324,8 +324,8 @@ class DDSpanTest extends DDCoreSpecification {
     setup:
     def reqContextData = Mock(Closeable)
     def context = new TagContext().withRequestContextDataAppSec(reqContextData)
-    def root = tracer.buildSpan("root").asChildOf(context).start()
-    def child = tracer.buildSpan("child").asChildOf(root).start()
+    def root = tracer.buildSpan("datadog", "root").asChildOf(context).start()
+    def child = tracer.buildSpan("datadog", "child").asChildOf(root).start()
 
     expect:
     root.requestContext.getData(RequestContextSlot.APPSEC).is(reqContextData)
@@ -384,7 +384,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "broken pipe exception does not create error span"() {
     when:
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     span.addThrowable(new IOException("Broken pipe"))
     then:
     !span.isError()
@@ -394,7 +394,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "wrapped broken pipe exception does not create error span"() {
     when:
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     span.addThrowable(new RuntimeException(new IOException("Broken pipe")))
     then:
     !span.isError()
@@ -404,7 +404,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "null exception safe to add"() {
     when:
-    def span = tracer.buildSpan("root").start()
+    def span = tracer.buildSpan("datadog", "root").start()
     span.addThrowable(null)
     then:
     !span.isError()
@@ -413,7 +413,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "set single span sampling tags"() {
     setup:
-    def span = tracer.buildSpan("testSpan").start() as DDSpan
+    def span = tracer.buildSpan("datadog", "testSpan").start() as DDSpan
 
     expect:
     span.samplingPriority() == UNSET
@@ -437,7 +437,7 @@ class DDSpanTest extends DDCoreSpecification {
 
   def "error priorities should be respected"() {
     setup:
-    def span = tracer.buildSpan("testSpan").start() as DDSpan
+    def span = tracer.buildSpan("datadog", "testSpan").start() as DDSpan
 
     expect:
     !span.isError()

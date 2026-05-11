@@ -17,7 +17,7 @@ class TraceMapperTest extends DDCoreSpecification {
   def "test trace mapper v0.5"() {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    DDSpan span = (DDSpan) tracer.buildSpan(null).withTag("service.name", "my-service")
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", null).withTag("service.name", "my-service")
       .withTag("elasticsearch.version", "7.0").start()
     span.setBaggageItem("baggage", "item")
     span.context().setDataTop("mydata", "[1,2,3]")

@@ -161,7 +161,7 @@ class SamplerTest extends DDSpecification{
     CoreTracer tracer = CoreTracer.builder().writer(new ListWriter()).sampler(sampler).build()
 
     when:
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start()
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start()
     ((PrioritySampler) sampler).setSamplingPriority(span)
 
     then:
