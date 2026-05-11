@@ -110,7 +110,7 @@ jobs:
             --head ${{ steps.define-branches.outputs.core_branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body "$(cat <<'EOF'
+            --body "$(cat <<EOF
           # What Does This Do
 
           This PR updates the Gradle dependency locks for common and product modules.
@@ -118,6 +118,8 @@ jobs:
           # Motivation
 
           Refresh Gradle dependencies to make sure to apply the latest version available when bumping dependencies.
+
+          ${{ steps.validate-lockfiles.outputs.summary }}
 
           # Contributor Checklist
 
@@ -167,7 +169,7 @@ jobs:
             --head ${{ steps.define-branches.outputs.instrumentation_branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body "$(cat <<'EOF'
+            --body "$(cat <<EOF
           # What Does This Do
 
           This PR updates the Gradle dependency locks for instrumentations and their tests.
@@ -175,6 +177,8 @@ jobs:
           # Motivation
 
           Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
+
+          ${{ steps.validate-lockfiles.outputs.summary }}
 
           # Contributor Checklist
 

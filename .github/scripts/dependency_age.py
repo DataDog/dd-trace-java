@@ -130,8 +130,12 @@ def emit_outputs(outputs: dict[str, Any], github_output: str | None) -> None:
         print(line)
     if github_output:
         with open(github_output, "a", encoding="utf-8") as handle:
-            for line in lines:
-                handle.write(f"{line}\n")
+            for key, value in outputs.items():
+                text = "" if value is None else str(value)
+                if "\n" in text:
+                    handle.write(f"{key}<<__EOF__\n{text}\n__EOF__\n")
+                else:
+                    handle.write(f"{key}={text}\n")
 
 
 # load JSON from file or URL
@@ -370,6 +374,8 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         changed_by_file.setdefault(relative_path, []).append(gav)
 
     timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
+    too_new = "too_new"
+    unverified = "unverified"
     violations_by_file: dict[str, list[tuple[str, str]]] = {}
     for relative_path, gavs in sorted(changed_by_file.items()):
         for gav in gavs:
@@ -377,27 +383,47 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, search_url=args.search_url)
             published_at, reason = timestamp_cache[gav]
             if published_at is None:
-                # Cannot verify age — treat as a violation
-                violations_by_file.setdefault(relative_path, []).append(
-                    (gav, f"Cannot verify age: {reason}")
-                )
+                violations_by_file.setdefault(relative_path, []).append((gav, unverified))
             elif published_at > cutoff:
-                violations_by_file.setdefault(relative_path, []).append(
-                    (gav, f"Published at {format_datetime(published_at)}, cutoff {format_datetime(cutoff)}.")
-                )
+                violations_by_file.setdefault(relative_path, []).append((gav, too_new))
             else:
                 print(f"Verified {gav} (published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})")
 
     if violations_by_file:
         revert_lockfiles_to_baseline(violations_by_file=violations_by_file, baseline_dir=baseline_dir, current_dir=current_dir)
         for relative_path, entries in sorted(violations_by_file.items()):
-            for gav, message in entries:
-                print(f"::warning file={relative_path}::{gav}: {message} Reverted lockfile to baseline.")
+            for gav, kind in entries:
+                print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == unverified else 'Too new'}. Reverted lockfile to baseline.")
 
     reverted_files = len(violations_by_file)
-    emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": reverted_files}, args.github_output)
+    summary = build_validation_summary(violations_by_file=violations_by_file, min_age_hours=args.min_age_hours)
+    emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": reverted_files, "summary": summary}, args.github_output)
     print(f"Validated {len(changed)} changed coordinate(s) across {len(changed_by_file)} lockfile(s). {reverted_files} lockfile(s) reverted.")
     return 0
+
+
+# build summary of reverted dependencies for PR descriptions
+def build_validation_summary(*, violations_by_file: dict[str, list[tuple[str, str]]], min_age_hours: int) -> str:
+    if not violations_by_file:
+        return ""
+    summary_messages = {
+        "too_new": f"Did not meet {min_age_hours}h dependency age requirement",
+        "unverified": "Cannot verify age in Maven Central",
+    }
+    lines = [
+        f"## Dependency age policy",
+        f"",
+        f"The following dependencies were reverted:",
+        f"",
+    ]
+    # deduplicate
+    seen: set[str] = set()
+    for entries in violations_by_file.values():
+        for gav, kind in entries:
+            if gav not in seen:
+                seen.add(gav)
+                lines.append(f"- `{gav}` — {summary_messages[kind]}")
+    return "\n".join(lines)
 
 
 # restore each violating lockfile to its baseline copy to keep the file consistent
