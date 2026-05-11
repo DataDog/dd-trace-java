@@ -174,6 +174,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         moduleName,
         testSuiteName,
         executionStrategy.getExecutionSettings().getItrCorrelationId(),
+        executionStrategy.getExecutionSettings().isTestSkippingEnabled(),
         testClass,
         startTime,
         parallelized,
