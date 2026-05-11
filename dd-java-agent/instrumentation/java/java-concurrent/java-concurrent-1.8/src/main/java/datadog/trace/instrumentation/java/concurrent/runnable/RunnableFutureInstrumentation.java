@@ -22,6 +22,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
@@ -142,21 +143,30 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
 
     @Advice.OnMethodExit
     public static <T> void captureScope(@Advice.This RunnableFuture<T> task) {
-      capture(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      ContextStore<RunnableFuture, State> contextStore =
+          InstrumentationContext.get(RunnableFuture.class, State.class);
+      capture(contextStore, task);
     }
   }
 
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> AgentScope activate(@Advice.This RunnableFuture<T> task) {
-      // Newer Netty versions may run scheduled tasks once before they expire to enqueue them.
-      if (task instanceof ScheduledFuture
-          && task.getClass().getName().endsWith(".netty.util.concurrent.ScheduledFutureTask")
-          && ((ScheduledFuture<?>) task).getDelay(TimeUnit.NANOSECONDS) > 0) {
-        return null;
-      }
+      ContextStore<RunnableFuture, State> contextStore =
+          InstrumentationContext.get(RunnableFuture.class, State.class);
 
-      return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      // Netty 4.1.44+ invokes ScheduledFutureTask.run() twice for tasks scheduled
+      // from outside the event loop: once to self-enqueue while the delay is
+      // still positive, then again when the deadline elapses. Skip the first
+      // call so the captured continuation survives for the actual fire.
+      if (task instanceof ScheduledFuture
+          && task.getClass().getName().endsWith(".netty.util.concurrent.ScheduledFutureTask")) {
+        long delayNanos = ((ScheduledFuture<?>) task).getDelay(TimeUnit.NANOSECONDS);
+        if (delayNanos > 0) {
+          return null;
+        }
+      }
+      return startTaskScope(contextStore, task);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)

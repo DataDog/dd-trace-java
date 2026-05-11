@@ -77,7 +77,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "net.sf.ehcache.store.disk.DiskStorageFactory",
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"
+      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
+      "io.vertx.core.impl.VertxImpl$InternalTimerHandler"
     };
   }
 
@@ -169,6 +170,11 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
                 isDeclaredBy(
                     named(
                         "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
+        advice);
+    // Vert.x timer handlers can reschedule framework work while a captured timer scope is active.
+    transformer.applyAdvice(
+        namedOneOf("run", "handle")
+            .and(isDeclaredBy(named("io.vertx.core.impl.VertxImpl$InternalTimerHandler"))),
         advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
