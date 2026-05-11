@@ -14,8 +14,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
-import datadog.trace.instrumentation.locksupport.LockSupportProfilingInstrumentation.ParkState;
-import datadog.trace.instrumentation.locksupport.LockSupportProfilingInstrumentation.State;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.LockSupportHelper;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
@@ -26,8 +25,8 @@ import org.junit.jupiter.api.Test;
 /**
  * Unit tests for {@link LockSupportProfilingInstrumentation}.
  *
- * <p>These tests exercise the {@link State} map directly, verifying the mechanism used to
- * communicate the unblocking span ID from {@code UnparkAdvice} to {@code ParkAdvice}.
+ * <p>These tests exercise the {@link LockSupportHelper} map directly, verifying the mechanism used
+ * to communicate the unblocking span ID from {@code UnparkAdvice} to {@code ParkAdvice}.
  */
 class LockSupportProfilingInstrumentationTest {
 
@@ -38,12 +37,12 @@ class LockSupportProfilingInstrumentationTest {
 
   @BeforeEach
   void clearState() {
-    State.UNPARKING_SPAN.clear();
+    LockSupportHelper.UNPARKING_SPAN.clear();
   }
 
   @AfterEach
   void cleanupState() {
-    State.UNPARKING_SPAN.clear();
+    LockSupportHelper.UNPARKING_SPAN.clear();
   }
 
   // -------------------------------------------------------------------------
@@ -55,24 +54,24 @@ class LockSupportProfilingInstrumentationTest {
     Thread t = Thread.currentThread();
     long spanId = 12345L;
 
-    State.UNPARKING_SPAN.put(t, spanId);
-    Long retrieved = State.UNPARKING_SPAN.remove(t);
+    LockSupportHelper.UNPARKING_SPAN.put(t, spanId);
+    Long retrieved = LockSupportHelper.UNPARKING_SPAN.remove(t);
 
     assertNotNull(retrieved);
     assertEquals(spanId, (long) retrieved);
     // After removal the entry should be gone
-    assertNull(State.UNPARKING_SPAN.get(t));
+    assertNull(LockSupportHelper.UNPARKING_SPAN.get(t));
   }
 
   @Test
   void state_remove_returns_null_when_absent() {
     Thread t = new Thread(() -> {});
-    assertNull(State.UNPARKING_SPAN.remove(t));
+    assertNull(LockSupportHelper.UNPARKING_SPAN.remove(t));
   }
 
   @Test
   void state_is_initially_empty() {
-    assertTrue(State.UNPARKING_SPAN.isEmpty());
+    assertTrue(LockSupportHelper.UNPARKING_SPAN.isEmpty());
   }
 
   // -------------------------------------------------------------------------
@@ -110,7 +109,7 @@ class LockSupportProfilingInstrumentationTest {
               }
 
               // Simulate what ParkAdvice.after does: read and remove unblocking span id
-              Long unblockingId = State.UNPARKING_SPAN.remove(Thread.currentThread());
+              Long unblockingId = LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread());
               capturedSpanId.set(unblockingId != null ? unblockingId : 0L);
             });
 
@@ -118,7 +117,7 @@ class LockSupportProfilingInstrumentationTest {
     ready.await(); // wait for parked thread to register itself
 
     // Simulate what UnparkAdvice.before does: record unparking span id
-    State.UNPARKING_SPAN.put(parkedThread, unparkingSpanId);
+    LockSupportHelper.UNPARKING_SPAN.put(parkedThread, unparkingSpanId);
     go.countDown(); // unblock parked thread
 
     parkedThread.join(2_000);
@@ -140,7 +139,7 @@ class LockSupportProfilingInstrumentationTest {
     Thread parkedThread =
         new Thread(
             () -> {
-              Long unblockingId = State.UNPARKING_SPAN.remove(Thread.currentThread());
+              Long unblockingId = LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread());
               capturedSpanId.set(unblockingId != null ? unblockingId : 0L);
             });
     parkedThread.start();
@@ -161,24 +160,23 @@ class LockSupportProfilingInstrumentationTest {
    */
   @Test
   void parkAdvice_after_null_state_isNoOp() {
-    LockSupportProfilingInstrumentation.ParkAdvice.after(null);
-    assertTrue(State.UNPARKING_SPAN.isEmpty());
+    LockSupportHelper.finish(null);
+    assertTrue(LockSupportHelper.UNPARKING_SPAN.isEmpty());
   }
 
   @Test
   void parkAdvice_captureState_nullProfiling_returnsNull() {
     AgentSpan span = mock(AgentSpan.class);
 
-    assertNull(
-        LockSupportProfilingInstrumentation.ParkAdvice.captureState(new Object(), null, span));
+    assertNull(LockSupportHelper.captureState(new Object(), null, span));
   }
 
   @Test
   void parkAdvice_captureState_spanless_callsParkEnterWithZeroIds() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
 
-    ParkState state =
-        LockSupportProfilingInstrumentation.ParkAdvice.captureState(new Object(), profiling, null);
+    LockSupportHelper.ParkState state =
+        LockSupportHelper.captureState(new Object(), profiling, null);
 
     assertNotNull(state);
     assertEquals(0L, state.spanId);
@@ -196,8 +194,7 @@ class LockSupportProfilingInstrumentationTest {
     when(context.getSpanId()).thenReturn(SPAN_ID);
     when(context.getRootSpanId()).thenReturn(ROOT_SPAN_ID);
 
-    ParkState state =
-        LockSupportProfilingInstrumentation.ParkAdvice.captureState(blocker, profiling, span);
+    LockSupportHelper.ParkState state = LockSupportHelper.captureState(blocker, profiling, span);
 
     assertNotNull(state);
     assertEquals(System.identityHashCode(blocker), state.blockerHash);
@@ -209,9 +206,10 @@ class LockSupportProfilingInstrumentationTest {
   @Test
   void parkAdvice_finish_callsOriginalProfilingContext() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    ParkState state = new ParkState(profiling, 42L, SPAN_ID, ROOT_SPAN_ID);
+    LockSupportHelper.ParkState state =
+        new LockSupportHelper.ParkState(profiling, 42L, SPAN_ID, ROOT_SPAN_ID);
 
-    LockSupportProfilingInstrumentation.ParkAdvice.finish(state, 99L);
+    LockSupportHelper.finish(state, 99L);
 
     verify(profiling).parkExit(42L, 99L);
   }
@@ -220,7 +218,7 @@ class LockSupportProfilingInstrumentationTest {
   void parkAdvice_finish_nullState_doesNotTouchProfiling() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
 
-    LockSupportProfilingInstrumentation.ParkAdvice.finish(null, 99L);
+    LockSupportHelper.finish(null, 99L);
 
     verifyNoInteractions(profiling);
   }
@@ -236,13 +234,13 @@ class LockSupportProfilingInstrumentationTest {
   @Test
   void stale_entry_is_drained_when_park_fires_without_active_span() {
     Thread t = Thread.currentThread();
-    State.UNPARKING_SPAN.put(t, 99L);
+    LockSupportHelper.UNPARKING_SPAN.put(t, 99L);
 
     // Simulate park() returning with no active span (state == null)
-    LockSupportProfilingInstrumentation.ParkAdvice.after(null);
+    LockSupportHelper.finish(null);
 
     assertNull(
-        State.UNPARKING_SPAN.get(t),
+        LockSupportHelper.UNPARKING_SPAN.get(t),
         "Stale UNPARKING_SPAN entry must be drained even when state is null");
   }
 
@@ -253,12 +251,12 @@ class LockSupportProfilingInstrumentationTest {
   @Test
   void latest_unparking_span_wins_and_entry_is_drained() {
     Thread t = Thread.currentThread();
-    State.UNPARKING_SPAN.put(t, 101L);
-    State.UNPARKING_SPAN.put(t, 202L);
+    LockSupportHelper.UNPARKING_SPAN.put(t, 101L);
+    LockSupportHelper.UNPARKING_SPAN.put(t, 202L);
 
-    Long consumed = State.UNPARKING_SPAN.remove(t);
+    Long consumed = LockSupportHelper.UNPARKING_SPAN.remove(t);
     assertNotNull(consumed);
     assertEquals(202L, consumed.longValue());
-    assertNull(State.UNPARKING_SPAN.get(t), "Entry must be removed after consumption");
+    assertNull(LockSupportHelper.UNPARKING_SPAN.get(t), "Entry must be removed after consumption");
   }
 }
