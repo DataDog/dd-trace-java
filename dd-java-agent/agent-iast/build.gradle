@@ -4,7 +4,7 @@ import net.ltgt.gradle.errorprone.CheckSeverity
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'com.google.protobuf' version '0.8.18'
+  id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
 }
 
@@ -113,14 +113,6 @@ jmh {
 
 tasks.named("forbiddenApisJmh") {
   ignoreFailures = true
-}
-
-sourceSets {
-  test {
-    java {
-      srcDirs += ["$buildDir/generated/source/proto/test/java"]
-    }
-  }
 }
 
 tasks.withType(JavaCompile).configureEach {
