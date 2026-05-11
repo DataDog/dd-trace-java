@@ -5,6 +5,7 @@ import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.DDTags.DD_INTEGRATION;
+import static datadog.trace.api.DDTags.DD_SVC_SRC;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.ERROR_MSG;
@@ -54,6 +55,7 @@ public final class TagsMatcher {
     tagMatchers.put(PARENT_ID, any());
     tagMatchers.put(SPAN_LINKS, any()); // this is checked by LinksAsserter
     tagMatchers.put(DD_INTEGRATION, any());
+    tagMatchers.put(DD_SVC_SRC, any());
     tagMatchers.put(TRACER_HOST, any());
 
     for (String tagName : REQUIRED_CODE_ORIGIN_TAGS) {
@@ -127,6 +129,8 @@ public final class TagsMatcher {
     tagMatchers.put(ERROR_STACK, isNonNull());
     if (message != null) {
       tagMatchers.put(ERROR_MSG, is(message));
+    } else {
+      tagMatchers.put(ERROR_MSG, any());
     }
     return new TagsMatcher(tagMatchers);
   }

@@ -27,6 +27,13 @@ public class Is<T> implements Matcher<T> {
 
   @Override
   public boolean test(T t) {
-    return this.expected.equals(t);
+    if (this.expected.equals(t)) {
+      return true;
+    }
+    // Handle CharSequence comparison (e.g. String vs UTF8BytesString)
+    if (this.expected instanceof String && t instanceof CharSequence) {
+      return ((String) this.expected).contentEquals((CharSequence) t);
+    }
+    return false;
   }
 }
