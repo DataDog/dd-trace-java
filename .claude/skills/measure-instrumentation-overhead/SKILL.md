@@ -136,6 +136,38 @@ Print these in the first message of every run, every time, before any work:
     - Class loads: `jfr print --events ClassLoad --stack-depth 0 <file>` (the `--stack-depth 0` works around the JDK 25 `jfr print` NPE on ClassLoad-with-stacks). Bucket loaded class names by package prefix.
     - Place each event (allocation or CPU sample) in the four-bucket model — see "4-bucket reference" appendix. Build the [B] host-class set from the workload's imports + the integration's `Instrumenter.typeMatcher()` patterns + any embedded driver. Show the set to the user.
     - **Validate [B] coverage**: if [B] has fewer than 100 events in the instrumented JFR, warn and suggest bumping `--measured 100000` (10×), adding `-XX:TLABSize=64k`, or verifying the workload reaches the integration's hot path.
+    - **`jfr view` summaries** — run after `jfr print`; capture to files, embed in report:
+      ```bash
+      jfr view --width 160 hot-methods       <file> > <work-dir>/{instr,base}_hotmethods.txt
+      jfr view --width 160 thread-allocation <file> > <work-dir>/{instr,base}_thread_alloc.txt
+      ```
+      Note: `allocation-by-class` / `allocation-by-site` require `jdk.ObjectAllocationSample` which the JFC does not enable; the 4-bucket TLAB analysis is the allocation story.
+    - **ASCII allocation histogram** — after bucket analysis, generate a bar-chart of the top-10 [B] allocation types comparing instrumented vs baseline. Embed verbatim in `report.md`. Use this Python snippet (where `bytype_instr` and `bytype_base` are `Counter[{type_name: count}]` built during bucket analysis):
+      ```python
+      all_types = sorted(set(list(bytype_instr) + list(bytype_base)),
+                         key=lambda t: -(bytype_instr.get(t,0) + bytype_base.get(t,0)))[:10]
+      max_c = max((max(bytype_instr.values(), default=0),
+                   max(bytype_base.values(),  default=0)), default=1)
+      W = 22
+      lines = ["### Allocation [B] histogram — instrumented vs baseline", "```"]
+      for t in all_types:
+          ic = bytype_instr.get(t, 0); bc = bytype_base.get(t, 0)
+          ib = '█' * max(1 if ic else 0, round(ic / max_c * W))
+          bb = '█' * max(1 if bc else 0, round(bc / max_c * W))
+          name = (t[-44:] if len(t) > 44 else t)
+          lines.append(f"  {name:<46}  instr [{ib:<{W}}]{ic:>5}   base [{bb:<{W}}]{bc:>5}")
+      lines.append("```")
+      print('\n'.join(lines))
+      ```
+    - **Flamegraph SVGs** — `<skill-dir>/flamegraph.py` generates interactive SVG flamegraphs directly from the `jfr print` text files (auto-detected format; no separate conversion step). Run for all four combinations:
+      ```bash
+      SKILL_DIR=<absolute-path-to-skill-dir>
+      python3 "$SKILL_DIR/flamegraph.py" <work-dir>/instr_cpu.txt   <work-dir>/instrumented_cpu.svg   --title "Instrumented — CPU samples"
+      python3 "$SKILL_DIR/flamegraph.py" <work-dir>/base_cpu.txt    <work-dir>/baseline_cpu.svg       --title "Baseline — CPU samples"
+      python3 "$SKILL_DIR/flamegraph.py" <work-dir>/instr_alloc.txt <work-dir>/instrumented_alloc.svg --title "Instrumented — TLAB allocations"
+      python3 "$SKILL_DIR/flamegraph.py" <work-dir>/base_alloc.txt  <work-dir>/baseline_alloc.svg     --title "Baseline — TLAB allocations"
+      ```
+      If `flamegraph.pl` is on PATH, prefer it: convert text → folded stacks (reverse each stack) and pipe through `flamegraph.pl --title "..."`. SVGs open directly in a browser; each frame is clickable to highlight callers. Reference all four SVG paths in `report.md`.
 
 12. **Report**.
 
@@ -149,6 +181,25 @@ Print these in the first message of every run, every time, before any work:
     - One-line restatement of the limitations preamble.
 
     Full markdown report at `<work-dir>/report.md` with: inputs, integration names, JDK version, workload source, per-bucket totals (allocation + CPU), top stacks per bucket, ClassLoad-by-package table, per-thread CPU summary, **inlined-advice attribution table** (which `*Instrumentation.java` advice maps to which host-class method), paths to raw JFR files for JMC.
+
+    **Mandatory section "Visualizations"** in `report.md`:
+    ```markdown
+    ## Visualizations
+    | File | Description |
+    |---|---|
+    | [instr_hotmethods.txt](instr_hotmethods.txt) | `jfr view hot-methods` — instrumented |
+    | [base_hotmethods.txt](base_hotmethods.txt) | `jfr view hot-methods` — baseline |
+    | [instrumented_cpu.svg](instrumented_cpu.svg) | CPU flamegraph — instrumented (open in browser) |
+    | [baseline_cpu.svg](baseline_cpu.svg) | CPU flamegraph — baseline |
+    | [instrumented_alloc.svg](instrumented_alloc.svg) | TLAB allocation flamegraph — instrumented |
+    | [baseline_alloc.svg](baseline_alloc.svg) | TLAB allocation flamegraph — baseline |
+
+    ### Allocation [B] histogram — instrumented vs baseline
+    <embed the ASCII histogram generated in step 11>
+
+    ### Hot methods — instrumented (top 10)
+    <embed first 15 lines of instr_hotmethods.txt>
+    ```
 
     **Mandatory section: "Code improvements suggested by this run"** — concrete, integration-scoped optimizations grounded in the run's hot-path data. For each: cite file + line numbers, quote the relevant snippet, propose the fix in 1-2 sentences, name the events/samples motivating it, rank by ROI. Include a brief "Not pursued" subsection for ideas considered but rejected. If no actionable improvements (rare), say so with a one-line explanation. Stay within the integration's scope — agent-core changes are listed but flagged "agent-core, surfacing for context".
 
@@ -197,11 +248,12 @@ Print these in the first message of every run, every time, before any work:
 - **Agent jar missing** after `:dd-java-agent:shadowJar` → surface the Gradle error verbatim.
 - **`javac` compile error in workload** → surface verbatim, abort, do not run the JVM.
 - **Workload JVM exit ≠ 0** → capture stderr verbatim, surface, **still attempt JFR analysis**.
-- **`jfr` CLI not on `PATH`** → tell the user to set `JAVA_HOME` to a full JDK (not JRE), or install JDK 17+.
+- **`jfr` CLI not on `PATH`** → tell the user to set `JAVA_HOME` to a full JDK (not JRE), or install JDK 17+. Required for both `jfr print` and `jfr view`.
 - **`jfr print` NPE on ClassLoad with stacks (JDK 25+)** → use `--stack-depth 0`.
 - **Bucket [B] < 100 events** → not a failure; warn + suggest tuning. Report still produced; per-call numbers labelled "low-confidence".
 - **Integration name ambiguity** → ask the user.
 - **Host-class set unclear** → list candidate packages from imports + `Instrumenter.typeMatcher()` and ask the user to confirm.
+- **`flamegraph.py` produces empty SVG** → input file likely has no stack events (e.g. `measured` too low, or workload exited early). Check `jfr summary` event counts; bump `--measured` or verify workload reaches the hot path.
 
 ## Conventions
 
@@ -212,6 +264,7 @@ Print these in the first message of every run, every time, before any work:
 - Always re-state the limitations preamble at the start of every run, even on `--rerun`.
 - **Report only baseline-vs-instrumented for the target integration.** Never add cross-integration comparison tables. Different integrations have different workloads, per-call work, and JIT effects — cross-comparisons are misleading. Same-integration comparisons across methodology iterations (LoggingWriter vs NoOpWriter, iteration counts) are fine — same axis.
 - **Auto-mode is non-destructive.** No automatic commits. Reverts use captured file content (`Read` before `Edit`, `Write` to restore) — never `git checkout`. Standard report is never modified; auto-mode produces a separate report under `<work-dir>/auto/`. Full mechanics in `auto-optimize.md`.
+- **`flamegraph.py`** is at `<skill-dir>/flamegraph.py` — pure Python 3 stdlib, no pip dependencies. It auto-detects `jfr print` text vs folded-stack format. Always run it; SVG flamegraphs make the bucket analysis immediately visual.
 
 ## 4-bucket reference
 
