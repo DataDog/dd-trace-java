@@ -8,7 +8,6 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
 import java.nio.file.Paths
-import java.util.Comparator
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
