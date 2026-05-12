@@ -1,8 +1,6 @@
 package datadog.gradle.plugin.version
 
 import datadog.gradle.plugin.GradleFixture
-import org.gradle.testkit.runner.GradleRunner
-import org.junit.jupiter.api.Assertions.assertEquals
 import java.io.File
 import java.io.IOException
 
@@ -30,41 +28,13 @@ internal class VersionPluginsFixture(projectDir: File) : GradleFixture(projectDi
     exec(workingDirectory, "git", "commit", "-m", "A commit")
   }
 
-  fun assertTracerVersion(
-    expectedVersion: String,
-    workingDirectory: File = projectDir,
-    beforeGradle: () -> Unit = {},
-  ) {
-    file("settings.gradle.kts").writeText("""rootProject.name = "test-project"""")
-    file("build.gradle.kts").writeText(
-      """
-      plugins {
-        id("dd-trace-java.tracer-version")
-      }
+  val projectBuildFile = file("build.gradle.kts")
 
-      tasks.register("printVersion") {
-        logger.quiet(project.version.toString())
-      }
+  val gradlePropertiesFile = file("gradle.properties")
 
-      group = "datadog.tracer.version.test"
-      """.trimIndent()
-    )
+  val settingsFile = file("settings.gradle.kts")
 
-    beforeGradle()
+  val generatedVersionFile = file("build/generated/version/my-lib.version", false)
 
-    val buildResult = if (workingDirectory == projectDir) {
-      run("printVersion", "--quiet")
-    } else {
-      // Worktree: Gradle must run from a directory other than projectDir,
-      // so use GradleRunner directly instead of GradleFixture.run().
-      GradleRunner.create()
-        .forwardOutput()
-        .withPluginClasspath()
-        .withArguments("printVersion", "--quiet")
-        .withProjectDir(workingDirectory)
-        .build()
-    }
-
-    assertEquals(expectedVersion, buildResult.output.lines().first())
-  }
+  val builtResourceVersionFile = file("build/resources/main/my-lib.version", false)
 }
