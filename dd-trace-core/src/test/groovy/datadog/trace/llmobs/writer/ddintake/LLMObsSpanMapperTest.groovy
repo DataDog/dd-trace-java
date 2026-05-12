@@ -28,7 +28,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
 
     // Create a real LLMObs span using the tracer
-    def llmSpan = tracer.buildSpan("openai.request")
+    def llmSpan = tracer.buildSpan("datadog", "openai.request")
       .withResourceName("createCompletion")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-4")
@@ -183,14 +183,14 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     def mapper = new LLMObsSpanMapper()
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
-    def regularSpan1 = tracer.buildSpan("http.request")
+    def regularSpan1 = tracer.buildSpan("datadog", "http.request")
       .withResourceName("GET /api/users")
       .withTag("http.method", "GET")
       .withTag("http.url", "https://example.com/api/users")
       .start()
     regularSpan1.finish()
 
-    def regularSpan2 = tracer.buildSpan("database.query")
+    def regularSpan2 = tracer.buildSpan("datadog", "database.query")
       .withResourceName("SELECT * FROM users")
       .withTag("db.type", "postgresql")
       .start()
@@ -215,7 +215,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
     // First trace with 2 LLMObs spans
-    def llmSpan1 = tracer.buildSpan("chat-completion-1")
+    def llmSpan1 = tracer.buildSpan("datadog", "chat-completion-1")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-4")
       .withTag("_ml_obs_tag.model_provider", "openai")
@@ -223,7 +223,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     llmSpan1.setSpanType(InternalSpanTypes.LLMOBS)
     llmSpan1.finish()
 
-    def llmSpan2 = tracer.buildSpan("chat-completion-2")
+    def llmSpan2 = tracer.buildSpan("datadog", "chat-completion-2")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "gpt-3.5")
       .withTag("_ml_obs_tag.model_provider", "openai")
@@ -232,7 +232,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     llmSpan2.finish()
 
     // Second trace with 1 LLMObs span
-    def llmSpan3 = tracer.buildSpan("chat-completion-3")
+    def llmSpan3 = tracer.buildSpan("datadog", "chat-completion-3")
       .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
       .withTag("_ml_obs_tag.model_name", "claude-3")
       .withTag("_ml_obs_tag.model_provider", "anthropic")

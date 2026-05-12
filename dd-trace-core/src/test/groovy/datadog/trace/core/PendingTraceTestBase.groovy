@@ -16,7 +16,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
   def writer = new ListWriter()
   def tracer = tracerBuilder().writer(writer).build()
 
-  DDSpan rootSpan = tracer.buildSpan("fakeOperation").start()
+  DDSpan rootSpan = tracer.buildSpan("datadog", "fakeOperation").start()
   PendingTrace traceCollector = rootSpan.context().traceCollector
 
   def setup() {
@@ -42,7 +42,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "child finishes before parent"() {
     when:
-    def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
+    def child = tracer.buildSpan("datadog", "child").asChildOf(rootSpan).start()
 
     then:
     traceCollector.pendingReferenceCount == 2
@@ -68,7 +68,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
 
   def "parent finishes before child which holds up trace"() {
     when:
-    def child = tracer.buildSpan("child").asChildOf(rootSpan).start()
+    def child = tracer.buildSpan("datadog", "child").asChildOf(rootSpan).start()
 
     then:
     traceCollector.pendingReferenceCount == 2
@@ -98,7 +98,7 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     // this shouldn't happen, but it's possible users of the api
     // may incorrectly add spans after the trace is reported.
     // in those cases we should still decrement the pending trace count
-    DDSpan childSpan = tracer.buildSpan("child").asChildOf(rootSpan).start()
+    DDSpan childSpan = tracer.buildSpan("datadog", "child").asChildOf(rootSpan).start()
     childSpan.finish()
     writer.waitForTraces(2)
 
@@ -118,10 +118,10 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     when:
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
-    def rootSpan = quickTracer.buildSpan("root").start()
+    def rootSpan = quickTracer.buildSpan("datadog", "root").start()
     def traceCollector = rootSpan.context().traceCollector
-    def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
-    def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
+    def child1 = quickTracer.buildSpan("datadog", "child1").asChildOf(rootSpan).start()
+    def child2 = quickTracer.buildSpan("datadog", "child2").asChildOf(rootSpan).start()
 
     then:
     traceCollector.pendingReferenceCount == 3
@@ -163,10 +163,10 @@ abstract class PendingTraceTestBase extends DDCoreSpecification {
     when:
     injectSysConfig(PARTIAL_FLUSH_MIN_SPANS, "2")
     def quickTracer = tracerBuilder().writer(writer).build()
-    def rootSpan = quickTracer.buildSpan("root").start()
+    def rootSpan = quickTracer.buildSpan("datadog", "root").start()
     def trace = rootSpan.context().traceCollector
-    def child1 = quickTracer.buildSpan("child1").asChildOf(rootSpan).start()
-    def child2 = quickTracer.buildSpan("child2").asChildOf(rootSpan).start()
+    def child1 = quickTracer.buildSpan("datadog", "child1").asChildOf(rootSpan).start()
+    def child2 = quickTracer.buildSpan("datadog", "child2").asChildOf(rootSpan).start()
 
     then:
     trace.pendingReferenceCount == 3
