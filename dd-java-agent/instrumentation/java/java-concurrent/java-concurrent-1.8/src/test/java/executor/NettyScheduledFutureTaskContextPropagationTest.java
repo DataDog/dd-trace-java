@@ -103,7 +103,7 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
       return true;
     }
 
-    // Netty 4.1.44+ compatible with new logic.
+    // Since 4.1.44+ Netty uses a self-enqueue path for delayed tasks.
     return patch >= 44;
   }
 

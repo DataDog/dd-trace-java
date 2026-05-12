@@ -10,6 +10,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
+import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -45,6 +46,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
+  private static final String VERTX_IMPL = "io.vertx.core.impl.VertxImpl";
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -78,7 +80,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
-      "io.vertx.core.impl.VertxImpl$InternalTimerHandler"
+      VERTX_IMPL
     };
   }
 
@@ -171,11 +173,19 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
                     named(
                         "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
-    // Vert.x timer handlers can reschedule framework work while a captured timer scope is active.
+    // Vert.x can schedule long-running internal timers while a request span is active.
+    //  Suppress propagation only for Vert.x-owned timer handlers so user timers still keep context.
+    String disableVertxInternalTimerAdvice =
+        getClass().getName() + "$DisableVertxInternalTimerAdvice";
     transformer.applyAdvice(
-        namedOneOf("run", "handle")
-            .and(isDeclaredBy(named("io.vertx.core.impl.VertxImpl$InternalTimerHandler"))),
-        advice);
+        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(4)),
+        disableVertxInternalTimerAdvice);
+    transformer.applyAdvice(
+        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(6)),
+        disableVertxInternalTimerAdvice);
+    transformer.applyAdvice(
+        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(7)),
+        disableVertxInternalTimerAdvice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
   }
@@ -196,6 +206,55 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       if (wasDisabled) {
         setAsyncPropagationEnabled(true);
       }
+    }
+  }
+
+  public static class DisableVertxInternalTimerAdvice {
+
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static boolean before(@Advice.AllArguments Object[] args) {
+      for (Object arg : args) {
+        if (isVertxInternalHandler(arg)) {
+          return DisableAsyncAdvice.before();
+        }
+      }
+      return false;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void after(@Advice.Enter boolean wasDisabled) {
+      DisableAsyncAdvice.after(wasDisabled);
+    }
+
+    private static boolean isVertxInternalHandler(Object arg) {
+      if (arg == null || !arg.getClass().getName().startsWith("io.vertx.")) {
+        return false;
+      }
+      return implementsVertxHandler(arg.getClass());
+    }
+
+    private static boolean implementsVertxHandler(Class<?> clazz) {
+      while (clazz != null) {
+        for (Class<?> iface : clazz.getInterfaces()) {
+          if (isVertxHandler(iface)) {
+            return true;
+          }
+        }
+        clazz = clazz.getSuperclass();
+      }
+      return false;
+    }
+
+    private static boolean isVertxHandler(Class<?> iface) {
+      if ("io.vertx.core.Handler".equals(iface.getName())) {
+        return true;
+      }
+      for (Class<?> parent : iface.getInterfaces()) {
+        if (isVertxHandler(parent)) {
+          return true;
+        }
+      }
+      return false;
     }
   }
 }
