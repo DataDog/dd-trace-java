@@ -91,7 +91,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
       final Flag flag = config.flags.get(key);
       if (flag == null) {
-        return error(defaultValue, ErrorCode.FLAG_NOT_FOUND);
+        return ProviderEvaluation.<T>builder()
+            .value(defaultValue)
+            .reason(Reason.DEFAULT.name())
+            .build();
       }
 
       if (!flag.enabled) {

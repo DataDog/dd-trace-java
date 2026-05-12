@@ -1,6 +1,5 @@
 package datadog.trace.api.openfeature;
 
-import static dev.openfeature.sdk.ErrorCode.FLAG_NOT_FOUND;
 import static dev.openfeature.sdk.ErrorCode.TARGETING_KEY_MISSING;
 import static dev.openfeature.sdk.Reason.DEFAULT;
 import static dev.openfeature.sdk.Reason.DISABLED;
@@ -238,7 +237,7 @@ public class DDEvaluatorTest {
         new TestCase<>("default")
             .flag("non-existent-flag")
             .targetingKey("user-123")
-            .result(new Result<>("default").reason(ERROR.name()).errorCode(FLAG_NOT_FOUND)),
+            .result(new Result<>("default").reason(DEFAULT.name())),
         new TestCase<>("default")
             .flag("disabled-flag")
             .targetingKey("user-123")
