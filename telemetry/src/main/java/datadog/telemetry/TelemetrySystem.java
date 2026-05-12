@@ -19,6 +19,7 @@ import datadog.telemetry.metric.OtelSpiMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
+import datadog.telemetry.sca.ScaReachabilityPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -88,6 +89,9 @@ public class TelemetrySystem {
     actions.add(new ProductChangeAction());
     if (Config.get().isApiSecurityEndpointCollectionEnabled()) {
       actions.add(new EndpointPeriodicAction());
+    }
+    if (Config.get().isAppSecScaEnabled()) {
+      actions.add(new ScaReachabilityPeriodicAction());
     }
 
     TelemetryRunnable telemetryRunnable = new TelemetryRunnable(telemetryService, actions);

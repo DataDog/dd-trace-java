@@ -271,6 +271,16 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("hash").value(d.hash); // optional
     bodyWriter.name("name").value(d.name);
     bodyWriter.name("version").value(d.version); // optional
+    if (d.reachabilityMetadata != null && !d.reachabilityMetadata.isEmpty()) {
+      bodyWriter.name("metadata").beginArray();
+      for (String value : d.reachabilityMetadata) {
+        bodyWriter.beginObject();
+        bodyWriter.name("type").value("reachability");
+        bodyWriter.name("value").value(value); // stringified JSON per RFC
+        bodyWriter.endObject();
+      }
+      bodyWriter.endArray();
+    }
     bodyWriter.endObject();
   }
 
