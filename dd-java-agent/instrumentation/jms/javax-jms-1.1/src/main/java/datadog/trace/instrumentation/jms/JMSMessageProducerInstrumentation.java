@@ -103,7 +103,7 @@ public final class JMSMessageProducerInstrumentation
         destinationName = "";
       }
 
-      final AgentSpan span = startSpan(JMS_PRODUCE);
+      final AgentSpan span = startSpan("jms", JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 
@@ -173,7 +173,7 @@ public final class JMSMessageProducerInstrumentation
       String destinationName = PRODUCER_DECORATE.getDestinationName(destination);
       CharSequence resourceName = PRODUCER_DECORATE.toResourceName(destinationName, isQueue);
 
-      final AgentSpan span = startSpan(JMS_PRODUCE);
+      final AgentSpan span = startSpan("jms", JMS_PRODUCE);
       PRODUCER_DECORATE.afterStart(span);
       PRODUCER_DECORATE.onProduce(span, resourceName);
 

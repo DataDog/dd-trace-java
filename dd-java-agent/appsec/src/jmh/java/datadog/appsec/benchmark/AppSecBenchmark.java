@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.io.IOException;
@@ -188,7 +189,7 @@ public class AppSecBenchmark {
 
   static class StubDDAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
     public StubDDAgentFeaturesDiscovery(OkHttpClient client) {
-      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), V0_4, false);
+      super(client, Monitoring.DISABLED, HttpUrl.get("http://localhost:8080/"), V0_4, false, false);
     }
 
     @Override
@@ -251,6 +252,14 @@ public class AppSecBenchmark {
 
     @Override
     public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null;
+    }
+
+    @Override
+    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 

@@ -179,7 +179,8 @@ public class SharedCommunicationObjects {
                     monitoring,
                     agentUrl,
                     config.getProtocolVersion(),
-                    config.isTracerMetricsEnabled());
+                    config.isTracerMetricsEnabled(),
+                    config.isTracerMetricsIgnoreAgentVersion());
 
             if (paused) {
               // defer remote discovery until remote I/O is allowed

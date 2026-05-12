@@ -42,7 +42,7 @@ public class OpenAiDecorator extends ClientDecorator {
   private final WellKnownTags wellKnownTags = Config.get().getWellKnownTags();
 
   public AgentSpan startSpan(ClientOptions clientOptions) {
-    AgentSpan span = AgentTracer.startSpan(INSTRUMENTATION_NAME, SPAN_NAME);
+    AgentSpan span = AgentTracer.startSpan(INTEGRATION, SPAN_NAME);
     afterStart(span);
     String baseUrl = clientOptions.baseUrl();
     span.setTag(CommonTags.OPENAI_API_BASE, baseUrl);

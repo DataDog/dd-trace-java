@@ -8,18 +8,20 @@ import datadog.trace.api.civisibility.telemetry.tag.RetryReason;
 /**
  * Execution policy for the Attempt to Fix feature. Runs a test case up to N times. Stops retrying
  * as soon as a failure is observed, since a single failure proves the fix did not work.
+ *
+ * <p>Failures are never suppressed, even when the test is also quarantined or disabled — the whole
+ * point of an attempt-to-fix is to verify that the fix worked, so a failing run must surface as a
+ * failing run.
  */
 public class AttemptToFix implements TestExecutionPolicy {
 
   private final int maxExecutions;
-  private final boolean suppressFailures;
   private int executions;
   private ExecutionAggregation results;
   private TestStatus lastStatus;
 
-  public AttemptToFix(int maxExecutions, boolean suppressFailures) {
+  public AttemptToFix(int maxExecutions) {
     this.maxExecutions = maxExecutions;
-    this.suppressFailures = suppressFailures;
     this.executions = 0;
     this.results = ExecutionAggregation.NONE;
   }
@@ -32,22 +34,13 @@ public class AttemptToFix implements TestExecutionPolicy {
 
     boolean lastExecution = !retriesLeft();
     boolean retry = executions > 1;
-    boolean failureSuppressed = status == TestStatus.fail && suppressFailures;
     TestStatus finalStatus = null;
     if (lastExecution) {
-      if (results == ExecutionAggregation.ONLY_PASSED || suppressFailures) {
-        finalStatus = TestStatus.pass;
-      } else {
-        finalStatus = TestStatus.fail;
-      }
+      finalStatus = results == ExecutionAggregation.ONLY_PASSED ? TestStatus.pass : TestStatus.fail;
     }
 
     return new ExecutionOutcomeImpl(
-        failureSuppressed,
-        lastExecution,
-        results,
-        retry ? RetryReason.attemptToFix : null,
-        finalStatus);
+        false, lastExecution, results, retry ? RetryReason.attemptToFix : null, finalStatus);
   }
 
   private boolean retriesLeft() {
@@ -66,7 +59,7 @@ public class AttemptToFix implements TestExecutionPolicy {
 
   @Override
   public boolean suppressFailures() {
-    return suppressFailures;
+    return false;
   }
 
   @Override

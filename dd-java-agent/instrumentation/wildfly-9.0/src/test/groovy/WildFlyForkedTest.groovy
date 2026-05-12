@@ -73,6 +73,7 @@ class WildFlyForkedTest extends WithHttpServer<EmbeddedWildfly> implements Testi
             "$Tags.PEER_PORT" Integer
             "$Tags.PEER_HOST_IPV4" { String }
             "$Tags.HTTP_CLIENT_IP" { String }
+            "$Tags.NETWORK_CLIENT_IP" { String }
             "$Tags.HTTP_HOSTNAME" address.host
             "$Tags.HTTP_URL" { String }
             "$Tags.HTTP_METHOD" "GET"

@@ -1,6 +1,5 @@
 package com.datadog.debugger.agent;
 
-import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeConfiguration;
 import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeLogProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeMetricProbe;
 import static com.datadog.debugger.probe.ProbeDefinitionSerializer.serializeSpanDecorationProbe;
@@ -32,7 +31,6 @@ import java.util.Collection;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.UUID;
-import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -45,7 +43,7 @@ public class DebuggerProductChangesListenerTest {
 
   @Mock private Config tracerConfig;
 
-  class SimpleAcceptor implements ConfigurationAcceptor {
+  static class SimpleAcceptor implements ConfigurationAcceptor {
     private Collection<? extends ProbeDefinition> definitions;
     private Exception lastException;
 
@@ -77,51 +75,7 @@ public class DebuggerProductChangesListenerTest {
   public void testNoConfiguration() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-    listener.commit(NOOP);
-
-    assertTrue(acceptor.getDefinitions().isEmpty());
-  }
-
-  @Test
-  public void testSingleConfiguration() {
-    Configuration config =
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(createLogProbeWithSnapshot(UUID.randomUUID().toString()))
-            .addDenyList(createFilteredList())
-            .build();
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-
-    acceptConfig(listener, config, UUID.randomUUID().toString());
-    listener.commit(NOOP);
-
-    assertEquals(config.getDefinitions(), acceptor.getDefinitions());
-  }
-
-  @Test
-  public void rejectConfigurationsFromOtherServices() {
-    Configuration config =
-        Configuration.builder()
-            .setService("other-service")
-            .add(createLogProbeWithSnapshot(UUID.randomUUID().toString()))
-            .addDenyList(createFilteredList())
-            .build();
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-
-    Assertions.assertThrows(
-        IOException.class,
-        () ->
-            listener.accept(
-                createConfigKey(UUID.randomUUID().toString()), toContent(config), NOOP));
-
+    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
     listener.commit(NOOP);
 
     assertTrue(acceptor.getDefinitions().isEmpty());
@@ -131,8 +85,7 @@ public class DebuggerProductChangesListenerTest {
   public void testMultipleSingleProbesConfigurations() {
     SimpleAcceptor acceptor = new SimpleAcceptor();
 
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
 
     MetricProbe metricProbe = createMetricProbe(UUID.randomUUID().toString());
     LogProbe logProbe = createLogProbe(UUID.randomUUID().toString());
@@ -191,49 +144,9 @@ public class DebuggerProductChangesListenerTest {
   }
 
   @Test
-  public void testMergeConfigWithSingleProbe() {
-    SimpleAcceptor acceptor = new SimpleAcceptor();
-
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
-
-    LogProbe logProbeWithSnapshot = createLogProbeWithSnapshot("123");
-    MetricProbe metricProbe = createMetricProbe("345");
-    LogProbe logProbe = createLogProbe("567");
-    SpanProbe spanProbe = createSpanProbe("890");
-    SpanDecorationProbe spanDecorationProbe = createSpanDecorationProbe("891");
-    TriggerProbe triggerProbe = createTriggerProbe("892");
-
-    Configuration config =
-        Configuration.builder()
-            .setService(SERVICE_NAME)
-            .add(metricProbe)
-            .add(logProbe)
-            .add(spanProbe)
-            .add(spanDecorationProbe)
-            .add(triggerProbe)
-            .add(new LogProbe.Sampling(3.0))
-            .addDenyList(createFilteredList())
-            .build();
-
-    acceptLogProbe(listener, logProbeWithSnapshot);
-    acceptConfig(listener, config, UUID.randomUUID().toString());
-    listener.commit(NOOP);
-    assertDefinitions(
-        acceptor.getDefinitions(),
-        logProbeWithSnapshot,
-        metricProbe,
-        logProbe,
-        spanProbe,
-        spanDecorationProbe,
-        triggerProbe);
-  }
-
-  @Test
   public void badConfigIDFailsToAccept() throws IOException {
     SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
     listener.accept(createConfigKey("bad-config-id"), null, NOOP);
     assertNull(acceptor.definitions);
   }
@@ -241,8 +154,7 @@ public class DebuggerProductChangesListenerTest {
   @Test
   public void parsingException() throws IOException {
     SimpleAcceptor acceptor = new SimpleAcceptor();
-    DebuggerProductChangesListener listener =
-        new DebuggerProductChangesListener(tracerConfig, acceptor);
+    DebuggerProductChangesListener listener = new DebuggerProductChangesListener(acceptor);
     String probeUUID = UUID.randomUUID().toString();
     IOException ioException =
         assertThrows(
@@ -263,10 +175,6 @@ public class DebuggerProductChangesListenerTest {
         new HashSet<>(Arrays.asList(expectedDefinitions)), new HashSet<>(actualDefinitions));
   }
 
-  byte[] toContent(Configuration configuration) {
-    return serializeConfiguration(configuration).getBytes(StandardCharsets.UTF_8);
-  }
-
   byte[] toContent(MetricProbe probe) {
     return serializeMetricProbe(probe).getBytes(StandardCharsets.UTF_8);
   }
@@ -285,11 +193,6 @@ public class DebuggerProductChangesListenerTest {
 
   byte[] toContent(TriggerProbe probe) {
     return serializeTriggerProbe(probe).getBytes(StandardCharsets.UTF_8);
-  }
-
-  void acceptConfig(
-      DebuggerProductChangesListener listener, Configuration config, String configId) {
-    assertDoesNotThrow(() -> listener.accept(createConfigKey(configId), toContent(config), NOOP));
   }
 
   void acceptMetricProbe(DebuggerProductChangesListener listener, MetricProbe probe) {

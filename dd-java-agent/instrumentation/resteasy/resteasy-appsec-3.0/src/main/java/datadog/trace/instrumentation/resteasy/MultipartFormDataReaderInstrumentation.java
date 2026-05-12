@@ -11,7 +11,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
@@ -79,7 +78,9 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
           cbp.getCallback(EVENTS.requestBodyProcessed());
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCallback =
           cbp.getCallback(EVENTS.requestFilesFilenames());
-      if (callback == null && filenamesCallback == null) {
+      BiFunction<RequestContext, List<String>, Flow<Void>> contentCallback =
+          cbp.getCallback(EVENTS.requestFilesContent());
+      if (callback == null && filenamesCallback == null && contentCallback == null) {
         return;
       }
 
@@ -94,15 +95,11 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         }
 
         Flow<Void> flow = callback.apply(reqCtx, m);
-        Flow.Action action = flow.getAction();
-        if (action instanceof Flow.Action.RequestBlockingAction) {
-          Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
-          BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-          if (blockResponseFunction != null) {
-            blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-            t = new BlockingException("Blocked request (for MultipartFormDataInput/readFrom)");
-            reqCtx.getTraceSegment().effectivelyBlocked();
-          }
+        BlockingException be =
+            MultipartHelper.tryBlock(
+                reqCtx, flow, "Blocked request (for MultipartFormDataInput/readFrom)");
+        if (be != null) {
+          t = be;
         }
       }
 
@@ -110,16 +107,26 @@ public class MultipartFormDataReaderInstrumentation extends InstrumenterModule.A
         List<String> filenames = MultipartHelper.collectFilenames(ret);
         if (!filenames.isEmpty()) {
           Flow<Void> filenamesFlow = filenamesCallback.apply(reqCtx, filenames);
-          Flow.Action filenamesAction = filenamesFlow.getAction();
-          if (t == null && filenamesAction instanceof Flow.Action.RequestBlockingAction) {
-            Flow.Action.RequestBlockingAction rba =
-                (Flow.Action.RequestBlockingAction) filenamesAction;
-            BlockResponseFunction blockResponseFunction = reqCtx.getBlockResponseFunction();
-            if (blockResponseFunction != null) {
-              blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-              t = new BlockingException("Blocked request (multipart file upload)");
-              reqCtx.getTraceSegment().effectivelyBlocked();
+          if (t == null) {
+            BlockingException be =
+                MultipartHelper.tryBlock(
+                    reqCtx, filenamesFlow, "Blocked request (multipart file upload)");
+            if (be != null) {
+              t = be;
             }
+          }
+        }
+      }
+
+      if (t == null && contentCallback != null) {
+        List<String> filesContent = MultipartHelper.collectFilesContent(ret);
+        if (!filesContent.isEmpty()) {
+          Flow<Void> contentFlow = contentCallback.apply(reqCtx, filesContent);
+          BlockingException be =
+              MultipartHelper.tryBlock(
+                  reqCtx, contentFlow, "Blocked request (multipart file upload content)");
+          if (be != null) {
+            t = be;
           }
         }
       }

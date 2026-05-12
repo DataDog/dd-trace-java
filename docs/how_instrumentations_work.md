@@ -866,7 +866,7 @@ application has not passed the corresponding `--add-opens` flag), the reflection
 Any `InstrumenterModule` can additionally implement
 [`JavaModuleOpenProvider`](../dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/JavaModuleOpenProvider.java)
 to declare _trigger classes_. The first time a trigger class is instantiated, the agent opens the class's enclosing
-package to its own module so that subsequent reflective operations succeed.
+package to the agent module and to the unnamed module of the class's class loader so that subsequent reflective operations succeed.
 
 ```java
 import static java.util.Collections.singleton;
@@ -884,18 +884,18 @@ public class JpmsInetAddressInstrumentation extends InstrumenterModule
   }
 
   @Override
-  public Iterable<String> triggerClasses() {
+  public Collection<String> triggerClasses() {
     return singleton("java.net.InetAddress");
   }
 }
 ```
 
-This module has no `adviceTransformations()` — its only purpose is to register the trigger class.
+This module has no `methodAdvice()` — its only purpose is to register the trigger class.
 
 ### How it works
 
 1. During startup, `AgentInstaller` collects every `InstrumenterModule` that implements `JavaModuleOpenProvider`
-   and registers their trigger classes with `JpmsHelper.addAllTriggers()`.
+   and registers their trigger classes with `JpmsHelper.addTriggers()`.
 2. `JpmsClearanceInstrumentation` (a built-in module) instruments the **constructors** of all registered trigger
    classes.
 3. On the first constructor call of a trigger class, its advice (inlined via ByteBuddy) calls
