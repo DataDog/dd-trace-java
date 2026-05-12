@@ -146,8 +146,9 @@ class WriteVersionFilePluginTest {
     beforeGradle()
 
     val buildResult = run(task)
+    val taskPath = if (task.startsWith(":")) task else ":$task"
 
-    assertThat(buildResult.task(task)?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(buildResult.task(taskPath)?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(generatedVersionFile).exists().isFile()
     assertThat(generatedVersionFile.readText()).matches(expectedContentRegex)
     return buildResult
