@@ -75,9 +75,7 @@ java-load-parallel-check-slo-breaches:
 java-dacapo-parallel-check-slo-breaches:
   rules: *parallel_benchmark_rules
 
-# Override upstream "needs" so that the PR comment posts after startup completes,
-# without waiting for manually-triggered load / dacapo benchmarks to complete.
 java-post-pr-comment:
-  needs:
-    - job: java-startup-parallel-check-slo-breaches
-      artifacts: true
+  variables:
+    # TODO: revert to "main" after apm-sdks-benchmarks PR merges
+    APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/update-java-pr-commenting-jobs"

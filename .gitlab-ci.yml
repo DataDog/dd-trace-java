@@ -17,7 +17,7 @@ include:
     ref: 'main'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: 'main'
+    ref: 'sarahchen6/update-java-pr-commenting-jobs' # TODO: revert to 'main' after apm-sdks-benchmarks PR merges
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
