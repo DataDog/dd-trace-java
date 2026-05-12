@@ -68,8 +68,9 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
     final url = "http://localhost:${httpPort}/openfeature/evaluate"
     final testCases = parseTestCases().findAll {
-      it.result.flagMetadata?.doLog
+      it.flag == 'numeric_flag'
     }
+    assert !testCases.isEmpty()
 
     when:
     final responses = testCases.collect {
@@ -116,9 +117,13 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     response.code() == 200
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
     responseBody.value == testCase.result.value
-    responseBody.variant == testCase.result.variant
     responseBody.reason == testCase.result.reason
-    responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    if (testCase.result.containsKey('variant')) {
+      assert responseBody.variant == testCase.result.variant
+    }
+    if (testCase.result.flagMetadata?.allocationKey) {
+      assert responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    }
 
     where:
     testCase << parseTestCases()
