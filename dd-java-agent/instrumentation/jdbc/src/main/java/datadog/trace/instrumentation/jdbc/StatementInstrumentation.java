@@ -98,7 +98,11 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
+            span =
+                AgentTracer.get()
+                    .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
+                    .withSpanId(spanID)
+                    .start();
           } else if (isOracle) {
             span = startSpan("java-jdbc-statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
