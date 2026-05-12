@@ -46,12 +46,12 @@ import org.w3c.dom.Element;
 /// <testcase name="initializationError" classname="com.example.MyTest" />
 /// ```
 ///
-/// Usage (Java 25): `java TagInitializationErrors.java junit-report.xml`
+/// Usage (Java 25): `java TagSyntheticFailures.java junit-report.xml`
 
-class TagInitializationErrors {
+class TagSyntheticFailures {
   public static void main(String[] args) throws Exception {
     if (args.length == 0) {
-      System.err.println("Usage: java TagInitializationErrors.java <xml-file>");
+      System.err.println("Usage: java TagSyntheticFailures.java <xml-file>");
       System.exit(1);
     }
     var xmlFile = new File(args[0]);
@@ -88,7 +88,7 @@ class TagInitializationErrors {
     if (!modified) {
       return;
     }
-    var tmpFile = File.createTempFile("TagInitializationErrors", ".xml", xmlFile.getParentFile());
+    var tmpFile = File.createTempFile("TagSyntheticFailures", ".xml", xmlFile.getParentFile());
     try {
       var transformer = TransformerFactory.newInstance().newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");

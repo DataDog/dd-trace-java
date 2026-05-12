@@ -17,6 +17,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.URIDefaultDataAdapter;
 import java.io.IOException;
@@ -251,6 +252,14 @@ public class AppSecBenchmark {
 
     @Override
     public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+      return null;
+    }
+
+    @Override
+    public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    public ClientIpAddressData getClientIpAddressData() {
       return null;
     }
 
