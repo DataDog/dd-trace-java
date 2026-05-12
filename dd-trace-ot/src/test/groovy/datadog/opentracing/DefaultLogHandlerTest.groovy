@@ -19,7 +19,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the error passed in the fields"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final String differentMessage = "differentMessage"
     final Throwable error = new Throwable(errorMessage)
@@ -38,7 +38,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the error passed in the fields when called with timestamp"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final String differentMessage = "differentMessage"
     final Throwable error = new Throwable(errorMessage)
@@ -57,7 +57,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields but the span is not an error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     fields.put(Fields.MESSAGE, errorMessage)
@@ -72,7 +72,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields when called with timestamp but the span is not an error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     fields.put(Fields.MESSAGE, errorMessage)
@@ -87,7 +87,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields when the span is error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     span.setError(true)
@@ -103,7 +103,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields when called with timestamp when the span is error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     span.setError(true)
@@ -119,7 +119,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields when the event is error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     fields.put(Fields.EVENT, "error")
@@ -135,7 +135,7 @@ class DefaultLogHandlerTest extends DDSpecification {
   def "handles correctly the message passed in the fields when called with timestampwhen the event is error"() {
     setup:
     final LogHandler underTest = new DefaultLogHandler()
-    final DDSpan span = tracer.buildSpan("op name").withServiceName("foo").start()
+    final DDSpan span = tracer.buildSpan("datadog", "op name").withServiceName("foo").start()
     final String errorMessage = "errorMessage"
     final Map<String, ?> fields = new HashMap<>()
     fields.put(Fields.EVENT, "error")

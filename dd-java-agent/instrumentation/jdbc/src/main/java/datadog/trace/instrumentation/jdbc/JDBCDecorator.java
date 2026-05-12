@@ -336,7 +336,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
     // potentially get build span like here
     AgentSpan instrumentationSpan =
         AgentTracer.get()
-            .singleSpanBuilder("set context_info")
+            .singleSpanBuilder("java-jdbc", "set context_info")
             .withTag("dd.instrumentation", true)
             .start();
     DECORATE.afterStart(instrumentationSpan);

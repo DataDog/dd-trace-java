@@ -37,7 +37,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "null values for tags delete existing tags"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanType("fakeType")
@@ -68,7 +68,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "special tags set certain values"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanType("fakeType")
@@ -94,7 +94,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "tags can be added to the context"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanType("fakeType")
@@ -126,7 +126,7 @@ class DDSpanContextTest extends DDCoreSpecification {
   def "metrics use the expected types"() {
     // floats should be converted to doubles.
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
@@ -158,7 +158,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "force keep really keeps the trace"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
@@ -188,10 +188,10 @@ class DDSpanContextTest extends DDCoreSpecification {
     def extracted = new ExtractedContext(DDTraceId.from(123), 456, SAMPLER_KEEP, "789", tracer.getPropagationTagsFactory().empty(), DATADOG)
       .withRequestContextDataAppSec("dummy")
 
-    def top = tracer.buildSpan("top").asChildOf((AgentSpanContext) extracted).start()
+    def top = tracer.buildSpan("datadog", "top").asChildOf((AgentSpanContext) extracted).start()
     def topC = (DDSpanContext) top.context()
     def topTS = top.getRequestContext().getTraceSegment()
-    def current = tracer.buildSpan("current").asChildOf(top).start()
+    def current = tracer.buildSpan("datadog", "current").asChildOf(top).start()
     def currentTS = current.getRequestContext().getTraceSegment()
     def currentC = (DDSpanContext) current.context()
 
@@ -218,7 +218,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "set single span sampling tags"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
@@ -248,7 +248,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "setting resource name to null is ignored"() {
     setup:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
@@ -262,7 +262,7 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "setting operation name triggers constant encoding"() {
     when:
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .start()
@@ -294,13 +294,13 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "Span IDs printed as unsigned long"() {
     setup:
-    def parent = tracer.buildSpan("fakeOperation")
+    def parent = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanId(-987654321)
       .start()
 
-    def span = tracer.buildSpan("fakeOperation")
+    def span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanId(-123456789)
@@ -317,12 +317,12 @@ class DDSpanContextTest extends DDCoreSpecification {
 
   def "service name source is propagated from parent to child span"() {
     setup:
-    def parent = tracer.buildSpan("parentOperation")
+    def parent = tracer.buildSpan("datadog", "parentOperation")
       .withServiceName("fakeService")
       .start()
 
     when:
-    def child = tracer.buildSpan("childOperation")
+    def child = tracer.buildSpan("datadog", "childOperation")
       .asChildOf(parent.context())
       .start()
     def childContext = child.context() as DDSpanContext

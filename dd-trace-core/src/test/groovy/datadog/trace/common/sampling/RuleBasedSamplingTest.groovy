@@ -61,7 +61,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     sampler instanceof PrioritySampler
 
     when:
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -167,7 +167,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     sampler instanceof PrioritySampler
 
     when:
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .withTag("tag", "foo")
@@ -305,7 +305,7 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     PrioritySampler sampler = (PrioritySampler)Sampler.Builder.forConfig(properties)
 
     when:
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withResourceName("resource")
       .withTag("env", "bar")
@@ -370,12 +370,12 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     properties.setProperty(TRACE_RATE_LIMIT, "1")
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
 
-    DDSpan span2 = tracer.buildSpan("operation")
+    DDSpan span2 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -409,12 +409,12 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     properties.setProperty(TRACE_RATE_LIMIT, "1")
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
 
-    DDSpan span2 = tracer.buildSpan("operation")
+    DDSpan span2 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -448,11 +448,11 @@ class RuleBasedSamplingTest extends DDCoreSpecification {
     properties.setProperty(TRACE_RATE_LIMIT, "1")
     Sampler sampler = Sampler.Builder.forConfig(properties)
 
-    DDSpan span1 = tracer.buildSpan("operation")
+    DDSpan span1 = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
-    DDSpan span2 = tracer.buildSpan("operation")
+    DDSpan span2 = tracer.buildSpan("datadog", "operation")
       .withServiceName("foo")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
