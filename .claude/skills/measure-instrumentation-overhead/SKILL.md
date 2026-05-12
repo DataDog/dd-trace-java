@@ -181,7 +181,7 @@ Print these in the first message of every run, every time, before any work:
     - **`dd-*` thread CPU** if any > 5%.
     - One-line restatement of the limitations preamble.
 
-    Full markdown report at `<work-dir>/report.md` with: inputs, integration names, JDK version, workload source, per-bucket totals (allocation + CPU), top stacks per bucket, ClassLoad-by-package table, per-thread CPU summary, **inlined-advice attribution table** (which `*Instrumentation.java` advice maps to which host-class method), paths to raw JFR files for JMC.
+    Full markdown report at `<work-dir>/report.md` with: inputs, integration names, JDK version, workload source, per-bucket totals (allocation + CPU), top stacks per bucket, ClassLoad-by-package table, per-thread CPU summary, **inlined-advice attribution table** (synthesised from Step 3's instrumentation reads + [B] top frames: for each top host-class method and each non-inlined helper in `datadog.trace.instrumentation.<name>.*` from Step 11, map back to which `*Instrumentation.java` advice class is responsible), paths to raw JFR files for JMC.
 
     **Mandatory section "Visualizations"** in `report.md`:
     ```markdown
