@@ -73,7 +73,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     when:
-    DDSpan span = tracer.buildSpan("fakeOperation")
+    DDSpan span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
       .ignoreActiveSpan().start()
@@ -104,7 +104,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -139,7 +139,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -166,7 +166,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -191,7 +191,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
 
     when:
     Sampler sampler = Sampler.Builder.forConfig(properties)
-    DDSpan span = tracer.buildSpan("operation")
+    DDSpan span = tracer.buildSpan("datadog", "operation")
       .withServiceName("service")
       .withTag("env", "bar")
       .ignoreActiveSpan().start()
@@ -215,7 +215,7 @@ class KnuthSamplingRateTest extends DDCoreSpecification {
     serviceSampler.onResponse("traces", serializer.fromJson(response))
 
     when:
-    DDSpan span = tracer.buildSpan("fakeOperation")
+    DDSpan span = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("spock")
       .withTag("env", "test")
       .ignoreActiveSpan().start()

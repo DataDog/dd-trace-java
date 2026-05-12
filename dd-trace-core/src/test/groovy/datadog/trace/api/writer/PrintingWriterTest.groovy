@@ -20,7 +20,7 @@ class PrintingWriterTest extends DDCoreSpecification {
   Types.newParameterizedType(List, Map))))
 
   def setup() {
-    def builder = tracer.buildSpan("fakeOperation")
+    def builder = tracer.buildSpan("datadog", "fakeOperation")
       .withServiceName("fakeService")
       .withResourceName("fakeResource")
       .withSpanType("fakeType")
