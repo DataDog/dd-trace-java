@@ -8,6 +8,7 @@ import groovy.json.JsonOutput
 import groovy.json.JsonSlurper
 import java.nio.file.Files
 import java.nio.file.Paths
+import java.util.Comparator
 import okhttp3.MediaType
 import okhttp3.Request
 import okhttp3.RequestBody
@@ -21,8 +22,8 @@ import spock.util.concurrent.PollingConditions
 class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json")).with { json ->
-    return JsonOutput.toJson(json.data.attributes)
+  private final rcPayload = new JsonSlurper().parse(fetchResource("ffe-system-test-data/ufc-config.json")).with { json ->
+    return JsonOutput.toJson(json)
   }
 
   @Override
@@ -116,6 +117,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
     responseBody.value == testCase.result.value
     responseBody.variant == testCase.result.variant
+    responseBody.reason == testCase.result.reason
     responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
 
     where:
@@ -127,11 +129,12 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   }
 
   private static List<Map<String, Object>> parseTestCases() {
-    final folder = fetchResource('data')
+    final folder = fetchResource('ffe-system-test-data/evaluation-cases')
     final uri = folder.toURI()
     final testsPath = Paths.get(uri)
     final files = Files.list(testsPath)
     .filter(path -> path.toString().endsWith('.json'))
+    .sorted(Comparator.comparing(path -> path.fileName.toString()))
     final result = []
     final slurper = new JsonSlurper()
     files.each {
@@ -144,6 +147,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       }
       result.addAll(testCases)
     }
+    assert !result.isEmpty()
     return result
   }
 
