@@ -64,7 +64,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("fakeOperation")
+                .buildSpan("datadog", "fakeOperation")
                 .withServiceName("fakeService")
                 .withResourceName("fakeResource")
                 .withSpanType("fakeType")
@@ -96,7 +96,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @Test
   void resourceNameEqualsOperationNameIfNull() {
     String opName = "operationName";
-    DDSpan span = (DDSpan) tracer.buildSpan(opName).start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", opName).start();
     assertEquals(opName, span.getResourceName().toString());
     assertFalse(span.getServiceName().isEmpty());
 
@@ -105,7 +105,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span =
         (DDSpan)
             tracer
-                .buildSpan(opName)
+                .buildSpan("datadog", opName)
                 .withResourceName(resourceName)
                 .withServiceName(serviceName)
                 .start();
@@ -117,7 +117,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void durationMeasuredInNanoseconds() {
     long mod = TimeUnit.MILLISECONDS.toNanos(1);
     long start = System.nanoTime();
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     long between = System.nanoTime();
     long betweenDur = System.nanoTime() - between;
     span.finish();
@@ -138,7 +138,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void phasedFinishCapturesDurationButDoesNotPublishImmediately() throws Exception {
     long mod = TimeUnit.MILLISECONDS.toNanos(1);
     long start = System.nanoTime();
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     long between = System.nanoTime();
     long betweenDur = System.nanoTime() - between;
     // calling publish before phasedFinish
@@ -196,7 +196,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("test")
+                .buildSpan("datadog", "test")
                 .withStartTimestamp(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis()))
                 .start();
     long between = System.currentTimeMillis();
@@ -219,7 +219,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void stoppingWithTimestampDisablesNanotime() {
     long mod = TimeUnit.MILLISECONDS.toNanos(1);
     long start = System.currentTimeMillis();
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     long between = System.currentTimeMillis();
     long betweenDur = System.currentTimeMillis() - between;
     span.finish(TimeUnit.MILLISECONDS.toMicros(System.currentTimeMillis() + 1));
@@ -239,7 +239,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void stoppingWithTimestampBeforeStartTimeYieldsMinDurationOfOne() {
-    DDSpan span = (DDSpan) tracer.buildSpan("test").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").start();
     // remove tick precision part of our internal time to match previous test condition
     span.finish(
         TimeUnit.MILLISECONDS.toMicros(TimeUnit.NANOSECONDS.toMillis(span.getStartTimeNano()))
@@ -249,14 +249,16 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void prioritySamplingMetricSetOnlyOnRootSpan() {
-    DDSpan parent = (DDSpan) tracer.buildSpan("testParent").start();
-    DDSpan child1 = (DDSpan) tracer.buildSpan("testChild1").asChildOf(parent.context()).start();
+    DDSpan parent = (DDSpan) tracer.buildSpan("datadog", "testParent").start();
+    DDSpan child1 =
+        (DDSpan) tracer.buildSpan("datadog", "testChild1").asChildOf(parent.context()).start();
 
     child1.setSamplingPriority(PrioritySampling.SAMPLER_KEEP);
     child1.context().lockSamplingPriority();
     parent.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
     child1.finish();
-    DDSpan child2 = (DDSpan) tracer.buildSpan("testChild2").asChildOf(parent.context()).start();
+    DDSpan child2 =
+        (DDSpan) tracer.buildSpan("datadog", "testChild2").asChildOf(parent.context()).start();
     child2.finish();
     parent.finish();
 
@@ -289,9 +291,10 @@ public class DDSpanTest extends DDCoreJavaSpecification {
       throws Exception {
     DDSpanContext parent =
         (DDSpanContext)
-            tracer.buildSpan("testParent").asChildOf(extractedContext).start().context();
+            tracer.buildSpan("datadog", "testParent").asChildOf(extractedContext).start().context();
     DDSpanContext child =
-        (DDSpanContext) tracer.buildSpan("testChild1").asChildOf(parent).start().context();
+        (DDSpanContext)
+            tracer.buildSpan("datadog", "testChild1").asChildOf(parent).start().context();
 
     assertEquals("some-origin", parent.getOrigin().toString());
     // Access field directly instead of getter.
@@ -322,8 +325,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("isRootSpanArguments")
   void isRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext, boolean isTraceRootSpan) {
-    DDSpan root = (DDSpan) tracer.buildSpan("root").asChildOf(extractedContext).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("child").asChildOf(root.context()).start();
+    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
+    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
 
     assertEquals(isTraceRootSpan, root.isRootSpan());
     assertFalse(child.isRootSpan());
@@ -350,8 +353,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   @MethodSource("getApplicationRootSpanArguments")
   void getApplicationRootSpanInAndNotInContextOfDistributedTracing(
       String scenario, AgentSpanContext extractedContext) {
-    DDSpan root = (DDSpan) tracer.buildSpan("root").asChildOf(extractedContext).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("child").asChildOf(root.context()).start();
+    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(extractedContext).start();
+    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
 
     assertEquals(root, root.getLocalRootSpan());
     assertEquals(root, child.getLocalRootSpan());
@@ -367,8 +370,8 @@ public class DDSpanTest extends DDCoreJavaSpecification {
   void publishingOfRootSpanClosesRequestContextData() throws Exception {
     Closeable reqContextData = mock(Closeable.class);
     TagContext context = new TagContext().withRequestContextDataAppSec(reqContextData);
-    DDSpan root = (DDSpan) tracer.buildSpan("root").asChildOf(context).start();
-    DDSpan child = (DDSpan) tracer.buildSpan("child").asChildOf(root.context()).start();
+    DDSpan root = (DDSpan) tracer.buildSpan("datadog", "root").asChildOf(context).start();
+    DDSpan child = (DDSpan) tracer.buildSpan("datadog", "child").asChildOf(root.context()).start();
 
     assertEquals(reqContextData, root.getRequestContext().getData(RequestContextSlot.APPSEC));
     assertEquals(reqContextData, child.getRequestContext().getData(RequestContextSlot.APPSEC));
@@ -420,7 +423,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void brokenPipeExceptionDoesNotCreateErrorSpan() {
-    DDSpan span = (DDSpan) tracer.buildSpan("root").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
     span.addThrowable(new IOException("Broken pipe"));
     assertFalse(span.isError());
     assertNull(span.getTag(DDTags.ERROR_STACK));
@@ -429,7 +432,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void wrappedBrokenPipeExceptionDoesNotCreateErrorSpan() {
-    DDSpan span = (DDSpan) tracer.buildSpan("root").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
     span.addThrowable(new RuntimeException(new IOException("Broken pipe")));
     assertFalse(span.isError());
     assertNull(span.getTag(DDTags.ERROR_STACK));
@@ -438,7 +441,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void nullExceptionSafeToAdd() {
-    DDSpan span = (DDSpan) tracer.buildSpan("root").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
     span.addThrowable(null);
     assertFalse(span.isError());
     assertNull(span.getTag(DDTags.ERROR_STACK));
@@ -451,7 +454,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     "rate=0.25 no lim | 0.25 | 2147483647"
   })
   void setSingleSpanSamplingTags(String scenario, double rate, int limit) {
-    DDSpan span = (DDSpan) tracer.buildSpan("testSpan").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "testSpan").start();
     assertEquals(UNSET, span.samplingPriority());
 
     span.setSpanSamplingPriority(rate, limit);
@@ -467,7 +470,7 @@ public class DDSpanTest extends DDCoreJavaSpecification {
 
   @Test
   void errorPrioritiesShouldBeRespected() {
-    DDSpan span = (DDSpan) tracer.buildSpan("testSpan").start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "testSpan").start();
     assertFalse(span.isError());
 
     span.setError(true);

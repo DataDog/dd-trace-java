@@ -76,7 +76,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("fakeOperation")
+                .buildSpan("datadog", "fakeOperation")
                 .withServiceName("spock")
                 .withTag("env", "test")
                 .ignoreActiveSpan()
@@ -107,7 +107,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("operation")
+                .buildSpan("datadog", "operation")
                 .withServiceName("service")
                 .withTag("env", "bar")
                 .ignoreActiveSpan()
@@ -134,7 +134,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("operation")
+                .buildSpan("datadog", "operation")
                 .withServiceName("service")
                 .withTag("env", "bar")
                 .ignoreActiveSpan()
@@ -160,7 +160,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("operation")
+                .buildSpan("datadog", "operation")
                 .withServiceName("service")
                 .withTag("env", "bar")
                 .ignoreActiveSpan()
@@ -185,7 +185,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("operation")
+                .buildSpan("datadog", "operation")
                 .withServiceName("service")
                 .withTag("env", "bar")
                 .ignoreActiveSpan()
@@ -213,7 +213,7 @@ public class KnuthSamplingRateTest extends DDCoreJavaSpecification {
     DDSpan span =
         (DDSpan)
             tracer
-                .buildSpan("fakeOperation")
+                .buildSpan("datadog", "fakeOperation")
                 .withServiceName("spock")
                 .withTag("env", "test")
                 .ignoreActiveSpan()

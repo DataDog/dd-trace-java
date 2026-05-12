@@ -75,7 +75,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void nullValuesForTagsDeleteExistingTags(String name) throws Exception {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
@@ -120,7 +120,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
       throws Exception {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
@@ -165,7 +165,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void tagsCanBeAddedToContext(String name, Object value) throws Exception {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanType("fakeType")
@@ -202,7 +202,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     // floats should be converted to doubles.
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
@@ -219,7 +219,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void forceKeepReallyKeepsTrace() {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
@@ -251,11 +251,12 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
                     DATADOG)
                 .withRequestContextDataAppSec("dummy");
 
-    AgentSpan top = tracer.buildSpan("top").asChildOf((AgentSpanContext) extracted).start();
+    AgentSpan top =
+        tracer.buildSpan("datadog", "top").asChildOf((AgentSpanContext) extracted).start();
     DDSpanContext topC = (DDSpanContext) top.context();
     TraceSegment topTS = top.getRequestContext().getTraceSegment();
 
-    AgentSpan current = tracer.buildSpan("current").asChildOf(top.context()).start();
+    AgentSpan current = tracer.buildSpan("datadog", "current").asChildOf(top.context()).start();
     TraceSegment currentTS = current.getRequestContext().getTraceSegment();
     DDSpanContext currentC = (DDSpanContext) current.context();
 
@@ -295,7 +296,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void setSingleSpanSamplingTags(double rate, int limit) {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
@@ -321,7 +322,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void settingResourceNameToNullIsIgnored() {
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
@@ -340,7 +341,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .start();
@@ -369,7 +370,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   void spanIdsPrintedAsUnsignedLong() {
     AgentSpan parent =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanId(-987654321)
@@ -377,7 +378,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     AgentSpan span =
         tracer
-            .buildSpan("fakeOperation")
+            .buildSpan("datadog", "fakeOperation")
             .withServiceName("fakeService")
             .withResourceName("fakeResource")
             .withSpanId(-123456789)
@@ -397,9 +398,11 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void serviceNameSourceIsPropagatedFromParentToChildSpan() {
-    AgentSpan parent = tracer.buildSpan("parentOperation").withServiceName("fakeService").start();
+    AgentSpan parent =
+        tracer.buildSpan("datadog", "parentOperation").withServiceName("fakeService").start();
 
-    AgentSpan child = tracer.buildSpan("childOperation").asChildOf(parent.context()).start();
+    AgentSpan child =
+        tracer.buildSpan("datadog", "childOperation").asChildOf(parent.context()).start();
     DDSpanContext childContext = (DDSpanContext) child.context();
 
     assertEquals(ServiceNameSources.MANUAL, childContext.getServiceNameSource());
