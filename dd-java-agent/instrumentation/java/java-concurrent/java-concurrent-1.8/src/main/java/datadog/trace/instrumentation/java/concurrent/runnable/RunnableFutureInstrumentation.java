@@ -155,18 +155,19 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
       ContextStore<RunnableFuture, State> contextStore =
           InstrumentationContext.get(RunnableFuture.class, State.class);
 
-      // Netty 4.1.44+ invokes ScheduledFutureTask.run() twice for tasks scheduled
-      // from outside the event loop: once to self-enqueue while the delay is
-      // still positive, then again when the deadline elapses. Skip the first
-      // call so the captured continuation survives for the actual fire.
+      // Netty 4.1.44+ invokes ScheduledFutureTask.run() once to self-enqueue
+      // delayed tasks scheduled from outside the event loop, then again when
+      // the deadline elapses. Only skip the first call when there is a captured
+      // continuation to preserve for the actual fire.
+      State state = contextStore.get(task);
       if (task instanceof ScheduledFuture
           && task.getClass().getName().endsWith(".netty.util.concurrent.ScheduledFutureTask")) {
         long delayNanos = ((ScheduledFuture<?>) task).getDelay(TimeUnit.NANOSECONDS);
-        if (delayNanos > 0) {
+        if (delayNanos > 0 && state != null && state.getSpan() != null) {
           return null;
         }
       }
-      return startTaskScope(contextStore, task);
+      return startTaskScope(state);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
