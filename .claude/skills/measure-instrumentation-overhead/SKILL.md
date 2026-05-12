@@ -132,7 +132,12 @@ for name, (g, a) in arts.items():
 open("<work-dir>/jmh_cp.txt", "w").write(":".join(jars))
 ```
 
-Stop if `jmh-core` or `jmh-generator-annprocess` is missing. Fix: `./gradlew :dd-java-agent:benchmark:dependencies`.
+Stop if `jmh-core` is missing. For `jmh-generator-annprocess`: it may be absent from the Gradle module cache even after `./gradlew :dd-java-agent:benchmark:dependencies`; if so, download it directly:
+```bash
+curl -sL https://repo1.maven.org/maven2/org/openjdk/jmh/jmh-generator-annprocess/1.37/jmh-generator-annprocess-1.37.jar \
+  -o ~/.gradle/caches/modules-2/files-2.1/org.openjdk.jmh/jmh-generator-annprocess/1.37/downloaded/jmh-generator-annprocess-1.37.jar
+```
+Then re-run the jar-location script above.
 
 ### 5. Build agent jar
 
