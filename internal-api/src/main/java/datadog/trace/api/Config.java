@@ -417,6 +417,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGAT
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -5106,6 +5107,10 @@ public class Config {
 
   public Set<String> getMetricsIgnoredResources() {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
+  }
+
+  public List<String> getTraceStatsAdditionalTags() {
+    return tryMakeImmutableList(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
   }
 
   public String getEnv() {

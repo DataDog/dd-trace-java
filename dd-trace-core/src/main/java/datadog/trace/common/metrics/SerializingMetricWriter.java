@@ -41,6 +41,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  private static final byte[] ADDITIONAL_METRIC_TAGS = "AdditionalMetricTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
@@ -149,7 +150,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasServiceSource = key.getServiceSource() != null;
     final boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null;
     final int mapSize =
-        15
+        16
             + (hasServiceSource ? 1 : 0)
             + (hasHttpMethod ? 1 : 0)
             + (hasHttpEndpoint ? 1 : 0)
@@ -187,6 +188,13 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
+    }
+
+    writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
+    final List<UTF8BytesString> additionalTags = key.getAdditionalTags();
+    writer.startArray(additionalTags.size());
+    for (UTF8BytesString tag : additionalTags) {
+      writer.writeUTF8(tag);
     }
 
     if (hasServiceSource) {

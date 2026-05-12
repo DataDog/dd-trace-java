@@ -80,6 +80,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
               Pair.of(
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
+  private static final DDCache<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      ADDITIONAL_TAG_VALUES_CACHE = DDCaches.newFixedSizeCache(64);
+  private static final Function<
+          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
+      ADDITIONAL_TAG_VALUES_CACHE_ADDER =
+          key ->
+              Pair.of(
+                  DDCaches.newFixedSizeCache(512),
+                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
@@ -93,6 +103,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
   private final Set<String> ignoredResources;
+  private final List<String> additionalTagKeys;
   private final MessagePassingQueue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
@@ -115,6 +126,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        config.getTraceStatsAdditionalTags(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -132,6 +144,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      List<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -141,6 +154,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         wellKnownTags,
         ignoredResources,
+        additionalTagKeys,
         features,
         healthMetric,
         sink,
@@ -154,6 +168,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      List<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -164,6 +179,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
+        additionalTagKeys,
         features,
         healthMetric,
         sink,
@@ -177,6 +193,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
+      List<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -187,6 +204,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalTagKeys =
+        additionalTagKeys == null ? Collections.emptyList() : additionalTagKeys;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
@@ -350,7 +369,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             getPeerTags(span, spanKind.toString()),
             httpMethod,
             httpEndpoint,
-            grpcStatusCode);
+            grpcStatusCode,
+            getAdditionalTags(span));
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;
@@ -411,6 +431,28 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return Collections.emptyList();
+  }
+
+  private List<UTF8BytesString> getAdditionalTags(CoreSpan<?> span) {
+    if (additionalTagKeys.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<UTF8BytesString> result = null;
+    for (String tagKey : additionalTagKeys) {
+      Object value = span.unsafeGetTag(tagKey);
+      if (value == null) {
+        continue;
+      }
+      Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
+          ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
+      UTF8BytesString formatted =
+          cacheAndCreator.getLeft().computeIfAbsent(value.toString(), cacheAndCreator.getRight());
+      if (result == null) {
+        result = new ArrayList<>(additionalTagKeys.size());
+      }
+      result.add(formatted);
+    }
+    return result == null ? Collections.emptyList() : result;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

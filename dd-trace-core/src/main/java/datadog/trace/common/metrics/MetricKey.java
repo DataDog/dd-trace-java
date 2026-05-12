@@ -39,6 +39,7 @@ public final class MetricKey {
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
   private final UTF8BytesString grpcStatusCode;
+  private final List<UTF8BytesString> additionalTags;
 
   public MetricKey(
       CharSequence resource,
@@ -53,7 +54,8 @@ public final class MetricKey {
       List<UTF8BytesString> peerTags,
       CharSequence httpMethod,
       CharSequence httpEndpoint,
-      CharSequence grpcStatusCode) {
+      CharSequence grpcStatusCode,
+      List<UTF8BytesString> additionalTags) {
     this.resource = null == resource ? EMPTY : utf8(RESOURCE_CACHE, resource);
     this.service = null == service ? EMPTY : utf8(SERVICE_CACHE, service);
     this.serviceSource = null == serviceSource ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
@@ -68,6 +70,7 @@ public final class MetricKey {
     this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
     this.grpcStatusCode =
         grpcStatusCode == null ? null : utf8(GRPC_STATUS_CODE_CACHE, grpcStatusCode);
+    this.additionalTags = additionalTags == null ? Collections.emptyList() : additionalTags;
 
     int tmpHash = 0;
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
@@ -83,6 +86,7 @@ public final class MetricKey {
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpEndpoint);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpMethod);
     tmpHash = HashingUtils.addToHash(tmpHash, this.grpcStatusCode);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.additionalTags);
     this.hash = tmpHash;
   }
 
@@ -146,6 +150,10 @@ public final class MetricKey {
     return grpcStatusCode;
   }
 
+  public List<UTF8BytesString> getAdditionalTags() {
+    return additionalTags;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -166,7 +174,8 @@ public final class MetricKey {
           && Objects.equals(serviceSource, metricKey.serviceSource)
           && Objects.equals(httpMethod, metricKey.httpMethod)
           && Objects.equals(httpEndpoint, metricKey.httpEndpoint)
-          && Objects.equals(grpcStatusCode, metricKey.grpcStatusCode);
+          && Objects.equals(grpcStatusCode, metricKey.grpcStatusCode)
+          && additionalTags.equals(metricKey.additionalTags);
     }
     return false;
   }

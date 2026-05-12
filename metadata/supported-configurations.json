@@ -10577,6 +10577,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "B",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [
       {
         "version": "B",

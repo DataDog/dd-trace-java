@@ -38,6 +38,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       empty,
+      [] as List<String>,
       features,
       HealthMetrics.NO_OP,
       sink,
@@ -68,6 +69,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
+      [] as List<String>,
       features,
       HealthMetrics.NO_OP,
       sink,
@@ -104,6 +106,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -133,7 +136,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), _) >> { MetricKey key, AggregateMetric value ->
+      , null), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -150,6 +153,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -179,7 +183,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), _) >> { MetricKey key, AggregateMetric value ->
+      , null), _) >> { MetricKey key, AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == 1 && value.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -196,6 +200,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -231,7 +236,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       httpMethod,
       httpEndpoint,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
     (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
@@ -261,6 +266,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >>> [["country"], ["country", "georegion"],]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -293,7 +299,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
     1 * writer.add(
@@ -311,7 +317,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -328,6 +334,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> ["peer.hostname", "_dd.base_service"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -358,7 +365,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -380,8 +387,8 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, features, HealthMetrics.NO_OP,
-      sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, [] as List<String>, features, HealthMetrics.NO_OP,
+    sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
     when:
@@ -410,7 +417,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getTopLevelCount() == topLevelCount && value.getDuration() == 100
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -433,6 +440,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     List<CoreSpan> trace = [
@@ -469,7 +477,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
       })
     1 * writer.add(new MetricKey(
@@ -486,7 +494,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration * 2
       })
 
@@ -505,6 +513,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -540,7 +549,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == count && value.getDuration() == count * duration
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -581,7 +590,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
     1 * writer.add(new MetricKey(
@@ -598,7 +607,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/orders/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
     1 * writer.add(new MetricKey(
@@ -615,7 +624,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "POST",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 3
       })
     1 * writer.finishBucket() >> { latch2.countDown() }
@@ -632,6 +641,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -679,7 +689,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
     1 * writer.add(new MetricKey(
@@ -696,7 +706,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "POST",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
     1 * writer.add(new MetricKey(
@@ -713,7 +723,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 3
       })
     1 * writer.add(new MetricKey(
@@ -730,7 +740,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/orders/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 4
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -747,6 +757,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -783,7 +794,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
     1 * writer.add(new MetricKey(
@@ -800,7 +811,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration * 2
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -817,6 +828,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -851,7 +863,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 2 && value.getDuration() == 2 * duration
       })
     1 * writer.add(new MetricKey(
@@ -868,7 +880,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric value ->
+      , null), { AggregateMetric value ->
         value.getHitCount() == 1 && value.getDuration() == duration
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -886,6 +898,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -919,7 +932,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null,
         null
-        ), _) >> { MetricKey key, AggregateMetric value ->
+        , null), _) >> { MetricKey key, AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         }
     }
@@ -937,7 +950,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), _)
+      , null), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -954,6 +967,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -988,6 +1002,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1033,6 +1048,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1066,7 +1082,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null,
         null
-        ), { AggregateMetric value ->
+        , null), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
     }
@@ -1101,7 +1117,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null,
         null
-        ), { AggregateMetric value ->
+        , null), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
     }
@@ -1119,7 +1135,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), _)
+      , null), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
@@ -1135,6 +1151,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1168,7 +1185,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null,
         null
-        ), { AggregateMetric value ->
+        , null), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
     }
@@ -1195,6 +1212,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1227,7 +1245,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null,
         null
-        ), { AggregateMetric value ->
+        , null), { AggregateMetric value ->
           value.getHitCount() == 1 && value.getDuration() == duration
         })
     }
@@ -1246,6 +1264,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1277,6 +1296,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     aggregator.start()
 
@@ -1299,6 +1319,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> false
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, 200, MILLISECONDS, false)
     final spans = [
       new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
@@ -1331,6 +1352,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
 
     when:
@@ -1364,6 +1386,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1394,7 +1417,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1411,6 +1434,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1449,7 +1473,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 3 && aggregateMetric.getTopLevelCount() == 3 && aggregateMetric.getDuration() == 450
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1466,6 +1490,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -1504,7 +1529,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "GET",
       "/api/users/:id",
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 100
       })
     1 * writer.add(
@@ -1522,7 +1547,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "POST",
       "/api/orders",
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 200
       })
     1 * writer.add(
@@ -1540,7 +1565,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), { AggregateMetric aggregateMetric ->
+      , null), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 1 && aggregateMetric.getDuration() == 150
       })
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1557,6 +1582,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      [] as List<String>,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1592,7 +1618,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       "0"
-      ), _)
+      , null), _)
     1 * writer.add(new MetricKey(
       "grpc.service/Method",
       "service",
@@ -1607,7 +1633,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       "5"
-      ), _)
+      , null), _)
     1 * writer.add(new MetricKey(
       "GET /api",
       "service",
@@ -1622,7 +1648,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null,
       null
-      ), _)
+      , null), _)
     1 * writer.finishBucket() >> { latch.countDown() }
 
     cleanup:
