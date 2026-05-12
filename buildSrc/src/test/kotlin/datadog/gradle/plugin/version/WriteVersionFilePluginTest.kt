@@ -43,7 +43,28 @@ class WriteVersionFilePluginTest {
   }
 
   @Test
-  fun `version file is wired into main source set resources`(@TempDir projectDir: File) {
+  fun `task overwrites existing version file`(@TempDir projectDir: File) {
+    val fixture = VersionPluginsFixture(projectDir)
+    setupProject(
+      projectDir,
+      extraBuildScript = """
+        tasks.named("writeVersionNumberFile").configure {
+          gitHash.set("abc12345")
+        }
+      """,
+    )
+    val versionFile = versionFile(projectDir)
+    versionFile.parentFile.mkdirs()
+    versionFile.writeText("stale-version")
+
+    val result = fixture.run("writeVersionNumberFile")
+
+    assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(versionFile).content().isEqualTo("1.2.3~abc12345")
+  }
+
+  @Test
+  fun `version file generation is wired into main resources`(@TempDir projectDir: File) {
     val fixture = VersionPluginsFixture(projectDir)
     setupProject(
       projectDir,
@@ -76,6 +97,30 @@ class WriteVersionFilePluginTest {
 
     assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
   }
+
+  @Test
+  fun `clean deletes version file`(@TempDir projectDir: File) {
+    val fixture = VersionPluginsFixture(projectDir)
+    setupProject(
+      projectDir,
+      extraBuildScript = """
+        tasks.named("writeVersionNumberFile").configure {
+          gitHash.set("abc12345")
+        }
+      """,
+    )
+    val versionFile = versionFile(projectDir)
+    fixture.run("writeVersionNumberFile")
+    assertThat(versionFile).exists()
+
+    val result = fixture.run("clean")
+
+    assertThat(result.task(":clean")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(versionFile).doesNotExist()
+  }
+
+  private fun versionFile(projectDir: File): File =
+    File(projectDir, "build/generated/version/my-lib.version")
 
   private fun setupProject(projectDir: File, extraBuildScript: String = "") {
     File(projectDir, "settings.gradle").writeText("rootProject.name = 'my-lib'")
