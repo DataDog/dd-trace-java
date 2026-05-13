@@ -136,6 +136,7 @@ class AbstractPlayServerTest extends HttpServerTest<Server> {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_SERVER
         "$Tags.PEER_HOST_IPV4" '127.0.0.1'
         "$Tags.HTTP_CLIENT_IP" (endpoint == FORWARDED ? endpoint.body : '127.0.0.1')
+        "$Tags.NETWORK_CLIENT_IP" '127.0.0.1'
         "$Tags.HTTP_URL" String
         "$Tags.HTTP_HOSTNAME" address.host
         "$Tags.HTTP_METHOD" String

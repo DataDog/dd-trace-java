@@ -20,7 +20,7 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
 
   def "discard a trace that does not come from ci app"() {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
-    tracer.buildSpan("sample-span").start().finish()
+    tracer.buildSpan("datadog", "sample-span").start().finish()
 
     expect:
     writer.size() == 0
@@ -29,7 +29,7 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
   def "do not discard a trace that comes from ci app"() {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
 
-    def span = tracer.buildSpan("sample-span").start()
+    def span = tracer.buildSpan("datadog", "sample-span").start()
     ((DDSpanContext) span.context()).origin = CIConstants.CIAPP_TEST_ORIGIN
     span.finish()
 
@@ -42,7 +42,7 @@ class CiVisibilityTraceInterceptorTest extends DDCoreSpecification {
     tracer.addTraceInterceptor(CiVisibilityTraceInterceptor.INSTANCE)
 
 
-    def span = tracer.buildSpan("sample-span").withSpanType(spanType).start()
+    def span = tracer.buildSpan("datadog", "sample-span").withSpanType(spanType).start()
     ((DDSpanContext) span.context()).origin = CIConstants.CIAPP_TEST_ORIGIN
     span.finish()
     writer.waitForTraces(1)

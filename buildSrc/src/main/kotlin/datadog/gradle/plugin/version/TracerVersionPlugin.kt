@@ -32,9 +32,9 @@ class TracerVersionPlugin @Inject constructor(
       providerFactory.gradleProperty("tracerVersion.qualifier")
     )
 
-    val versionProvider = versionProvider(targetProject, extension)
+    val theVersion = versionProvider(targetProject, extension)
     targetProject.allprojects {
-      version = versionProvider
+      version = theVersion
     }
   }
 

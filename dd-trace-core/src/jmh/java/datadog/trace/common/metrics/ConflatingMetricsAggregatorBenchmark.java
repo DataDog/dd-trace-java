@@ -73,7 +73,7 @@ public class ConflatingMetricsAggregatorBenchmark {
 
     public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
       // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, V0_4, true);
+      super(null, Monitoring.DISABLED, null, V0_4, true, false);
       this.peerTags = peerTags;
       this.spanKinds = spanKinds;
     }
