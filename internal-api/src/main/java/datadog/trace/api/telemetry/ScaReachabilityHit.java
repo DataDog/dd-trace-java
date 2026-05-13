@@ -63,20 +63,27 @@ public final class ScaReachabilityHit {
     return version;
   }
 
-  /** Fully-qualified class name in dot notation, e.g. {@code "com.foo.Bar"}. */
+  /**
+   * For class-level hits: FQN of the vulnerable library class (dot notation). For method-level
+   * hits: FQN of the APPLICATION class that called the vulnerable method (callsite), not the
+   * vulnerable class itself.
+   */
   public String className() {
     return className;
   }
 
   /**
-   * JVM symbol name: {@code "<clinit>"} for class-level hits, or the method name (e.g. {@code
-   * "readValue"}) for method-level hits.
+   * For class-level hits: {@link #CLASS_LEVEL_SYMBOL} ({@code "<clinit>"}). For method-level hits:
+   * the APPLICATION method that called the vulnerable method (callsite).
    */
   public String symbolName() {
     return symbolName;
   }
 
-  /** First source line of the detected symbol. {@code 1} for class-level (placeholder). */
+  /**
+   * For class-level hits: {@code 1} (placeholder — no specific callsite at class load time). For
+   * method-level hits: line number in the application code where the call was made.
+   */
   public int line() {
     return line;
   }
