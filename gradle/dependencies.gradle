@@ -74,7 +74,7 @@ final class CachedData {
 }
 
 // Pick the highest version when multiple artifacts provide the `org.lz4:lz4-java` capability.
-configurations.all {
+configurations.configureEach {
   resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
     selectHighestVersion()
   }
