@@ -104,6 +104,7 @@ jobs:
         if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
             --base master \
@@ -119,7 +120,7 @@ jobs:
 
           Refresh Gradle dependencies to make sure to apply the latest version available when bumping dependencies.
 
-          ${{ steps.validate-lockfiles.outputs.summary }}
+          ${PR_SUMMARY}
 
           # Contributor Checklist
 
@@ -163,6 +164,7 @@ jobs:
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \
@@ -178,7 +180,7 @@ jobs:
 
           Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
 
-          ${{ steps.validate-lockfiles.outputs.summary }}
+          ${PR_SUMMARY}
 
           # Contributor Checklist
 
