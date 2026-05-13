@@ -6,6 +6,7 @@ import static datadog.trace.instrumentation.netty41.AttributeKeys.BLOCKED_RESPON
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.PARENT_CONTEXT_ATTRIBUTE_KEY;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.REQUEST_HEADERS_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.STREAMING_CONTEXT_KEY;
 import static datadog.trace.instrumentation.netty41.server.NettyHttpServerDecorator.DECORATE;
 
 import datadog.context.Context;
@@ -88,11 +89,26 @@ public class HttpServerRequestTracingHandler extends ChannelInboundHandlerAdapte
     try {
       super.channelInactive(ctx);
     } finally {
+      // Finish any in-flight streaming span first — during chunked responses the span context
+      // is stored in STREAMING_CONTEXT_KEY, and CONTEXT_ATTRIBUTE_KEY may already belong to
+      // the next keep-alive request.
+      try {
+        final Context streamingContext = ctx.channel().attr(STREAMING_CONTEXT_KEY).getAndRemove();
+        if (streamingContext != null) {
+          final AgentSpan streamingSpan = spanFromContext(streamingContext);
+          if (streamingSpan != null) {
+            DECORATE.onError(
+                streamingSpan, new Exception("Channel closed before response completed"));
+            DECORATE.beforeFinish(streamingContext);
+            streamingSpan.finish();
+          }
+        }
+      } catch (final Throwable ignored) {
+      }
       try {
         final Context storedContext = ctx.channel().attr(CONTEXT_ATTRIBUTE_KEY).getAndRemove();
         final AgentSpan span = spanFromContext(storedContext);
         if (span != null && span.phasedFinish()) {
-          // at this point we can just publish this span to avoid loosing the rest of the trace
           span.publish();
         }
       } catch (final Throwable ignored) {

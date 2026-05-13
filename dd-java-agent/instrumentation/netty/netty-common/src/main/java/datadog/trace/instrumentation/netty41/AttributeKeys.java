@@ -20,6 +20,16 @@ public final class AttributeKeys {
   public static final AttributeKey<Context> CONTEXT_ATTRIBUTE_KEY =
       attributeKey(DD_CONTEXT_ATTRIBUTE);
 
+  /**
+   * Stores the context of the currently-streaming (chunked) response. Set when the HTTP response
+   * headers are sent, cleared when LastHttpContent is processed. Using a separate key (instead of
+   * CONTEXT_ATTRIBUTE_KEY) avoids a keep-alive race: Netty can process the next request's
+   * channelRead before the current response's LastHttpContent write task runs, overwriting
+   * CONTEXT_ATTRIBUTE_KEY with the new request's span.
+   */
+  public static final AttributeKey<Context> STREAMING_CONTEXT_KEY =
+      attributeKey("datadog.server.streaming.context");
+
   public static final AttributeKey<AgentSpan> CLIENT_PARENT_ATTRIBUTE_KEY =
       attributeKey("datadog.client.parent.span");
 
