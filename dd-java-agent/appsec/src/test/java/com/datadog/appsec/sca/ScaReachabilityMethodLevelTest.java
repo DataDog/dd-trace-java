@@ -170,6 +170,54 @@ class ScaReachabilityMethodLevelTest {
     assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("safeMethod")));
   }
 
+  @Test
+  void injectMethodCallbacks_sameMethodNameInDifferentClassesProduceIndependentHits()
+      throws Exception {
+    // Regression test for dedup key bug: if two classes in the same artifact share a method
+    // name (e.g. ClassA.parse and ClassB.parse), both must be reported independently.
+    // Before the fix, the key was "vulnId|artifact|methodName" — the second class was silenced.
+    // After the fix, the key is "vulnId|artifact|dotClassName|methodName".
+
+    // Instrument TargetClass.vulnerableMethod with two different dotClassNames
+    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacksClassA =
+        new HashMap<>();
+    callbacksClassA.put(
+        "vulnerableMethod",
+        Collections.singletonList(
+            spec(
+                "GHSA-shared",
+                "com.example:lib",
+                "1.0.0",
+                "com.example.ClassA",
+                "vulnerableMethod")));
+
+    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacksClassB =
+        new HashMap<>();
+    callbacksClassB.put(
+        "vulnerableMethod",
+        Collections.singletonList(
+            spec(
+                "GHSA-shared",
+                "com.example:lib",
+                "1.0.0",
+                "com.example.ClassB",
+                "vulnerableMethod")));
+
+    // Load two independently modified versions of TargetClass (simulating ClassA and ClassB)
+    byte[] original = bytecodeOf(TargetClass.class);
+    Class<?> clsA = loadModified(transformer.injectMethodCallbacks(original, callbacksClassA));
+    Class<?> clsB = loadModified(transformer.injectMethodCallbacks(original, callbacksClassB));
+
+    clsA.getMethod("vulnerableMethod").invoke(clsA.getDeclaredConstructor().newInstance());
+    clsB.getMethod("vulnerableMethod").invoke(clsB.getDeclaredConstructor().newInstance());
+
+    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
+    assertEquals(
+        2,
+        hits.size(),
+        "Same method name in different classes of the same artifact must produce 2 independent hits");
+  }
+
   // ---------------------------------------------------------------------------
   // transform(): class-level symbols still report <clinit> via Path A
   // ---------------------------------------------------------------------------

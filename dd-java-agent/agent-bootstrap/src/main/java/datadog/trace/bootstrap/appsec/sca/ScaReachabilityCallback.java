@@ -24,7 +24,7 @@ public final class ScaReachabilityCallback {
 
   private static volatile Handler handler;
 
-  /** Runtime dedup: "vulnId|artifact|methodName" tuples already reported. */
+  /** Runtime dedup: "vulnId|artifact|dotClassName|methodName" tuples already reported. */
   private static final java.util.Set<String> reported =
       java.util.concurrent.ConcurrentHashMap.newKeySet();
 
@@ -59,7 +59,9 @@ public final class ScaReachabilityCallback {
     if (h == null) {
       return;
     }
-    String key = vulnId + "|" + artifact + "|" + methodName;
+    // Include dotClassName so that two different classes in the same artifact that share
+    // a method name (e.g. ClassA.parse and ClassB.parse) produce independent hits.
+    String key = vulnId + "|" + artifact + "|" + dotClassName + "|" + methodName;
     if (reported.add(key)) {
       h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
     }
