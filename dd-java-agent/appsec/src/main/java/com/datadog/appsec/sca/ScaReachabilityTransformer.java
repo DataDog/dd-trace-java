@@ -58,6 +58,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
 
+  /** JVM internal name for the class initializer, used as the symbol name for class-level hits. */
+  private static final String CLASS_LEVEL_SYMBOL = "<clinit>";
+
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
 
@@ -144,7 +147,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * <ul>
    *   <li>Class-level ({@code symbol.method() == null}): reports a hit immediately via {@link
-   *       ScaReachabilityCollector} with symbol {@code "<clinit>"}.
+   *       ScaReachabilityCollector} with symbol {@code CLASS_LEVEL_SYMBOL}.
    *   <li>Method-level ({@code symbol.method() != null}): injects a static callback into the method
    *       bytecode via ASM. The callback is invoked the first time the method is called and reports
    *       via {@link ScaReachabilityCallback}. Returns modified bytecode; {@code null} if only
@@ -180,23 +183,21 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
 
+      // Report class-level hit immediately; collect method-level symbols for ASM injection.
+      reportClassLevelHitIfPresent(entry, version, className);
       for (ScaSymbol symbol : entry.symbols()) {
-        if (!symbol.className().equals(className)) {
+        if (!symbol.className().equals(className) || symbol.isClassLevel()) {
           continue;
         }
-        if (symbol.isClassLevel()) {
-          reportHit(entry, version, className, "<clinit>", 1);
-        } else {
-          methodCallbacks
-              .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
-              .add(
-                  new MethodCallbackSpec(
-                      entry.vulnId(),
-                      entry.artifact(),
-                      version,
-                      className.replace('/', '.'),
-                      symbol.method()));
-        }
+        methodCallbacks
+            .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
+            .add(
+                new MethodCallbackSpec(
+                    entry.vulnId(),
+                    entry.artifact(),
+                    version,
+                    className.replace('/', '.'),
+                    symbol.method()));
       }
     }
 
@@ -341,12 +342,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
       // Only class-level symbols are reported at class load time.
       // Method-level symbols are handled by processClass() via ASM injection.
-      for (ScaSymbol symbol : entry.symbols()) {
-        if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
-          reportHit(entry, version, internalClassName, "<clinit>", 1);
-          break; // one hit per entry is sufficient
-        }
-      }
+      reportClassLevelHitIfPresent(entry, version, internalClassName);
     }
   }
 
@@ -355,12 +351,21 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     for (ScaEntry entry : entries) {
       String version = findArtifactVersionInClasspath(entry.artifact());
       if (version != null && entry.isVersionVulnerable(version)) {
-        for (ScaSymbol symbol : entry.symbols()) {
-          if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
-            reportHit(entry, version, internalClassName, "<clinit>", 1);
-            break;
-          }
-        }
+        reportClassLevelHitIfPresent(entry, version, internalClassName);
+      }
+    }
+  }
+
+  /**
+   * Reports a class-level reachability hit for the first class-level symbol in {@code entry} that
+   * matches {@code internalClassName}. No-op if no matching class-level symbol exists.
+   */
+  private void reportClassLevelHitIfPresent(
+      ScaEntry entry, String version, String internalClassName) {
+    for (ScaSymbol symbol : entry.symbols()) {
+      if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
+        reportHit(entry, version, internalClassName, CLASS_LEVEL_SYMBOL, 1);
+        return; // one hit per entry is sufficient
       }
     }
   }
