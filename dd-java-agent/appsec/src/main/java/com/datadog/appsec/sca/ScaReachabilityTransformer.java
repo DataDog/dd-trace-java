@@ -4,6 +4,7 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
 import datadog.trace.api.telemetry.ScaReachabilityCollector;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
+import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
@@ -12,6 +13,7 @@ import java.net.URLClassLoader;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
@@ -171,18 +173,52 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   private String findArtifactVersionInClasspath(String artifactName) {
+    Set<URL> scanned = new HashSet<>();
+
+    // Walk URLClassLoader chain (covers Java 8 system classloader and custom classloaders on 9+)
     ClassLoader cl = Thread.currentThread().getContextClassLoader();
     while (cl != null) {
       if (cl instanceof URLClassLoader) {
         for (URL url : ((URLClassLoader) cl).getURLs()) {
-          for (Dependency dep : resolveDependencies(url)) {
-            if (artifactName.equals(dep.name) && dep.version != null) {
-              return dep.version;
+          if (scanned.add(url)) {
+            String version = findArtifactInUrl(artifactName, url);
+            if (version != null) {
+              return version;
             }
           }
         }
       }
       cl = cl.getParent();
+    }
+
+    // Fallback for Java 9+: system classloader (jdk.internal.loader.ClassLoaders$AppClassLoader)
+    // no longer extends URLClassLoader, so the loop above misses the main classpath. The
+    // java.class.path system property always contains the classpath entries in this case.
+    String classpath = System.getProperty("java.class.path", "");
+    for (String entry : classpath.split(File.pathSeparator)) {
+      if (entry.isEmpty()) {
+        continue;
+      }
+      try {
+        URL url = new File(entry).toURI().toURL();
+        if (scanned.add(url)) {
+          String version = findArtifactInUrl(artifactName, url);
+          if (version != null) {
+            return version;
+          }
+        }
+      } catch (Exception e) {
+        log.debug("SCA Reachability: could not scan classpath entry {}", entry, e);
+      }
+    }
+    return null;
+  }
+
+  private String findArtifactInUrl(String artifactName, URL url) {
+    for (Dependency dep : resolveDependencies(url)) {
+      if (artifactName.equals(dep.name) && dep.version != null) {
+        return dep.version;
+      }
     }
     return null;
   }
