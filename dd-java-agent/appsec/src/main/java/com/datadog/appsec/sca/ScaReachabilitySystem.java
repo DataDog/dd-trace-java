@@ -27,6 +27,61 @@ public final class ScaReachabilitySystem {
   private ScaReachabilitySystem() {}
 
   /**
+   * Walks the current thread stack to find the first application frame that called the vulnerable
+   * method. Uses {@link AbstractStackWalker#isNotDatadogTraceStackElement} (backed by the IAST
+   * exclusion trie) to distinguish application code from agent/JDK/framework frames.
+   *
+   * <p>The stack at call time is:
+   *
+   * <pre>
+   *   ScaReachabilitySystem handler lambda  (skip — agent)
+   *   ScaReachabilityCallback.onMethodHit   (skip — agent)
+   *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip — the instrumented library class)
+   *   &lt;application callsite&gt;               ← return this
+   * </pre>
+   *
+   * @param vulnerableClass dot-notation FQN of the instrumented class (used to skip library frames)
+   * @return first application callsite frame, or {@code null} if not found
+   */
+  static StackTraceElement findCallsite(String vulnerableClass) {
+    StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+    boolean pastVulnerableClass = false;
+
+    for (StackTraceElement frame : stack) {
+      String cls = frame.getClassName();
+
+      // Skip agent and JDK frames using the same predicate as AbstractStackWalker
+      // (isNotDatadogTraceStackElement is package-private so we replicate the 3 conditions).
+      if (cls.startsWith("datadog.trace.")
+          || cls.startsWith("com.datadog.iast.")
+          || cls.startsWith("com.datadog.appsec.")
+          || cls.startsWith("java.")
+          || cls.startsWith("javax.")
+          || cls.startsWith("sun.")
+          || cls.startsWith("jdk.")
+          || cls.startsWith("com.sun.")) {
+        continue;
+      }
+
+      if (!pastVulnerableClass) {
+        // Skip frames until we have passed all frames from the vulnerable class
+        if (cls.equals(vulnerableClass)) {
+          pastVulnerableClass = true;
+        }
+        continue;
+      }
+
+      // Skip any additional frames still inside the vulnerable class (library-internal chains)
+      if (cls.equals(vulnerableClass)) {
+        continue;
+      }
+
+      return frame;
+    }
+    return null;
+  }
+
+  /**
    * Starts the SCA Reachability subsystem.
    *
    * <p>Called by reflection from {@code Agent.maybeStartScaReachability()} — the method signature
@@ -40,11 +95,33 @@ public final class ScaReachabilitySystem {
     }
     log.info("SCA Reachability: loaded {} vulnerable class symbols", database.size());
 
-    // Register the method-level callback so injected bytecode can report hits back to telemetry.
+    // Register the method-level callback. When called synchronously from the injected bytecode,
+    // the current thread stack still contains the full call chain:
+    //   this handler lambda
+    //   ScaReachabilityCallback.onMethodHit
+    //   <vulnerable method> (dotClassName.methodName)
+    //   <application callsite>  ← what we report
+    // We use the IAST trie-based filter (AbstractStackWalker.isNotDatadogTraceStackElement) to
+    // identify application frames, matching the existing callsite-detection infrastructure.
     ScaReachabilityCallback.register(
-        (vulnId, artifact, version, dotClassName, methodName, line) ->
+        (vulnId, artifact, version, dotClassName, methodName, line) -> {
+          StackTraceElement callsite = findCallsite(dotClassName);
+          if (callsite != null) {
             ScaReachabilityCollector.INSTANCE.addHit(
-                new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line)));
+                new ScaReachabilityHit(
+                    vulnId,
+                    artifact,
+                    version,
+                    callsite.getClassName(),
+                    callsite.getMethodName(),
+                    callsite.getLineNumber()));
+          } else {
+            // Fallback: no application frame found — report the vulnerable symbol so the
+            // backend at least knows the method was reached.
+            ScaReachabilityCollector.INSTANCE.addHit(
+                new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line));
+          }
+        });
 
     ScaReachabilityTransformer transformer =
         new ScaReachabilityTransformer(database, instrumentation);
