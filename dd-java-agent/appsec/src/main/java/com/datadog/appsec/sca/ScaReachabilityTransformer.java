@@ -160,17 +160,18 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     boolean hasUnresolvedMethodLevelSymbols = false;
 
     for (ScaEntry entry : entries) {
-      boolean entryHasMethodLevelSymbol =
-          entry.symbols().stream()
-              .anyMatch(s -> s.className().equals(className) && !s.isClassLevel());
-
       // Resolve version: first check the class's own JAR, then fall back to a full classpath
       // scan. The fallback handles cases where the vulnerable artifact is an aggregator/starter
       // POM whose watched classes actually live in a transitive dependency JAR (e.g.,
       // spring-boot-starter-web watches @Controller, but @Controller is in spring-context.jar).
       String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
       if (version == null) {
-        if (entryHasMethodLevelSymbol) {
+        // Version not yet resolvable — check lazily (only here) whether this entry has
+        // method-level symbols, to decide if a periodic retry should be scheduled.
+        // Doing this check only when version==null avoids the stream allocation on the
+        // common path where the version resolves successfully.
+        if (entry.symbols().stream()
+            .anyMatch(s -> s.className().equals(className) && !s.isClassLevel())) {
           hasUnresolvedMethodLevelSymbols = true;
         }
         continue;
