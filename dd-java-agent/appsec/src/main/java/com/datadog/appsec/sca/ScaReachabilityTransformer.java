@@ -350,16 +350,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
   }
 
-  /** Path B: class came from the JDK — find the vulnerable artifact in the classloader chain. */
-  private void processPathB(String internalClassName, List<ScaEntry> entries) {
-    for (ScaEntry entry : entries) {
-      String version = findArtifactVersionInClasspath(entry.artifact());
-      if (version != null && entry.isVersionVulnerable(version)) {
-        reportClassLevelHitIfPresent(entry, version, internalClassName);
-      }
-    }
-  }
-
   /**
    * Reports a class-level reachability hit for the first class-level symbol in {@code entry} that
    * matches {@code internalClassName}. No-op if no matching class-level symbol exists.
