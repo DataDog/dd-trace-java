@@ -16,14 +16,10 @@ public class JfpUtilsTest {
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
   private static final String CONFIG_OVERRIDE_ENTRY = "test.continuous.override#value";
 
-  public static final String OVERRIDES =
-      JfpUtilsTest.class.getClassLoader().getResource("overrides.jfp").getFile();
-  public static final String OVERRIDES_OLD_OBJECT_SAMPLE =
-      JfpUtilsTest.class.getClassLoader().getResource("overrides-oldobjectsample.jfp").getFile();
-  public static final String OVERRIDES_OBJECT_ALLOCATION =
-      JfpUtilsTest.class.getClassLoader().getResource("overrides-objectallocation.jfp").getFile();
-  public static final String OVERRIDES_NATIVE_METHOD_SAMPLE =
-      JfpUtilsTest.class.getClassLoader().getResource("overrides-nativemethodsample.jfp").getFile();
+  public static final String OVERRIDES = JfpTestResources.OVERRIDES;
+  public static final String OVERRIDES_OLD_OBJECT_SAMPLE = JfpTestResources.OVERRIDES_OLD_OBJECT_SAMPLE;
+  public static final String OVERRIDES_OBJECT_ALLOCATION = JfpTestResources.OVERRIDES_OBJECT_ALLOCATION;
+  public static final String OVERRIDES_NATIVE_METHOD_SAMPLE = JfpTestResources.OVERRIDES_NATIVE_METHOD_SAMPLE;
 
   @Test
   public void testLoadingInvalidOverride() throws IOException {
