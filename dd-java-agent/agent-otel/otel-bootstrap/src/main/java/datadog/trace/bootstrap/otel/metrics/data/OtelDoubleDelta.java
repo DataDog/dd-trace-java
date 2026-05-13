@@ -3,9 +3,10 @@ package datadog.trace.bootstrap.otel.metrics.data;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDataPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpDoublePoint;
 
-/** Always reports the latest value. */
-final class OtelDoubleValue extends OtelAggregator {
+/** Reports the delta value since the last reset. */
+final class OtelDoubleDelta extends OtelAggregator {
   private volatile double value;
+  private double lastValue;
 
   @Override
   void doRecordDouble(double value) {
@@ -14,6 +15,11 @@ final class OtelDoubleValue extends OtelAggregator {
 
   @Override
   OtlpDataPoint doCollect(boolean reset) {
-    return new OtlpDoublePoint(value);
+    double collectedValue = value;
+    double delta = collectedValue - lastValue;
+    if (reset) {
+      lastValue = collectedValue;
+    }
+    return new OtlpDoublePoint(delta);
   }
 }
