@@ -41,6 +41,7 @@ class FootprintForkedTest extends DDSpecification {
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
       [] as Set<String>,
+      100,
       features,
       HealthMetrics.NO_OP,
       sink,

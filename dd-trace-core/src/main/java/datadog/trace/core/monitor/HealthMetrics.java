@@ -93,6 +93,8 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onStatsAggregateDropped() {}
 
+  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {}
+
   /**
    * @return Human-readable summary of the current health metrics.
    */

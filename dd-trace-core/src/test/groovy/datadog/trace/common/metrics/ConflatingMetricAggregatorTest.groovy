@@ -39,6 +39,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       wellKnownTags,
       empty,
       [] as Set<String>,
+      100,
       features,
       HealthMetrics.NO_OP,
       sink,
@@ -70,6 +71,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       wellKnownTags,
       [ignoredResourceName].toSet(),
       [] as Set<String>,
+      100,
       features,
       HealthMetrics.NO_OP,
       sink,
@@ -107,6 +109,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -154,6 +157,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -201,6 +205,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -267,6 +272,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >>> [["country"], ["country", "georegion"],]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -335,6 +341,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> ["peer.hostname", "_dd.base_service"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -387,7 +394,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >> []
-    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, [] as Set<String>, features, HealthMetrics.NO_OP,
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty, [] as Set<String>, 100, features, HealthMetrics.NO_OP,
     sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -441,6 +448,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     List<CoreSpan> trace = [
@@ -514,6 +522,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -642,6 +651,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -758,6 +768,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -829,6 +840,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -899,6 +911,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -968,6 +981,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1003,6 +1017,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     HealthMetrics healthMetrics = Mock(HealthMetrics)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1049,6 +1064,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1152,6 +1168,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1213,6 +1230,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1265,6 +1283,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     long duration = 100
     aggregator.start()
@@ -1297,6 +1316,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
     aggregator.start()
 
@@ -1320,6 +1340,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, 200, MILLISECONDS, false)
     final spans = [
       new SimpleSpan("service", "operation", "resource", "type", false, true, false, 0, 10, HTTP_OK)
@@ -1353,6 +1374,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, maxAggregates, queueSize, 1, SECONDS, false)
 
     when:
@@ -1387,6 +1409,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.supportsMetrics() >> true
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1435,6 +1458,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
@@ -1491,6 +1515,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, true)
     aggregator.start()
 
@@ -1583,6 +1608,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     features.peerTags() >> []
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       [] as Set<String>,
+      100,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 

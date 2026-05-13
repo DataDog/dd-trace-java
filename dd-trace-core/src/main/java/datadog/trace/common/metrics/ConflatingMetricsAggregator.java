@@ -102,13 +102,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       unmodifiableSet(
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
-  // Cap on configured additional metric tag keys. By default only 4 primary tag dimensions are supported.
-  // We sometimes increase this limit for users so a value of 10 allows us to protect against extreme misconfiguration
+  // Cap on configured additional metric tag keys. By default only 4 primary tag dimensions are
+  // supported.
+  // We sometimes increase this limit for users so a value of 10 allows us to protect against
+  // extreme misconfiguration
   // while still allowing some additional tags to be used.
   static final int MAX_ADDITIONAL_TAG_KEYS = 10;
 
   private final Set<String> ignoredResources;
   private final List<String> additionalTagKeys;
+  private final AdditionalTagsCardinalityLimiter cardinalityLimiter;
   private final MessagePassingQueue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
@@ -123,6 +126,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
+  private volatile AgentTaskScheduler.Scheduled<?> cardinalityResetCancellation;
+
+  // Hard-reset window for per-tag value cardinality tracking.
+  static final long CARDINALITY_RESET_INTERVAL_MINUTES = 10;
 
   public ConflatingMetricsAggregator(
       Config config,
@@ -132,6 +139,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
         config.getTraceStatsAdditionalTags(),
+        config.getTraceStatsAdditionalTagsCardinalityLimit(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -150,6 +158,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -160,6 +169,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         wellKnownTags,
         ignoredResources,
         additionalTagKeys,
+        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -174,6 +184,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -185,6 +196,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         ignoredResources,
         additionalTagKeys,
+        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -199,6 +211,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
       Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -210,6 +223,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
     this.additionalTagKeys = normalizeAdditionalTagKeys(additionalTagKeys);
+    this.cardinalityLimiter =
+        new AdditionalTagsCardinalityLimiter(additionalTagsCardinalityLimit, healthMetric);
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
@@ -246,6 +261,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                 reportingInterval,
                 reportingInterval,
                 reportingIntervalTimeUnit);
+    cardinalityResetCancellation =
+        AgentTaskScheduler.get()
+            .scheduleAtFixedRate(
+                new CardinalityResetTask(),
+                this,
+                CARDINALITY_RESET_INTERVAL_MINUTES,
+                CARDINALITY_RESET_INTERVAL_MINUTES,
+                TimeUnit.MINUTES);
     log.debug("started metrics aggregator");
   }
 
@@ -465,10 +488,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       if (value == null) {
         continue;
       }
+      String admittedValue = cardinalityLimiter.admitOrBlock(tagKey, value.toString());
       Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
           ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
       UTF8BytesString formatted =
-          cacheAndCreator.getLeft().computeIfAbsent(value.toString(), cacheAndCreator.getRight());
+          cacheAndCreator.getLeft().computeIfAbsent(admittedValue, cacheAndCreator.getRight());
       if (result == null) {
         result = new ArrayList<>(additionalTagKeys.size());
       }
@@ -492,6 +516,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void stop() {
     if (null != cancellation) {
       cancellation.cancel();
+    }
+    if (null != cardinalityResetCancellation) {
+      cardinalityResetCancellation.cancel();
     }
     inbox.offer(STOP);
   }
@@ -544,6 +571,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     @Override
     public void run(ConflatingMetricsAggregator target) {
       target.report();
+    }
+  }
+
+  private static final class CardinalityResetTask
+      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
+
+    @Override
+    public void run(ConflatingMetricsAggregator target) {
+      target.cardinalityLimiter.reset();
     }
   }
 }

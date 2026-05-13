@@ -41,6 +41,7 @@ public class ConflatingMetricsAggregatorBenchmark {
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
           Collections.emptySet(),
+          100,
           featuresDiscovery,
           HealthMetrics.NO_OP,
           new NullSink(),

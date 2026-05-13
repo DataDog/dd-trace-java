@@ -10585,6 +10585,14 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "B",
+        "type": "number",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATS_COMPUTATION_ENABLED": [
       {
         "version": "B",

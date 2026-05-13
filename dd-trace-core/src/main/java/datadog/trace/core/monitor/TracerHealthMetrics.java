@@ -98,6 +98,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsDowngrades = new LongAdder();
 
   private final LongAdder statsAggregateDropped = new LongAdder();
+  private final LongAdder additionalTagValueCardinalityBlocked = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -353,6 +354,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {
+    additionalTagValueCardinalityBlocked.increment();
+  }
+
+  @Override
   public void onStatsAggregateDropped() {
     statsAggregateDropped.increment();
   }
@@ -504,6 +510,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             "stats.dropped_aggregates",
             target.statsAggregateDropped,
             REASON_LRU_EVICTION_TAG);
+        reportIfChanged(
+            target.statsd,
+            "stats.additional_tag.cardinality_blocked",
+            target.additionalTagValueCardinalityBlocked,
+            NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -637,6 +648,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nclientStatsProcessedTraces="
         + clientStatsProcessedTraces.sum()
         + "\nstatsAggregateDropped="
-        + statsAggregateDropped.sum();
+        + statsAggregateDropped.sum()
+        + "\nadditionalTagValueCardinalityBlocked="
+        + additionalTagValueCardinalityBlocked.sum();
   }
 }
