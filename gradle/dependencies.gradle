@@ -44,7 +44,7 @@ final class CachedData {
       exclude(dependency('com.squareup.okhttp3:okhttp'))
       exclude(dependency('com.datadoghq.okio:okio'))
       exclude(dependency('com.squareup.okio:okio'))
-      exclude(dependency('org.lz4:lz4-java'))
+      exclude(dependency('at.yawk.lz4:lz4-java'))
       exclude(dependency('io.airlift:aircompressor'))
 
       // dogstatsd and its transitives
