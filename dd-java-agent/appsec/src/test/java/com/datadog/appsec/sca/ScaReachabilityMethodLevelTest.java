@@ -94,13 +94,18 @@ class ScaReachabilityMethodLevelTest {
     assertEquals("GHSA-method-0001", hit.vulnId());
     assertEquals("com.example:test-lib", hit.artifact());
     assertEquals("1.2.3", hit.version());
-    // Callsite semantics: path/symbol/line are the APPLICATION frame that called the vulnerable
-    // method, not the vulnerable method itself (mirrors the Python tracer implementation).
-    // The test method that invoked cls.getMethod("vulnerableMethod").invoke(instance) is the
-    // callsite — JDK reflection frames are skipped and the test method is found.
-    assertFalse(hit.className().isEmpty(), "callsite class must be non-empty");
-    assertFalse(hit.symbolName().isEmpty(), "callsite method must be non-empty");
-    assertTrue(hit.line() >= 0, "callsite line must be non-negative");
+    // Callsite semantics: path/symbol/line should be the APPLICATION frame that invoked the
+    // vulnerable method. In production (e.g. TargetClass = com.fasterxml.jackson.ObjectMapper),
+    // findCallsite() finds the caller and returns it.
+    //
+    // In this test, TargetClass is in com.datadog.appsec.sca.* which AbstractStackWalker
+    // treats as agent code and filters out. findCallsite() returns null and the handler falls
+    // back to reporting the vulnerable symbol itself (dotClassName/methodName).
+    // This verifies the fallback path works correctly.
+    assertFalse(
+        hit.className().isEmpty(), "className must be non-empty (fallback: vulnerable class)");
+    assertFalse(hit.symbolName().isEmpty(), "symbolName must be non-empty");
+    assertTrue(hit.line() >= 0, "line must be non-negative");
   }
 
   @Test
