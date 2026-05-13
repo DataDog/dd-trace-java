@@ -7,6 +7,12 @@ package datadog.trace.api.telemetry;
  */
 public final class ScaReachabilityHit {
 
+  /**
+   * JVM internal name for the class initializer. Used as the {@code symbolName} for class-level
+   * hits where no specific method was targeted (detection fires at class load time).
+   */
+  public static final String CLASS_LEVEL_SYMBOL = "<clinit>";
+
   private final String vulnId;
   private final String artifact;
   private final String version;
@@ -14,9 +20,12 @@ public final class ScaReachabilityHit {
   private final String symbolName; // "<clinit>" for class-level; method name for method-level
   private final int line; // 1 as placeholder for class-level; actual first line for method-level
 
-  /** Convenience constructor for class-level hits (symbolName = {@code "<clinit>"}, line = 1). */
+  /**
+   * Convenience constructor for class-level hits ({@code symbolName = CLASS_LEVEL_SYMBOL}, line =
+   * 1).
+   */
   public ScaReachabilityHit(String vulnId, String artifact, String version, String className) {
-    this(vulnId, artifact, version, className, "<clinit>", 1);
+    this(vulnId, artifact, version, className, CLASS_LEVEL_SYMBOL, 1);
   }
 
   public ScaReachabilityHit(

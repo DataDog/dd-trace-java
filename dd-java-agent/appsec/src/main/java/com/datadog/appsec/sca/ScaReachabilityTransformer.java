@@ -58,8 +58,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
 
-  /** JVM internal name for the class initializer, used as the symbol name for class-level hits. */
-  private static final String CLASS_LEVEL_SYMBOL = "<clinit>";
+  // CLASS_LEVEL_SYMBOL is defined in ScaReachabilityHit (internal-api) so both the transformer
+  // and the telemetry payload builder share the same constant without cross-module duplication.
+  private static final String CLASS_LEVEL_SYMBOL = ScaReachabilityHit.CLASS_LEVEL_SYMBOL;
 
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
@@ -202,10 +203,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
 
     if (hasUnresolvedMethodLevelSymbols) {
-      // Schedule retransformation: when the periodic action fires, it will call
-      // performPendingRetransforms() which will retry version resolution and inject bytecode.
-      // We enqueue via classBeingRedefined is null here — we'll locate the Class<?> object later
-      // in performPendingRetransforms() via instrumentation.getAllLoadedClasses().
+      // Schedule retransformation for a later attempt. In transform(), classBeingRedefined is
+      // null (first class load), so we don't have a Class<?> handle to put directly into
+      // pendingRetransform. Instead we queue the internal class name; performPendingRetransforms()
+      // will resolve it back to a Class<?> via instrumentation.getAllLoadedClasses() and
+      // retransform.
       scheduleRetransformByName(className);
     }
 
