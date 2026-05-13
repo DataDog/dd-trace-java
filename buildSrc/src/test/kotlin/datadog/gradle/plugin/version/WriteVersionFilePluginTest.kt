@@ -26,14 +26,14 @@ class WriteVersionFilePluginTest {
     fixture.assertVersionFile(
       expectedContentRegex = "9.9.9~deadbeef",
       beforeGradle = {
-        projectBuildFile.appendText(
+        rootProject(
           """
 
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile").configure {
-            version.set("9.9.9")
-            gitHash.set("deadbeef")
+          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
+            version.set('9.9.9')
+            gitHash.set('deadbeef')
           }
-          """.trimIndent()
+          """
         )
       },
     )
@@ -45,13 +45,13 @@ class WriteVersionFilePluginTest {
     fixture.assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        projectBuildFile.appendText(
+        rootProject(
           """
 
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile").configure {
-            gitHash.set("abc12345")
+          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
+            gitHash.set('abc12345')
           }
-          """.trimIndent()
+          """
         )
         generatedVersionFile.run {
           parentFile.mkdirs()
@@ -68,13 +68,13 @@ class WriteVersionFilePluginTest {
       expectedContentRegex = "1.2.3~abc12345",
       task = "processResources",
       beforeGradle = {
-        projectBuildFile.appendText(
+        rootProject(
           """
 
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile").configure {
-            gitHash.set("abc12345")
+          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
+            gitHash.set('abc12345')
           }
-          """.trimIndent()
+          """
         )
       },
     )
@@ -88,13 +88,13 @@ class WriteVersionFilePluginTest {
     fixture.assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        projectBuildFile.appendText(
+        rootProject(
           """
 
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile").configure {
-            gitHash.set("abc12345")
+          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
+            gitHash.set('abc12345')
           }
-          """.trimIndent()
+          """
         )
       },
     )
@@ -110,13 +110,13 @@ class WriteVersionFilePluginTest {
     fixture.assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        projectBuildFile.appendText(
+        rootProject(
           """
 
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile").configure {
-            gitHash.set("abc12345")
+          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
+            gitHash.set('abc12345')
           }
-          """.trimIndent()
+          """
         )
       },
     )
@@ -133,15 +133,19 @@ class WriteVersionFilePluginTest {
     task: String = ":writeVersionNumberFile",
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ): BuildResult {
-    settingsFile.writeText("""rootProject.name = "my-lib"""")
-    projectBuildFile.writeText(
+    settings(
+      """
+      rootProject.name = 'my-lib'
+      """
+    )
+    rootProject(
       """
       plugins {
-        id("dd-trace-java.version-file")
+        id 'dd-trace-java.version-file'
       }
 
-      version = "1.2.3"
-      """.trimIndent()
+      version = '1.2.3'
+      """
     )
     beforeGradle()
 

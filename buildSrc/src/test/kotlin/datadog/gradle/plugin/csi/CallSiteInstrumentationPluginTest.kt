@@ -1,10 +1,8 @@
 package datadog.gradle.plugin.csi
 
+import datadog.gradle.plugin.GradleFixture
 import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
-import org.gradle.testkit.runner.UnexpectedBuildFailure
 import org.junit.jupiter.api.Assertions.assertFalse
-import org.junit.jupiter.api.Assertions.assertThrows
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -28,11 +26,11 @@ class CallSiteInstrumentationPluginTest {
       targetFolder = project.layout.buildDirectory.dir('csi')
       rootFolder = file('__ROOT_FOLDER__')
     }
-  
+
     repositories {
       mavenCentral()
     }
-  
+
     dependencies {
       implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.1.1'
@@ -44,11 +42,11 @@ class CallSiteInstrumentationPluginTest {
 
   @Test
   fun `test call site instrumentation plugin`() {
-    createGradleProject(
-      buildDir, buildGradle,
+    val fixture = createGradleProject(
+      buildGradle,
       """
        import datadog.trace.agent.tooling.csi.*;
-  
+
        @CallSite(spi = CallSites.class)
        public class BeforeAdviceCallSite {
          @CallSite.Before("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
@@ -58,9 +56,9 @@ class CallSiteInstrumentationPluginTest {
       """.trimIndent()
     )
 
-    val result = buildGradleProject(buildDir)
+    val result = buildGradleProject(fixture)
 
-    val generated = resolve(buildDir, "build", "csi", "BeforeAdviceCallSites.java")
+    val generated = File(buildDir, "build/csi/BeforeAdviceCallSites.java")
     assertTrue(generated.exists())
 
     val output = result.output
@@ -70,11 +68,11 @@ class CallSiteInstrumentationPluginTest {
 
   @Test
   fun `test call site instrumentation plugin with error`() {
-    createGradleProject(
-      buildDir, buildGradle,
+    val fixture = createGradleProject(
+      buildGradle,
       """
        import datadog.trace.agent.tooling.csi.*;
-  
+
        @CallSite(spi = CallSites.class)
        public class BeforeAdviceCallSite {
          @CallSite.Before("java.lang.StringBuilder java.lang.StringBuilder.append(java.lang.String)")
@@ -84,22 +82,22 @@ class CallSiteInstrumentationPluginTest {
       """.trimIndent()
     )
 
-    val error = assertThrows(UnexpectedBuildFailure::class.java) {
-      buildGradleProject(buildDir)
-    }
+    val result = fixture.run("build", "--info", "--stacktrace", forwardOutput = true, expectFailure = true)
 
-    val generated = resolve(buildDir, "build", "csi", "BeforeAdviceCallSites.java")
+    val generated = File(buildDir, "build/csi/BeforeAdviceCallSites.java")
     assertFalse(generated.exists())
 
-    val output = error.message ?: ""
+    val output = result.output
     assertFalse(output.contains("[✓]"))
     assertTrue(output.contains("ADVICE_METHOD_NOT_STATIC_AND_PUBLIC"))
   }
 
-  private fun createGradleProject(buildDir: File, gradleFile: String, advice: String) {
+  private fun createGradleProject(gradleFile: String, advice: String): GradleFixture {
+    val fixture = GradleFixture(buildDir)
     val projectFolder = File(System.getProperty("user.dir")).parentFile
-    val callSiteJar = resolve(projectFolder, "buildSrc", "call-site-instrumentation-plugin", "build", "libs", "call-site-instrumentation-plugin-all.jar")
-    val testCallSiteJarDir = resolve(buildDir, "buildSrc", "call-site-instrumentation-plugin", "build", "libs", makeDirs = true)
+    val callSiteJar = File(projectFolder, "buildSrc/call-site-instrumentation-plugin/build/libs/call-site-instrumentation-plugin-all.jar")
+    val testCallSiteJarDir = fixture.file("buildSrc/call-site-instrumentation-plugin/build/libs")
+    testCallSiteJarDir.mkdirs()
 
     Files.copy(
       callSiteJar.toPath(),
@@ -107,31 +105,26 @@ class CallSiteInstrumentationPluginTest {
     )
 
     val gradleFileContent = gradleFile.replace("__ROOT_FOLDER__", projectFolder.toString().replace("\\", "\\\\"))
-    writeText(resolve(buildDir, "build.gradle"), gradleFileContent)
+    fixture.rootProject(gradleFileContent)
 
-    val javaFolder = resolve(buildDir, "src", "main", "java", makeDirs = true)
     val advicePackage = parsePackage(advice)
     val adviceClassName = parseClassName(advice)
-    val adviceFolder = resolve(javaFolder, *advicePackage.split("\\.").toTypedArray(), makeDirs = true)
-    writeText(resolve(adviceFolder, "$adviceClassName.java"), advice)
-
-    val csiSource = resolve(projectFolder, "dd-java-agent", "agent-tooling", "src", "main", "java", "datadog", "trace", "agent", "tooling", "csi")
-    val csiTarget = resolve(javaFolder, "datadog", "trace", "agent", "tooling", "csi", makeDirs = true)
-    csiSource.listFiles()?.forEach {
-      writeText(File(csiTarget, it.name), it.readText())
+    val advicePath = if (advicePackage.isEmpty()) {
+      "src/main/java/$adviceClassName.java"
+    } else {
+      "src/main/java/${advicePackage.replace('.', '/')}/$adviceClassName.java"
     }
+    fixture.appendTo(advicePath, advice)
+
+    val csiSource = File(projectFolder, "dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/csi")
+    csiSource.listFiles()?.forEach { src ->
+      fixture.appendTo("src/main/java/datadog/trace/agent/tooling/csi/${src.name}", src.readText())
+    }
+    return fixture
   }
 
-  private fun buildGradleProject(buildDir: File): BuildResult {
-    return GradleRunner.create()
-      .withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
-      .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
-      .withProjectDir(buildDir)
-      .withArguments("build", "--info", "--stacktrace")
-      .withPluginClasspath()
-      .forwardOutput()
-      .build()
-  }
+  private fun buildGradleProject(fixture: GradleFixture): BuildResult =
+    fixture.run("build", "--info", "--stacktrace", forwardOutput = true)
 
   private fun parsePackage(advice: String): String {
     val regex = Regex("package\\s+([\\w.]+)\\s*;", RegexOption.DOT_MATCHES_ALL)
@@ -144,14 +137,4 @@ class CallSiteInstrumentationPluginTest {
     val match = regex.find(advice)
     return match?.groupValues?.getOrNull(1) ?: ""
   }
-
-  private fun resolve(parent: File, vararg path: String, makeDirs: Boolean = false): File {
-    return path.fold(parent) { acc, next -> File(acc, next) }.apply {
-      if (makeDirs) {
-        mkdirs()
-      }
-    }
-  }
-
-  private fun writeText(file: File, content: String) = file.writeText(content)
 }

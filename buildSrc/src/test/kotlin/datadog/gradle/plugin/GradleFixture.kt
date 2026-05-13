@@ -13,7 +13,7 @@ import javax.xml.parsers.DocumentBuilderFactory
  * Base fixture for Gradle plugin integration tests.
  * Provides common functionality for setting up test projects and running Gradle builds.
  */
-internal open class GradleFixture(protected val projectDir: File) {
+internal open class GradleFixture(val projectDir: File) {
   // Each fixture gets its own testkit dir in the system temp directory (NOT under
   // projectDir) so that JUnit's @TempDir cleanup doesn't race with daemon file locks.
   // See https://github.com/gradle/gradle/issues/12535
@@ -24,6 +24,17 @@ internal open class GradleFixture(protected val projectDir: File) {
   // have been stopped), so file locks are guaranteed to be released by then.
   private val testKitDir: File by lazy {
     Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
+      // Configure Gradle to use as less resources as possible:
+      //  - Xms64m -Xmx256m: consume minimum amount of RAM.
+      //  - workers.max=1: don't let the daemon fan out into multiple Worker JVMs.
+      //  - parallel=false: serialize task execution within the fixture build.
+      appendTo("gradle.properties",
+        """
+        org.gradle.jvmargs= -Xms64m -Xmx256m
+        org.gradle.workers.max=1
+        org.gradle.parallel=false
+        """
+      )
       Runtime.getRuntime().addShutdownHook(Thread { dir.deleteRecursively() })
     }
   }
@@ -38,9 +49,17 @@ internal open class GradleFixture(protected val projectDir: File) {
    * @param args Gradle task names and arguments
    * @param expectFailure Whether the build is expected to fail
    * @param env Environment variables to set (merged with system environment)
+   * @param forwardOutput Forward the build's stdout/stderr to the test's output
+   * @param projectDir Override the project directory used by Gradle (useful for git worktree tests)
    * @return The build result
    */
-  fun run(vararg args: String, expectFailure: Boolean = false, env: Map<String, String> = emptyMap()): BuildResult {
+  fun run(
+    vararg args: String,
+    expectFailure: Boolean = false,
+    env: Map<String, String> = emptyMap(),
+    forwardOutput: Boolean = false,
+    projectDir: File = this.projectDir,
+  ): BuildResult {
     val runner = GradleRunner.create()
       .withTestKitDir(testKitDir)
       .withPluginClasspath()
@@ -48,6 +67,9 @@ internal open class GradleFixture(protected val projectDir: File) {
       // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
       .withEnvironment(System.getenv() + env)
       .withArguments(*args)
+    if (forwardOutput) {
+      runner.forwardOutput()
+    }
     return try {
       if (expectFailure) runner.buildAndFail() else runner.build()
     } catch (e: UnexpectedBuildResultException) {
@@ -132,12 +154,48 @@ internal open class GradleFixture(protected val projectDir: File) {
   }
 
   /**
+   * Writes a Java test source file under src/test/java.
+   *
+   * @param testName Simple class name, fully qualified class name, or source path
+   * @param testCode The Java test source content
+   */
+  fun writeTest(testName: String, @Language("JAVA") testCode: String) {
+    val sourcePath = testName.removeSuffix(".java").replace('.', '/') + ".java"
+    appendTo("src/test/java/$sourcePath", testCode)
+  }
+
+  /**
+   * Writes an arbitrary text file under the project directory, creating parent dirs.
+   *
+   * @param path Path relative to the project directory
+   * @param content File contents; leading/trailing whitespace is preserved (no trimIndent)
+   */
+  fun appendTo(path: String, content: String): File =
+    file(path).also {
+      it.appendText(content.trimIndent())
+      it.appendText("\n")
+    }
+
+  fun gradleProperties(content: String) {
+    appendTo("gradle.properties", content)
+  }
+
+  /**
    * Writes the root project's build.gradle file.
    *
    * @param buildScript The build script content for the root project
    */
-  fun writeRootProject(@Language("Groovy") buildScript: String) {
-    file("build.gradle").writeText(buildScript.trimIndent())
+  fun rootProject(@Language("Groovy") buildScript: String) {
+    appendTo("build.gradle", buildScript)
+  }
+
+  /**
+   * Writes the root project's settings.gradle file.
+   *
+   * @param settingsScript The settings script content
+   */
+  fun settings(@Language("Groovy") settingsScript: String) {
+    appendTo("settings.gradle", settingsScript)
   }
 
   /**
@@ -151,7 +209,7 @@ internal open class GradleFixture(protected val projectDir: File) {
   /**
    * Creates or gets a file in the project directory, ensuring parent directories exist.
    */
-  protected fun file(path: String, mkdirs: Boolean = true): File =
+  fun file(path: String, mkdirs: Boolean = true): File =
     File(projectDir, path).also { file ->
       if (mkdirs) {
         file.parentFile?.mkdirs()

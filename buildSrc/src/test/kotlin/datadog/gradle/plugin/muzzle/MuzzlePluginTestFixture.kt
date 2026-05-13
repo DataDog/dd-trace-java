@@ -15,11 +15,10 @@ internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(project
    * Creates a multi-project build with agent-bootstrap, agent-tooling, and instrumentation modules.
    */
   fun writeProject(@Language("Groovy") instrumentationBuildScript: String) {
-    file("settings.gradle").writeText(
-      // language=Groovy
+    settings(
       """
       rootProject.name = 'muzzle-e2e'
-      """.trimIndent()
+      """
     )
 
     addSubproject("dd-java-agent:agent-bootstrap",

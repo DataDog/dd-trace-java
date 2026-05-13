@@ -28,12 +28,6 @@ internal class VersionPluginsFixture(projectDir: File) : GradleFixture(projectDi
     exec(workingDirectory, "git", "commit", "-m", "A commit")
   }
 
-  val projectBuildFile = file("build.gradle.kts")
-
-  val gradlePropertiesFile = file("gradle.properties")
-
-  val settingsFile = file("settings.gradle.kts")
-
   val generatedVersionFile = file("build/generated/version/my-lib.version", false)
 
   val builtResourceVersionFile = file("build/resources/main/my-lib.version", false)

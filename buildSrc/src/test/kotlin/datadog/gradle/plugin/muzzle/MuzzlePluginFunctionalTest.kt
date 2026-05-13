@@ -36,7 +36,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Add runMuzzle aggregator task at root level (like in dd-trace-java.ci-jobs.gradle.kts)
-    fixture.writeRootProject(
+    fixture.rootProject(
       """
       tasks.register('runMuzzle') {
         dependsOn(':dd-java-agent:instrumentation:demo:muzzle')
@@ -731,15 +731,18 @@ class MuzzlePluginFunctionalTest {
 
   @Test
   fun `missing dd-java-agent projects error handling`(@TempDir projectDir: File) {
+    val fixture = GradleFixture(projectDir)
+
     // Create a minimal settings.gradle without the dd-java-agent structure
-    File(projectDir, "settings.gradle").also { it.parentFile?.mkdirs() }.writeText(
+    fixture.settings(
       """
       rootProject.name = 'muzzle-test'
       include ':instrumentation:demo'
-      """.trimIndent()
+      """
     )
 
-    File(projectDir, "instrumentation/demo/build.gradle").also { it.parentFile?.mkdirs() }.writeText(
+    fixture.addSubproject(
+      "instrumentation:demo",
       """
       plugins {
         id 'java'
@@ -751,13 +754,13 @@ class MuzzlePluginFunctionalTest {
           coreJdk()
         }
       }
-      """.trimIndent()
+      """
     )
 
     // No need to create MuzzleVersionScanPlugin - the error happens during configuration
     // phase before any task execution, so the scan plugin is never invoked
 
-    val result = GradleFixture(projectDir).run(
+    val result = fixture.run(
       ":instrumentation:demo:tasks",
       "--stacktrace"
     )

@@ -1,14 +1,13 @@
 package datadog.gradle.plugin.config
 
+import datadog.gradle.plugin.GradleFixture
 import org.gradle.testkit.runner.BuildResult
-import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import java.nio.file.Paths
 
 class ParseV2SupportedConfigurationsTest {
   @Test
@@ -77,8 +76,10 @@ class ParseV2SupportedConfigurationsTest {
   }
 
   private fun runGradleTask(projectDir: File): Pair<BuildResult, File> {
-    val jsonFile = file(projectDir, "test-supported-configurations.json")
-    jsonFile.writeText(
+    val fixture = GradleFixture(projectDir)
+
+    fixture.appendTo(
+      "test-supported-configurations.json",
       """
       {
         "supportedConfigurations": {
@@ -88,7 +89,7 @@ class ParseV2SupportedConfigurationsTest {
               "type": "string",
               "default": null,
               "aliases": [],
-              "propertyKeys": ["property.key"] 
+              "propertyKeys": ["property.key"]
             }
           ],
           "DD_AGENTLESS_LOG_SUBMISSION_ENABLED": [
@@ -114,52 +115,40 @@ class ParseV2SupportedConfigurationsTest {
       """.trimIndent()
     )
 
-    setupGradleProject(projectDir)
+    setupGradleProject(fixture)
 
-    val buildResult = GradleRunner.create()
-      .forwardOutput()
-      .withPluginClasspath()
-      .withArguments("generateSupportedConfigurations")
-      .withProjectDir(projectDir)
-      .build()
+    val buildResult = fixture.run(
+      "generateSupportedConfigurations",
+      forwardOutput = true
+    )
 
-    val generatedFile = file(projectDir, "build", "generated", "supportedConfigurations", "datadog", "test", "TestGeneratedSupportedConfigurations.java")
+    val generatedFile = fixture.file("build/generated/supportedConfigurations/datadog/test/TestGeneratedSupportedConfigurations.java", mkdirs = false)
     return Pair(buildResult, generatedFile)
   }
 
-  private fun setupGradleProject(projectDir: File) {
-    file(projectDir, "settings.gradle.kts").writeText(
+  private fun setupGradleProject(fixture: GradleFixture) {
+    fixture.settings(
       """
-      rootProject.name = "test-config-project"
-      """.trimIndent()
+      rootProject.name = 'test-config-project'
+      """
     )
 
-    file(projectDir, "build.gradle.kts").writeText(
+    fixture.rootProject(
       """
       plugins {
-        id("java")
-        id("dd-trace-java.supported-config-generator")
+        id 'java'
+        id 'dd-trace-java.supported-config-generator'
       }
-      
-      group = "datadog.config.test"
-      
+
+      group = 'datadog.config.test'
+
       supportedTracerConfigurations {
-        jsonFile.set(file("test-supported-configurations.json"))
-        destinationDirectory.set(file("build/generated/supportedConfigurations"))
-        className.set("datadog.test.TestGeneratedSupportedConfigurations")
+        jsonFile.set(file('test-supported-configurations.json'))
+        destinationDirectory.set(file('build/generated/supportedConfigurations'))
+        className.set('datadog.test.TestGeneratedSupportedConfigurations')
       }
-      """.trimIndent()
+      """
     )
-  }
-
-  private fun file(projectDir: File, vararg parts: String, makeDirectory: Boolean = false): File {
-    val f = Paths.get(projectDir.absolutePath, *parts).toFile()
-
-    if (makeDirectory) {
-      f.parentFile.mkdirs()
-    }
-
-    return f
   }
 
   private fun assertContainsSupportedConfig(

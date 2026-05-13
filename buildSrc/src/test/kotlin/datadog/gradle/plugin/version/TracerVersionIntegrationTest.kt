@@ -1,7 +1,6 @@
 package datadog.gradle.plugin.version
 
 import org.assertj.core.api.Assertions.assertThat
-import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
@@ -32,7 +31,7 @@ class TracerVersionIntegrationTest {
       expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
         fixture.initGitRepo()
-        settingsFile.appendText("\n// uncommitted change this file, ")
+        fixture.settings("\n// uncommitted change this file, ")
       },
     )
   }
@@ -67,10 +66,10 @@ class TracerVersionIntegrationTest {
     fixture.assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        gradlePropertiesFile.writeText("tracerVersion.dirtiness=true")
+        fixture.gradleProperties("tracerVersion.dirtiness=true")
         fixture.initGitRepo()
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        settingsFile.appendText("\n// uncommitted change this file, ")
+        fixture.settings("\n// uncommitted change this file, ")
       },
     )
   }
@@ -83,7 +82,7 @@ class TracerVersionIntegrationTest {
       beforeGradle = {
         fixture.initGitRepo()
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        settingsFile.appendText("\n// Committed change this file, ")
+        fixture.settings("\n// Committed change this file, ")
         fixture.exec("git", "commit", "-am", "Another commit")
       },
     )
@@ -95,13 +94,12 @@ class TracerVersionIntegrationTest {
     fixture.assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        gradlePropertiesFile.writeText("tracerVersion.dirtiness=true")
+        fixture.gradleProperties("tracerVersion.dirtiness=true")
         fixture.initGitRepo()
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        val settings = settingsFile
-        settings.appendText("\n// uncommitted change ")
+        fixture.settings("\n// uncommitted change ")
         fixture.exec("git", "commit", "-am", "Another commit")
-        settings.appendText("\n// An uncommitted modification")
+        fixture.settings("\n// An uncommitted modification")
       },
     )
   }
@@ -114,7 +112,7 @@ class TracerVersionIntegrationTest {
       beforeGradle = {
         fixture.initGitRepo()
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        settingsFile.appendText("\n// Committed change ")
+        fixture.settings("\n// Committed change ")
         fixture.exec("git", "commit", "-am", "Another commit")
         fixture.exec("git", "switch", "-c", "release/v1.52.x")
       },
@@ -130,11 +128,10 @@ class TracerVersionIntegrationTest {
         fixture.initGitRepo()
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
         fixture.exec("git", "switch", "-c", "release/v1.52.x")
-        val settings = settingsFile
-        settings.appendText("\n// Committed change ")
+        fixture.settings("\n// Committed change ")
         fixture.exec("git", "commit", "-am", "Another commit")
         fixture.exec("git", "tag", "v1.52.1", "-m", "")
-        settings.appendText("\n// Another committed change ")
+        fixture.settings("\n// Another committed change ")
         fixture.exec("git", "commit", "-am", "Another commit")
       },
     )
@@ -151,7 +148,7 @@ class TracerVersionIntegrationTest {
         fixture.exec("git", "tag", "v1.52.0", "-m", "")
         fixture.exec("git", "commit", "-m", "Initial commit", "--allow-empty")
         fixture.exec("git", "worktree", "add", workTreeDir.absolutePath)
-        File(workTreeDir, "settings.gradle.kts").appendText("\n// Committed change this file, ")
+        File(workTreeDir, "settings.gradle").appendText("\n// Committed change this file, ")
         fixture.exec(workTreeDir, "git", "commit", "-am", "Another commit")
       },
     )
@@ -162,35 +159,29 @@ class TracerVersionIntegrationTest {
     workingDirectory: File? = null,
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ) {
-    settingsFile.writeText("""rootProject.name = "test-project"""")
-    projectBuildFile.writeText(
+    settings(
+      """
+      rootProject.name = 'test-project'
+      """
+    )
+
+    rootProject(
       """
       plugins {
-        id("dd-trace-java.tracer-version")
+        id 'dd-trace-java.tracer-version'
       }
 
-      tasks.register("printVersion") {
+      tasks.register('printVersion') {
         logger.quiet(project.version.toString())
       }
 
-      group = "datadog.tracer.version.test"
-      """.trimIndent()
+      group = 'datadog.tracer.version.test'
+      """
     )
 
     beforeGradle()
 
-    val buildResult = if (workingDirectory == null) {
-      run("printVersion", "--quiet")
-    } else {
-      // Worktree: Gradle must run from a directory other than projectDir,
-      // so use GradleRunner directly instead of GradleFixture.run().
-      GradleRunner.create()
-        .forwardOutput()
-        .withPluginClasspath()
-        .withArguments("printVersion", "--quiet")
-        .withProjectDir(workingDirectory)
-        .build()
-    }
+    val buildResult = run("printVersion", "--quiet", projectDir = workingDirectory ?: projectDir)
 
     assertThat(buildResult.output.lines().first()).isEqualTo(expectedVersion)
   }
