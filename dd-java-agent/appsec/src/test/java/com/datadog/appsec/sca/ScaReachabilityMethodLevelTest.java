@@ -52,7 +52,7 @@ class ScaReachabilityMethodLevelTest {
             ScaReachabilityCollector.INSTANCE.addHit(
                 new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line)));
     db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
-    transformer = new ScaReachabilityTransformer(db);
+    transformer = new ScaReachabilityTransformer(db, null);
   }
 
   @AfterEach
@@ -174,7 +174,7 @@ class ScaReachabilityMethodLevelTest {
             + "\",\"method\":null}]"
             + "}]}";
     ScaCveDatabase classDb = ScaCveDatabase.parse(new StringReader(json));
-    ScaReachabilityTransformer t = new ScaReachabilityTransformer(classDb);
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(classDb, null);
 
     byte[] result =
         t.transform(

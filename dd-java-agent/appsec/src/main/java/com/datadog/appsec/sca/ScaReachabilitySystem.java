@@ -46,7 +46,8 @@ public final class ScaReachabilitySystem {
             ScaReachabilityCollector.INSTANCE.addHit(
                 new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line)));
 
-    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(database);
+    ScaReachabilityTransformer transformer =
+        new ScaReachabilityTransformer(database, instrumentation);
 
     // canRetransform=true is required so that future method-level symbols (when added to the
     // database) can trigger retransformation of already-loaded classes via retransformClasses().
@@ -56,5 +57,10 @@ public final class ScaReachabilitySystem {
 
     transformer.checkAlreadyLoadedClasses(instrumentation);
     log.debug("SCA Reachability: startup scan complete");
+
+    // Register the periodic retransform callback so the telemetry heartbeat can retry
+    // method-level instrumentation for classes that could not be processed at load time.
+    ScaReachabilityCollector.INSTANCE.periodicWorkCallback =
+        transformer::performPendingRetransforms;
   }
 }

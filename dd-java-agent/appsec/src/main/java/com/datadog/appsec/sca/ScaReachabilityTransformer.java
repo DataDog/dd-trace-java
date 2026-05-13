@@ -21,6 +21,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -56,15 +57,29 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
 
   private final ScaCveDatabase database;
+  private final Instrumentation instrumentation;
 
-  /** Cache: JAR URL → resolved dependencies (empty list = JAR has no pom.properties). */
+  /** Cache: JAR URL → resolved dependencies. Only non-empty results are cached to allow retries. */
   private final ConcurrentHashMap<URL, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
-  /** Deduplication set: "vulnId|artifact" pairs already reported. */
+  /** Deduplication set: "vulnId|artifact|symbol" tuples already reported. */
   private final Set<String> reportedHits = ConcurrentHashMap.newKeySet();
 
-  public ScaReachabilityTransformer(ScaCveDatabase database) {
+  /**
+   * Classes whose bytecode needs (re)transformation for method-level symbol injection:
+   *
+   * <ul>
+   *   <li>Classes already loaded at startup before this transformer was registered.
+   *   <li>Classes where JAR version resolution returned no results at load time and needs a retry.
+   * </ul>
+   *
+   * Drained and processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
+   */
+  private final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
+
+  public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
+    this.instrumentation = instrumentation;
   }
 
   // ---------------------------------------------------------------------------
@@ -130,8 +145,15 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
+    boolean hasUnresolvedMethodLevelSymbols = false;
 
     for (ScaEntry entry : entries) {
+      // Check if this entry has method-level symbols for this class before version resolution,
+      // so we can schedule a retry if deps are unavailable now.
+      boolean entryHasMethodLevelSymbol =
+          entry.symbols().stream()
+              .anyMatch(s -> s.className().equals(className) && !s.isClassLevel());
+
       for (Dependency dep : deps) {
         if (!entry.artifact().equals(dep.name) || !entry.isVersionVulnerable(dep.version)) {
           continue;
@@ -155,12 +177,33 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           }
         }
       }
+
+      // If deps were empty (version not resolved yet) and this entry has method-level symbols,
+      // flag for retry. The class will be retransformed on the next periodic action heartbeat.
+      if (deps.isEmpty() && entryHasMethodLevelSymbol) {
+        hasUnresolvedMethodLevelSymbols = true;
+      }
+    }
+
+    if (hasUnresolvedMethodLevelSymbols) {
+      // Schedule retransformation: when the periodic action fires, it will call
+      // performPendingRetransforms() which will retry version resolution and inject bytecode.
+      // We enqueue via classBeingRedefined is null here — we'll locate the Class<?> object later
+      // in performPendingRetransforms() via instrumentation.getAllLoadedClasses().
+      scheduleRetransformByName(className);
     }
 
     if (methodCallbacks.isEmpty()) {
       return null;
     }
     return injectMethodCallbacks(classfileBuffer, methodCallbacks);
+  }
+
+  /** Stores a class name (internal format) for deferred retransformation. */
+  private final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+
+  private void scheduleRetransformByName(String internalClassName) {
+    pendingRetransformNames.add(internalClassName);
   }
 
   // ---------------------------------------------------------------------------
@@ -201,10 +244,68 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         } else {
           processPathA(internalName, location, entries); // 3rd-party class
         }
+        // If any entry for this class has method-level symbols, the class needs retransformation
+        // so the bytecode callback can be injected. We can't modify bytecode here (we're just
+        // scanning) — retransformation is deferred to performPendingRetransforms().
+        boolean needsMethodLevelInstrumentation =
+            entries.stream()
+                .flatMap(e -> e.symbols().stream())
+                .anyMatch(s -> s.className().equals(internalName) && !s.isClassLevel());
+        if (needsMethodLevelInstrumentation) {
+          pendingRetransform.add(clazz);
+        }
       } catch (Exception e) {
         // Never abort the scan — a failure on one class must not skip the remaining ones.
         log.debug("SCA Reachability: error scanning already-loaded class {}", internalName, e);
       }
+    }
+  }
+
+  /**
+   * Retransforms classes that could not be instrumented for method-level detection earlier:
+   *
+   * <ol>
+   *   <li>Classes already loaded before the transformer was registered (populated in {@link
+   *       #checkAlreadyLoadedClasses}).
+   *   <li>Classes whose JAR version could not be resolved at load time (populated in {@link
+   *       #processClass} when {@code DependencyResolver} returns an empty list — the version may be
+   *       available by the time this periodic callback fires).
+   * </ol>
+   *
+   * <p>Called by {@code ScaReachabilityPeriodicAction} on each telemetry heartbeat via the {@code
+   * periodicWorkCallback} registered in {@link ScaReachabilityCollector}.
+   */
+  public void performPendingRetransforms() {
+    // Drain the direct Class<?> queue (from checkAlreadyLoadedClasses)
+    List<Class<?>> toRetransform = new ArrayList<>();
+    Class<?> clazz;
+    while ((clazz = pendingRetransform.poll()) != null) {
+      toRetransform.add(clazz);
+    }
+
+    // Resolve any classes queued by name (from processClass timing failures)
+    if (!pendingRetransformNames.isEmpty()) {
+      for (Class<?> loaded : instrumentation.getAllLoadedClasses()) {
+        String name = loaded.getName().replace('.', '/');
+        if (pendingRetransformNames.remove(name)) {
+          toRetransform.add(loaded);
+        }
+      }
+    }
+
+    if (toRetransform.isEmpty()) {
+      return;
+    }
+
+    try {
+      instrumentation.retransformClasses(toRetransform.toArray(new Class[0]));
+      log.debug(
+          "SCA Reachability: retransformed {} class(es) for method-level detection",
+          toRetransform.size());
+    } catch (Exception e) {
+      log.debug("SCA Reachability: retransformClasses failed", e);
+      // Re-queue on failure so the next heartbeat can retry
+      pendingRetransform.addAll(toRetransform);
     }
   }
 
@@ -468,8 +569,13 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       log.debug("SCA Reachability: could not resolve {}", url, e);
       resolved = Collections.emptyList();
     }
-    List<Dependency> existing = jarCache.putIfAbsent(url, resolved);
-    return existing != null ? existing : resolved;
+    // Only cache non-empty results: empty means the JAR had no pom.properties, which may be
+    // a transient failure. Not caching allows the periodic retransform to retry successfully.
+    if (!resolved.isEmpty()) {
+      List<Dependency> existing = jarCache.putIfAbsent(url, resolved);
+      return existing != null ? existing : resolved;
+    }
+    return resolved;
   }
 
   private static URL locationOf(ProtectionDomain pd) {
