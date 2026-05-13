@@ -16,9 +16,15 @@ public final class ScaReachabilityHit {
   private final String vulnId;
   private final String artifact;
   private final String version;
-  private final String className; // dot-notation FQN, e.g. "com.foo.Bar"
-  private final String symbolName; // "<clinit>" for class-level; method name for method-level
-  private final int line; // 1 as placeholder for class-level; actual first line for method-level
+  // For class-level hits: the vulnerable library class (FQN, dot notation)
+  // For method-level hits: the APPLICATION class that called the vulnerable method (callsite)
+  private final String className;
+  // For class-level hits: CLASS_LEVEL_SYMBOL ("<clinit>")
+  // For method-level hits: the APPLICATION method that called the vulnerable method (callsite)
+  private final String symbolName;
+  // For class-level hits: 1 (placeholder — no callsite at class load time)
+  // For method-level hits: line number in the application code of the call
+  private final int line;
 
   /**
    * Convenience constructor for class-level hits ({@code symbolName = CLASS_LEVEL_SYMBOL}, line =
