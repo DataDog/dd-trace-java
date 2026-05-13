@@ -73,6 +73,13 @@ final class CachedData {
   ]
 }
 
+// Pick the highest version when multiple artifacts provide the `org.lz4:lz4-java` capability.
+configurations.all {
+  resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
+    selectHighestVersion()
+  }
+}
+
 CachedData.deps.shared = [
   // Force specific version of okio required by com.squareup.moshi:moshi
   // When all of the dependencies are declared in dd-trace-core, moshi overrides the okhttp's
