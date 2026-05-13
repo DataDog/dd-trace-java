@@ -66,15 +66,6 @@ linux-java-dacapo-parallel-2:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_benchmark_rules
 
-java-startup-parallel-check-slo-breaches:
-  rules: *parallel_startup_benchmark_rules
-
-java-load-parallel-check-slo-breaches:
-  rules: *parallel_benchmark_rules
-
-java-dacapo-parallel-check-slo-breaches:
-  rules: *parallel_benchmark_rules
-
 java-post-pr-comment:
   variables:
     # TODO: revert to "main" after apm-sdks-benchmarks PR merges
