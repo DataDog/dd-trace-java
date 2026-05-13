@@ -99,7 +99,7 @@ public abstract class AbstractTestSession {
     }
 
     span = spanBuilder.start();
-    tagPropagator = new SpanTagsPropagator(span);
+    tagPropagator = new SpanTagsPropagator(span, config.getCiVisibilityPropagatedTagKeys());
 
     span.setSpanType(InternalSpanTypes.TEST_SESSION_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SESSION);

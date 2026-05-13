@@ -23,6 +23,8 @@ class ManualApiTest extends SpanWriterTest {
     def test = suite.testStart("test-name", null, null)
 
     when:
+    test.setTag("custom.tag", "something")
+    test.setTag("custom.another_tag", 2)
     test.end(null)
     suite.end(null)
     module.end(null)
@@ -47,14 +49,26 @@ class ManualApiTest extends SpanWriterTest {
     moduleSpan.tags[Tags.TEST_FRAMEWORK] == component
     suiteSpan.tags[Tags.TEST_FRAMEWORK] == component
     testSpan.tags[Tags.TEST_FRAMEWORK] == component
+    sessionSpan.tags["custom.tag"] == "something"
+    sessionSpan.tags["custom.another_tag"] == "2"
+    sessionSpan.tags["custom.third_tag"] == null
+    moduleSpan.tags["custom.tag"] == "something"
+    moduleSpan.tags["custom.another_tag"] == "2"
+    moduleSpan.tags["custom.third_tag"] == null
+    suiteSpan.tags["custom.tag"] == "something"
+    suiteSpan.tags["custom.another_tag"] == "2"
+    suiteSpan.tags["custom.third_tag"] == null
   }
 
   private ManualApiTestSession givenAManualApiSession(String component) {
+    def config = Stub(Config)
+    config.getCiVisibilityPropagatedTagKeys() >> ["custom.tag", "custom.another_tag", "custom.third_tag"]
+
     new ManualApiTestSession(
       "project-name",
       null,
       Provider.UNSUPPORTED,
-      Stub(Config),
+      config,
       Stub(CiVisibilityMetricCollector),
       new TestDecoratorImpl(component, "session-name", "test-command", [:]),
       Stub(SourcePathResolver),

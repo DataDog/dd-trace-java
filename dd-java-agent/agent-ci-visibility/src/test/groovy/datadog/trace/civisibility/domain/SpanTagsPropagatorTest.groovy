@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain
 import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec
 
 import datadog.trace.api.civisibility.execution.TestStatus
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.civisibility.ipc.TestFramework
 import datadog.trace.core.DDSpan
@@ -124,6 +125,61 @@ class SpanTagsPropagatorTest extends Specification {
     TagMergeSpec.of("tag")                     | null       | null        | false          | null
     TagMergeSpec.of("tag", Boolean::logicalOr) | true       | false       | true           | true
     TagMergeSpec.of("tag", Boolean::logicalOr) | false      | false       | true           | false
+  }
+
+  // Mocks AgentSpan (interface) rather than DDSpan because propagateCustomTags writes through
+  // the final DDSpan#setTag(String, String) overload, which Spock cannot intercept on a class mock.
+  def "test custom tag propagation from span: child=#childValue, parent=#parentValue, key=#key, allowlist=#allowlist"() {
+    given:
+    def parentSpan = Mock(AgentSpan)
+    parentSpan.getTag(key) >> parentValue
+
+    def childSpan = Mock(AgentSpan)
+    childSpan.getTag(key) >> childValue
+
+    def propagator = new SpanTagsPropagator(parentSpan, allowlist)
+
+    when:
+    propagator.propagateCustomTags(childSpan)
+
+    then:
+    if (expectedValue != null) {
+      1 * parentSpan.setTag(key, expectedValue)
+    } else {
+      0 * parentSpan.setTag(key, _)
+    }
+
+    where:
+    allowlist                | key                  | childValue | parentValue | expectedValue
+    ["bazel.shard_index"]    | "bazel.shard_index"  | "0"        | null        | "0"
+    ["bazel.shard_index"]    | "bazel.shard_index"  | "1"        | "0"         | "1"  // child overrides parent
+    ["bazel.shard_index"]    | "bazel.shard_index"  | null       | "0"         | null // missing on child, no-op
+    ["bazel.shard_index"]    | "bazel.total_shards" | "2"        | null        | null // not in allowlist
+    []                       | "bazel.shard_index"  | "0"        | null        | null // empty allowlist
+    null                     | "bazel.shard_index"  | "0"        | null        | null // null allowlist
+    ["bazel.shard_index"]    | "bazel.shard_index"  | 0L         | null        | "0"  // non-string child stringified
+    ["bazel.shard_index"]    | "bazel.shard_index"  | true       | null        | "true" // boolean stringified
+  }
+
+  def "test custom tag propagation from map: allowlist=#allowlist, tags=#tags"() {
+    given:
+    def parentSpan = Mock(AgentSpan)
+    def propagator = new SpanTagsPropagator(parentSpan, allowlist)
+
+    when:
+    propagator.propagateCustomTags(tags)
+
+    then:
+    expectedSets * parentSpan.setTag(_, _)
+
+    where:
+    allowlist                                       | tags                                                  | expectedSets
+    ["bazel.shard_index", "bazel.total_shards"]     | ["bazel.shard_index": "0", "bazel.total_shards": "2"] | 2
+    ["bazel.shard_index"]                           | ["bazel.shard_index": "0"]                            | 1
+    ["bazel.shard_index"]                           | ["bazel.shard_index": "0", "bazel.total_shards": "2"] | 1   // only allowlisted keys are copied
+    ["bazel.shard_index"]                           | [:]                                                   | 0   // empty tags
+    []                                              | ["bazel.shard_index": "0"]                            | 0   // empty allowlist
+    null                                            | ["bazel.shard_index": "0"]                            | 0   // null allowlist
   }
 
   def "test synchronized propagation"() {

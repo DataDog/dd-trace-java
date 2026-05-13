@@ -280,6 +280,7 @@ import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JACOCO_PL
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_JVM_INFO_CACHE_SIZE;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_KNOWN_TESTS_REQUEST_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_MODULE_NAME;
+import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_PROPAGATED_TAGS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_DUPLICATE_KEY_CHECK_ENABLED;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_REPO_INDEX_FOLLOW_SYMLINKS;
 import static datadog.trace.api.config.CiVisibilityConfig.CIVISIBILITY_RESOURCE_FOLDER_NAMES;
@@ -1169,6 +1170,7 @@ public class Config {
   private final String gitPullRequestBaseBranchSha;
   private final String gitCommitHeadSha;
   private final boolean ciVisibilityFailedTestReplayEnabled;
+  private final Set<String> ciVisibilityPropagatedTagKeys;
   private final String testOptimizationManifestFile;
   private final boolean testOptimizationPayloadsInFiles;
 
@@ -2708,6 +2710,8 @@ public class Config {
     gitCommitHeadSha = configProvider.getString(GIT_COMMIT_HEAD_SHA);
     ciVisibilityFailedTestReplayEnabled =
         configProvider.getBoolean(TEST_FAILED_TEST_REPLAY_ENABLED, true);
+    ciVisibilityPropagatedTagKeys =
+        configProvider.getSet(CIVISIBILITY_PROPAGATED_TAGS, Collections.emptySet());
 
     testOptimizationManifestFile = configProvider.getString(TEST_OPTIMIZATION_MANIFEST_FILE);
     testOptimizationPayloadsInFiles =
@@ -4487,6 +4491,10 @@ public class Config {
 
   public boolean isCiVisibilityFailedTestReplayEnabled() {
     return ciVisibilityFailedTestReplayEnabled;
+  }
+
+  public Set<String> getCiVisibilityPropagatedTagKeys() {
+    return ciVisibilityPropagatedTagKeys;
   }
 
   public String getTestOptimizationManifestFile() {
