@@ -386,7 +386,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * @return the resolved version string, or {@code null} if the artifact cannot be found
    */
-  private String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
+  // package-private for testing
+  String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
     for (Dependency dep : classJarDeps) {
       if (artifactName.equals(dep.name)) {
         return dep.version;
