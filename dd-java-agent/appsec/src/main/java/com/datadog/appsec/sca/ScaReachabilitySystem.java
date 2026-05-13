@@ -28,53 +28,6 @@ public final class ScaReachabilitySystem {
   private ScaReachabilitySystem() {}
 
   /**
-   * Walks the current thread stack to find the first application frame that called the vulnerable
-   * method. Uses {@link AbstractStackWalker#isNotDatadogTraceStackElement} (backed by the IAST
-   * exclusion trie) to distinguish application code from agent/JDK/framework frames.
-   *
-   * <p>The stack at call time is:
-   *
-   * <pre>
-   *   ScaReachabilitySystem handler lambda  (skip — agent)
-   *   ScaReachabilityCallback.onMethodHit   (skip — agent)
-   *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip — the instrumented library class)
-   *   &lt;application callsite&gt;               ← return this
-   * </pre>
-   *
-   * @param vulnerableClass dot-notation FQN of the instrumented class (used to skip library frames)
-   * @return first application callsite frame, or {@code null} if not found
-   */
-  static StackTraceElement findCallsite(String vulnerableClass) {
-    StackTraceElement[] stack = Thread.currentThread().getStackTrace();
-    boolean pastVulnerableClass = false;
-
-    for (StackTraceElement frame : stack) {
-      String cls = frame.getClassName();
-
-      // Skip agent and JDK frames using the shared predicate from AbstractStackWalker
-      if (!AbstractStackWalker.isNotDatadogTraceStackElement(frame)) {
-        continue;
-      }
-
-      if (!pastVulnerableClass) {
-        // Skip frames until we have passed all frames from the vulnerable class
-        if (cls.equals(vulnerableClass)) {
-          pastVulnerableClass = true;
-        }
-        continue;
-      }
-
-      // Skip any additional frames still inside the vulnerable class (library-internal chains)
-      if (cls.equals(vulnerableClass)) {
-        continue;
-      }
-
-      return frame;
-    }
-    return null;
-  }
-
-  /**
    * Starts the SCA Reachability subsystem.
    *
    * <p>Called by reflection from {@code Agent.maybeStartScaReachability()} — the method signature
@@ -132,5 +85,52 @@ public final class ScaReachabilitySystem {
     // method-level instrumentation for classes that could not be processed at load time.
     ScaReachabilityCollector.INSTANCE.setPeriodicWorkCallback(
         transformer::performPendingRetransforms);
+  }
+
+  /**
+   * Walks the current thread stack to find the first application frame that called the vulnerable
+   * method. Uses {@link AbstractStackWalker#isNotDatadogTraceStackElement} (backed by the IAST
+   * exclusion trie) to distinguish application code from agent/JDK/framework frames.
+   *
+   * <p>The stack at call time is:
+   *
+   * <pre>
+   *   ScaReachabilitySystem handler lambda  (skip — agent)
+   *   ScaReachabilityCallback.onMethodHit   (skip — agent)
+   *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip — the instrumented library class)
+   *   &lt;application callsite&gt;               ← return this
+   * </pre>
+   *
+   * @param vulnerableClass dot-notation FQN of the instrumented class (used to skip library frames)
+   * @return first application callsite frame, or {@code null} if not found
+   */
+  static StackTraceElement findCallsite(String vulnerableClass) {
+    StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+    boolean pastVulnerableClass = false;
+
+    for (StackTraceElement frame : stack) {
+      String cls = frame.getClassName();
+
+      // Skip agent and JDK frames using the shared predicate from AbstractStackWalker
+      if (!AbstractStackWalker.isNotDatadogTraceStackElement(frame)) {
+        continue;
+      }
+
+      if (!pastVulnerableClass) {
+        // Skip frames until we have passed all frames from the vulnerable class
+        if (cls.equals(vulnerableClass)) {
+          pastVulnerableClass = true;
+        }
+        continue;
+      }
+
+      // Skip any additional frames still inside the vulnerable class (library-internal chains)
+      if (cls.equals(vulnerableClass)) {
+        continue;
+      }
+
+      return frame;
+    }
+    return null;
   }
 }
