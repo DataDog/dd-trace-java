@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.api.GenericClassValue;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
@@ -24,6 +26,15 @@ public class SpringWebHttpServerDecorator
   private static final String DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED =
       "datadog.filter.spring.route.applied";
 
+  private static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
+  private static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+  private static final ClassValue<Pair<String, String>> HANDLER_SPAN_KEY_CACHE =
+      GenericClassValue.of(
+          type -> {
+            final String prefix = DD_HANDLER_SPAN_PREFIX_KEY + type.getName();
+            return Pair.of(prefix, prefix + DD_HANDLER_SPAN_CONTINUE_SUFFIX);
+          });
+
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
 
@@ -34,8 +45,15 @@ public class SpringWebHttpServerDecorator
   public static final SpringWebHttpServerDecorator DECORATE_RENDER =
       new SpringWebHttpServerDecorator(UTF8BytesString.create("spring-webmvc"));
 
-  public static final String DD_HANDLER_SPAN_PREFIX_KEY = "dd.handler.span.";
-  public static final String DD_HANDLER_SPAN_CONTINUE_SUFFIX = ".continue";
+  public static Pair<String, String> handlerSpanKeysFor(Object handler) {
+    final Class<?> handlerClass;
+    if (handler instanceof HandlerMethod) {
+      handlerClass = ((HandlerMethod) handler).getBean().getClass();
+    } else {
+      handlerClass = handler.getClass();
+    }
+    return HANDLER_SPAN_KEY_CACHE.get(handlerClass);
+  }
 
   public SpringWebHttpServerDecorator(CharSequence component) {
     this.component = component;

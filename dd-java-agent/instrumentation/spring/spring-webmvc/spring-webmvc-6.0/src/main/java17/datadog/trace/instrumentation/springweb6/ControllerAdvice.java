@@ -6,16 +6,15 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.spanFromContext;
 import static datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator.DD_CONTEXT_ATTRIBUTE;
-import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
-import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
 import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DECORATE;
+import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.handlerSpanKeysFor;
 
 import datadog.context.Context;
 import datadog.context.ContextScope;
+import datadog.trace.api.Pair;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import jakarta.servlet.http.HttpServletRequest;
 import net.bytebuddy.asm.Advice;
-import org.springframework.web.method.HandlerMethod;
 
 public class ControllerAdvice {
 
@@ -23,8 +22,8 @@ public class ControllerAdvice {
   public static ContextScope nameResourceAndStartSpan(
       @Advice.Argument(0) final HttpServletRequest request,
       @Advice.Argument(2) final Object handler,
-      @Advice.Local("handlerSpanKey") String handlerSpanKey) {
-    handlerSpanKey = "";
+      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
+
     // Name the parent span based on the matching pattern
     Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
@@ -40,17 +39,10 @@ public class ControllerAdvice {
     }
 
     // Now create a span for handler/controller execution.
-
-    final String handlerKey;
-    if (handler instanceof HandlerMethod) {
-      handlerKey = ((HandlerMethod) handler).getBean().getClass().getName();
-    } else {
-      handlerKey = handler.getClass().getName();
-    }
-    handlerSpanKey = DD_HANDLER_SPAN_PREFIX_KEY + handlerKey;
+    handlerSpanKeys = handlerSpanKeysFor(handler);
 
     // If the context already exists, return it
-    final Object existingContext = request.getAttribute(handlerSpanKey);
+    final Object existingContext = request.getAttribute(handlerSpanKeys.getLeft());
     if (existingContext instanceof Context) {
       return ((Context) existingContext).attach();
     }
@@ -60,7 +52,7 @@ public class ControllerAdvice {
     DECORATE.afterStart(span);
     DECORATE.onHandle(span, handler);
 
-    request.setAttribute(handlerSpanKey, span);
+    request.setAttribute(handlerSpanKeys.getLeft(), span);
     return getCurrentContext().with(span).attach();
   }
 
@@ -69,13 +61,13 @@ public class ControllerAdvice {
       @Advice.Enter final ContextScope scope,
       @Advice.Argument(0) final HttpServletRequest request,
       @Advice.Thrown final Throwable throwable,
-      @Advice.Local("handlerSpanKey") String handlerSpanKey) {
+      @Advice.Local("handlerSpanKeys") Pair<String, String> handlerSpanKeys) {
     if (scope == null) {
       return;
     }
     boolean finish =
-        !Boolean.TRUE.equals(
-            request.getAttribute(handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX));
+        handlerSpanKeys != null
+            && !Boolean.TRUE.equals(request.getAttribute(handlerSpanKeys.getRight()));
     final AgentSpan span = spanFromContext(scope.context());
     scope.close();
     if (throwable != null) {
