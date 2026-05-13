@@ -58,10 +58,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
 
-  // CLASS_LEVEL_SYMBOL is defined in ScaReachabilityHit (internal-api) so both the transformer
-  // and the telemetry payload builder share the same constant without cross-module duplication.
-  private static final String CLASS_LEVEL_SYMBOL = ScaReachabilityHit.CLASS_LEVEL_SYMBOL;
-
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
 
@@ -148,7 +144,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * <ul>
    *   <li>Class-level ({@code symbol.method() == null}): reports a hit immediately via {@link
-   *       ScaReachabilityCollector} with symbol {@code CLASS_LEVEL_SYMBOL}.
+   *       ScaReachabilityCollector} with symbol {@link ScaReachabilityHit#CLASS_LEVEL_SYMBOL}.
    *   <li>Method-level ({@code symbol.method() != null}): injects a static callback into the method
    *       bytecode via ASM. The callback is invoked the first time the method is called and reports
    *       via {@link ScaReachabilityCallback}. Returns modified bytecode; {@code null} if only
@@ -366,7 +362,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       ScaEntry entry, String version, String internalClassName) {
     for (ScaSymbol symbol : entry.symbols()) {
       if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
-        reportHit(entry, version, internalClassName, CLASS_LEVEL_SYMBOL, 1);
+        reportHit(entry, version, internalClassName, ScaReachabilityHit.CLASS_LEVEL_SYMBOL, 1);
         return; // one hit per entry is sufficient
       }
     }
@@ -461,13 +457,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         injectCallbacks(line);
       }
       super.visitLineNumber(line, start);
-    }
-
-    @Override
-    public void visitCode() {
-      super.visitCode();
-      // Fallback for methods without debug info (no visitLineNumber calls).
-      // We override the first instruction visitor to inject if not yet done.
     }
 
     @Override
