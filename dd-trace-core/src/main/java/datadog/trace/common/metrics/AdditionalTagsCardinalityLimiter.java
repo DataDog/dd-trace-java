@@ -27,7 +27,10 @@ final class AdditionalTagsCardinalityLimiter {
   private final int limitPerTag;
   private final HealthMetrics healthMetrics;
   private final ConcurrentHashMap<String, Set<String>> seenValuesPerTag = new ConcurrentHashMap<>();
-  private final Set<String> warnedThisWindow = Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<String> warnedAboutCardinality =
+      Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final Set<String> warnedAboutLength =
+      Collections.newSetFromMap(new ConcurrentHashMap<>());
 
   AdditionalTagsCardinalityLimiter(int limitPerTag, HealthMetrics healthMetrics) {
     this.limitPerTag = limitPerTag;
@@ -46,7 +49,7 @@ final class AdditionalTagsCardinalityLimiter {
     }
     if (seen.size() >= limitPerTag) {
       healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
-      if (warnedThisWindow.add(tagKey)) {
+      if (warnedAboutCardinality.add(tagKey)) {
         log.warn(
             "Additional metric tag '{}' exceeded the per-tag cardinality limit of {}; "
                 + "replacing values with '{}' for the rest of the current window",
@@ -60,11 +63,30 @@ final class AdditionalTagsCardinalityLimiter {
     return value;
   }
 
-  /** Clears per-tag value sets and rearms the per-key log line. Invoked by the periodic task. */
+  /**
+   * Records that a value for {@code tagKey} was blocked due to exceeding the per-value length cap.
+   * Fires the same health metric as a cardinality block and emits a distinct warn log line once per
+   * tag key per window.
+   */
+  void noteBlockedDueToLength(String tagKey, int valueLength, int maxLength) {
+    healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
+    if (warnedAboutLength.add(tagKey)) {
+      log.warn(
+          "Additional metric tag '{}' had a value of length {} exceeding the max length of {}; "
+              + "replacing with '{}' for the rest of the current window",
+          tagKey,
+          valueLength,
+          maxLength,
+          BLOCKED_VALUE);
+    }
+  }
+
+  /** Clears per-tag value sets and rearms the per-key log lines. Invoked by the periodic task. */
   void reset() {
     for (Set<String> seen : seenValuesPerTag.values()) {
       seen.clear();
     }
-    warnedThisWindow.clear();
+    warnedAboutCardinality.clear();
+    warnedAboutLength.clear();
   }
 }

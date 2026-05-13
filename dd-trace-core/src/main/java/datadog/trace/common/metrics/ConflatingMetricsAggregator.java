@@ -109,6 +109,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   // while still allowing some additional tags to be used.
   static final int MAX_ADDITIONAL_TAG_KEYS = 10;
 
+  // Maximum length of an additional metric tag *value*. Caps cache footprint and wire payload
+  // size from stack-trace / JSON / SQL stuffed into a tag by misconfigured app code. Values
+  // exceeding this are emitted as `<tagKey>:blocked_by_tracer`.
+  static final int MAX_ADDITIONAL_TAG_VALUE_LENGTH = 250;
+
   private final Set<String> ignoredResources;
   private final List<String> additionalTagKeys;
   private final AdditionalTagsCardinalityLimiter cardinalityLimiter;
@@ -488,7 +493,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       if (value == null) {
         continue;
       }
-      String admittedValue = cardinalityLimiter.admitOrBlock(tagKey, value.toString());
+      String rawValue = value.toString();
+      String admittedValue;
+      if (rawValue.length() > MAX_ADDITIONAL_TAG_VALUE_LENGTH) {
+        cardinalityLimiter.noteBlockedDueToLength(
+            tagKey, rawValue.length(), MAX_ADDITIONAL_TAG_VALUE_LENGTH);
+        admittedValue = AdditionalTagsCardinalityLimiter.BLOCKED_VALUE;
+      } else {
+        admittedValue = cardinalityLimiter.admitOrBlock(tagKey, rawValue);
+      }
       Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
           ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
       UTF8BytesString formatted =

@@ -82,6 +82,35 @@ class AdditionalTagsCardinalityLimiterTest {
     assertEquals("region", health.blocked.get(1));
   }
 
+  @Test
+  void noteBlockedDueToLengthFiresHealthMetric() {
+    RecordingHealthMetrics health = new RecordingHealthMetrics();
+    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(100, health);
+    limiter.noteBlockedDueToLength("region", 500, 250);
+    assertEquals(1, health.blocked.size());
+    assertEquals("region", health.blocked.get(0));
+  }
+
+  @Test
+  void lengthAndCardinalityBlocksAreCountedSeparatelyInHealth() {
+    RecordingHealthMetrics health = new RecordingHealthMetrics();
+    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(2, health);
+    // exhaust cardinality
+    limiter.admitOrBlock("region", "a");
+    limiter.admitOrBlock("region", "b");
+    limiter.admitOrBlock("region", "c"); // cardinality block -> 1 health event
+    // length block on same tag -> 2 health events total
+    limiter.noteBlockedDueToLength("region", 500, 250);
+    assertEquals(2, health.blocked.size());
+    // reset rearms both branches
+    limiter.reset();
+    limiter.admitOrBlock("region", "x");
+    limiter.admitOrBlock("region", "y");
+    limiter.admitOrBlock("region", "z"); // cardinality block again -> 3
+    limiter.noteBlockedDueToLength("region", 500, 250); // length block again -> 4
+    assertEquals(4, health.blocked.size());
+  }
+
   private static final class RecordingHealthMetrics extends HealthMetrics {
     final List<String> blocked = new ArrayList<>();
 
