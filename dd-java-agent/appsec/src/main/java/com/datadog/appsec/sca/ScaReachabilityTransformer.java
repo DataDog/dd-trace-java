@@ -253,12 +253,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
       ProtectionDomain pd = clazz.getProtectionDomain();
       URL location = locationOf(pd);
+      if (location == null) {
+        // JDK/bootstrap class (no code source): skip. JDK symbols in the database (e.g.
+        // java.sql.PreparedStatement in the PostgreSQL advisory) are loaded by ANY app that
+        // uses JDBC regardless of which driver is present — reporting them via classpath scan
+        // would be a false positive (classpath-presence, not runtime reachability). Library-
+        // specific classes in the same entry (e.g. org.postgresql.ds.PGSimpleDataSource) are
+        // detected reliably via Path A when they are actually loaded.
+        continue;
+      }
       try {
-        if (location == null) {
-          processPathB(internalName, entries); // JDK class
-        } else {
-          processPathA(internalName, location, entries); // 3rd-party class
-        }
+        processPathA(internalName, location, entries); // 3rd-party class
         // If any entry for this class has method-level symbols, the class needs retransformation
         // so the bytecode callback can be injected. We can't modify bytecode here (we're just
         // scanning) — retransformation is deferred to performPendingRetransforms().
