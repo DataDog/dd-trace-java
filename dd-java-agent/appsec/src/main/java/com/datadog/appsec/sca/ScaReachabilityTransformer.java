@@ -172,7 +172,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
   }
 
-  private String findArtifactVersionInClasspath(String artifactName) {
+  // package-private for testing
+  String findArtifactVersionInClasspath(String artifactName) {
     Set<URL> scanned = new HashSet<>();
 
     // Walk URLClassLoader chain (covers Java 8 system classloader and custom classloaders on 9+)
