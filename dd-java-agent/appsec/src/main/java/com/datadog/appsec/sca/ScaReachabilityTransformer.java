@@ -45,7 +45,9 @@ import org.slf4j.LoggerFactory;
  *   <li>All shared state uses concurrent collections — {@link #transform} is called from multiple
  *       class-loading threads simultaneously.
  *   <li>Version resolution is cached per JAR URL — each JAR is read at most once.
- *   <li>Each (vulnId, artifact) pair is reported at most once — RFC requires a single occurrence.
+ *   <li>Each (vulnId, artifact, symbolName) tuple is reported at most once — RFC requires a single
+ *       occurrence. Class-level dedup lives in {@link #reportedHits}; method-level dedup lives in
+ *       {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across retransforms).
  *   <li>Path B (JDK classes such as {@code java.sql.PreparedStatement}) is handled only in {@link
  *       #checkAlreadyLoadedClasses}, not in {@link #transform}, because JDK classes are always
  *       loaded at startup. If a JDK class relevant to a CVE were loaded lazily after startup, the
@@ -75,7 +77,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * Drained and processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
    */
-  private final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
+  // package-private for testing
+  final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
@@ -276,6 +279,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * periodicWorkCallback} registered in {@link ScaReachabilityCollector}.
    */
   public void performPendingRetransforms() {
+    if (instrumentation == null) {
+      return; // no-op when instrumentation is unavailable (e.g. in unit tests)
+    }
     // Drain the direct Class<?> queue (from checkAlreadyLoadedClasses)
     List<Class<?>> toRetransform = new ArrayList<>();
     Class<?> clazz;
