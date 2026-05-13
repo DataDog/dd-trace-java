@@ -25,7 +25,15 @@ public final class ScaReachabilityCollector {
    * could not be instrumented earlier (method-level symbols on already-loaded classes, or classes
    * where JAR version resolution failed at load time).
    */
-  public volatile Runnable periodicWorkCallback;
+  private volatile Runnable periodicWorkCallback;
+
+  public void setPeriodicWorkCallback(Runnable callback) {
+    periodicWorkCallback = callback;
+  }
+
+  public Runnable getPeriodicWorkCallback() {
+    return periodicWorkCallback;
+  }
 
   private ScaReachabilityCollector() {}
 

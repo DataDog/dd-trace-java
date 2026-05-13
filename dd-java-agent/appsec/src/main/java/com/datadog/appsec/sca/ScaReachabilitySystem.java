@@ -60,7 +60,7 @@ public final class ScaReachabilitySystem {
 
     // Register the periodic retransform callback so the telemetry heartbeat can retry
     // method-level instrumentation for classes that could not be processed at load time.
-    ScaReachabilityCollector.INSTANCE.periodicWorkCallback =
-        transformer::performPendingRetransforms;
+    ScaReachabilityCollector.INSTANCE.setPeriodicWorkCallback(
+        transformer::performPendingRetransforms);
   }
 }

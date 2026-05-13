@@ -1,5 +1,7 @@
 package com.datadog.appsec.sca;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -161,6 +163,68 @@ class ScaReachabilityTransformerTest {
               }
               return null;
             });
+  }
+
+  // --- performPendingRetransforms ---
+
+  @Test
+  void performPendingRetransforms_noOpWhenNullInstrumentation() {
+    // Transformer constructed with null instrumentation (test context) must not throw
+    transformer.performPendingRetransforms();
+    // No exception = pass
+  }
+
+  @Test
+  void performPendingRetransforms_callsRetransformClassesForPendingQueue() throws Exception {
+    List<Class<?>> retransformed = new java.util.ArrayList<>();
+    java.lang.instrument.Instrumentation inst =
+        (java.lang.instrument.Instrumentation)
+            java.lang.reflect.Proxy.newProxyInstance(
+                ScaReachabilityTransformerTest.class.getClassLoader(),
+                new Class<?>[] {java.lang.instrument.Instrumentation.class},
+                (proxy, method, args) -> {
+                  if ("getAllLoadedClasses".equals(method.getName())) {
+                    return new Class<?>[0];
+                  }
+                  if ("retransformClasses".equals(method.getName())) {
+                    retransformed.addAll(java.util.Arrays.asList((Class<?>[]) args[0]));
+                    return null;
+                  }
+                  return null;
+                });
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, inst);
+
+    // Simulate checkAlreadyLoadedClasses adding a class to the pending queue
+    t.pendingRetransform.add(ScaReachabilityTransformer.class);
+    t.performPendingRetransforms();
+
+    assertEquals(1, retransformed.size());
+    assertEquals(ScaReachabilityTransformer.class, retransformed.get(0));
+  }
+
+  @Test
+  void performPendingRetransforms_noOpWhenQueuesEmpty() throws Exception {
+    List<String> methodsCalled = new java.util.ArrayList<>();
+    java.lang.instrument.Instrumentation inst =
+        (java.lang.instrument.Instrumentation)
+            java.lang.reflect.Proxy.newProxyInstance(
+                ScaReachabilityTransformerTest.class.getClassLoader(),
+                new Class<?>[] {java.lang.instrument.Instrumentation.class},
+                (proxy, method, args) -> {
+                  methodsCalled.add(method.getName());
+                  return method.getName().equals("getAllLoadedClasses") ? new Class<?>[0] : null;
+                });
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, inst);
+
+    t.performPendingRetransforms();
+
+    // With empty queues: getAllLoadedClasses is skipped (pendingRetransformNames is empty),
+    // retransformClasses is never called
+    assertFalse(
+        methodsCalled.contains("retransformClasses"),
+        "retransformClasses must not be called when both queues are empty");
   }
 
   // --- helpers ---
