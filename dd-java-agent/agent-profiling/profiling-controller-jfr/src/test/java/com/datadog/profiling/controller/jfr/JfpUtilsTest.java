@@ -16,11 +16,6 @@ public class JfpUtilsTest {
   private static final String CONFIG_ENTRY = "jdk.ThreadAllocationStatistics#enabled";
   private static final String CONFIG_OVERRIDE_ENTRY = "test.continuous.override#value";
 
-  public static final String OVERRIDES = JfpTestResources.OVERRIDES;
-  public static final String OVERRIDES_OLD_OBJECT_SAMPLE = JfpTestResources.OVERRIDES_OLD_OBJECT_SAMPLE;
-  public static final String OVERRIDES_OBJECT_ALLOCATION = JfpTestResources.OVERRIDES_OBJECT_ALLOCATION;
-  public static final String OVERRIDES_NATIVE_METHOD_SAMPLE = JfpTestResources.OVERRIDES_NATIVE_METHOD_SAMPLE;
-
   @Test
   public void testLoadingInvalidOverride() throws IOException {
     final String INVALID_OVERRIDE = "really_non_existent_file.jfp";
@@ -38,7 +33,8 @@ public class JfpUtilsTest {
 
   @Test
   public void testLoadingContinuousConfigWithOverride() throws IOException {
-    final Map<String, String> config = JfpUtils.readJfpResources(JfpUtils.DEFAULT_JFP, OVERRIDES);
+    final Map<String, String> config =
+        JfpUtils.readJfpResources(JfpUtils.DEFAULT_JFP, JfpTestResources.overrides());
     assertEquals("true", config.get(CONFIG_ENTRY));
     assertEquals("200", config.get(CONFIG_OVERRIDE_ENTRY));
   }

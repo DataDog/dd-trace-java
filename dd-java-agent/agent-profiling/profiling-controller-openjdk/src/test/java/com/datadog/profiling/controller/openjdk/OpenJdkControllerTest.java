@@ -76,7 +76,7 @@ public class OpenJdkControllerTest {
   @Test
   public void testHeapProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
     Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.OVERRIDES_OLD_OBJECT_SAMPLE);
+    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesOldObjectSample());
 
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
@@ -158,7 +158,7 @@ public class OpenJdkControllerTest {
   @Test
   public void testAllocationProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
     Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.OVERRIDES_OBJECT_ALLOCATION);
+    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesObjectAllocation());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
