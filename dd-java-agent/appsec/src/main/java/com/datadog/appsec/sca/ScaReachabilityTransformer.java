@@ -445,11 +445,12 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
 
     private void injectCallbacks(int line) {
+      // No dedup check here: retransformClasses() always starts from the original class bytes,
+      // so the callback must be re-injected on every transformation pass. Deduplication of
+      // actual runtime reports is handled by ScaReachabilityCallback.reported (bootstrap-side),
+      // which persists across retransformations and prevents duplicate hits regardless of how
+      // many times the class is retransformed.
       for (MethodCallbackSpec spec : specs) {
-        String dedupKey = spec.vulnId + "|" + spec.artifact + "|" + spec.methodName;
-        if (!reportedHits.add(dedupKey)) {
-          continue; // already reported this method hit
-        }
         mv.visitLdcInsn(spec.vulnId);
         mv.visitLdcInsn(spec.artifact);
         mv.visitLdcInsn(spec.version);
