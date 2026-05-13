@@ -73,7 +73,10 @@ final class CachedData {
   ]
 }
 
-// Pick the highest version when multiple artifacts provide the `org.lz4:lz4-java` capability.
+// The upstream `org.lz4:lz4-java` project is no longer maintained (see https://github.com/lz4/lz4-java),
+// so we depend on the community fork `at.yawk.lz4:lz4-java`. The fork advertises itself as a drop-in replacement
+// via Gradle capabilities (see https://docs.gradle.org/current/userguide/component_capabilities.html).
+// This rule resolves conflicts by selecting the highest version.
 configurations.configureEach {
   resolutionStrategy.capabilitiesResolution.withCapability('org.lz4:lz4-java') {
     selectHighestVersion()
