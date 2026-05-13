@@ -96,16 +96,20 @@ def githubFetchRaw = { String url, String token ->
 }
 
 tasks.register('generateScaCvesJson') {
-  description = 'Downloads GHSA enrichments from sca-reachability-database and generates sca_cves.json'
+  description = 'Downloads GHSA enrichments from sca-reachability-database and updates src/main/resources/sca_cves.json. ' +
+    'Run with -PrefreshSca to force a refresh. ' +
+    'sca_cves.json is committed to the repo so CI does not need network access to this private repo.'
   group = 'build'
 
-  def outputDir = layout.buildDirectory.dir('generated-resources/sca').get().asFile
-  def outputFile = new File(outputDir, 'sca_cves.json')
+  // Output lives in src/main/resources so it is versioned and picked up by processResources
+  // without any extra wiring. CI builds use the committed copy; only maintainers who need
+  // to update the database run this task (with -PrefreshSca or when the file is absent).
+  def outputFile = file('src/main/resources/sca_cves.json')
 
   outputs.file(outputFile)
-  // Re-runs only when output is missing or -PrefreshSca is passed.
-  // The database changes rarely; avoiding a network call on every local build is intentional.
-  outputs.upToDateWhen { outputFile.exists() && !project.hasProperty('refreshSca') }
+  onlyIf {
+    project.hasProperty('refreshSca') || !outputFile.exists()
+  }
 
   doLast {
     def token = System.getenv('GITHUB_TOKEN')
@@ -123,15 +127,13 @@ tasks.register('generateScaCvesJson') {
       entries.addAll(datadog.gradle.sca.GhsaEnrichmentParser.INSTANCE.parse(ghsaId, rawContent))
     }
 
-    outputDir.mkdirs()
     outputFile.text = JsonOutput.toJson([version: 1, entries: entries])
     logger.lifecycle("sca_cves.json: ${entries.size()} entries from ${ghsaFiles.size()} GHSA files")
+    logger.lifecycle("Remember to commit src/main/resources/sca_cves.json after updating the database.")
   }
 }
 
 tasks.named("processResources", ProcessResources) {
-  dependsOn('generateScaCvesJson')
-  from(layout.buildDirectory.dir('generated-resources/sca'))
   doLast {
     fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
       it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
