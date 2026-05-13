@@ -26,8 +26,7 @@ public final class ScaReachabilityCallback {
 
   /** Runtime dedup: "vulnId|artifact|methodName" tuples already reported. */
   private static final java.util.Set<String> reported =
-      java.util.Collections.newSetFromMap(
-          new java.util.concurrent.ConcurrentHashMap<String, Boolean>());
+      java.util.concurrent.ConcurrentHashMap.newKeySet();
 
   /**
    * Called by {@code ScaReachabilitySystem} to wire up the real reporting implementation. Passing
