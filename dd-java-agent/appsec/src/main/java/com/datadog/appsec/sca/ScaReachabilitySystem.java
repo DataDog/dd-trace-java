@@ -3,6 +3,7 @@ package com.datadog.appsec.sca;
 import datadog.trace.api.telemetry.ScaReachabilityCollector;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
+import datadog.trace.util.stacktrace.AbstractStackWalker;
 import java.lang.instrument.Instrumentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -50,16 +51,8 @@ public final class ScaReachabilitySystem {
     for (StackTraceElement frame : stack) {
       String cls = frame.getClassName();
 
-      // Skip agent and JDK frames using the same predicate as AbstractStackWalker
-      // (isNotDatadogTraceStackElement is package-private so we replicate the 3 conditions).
-      if (cls.startsWith("datadog.trace.")
-          || cls.startsWith("com.datadog.iast.")
-          || cls.startsWith("com.datadog.appsec.")
-          || cls.startsWith("java.")
-          || cls.startsWith("javax.")
-          || cls.startsWith("sun.")
-          || cls.startsWith("jdk.")
-          || cls.startsWith("com.sun.")) {
+      // Skip agent and JDK frames using the shared predicate from AbstractStackWalker
+      if (!AbstractStackWalker.isNotDatadogTraceStackElement(frame)) {
         continue;
       }
 
