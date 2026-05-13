@@ -21,6 +21,7 @@ dependencies {
   implementation libs.moshi
 
   compileOnly project(':dd-java-agent:agent-bootstrap')
+  compileOnly libs.bytebuddy // for net.bytebuddy.jar.asm.* used by ScaReachabilityTransformer
   testImplementation project(':dd-java-agent:agent-bootstrap')
   testImplementation libs.bytebuddy
   testImplementation project(':remote-config:remote-config-core')

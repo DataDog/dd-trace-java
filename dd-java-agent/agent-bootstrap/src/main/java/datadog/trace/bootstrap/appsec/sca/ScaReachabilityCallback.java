@@ -1,0 +1,69 @@
+package datadog.trace.bootstrap.appsec.sca;
+
+/**
+ * Bootstrap-classloader callback for SCA Reachability method-level detection.
+ *
+ * <p>Bytecode injected into application classes by {@code ScaReachabilityTransformer} calls {@link
+ * #onMethodHit} statically. Because this class lives in the bootstrap classloader, it is visible
+ * from any application class regardless of classloader hierarchy.
+ *
+ * <p>The actual handler is registered at agent startup by {@code ScaReachabilitySystem.start()}.
+ */
+public final class ScaReachabilityCallback {
+
+  /** Receives method-level reachability hits from instrumented application code. */
+  public interface Handler {
+    void onMethodHit(
+        String vulnId,
+        String artifact,
+        String version,
+        String dotClassName,
+        String methodName,
+        int line);
+  }
+
+  private static volatile Handler handler;
+
+  /** Runtime dedup: "vulnId|artifact|methodName" tuples already reported. */
+  private static final java.util.Set<String> reported =
+      java.util.Collections.newSetFromMap(
+          new java.util.concurrent.ConcurrentHashMap<String, Boolean>());
+
+  /**
+   * Called by {@code ScaReachabilitySystem} to wire up the real reporting implementation. Passing
+   * {@code null} clears both the handler and the dedup set (used in tests).
+   */
+  public static void register(Handler h) {
+    handler = h;
+    if (h == null) {
+      reported.clear();
+    }
+  }
+
+  /**
+   * Called from bytecode injected into the entry point of a vulnerable method. Deduplicates at
+   * runtime so the handler is called at most once per (vulnId, artifact, methodName) triple,
+   * regardless of how many times the method is invoked.
+   *
+   * <p>Arguments are constants baked into the instrumented class at transform time — they never
+   * originate from user input and are safe to use as-is in the telemetry payload.
+   */
+  public static void onMethodHit(
+      String vulnId,
+      String artifact,
+      String version,
+      String dotClassName,
+      String methodName,
+      int line) {
+    Handler h = handler;
+    if (h == null) {
+      return;
+    }
+    String key = vulnId + "|" + artifact + "|" + methodName;
+    if (reported.add(key)) {
+      h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
+    }
+  }
+
+  private ScaReachabilityCallback() {}
+}

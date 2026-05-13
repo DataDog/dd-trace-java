@@ -1,5 +1,8 @@
 package com.datadog.appsec.sca;
 
+import datadog.trace.api.telemetry.ScaReachabilityCollector;
+import datadog.trace.api.telemetry.ScaReachabilityHit;
+import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import java.lang.instrument.Instrumentation;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -36,6 +39,12 @@ public final class ScaReachabilitySystem {
       return;
     }
     log.info("SCA Reachability: loaded {} vulnerable class symbols", database.size());
+
+    // Register the method-level callback so injected bytecode can report hits back to telemetry.
+    ScaReachabilityCallback.register(
+        (vulnId, artifact, version, dotClassName, methodName, line) ->
+            ScaReachabilityCollector.INSTANCE.addHit(
+                new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line)));
 
     ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(database);
 
