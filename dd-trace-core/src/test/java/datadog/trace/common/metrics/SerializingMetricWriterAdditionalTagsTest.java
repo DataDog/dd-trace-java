@@ -5,6 +5,7 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
@@ -28,9 +29,9 @@ class SerializingMetricWriterAdditionalTagsTest {
   }
 
   @Test
-  void emptyAdditionalTagsAreEmittedAsEmptyArray() throws Exception {
+  void emptyAdditionalTagsOmitTheField() throws Exception {
     List<String> emitted = roundTripAdditionalTags(emptyList());
-    assertEquals(0, emitted.size());
+    assertNull(emitted);
   }
 
   @Test
@@ -111,7 +112,7 @@ class SerializingMetricWriterAdditionalTagsTest {
         unpacker.skipValue();
       }
     }
-    throw new AssertionError("AdditionalMetricTags field not found in payload");
+    return null;
   }
 
   private static final class CapturingSink implements Sink {

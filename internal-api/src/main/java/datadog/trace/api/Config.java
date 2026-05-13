@@ -5109,8 +5109,8 @@ public class Config {
     return tryMakeImmutableSet(configProvider.getList(TRACER_METRICS_IGNORED_RESOURCES));
   }
 
-  public List<String> getTraceStatsAdditionalTags() {
-    return tryMakeImmutableList(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
+  public Set<String> getTraceStatsAdditionalTags() {
+    return tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
   }
 
   public String getEnv() {

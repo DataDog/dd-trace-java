@@ -307,7 +307,8 @@ class SerializingMetricWriterTest extends DDSpecification {
         boolean hasHttpEndpoint = key.getHttpEndpoint() != null
         boolean hasServiceSource = key.getServiceSource() != null
         boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null
-        int expectedMapSize = 16 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
+        boolean hasAdditionalTags = key.getAdditionalTags().size() > 0
+        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0) + (hasAdditionalTags ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
@@ -342,14 +343,16 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
-        assert unpacker.unpackString() == "AdditionalMetricTags"
-        int additionalTagsLength = unpacker.unpackArrayHeader()
-        assert additionalTagsLength == key.getAdditionalTags().size()
-        for (int i = 0; i < additionalTagsLength; i++) {
-          def unpackedTag = unpacker.unpackString()
-          assert unpackedTag == key.getAdditionalTags()[i].toString()
+        if (hasAdditionalTags) {
+          assert unpacker.unpackString() == "AdditionalMetricTags"
+          int additionalTagsLength = unpacker.unpackArrayHeader()
+          assert additionalTagsLength == key.getAdditionalTags().size()
+          for (int i = 0; i < additionalTagsLength; i++) {
+            def unpackedTag = unpacker.unpackString()
+            assert unpackedTag == key.getAdditionalTags()[i].toString()
+          }
+          ++elementCount
         }
-        ++elementCount
         // Service source is only present when the service name has been overridden by the tracer
         if (hasServiceSource) {
           assert unpacker.unpackString() == "srv_src"

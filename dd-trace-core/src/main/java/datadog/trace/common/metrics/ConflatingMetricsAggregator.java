@@ -102,6 +102,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       unmodifiableSet(
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
+  // Cap on configured additional metric tag keys. By default only 4 primary tag dimensions are supported.
+  // We sometimes increase this limit for users so a value of 10 allows us to protect against extreme misconfiguration
+  // while still allowing some additional tags to be used.
+  static final int MAX_ADDITIONAL_TAG_KEYS = 10;
+
   private final Set<String> ignoredResources;
   private final List<String> additionalTagKeys;
   private final MessagePassingQueue<Batch> batchPool;
@@ -144,7 +149,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      List<String> additionalTagKeys,
+      Set<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -168,7 +173,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      List<String> additionalTagKeys,
+      Set<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -193,7 +198,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
-      List<String> additionalTagKeys,
+      Set<String> additionalTagKeys,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -204,8 +209,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
-    this.additionalTagKeys =
-        additionalTagKeys == null ? Collections.emptyList() : additionalTagKeys;
+    this.additionalTagKeys = normalizeAdditionalTagKeys(additionalTagKeys);
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
@@ -431,6 +435,24 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return Collections.emptyList();
+  }
+
+  static List<String> normalizeAdditionalTagKeys(Set<String> configured) {
+    if (configured == null || configured.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> sorted = new ArrayList<>(configured);
+    Collections.sort(sorted);
+    if (sorted.size() > MAX_ADDITIONAL_TAG_KEYS) {
+      log.warn(
+          "Configured additional metric tag keys ({}) exceeds the supported limit of {}; "
+              + "dropping extra keys: {}",
+          sorted.size(),
+          MAX_ADDITIONAL_TAG_KEYS,
+          sorted.subList(MAX_ADDITIONAL_TAG_KEYS, sorted.size()));
+      sorted = sorted.subList(0, MAX_ADDITIONAL_TAG_KEYS);
+    }
+    return Collections.unmodifiableList(new ArrayList<>(sorted));
   }
 
   private List<UTF8BytesString> getAdditionalTags(CoreSpan<?> span) {
