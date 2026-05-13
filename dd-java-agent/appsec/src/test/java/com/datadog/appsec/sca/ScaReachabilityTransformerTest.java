@@ -2,6 +2,7 @@ package com.datadog.appsec.sca;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -163,6 +164,74 @@ class ScaReachabilityTransformerTest {
               }
               return null;
             });
+  }
+
+  // --- resolveVersionForArtifact (transitive JAR fallback) ---
+
+  @Test
+  void resolveVersionForArtifact_returnsVersionFromClassJarWhenPresent() throws Exception {
+    // When classJarDeps contains the artifact, the version is returned directly without
+    // hitting the classpath scan.
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, null);
+    datadog.telemetry.dependency.Dependency dep =
+        new datadog.telemetry.dependency.Dependency(
+            "com.fasterxml.jackson.core:jackson-databind", "2.8.5", null, null);
+
+    String version =
+        t.resolveVersionForArtifact(
+            "com.fasterxml.jackson.core:jackson-databind",
+            java.util.Collections.singletonList(dep));
+
+    assertEquals("2.8.5", version, "Should return version from classJarDeps directly");
+  }
+
+  @Test
+  void resolveVersionForArtifact_fallsBackToClasspathWhenClassJarLacksArtifact() throws Exception {
+    // When classJarDeps is empty (class loaded from a transitive JAR, e.g. @Controller from
+    // spring-context.jar while the CVE is on spring-boot-starter-web), resolveVersionForArtifact
+    // must fall back to scanning the application classpath. jackson-databind IS a
+    // testImplementation
+    // dependency, so if it's present in the classpath the fallback should find it.
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, null);
+
+    String version =
+        t.resolveVersionForArtifact(
+            "com.fasterxml.jackson.core:jackson-databind", java.util.Collections.emptyList());
+
+    // jackson-databind is a testImplementation dep — it should be found on java.class.path.
+    assertNotNull(version, "Classpath fallback must find jackson-databind on the test classpath");
+    assertFalse(version.isEmpty(), "Found version must be non-empty");
+  }
+
+  @Test
+  void resolveVersionForArtifact_cachesClasspathLookupResult() throws Exception {
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, null);
+
+    // First call — populates classpathArtifactCache
+    String v1 =
+        t.resolveVersionForArtifact(
+            "com.fasterxml.jackson.core:jackson-databind", java.util.Collections.emptyList());
+    // Second call — should return the cached result
+    String v2 =
+        t.resolveVersionForArtifact(
+            "com.fasterxml.jackson.core:jackson-databind", java.util.Collections.emptyList());
+
+    assertEquals(v1, v2, "Classpath fallback result must be cached across calls");
+  }
+
+  @Test
+  void resolveVersionForArtifact_returnsNullForAbsentArtifact() throws Exception {
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, null);
+
+    String version =
+        t.resolveVersionForArtifact(
+            "com.example:nonexistent-artifact-xyz", java.util.Collections.emptyList());
+
+    assertNull(version, "Artifact not on classpath must return null");
   }
 
   // --- performPendingRetransforms ---
