@@ -27,6 +27,13 @@ public final class ScaReachabilityPeriodicAction
 
   @Override
   public void doIteration(TelemetryService telService) {
+    // Trigger pending retransformations (method-level symbols on already-loaded classes, or
+    // classes where JAR version resolution failed at load time and needs a retry).
+    Runnable work = ScaReachabilityCollector.INSTANCE.periodicWorkCallback;
+    if (work != null) {
+      work.run();
+    }
+
     List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
     if (hits.isEmpty()) {
       return;

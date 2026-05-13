@@ -19,6 +19,14 @@ public final class ScaReachabilityCollector {
 
   private final BlockingQueue<ScaReachabilityHit> hits = new LinkedBlockingQueue<>();
 
+  /**
+   * Optional periodic work hook registered by {@code ScaReachabilityTransformer}. Called by {@code
+   * ScaReachabilityPeriodicAction} on each heartbeat to trigger retransformation of classes that
+   * could not be instrumented earlier (method-level symbols on already-loaded classes, or classes
+   * where JAR version resolution failed at load time).
+   */
+  public volatile Runnable periodicWorkCallback;
+
   private ScaReachabilityCollector() {}
 
   /** Called by {@code ScaReachabilityTransformer} when a vulnerable class is detected. */

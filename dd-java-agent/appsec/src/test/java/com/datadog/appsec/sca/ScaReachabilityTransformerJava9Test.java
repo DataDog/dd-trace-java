@@ -47,7 +47,7 @@ class ScaReachabilityTransformerJava9Test {
     // On Java 9+, it would NOT be found by the URLClassLoader chain because the system
     // classloader is not a URLClassLoader. The java.class.path fallback must find it.
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
-    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db);
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
 
     String version =
         transformer.findArtifactVersionInClasspath("com.fasterxml.jackson.core:jackson-databind");
@@ -63,7 +63,7 @@ class ScaReachabilityTransformerJava9Test {
   @EnabledForJreRange(min = JRE.JAVA_9)
   void findArtifactVersionInClasspath_returnsNullForUnknownArtifact() throws Exception {
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
-    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db);
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, null);
 
     String version = transformer.findArtifactVersionInClasspath("com.example:nonexistent-artifact");
 

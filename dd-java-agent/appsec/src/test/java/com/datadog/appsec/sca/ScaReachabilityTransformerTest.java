@@ -31,7 +31,7 @@ class ScaReachabilityTransformerTest {
     // Drain any hits left from previous tests
     ScaReachabilityCollector.INSTANCE.drain();
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
-    transformer = new ScaReachabilityTransformer(db);
+    transformer = new ScaReachabilityTransformer(db, null);
   }
 
   // --- transform() return value ---
