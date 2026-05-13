@@ -7,7 +7,8 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.lang.reflect.Type;
-import java.nio.charset.StandardCharsets;
+// Note: java.nio.* is forbidden during premain (bootstrap_design_guidelines.md).
+// Use the string charset name "UTF-8" instead of StandardCharsets.UTF_8.
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,7 +49,7 @@ public final class ScaCveDatabase {
           RESOURCE_PATH);
       return new ScaCveDatabase(Collections.emptyMap());
     }
-    try (InputStreamReader reader = new InputStreamReader(stream, StandardCharsets.UTF_8)) {
+    try (InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
       return parse(reader);
     } catch (Exception e) {
       log.error(

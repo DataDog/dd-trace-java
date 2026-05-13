@@ -64,6 +64,15 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   /** Cache: JAR URL → resolved dependencies. Only non-empty results are cached to allow retries. */
   private final ConcurrentHashMap<URL, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
+  /**
+   * Cache: artifact name → classpath-resolved version. Used when the class's own JAR does not
+   * contain the vulnerable artifact (e.g., Spring Boot starters whose watched classes live in
+   * transitive dependency JARs). Only non-null results are cached; null means "not yet found" and
+   * will be retried on the next periodic retransform.
+   */
+  private final ConcurrentHashMap<String, String> classpathArtifactCache =
+      new ConcurrentHashMap<>();
+
   /** Deduplication set: "vulnId|artifact|symbol" tuples already reported. */
   private final Set<String> reportedHits = ConcurrentHashMap.newKeySet();
 
@@ -144,47 +153,50 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   private byte[] processClass(
       String className, URL jarUrl, List<ScaEntry> entries, byte[] classfileBuffer) {
-    List<Dependency> deps = resolveDependencies(jarUrl);
+    List<Dependency> classJarDeps = resolveDependencies(jarUrl);
 
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
     boolean hasUnresolvedMethodLevelSymbols = false;
 
     for (ScaEntry entry : entries) {
-      // Check if this entry has method-level symbols for this class before version resolution,
-      // so we can schedule a retry if deps are unavailable now.
       boolean entryHasMethodLevelSymbol =
           entry.symbols().stream()
               .anyMatch(s -> s.className().equals(className) && !s.isClassLevel());
 
-      for (Dependency dep : deps) {
-        if (!entry.artifact().equals(dep.name) || !entry.isVersionVulnerable(dep.version)) {
-          continue;
+      // Resolve version: first check the class's own JAR, then fall back to a full classpath
+      // scan. The fallback handles cases where the vulnerable artifact is an aggregator/starter
+      // POM whose watched classes actually live in a transitive dependency JAR (e.g.,
+      // spring-boot-starter-web watches @Controller, but @Controller is in spring-context.jar).
+      String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
+      if (version == null) {
+        if (entryHasMethodLevelSymbol) {
+          hasUnresolvedMethodLevelSymbols = true;
         }
-        for (ScaSymbol symbol : entry.symbols()) {
-          if (!symbol.className().equals(className)) {
-            continue;
-          }
-          if (symbol.isClassLevel()) {
-            reportHit(entry, dep.version, className, "<clinit>", 1);
-          } else {
-            methodCallbacks
-                .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
-                .add(
-                    new MethodCallbackSpec(
-                        entry.vulnId(),
-                        entry.artifact(),
-                        dep.version,
-                        className.replace('/', '.'),
-                        symbol.method()));
-          }
-        }
+        continue;
       }
 
-      // If deps were empty (version not resolved yet) and this entry has method-level symbols,
-      // flag for retry. The class will be retransformed on the next periodic action heartbeat.
-      if (deps.isEmpty() && entryHasMethodLevelSymbol) {
-        hasUnresolvedMethodLevelSymbols = true;
+      if (!entry.isVersionVulnerable(version)) {
+        continue;
+      }
+
+      for (ScaSymbol symbol : entry.symbols()) {
+        if (!symbol.className().equals(className)) {
+          continue;
+        }
+        if (symbol.isClassLevel()) {
+          reportHit(entry, version, className, "<clinit>", 1);
+        } else {
+          methodCallbacks
+              .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
+              .add(
+                  new MethodCallbackSpec(
+                      entry.vulnId(),
+                      entry.artifact(),
+                      version,
+                      className.replace('/', '.'),
+                      symbol.method()));
+        }
       }
     }
 
@@ -321,18 +333,18 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   /** Path A: class came from a 3rd-party JAR — match artifact + check version. */
   private void processPathA(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
-    List<Dependency> deps = resolveDependencies(jarUrl);
+    List<Dependency> classJarDeps = resolveDependencies(jarUrl);
     for (ScaEntry entry : entries) {
-      for (Dependency dep : deps) {
-        if (entry.artifact().equals(dep.name) && entry.isVersionVulnerable(dep.version)) {
-          // Only class-level symbols are reported at class load time.
-          // Method-level symbols are handled by processClass() via ASM injection.
-          for (ScaSymbol symbol : entry.symbols()) {
-            if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
-              reportHit(entry, dep.version, internalClassName, "<clinit>", 1);
-              break; // one hit per entry is sufficient
-            }
-          }
+      String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
+      if (version == null || !entry.isVersionVulnerable(version)) {
+        continue;
+      }
+      // Only class-level symbols are reported at class load time.
+      // Method-level symbols are handled by processClass() via ASM injection.
+      for (ScaSymbol symbol : entry.symbols()) {
+        if (symbol.className().equals(internalClassName) && symbol.isClassLevel()) {
+          reportHit(entry, version, internalClassName, "<clinit>", 1);
+          break; // one hit per entry is sufficient
         }
       }
     }
@@ -351,6 +363,38 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         }
       }
     }
+  }
+
+  /**
+   * Resolves the version of {@code artifactName} using a two-step strategy:
+   *
+   * <ol>
+   *   <li>Check the dependencies resolved from the class's own JAR ({@code classJarDeps}). This
+   *       covers the common case where the class and its artifact live in the same JAR.
+   *   <li>If not found, fall back to a full classpath scan via {@link
+   *       #findArtifactVersionInClasspath}. This handles aggregator/starter POM artifacts (e.g.,
+   *       {@code spring-boot-starter-web}) whose watched classes live in transitive dependency JARs
+   *       rather than in the starter JAR itself. Results of successful scans are cached.
+   * </ol>
+   *
+   * @return the resolved version string, or {@code null} if the artifact cannot be found
+   */
+  private String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
+    for (Dependency dep : classJarDeps) {
+      if (artifactName.equals(dep.name)) {
+        return dep.version;
+      }
+    }
+    // Classpath fallback: check cache first, then scan.
+    String cached = classpathArtifactCache.get(artifactName);
+    if (cached != null) {
+      return cached;
+    }
+    String version = findArtifactVersionInClasspath(artifactName);
+    if (version != null) {
+      classpathArtifactCache.put(artifactName, version); // only cache hits; misses are retried
+    }
+    return version;
   }
 
   // ---------------------------------------------------------------------------
