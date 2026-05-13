@@ -11,12 +11,27 @@ public final class ScaReachabilityHit {
   private final String artifact;
   private final String version;
   private final String className; // dot-notation FQN, e.g. "com.foo.Bar"
+  private final String symbolName; // "<clinit>" for class-level; method name for method-level
+  private final int line; // 1 as placeholder for class-level; actual first line for method-level
 
+  /** Convenience constructor for class-level hits (symbolName = {@code "<clinit>"}, line = 1). */
   public ScaReachabilityHit(String vulnId, String artifact, String version, String className) {
+    this(vulnId, artifact, version, className, "<clinit>", 1);
+  }
+
+  public ScaReachabilityHit(
+      String vulnId,
+      String artifact,
+      String version,
+      String className,
+      String symbolName,
+      int line) {
     this.vulnId = vulnId;
     this.artifact = artifact;
     this.version = version;
     this.className = className;
+    this.symbolName = symbolName;
+    this.line = line;
   }
 
   /** GHSA identifier, e.g. {@code "GHSA-645p-88qh-w398"}. */
@@ -36,5 +51,18 @@ public final class ScaReachabilityHit {
   /** Fully-qualified class name in dot notation, e.g. {@code "com.foo.Bar"}. */
   public String className() {
     return className;
+  }
+
+  /**
+   * JVM symbol name: {@code "<clinit>"} for class-level hits, or the method name (e.g. {@code
+   * "readValue"}) for method-level hits.
+   */
+  public String symbolName() {
+    return symbolName;
+  }
+
+  /** First source line of the detected symbol. {@code 1} for class-level (placeholder). */
+  public int line() {
+    return line;
   }
 }

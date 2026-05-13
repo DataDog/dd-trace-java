@@ -61,16 +61,21 @@ public final class ScaReachabilityPeriodicAction
    * <pre>{@code {"id":"GHSA-xxx","reached":[{"path":"com.foo.Bar","symbol":"<clinit>","line":1}]}}
    * </pre>
    *
-   * <p>Class-level symbols always use {@code "<clinit>"} as the symbol name (JVM standard name for
-   * the class initializer) and {@code 1} as a placeholder line number, because class-load detection
-   * does not capture a specific call site.
+   * <p>For class-level hits, {@code symbol} is {@code "<clinit>"} and {@code line} is {@code 1}
+   * (placeholder). For method-level hits, {@code symbol} is the actual method name and {@code line}
+   * is the first line of the method definition.
    */
   static String buildMetadataValue(ScaReachabilityHit hit) {
-    // Manual JSON construction — values are safe (GHSA IDs and FQN class names contain no quotes).
+    // Manual JSON construction — values are safe (GHSA IDs, FQN class names, and method names
+    // contain no quotes or characters that require JSON escaping).
     return "{\"id\":\""
         + hit.vulnId()
         + "\",\"reached\":[{\"path\":\""
         + hit.className()
-        + "\",\"symbol\":\"<clinit>\",\"line\":1}]}";
+        + "\",\"symbol\":\""
+        + hit.symbolName()
+        + "\",\"line\":"
+        + hit.line()
+        + "}]}";
   }
 }
