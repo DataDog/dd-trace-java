@@ -3,21 +3,27 @@ package datadog.telemetry.sca;
 import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.dependency.Dependency;
-import datadog.trace.api.telemetry.ScaReachabilityCollector;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.CveSnapshot;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import java.util.ArrayList;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 
 /**
- * Drains the {@link ScaReachabilityCollector} on each telemetry heartbeat and reports reachability
- * hits as {@code app-dependencies-loaded} entries with {@code metadata} of type {@code
- * "reachability"}.
+ * Reports SCA Reachability state on each telemetry heartbeat, implementing the RFC stateful model:
  *
- * <p>Hits are grouped by {@code (artifact, version)} so that multiple CVEs affecting the same
- * library version produce a single dependency entry with multiple metadata values, matching the RFC
- * payload format.
+ * <ol>
+ *   <li>When a CVE is first detected (class load): reports {@code metadata:
+ *       [{"type":"reachability","value":"{\"id\":\"...\",\"reached\":[]}"}]} — signals the backend
+ *       that SCA is monitoring this CVE even before any symbol is called.
+ *   <li>When a vulnerable symbol is called: re-reports the dependency with ALL its CVEs, now
+ *       including the callsite in {@code reached} for the CVE that was hit.
+ *   <li>When nothing changes: reports {@code dependencies:[]} (empty heartbeat).
+ * </ol>
+ *
+ * <p>The key invariant: whenever any CVE's state changes, ALL CVEs for the same dependency are
+ * re-reported together so the backend always has a complete picture.
  *
  * <p>Registered in {@link datadog.telemetry.TelemetrySystem} when {@code DD_APPSEC_SCA_ENABLED} is
  * true.
@@ -29,52 +35,45 @@ public final class ScaReachabilityPeriodicAction
   public void doIteration(TelemetryService telService) {
     // Trigger pending retransformations (method-level symbols on already-loaded classes, or
     // classes where JAR version resolution failed at load time and needs a retry).
-    Runnable work = ScaReachabilityCollector.INSTANCE.getPeriodicWorkCallback();
+    Runnable work = ScaReachabilityDependencyRegistry.INSTANCE.periodicWorkCallback;
     if (work != null) {
       work.run();
     }
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
-    if (hits.isEmpty()) {
+    List<DependencySnapshot> pending =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    if (pending.isEmpty()) {
       return;
     }
 
-    // Group hits by (artifact, version) — multiple CVEs for the same dep go in one entry.
-    Map<String, List<ScaReachabilityHit>> byArtifactVersion = new LinkedHashMap<>();
-    for (ScaReachabilityHit hit : hits) {
-      String key = hit.artifact() + "@" + hit.version();
-      byArtifactVersion.computeIfAbsent(key, k -> new ArrayList<>()).add(hit);
-    }
-
-    for (Map.Entry<String, List<ScaReachabilityHit>> entry : byArtifactVersion.entrySet()) {
-      List<ScaReachabilityHit> group = entry.getValue();
-      ScaReachabilityHit first = group.get(0);
-
-      // Build one stringified JSON metadata value per CVE in this group.
-      List<String> metadataValues = new ArrayList<>(group.size());
-      for (ScaReachabilityHit hit : group) {
-        metadataValues.add(buildMetadataValue(hit));
+    for (DependencySnapshot dep : pending) {
+      // Build one metadata entry per CVE — both those with and without callsite hits.
+      // This ensures the backend always sees ALL CVEs for the dependency, not just new ones.
+      List<String> metadataValues = new ArrayList<>(dep.cves.size());
+      for (CveSnapshot cve : dep.cves) {
+        metadataValues.add(buildMetadataValue(cve));
       }
-
-      Dependency dep =
-          new Dependency(first.artifact(), first.version(), null, null, metadataValues);
-      telService.addDependency(dep);
+      telService.addDependency(
+          new Dependency(dep.artifact, dep.version, null, null, metadataValues));
     }
   }
 
   /**
-   * Builds the stringified JSON value for one reachability hit, per RFC:
+   * Builds the stringified JSON value for one CVE snapshot, per RFC:
    *
-   * <pre>{@code {"id":"GHSA-xxx","reached":[{"path":"com.foo.Bar","symbol":"<clinit>","line":1}]}}
-   * </pre>
-   *
-   * <p>For class-level hits, {@code symbol} is {@code "<clinit>"} and {@code line} is {@code 1}
-   * (placeholder). For method-level hits, {@code symbol} is the actual method name and {@code line}
-   * is the first line of the method definition.
+   * <ul>
+   *   <li>Not yet reached: {@code {"id":"GHSA-xxx","reached":[]}}
+   *   <li>Reached: {@code
+   *       {"id":"GHSA-xxx","reached":[{"path":"com.foo.Bar","symbol":"...","line":N}]}}
+   * </ul>
    */
-  static String buildMetadataValue(ScaReachabilityHit hit) {
-    // Manual JSON construction — values are safe (GHSA IDs, FQN class names, and method names
-    // contain no quotes or characters that require JSON escaping).
+  static String buildMetadataValue(CveSnapshot cve) {
+    ScaReachabilityHit hit = cve.hit;
+    if (hit == null) {
+      // CVE known but no callsite yet — signals "monitoring, not reached"
+      return "{\"id\":\"" + cve.vulnId + "\",\"reached\":[]}";
+    }
+    // CVE has been reached — include the callsite
     return "{\"id\":\""
         + hit.vulnId()
         + "\",\"reached\":[{\"path\":\""

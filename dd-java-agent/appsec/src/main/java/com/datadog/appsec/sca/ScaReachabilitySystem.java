@@ -1,7 +1,6 @@
 package com.datadog.appsec.sca;
 
-import datadog.trace.api.telemetry.ScaReachabilityCollector;
-import datadog.trace.api.telemetry.ScaReachabilityHit;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import datadog.trace.util.stacktrace.AbstractStackWalker;
 import java.lang.instrument.Instrumentation;
@@ -53,19 +52,18 @@ public final class ScaReachabilitySystem {
         (vulnId, artifact, version, dotClassName, methodName, line) -> {
           StackTraceElement callsite = findCallsite(dotClassName);
           if (callsite != null) {
-            ScaReachabilityCollector.INSTANCE.addHit(
-                new ScaReachabilityHit(
-                    vulnId,
-                    artifact,
-                    version,
-                    callsite.getClassName(),
-                    callsite.getMethodName(),
-                    callsite.getLineNumber()));
+            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+                artifact,
+                version,
+                vulnId,
+                callsite.getClassName(),
+                callsite.getMethodName(),
+                callsite.getLineNumber());
           } else {
             // Fallback: no application frame found — report the vulnerable symbol so the
             // backend at least knows the method was reached.
-            ScaReachabilityCollector.INSTANCE.addHit(
-                new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line));
+            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+                artifact, version, vulnId, dotClassName, methodName, line);
           }
         });
 
@@ -83,7 +81,7 @@ public final class ScaReachabilitySystem {
 
     // Register the periodic retransform callback so the telemetry heartbeat can retry
     // method-level instrumentation for classes that could not be processed at load time.
-    ScaReachabilityCollector.INSTANCE.setPeriodicWorkCallback(
+    ScaReachabilityDependencyRegistry.INSTANCE.setPeriodicWorkCallback(
         transformer::performPendingRetransforms);
   }
 
