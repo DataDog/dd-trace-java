@@ -50,13 +50,13 @@ class ManualApiTest extends SpanWriterTest {
     suiteSpan.tags[Tags.TEST_FRAMEWORK] == component
     testSpan.tags[Tags.TEST_FRAMEWORK] == component
     sessionSpan.tags["custom.tag"] == "something"
-    sessionSpan.tags["custom.another_tag"] == "2"
+    sessionSpan.tags["custom.another_tag"] == 2
     sessionSpan.tags["custom.third_tag"] == null
     moduleSpan.tags["custom.tag"] == "something"
-    moduleSpan.tags["custom.another_tag"] == "2"
+    moduleSpan.tags["custom.another_tag"] == 2
     moduleSpan.tags["custom.third_tag"] == null
     suiteSpan.tags["custom.tag"] == "something"
-    suiteSpan.tags["custom.another_tag"] == "2"
+    suiteSpan.tags["custom.another_tag"] == 2
     suiteSpan.tags["custom.third_tag"] == null
   }
 

@@ -63,7 +63,7 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
-  private final Map<String, String> propagatedTags = new ConcurrentHashMap<>();
+  private final Map<String, Object> propagatedTags = new ConcurrentHashMap<>();
   private final Set<String> propagatedTagKeys;
   private final Collection<LibraryCapability> capabilities;
 
@@ -237,7 +237,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     for (String key : propagatedTagKeys) {
       Object value = childSpan.getTag(key);
       if (value != null) {
-        propagatedTags.put(key, String.valueOf(value));
+        propagatedTags.put(key, value);
       }
     }
   }

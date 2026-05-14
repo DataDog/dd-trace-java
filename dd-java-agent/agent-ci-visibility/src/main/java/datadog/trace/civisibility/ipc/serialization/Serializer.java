@@ -16,6 +16,13 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 public class Serializer {
+  private static final byte NULL = 0;
+  private static final byte STRING = 1;
+  private static final byte BOOLEAN = 2;
+  private static final byte INTEGER = 3;
+  private static final byte LONG = 4;
+  private static final byte FLOAT = 5;
+  private static final byte DOUBLE = 6;
 
   private final ByteArrayOutputStream baos = new ByteArrayOutputStream();
 
@@ -43,6 +50,14 @@ public class Serializer {
     baos.write((int) (l >> 16));
     baos.write((int) (l >> 8));
     baos.write((int) l);
+  }
+
+  public void write(float f) {
+    write(Float.floatToIntBits(f));
+  }
+
+  public void write(double d) {
+    write(Double.doubleToLongBits(d));
   }
 
   public void write(String s) {
@@ -81,6 +96,10 @@ public class Serializer {
     write(m, Serializer::write, Serializer::write);
   }
 
+  public void writeObjectMap(Map<String, Object> m) {
+    write(m, Serializer::write, Serializer::writeObject);
+  }
+
   public <K, V> void write(
       Map<K, V> m,
       BiConsumer<Serializer, K> keySerializer,
@@ -101,6 +120,32 @@ public class Serializer {
       write(bitSet.toByteArray());
     } else {
       write((byte[]) null);
+    }
+  }
+
+  private void writeObject(Object value) {
+    if (value == null) {
+      write(NULL);
+    } else if (value instanceof String) {
+      write(STRING);
+      write((String) value);
+    } else if (value instanceof Boolean) {
+      write(BOOLEAN);
+      write((boolean) value);
+    } else if (value instanceof Integer) {
+      write(INTEGER);
+      write((int) value);
+    } else if (value instanceof Long) {
+      write(LONG);
+      write((long) value);
+    } else if (value instanceof Float) {
+      write(FLOAT);
+      write((float) value);
+    } else if (value instanceof Double) {
+      write(DOUBLE);
+      write((double) value);
+    } else {
+      throw new IllegalArgumentException("Unsupported value type: " + value.getClass());
     }
   }
 
@@ -131,6 +176,14 @@ public class Serializer {
 
   public static long readLong(ByteBuffer byteBuffer) {
     return byteBuffer.getLong();
+  }
+
+  public static float readFloat(ByteBuffer byteBuffer) {
+    return Float.intBitsToFloat(readInt(byteBuffer));
+  }
+
+  public static double readDouble(ByteBuffer byteBuffer) {
+    return Double.longBitsToDouble(readLong(byteBuffer));
   }
 
   public static String readString(ByteBuffer byteBuffer) {
@@ -175,6 +228,10 @@ public class Serializer {
     return readMap(byteBuffer, Serializer::readString, Serializer::readString);
   }
 
+  public static Map<String, Object> readObjectMap(ByteBuffer byteBuffer) {
+    return readMap(byteBuffer, Serializer::readString, Serializer::readObject);
+  }
+
   public static <K, V> Map<K, V> readMap(
       ByteBuffer byteBuffer,
       Function<ByteBuffer, K> keyDeserializer,
@@ -210,6 +267,28 @@ public class Serializer {
       m.put(keyDeserializer.apply(byteBuffer), valueDeserializer.apply(byteBuffer));
     }
     return m;
+  }
+
+  private static Object readObject(ByteBuffer byteBuffer) {
+    byte type = readByte(byteBuffer);
+    switch (type) {
+      case NULL:
+        return null;
+      case STRING:
+        return readString(byteBuffer);
+      case BOOLEAN:
+        return readBoolean(byteBuffer);
+      case INTEGER:
+        return readInt(byteBuffer);
+      case LONG:
+        return readLong(byteBuffer);
+      case FLOAT:
+        return readFloat(byteBuffer);
+      case DOUBLE:
+        return readDouble(byteBuffer);
+      default:
+        throw new IllegalArgumentException("Unsupported value type: " + type);
+    }
   }
 
   public static BitSet readBitSet(ByteBuffer byteBuffer) {

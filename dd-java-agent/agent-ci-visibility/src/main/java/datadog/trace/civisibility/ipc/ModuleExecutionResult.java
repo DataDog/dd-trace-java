@@ -25,7 +25,7 @@ public class ModuleExecutionResult extends ModuleSignal {
   private final boolean hasFailedTestReplayTests;
   private final long testsSkippedTotal;
   private final Collection<TestFramework> testFrameworks;
-  private final Map<String, String> propagatedTags;
+  private final Map<String, Object> propagatedTags;
 
   public ModuleExecutionResult(
       DDTraceId sessionId,
@@ -38,7 +38,7 @@ public class ModuleExecutionResult extends ModuleSignal {
       boolean hasFailedTestReplayTests,
       long testsSkippedTotal,
       Collection<TestFramework> testFrameworks,
-      Map<String, String> propagatedTags) {
+      Map<String, Object> propagatedTags) {
     super(sessionId, moduleId);
     this.coverageEnabled = coverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -83,7 +83,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     return testFrameworks;
   }
 
-  public Map<String, String> getPropagatedTags() {
+  public Map<String, Object> getPropagatedTags() {
     return propagatedTags;
   }
 
@@ -172,7 +172,7 @@ public class ModuleExecutionResult extends ModuleSignal {
 
     s.write(testsSkippedTotal);
     s.write(testFrameworks, TestFramework::serialize);
-    s.write(propagatedTags);
+    s.writeObjectMap(propagatedTags);
 
     return s.flush();
   }
@@ -192,7 +192,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     long testsSkippedTotal = Serializer.readLong(buffer);
     Collection<TestFramework> testFrameworks =
         Serializer.readList(buffer, TestFramework::deserialize);
-    Map<String, String> propagatedTags = Serializer.readStringMap(buffer);
+    Map<String, Object> propagatedTags = Serializer.readObjectMap(buffer);
 
     return new ModuleExecutionResult(
         sessionId,

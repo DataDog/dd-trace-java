@@ -65,19 +65,19 @@ public class SpanTagsPropagator {
       for (String key : propagatedTagKeys) {
         Object value = childSpan.getTag(key);
         if (value != null) {
-          parentSpan.setTag(key, String.valueOf(value));
+          parentSpan.setTag(key, value);
         }
       }
     }
   }
 
-  public void propagateCustomTags(Map<String, String> tags) {
+  public void propagateCustomTags(Map<String, Object> tags) {
     if (propagatedTagKeys.isEmpty() || tags == null || tags.isEmpty()) {
       return;
     }
     synchronized (tagPropagationLock) {
       for (String key : propagatedTagKeys) {
-        String value = tags.get(key);
+        Object value = tags.get(key);
         if (value != null) {
           parentSpan.setTag(key, value);
         }

@@ -25,6 +25,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
 
     when:
     module.setTag("custom.propagated_tag", "value")
+    module.setTag("custom.another_tag", 0.5d)
     module.end(null)
     session.end(null)
 
@@ -36,12 +37,14 @@ class HeadlessTestSessionTest extends SpanWriterTest {
           tags(false) {
             "$Tags.TEST_TEST_MANAGEMENT_ENABLED" true
             "custom.propagated_tag" "value"
+            "custom.another_tag" 0.5d
           }
         }
         span(1) {
           spanType DDSpanTypes.TEST_MODULE_END
           tags(false) {
             "custom.propagated_tag" "value"
+            "custom.another_tag" 0.5d
           }
         }
       }
@@ -53,7 +56,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
     executionSettings.getTestManagementSettings() >> new TestManagementSettings(true, 10)
 
     def config = Stub(Config)
-    config.getCiVisibilityPropagatedTagKeys() >> ["custom.propagated_tag"]
+    config.getCiVisibilityPropagatedTagKeys() >> ["custom.propagated_tag", "custom.another_tag"]
 
     def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
