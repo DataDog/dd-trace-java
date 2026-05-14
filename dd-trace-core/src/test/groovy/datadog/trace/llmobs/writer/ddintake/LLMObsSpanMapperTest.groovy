@@ -297,6 +297,126 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanNames.contains("chat-completion-3")
   }
 
+  def "test LLMObsSpanMapper writes top-level session_id when set"() {
+    setup:
+    def mapper = new LLMObsSpanMapper()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def sessionId = "abc-123-session"
+
+    def llmSpan = tracer.buildSpan("datadog", "openai.request")
+      .withResourceName("createCompletion")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "gpt-4")
+      .withTag("_ml_obs_tag.model_provider", "openai")
+      .withTag("_ml_obs_tag.session_id", sessionId)
+      .start()
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan.finish()
+
+    def trace = [llmSpan]
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
+
+    when:
+    packer.format(trace, mapper)
+    packer.flush()
+
+    then:
+    sink.captured != null
+    def payload = mapper.newPayload()
+    payload.withBody(1, sink.captured)
+
+    def channel = new ByteArrayOutputStream()
+    payload.writeTo(new WritableByteChannel() {
+        @Override
+        int write(ByteBuffer src) throws IOException {
+          def bytes = new byte[src.remaining()]
+          src.get(bytes)
+          channel.write(bytes)
+          return bytes.length
+        }
+
+        @Override
+        boolean isOpen() {
+          return true
+        }
+
+        @Override
+        void close() throws IOException { }
+      })
+
+    def result = objectMapper.readValue(channel.toByteArray(), Map)
+    def spanData = result["spans"][0]
+
+    then:
+    // Top-level session_id field is present with the right value — this is what
+    // the LLM Trace Explorer's Sessions filter queries.
+    spanData.containsKey("session_id")
+    spanData["session_id"] == sessionId
+
+    // The session_id:<value> entry is ALSO present in the tags[] array, matching
+    // dd-trace-py and dd-trace-js wire-format behavior.
+    spanData["tags"].contains("session_id:${sessionId}".toString())
+  }
+
+  def "test LLMObsSpanMapper omits top-level session_id when not set"() {
+    setup:
+    def mapper = new LLMObsSpanMapper()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def llmSpan = tracer.buildSpan("datadog", "openai.request")
+      .withResourceName("createCompletion")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "gpt-4")
+      .withTag("_ml_obs_tag.model_provider", "openai")
+      .start()
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan.finish()
+
+    def trace = [llmSpan]
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
+
+    when:
+    packer.format(trace, mapper)
+    packer.flush()
+
+    then:
+    sink.captured != null
+    def payload = mapper.newPayload()
+    payload.withBody(1, sink.captured)
+
+    def channel = new ByteArrayOutputStream()
+    payload.writeTo(new WritableByteChannel() {
+        @Override
+        int write(ByteBuffer src) throws IOException {
+          def bytes = new byte[src.remaining()]
+          src.get(bytes)
+          channel.write(bytes)
+          return bytes.length
+        }
+
+        @Override
+        boolean isOpen() {
+          return true
+        }
+
+        @Override
+        void close() throws IOException { }
+      })
+
+    def result = objectMapper.readValue(channel.toByteArray(), Map)
+    def spanData = result["spans"][0]
+
+    then:
+    // No top-level session_id field when the tag was never set.
+    !spanData.containsKey("session_id")
+
+    // And no session_id entry leaks into tags[] either.
+    spanData["tags"].every { !it.startsWith("session_id:") }
+  }
+
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
 
     ByteBuffer captured
