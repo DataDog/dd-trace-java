@@ -14,8 +14,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -29,8 +29,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     // Add runMuzzle aggregator task at root level (like in dd-trace-java.ci-jobs.gradle.kts)
     writeRootProject(
       """
-      tasks.register('runMuzzle') {
-        dependsOn(':dd-java-agent:instrumentation:demo:muzzle')
+      tasks.register("runMuzzle") {
+        dependsOn(":dd-java-agent:instrumentation:demo:muzzle")
       }
       """
     )
@@ -54,13 +54,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       
       muzzle {
         pass {
-          name = 'expected-pass'
+          name = "expected-pass"
           coreJdk()
         }
       }
@@ -97,8 +97,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       """
     )
@@ -129,8 +129,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       
       muzzle {
@@ -151,8 +151,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       """
     )
@@ -177,8 +177,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       
       muzzle {
@@ -235,14 +235,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       // Gradle repositories for artifact download
       repositories {
         maven {
-          url = uri('${mavenRepoFixture.repoUrl}')
+          url = uri("${mavenRepoFixture.repoUrl}")
           metadataSources {
             mavenPom()
             artifact()
@@ -253,9 +253,9 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
       muzzle {
         pass {
-          group = 'com.example.test'
-          module = 'demo-lib'
-          versions = '[1.0.0,2.0.0)'  // Should resolve 1.0.0, 1.1.0, 1.2.0 but NOT 2.0.0
+          group = "com.example.test"
+          module = "demo-lib"
+          versions = "[1.0.0,2.0.0)"  // Should resolve 1.0.0, 1.1.0, 1.2.0 but NOT 2.0.0
         }
       }
       """
@@ -307,13 +307,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
         pass {
-          name = 'my-custom-check'
+          name = "my-custom-check"
           coreJdk()
         }
       }
@@ -346,15 +346,15 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
         pass {
-          group = 'com.example.nonexistent'
-          module = 'does-not-exist'
-          versions = '[1.0.0,2.0.0)'
+          group = "com.example.nonexistent"
+          module = "does-not-exist"
+          versions = "[1.0.0,2.0.0)"
         }
       }
       """
@@ -382,8 +382,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -421,8 +421,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -471,13 +471,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       repositories {
         maven {
-          url = uri('${mavenRepoFixture.repoUrl}')
+          url = uri("${mavenRepoFixture.repoUrl}")
           metadataSources {
             mavenPom()
             artifact()
@@ -488,7 +488,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       muzzle {
         pass {
           coreJdk()
-          extraDependency('com.example.extra:extra-lib:1.0.0')
+          extraDependency("com.example.extra:extra-lib:1.0.0")
         }
       }
       """
@@ -562,13 +562,13 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       repositories {
         maven {
-          url = uri('${mavenRepoFixture.repoUrl}')
+          url = uri("${mavenRepoFixture.repoUrl}")
           metadataSources {
             mavenPom()
             artifact()
@@ -579,10 +579,10 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
       muzzle {
         pass {
-          group = 'com.example.test'
-          module = 'with-transitive'
-          versions = '1.0.0'
-          excludeDependency('com.google.guava:guava')
+          group = "com.example.test"
+          module = "with-transitive"
+          versions = "1.0.0"
+          excludeDependency("com.google.guava:guava")
         }
       }
       """
@@ -619,11 +619,11 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'dd-trace-java.muzzle'
+        id("dd-trace-java.muzzle")
       }
       
       // applied after muzzle plugin
-      apply plugin: 'java'
+      apply(plugin = "java")
 
       muzzle {
         pass {
@@ -649,14 +649,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle' apply false  // Declared but not applied
+        id("java")
+        id("dd-trace-java.muzzle") apply false  // Declared but not applied
       }
 
       // Apply muzzle plugin after java using imperative syntax
-      apply plugin: 'dd-trace-java.muzzle'
+      apply(plugin = "dd-trace-java.muzzle")
 
-      muzzle {
+      extensions.configure<datadog.gradle.plugin.muzzle.MuzzleExtension>("muzzle") {
         pass {
           coreJdk()
         }
@@ -680,7 +680,7 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'dd-trace-java.muzzle'
+        id("dd-trace-java.muzzle")
         // NO java plugin applied
       }
 
@@ -705,11 +705,11 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
   @Test
   fun `missing dd-java-agent projects error handling`() {
-    // Create a minimal settings.gradle without the dd-java-agent structure
+    // Create a minimal settings.gradle.kts without the dd-java-agent structure
     writeSettings(
       """
-      rootProject.name = 'muzzle-test'
-      include ':instrumentation:demo'
+      rootProject.name = "muzzle-test"
+      include(":instrumentation:demo")
       """
     )
 
@@ -717,8 +717,8 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
       "instrumentation:demo",
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -757,14 +757,14 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       // Gradle repositories for artifact download
       repositories {
         maven {
-          url = uri('${mavenRepoFixture.repoUrl}')
+          url = uri("${mavenRepoFixture.repoUrl}")
           metadataSources {
             mavenPom()
             artifact()
@@ -774,9 +774,9 @@ class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
 
       muzzle {
         pass {
-          group = 'com.example.test'
-          module = 'inverse-lib'
-          versions = '[2.0.0,3.0.0]'
+          group = "com.example.test"
+          module = "inverse-lib"
+          versions = "[2.0.0,3.0.0]"
           assertInverse = true
         }
       }

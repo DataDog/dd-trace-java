@@ -32,27 +32,6 @@ open class GradleFixture {
     }
   }
 
-  // Configure Gradle to use as few resources as possible:
-  //  - Xms64m -Xmx256m: consume minimum amount of RAM.
-  //  - workers.max=1: don't let the daemon fan out into multiple Worker JVMs.
-  //  - parallel=false: serialize task execution within the fixture build.
-  // Re-applied if missing.
-  private fun applyResourceLimits() {
-    val gradleProperties = file("gradle.properties")
-    if (gradleProperties.exists() && gradleProperties.readText().contains("org.gradle.jvmargs=-Xms64m -Xmx256m")) {
-      return
-    }
-
-    writeFile("gradle.properties",
-      """
-      org.gradle.jvmargs=-Xms64m -Xmx256m
-      org.gradle.workers.max=1
-      org.gradle.parallel=false
-      """,
-      append = true,
-    )
-  }
-
   /**
    * Runs Gradle with the specified arguments.
    *
@@ -75,8 +54,6 @@ open class GradleFixture {
     forwardOutput: Boolean = false,
     projectDir: File? = null,
   ): BuildResult {
-    applyResourceLimits()
-
     val runner = GradleRunner.create()
       .withTestKitDir(testKitDir)
       .withPluginClasspath()
@@ -167,15 +144,15 @@ open class GradleFixture {
     }
 
   /**
-   * Adds a subproject to the build by appending an `include` line to settings.gradle
-   * and writing the subproject's build.gradle.
+   * Adds a subproject to the build by appending an `include` line to settings.gradle.kts
+   * and writing the subproject's build.gradle.kts.
    *
    * @param projectPath The project path (e.g., "dd-java-agent:instrumentation:other")
    * @param buildScript The build script content for the subproject
    */
-  fun addSubproject(projectPath: String, @Language("Groovy") buildScript: String) {
-    writeFile("settings.gradle", "include ':$projectPath'", append = true)
-    writeFile("${projectPath.replace(':', '/')}/build.gradle", buildScript)
+  fun addSubproject(projectPath: String, @Language("kotlin") buildScript: String) {
+    writeFile("settings.gradle.kts", """include(":$projectPath")""", append = true)
+    writeFile("${projectPath.replace(':', '/')}/build.gradle.kts", buildScript)
   }
 
   /**
@@ -211,22 +188,22 @@ open class GradleFixture {
     writeFile("gradle.properties", content, append)
 
   /**
-   * Writes the root project's build.gradle file.
+   * Writes the root project's build.gradle.kts file.
    *
    * @param buildScript The build script content for the root project
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeRootProject(@Language("Groovy") buildScript: String, append: Boolean = false): File =
-    writeFile("build.gradle", buildScript, append)
+  fun writeRootProject(@Language("kotlin") buildScript: String, append: Boolean = false): File =
+    writeFile("build.gradle.kts", buildScript, append)
 
   /**
-   * Writes the root project's settings.gradle file.
+   * Writes the root project's settings.gradle.kts file.
    *
    * @param settingsScript The settings script content
    * @param append If true, appends to any existing file instead of overwriting
    */
-  fun writeSettings(@Language("Groovy") settingsScript: String, append: Boolean = false): File =
-    writeFile("settings.gradle", settingsScript, append)
+  fun writeSettings(@Language("kotlin") settingsScript: String, append: Boolean = false): File =
+    writeFile("settings.gradle.kts", settingsScript, append)
 
   /**
    * Parses an XML file into a DOM Document.

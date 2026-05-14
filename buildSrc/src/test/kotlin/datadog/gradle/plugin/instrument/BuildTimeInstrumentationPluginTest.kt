@@ -16,8 +16,8 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
 
   private val buildGradle = """
     plugins {
-      id 'java'
-      id 'dd-trace-java.build-time-instrumentation'
+      id("java")
+      id("dd-trace-java.build-time-instrumentation")
     }
 
     java {
@@ -30,12 +30,10 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8' // just to build TestPlugin
+      compileOnly("net.bytebuddy:byte-buddy:1.18.8") // just to build TestPlugin
     }
 
-    buildTimeInstrumentation.plugins = [
-      'TestPlugin'
-    ]
+    buildTimeInstrumentation.plugins.set(listOf("TestPlugin"))
   """
 
   private val exampleCode = """
@@ -59,8 +57,8 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     writeRootProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.build-time-instrumentation'
+        id("java")
+        id("dd-trace-java.build-time-instrumentation")
       }
 
       java {
@@ -73,12 +71,12 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
+        compileOnly("net.bytebuddy:byte-buddy:1.18.8")
       }
 
       buildTimeInstrumentation {
-        plugins = ['TestPlugin']
-        includeClassDirectories.from(file('external-classes'))
+        plugins.set(listOf("TestPlugin"))
+        includeClassDirectories.from(file("external-classes"))
       }
       """
     )
@@ -100,8 +98,8 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     writeRootProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.build-time-instrumentation'
+        id("java")
+        id("dd-trace-java.build-time-instrumentation")
       }
 
       java {
@@ -114,12 +112,12 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
+        compileOnly("net.bytebuddy:byte-buddy:1.18.8")
       }
 
       buildTimeInstrumentation {
-        plugins = ['TestPlugin']
-        includeClassDirectories.from(file('external-classes'))
+        plugins.set(listOf("TestPlugin"))
+        includeClassDirectories.from(file("external-classes"))
       }
       """
     )

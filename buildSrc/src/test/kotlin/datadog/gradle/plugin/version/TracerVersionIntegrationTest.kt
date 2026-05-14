@@ -138,7 +138,7 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
         exec("git", "commit", "-m", "Initial commit", "--allow-empty")
         exec("git", "worktree", "add", workTreeDir.absolutePath)
         // Write into workTreeDir, not projectDir, so the next commit has changes to pick up.
-        File(workTreeDir, "settings.gradle").appendText("\n// Committed change this file, ")
+        File(workTreeDir, "settings.gradle.kts").appendText("\n// Committed change this file, ")
         exec(workTreeDir, "git", "commit", "-am", "Another commit")
       },
     )
@@ -151,21 +151,21 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
   ) {
     writeSettings(
       """
-      rootProject.name = 'test-project'
+      rootProject.name = "test-project"
       """
     )
 
     writeRootProject(
       """
       plugins {
-        id 'dd-trace-java.tracer-version'
+        id("dd-trace-java.tracer-version")
       }
 
-      tasks.register('printVersion') {
+      tasks.register("printVersion") {
         logger.quiet(project.version.toString())
       }
 
-      group = 'datadog.tracer.version.test'
+      group = "datadog.tracer.version.test"
       """
     )
 

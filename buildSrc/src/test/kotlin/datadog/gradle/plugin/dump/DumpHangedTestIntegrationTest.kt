@@ -38,27 +38,28 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
   }
 
   private fun runGradleTest(testSleepMillis: Long): List<String> {
-    writeSettings("""rootProject.name = 'test-project'""")
+    writeSettings("""rootProject.name = "test-project"""")
 
     writeRootProject(
       """
       import java.time.Duration
+      import org.gradle.api.tasks.testing.Test
 
       plugins {
-        id 'java'
-        id 'dd-trace-java.dump-hanged-test'
+        id("java")
+        id("dd-trace-java.dump-hanged-test")
       }
 
-      group = 'datadog.dump.test'
+      group = "datadog.dump.test"
 
       repositories {
         mavenCentral()
       }
 
       dependencies {
-        testImplementation platform('org.junit:junit-bom:5.10.0')
-        testImplementation 'org.junit.jupiter:junit-jupiter'
-        testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+        testImplementation(platform("org.junit:junit-bom:5.10.0"))
+        testImplementation("org.junit.jupiter:junit-jupiter")
+        testRuntimeOnly("org.junit.platform:junit-platform-launcher")
       }
 
       dumpHangedTest {
@@ -66,7 +67,7 @@ class DumpHangedTestIntegrationTest : GradleFixture() {
         dumpOffset.set(5)
       }
 
-      tasks.withType(Test).configureEach {
+      tasks.withType<Test>().configureEach {
         // Set test timeout after 20 seconds.
         timeout.set(Duration.ofSeconds(20))
 

@@ -12,15 +12,15 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
         pass {
-          group = 'com.example.test'
-          module = 'some-lib'
-          versions = '[1.0.0,2.0.0)'
+          group = "com.example.test"
+          module = "some-lib"
+          versions = "[1.0.0,2.0.0)"
         }
       }
       """
@@ -48,8 +48,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       muzzle {
         pass { coreJdk() }
@@ -60,8 +60,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     addSubproject("dd-java-agent:instrumentation:other",
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
       muzzle {
         pass { coreJdk() }
@@ -99,13 +99,13 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       repositories {
         maven {
-          url = uri('${mavenRepoFixture.repoUrl}')
+          url = uri("${mavenRepoFixture.repoUrl}")
           metadataSources {
             mavenPom()
             artifact()
@@ -115,9 +115,9 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
 
       muzzle {
         pass {
-          group = 'com.example.test'
-          module = 'example-lib'
-          versions = '[1.0.0,2.0.0)'
+          group = "com.example.test"
+          module = "example-lib"
+          versions = "[1.0.0,2.0.0)"
         }
       }
       """
@@ -201,8 +201,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -265,8 +265,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {
@@ -329,8 +329,8 @@ class MuzzlePluginPerformanceTest : MuzzlePluginTestFixture() {
     writeProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.muzzle'
+        id("java")
+        id("dd-trace-java.muzzle")
       }
 
       muzzle {

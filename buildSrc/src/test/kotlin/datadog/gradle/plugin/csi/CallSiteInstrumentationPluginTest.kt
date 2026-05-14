@@ -11,8 +11,8 @@ import java.nio.file.Files
 class CallSiteInstrumentationPluginTest : GradleFixture() {
   private val buildGradle = """
     plugins {
-      id 'java'
-      id 'dd-trace-java.call-site-instrumentation'
+      id("java")
+      id("dd-trace-java.call-site-instrumentation")
     }
 
     java {
@@ -21,9 +21,8 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     }
 
     csi {
-      suffix = 'CallSite'
-      targetFolder = project.layout.buildDirectory.dir('csi')
-      rootFolder = file('__ROOT_FOLDER__')
+      suffix.set("CallSite")
+      targetFolder.set(project.layout.buildDirectory.dir("csi"))
     }
 
     repositories {
@@ -31,8 +30,8 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
     }
 
     dependencies {
-      implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
-      implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.1.1'
+      implementation("net.bytebuddy:byte-buddy:1.18.8")
+      implementation("com.google.auto.service:auto-service-annotations:1.1.1")
     }
   """
 
@@ -98,8 +97,7 @@ class CallSiteInstrumentationPluginTest : GradleFixture() {
       testCallSiteJarDir.toPath().resolve(callSiteJar.name)
     )
 
-    val gradleFileContent = gradleFile.replace("__ROOT_FOLDER__", projectFolder.toString().replace("\\", "\\\\"))
-    writeRootProject(gradleFileContent)
+    writeRootProject(gradleFile)
 
     val advicePackage = parsePackage(advice)
     val adviceClassName = parseClassName(advice)

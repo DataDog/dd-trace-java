@@ -16,27 +16,27 @@ open class MuzzlePluginTestFixture : GradleFixture() {
    * Writes the basic Gradle project structure for muzzle testing.
    * Creates a multi-project build with agent-bootstrap, agent-tooling, and instrumentation modules.
    */
-  fun writeProject(@Language("Groovy") instrumentationBuildScript: String) {
+  fun writeProject(@Language("kotlin") instrumentationBuildScript: String) {
     writeSettings(
       """
-      rootProject.name = 'muzzle-e2e'
+      rootProject.name = "muzzle-e2e"
       """
     )
 
     addSubproject("dd-java-agent:agent-bootstrap",
       """
       plugins {
-        id 'java'
+        id("java")
       }
 
-      tasks.register('compileMain_java11Java')
+      tasks.register("compileMain_java11Java")
       """
     )
 
     addSubproject("dd-java-agent:agent-tooling",
       """
       plugins {
-        id 'java'
+        id("java")
       }
       """
     )

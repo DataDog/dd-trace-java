@@ -25,9 +25,9 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
         writeRootProject(
           """
 
-          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
-            version.set('9.9.9')
-            gitHash.set('deadbeef')
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            version.set("9.9.9")
+            gitHash.set("deadbeef")
           }
           """,
           append = true,
@@ -44,8 +44,8 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
         writeRootProject(
           """
 
-          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
-            gitHash.set('abc12345')
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            gitHash.set("abc12345")
           }
           """,
           append = true,
@@ -67,8 +67,8 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
         writeRootProject(
           """
 
-          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
-            gitHash.set('abc12345')
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            gitHash.set("abc12345")
           }
           """,
           append = true,
@@ -87,8 +87,8 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
         writeRootProject(
           """
 
-          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
-            gitHash.set('abc12345')
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            gitHash.set("abc12345")
           }
           """,
           append = true,
@@ -109,8 +109,8 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
         writeRootProject(
           """
 
-          tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
-            gitHash.set('abc12345')
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            gitHash.set("abc12345")
           }
           """,
           append = true,
@@ -132,16 +132,16 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
   ): BuildResult {
     writeSettings(
       """
-      rootProject.name = 'my-lib'
+      rootProject.name = "my-lib"
       """
     )
     writeRootProject(
       """
       plugins {
-        id 'dd-trace-java.version-file'
+        id("dd-trace-java.version-file")
       }
 
-      version = '1.2.3'
+      version = "1.2.3"
       """
     )
     beforeGradle()

@@ -126,23 +126,23 @@ class ParseV2SupportedConfigurationsTest : GradleFixture() {
   private fun setupGradleProject() {
     writeSettings(
       """
-      rootProject.name = 'test-config-project'
+      rootProject.name = "test-config-project"
       """
     )
 
     writeRootProject(
       """
       plugins {
-        id 'java'
-        id 'dd-trace-java.supported-config-generator'
+        id("java")
+        id("dd-trace-java.supported-config-generator")
       }
 
-      group = 'datadog.config.test'
+      group = "datadog.config.test"
 
       supportedTracerConfigurations {
-        jsonFile.set(file('test-supported-configurations.json'))
-        destinationDirectory.set(file('build/generated/supportedConfigurations'))
-        className.set('datadog.test.TestGeneratedSupportedConfigurations')
+        jsonFile.set(file("test-supported-configurations.json"))
+        destinationDirectory.set(file("build/generated/supportedConfigurations"))
+        className.set("datadog.test.TestGeneratedSupportedConfigurations")
       }
       """
     )
