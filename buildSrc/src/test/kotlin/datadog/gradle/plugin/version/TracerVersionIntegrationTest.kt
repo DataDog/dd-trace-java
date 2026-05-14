@@ -5,167 +5,157 @@ import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-class TracerVersionIntegrationTest {
+class TracerVersionIntegrationTest : VersionPluginsFixture() {
 
   @Test
-  fun `should use default version when not under a git clone`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(expectedVersion = "0.1.0-SNAPSHOT")
+  fun `should use default version when not under a git clone`() {
+    assertTracerVersion(expectedVersion = "0.1.0-SNAPSHOT")
   }
 
   @Test
-  fun `should use default version when no git tags`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should use default version when no git tags`() {
+    assertTracerVersion(
       expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
+        initGitRepo()
       },
     )
   }
 
   @Test
-  fun `should ignore dirtiness when no git tags`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should ignore dirtiness when no git tags`() {
+    assertTracerVersion(
       expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.settings("\n// uncommitted change this file, ")
+        initGitRepo()
+        writeSettings("// uncommitted change this file, ", append = true)
       },
     )
   }
 
   @Test
-  fun `should use default version when unmatching git tags`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should use default version when unmatching git tags`() {
+    assertTracerVersion(
       expectedVersion = "0.1.0-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "something1.40.1", "-m", "Not our tag")
+        initGitRepo()
+        exec("git", "tag", "something1.40.1", "-m", "Not our tag")
       },
     )
   }
 
   @Test
-  fun `should use exact version when on tag`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should use exact version when on tag`() {
+    assertTracerVersion(
       expectedVersion = "1.52.0",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
       },
     )
   }
 
   @Test
-  fun `should increment minor and mark dirtiness`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should increment minor and mark dirtiness`() {
+    assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        fixture.gradleProperties("tracerVersion.dirtiness=true")
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.settings("\n// uncommitted change this file, ")
+        writeGradleProperties("tracerVersion.dirtiness=true")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// uncommitted change this file, ", append = true)
       },
     )
   }
 
   @Test
-  fun `should increment minor with added commits after version tag`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should increment minor with added commits after version tag`() {
+    assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.settings("\n// Committed change this file, ")
-        fixture.exec("git", "commit", "-am", "Another commit")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// Committed change this file, ", append = true)
+        exec("git", "commit", "-am", "Another commit")
       },
     )
   }
 
   @Test
-  fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`() {
+    assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
       beforeGradle = {
-        fixture.gradleProperties("tracerVersion.dirtiness=true")
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.settings("\n// uncommitted change ")
-        fixture.exec("git", "commit", "-am", "Another commit")
-        fixture.settings("\n// An uncommitted modification")
+        writeGradleProperties("tracerVersion.dirtiness=true")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// uncommitted change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        writeSettings("// An uncommitted modification", append = true)
       },
     )
   }
 
   @Test
-  fun `should increment patch on release branch and no patch release tag`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should increment patch on release branch and no patch release tag`() {
+    assertTracerVersion(
       expectedVersion = "1.52.1-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.settings("\n// Committed change ")
-        fixture.exec("git", "commit", "-am", "Another commit")
-        fixture.exec("git", "switch", "-c", "release/v1.52.x")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "switch", "-c", "release/v1.52.x")
       },
     )
   }
 
   @Test
-  fun `should increment patch on release branch and with previous patch release tag`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should increment patch on release branch and with previous patch release tag`() {
+    assertTracerVersion(
       expectedVersion = "1.52.2-SNAPSHOT",
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.exec("git", "switch", "-c", "release/v1.52.x")
-        fixture.settings("\n// Committed change ")
-        fixture.exec("git", "commit", "-am", "Another commit")
-        fixture.exec("git", "tag", "v1.52.1", "-m", "")
-        fixture.settings("\n// Another committed change ")
-        fixture.exec("git", "commit", "-am", "Another commit")
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeSettings("// Committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
+        exec("git", "tag", "v1.52.1", "-m", "")
+        writeSettings("// Another committed change ", append = true)
+        exec("git", "commit", "-am", "Another commit")
       },
     )
   }
 
   @Test
-  fun `should compute version on worktrees`(@TempDir projectDir: File, @TempDir workTreeDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
+  fun `should compute version on worktrees`(@TempDir workTreeDir: File) {
+    assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT",
       workingDirectory = workTreeDir,
       beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.exec("git", "commit", "-m", "Initial commit", "--allow-empty")
-        fixture.exec("git", "worktree", "add", workTreeDir.absolutePath)
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "commit", "-m", "Initial commit", "--allow-empty")
+        exec("git", "worktree", "add", workTreeDir.absolutePath)
+        // Write into workTreeDir, not projectDir, so the next commit has changes to pick up.
         File(workTreeDir, "settings.gradle").appendText("\n// Committed change this file, ")
-        fixture.exec(workTreeDir, "git", "commit", "-am", "Another commit")
+        exec(workTreeDir, "git", "commit", "-am", "Another commit")
       },
     )
   }
 
-  private fun VersionPluginsFixture.assertTracerVersion(
+  private fun assertTracerVersion(
     expectedVersion: String,
     workingDirectory: File? = null,
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ) {
-    settings(
+    writeSettings(
       """
       rootProject.name = 'test-project'
       """
     )
 
-    rootProject(
+    writeRootProject(
       """
       plugins {
         id 'dd-trace-java.tracer-version'
@@ -181,7 +171,7 @@ class TracerVersionIntegrationTest {
 
     beforeGradle()
 
-    val buildResult = run("printVersion", "--quiet", projectDir = workingDirectory ?: projectDir)
+    val buildResult = run("printVersion", "--quiet", projectDir = workingDirectory)
 
     assertThat(buildResult.output.lines().first()).isEqualTo(expectedVersion)
   }

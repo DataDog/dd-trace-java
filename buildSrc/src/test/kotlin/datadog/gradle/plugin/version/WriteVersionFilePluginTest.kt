@@ -4,15 +4,12 @@ import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
 
-class WriteVersionFilePluginTest {
+class WriteVersionFilePluginTest : VersionPluginsFixture() {
 
   @Test
-  fun `writes version file in version~hash format`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `writes version file in version~hash format`() {
+    assertVersionFile(
       expectedContentRegex = "1\\.2\\.3~[0-9a-f]+",
       beforeGradle = {
         initGitRepo()
@@ -21,37 +18,37 @@ class WriteVersionFilePluginTest {
   }
 
   @Test
-  fun `version and gitHash properties can be overridden`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `version and gitHash properties can be overridden`() {
+    assertVersionFile(
       expectedContentRegex = "9.9.9~deadbeef",
       beforeGradle = {
-        rootProject(
+        writeRootProject(
           """
 
           tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
             version.set('9.9.9')
             gitHash.set('deadbeef')
           }
-          """
+          """,
+          append = true,
         )
       },
     )
   }
 
   @Test
-  fun `task overwrites existing version file`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `task overwrites existing version file`() {
+    assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        rootProject(
+        writeRootProject(
           """
 
           tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
             gitHash.set('abc12345')
           }
-          """
+          """,
+          append = true,
         )
         generatedVersionFile.run {
           parentFile.mkdirs()
@@ -62,83 +59,83 @@ class WriteVersionFilePluginTest {
   }
 
   @Test
-  fun `version file generation is wired into main resources`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `version file generation is wired into main resources`() {
+    assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       task = "processResources",
       beforeGradle = {
-        rootProject(
+        writeRootProject(
           """
 
           tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
             gitHash.set('abc12345')
           }
-          """
+          """,
+          append = true,
         )
       },
     )
 
-    assertThat(fixture.builtResourceVersionFile).exists()
+    assertThat(builtResourceVersionFile).exists()
   }
 
   @Test
-  fun `task is up-to-date on second run`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `task is up-to-date on second run`() {
+    assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        rootProject(
+        writeRootProject(
           """
 
           tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
             gitHash.set('abc12345')
           }
-          """
+          """,
+          append = true,
         )
       },
     )
 
-    val result = fixture.run("writeVersionNumberFile")
+    val result = run("writeVersionNumberFile")
 
     assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
   }
 
   @Test
-  fun `clean deletes version file`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertVersionFile(
+  fun `clean deletes version file`() {
+    assertVersionFile(
       expectedContentRegex = "1.2.3~abc12345",
       beforeGradle = {
-        rootProject(
+        writeRootProject(
           """
 
           tasks.named('writeVersionNumberFile', datadog.gradle.plugin.version.WriteVersionFile).configure {
             gitHash.set('abc12345')
           }
-          """
+          """,
+          append = true,
         )
       },
     )
-    val versionFile = fixture.generatedVersionFile
+    val versionFile = generatedVersionFile
 
-    val result = fixture.run("clean")
+    val result = run("clean")
 
     assertThat(result.task(":clean")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     assertThat(versionFile).doesNotExist()
   }
 
-  private fun VersionPluginsFixture.assertVersionFile(
+  private fun assertVersionFile(
     expectedContentRegex: String,
     task: String = ":writeVersionNumberFile",
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ): BuildResult {
-    settings(
+    writeSettings(
       """
       rootProject.name = 'my-lib'
       """
     )
-    rootProject(
+    writeRootProject(
       """
       plugins {
         id 'dd-trace-java.version-file'

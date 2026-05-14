@@ -5,33 +5,30 @@ import org.junit.jupiter.api.Assertions.assertFalse
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertNotNull
-import org.junit.jupiter.api.io.TempDir
-import java.io.File
 
-class DumpHangedTestIntegrationTest {
+class DumpHangedTestIntegrationTest : GradleFixture() {
   @Test
-  fun `should not take dumps`(@TempDir projectDir: File) {
-    val output = runGradleTest(projectDir, testSleepMillis = 1000)
+  fun `should not take dumps`() {
+    val output = runGradleTest(testSleepMillis = 1000)
 
     // Assert Gradle output has no evidence of taking dumps.
     assertFalse(output.contains("Taking dumps after 15 seconds delay for :test"))
     assertFalse(output.contains("Requesting stop of task ':test' as it has exceeded its configured timeout of 20s."))
 
-    assertTrue(File(projectDir, "build").exists()) // Assert build happened.
-    assertFalse(File(projectDir, "build/dumps").exists()) // Assert no dumps created.
+    assertTrue(buildDir.exists()) // Assert build happened.
+    assertFalse(buildFile("dumps").exists()) // Assert no dumps created.
   }
 
   @Test
-  fun `should take dumps`(@TempDir projectDir: File) {
-    val output = runGradleTest(projectDir, testSleepMillis = 25_0000)
+  fun `should take dumps`() {
+    val output = runGradleTest(testSleepMillis = 25_0000)
 
     // Assert Gradle output has evidence of taking dumps.
     assertTrue(output.contains("Taking dumps after 15 seconds delay for :test"))
     assertTrue(output.contains("Requesting stop of task ':test' as it has exceeded its configured timeout of 20s."))
+    assertTrue(buildDir.exists()) // Assert build happened.
 
-    assertTrue(File(projectDir, "build").exists()) // Assert build happened.
-
-    val dumps = File(projectDir, "build/dumps")
+    val dumps = buildFile("dumps")
     assertTrue(dumps.exists()) // Assert dumps created.
 
     // Assert actual dumps created.
@@ -40,16 +37,10 @@ class DumpHangedTestIntegrationTest {
     assertNotNull(dumpFiles.find { it.startsWith("all-thread-dumps") })
   }
 
-  private fun runGradleTest(projectDir: File, testSleepMillis: Long): List<String> {
-    val fixture = GradleFixture(projectDir)
+  private fun runGradleTest(testSleepMillis: Long): List<String> {
+    writeSettings("""rootProject.name = 'test-project'""")
 
-    fixture.settings(
-      """
-      rootProject.name = 'test-project'
-      """
-    )
-
-    fixture.rootProject(
+    writeRootProject(
       """
       import java.time.Duration
 
@@ -84,7 +75,7 @@ class DumpHangedTestIntegrationTest {
       """
     )
 
-    fixture.writeTest(
+    writeJavaSource(
       "SimpleTest",
       """
       import org.junit.jupiter.api.Test;
@@ -95,9 +86,10 @@ class DumpHangedTestIntegrationTest {
               Thread.sleep($testSleepMillis);
           }
       }
-      """
+      """,
+      sourceSet = "test"
     )
 
-    return fixture.run("test", forwardOutput = true).output.lines()
+    return run("test", forwardOutput = true).output.lines()
   }
 }

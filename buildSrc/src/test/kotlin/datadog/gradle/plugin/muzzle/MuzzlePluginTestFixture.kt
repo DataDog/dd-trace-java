@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.GradleFixture
+import datadog.gradle.plugin.MavenRepoFixture
 import org.intellij.lang.annotations.Language
 import java.io.File
 
@@ -8,14 +9,15 @@ import java.io.File
  * Test fixture for muzzle plugin integration tests.
  * Extends GradleFixture with muzzle-specific functionality.
  */
-internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(projectDir) {
+open class MuzzlePluginTestFixture : GradleFixture() {
+  fun createMavenRepoFixture(): MavenRepoFixture = MavenRepoFixture(projectDir)
 
   /**
    * Writes the basic Gradle project structure for muzzle testing.
    * Creates a multi-project build with agent-bootstrap, agent-tooling, and instrumentation modules.
    */
   fun writeProject(@Language("Groovy") instrumentationBuildScript: String) {
-    settings(
+    writeSettings(
       """
       rootProject.name = 'muzzle-e2e'
       """
@@ -56,25 +58,26 @@ internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(project
    * @param assertionBody Java code to execute in the assertion method
    */
   fun writeScanPlugin(@Language("JAVA") assertionBody: String) {
-    file("dd-java-agent/agent-tooling/src/main/java/datadog/trace/agent/tooling/muzzle/MuzzleVersionScanPlugin.java")
-      .writeText(
-        // language=JAVA
-        """
-        package datadog.trace.agent.tooling.muzzle;
+    writeJavaSource(
+      "datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin",
+      // language=JAVA
+      """
+      package datadog.trace.agent.tooling.muzzle;
 
-        public final class MuzzleVersionScanPlugin {
-          private MuzzleVersionScanPlugin() {}
+      public final class MuzzleVersionScanPlugin {
+        private MuzzleVersionScanPlugin() {}
 
-          public static void assertInstrumentationMuzzled(
-              ClassLoader instrumentationClassLoader,
-              ClassLoader testApplicationClassLoader,
-              boolean assertPass,
-              String muzzleDirective) {
-            $assertionBody
-          }
+        public static void assertInstrumentationMuzzled(
+            ClassLoader instrumentationClassLoader,
+            ClassLoader testApplicationClassLoader,
+            boolean assertPass,
+            String muzzleDirective) {
+          $assertionBody
         }
-        """.trimIndent()
-      )
+      }
+      """,
+      projectPath = "dd-java-agent:agent-tooling",
+    )
   }
 
   /**

@@ -6,13 +6,12 @@ import org.gradle.testkit.runner.TaskOutcome
 import org.junit.jupiter.api.Assertions.assertEquals
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import java.io.File
 
-class ParseV2SupportedConfigurationsTest {
+class ParseV2SupportedConfigurationsTest : GradleFixture() {
   @Test
-  fun `should generate Java file from JSON configuration`(@TempDir projectDir: File) {
-    val (buildResult, generatedFile) = runGradleTask(projectDir)
+  fun `should generate Java file from JSON configuration`() {
+    val (buildResult, generatedFile) = runGradleTask()
 
     assertEquals(TaskOutcome.SUCCESS, buildResult.task(":generateSupportedConfigurations")?.outcome)
 
@@ -75,10 +74,8 @@ class ParseV2SupportedConfigurationsTest {
     assertTrue(content.contains("""reversePropertyKeysMapping.put("property.key", "DD_ACTION_EXECUTION_ID")"""))
   }
 
-  private fun runGradleTask(projectDir: File): Pair<BuildResult, File> {
-    val fixture = GradleFixture(projectDir)
-
-    fixture.appendTo(
+  private fun runGradleTask(): Pair<BuildResult, File> {
+    writeFile(
       "test-supported-configurations.json",
       """
       {
@@ -112,28 +109,28 @@ class ParseV2SupportedConfigurationsTest {
           "legacy.setting": "No longer supported"
         }
       }
-      """.trimIndent()
+      """
     )
 
-    setupGradleProject(fixture)
+    setupGradleProject()
 
-    val buildResult = fixture.run(
+    val buildResult = run(
       "generateSupportedConfigurations",
       forwardOutput = true
     )
 
-    val generatedFile = fixture.file("build/generated/supportedConfigurations/datadog/test/TestGeneratedSupportedConfigurations.java", mkdirs = false)
+    val generatedFile = file("build/generated/supportedConfigurations/datadog/test/TestGeneratedSupportedConfigurations.java")
     return Pair(buildResult, generatedFile)
   }
 
-  private fun setupGradleProject(fixture: GradleFixture) {
-    fixture.settings(
+  private fun setupGradleProject() {
+    writeSettings(
       """
       rootProject.name = 'test-config-project'
       """
     )
 
-    fixture.rootProject(
+    writeRootProject(
       """
       plugins {
         id 'java'

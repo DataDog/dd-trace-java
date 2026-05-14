@@ -4,7 +4,6 @@ import datadog.gradle.plugin.GradleFixture
 import net.bytebuddy.utility.OpenedClassReader
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
@@ -13,7 +12,7 @@ import org.objectweb.asm.Opcodes
 import java.io.File
 import java.io.FileInputStream
 
-class BuildTimeInstrumentationPluginTest {
+class BuildTimeInstrumentationPluginTest : GradleFixture() {
 
   private val buildGradle = """
     plugins {
@@ -42,28 +41,22 @@ class BuildTimeInstrumentationPluginTest {
   private val exampleCode = """
     package example;
     public class ExampleCode {}
-  """.trimIndent()
-
-  @TempDir
-  lateinit var buildDir: File
+  """
 
   @Test
   fun `test instrument plugin`() {
-    val fixture = GradleFixture(buildDir)
-    fixture.rootProject(buildGradle)
+    writeRootProject(buildGradle)
+    writeTestPlugin("ExampleCode")
+    writeJavaSource("example.ExampleCode", exampleCode)
 
-    writeTestPlugin(fixture, "ExampleCode")
-    fixture.appendTo("src/main/java/example/ExampleCode.java", exampleCode)
+    run("build", "--stacktrace", forwardOutput = true)
 
-    fixture.run("build", "--stacktrace", forwardOutput = true)
-
-    assertInstrumented(File(buildDir, "build/classes/java/main/example/ExampleCode.class"))
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
   }
 
   @Test
   fun `test instrument plugin processes includeClassDirectories`() {
-    val fixture = GradleFixture(buildDir)
-    fixture.rootProject(
+    writeRootProject(
       """
       plugins {
         id 'java'
@@ -90,22 +83,21 @@ class BuildTimeInstrumentationPluginTest {
       """
     )
 
-    writeTestPlugin(fixture, "ExternalCode")
+    writeTestPlugin("ExternalCode")
 
     // Pre-compile ExternalCode using ASM and place it in the external-classes directory
-    val externalClassesDir = fixture.file("external-classes").apply { mkdirs() }
+    val externalClassesDir = dir("external-classes")
     precompiledClass("ExternalCode", externalClassesDir)
 
-    fixture.run("build", "--stacktrace", forwardOutput = true)
+    run("build", "--stacktrace", forwardOutput = true)
 
     // ExternalCode.class should have been copied from external-classes, instrumented, and placed in the output
-    assertInstrumented(File(buildDir, "build/classes/java/main/ExternalCode.class"))
+    assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
 
   @Test
   fun `test rerun-tasks does not lose includeClassDirectories classes`() {
-    val fixture = GradleFixture(buildDir)
-    fixture.rootProject(
+    writeRootProject(
       """
       plugins {
         id 'java'
@@ -132,27 +124,27 @@ class BuildTimeInstrumentationPluginTest {
       """
     )
 
-    writeTestPlugin(fixture, "ExampleCode", "ExternalCode")
-    fixture.appendTo("src/main/java/example/ExampleCode.java", "package example; public class ExampleCode {}")
+    writeTestPlugin("ExampleCode", "ExternalCode")
+    writeJavaSource("example.ExampleCode", "package example; public class ExampleCode {}")
 
-    val externalClassesDir = fixture.file("external-classes").apply { mkdirs() }
+    val externalClassesDir = dir("external-classes")
     precompiledClass("ExternalCode", externalClassesDir)
 
     // First build
-    fixture.run("build", "--stacktrace", forwardOutput = true)
+    run("build", "--stacktrace", forwardOutput = true)
 
     // Second build with --rerun-tasks: compileJava wipes classesDirectory, so without
     // the fix InstrumentAction would only sync freshly-compiled classes and lose ExternalCode.class
-    fixture.run("build", "--rerun-tasks", "--stacktrace", forwardOutput = true)
+    run("build", "--rerun-tasks", "--stacktrace", forwardOutput = true)
 
-    assertInstrumented(File(buildDir, "build/classes/java/main/example/ExampleCode.class"))
-    assertInstrumented(File(buildDir, "build/classes/java/main/ExternalCode.class"))
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
+    assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
 
-  private fun writeTestPlugin(fixture: GradleFixture, vararg classNames: String) {
+  private fun writeTestPlugin(vararg classNames: String) {
     val conditions = classNames.joinToString(" || ") { "\"$it\".equals(name)" }
-    fixture.appendTo(
-      "src/main/java/TestPlugin.java",
+    writeJavaSource(
+      "TestPlugin",
       """
       import java.io.File;
       import java.io.IOException;
@@ -183,11 +175,11 @@ class BuildTimeInstrumentationPluginTest {
         }
 
         @Override
-        public void close() throws IOException {
-          // no-op
-        }
+      public void close() throws IOException {
+        // no-op
       }
-      """.trimIndent()
+    }
+    """
     )
   }
 

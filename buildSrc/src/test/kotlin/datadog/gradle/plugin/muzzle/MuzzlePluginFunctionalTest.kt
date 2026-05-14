@@ -1,26 +1,17 @@
 package datadog.gradle.plugin.muzzle
 
-import datadog.gradle.plugin.GradleFixture
-import datadog.gradle.plugin.MavenRepoFixture
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
-import java.io.File
 import kotlin.io.path.readText
 
-class MuzzlePluginFunctionalTest {
+class MuzzlePluginFunctionalTest : MuzzlePluginTestFixture() {
   @ParameterizedTest
   @ValueSource(strings = ["muzzle", ":dd-java-agent:instrumentation:demo:muzzle", "runMuzzle"])
-  fun `detects muzzle invocation with various task names`(
-    taskName: String,
-    @TempDir projectDir: File
-  ) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-
-    fixture.writeProject(
+  fun `detects muzzle invocation with various task names`(taskName: String) {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -36,7 +27,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Add runMuzzle aggregator task at root level (like in dd-trace-java.ci-jobs.gradle.kts)
-    fixture.rootProject(
+    writeRootProject(
       """
       tasks.register('runMuzzle') {
         dependsOn(':dd-java-agent:instrumentation:demo:muzzle')
@@ -44,9 +35,9 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
-    val result = fixture.run(taskName, "--stacktrace")
+    val result = run(taskName, "--stacktrace")
 
     assertThat(result.tasks)
       .withFailMessage("Should create muzzle tasks when '$taskName' is requested")
@@ -59,9 +50,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `muzzle with pass directive writes junit report`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `muzzle with pass directive writes junit report`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -76,7 +66,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       if (!assertPass) {
         throw new IllegalStateException("unexpected fail assertion for " + muzzleDirective);
@@ -84,14 +74,14 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val buildResult = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val buildResult = run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
     assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
     assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
       .isEqualTo(SUCCESS)
     assertThat(buildResult.task(":dd-java-agent:instrumentation:demo:muzzle-end")?.outcome).isEqualTo(SUCCESS)
 
-    val reportFile = fixture.findSingleMuzzleJUnitReport()
-    val report = fixture.parseXml(reportFile)
+    val reportFile = findSingleMuzzleJUnitReport()
+    val report = parseXml(reportFile)
     val suite = report.documentElement
     assertThat(suite.tagName).isEqualTo("testsuite")
     assertThat(suite.getAttribute("name")).isEqualTo(":dd-java-agent:instrumentation:demo")
@@ -103,9 +93,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `muzzle without directives writes default junit report`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `muzzle without directives writes default junit report`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -113,7 +102,7 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       if (!assertPass) {
         throw new IllegalStateException("unexpected fail assertion for " + muzzleDirective);
@@ -121,11 +110,11 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
     assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle")?.outcome).isEqualTo(SUCCESS)
 
-    val reportFile = fixture.findSingleMuzzleJUnitReport()
-    val report = fixture.parseXml(reportFile)
+    val reportFile = findSingleMuzzleJUnitReport()
+    val report = parseXml(reportFile)
     val suite = report.documentElement
     assertThat(suite.getAttribute("name")).isEqualTo(":dd-java-agent:instrumentation:demo")
     assertThat(suite.getAttribute("tests")).isEqualTo("1")
@@ -136,9 +125,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `non muzzle invocation does not register muzzle end task`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `non muzzle invocation does not register muzzle end task`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -153,15 +141,14 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val buildResult = fixture.run(":dd-java-agent:instrumentation:demo:tasks", "--all")
+    val buildResult = run(":dd-java-agent:instrumentation:demo:tasks", "--all")
 
     assertThat(buildResult.output).doesNotContain("muzzle-end")
   }
 
   @Test
-  fun `muzzle plugin wires bootstrap and tooling project classpaths`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `muzzle plugin wires bootstrap and tooling project classpaths`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -170,14 +157,14 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val bootstrapDependencies = fixture.run(
+    val bootstrapDependencies = run(
       ":dd-java-agent:instrumentation:demo:dependencies",
       "--configuration",
       "muzzleBootstrap"
     )
     assertThat(bootstrapDependencies.output).contains("project :dd-java-agent:agent-bootstrap")
 
-    val toolingDependencies = fixture.run(
+    val toolingDependencies = run(
       ":dd-java-agent:instrumentation:demo:dependencies",
       "--configuration",
       "muzzleTooling"
@@ -186,9 +173,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `muzzle executes exactly planned core-jdk tasks and writes task results`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `muzzle executes exactly planned core-jdk tasks and writes task results`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -201,13 +187,13 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       // pass
       """
     )
 
-    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
     val muzzleTaskPath = ":dd-java-agent:instrumentation:demo:muzzle"
     val passDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk"
     val failDirectiveTaskPath = ":dd-java-agent:instrumentation:demo:muzzle-AssertFail-core-jdk"
@@ -229,8 +215,8 @@ class MuzzlePluginFunctionalTest {
     assertThat(muzzleChainInOrder)
       .containsExactly(muzzleTaskPath, passDirectiveTaskPath, failDirectiveTaskPath, endTaskPath)
 
-    val passDirectiveResult = fixture.resultFile("muzzle-AssertPass-core-jdk")
-    val failDirectiveResult = fixture.resultFile("muzzle-AssertFail-core-jdk")
+    val passDirectiveResult = resultFile("muzzle-AssertPass-core-jdk")
+    val failDirectiveResult = resultFile("muzzle-AssertFail-core-jdk")
     assertThat(passDirectiveResult).isRegularFile()
     assertThat(failDirectiveResult).isRegularFile()
     assertThat(passDirectiveResult.readText()).isEqualTo("PASSING")
@@ -238,16 +224,15 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `artifact directive resolves multiple versions from version range`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    val mavenRepoFixture = MavenRepoFixture(projectDir)
+  fun `artifact directive resolves multiple versions from version range`() {
+    val mavenRepoFixture = createMavenRepoFixture()
 
     mavenRepoFixture.publishVersions(
       group = "com.example.test",
       module = "demo-lib",
       versions = listOf("1.0.0", "1.1.0", "1.2.0", "2.0.0")
     )
-    fixture.writeProject(
+    writeProject(
       """
       plugins {
         id 'java'
@@ -275,10 +260,10 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
     // Leveraging MAVEN_REPOSITORY_PROXY to point to our fake repo over maven central
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
@@ -301,8 +286,8 @@ class MuzzlePluginFunctionalTest {
       .withFailMessage("Should not check against test-demo-lib:2.0.0")
       .isNull()
 
-    val reportFile = fixture.findSingleMuzzleJUnitReport()
-    val report = fixture.parseXml(reportFile)
+    val reportFile = findSingleMuzzleJUnitReport()
+    val report = parseXml(reportFile)
     val suite = report.documentElement
     val testCount = suite.getAttribute("tests").toInt()
     assertThat(testCount)
@@ -318,9 +303,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `named directive is passed to scan plugin`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `named directive is passed to scan plugin`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -337,7 +321,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // The real MuzzleVersionScanPlugin uses the directive name to filter InstrumenterModules
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       if (!"my-custom-check".equals(muzzleDirective)) {
         throw new IllegalStateException(
@@ -349,7 +333,7 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
+    val result = run(":dd-java-agent:instrumentation:demo:muzzle", "--stacktrace")
 
     assertThat(result.task(":dd-java-agent:instrumentation:demo:muzzle-AssertPass-core-jdk")?.outcome)
       .isEqualTo(SUCCESS)
@@ -358,9 +342,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `non-existent artifact fails with clear error message`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `non-existent artifact fails with clear error message`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -376,9 +359,9 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
       env = mapOf("MAVEN_REPOSITORY_PROXY" to "https://repo1.maven.org/maven2/")
@@ -395,9 +378,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `pass directive that fails validation causes build failure`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `pass directive that fails validation causes build failure`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -413,7 +395,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Real implementation throws RuntimeException when !passed && assertPass (line 70 of MuzzleVersionScanPlugin)
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       if (assertPass) {
         System.err.println("FAILED MUZZLE VALIDATION: mismatches:");
@@ -423,7 +405,7 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace"
     )
@@ -435,9 +417,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `fail directive that passes validation causes build failure`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    fixture.writeProject(
+  fun `fail directive that passes validation causes build failure`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -454,7 +435,7 @@ class MuzzlePluginFunctionalTest {
 
     // Scan plugin simulates successful validation when it should fail
     // Real MuzzleVersionScanPlugin throws RuntimeException when passed && !assertPass
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       if (!assertPass) {
         System.err.println("MUZZLE PASSED BUT FAILURE WAS EXPECTED");
@@ -463,7 +444,7 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace"
     )
@@ -477,9 +458,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `additional dependencies are added to muzzle test classpath`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    val mavenRepoFixture = MavenRepoFixture(projectDir)
+  fun `additional dependencies are added to muzzle test classpath`() {
+    val mavenRepoFixture = createMavenRepoFixture()
 
     // Create a fake Maven repo with a fake additional dependency
     // The JAR will automatically include standard Maven metadata
@@ -488,7 +468,7 @@ class MuzzlePluginFunctionalTest {
       module = "extra-lib",
       versions = listOf("1.0.0")
     )
-    fixture.writeProject(
+    writeProject(
       """
       plugins {
         id 'java'
@@ -515,7 +495,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Scan plugin verifies that the additional dependency JAR is in the classpath
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       java.io.InputStream resource = testApplicationClassLoader.getResourceAsStream("META-INF/maven/com.example.extra/extra-lib/pom.properties");
       if (resource != null) {
@@ -531,7 +511,7 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
@@ -548,9 +528,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `excluded dependencies are removed from muzzle test classpath`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    val mavenRepoFixture = MavenRepoFixture(projectDir)
+  fun `excluded dependencies are removed from muzzle test classpath`() {
+    val mavenRepoFixture = createMavenRepoFixture()
 
     // Create a fake repo with an artifact that has transitive dependencies
     mavenRepoFixture.publishVersions(
@@ -560,6 +539,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Manually create a POM with a transitive dependency
+    // Write into MavenRepoFixture's repoDir, not GradleFixture's projectDir.
     val pomFile = mavenRepoFixture.repoDir.resolve("com/example/test/with-transitive/1.0.0/with-transitive-1.0.0.pom")
     pomFile.writeText(
       """
@@ -579,7 +559,7 @@ class MuzzlePluginFunctionalTest {
       """.trimIndent()
     )
 
-    fixture.writeProject(
+    writeProject(
       """
       plugins {
         id 'java'
@@ -609,7 +589,7 @@ class MuzzlePluginFunctionalTest {
     )
 
     // Scan plugin verifies that guava is NOT in the classpath (it was excluded)
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       try {
         testApplicationClassLoader.loadClass("com.google.common.collect.ImmutableList");
@@ -620,7 +600,7 @@ class MuzzlePluginFunctionalTest {
       """
     )
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
@@ -635,10 +615,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `java plugin applied after muzzle plugin`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-
-    fixture.writeProject(
+  fun `java plugin applied after muzzle plugin`() {
+    writeProject(
       """
       plugins {
         id 'dd-trace-java.muzzle'
@@ -654,9 +632,9 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace"
     )
@@ -667,10 +645,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `java plugin applied before muzzle plugin`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-
-    fixture.writeProject(
+  fun `java plugin applied before muzzle plugin`() {
+    writeProject(
       """
       plugins {
         id 'java'
@@ -687,9 +663,9 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace"
     )
@@ -700,10 +676,8 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `plugin behavior without java plugin should no-op`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-
-    fixture.writeProject(
+  fun `plugin behavior without java plugin should no-op`() {
+    writeProject(
       """
       plugins {
         id 'dd-trace-java.muzzle'
@@ -717,9 +691,9 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeNoopScanPlugin()
+    writeNoopScanPlugin()
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:tasks",
       "--all"
     )
@@ -730,18 +704,16 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `missing dd-java-agent projects error handling`(@TempDir projectDir: File) {
-    val fixture = GradleFixture(projectDir)
-
+  fun `missing dd-java-agent projects error handling`() {
     // Create a minimal settings.gradle without the dd-java-agent structure
-    fixture.settings(
+    writeSettings(
       """
       rootProject.name = 'muzzle-test'
       include ':instrumentation:demo'
       """
     )
 
-    fixture.addSubproject(
+    addSubproject(
       "instrumentation:demo",
       """
       plugins {
@@ -760,7 +732,7 @@ class MuzzlePluginFunctionalTest {
     // No need to create MuzzleVersionScanPlugin - the error happens during configuration
     // phase before any task execution, so the scan plugin is never invoked
 
-    val result = fixture.run(
+    val result = run(
       ":instrumentation:demo:tasks",
       "--stacktrace"
     )
@@ -774,16 +746,15 @@ class MuzzlePluginFunctionalTest {
   }
 
   @Test
-  fun `assertInverse creates pass and fail tasks for in-range and out-of-range versions`(@TempDir projectDir: File) {
-    val fixture = MuzzlePluginTestFixture(projectDir)
-    val mavenRepoFixture = MavenRepoFixture(projectDir)
+  fun `assertInverse creates pass and fail tasks for in-range and out-of-range versions`() {
+    val mavenRepoFixture = createMavenRepoFixture()
 
     mavenRepoFixture.publishVersions(
       group = "com.example.test",
       module = "inverse-lib",
       versions = listOf("1.0.0", "2.0.0", "3.0.0", "4.0.0")
     )
-    fixture.writeProject(
+    writeProject(
       """
       plugins {
         id 'java'
@@ -811,13 +782,13 @@ class MuzzlePluginFunctionalTest {
       }
       """
     )
-    fixture.writeScanPlugin(
+    writeScanPlugin(
       """
       System.out.println("MUZZLE_CHECK assertPass=" + assertPass);
       """
     )
 
-    val result = fixture.run(
+    val result = run(
       ":dd-java-agent:instrumentation:demo:muzzle",
       "--stacktrace",
       env = mapOf("MAVEN_REPOSITORY_PROXY" to mavenRepoFixture.repoUrl)
@@ -851,8 +822,8 @@ class MuzzlePluginFunctionalTest {
       .contains("MUZZLE_CHECK assertPass=false")
 
     // Verify JUnit report contains all 4 test cases with no failures
-    val reportFile = fixture.findSingleMuzzleJUnitReport()
-    val report = fixture.parseXml(reportFile)
+    val reportFile = findSingleMuzzleJUnitReport()
+    val report = parseXml(reportFile)
     val suite = report.documentElement
     assertThat(suite.getAttribute("tests"))
       .withFailMessage("Should have 4 test cases (2 pass + 2 inverse fail)")
