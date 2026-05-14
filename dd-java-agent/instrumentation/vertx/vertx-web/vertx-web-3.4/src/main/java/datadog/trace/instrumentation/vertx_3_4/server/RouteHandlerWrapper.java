@@ -48,6 +48,16 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
+        // Fallback finish path. The response.endHandler we register above can be
+        // silently skipped on Vert.x 3.x in two situations:
+        //   1. sendFile() — only bodyEndHandler is invoked on this path.
+        //   2. Synthetic transports (e.g. an in-memory Netty channel) on 3.9,
+        //      where HttpServerResponseImpl.end gates endHandler behind `!closed`
+        //      and the response is closed synchronously by responseComplete().
+        // RoutingContext.addBodyEndHandler is wired to response.bodyEndHandler,
+        // which HttpServerResponseImpl invokes on every response-end path across
+        // the 3.x range. RoutingContext.addEndHandler does not exist until 4.0.
+        routingContext.addBodyEndHandler(v -> finishHandlerSpan(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
@@ -61,6 +71,20 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         throw t;
       }
     }
+  }
+
+  // Idempotently finish the route-handler span. Both EndHandlerWrapper (the
+  // response.endHandler path) and the routingContext.addBodyEndHandler fallback
+  // may call this; the first one to win clears HANDLER_SPAN_CONTEXT_KEY so the
+  // second is a no-op.
+  static void finishHandlerSpan(final RoutingContext routingContext) {
+    final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
+    if (span == null) {
+      return;
+    }
+    routingContext.put(HANDLER_SPAN_CONTEXT_KEY, null);
+    DECORATE.onResponse(span, routingContext.response());
+    span.finish();
   }
 
   private void setRoute(RoutingContext routingContext) {
