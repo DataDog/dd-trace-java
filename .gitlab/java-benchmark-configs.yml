@@ -66,7 +66,12 @@ linux-java-dacapo-parallel-2:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_benchmark_rules
 
-java-post-pr-comment:
+java-post-pr-comment-startup:
+  variables:
+    # TODO: revert to "main" after apm-sdks-benchmarks PR merges
+    APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/update-java-pr-commenting-jobs"
+
+java-post-pr-comment-load-dacapo:
   variables:
     # TODO: revert to "main" after apm-sdks-benchmarks PR merges
     APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/update-java-pr-commenting-jobs"
