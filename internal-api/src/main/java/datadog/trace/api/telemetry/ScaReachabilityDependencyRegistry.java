@@ -33,10 +33,14 @@ public final class ScaReachabilityDependencyRegistry {
    * Optional periodic work hook for retransformation of pending method-level classes. Registered by
    * {@code ScaReachabilitySystem}, called by {@code ScaReachabilityPeriodicAction}.
    */
-  public volatile Runnable periodicWorkCallback;
+  private volatile Runnable periodicWorkCallback;
 
   public void setPeriodicWorkCallback(Runnable callback) {
     periodicWorkCallback = callback;
+  }
+
+  public Runnable getPeriodicWorkCallback() {
+    return periodicWorkCallback;
   }
 
   /** Clears all state. Used in tests to reset between test cases. */
