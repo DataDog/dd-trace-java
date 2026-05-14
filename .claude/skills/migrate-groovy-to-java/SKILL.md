@@ -12,7 +12,6 @@ Migrate test Groovy files to Java using JUnit 5
 2. Convert Groovy files to Java using JUnit 5
 3. Make sure the tests are still passing after migration and that the test count has not changed
 4. Remove Groovy files
-5. Add the migrated module path(s) to `.github/g2j-migrated-modules.txt`
 
 When converting Groovy code to Java code, make sure that:
 - The Java code generated is compatible with JDK 8
@@ -31,6 +30,8 @@ When converting Groovy code to Java code, make sure that:
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
+- Keep inline comments
+- Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 
 TableTest usage
   Import: `import org.tabletest.junit.TableTest;`

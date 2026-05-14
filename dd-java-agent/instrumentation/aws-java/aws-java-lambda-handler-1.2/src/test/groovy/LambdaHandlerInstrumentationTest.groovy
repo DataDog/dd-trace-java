@@ -98,6 +98,28 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     }
   }
 
+  def "serverless invocation span resource reset after simulated HTTP framework overwrite"() {
+    when:
+    def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
+    def output = new ByteArrayOutputStream()
+    def ctx = Stub(Context) {
+      getAwsRequestId() >> requestId
+    }
+    new HandlerStreamingSimulatesHttpFrameworkResource().handleRequest(input, output, ctx)
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          resourceName operation()
+          spanType DDSpanTypes.SERVERLESS
+          errored false
+        }
+      }
+    }
+  }
+
   def "test streaming handler with error"() {
     when:
     def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())

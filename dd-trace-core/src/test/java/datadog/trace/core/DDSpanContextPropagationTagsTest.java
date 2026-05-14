@@ -57,7 +57,7 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     AgentSpanContext extracted =
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
-    DDSpan span = (DDSpan) tracer.buildSpan("top").asChildOf(extracted).start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags dd = span.context().getPropagationTags();
 
     span.setSamplingPriority(newPriority, newMechanism);
@@ -89,9 +89,10 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     AgentSpanContext extracted =
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
-    DDSpan rootSpan = (DDSpan) tracer.buildSpan("top").asChildOf(extracted).start();
+    DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags ddRoot = rootSpan.context().getPropagationTags();
-    DDSpan span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan.context()).start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.context()).start();
 
     span.setSamplingPriority(newPriority, newMechanism);
 
@@ -114,7 +115,7 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     AgentSpanContext extracted =
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
-    DDSpan span = (DDSpan) tracer.buildSpan("top").asChildOf(extracted).start();
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags dd = span.context().getPropagationTags();
 
     span.context().forceKeep();
@@ -142,9 +143,10 @@ public class DDSpanContextPropagationTagsTest extends DDCoreJavaSpecification {
     AgentSpanContext extracted =
         new ExtractedContext(DDTraceId.from(123), 456, priority, "789", propagationTags, DATADOG)
             .withRequestContextDataAppSec("dummy");
-    DDSpan rootSpan = (DDSpan) tracer.buildSpan("top").asChildOf(extracted).start();
+    DDSpan rootSpan = (DDSpan) tracer.buildSpan("datadog", "top").asChildOf(extracted).start();
     PropagationTags ddRoot = rootSpan.context().getPropagationTags();
-    DDSpan span = (DDSpan) tracer.buildSpan("current").asChildOf(rootSpan.context()).start();
+    DDSpan span =
+        (DDSpan) tracer.buildSpan("datadog", "current").asChildOf(rootSpan.context()).start();
 
     span.context().forceKeep();
 

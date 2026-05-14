@@ -32,7 +32,7 @@ class IterationSpansForkedTest extends DDSpecification {
   def "root iteration scope lifecycle"() {
     when:
     coreTracer.closePrevious(true)
-    def span1 = coreTracer.buildSpan("next1").start()
+    def span1 = coreTracer.buildSpan("datadog", "next1").start()
     def scope1 = coreTracer.activateNext(span1)
 
     then:
@@ -45,7 +45,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     when:
     coreTracer.closePrevious(true)
-    def span2 = coreTracer.buildSpan("next2").start()
+    def span2 = coreTracer.buildSpan("datadog", "next2").start()
     def scope2 = coreTracer.activateNext(span2)
 
     then:
@@ -59,7 +59,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     when:
     coreTracer.closePrevious(true)
-    def span3 = coreTracer.buildSpan("next3").start()
+    def span3 = coreTracer.buildSpan("datadog", "next3").start()
     def scope3 = coreTracer.activateNext(span3)
     writer.waitForTraces(2)
 
@@ -83,12 +83,12 @@ class IterationSpansForkedTest extends DDSpecification {
 
   def "non-root iteration scope lifecycle"() {
     setup:
-    def span0 = coreTracer.buildSpan("parent").start()
+    def span0 = coreTracer.buildSpan("datadog", "parent").start()
     def scope0 = coreTracer.activateSpan(span0)
 
     when:
     coreTracer.closePrevious(true)
-    def span1 = coreTracer.buildSpan("next1").start()
+    def span1 = coreTracer.buildSpan("datadog", "next1").start()
     def scope1 = coreTracer.activateNext(span1)
 
     then:
@@ -101,7 +101,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     when:
     coreTracer.closePrevious(true)
-    def span2 = coreTracer.buildSpan("next2").start()
+    def span2 = coreTracer.buildSpan("datadog", "next2").start()
     def scope2 = coreTracer.activateNext(span2)
 
     then:
@@ -115,7 +115,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     when:
     coreTracer.closePrevious(true)
-    def span3 = coreTracer.buildSpan("next3").start()
+    def span3 = coreTracer.buildSpan("datadog", "next3").start()
     def scope3 = coreTracer.activateNext(span3)
 
     then:
@@ -142,7 +142,7 @@ class IterationSpansForkedTest extends DDSpecification {
   def "nested iteration scope lifecycle"() {
     when:
     coreTracer.closePrevious(true)
-    def span1 = coreTracer.buildSpan("next1").start()
+    def span1 = coreTracer.buildSpan("datadog", "next1").start()
     def scope1 = coreTracer.activateNext(span1)
 
     then:
@@ -154,12 +154,12 @@ class IterationSpansForkedTest extends DDSpecification {
     !spanFinished(span1)
 
     when:
-    def span1A = coreTracer.buildSpan("methodA").start()
+    def span1A = coreTracer.buildSpan("datadog", "methodA").start()
     def scope1A = coreTracer.activateSpan(span1A)
 
     and:
     coreTracer.closePrevious(true)
-    def span1A1 = coreTracer.buildSpan("next1A1").start()
+    def span1A1 = coreTracer.buildSpan("datadog", "next1A1").start()
     def scope1A1 = coreTracer.activateNext(span1A1)
 
     then:
@@ -173,7 +173,7 @@ class IterationSpansForkedTest extends DDSpecification {
 
     when:
     coreTracer.closePrevious(true)
-    def span1A2 = coreTracer.buildSpan("next1A2").start()
+    def span1A2 = coreTracer.buildSpan("datadog", "next1A2").start()
     def scope1A2 = coreTracer.activateNext(span1A2)
 
     then:
