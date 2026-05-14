@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
+import java.util.regex.Pattern;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -53,6 +54,7 @@ import org.slf4j.LoggerFactory;
 public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private static final Logger log = LoggerFactory.getLogger(ScaReachabilityTransformer.class);
+  private static final Pattern PATH_SEPARATOR = Pattern.compile(Pattern.quote(File.pathSeparator));
 
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
@@ -536,7 +538,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     // no longer extends URLClassLoader, so the loop above misses the main classpath. The
     // java.class.path system property always contains the classpath entries in this case.
     String classpath = System.getProperty("java.class.path", "");
-    for (String entry : classpath.split(File.pathSeparator)) {
+    for (String entry : PATH_SEPARATOR.split(classpath)) {
       if (entry.isEmpty()) {
         continue;
       }
