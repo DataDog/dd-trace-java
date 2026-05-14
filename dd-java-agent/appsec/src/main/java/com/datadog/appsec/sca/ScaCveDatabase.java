@@ -1,17 +1,17 @@
 package com.datadog.appsec.sca;
 
+import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
-import com.squareup.moshi.Types;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.lang.reflect.Type;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import javax.annotation.Nullable;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -61,29 +61,21 @@ public final class ScaCveDatabase {
 
   static ScaCveDatabase parse(java.io.Reader reader) throws IOException {
     Moshi moshi = new Moshi.Builder().build();
-    Type rootType = Types.newParameterizedType(Map.class, String.class, Object.class);
-    JsonAdapter<Map<String, Object>> adapter = moshi.adapter(rootType);
+    JsonAdapter<DatabaseJson> adapter = moshi.adapter(DatabaseJson.class);
 
     String content = readAll(reader);
-    Map<String, Object> root = adapter.fromJson(content);
-    if (root == null) {
-      throw new IOException("sca_cves.json is empty");
-    }
-
-    List<?> rawEntries = (List<?>) root.get("entries");
-    if (rawEntries == null) {
+    DatabaseJson root = adapter.fromJson(content);
+    if (root == null || root.entries == null) {
       return new ScaCveDatabase(Collections.emptyMap());
     }
 
     Map<String, List<ScaEntry>> index = new HashMap<>();
     int entryCount = 0;
 
-    for (Object rawEntry : rawEntries) {
-      Map<?, ?> entryMap = (Map<?, ?>) rawEntry;
-      ScaEntry entry = ScaEntry.fromMap(entryMap);
+    for (EntryJson e : root.entries) {
+      ScaEntry entry = toScaEntry(e);
       if (entry == null) continue;
       entryCount++;
-
       for (ScaSymbol symbol : entry.symbols()) {
         index.computeIfAbsent(symbol.className(), k -> new ArrayList<>()).add(entry);
       }
@@ -92,6 +84,21 @@ public final class ScaCveDatabase {
     log.debug(
         "SCA Reachability: loaded {} entries, {} unique class symbols", entryCount, index.size());
     return new ScaCveDatabase(Collections.unmodifiableMap(index));
+  }
+
+  @Nullable
+  private static ScaEntry toScaEntry(EntryJson e) {
+    if (e.vulnId == null || e.artifact == null || e.versionRanges == null || e.symbols == null) {
+      log.debug("SCA Reachability: skipping malformed entry: {}", e);
+      return null;
+    }
+    List<ScaSymbol> symbols = new ArrayList<>(e.symbols.size());
+    for (SymbolJson s : e.symbols) {
+      if (s.className == null) continue;
+      symbols.add(new ScaSymbol(s.className, s.method));
+    }
+    if (symbols.isEmpty()) return null;
+    return new ScaEntry(e.vulnId, e.artifact, e.versionRanges, symbols);
   }
 
   /** Returns the entries associated with the given JVM internal class name, or null if none. */
@@ -115,5 +122,36 @@ public final class ScaCveDatabase {
       sb.append(buf, 0, n);
     }
     return sb.toString();
+  }
+
+  // ---------------------------------------------------------------------------
+  // JSON DTOs — only used during parsing, never exposed outside this class
+  // ---------------------------------------------------------------------------
+
+  static final class DatabaseJson {
+    int version;
+    @Nullable List<EntryJson> entries;
+  }
+
+  static final class EntryJson {
+    @Json(name = "vuln_id")
+    @Nullable
+    String vulnId;
+
+    @Nullable String artifact;
+
+    @Json(name = "version_ranges")
+    @Nullable
+    List<String> versionRanges;
+
+    @Nullable List<SymbolJson> symbols;
+  }
+
+  static final class SymbolJson {
+    @Json(name = "class")
+    @Nullable
+    String className;
+
+    @Nullable String method;
   }
 }
