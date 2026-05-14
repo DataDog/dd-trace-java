@@ -121,7 +121,7 @@ jobs:
           git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml .gitlab-ci.yml
       
       - name: Push changes
-        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-pin-branch.outputs.branch }}"
