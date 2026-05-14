@@ -25,6 +25,12 @@ dependencies {
   api libs.slf4j
   api project(':internal-api')
   api project(':dd-java-agent:agent-bootstrap')
+
+  // JvmOtlpRuntimeMetrics registers JVM runtime instruments against the agent's OTel
+  // MeterProvider. Both deps are compileOnly: the OTel API and OtelMeterProvider are
+  // bundled into the agent shadow jar via otel-bootstrap / otel-shim from dd-java-agent.
+  compileOnly group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1.47.0'
+  compileOnly project(':dd-java-agent:agent-otel:otel-shim')
 }
 
 tasks.named("shadowJar", ShadowJar) {

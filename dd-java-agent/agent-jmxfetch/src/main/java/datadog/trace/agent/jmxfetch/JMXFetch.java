@@ -9,6 +9,7 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.api.statsd.StatsDClientManager;
 import datadog.trace.api.Config;
 import datadog.trace.api.GlobalTracer;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.telemetry.LogCollector;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -45,6 +46,15 @@ public class JMXFetch {
     if (!config.isJmxFetchEnabled()) {
       log.debug("JMXFetch is disabled");
       return;
+    }
+
+    // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
+    // exporter started by CoreTracer collects them. Started here so any JMX bootstrap
+    // side-effects ride the same delayed-start path as JMXFetch itself.
+    if (config.isRuntimeMetricsEnabled()
+        && InstrumenterConfig.get().isMetricsOtelEnabled()
+        && config.isMetricsOtlpExporterEnabled()) {
+      JvmOtlpRuntimeMetrics.start();
     }
 
     if (!log.isDebugEnabled()

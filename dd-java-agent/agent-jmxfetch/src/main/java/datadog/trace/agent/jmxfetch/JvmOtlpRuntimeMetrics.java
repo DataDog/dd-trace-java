@@ -1,6 +1,7 @@
-package datadog.opentelemetry.shim.metrics;
+package datadog.trace.agent.jmxfetch;
 
 import com.sun.management.OperatingSystemMXBean;
+import datadog.opentelemetry.shim.metrics.OtelMeterProvider;
 import io.opentelemetry.api.common.AttributeKey;
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
