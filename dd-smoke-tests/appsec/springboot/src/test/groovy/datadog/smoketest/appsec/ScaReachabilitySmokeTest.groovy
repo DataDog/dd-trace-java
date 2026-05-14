@@ -48,7 +48,9 @@ class ScaReachabilitySmokeTest extends AbstractAppSecServerSmokeTest {
     telemetryFlatMessages.findAll { it.get('request_type') == 'app-dependencies-loaded' }.each {
       def payload = it.get('payload') as Map
       def deps = payload?.get('dependencies') as List
-      if (deps) allDependencies.addAll(deps)
+      if (deps) {
+        allDependencies.addAll(deps)
+      }
     }
 
     // Find the jackson-databind entry that has SCA reachability metadata.
