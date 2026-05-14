@@ -48,10 +48,6 @@ import org.slf4j.LoggerFactory;
  *   <li>Each (vulnId, artifact, symbolName) tuple is reported at most once — RFC requires a single
  *       occurrence. Class-level dedup lives in {@link #reportedHits}; method-level dedup lives in
  *       {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across retransforms).
- *   <li>Path B (JDK classes such as {@code java.sql.PreparedStatement}) is handled only in {@link
- *       #checkAlreadyLoadedClasses}, not in {@link #transform}, because JDK classes are always
- *       loaded at startup. If a JDK class relevant to a CVE were loaded lazily after startup, the
- *       detection would be missed. This is a known, documented trade-off.
  * </ul>
  */
 public final class ScaReachabilityTransformer implements ClassFileTransformer {
@@ -111,8 +107,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         return null;
       }
 
-      // JDK/bootstrap classes (protectionDomain == null) are handled at startup in
-      // checkAlreadyLoadedClasses() via Path B. Skip here to avoid per-bootstrap-class overhead.
+      // JDK/bootstrap classes (protectionDomain == null) are skipped — they are loaded regardless
+      // of which library is present and are not reliable reachability indicators.
       if (protectionDomain == null) {
         return null;
       }
@@ -234,17 +230,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   /**
    * Checks classes already loaded before this transformer was registered.
    *
-   * <p>Path A: 3rd-party classes — version resolved from the class's own JAR via {@link
-   * ProtectionDomain}.
-   *
-   * <p>Path B: JDK/standard-library classes (e.g. {@code java.sql.PreparedStatement}) — {@code
-   * ProtectionDomain} is null, so we scan the system classloader's URL chain for the associated
-   * Maven artifact.
-   *
-   * <p><b>Assumption:</b> JDK-sourced symbols in vulnerability data are loaded at startup, not
-   * lazily during normal application operation. If an application defers JDK class loading past
-   * agent startup (e.g. lazy JDBC initialisation), Path B hits for those classes will be missed.
-   * See APPSEC-62260 for design rationale.
+   * <p>Only processes 3rd-party classes (non-null {@link ProtectionDomain} with a code source). JDK
+   * classes are skipped: they are always loaded regardless of which library is in the classpath and
+   * would produce false positives if used as reachability proxies. See APPSEC-62260.
    */
   public void checkAlreadyLoadedClasses(Instrumentation instrumentation) {
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
@@ -260,16 +248,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       ProtectionDomain pd = clazz.getProtectionDomain();
       URL location = locationOf(pd);
       if (location == null) {
-        // JDK/bootstrap class (no code source): skip. JDK symbols in the database (e.g.
-        // java.sql.PreparedStatement in the PostgreSQL advisory) are loaded by ANY app that
-        // uses JDBC regardless of which driver is present — reporting them via classpath scan
-        // would be a false positive (classpath-presence, not runtime reachability). Library-
-        // specific classes in the same entry (e.g. org.postgresql.ds.PGSimpleDataSource) are
-        // detected reliably via Path A when they are actually loaded.
+        // JDK/bootstrap class (no code source): skip — false positive, see class Javadoc.
         continue;
       }
       try {
-        processPathA(internalName, location, entries); // 3rd-party class
+        processClass(internalName, location, entries);
         // If any entry for this class has method-level symbols, the class needs retransformation
         // so the bytecode callback can be injected. We can't modify bytecode here (we're just
         // scanning) — retransformation is deferred to performPendingRetransforms().
@@ -342,8 +325,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // Internal matching logic
   // ---------------------------------------------------------------------------
 
-  /** Path A: class came from a 3rd-party JAR — match artifact + check version. */
-  private void processPathA(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
+  private void processClass(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
     List<Dependency> classJarDeps = resolveDependencies(jarUrl);
     for (ScaEntry entry : entries) {
       String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
