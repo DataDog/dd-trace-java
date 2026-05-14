@@ -48,13 +48,6 @@ public class JMXFetch {
       return;
     }
 
-    // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
-    // exporter started by CoreTracer collects them. Started here so any JMX bootstrap
-    // side-effects ride the same delayed-start path as JMXFetch itself.
-    if (InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled()) {
-      JvmOtlpRuntimeMetrics.start();
-    }
-
     if (!log.isDebugEnabled()
         && SystemProperties.get("org.slf4j.simpleLogger.log.org.datadog.jmxfetch") == null) {
       // Reduce noisiness of jmxfetch logging.
@@ -101,9 +94,16 @@ public class JMXFetch {
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
     final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
 
+    // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
+    // JVM config to avoid double-reporting.
+    final boolean otlpRuntimeMetricsEnabled =
+        InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
+
     TracerFlare.addReporter(reporter);
     final List<String> defaultConfigs = new ArrayList<>();
-    defaultConfigs.add(DEFAULT_CONFIG);
+    if (!otlpRuntimeMetricsEnabled) {
+      defaultConfigs.add(DEFAULT_CONFIG);
+    }
     if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
       defaultConfigs.add(WEBSPHERE_CONFIG);
     }
@@ -175,6 +175,14 @@ public class JMXFetch {
               }
             });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
+
+    // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
+    // exporter started by CoreTracer collects them. Started here so it rides the same
+    // delayed-start path as JMXFetch itself.
+    if (otlpRuntimeMetricsEnabled) {
+      JvmOtlpRuntimeMetrics.start();
+    }
+
     thread.start();
   }
 
