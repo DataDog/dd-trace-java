@@ -14,7 +14,6 @@ import java.net.URL;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.util.Collection;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterAll;
@@ -102,15 +101,9 @@ class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
       assertEquals("vertx sendFile payload", reader.readLine());
     }
 
-    // If RouteHandlerWrapper's bodyEndHandler fallback isn't registered, the route-handler
-    // span never finishes on the sendFile path and this assertTraces times out.
-    blockUntilTracesMatch(
-        traces ->
-            traces.stream()
-                .flatMap(Collection::stream)
-                .anyMatch(
-                    s ->
-                        "vertx.route-handler".contentEquals(s.getOperationName())
-                            && s.getDurationNano() > 0));
+    // Strict-mode trace writes only publish a trace when every span in it has finished.
+    // Pre-fix: the route-handler span never finishes on the sendFile path, so the trace
+    // is never published and this call throws TimeoutException.
+    writer.waitForTraces(1);
   }
 }
