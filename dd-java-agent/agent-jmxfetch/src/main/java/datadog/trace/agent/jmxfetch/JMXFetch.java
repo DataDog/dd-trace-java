@@ -51,9 +51,7 @@ public class JMXFetch {
     // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
     // exporter started by CoreTracer collects them. Started here so any JMX bootstrap
     // side-effects ride the same delayed-start path as JMXFetch itself.
-    if (config.isRuntimeMetricsEnabled()
-        && InstrumenterConfig.get().isMetricsOtelEnabled()
-        && config.isMetricsOtlpExporterEnabled()) {
+    if (InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled()) {
       JvmOtlpRuntimeMetrics.start();
     }
 
