@@ -6,8 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.telemetry.ScaReachabilityCollector;
-import datadog.trace.api.telemetry.ScaReachabilityHit;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import java.io.File;
 import java.io.StringReader;
 import java.net.URL;
@@ -32,7 +32,7 @@ class ScaReachabilityTransformerTest {
   @BeforeEach
   void setUp() throws Exception {
     // Drain any hits left from previous tests
-    ScaReachabilityCollector.INSTANCE.drain();
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
     transformer = new ScaReachabilityTransformer(db, null);
   }
@@ -70,7 +70,7 @@ class ScaReachabilityTransformerTest {
             null, "com/fasterxml/jackson/databind/ObjectMapper", null, null, new byte[0]);
     assertNull(result);
     assertTrue(
-        ScaReachabilityCollector.INSTANCE.drain().isEmpty(),
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty(),
         "No hit expected for JDK-sourced class in transform()");
   }
 
@@ -80,7 +80,7 @@ class ScaReachabilityTransformerTest {
     byte[] result =
         transformer.transform(null, "com/example/UnrelatedClass", null, pd, new byte[0]);
     assertNull(result);
-    assertTrue(ScaReachabilityCollector.INSTANCE.drain().isEmpty());
+    assertTrue(ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty());
   }
 
   // --- hit detection ---
@@ -97,10 +97,11 @@ class ScaReachabilityTransformerTest {
     transformer.transform(
         null, "com/fasterxml/jackson/databind/ObjectMapper", null, pd, new byte[0]);
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
+    List<DependencySnapshot> pending =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     // Only assert if the version is actually vulnerable (< 2.9.0)
     // We can't assert a specific hit here since the test classpath version may vary
-    assertTrue(hits.size() <= 1, "At most one hit per (vulnId, artifact) pair");
+    assertTrue(pending.size() <= 1, "At most one dependency entry per (vulnId, artifact)");
   }
 
   @Test
@@ -115,9 +116,11 @@ class ScaReachabilityTransformerTest {
     transformer.transform(
         null, "com/fasterxml/jackson/databind/ObjectMapper", null, pd, new byte[0]);
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
+    List<DependencySnapshot> pending =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     assertTrue(
-        hits.size() <= 1, "Deduplication must ensure at most one hit per (vulnId, artifact)");
+        pending.size() <= 1,
+        "Deduplication must ensure at most one dependency entry per (vulnId, artifact)");
   }
 
   // --- checkAlreadyLoadedClasses ---
@@ -132,7 +135,7 @@ class ScaReachabilityTransformerTest {
     transformer.checkAlreadyLoadedClasses(inst);
 
     // No hit — this class is not in our test DB (which only has jackson)
-    assertTrue(ScaReachabilityCollector.INSTANCE.drain().isEmpty());
+    assertTrue(ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies().isEmpty());
   }
 
   @Test
@@ -149,7 +152,7 @@ class ScaReachabilityTransformerTest {
 
     // Must complete without throwing even when individual class processing fails
     transformer.checkAlreadyLoadedClasses(inst);
-    ScaReachabilityCollector.INSTANCE.drain();
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
   }
 
   private static java.lang.instrument.Instrumentation fakeInstrumentationReturning(

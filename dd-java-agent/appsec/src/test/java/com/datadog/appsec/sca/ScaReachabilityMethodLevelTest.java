@@ -6,7 +6,8 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import datadog.trace.api.telemetry.ScaReachabilityCollector;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import java.io.ByteArrayOutputStream;
@@ -46,19 +47,19 @@ class ScaReachabilityMethodLevelTest {
 
   @BeforeEach
   void setUp() throws Exception {
-    ScaReachabilityCollector.INSTANCE.drain();
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     // Register the same handler as ScaReachabilitySystem.start() does in production
     ScaReachabilityCallback.register(
         (vulnId, artifact, version, dotClassName, methodName, line) ->
-            ScaReachabilityCollector.INSTANCE.addHit(
-                new ScaReachabilityHit(vulnId, artifact, version, dotClassName, methodName, line)));
+            ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+                artifact, version, vulnId, dotClassName, methodName, line));
     db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     transformer = new ScaReachabilityTransformer(db, null);
   }
 
   @AfterEach
   void tearDown() {
-    ScaReachabilityCollector.INSTANCE.drain();
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     ScaReachabilityCallback.register(null);
   }
 
@@ -88,7 +89,7 @@ class ScaReachabilityMethodLevelTest {
     Object instance = cls.getDeclaredConstructor().newInstance();
     cls.getMethod("vulnerableMethod").invoke(instance);
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
+    List<ScaReachabilityHit> hits = drainHits();
     assertEquals(1, hits.size());
     ScaReachabilityHit hit = hits.get(0);
     assertEquals("GHSA-method-0001", hit.vulnId());
@@ -120,8 +121,7 @@ class ScaReachabilityMethodLevelTest {
     cls.getMethod("safeMethod").invoke(instance); // call only the safe method
 
     assertTrue(
-        ScaReachabilityCollector.INSTANCE.drain().isEmpty(),
-        "No hit expected when only non-instrumented methods are called");
+        drainHits().isEmpty(), "No hit expected when only non-instrumented methods are called");
   }
 
   @Test
@@ -141,7 +141,7 @@ class ScaReachabilityMethodLevelTest {
 
     assertEquals(
         1,
-        ScaReachabilityCollector.INSTANCE.drain().size(),
+        drainHits().size(),
         "Hit must be reported only once regardless of how many times the method is called");
   }
 
@@ -164,7 +164,7 @@ class ScaReachabilityMethodLevelTest {
     cls.getMethod("vulnerableMethod").invoke(instance);
     cls.getMethod("safeMethod").invoke(instance);
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
+    List<ScaReachabilityHit> hits = drainHits();
     assertEquals(2, hits.size(), "Each instrumented method produces its own hit");
     assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("vulnerableMethod")));
     assertTrue(hits.stream().anyMatch(h -> h.symbolName().equals("safeMethod")));
@@ -175,10 +175,12 @@ class ScaReachabilityMethodLevelTest {
       throws Exception {
     // Regression test for dedup key bug: if two classes in the same artifact share a method
     // name (e.g. ClassA.parse and ClassB.parse), both must be reported independently.
-    // Before the fix, the key was "vulnId|artifact|methodName" — the second class was silenced.
-    // After the fix, the key is "vulnId|artifact|dotClassName|methodName".
+    // With the stateful RFC model, one hit per CVE is reported (first occurrence wins).
+    // The dedup key in ScaReachabilityCallback uses dotClassName to allow both classes to reach
+    // the registry handler, but the registry itself enforces "single occurrence per CVE".
+    // This verifies that ClassB's hit does NOT cause a NullPointerException or error — it is
+    // simply ignored since ClassA already provided the first callsite for GHSA-shared.
 
-    // Instrument TargetClass.vulnerableMethod with two different dotClassNames
     Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacksClassA =
         new HashMap<>();
     callbacksClassA.put(
@@ -203,7 +205,6 @@ class ScaReachabilityMethodLevelTest {
                 "com.example.ClassB",
                 "vulnerableMethod")));
 
-    // Load two independently modified versions of TargetClass (simulating ClassA and ClassB)
     byte[] original = bytecodeOf(TargetClass.class);
     Class<?> clsA = loadModified(transformer.injectMethodCallbacks(original, callbacksClassA));
     Class<?> clsB = loadModified(transformer.injectMethodCallbacks(original, callbacksClassB));
@@ -211,11 +212,10 @@ class ScaReachabilityMethodLevelTest {
     clsA.getMethod("vulnerableMethod").invoke(clsA.getDeclaredConstructor().newInstance());
     clsB.getMethod("vulnerableMethod").invoke(clsB.getDeclaredConstructor().newInstance());
 
-    List<ScaReachabilityHit> hits = ScaReachabilityCollector.INSTANCE.drain();
-    assertEquals(
-        2,
-        hits.size(),
-        "Same method name in different classes of the same artifact must produce 2 independent hits");
+    List<ScaReachabilityHit> hits = drainHits();
+    // RFC: "reporting a single occurrence is sufficient" — only the first callsite per CVE is kept.
+    assertEquals(1, hits.size(), "Only the first hit per CVE is retained (RFC: single occurrence)");
+    assertEquals("GHSA-shared", hits.get(0).vulnId());
   }
 
   // ---------------------------------------------------------------------------
@@ -249,6 +249,23 @@ class ScaReachabilityMethodLevelTest {
   // ---------------------------------------------------------------------------
   // Helpers
   // ---------------------------------------------------------------------------
+
+  /**
+   * Extracts ScaReachabilityHit objects from pending dependencies in the registry. Only returns
+   * CVEs that have an actual hit (callsite recorded), not empty-reached CVEs.
+   */
+  private static List<ScaReachabilityHit> drainHits() {
+    List<ScaReachabilityHit> result = new java.util.ArrayList<>();
+    for (DependencySnapshot dep :
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
+      for (ScaReachabilityDependencyRegistry.CveSnapshot cve : dep.cves) {
+        if (cve.hit != null) {
+          result.add(cve.hit);
+        }
+      }
+    }
+    return result;
+  }
 
   private static Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> singleCallback(
       String methodName) {

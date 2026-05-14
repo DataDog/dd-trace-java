@@ -2,7 +2,7 @@ package com.datadog.appsec.sca;
 
 import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
-import datadog.trace.api.telemetry.ScaReachabilityCollector;
+import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import java.io.File;
@@ -181,12 +181,18 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
 
-      // Report class-level hit immediately; collect method-level symbols for ASM injection.
+      // Report class-level hit immediately; register method-level CVEs and collect for ASM
+      // injection.
       reportClassLevelHitIfPresent(entry, version, className);
       for (ScaSymbol symbol : entry.symbols()) {
         if (!symbol.className().equals(className) || symbol.isClassLevel()) {
           continue;
         }
+        // Register the CVE now (at class load time) with reached=[] so the next heartbeat
+        // signals the backend that SCA is monitoring this CVE. The callsite will be added
+        // later when the method is actually called (via ScaReachabilityCallback).
+        ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+            entry.artifact(), version, entry.vulnId());
         methodCallbacks
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
             .add(
@@ -578,11 +584,10 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private void reportHit(
       ScaEntry entry, String version, String internalClassName, String symbolName, int line) {
-    // Dedup key includes symbol name so class-level and method-level hits for the same
-    // vulnerability are tracked independently.
+    // Dedup key prevents registering the same (vulnId, artifact, symbol) twice.
     String dedupKey = entry.vulnId() + "|" + entry.artifact() + "|" + symbolName;
     if (!reportedHits.add(dedupKey)) {
-      return; // already reported this (vulnId, artifact, symbol) tuple
+      return;
     }
     String dotClassName = internalClassName.replace('/', '.');
     log.debug(
@@ -592,9 +597,10 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         version,
         dotClassName,
         symbolName);
-    ScaReachabilityCollector.INSTANCE.addHit(
-        new ScaReachabilityHit(
-            entry.vulnId(), entry.artifact(), version, dotClassName, symbolName, line));
+    // Register with callsite in the stateful registry. For class-level, dotClassName and
+    // symbolName ("<clinit>") are used as the callsite — there is no separate "caller" frame.
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        entry.artifact(), version, entry.vulnId(), dotClassName, symbolName, line);
   }
 
   private List<Dependency> resolveDependencies(URL url) {
