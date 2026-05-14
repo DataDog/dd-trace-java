@@ -1,0 +1,10 @@
+issuer: https://token.actions.githubusercontent.com
+
+subject_pattern: "repo:DataDog/dd-trace-java:ref:refs/(heads|tags)/.*"
+
+claim_pattern:
+  event_name: (release|workflow_dispatch)
+  job_workflow_ref: DataDog/dd-trace-java/\.github/workflows/update-issues-on-release\.yaml@refs/(heads/.*|tags/.*)
+
+permissions:
+  issues: write

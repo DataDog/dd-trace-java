@@ -233,6 +233,11 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
     LONG_RUNNING_STATE.set(this, state);
   }
 
+  // @VisibleForTesting
+  int getPendingReferenceCount() {
+    return pendingReferenceCount;
+  }
+
   boolean empty() {
     return 0 >= COMPLETED_SPAN_COUNT.get(this) + PENDING_REFERENCE_COUNT.get(this);
   }
