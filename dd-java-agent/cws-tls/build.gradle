@@ -3,11 +3,10 @@ import org.apache.maven.model.License
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish a separate jar, but having a version file is useful for checking if cws is included
-apply from: "$rootDir/gradle/version.gradle"
 
 excludedClassesCoverage += ['datadog.cws.erpc.*', 'datadog.cws.tls.*',]
 

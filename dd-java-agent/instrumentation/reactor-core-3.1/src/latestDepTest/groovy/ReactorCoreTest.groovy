@@ -417,7 +417,7 @@ class ReactorCoreTest extends InstrumentationSpecification {
     where:
     spanType      | buildSpan                                                                                                                      | finishSpan
     "datadog"     | {
-      TEST_TRACER.buildSpan("contextual").start()
+      TEST_TRACER.buildSpan("reactor-core", "contextual").start()
     }                                                                                | {
       AgentSpan span -> span.finish()
     }

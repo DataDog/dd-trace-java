@@ -5,10 +5,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
   id 'com.gradleup.shadow'
   id 'org.jetbrains.kotlin.jvm'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
