@@ -18,26 +18,93 @@ open class GradleFixture {
   @TempDir
   protected lateinit var projectDir: File
 
-  // Each fixture gets its own testkit dir in the system temp directory (NOT under
-  // projectDir) so that JUnit's @TempDir cleanup doesn't race with daemon file locks.
-  // See https://github.com/gradle/gradle/issues/12535
-  // A fresh daemon is started per test — ensuring withEnvironment() vars (e.g.
-  // MAVEN_REPOSITORY_PROXY) are correctly set on the daemon JVM and not inherited
-  // from a previously-started daemon with a different test's environment.
-  // A JVM shutdown hook removes the directory after all tests have run (and daemons
-  // have been stopped), so file locks are guaranteed to be released by then.
-  private val testKitDir: File by lazy {
-    Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
-      Runtime.getRuntime().addShutdownHook(Thread { dir.deleteRecursively() })
+  private val testKitDir: File get() = sharedTestKitDir
+
+  companion object {
+    // JVM-wide testkit dir shared across all GradleFixture instances. One daemon
+    // pool serves every test method, so kotlinc work on .gradle.kts scripts is
+    // amortized instead of re-paid per test (recovers the +77 % wall-time
+    // regression introduced by the Groovy→Kotlin DSL conversion).
+    //
+    // Lives outside any @TempDir so JUnit cleanup never races with daemon file
+    // locks. See https://github.com/gradle/gradle/issues/12535
+    //
+    // TestKit may reuse the same daemon for builds with different withEnvironment()
+    // values, so build logic must not cache environment-derived state in daemon-
+    // static fields.
+    private val sharedTestKitDir: File by lazy {
+      Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
+        Runtime.getRuntime().addShutdownHook(Thread {
+          stopDaemonsIn(dir)
+          dir.deleteRecursively()
+        })
+      }
+    }
+
+    /**
+     * Kills Gradle daemons started by TestKit under the given testkit dir.
+     *
+     * The Gradle Tooling API (used by [GradleRunner]) always spawns a daemon and
+     * provides no public API to stop it (https://github.com/gradle/gradle/issues/12535).
+     * We replicate the strategy Gradle uses in its own integration tests
+     * ([DaemonLogsAnalyzer.killAll()][1]):
+     *
+     * 1. Scan `<testkit>/daemon/<version>/` for log files matching
+     *    `DaemonLogConstants.DAEMON_LOG_PREFIX + pid + DaemonLogConstants.DAEMON_LOG_SUFFIX`,
+     *    i.e. `daemon-<pid>.out.log`.
+     * 2. Extract the PID from the filename and kill the process.
+     *
+     * Trade-offs of the PID-from-filename approach:
+     * - **PID recycling**: between the build finishing and `kill` being sent, the OS
+     *   could theoretically recycle the PID.  Now that this only runs at JVM exit
+     *   (no longer per-test), the window is short — when called from the shutdown
+     *   hook all daemons we own are still alive — so the risk remains negligible.
+     * - **Filename convention is internal**: Gradle's `DaemonLogConstants.DAEMON_LOG_PREFIX`
+     *   (`"daemon-"`) / `DAEMON_LOG_SUFFIX` (`".out.log"`) are not public API; a future
+     *   Gradle version could change them.  The `toLongOrNull()` guard safely skips entries
+     *   that don't parse as a PID (including the UUID fallback Gradle uses when the PID
+     *   is unavailable).
+     * - **Java 8 compatible**: uses `kill`/`taskkill` via [ProcessBuilder] instead of
+     *   `ProcessHandle` (Java 9+) because build logic targets JVM 1.8.
+     *
+     * [1]: https://github.com/gradle/gradle/blob/43b381d88/testing/internal-distribution-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
+     */
+    private fun stopDaemonsIn(testKitDir: File) {
+      val daemonDir = File(testKitDir, "daemon")
+      if (!daemonDir.exists()) return
+
+      daemonDir.walkTopDown()
+        .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
+        .forEach { logFile ->
+          val pid = logFile.nameWithoutExtension  // daemon-12345.out
+            .removeSuffix(".out")                 // daemon-12345
+            .removePrefix("daemon-")              // 12345
+            .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
+
+          val isWindows = System.getProperty("os.name").lowercase().contains("win")
+          val killProcess = if (isWindows) {
+            ProcessBuilder("taskkill", "/F", "/PID", pid.toString())
+          } else {
+            ProcessBuilder("kill", pid.toString())
+          }
+          try {
+            val process = killProcess.redirectErrorStream(true).start()
+            process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
+          } catch (_: Exception) {
+            // best effort — daemon may already be stopped
+          }
+        }
     }
   }
 
   /**
    * Runs Gradle with the specified arguments.
    *
-   * After the build completes, any Gradle daemons started by TestKit are killed
-   * so their file locks on the testkit cache are released before JUnit `@TempDir`
-   * cleanup.  See https://github.com/gradle/gradle/issues/12535
+   * The TestKit daemon spawned by the first call is reused for every subsequent
+   * call in the JVM (shared [testKitDir]) so kotlinc compilation of
+   * `.gradle.kts` scripts amortizes across tests instead of being re-paid per
+   * test. Daemons are reaped at JVM shutdown by the hook registered when
+   * [sharedTestKitDir] is created.
    *
    * @param args Gradle task names and arguments
    * @param expectFailure Whether the build is expected to fail
@@ -68,63 +135,7 @@ open class GradleFixture {
       if (expectFailure) runner.buildAndFail() else runner.build()
     } catch (e: UnexpectedBuildResultException) {
       e.buildResult
-    } finally {
-      stopDaemons()
     }
-  }
-
-  /**
-   * Kills Gradle daemons started by TestKit for this fixture's testkit dir.
-   *
-   * The Gradle Tooling API (used by [GradleRunner]) always spawns a daemon and
-   * provides no public API to stop it (https://github.com/gradle/gradle/issues/12535).
-   * We replicate the strategy Gradle uses in its own integration tests
-   * ([DaemonLogsAnalyzer.killAll()][1]):
-   *
-   * 1. Scan `<testkit>/daemon/<version>/` for log files matching
-   *    `DaemonLogConstants.DAEMON_LOG_PREFIX + pid + DaemonLogConstants.DAEMON_LOG_SUFFIX`,
-   *    i.e. `daemon-<pid>.out.log`.
-   * 2. Extract the PID from the filename and kill the process.
-   *
-   * Trade-offs of the PID-from-filename approach:
-   * - **PID recycling**: between the build finishing and `kill` being sent, the OS
-   *   could theoretically recycle the PID.  In practice the window is short
-   *   (the `finally` block runs immediately after the build) so the risk is negligible.
-   * - **Filename convention is internal**: Gradle's `DaemonLogConstants.DAEMON_LOG_PREFIX`
-   *   (`"daemon-"`) / `DAEMON_LOG_SUFFIX` (`".out.log"`) are not public API; a future
-   *   Gradle version could change them.  The `toLongOrNull()` guard safely skips entries
-   *   that don't parse as a PID (including the UUID fallback Gradle uses when the PID
-   *   is unavailable).
-   * - **Java 8 compatible**: uses `kill`/`taskkill` via [ProcessBuilder] instead of
-   *   `ProcessHandle` (Java 9+) because build logic targets JVM 1.8.
-   *
-   * [1]: https://github.com/gradle/gradle/blob/43b381d88/testing/internal-distribution-testing/src/main/groovy/org/gradle/integtests/fixtures/daemon/DaemonLogsAnalyzer.groovy
-   */
-  private fun stopDaemons() {
-    val daemonDir = File(testKitDir, "daemon")
-    if (!daemonDir.exists()) return
-
-    daemonDir.walkTopDown()
-      .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
-      .forEach { logFile ->
-        val pid = logFile.nameWithoutExtension  // daemon-12345.out
-          .removeSuffix(".out")                 // daemon-12345
-          .removePrefix("daemon-")              // 12345
-          .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
-
-        val isWindows = System.getProperty("os.name").lowercase().contains("win")
-        val killProcess = if (isWindows) {
-          ProcessBuilder("taskkill", "/F", "/PID", pid.toString())
-        } else {
-          ProcessBuilder("kill", pid.toString())
-        }
-        try {
-          val process = killProcess.redirectErrorStream(true).start()
-          process.waitFor(5, java.util.concurrent.TimeUnit.SECONDS)
-        } catch (_: Exception) {
-          // best effort — daemon may already be stopped
-        }
-      }
   }
 
   /**
