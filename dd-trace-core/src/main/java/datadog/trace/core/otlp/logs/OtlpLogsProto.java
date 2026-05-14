@@ -4,7 +4,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI32;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI64;
@@ -21,17 +20,18 @@ import static java.nio.charset.StandardCharsets.UTF_8;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otlp.logs.OtlpLogRecord;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 
 /** Provides optimized writers for OpenTelemetry's "logs.proto" wire protocol. */
 public final class OtlpLogsProto {
   private OtlpLogsProto() {}
 
-  /**
-   * Records the first part of a scoped logs message where we know its nested log messages will
-   * follow in one or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordScopedLogsMessage(
-      GrowableBuffer buf, OtelInstrumentationScope scope, int remainingBytes) {
+  /** Records a scoped logs message after its nested log messages have been recorded. */
+  public static int recordScopedLogsMessage(
+      GrowableBuffer buf,
+      OtelInstrumentationScope scope,
+      int nestedLogBytes,
+      OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
@@ -40,11 +40,12 @@ public final class OtlpLogsProto {
       writeString(buf, scope.getSchemaUrl().getUtf8Bytes());
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedLogBytes);
   }
 
-  /** Completes recording of a log record message and packs it into its own byte-array. */
-  public static byte[] recordLogRecordMessage(GrowableBuffer buf, OtlpLogRecord logRecord) {
+  /** Records a log message. */
+  public static int recordLogRecordMessage(
+      GrowableBuffer buf, OtlpLogRecord logRecord, OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, I64_WIRE_TYPE);
     writeI64(buf, logRecord.timestampNanos);
@@ -88,6 +89,6 @@ public final class OtlpLogsProto {
       writeStringCached(buf, logRecord.eventName);
     }
 
-    return recordMessage(buf, 2);
+    return protobuf.recordMessage(buf, 2);
   }
 }

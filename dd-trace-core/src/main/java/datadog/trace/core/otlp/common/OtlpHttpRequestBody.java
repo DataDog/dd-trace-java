@@ -35,10 +35,10 @@ public final class OtlpHttpRequestBody extends RequestBody {
   public void writeTo(@Nonnull BufferedSink sink) throws IOException {
     if (gzip) {
       try (BufferedSink gzipSink = Okio.buffer(new GzipSink(sink))) {
-        payload.drain(gzipSink::write);
+        gzipSink.write(payload.getContent());
       }
     } else {
-      payload.drain(sink::write);
+      sink.write(payload.getContent());
     }
   }
 }

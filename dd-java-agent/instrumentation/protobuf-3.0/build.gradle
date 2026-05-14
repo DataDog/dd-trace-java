@@ -1,7 +1,7 @@
 import datadog.gradle.plugin.HostPlatform
 
 plugins {
-  id 'com.google.protobuf' version '0.9.4'
+  id 'com.google.protobuf' version '0.10.0'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -49,12 +49,4 @@ if (HostPlatform.isLinuxArm64()) {
 dependencies {
   compileOnly group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
   testImplementation group: 'com.google.protobuf', name: 'protobuf-java', version: '3.0.0'
-}
-
-sourceSets {
-  test {
-    java {
-      srcDir "$buildDir/generated/source/proto/test/java"
-    }
-  }
 }
