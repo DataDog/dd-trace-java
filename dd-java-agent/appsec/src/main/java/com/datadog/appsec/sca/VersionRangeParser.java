@@ -2,6 +2,7 @@ package com.datadog.appsec.sca;
 
 import datadog.trace.util.ComparableVersion;
 import java.util.List;
+import java.util.regex.Pattern;
 
 /**
  * Checks whether a version string matches GHSA version range expressions.
@@ -24,6 +25,8 @@ import java.util.List;
  * handles qualifiers such as {@code .RELEASE}, {@code .GA}, {@code .FINAL}, and 4-part versions.
  */
 public final class VersionRangeParser {
+
+  private static final Pattern COMMA = Pattern.compile(",");
 
   private VersionRangeParser() {}
 
@@ -52,7 +55,7 @@ public final class VersionRangeParser {
    * single string (comma-separated) are evaluated as AND.
    */
   static boolean matchesRange(ComparableVersion version, String versionRange) {
-    String[] conditions = versionRange.split(",");
+    String[] conditions = COMMA.split(versionRange);
     for (String condition : conditions) {
       if (!matchesCondition(version, condition.trim())) {
         return false;
