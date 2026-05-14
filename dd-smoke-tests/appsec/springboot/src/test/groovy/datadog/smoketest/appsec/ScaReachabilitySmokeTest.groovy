@@ -51,19 +51,22 @@ class ScaReachabilitySmokeTest extends AbstractAppSecServerSmokeTest {
       if (deps) allDependencies.addAll(deps)
     }
 
-    // Find the jackson-databind entry
+    // Find the jackson-databind entry that has SCA reachability metadata.
+    // The same dependency may appear multiple times: once from the regular dependency
+    // detector (no metadata) and once from the SCA periodic action (with metadata).
+    // We must search for the entry that actually carries reachability metadata.
     def jacksonDep = allDependencies.find { dep ->
-      (dep as Map).get('name') == 'com.fasterxml.jackson.core:jackson-databind'
+      def d = dep as Map
+      d.get('name') == 'com.fasterxml.jackson.core:jackson-databind' &&
+        (d.get('metadata') as List)?.any { (it as Map).get('type') == 'reachability' }
     } as Map
 
-    assert jacksonDep != null : "jackson-databind must appear in app-dependencies-loaded"
+    assert jacksonDep != null :
+    "jackson-databind must appear with SCA reachability metadata in app-dependencies-loaded"
     assert jacksonDep.get('version') == '2.6.0' : "must be the vulnerable version 2.6.0"
 
-    // The metadata array must be present (SCA is enabled)
-    def metadata = jacksonDep.get('metadata') as List
-    assert metadata != null : "metadata field must be present when DD_APPSEC_SCA_ENABLED=true"
-
     // Find the reachability metadata entry
+    def metadata = jacksonDep.get('metadata') as List
     def reachabilityEntry = metadata.find { entry ->
       (entry as Map).get('type') == 'reachability'
     } as Map
@@ -77,13 +80,13 @@ class ScaReachabilitySmokeTest extends AbstractAppSecServerSmokeTest {
     def reachabilityPayload = new JsonSlurper().parseText(valueJson) as Map
     assert reachabilityPayload.get('id') != null : "CVE id must be present"
     assert reachabilityPayload.get('id').toString().startsWith('GHSA-') :
-      "id must be a GHSA identifier, got: ${reachabilityPayload.get('id')}"
+    "id must be a GHSA identifier, got: ${reachabilityPayload.get('id')}"
     assert reachabilityPayload.get('reached') instanceof List : "reached must be a list"
 
     // ObjectMapper is always loaded by Spring Boot — reached must be non-empty
     def reached = reachabilityPayload.get('reached') as List
     assert !reached.isEmpty() :
-      "ObjectMapper is loaded at Spring Boot startup — reached must contain at least one callsite"
+    "ObjectMapper is loaded at Spring Boot startup — reached must contain at least one callsite"
 
     def callsite = reached[0] as Map
     assert callsite.get('path') != null : "callsite path must be present"

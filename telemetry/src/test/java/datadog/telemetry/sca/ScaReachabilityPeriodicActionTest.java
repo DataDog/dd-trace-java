@@ -144,6 +144,86 @@ class ScaReachabilityPeriodicActionTest {
     verify(telService2, never()).addDependency(org.mockito.Mockito.any());
   }
 
+  /**
+   * Validates the full RFC heartbeat flow (Heartbeats #2–#6 from the spec):
+   *
+   * <ol>
+   *   <li>Heartbeat after CVE registration: both CVEs reported with reached:[]
+   *   <li>Heartbeat with no changes: nothing reported
+   *   <li>Heartbeat after first CVE hit: both CVEs reported (one with callsite, one empty)
+   *   <li>Heartbeat with no changes: nothing reported
+   *   <li>Heartbeat after second CVE hit: both CVEs reported with their respective callsites
+   * </ol>
+   */
+  @Test
+  void rfcFullHeartbeatFlow_twoCveSameDepBothHitSequentially() {
+    // Phase 1 — CVE registration (Heartbeat #2)
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+        "com.example:lib", "1.0.0", "GHSA-cve-1");
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+        "com.example:lib", "1.0.0", "GHSA-cve-2");
+
+    action.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor1 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor1.capture());
+    Dependency hb2 = captor1.getValue();
+    assertEquals(2, hb2.reachabilityMetadata.size());
+    assertTrue(
+        hb2.reachabilityMetadata.stream().allMatch(v -> v.contains("\"reached\":[]")),
+        "Heartbeat #2: both CVEs must have reached:[]");
+
+    // Phase 2 — No changes (Heartbeat #3)
+    TelemetryService telService3 = mock(TelemetryService.class);
+    action.doIteration(telService3);
+    verify(telService3, never()).addDependency(org.mockito.Mockito.any());
+
+    // Phase 3 — First CVE hit (Heartbeat #4)
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-cve-1", "com.myapp.Controller", "handleRequest", 10);
+
+    TelemetryService telService4 = mock(TelemetryService.class);
+    action.doIteration(telService4);
+
+    ArgumentCaptor<Dependency> captor4 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService4, times(1)).addDependency(captor4.capture());
+    Dependency hb4 = captor4.getValue();
+    assertEquals(2, hb4.reachabilityMetadata.size());
+    assertTrue(
+        hb4.reachabilityMetadata.stream()
+            .anyMatch(v -> v.contains("GHSA-cve-1") && v.contains("\"path\"")),
+        "Heartbeat #4: cve-1 must have callsite");
+    assertTrue(
+        hb4.reachabilityMetadata.stream()
+            .anyMatch(v -> v.contains("GHSA-cve-2") && v.contains("\"reached\":[]")),
+        "Heartbeat #4: cve-2 must still have reached:[]");
+
+    // Phase 4 — No changes (Heartbeat #5)
+    TelemetryService telService5 = mock(TelemetryService.class);
+    action.doIteration(telService5);
+    verify(telService5, never()).addDependency(org.mockito.Mockito.any());
+
+    // Phase 5 — Second CVE hit (Heartbeat #6)
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-cve-2", "com.myapp.Service", "processData", 44);
+
+    TelemetryService telService6 = mock(TelemetryService.class);
+    action.doIteration(telService6);
+
+    ArgumentCaptor<Dependency> captor6 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService6, times(1)).addDependency(captor6.capture());
+    Dependency hb6 = captor6.getValue();
+    assertEquals(2, hb6.reachabilityMetadata.size());
+    assertTrue(
+        hb6.reachabilityMetadata.stream()
+            .anyMatch(v -> v.contains("GHSA-cve-1") && v.contains("\"path\"")),
+        "Heartbeat #6: cve-1 must retain callsite");
+    assertTrue(
+        hb6.reachabilityMetadata.stream()
+            .anyMatch(v -> v.contains("GHSA-cve-2") && v.contains("\"path\"")),
+        "Heartbeat #6: cve-2 must now have callsite");
+  }
+
   @Test
   void buildMetadataValue_emptyReachedWhenNoHit() {
     ScaReachabilityDependencyRegistry.CveSnapshot cve =

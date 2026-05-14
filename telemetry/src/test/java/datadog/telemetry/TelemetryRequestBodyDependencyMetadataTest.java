@@ -68,13 +68,15 @@ class TelemetryRequestBodyDependencyMetadataTest {
   }
 
   @Test
-  void writeDependency_omitsMetadataFieldWhenEmptyList() throws IOException {
+  void writeDependency_includesEmptyMetadataArrayWhenListIsEmpty() throws IOException {
+    // RFC: metadata:[] (non-null, empty) means "SCA is active for this dep but no CVEs detected".
+    // Must be written so the backend knows SCA is monitoring the dependency.
     Dependency dep =
         new Dependency("com.example:lib", "1.0.0", null, null, Collections.emptyList());
 
     String json = serializeDependency(dep);
 
-    assertFalse(json.contains("\"metadata\""), "metadata field must be absent when list is empty");
+    assertTrue(json.contains("\"metadata\":[]"), "metadata:[] must be present when list is empty");
   }
 
   private static String serializeDependency(Dependency dep) throws IOException {
