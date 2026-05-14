@@ -411,6 +411,40 @@ class DDLLMObsSpanTest  extends DDSpecification{
     null          | "has_session_id:0"
   }
 
+  def "child LLMObs span inherits session_id from parent context when none is passed"() {
+    setup:
+    def expectedSessionId = "session-abc-123"
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
+
+    when:
+    // Child created with null sessionId — should inherit from the parent's LLMObsContext.
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    expectedSessionId == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
+  def "child LLMObs span has no session_id when neither parent nor child passes one"() {
+    setup:
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerChild = (AgentSpan) child.span
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
+  }
+
   def "global dd_tags are included in LLMObs span tags"() {
     setup:
     injectSysConfig("trace.global.tags", "team:backend,owner:ml-platform")

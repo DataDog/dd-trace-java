@@ -67,6 +67,16 @@ public class DDLLMObsSpan implements LLMObsSpan {
       spanName = kind;
     }
 
+    // If no explicit session_id was passed, inherit it from the active LLMObs parent.
+    // This matches dd-trace-py and dd-trace-js, and the public SDK docs which state that
+    // session_id only needs to be set on the root span — descendants inherit it.
+    if (sessionId == null || sessionId.isEmpty()) {
+      String inherited = LLMObsContext.currentSessionId();
+      if (inherited != null && !inherited.isEmpty()) {
+        sessionId = inherited;
+      }
+    }
+
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
@@ -109,7 +119,8 @@ public class DDLLMObsSpan implements LLMObsSpan {
       }
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
-    scope = LLMObsContext.attach(span.context());
+    // Propagate the effective sessionId to descendant LLMObs spans via the context.
+    scope = LLMObsContext.attach(span.context(), this.hasSessionId ? sessionId : null);
   }
 
   @Override
