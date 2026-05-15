@@ -353,7 +353,7 @@ class ResponseServiceTest extends OpenAiTest {
     }
     def errorClient = OpenAIOkHttpClient.builder()
     .baseUrl("${errorBackend.address.toURL()}/v1")
-    .credential(BearerTokenCredential.create(""))
+    .credential(BearerTokenCredential.create(MOCK_OPENAI_TOKEN))
     .maxRetries(0)
     .build()
 
