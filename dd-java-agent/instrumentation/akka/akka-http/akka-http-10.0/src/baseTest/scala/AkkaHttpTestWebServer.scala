@@ -354,8 +354,8 @@ object AkkaHttpTestWebServer {
                 resp.withEntity(uri.queryString().orNull)
               case REDIRECT =>
                 resp.withHeaders(headers.Location(endpoint.getBody))
-              case ERROR     => resp.withEntity(endpoint.getBody)
-              case EXCEPTION => throw new Exception(endpoint.getBody)
+              case ERROR      => resp.withEntity(endpoint.getBody)
+              case EXCEPTION  => throw new Exception(endpoint.getBody)
               case USER_BLOCK => {
                 Blocking.forUser("user-to-block").blockIfMatch()
                 // should never be output:

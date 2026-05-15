@@ -65,7 +65,9 @@ abstract class InstrumentationConfigCheckTask : DefaultTask() {
   }
 
   protected abstract fun collectPropertyViolations(
-    configFields: LoadedConfigFields, relativePath: String, cu: CompilationUnit
+    configFields: LoadedConfigFields,
+    relativePath: String,
+    cu: CompilationUnit
   ): List<String>
 
   /** Collects violations for [key] against [supported] and [aliases], checking that all [expectedAliases] are values of that alias entry. */
@@ -96,7 +98,9 @@ abstract class InstrumentationConfigCheckTask : DefaultTask() {
 /** Checks that InstrumenterModule integration names have proper entries in SUPPORTED and ALIASES. */
 abstract class CheckInstrumenterModuleConfigTask : InstrumentationConfigCheckTask() {
   override fun collectPropertyViolations(
-    configFields: LoadedConfigFields, relativePath: String, cu: CompilationUnit
+    configFields: LoadedConfigFields,
+    relativePath: String,
+    cu: CompilationUnit
   ): List<String> {
     val violations = mutableListOf<String>()
 
@@ -118,11 +122,16 @@ abstract class CheckInstrumenterModuleConfigTask : InstrumentationConfigCheckTas
             val context = "Integration '$name' (super arg)"
             val location = "$relativePath:$line"
 
-            violations.addAll(collectMissingKeysAndAliases(
-              enabledKey,
-              listOf("DD_TRACE_INTEGRATION_${normalized}_ENABLED", "DD_INTEGRATION_${normalized}_ENABLED"),
-              configFields.supported, configFields.aliases, location, context
-            ))
+            violations.addAll(
+              collectMissingKeysAndAliases(
+                enabledKey,
+                listOf("DD_TRACE_INTEGRATION_${normalized}_ENABLED", "DD_INTEGRATION_${normalized}_ENABLED"),
+                configFields.supported,
+                configFields.aliases,
+                location,
+                context
+              )
+            )
           }
         }
     }
@@ -134,7 +143,9 @@ abstract class CheckInstrumenterModuleConfigTask : InstrumentationConfigCheckTas
 /** Checks that Decorator instrumentationNames have proper analytics entries in SUPPORTED and ALIASES. */
 abstract class CheckDecoratorAnalyticsConfigTask : InstrumentationConfigCheckTask() {
   override fun collectPropertyViolations(
-    configFields: LoadedConfigFields, relativePath: String, cu: CompilationUnit
+    configFields: LoadedConfigFields,
+    relativePath: String,
+    cu: CompilationUnit
   ): List<String> {
     val violations = mutableListOf<String>()
 
@@ -152,16 +163,26 @@ abstract class CheckDecoratorAnalyticsConfigTask : InstrumentationConfigCheckTas
           val context = "Decorator instrumentationName '$name'"
           val location = "$relativePath:$line"
 
-          violations.addAll(collectMissingKeysAndAliases(
-            "DD_TRACE_${normalized}_ANALYTICS_ENABLED",
-            listOf("DD_${normalized}_ANALYTICS_ENABLED"),
-            configFields.supported, configFields.aliases, location, context
-          ))
-          violations.addAll(collectMissingKeysAndAliases(
-            "DD_TRACE_${normalized}_ANALYTICS_SAMPLE_RATE",
-            listOf("DD_${normalized}_ANALYTICS_SAMPLE_RATE"),
-            configFields.supported, configFields.aliases, location, context
-          ))
+          violations.addAll(
+            collectMissingKeysAndAliases(
+              "DD_TRACE_${normalized}_ANALYTICS_ENABLED",
+              listOf("DD_${normalized}_ANALYTICS_ENABLED"),
+              configFields.supported,
+              configFields.aliases,
+              location,
+              context
+            )
+          )
+          violations.addAll(
+            collectMissingKeysAndAliases(
+              "DD_TRACE_${normalized}_ANALYTICS_SAMPLE_RATE",
+              listOf("DD_${normalized}_ANALYTICS_SAMPLE_RATE"),
+              configFields.supported,
+              configFields.aliases,
+              location,
+              context
+            )
+          )
         }
       }
 

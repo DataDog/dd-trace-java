@@ -72,7 +72,8 @@ class BuildTimeInstrumentationPluginTest {
   @Test
   fun `test instrument plugin processes includeClassDirectories`() {
     val buildFile = File(buildDir, "build.gradle")
-    buildFile.writeText("""
+    buildFile.writeText(
+      """
       plugins {
         id 'java'
         id 'dd-trace-java.build-time-instrumentation'
@@ -95,7 +96,8 @@ class BuildTimeInstrumentationPluginTest {
         plugins = ['TestPlugin']
         includeClassDirectories.from(file('external-classes'))
       }
-    """.trimIndent())
+      """.trimIndent()
+    )
 
     testPlugin("src/main/java", "ExternalCode")
 
@@ -119,7 +121,8 @@ class BuildTimeInstrumentationPluginTest {
   @Test
   fun `test rerun-tasks does not lose includeClassDirectories classes`() {
     val buildFile = File(buildDir, "build.gradle")
-    buildFile.writeText("""
+    buildFile.writeText(
+      """
       plugins {
         id 'java'
         id 'dd-trace-java.build-time-instrumentation'
@@ -142,7 +145,8 @@ class BuildTimeInstrumentationPluginTest {
         plugins = ['TestPlugin']
         includeClassDirectories.from(file('external-classes'))
       }
-    """.trimIndent())
+      """.trimIndent()
+    )
 
     val srcMainJava = testPlugin("src/main/java", "ExampleCode", "ExternalCode")
     val examplePackageDir = File(srcMainJava, "example").apply { mkdirs() }
@@ -172,7 +176,8 @@ class BuildTimeInstrumentationPluginTest {
   private fun testPlugin(srcDir: String, vararg classNames: String): File {
     val dir = File(buildDir, srcDir).apply { mkdirs() }
     val conditions = classNames.joinToString(" || ") { "\"$it\".equals(name)" }
-    File(dir, "TestPlugin.java").writeText("""
+    File(dir, "TestPlugin.java").writeText(
+      """
       import java.io.File;
       import java.io.IOException;
       import net.bytebuddy.build.Plugin;
@@ -206,7 +211,8 @@ class BuildTimeInstrumentationPluginTest {
           // no-op
         }
       }
-    """.trimIndent())
+      """.trimIndent()
+    )
     return dir
   }
 

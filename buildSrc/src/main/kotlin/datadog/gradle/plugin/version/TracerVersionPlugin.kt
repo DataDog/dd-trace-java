@@ -23,9 +23,9 @@ class TracerVersionPlugin @Inject constructor(
     val extension = targetProject.extensions.getByType(TracerVersionExtension::class.java)
 
     extension.detectDirty.set(
-     providerFactory.gradleProperty("tracerVersion.dirtiness")
-       .map { it.trim().toBoolean() }
-       .orElse(false)
+      providerFactory.gradleProperty("tracerVersion.dirtiness")
+        .map { it.trim().toBoolean() }
+        .orElse(false)
     )
 
     extension.versionQualifier.set(
@@ -58,6 +58,7 @@ class TracerVersionPlugin @Inject constructor(
               logger.info("Incrementing patch because release branch : $currentBranch")
               nextPatchVersion()
             }
+
             else -> {
               logger.info("Incrementing minor")
               nextMinorVersion()

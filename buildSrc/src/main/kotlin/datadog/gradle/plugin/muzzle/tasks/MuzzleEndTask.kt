@@ -46,26 +46,27 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
     val testCases = muzzleResultFiles.files
       .sortedBy { it.name }
       .map { resultFile ->
-      val taskName = resultFile.name.removeSuffix(".txt")
-      when {
-        !resultFile.exists() -> {
-          MuzzleJUnitCase(
-            name = taskName,
-            failureMessage = "Muzzle result file missing",
-            failureText = "Expected ${resultFile.path}"
-          )
-        }
+        val taskName = resultFile.name.removeSuffix(".txt")
+        when {
+          !resultFile.exists() -> {
+            MuzzleJUnitCase(
+              name = taskName,
+              failureMessage = "Muzzle result file missing",
+              failureText = "Expected ${resultFile.path}"
+            )
+          }
 
-        resultFile.readText() == "PASSING" -> MuzzleJUnitCase(name = taskName)
-        else -> {
-          MuzzleJUnitCase(
-            name = taskName,
-            failureMessage = "Muzzle validation failed",
-            failureText = resultFile.readText()
-          )
+          resultFile.readText() == "PASSING" -> MuzzleJUnitCase(name = taskName)
+
+          else -> {
+            MuzzleJUnitCase(
+              name = taskName,
+              failureMessage = "Muzzle validation failed",
+              failureText = resultFile.readText()
+            )
+          }
         }
       }
-    }
     return MuzzleJUnitReport(
       suiteName = project.path,
       module = project.path,
@@ -136,14 +137,12 @@ abstract class MuzzleEndTask : AbstractMuzzleTask() {
     project.logger.info("Wrote $label report to\n  $file")
   }
 
-  private fun renderLegacyReportXml(durationSeconds: Double): String {
-    return """
+  private fun renderLegacyReportXml(durationSeconds: Double): String = """
       <?xml version="1.0" encoding="UTF-8"?>
       <testsuite name="$name" tests="1" id="0" time="$durationSeconds">
         <testcase name="$name" time="$durationSeconds"/>
       </testsuite>
-      """.trimIndent()
-  }
+  """.trimIndent()
 
   private data class MuzzleJUnitReport(
     val suiteName: String,

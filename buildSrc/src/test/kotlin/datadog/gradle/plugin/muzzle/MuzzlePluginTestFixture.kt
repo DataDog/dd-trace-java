@@ -22,7 +22,8 @@ internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(project
       """.trimIndent()
     )
 
-    addSubproject("dd-java-agent:agent-bootstrap",
+    addSubproject(
+      "dd-java-agent:agent-bootstrap",
       """
       plugins {
         id 'java'
@@ -32,7 +33,8 @@ internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(project
       """
     )
 
-    addSubproject("dd-java-agent:agent-tooling",
+    addSubproject(
+      "dd-java-agent:agent-tooling",
       """
       plugins {
         id 'java'
@@ -95,6 +97,5 @@ internal class MuzzlePluginTestFixture(projectDir: File) : GradleFixture(project
   /**
    * Returns the path to a muzzle result file for the given task name.
    */
-  fun resultFile(taskName: String) =
-    projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
+  fun resultFile(taskName: String) = projectDir.toPath().resolve("dd-java-agent/instrumentation/demo/build/reports/$taskName.txt")
 }

@@ -15,7 +15,7 @@ import scala.concurrent.duration._
 
 class AkkaActors extends AutoCloseable {
   val system: ActorSystem = ActorSystem("akka-actors-test")
-  val receiver: ActorRef =
+  val receiver: ActorRef  =
     system.actorOf(Receiver.props, "receiver")
   val forwarder: ActorRef =
     system.actorOf(Forwarder.props(receiver), "forwarder")

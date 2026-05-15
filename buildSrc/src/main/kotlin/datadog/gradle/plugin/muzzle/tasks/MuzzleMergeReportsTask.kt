@@ -35,13 +35,19 @@ abstract class MuzzleMergeReportsTask : AbstractMuzzleReportTask() {
         val partials = resolveInstrumentationAndJarVersions(directive, cl, range.lowestVersion, range.highestVersion)
 
         partials.forEach { (key, value) ->
-          versions.merge(key, value, BiFunction { x, y ->
-            TestedArtifact(
-              x.instrumentation, x.group, x.module,
-              lowest(x.lowVersion, y.lowVersion),
-              highest(x.highVersion, y.highVersion)
-            )
-          })
+          versions.merge(
+            key,
+            value,
+            BiFunction { x, y ->
+              TestedArtifact(
+                x.instrumentation,
+                x.group,
+                x.module,
+                lowest(x.lowVersion, y.lowVersion),
+                highest(x.highVersion, y.highVersion)
+              )
+            }
+          )
         }
       }
     dumpVersionsToCsv(versions)

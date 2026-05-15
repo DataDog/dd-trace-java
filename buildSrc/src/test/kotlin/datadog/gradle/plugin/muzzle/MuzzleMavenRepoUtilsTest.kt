@@ -1,6 +1,8 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.MavenRepoFixture
+import org.assertj.core.api.Assertions.assertThat
+import org.assertj.core.api.Assertions.assertThatThrownBy
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.repository.RemoteRepository
 import org.eclipse.aether.resolution.VersionRangeRequest
@@ -12,8 +14,6 @@ import org.junit.jupiter.api.io.TempDir
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.CsvSource
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
-import org.assertj.core.api.Assertions.assertThatThrownBy
 
 class MuzzleMavenRepoUtilsTest {
 
@@ -123,11 +123,12 @@ class MuzzleMavenRepoUtilsTest {
   @ParameterizedTest(name = "[{index}] highest({0}, {1}) == {2}")
   @CsvSource(
     value =
-      [
-        "1.0.0, 2.0.0, 2.0.0",
-        "2.0.0, 1.0.0, 2.0.0",
-        "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
-      ])
+    [
+      "1.0.0, 2.0.0, 2.0.0",
+      "2.0.0, 1.0.0, 2.0.0",
+      "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
+    ]
+  )
   fun `highest returns the greater version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.highest(version(a), version(b))
     assertThat(result).isEqualTo(version(expected))
@@ -136,11 +137,12 @@ class MuzzleMavenRepoUtilsTest {
   @ParameterizedTest(name = "[{index}] lowest({0}, {1}) == {2}")
   @CsvSource(
     value =
-      [
-        "1.0.0, 2.0.0, 1.0.0",
-        "2.0.0, 1.0.0, 1.0.0",
-        "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
-      ])
+    [
+      "1.0.0, 2.0.0, 1.0.0",
+      "2.0.0, 1.0.0, 1.0.0",
+      "3.5.1, 3.5.1, 3.5.1", // equal — either is acceptable
+    ]
+  )
   fun `lowest returns the lesser version`(a: String, b: String, expected: String) {
     val result = MuzzleMavenRepoUtils.lowest(version(a), version(b))
     assertThat(result).isEqualTo(version(expected))

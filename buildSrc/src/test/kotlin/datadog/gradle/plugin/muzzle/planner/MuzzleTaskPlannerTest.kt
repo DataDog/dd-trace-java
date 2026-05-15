@@ -325,8 +325,7 @@ class MuzzleTaskPlannerTest {
     assertThat(fakeService.inverseCalls).isEqualTo(2)
   }
 
-  private fun artifact(module: String = "demo", version: String) =
-    DefaultArtifact("com.example", module, "", "jar", version)
+  private fun artifact(module: String = "demo", version: String) = DefaultArtifact("com.example", module, "", "jar", version)
 
   private class FakeResolutionService(
     private val artifactsByDirective: Map<MuzzleDirective, Set<Artifact>> = emptyMap(),

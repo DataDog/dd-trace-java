@@ -68,17 +68,21 @@ tasks.withType<Test>().configureEach {
 // Register a task "allTests" that depends on all non-latest and non-traceAgentTest Test tasks.
 // This is used when we only want to run the 'main' test sets.
 tasks.register("allTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
-  })
+  dependsOn(
+    tasks.withType<Test>().matching { testTask ->
+      !testTask.name.contains("latest", ignoreCase = true) && testTask.name != "traceAgentTest"
+    }
+  )
 }
 
 // Register a task "allLatestDepTests" that depends on all Test tasks whose names include 'latest'.
 // This is used when we want to run tests against the latest dependency versions.
 tasks.register("allLatestDepTests") {
-  dependsOn(tasks.withType<Test>().matching { testTask ->
-    testTask.name.contains("latest", ignoreCase = true)
-  })
+  dependsOn(
+    tasks.withType<Test>().matching { testTask ->
+      testTask.name.contains("latest", ignoreCase = true)
+    }
+  )
 }
 
 // Make the 'check' task depend on all Test tasks in the project.

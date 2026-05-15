@@ -862,8 +862,7 @@ class MuzzlePluginFunctionalTest {
     findTestCase(report, "muzzle-AssertFail-com.example.test-inverse-lib-4.0.0")
   }
 
-  private fun findTestCase(document: org.w3c.dom.Document, name: String): org.w3c.dom.Element =
-    (0 until document.getElementsByTagName("testcase").length)
-      .map { document.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
-      .first { it.getAttribute("name") == name }
+  private fun findTestCase(document: org.w3c.dom.Document, name: String): org.w3c.dom.Element = (0 until document.getElementsByTagName("testcase").length)
+    .map { document.getElementsByTagName("testcase").item(it) as org.w3c.dom.Element }
+    .first { it.getAttribute("name") == name }
 }

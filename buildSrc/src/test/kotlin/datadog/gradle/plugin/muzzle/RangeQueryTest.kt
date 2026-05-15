@@ -1,9 +1,9 @@
 package datadog.gradle.plugin.muzzle
 
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.artifact.Artifact
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.resolution.VersionRangeRequest
-import org.assertj.core.api.Assertions.assertThat
 import org.junit.jupiter.api.Test
 
 class RangeQueryTest {

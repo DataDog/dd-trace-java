@@ -1,11 +1,11 @@
 package datadog.gradle.plugin.muzzle
 
+import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import datadog.gradle.plugin.muzzle.tasks.MuzzleEndTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGenerateReportTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleGetReferencesTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleMergeReportsTask
 import datadog.gradle.plugin.muzzle.tasks.MuzzleTask
-import datadog.gradle.plugin.muzzle.planner.MuzzleTaskPlanner
 import org.eclipse.aether.artifact.Artifact
 import org.gradle.api.NamedDomainObjectProvider
 import org.gradle.api.Plugin
@@ -169,19 +169,20 @@ class MuzzlePlugin : Plugin<Project> {
       val muzzleTaskName = buildString {
         append("muzzle-Assert")
         when {
-            muzzleDirective.isCoreJdk -> {
-              append(muzzleDirective)
-            }
-            else -> {
-              append(if (muzzleDirective.assertPass) "Pass" else "Fail")
-              append("-")
-              append(versionArtifact?.groupId)
-              append("-")
-              append(versionArtifact?.artifactId)
-              append("-")
-              append(versionArtifact?.version)
-              append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
-            }
+          muzzleDirective.isCoreJdk -> {
+            append(muzzleDirective)
+          }
+
+          else -> {
+            append(if (muzzleDirective.assertPass) "Pass" else "Fail")
+            append("-")
+            append(versionArtifact?.groupId)
+            append("-")
+            append(versionArtifact?.artifactId)
+            append("-")
+            append(versionArtifact?.version)
+            append(if (muzzleDirective.name != null) "-${muzzleDirective.nameSlug}" else "")
+          }
         }
       }
       instrumentationProject.configurations.register(muzzleTaskName) {

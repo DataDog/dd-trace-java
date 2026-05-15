@@ -45,7 +45,8 @@ class CallSiteInstrumentationPluginTest {
   @Test
   fun `test call site instrumentation plugin`() {
     createGradleProject(
-      buildDir, buildGradle,
+      buildDir,
+      buildGradle,
       """
        import datadog.trace.agent.tooling.csi.*;
   
@@ -71,7 +72,8 @@ class CallSiteInstrumentationPluginTest {
   @Test
   fun `test call site instrumentation plugin with error`() {
     createGradleProject(
-      buildDir, buildGradle,
+      buildDir,
+      buildGradle,
       """
        import datadog.trace.agent.tooling.csi.*;
   
@@ -122,16 +124,14 @@ class CallSiteInstrumentationPluginTest {
     }
   }
 
-  private fun buildGradleProject(buildDir: File): BuildResult {
-    return GradleRunner.create()
-      .withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
-      .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
-      .withProjectDir(buildDir)
-      .withArguments("build", "--info", "--stacktrace")
-      .withPluginClasspath()
-      .forwardOutput()
-      .build()
-  }
+  private fun buildGradleProject(buildDir: File): BuildResult = GradleRunner.create()
+    .withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
+    .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
+    .withProjectDir(buildDir)
+    .withArguments("build", "--info", "--stacktrace")
+    .withPluginClasspath()
+    .forwardOutput()
+    .build()
 
   private fun parsePackage(advice: String): String {
     val regex = Regex("package\\s+([\\w.]+)\\s*;", RegexOption.DOT_MATCHES_ALL)
@@ -145,11 +145,9 @@ class CallSiteInstrumentationPluginTest {
     return match?.groupValues?.getOrNull(1) ?: ""
   }
 
-  private fun resolve(parent: File, vararg path: String, makeDirs: Boolean = false): File {
-    return path.fold(parent) { acc, next -> File(acc, next) }.apply {
-      if (makeDirs) {
-        mkdirs()
-      }
+  private fun resolve(parent: File, vararg path: String, makeDirs: Boolean = false): File = path.fold(parent) { acc, next -> File(acc, next) }.apply {
+    if (makeDirs) {
+      mkdirs()
     }
   }
 

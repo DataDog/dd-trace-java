@@ -1,6 +1,7 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.muzzle.MuzzleVersionUtils.RANGE_COUNT_LIMIT
+import org.assertj.core.api.Assertions.assertThat
 import org.eclipse.aether.artifact.DefaultArtifact
 import org.eclipse.aether.resolution.VersionRangeRequest
 import org.eclipse.aether.resolution.VersionRangeResult
@@ -10,7 +11,6 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import org.junit.jupiter.params.provider.ValueSource
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzleVersionUtilsTest {
 
@@ -19,25 +19,26 @@ class MuzzleVersionUtilsTest {
   @ParameterizedTest(name = "[{index}] filters pre-release: {0}")
   @ValueSource(
     strings =
-      [
-        "2.0.0-SNAPSHOT", // -snapshot
-        "2.0.0-RC1", // rc
-        "2.0.0.CR1", // .cr
-        "2.0.0-alpha", // alpha
-        "2.0.0-beta.1", // beta
-        "2.0.0-b2", // -b
-        "2.0.0.M1", // .m
-        "2.0.0-m1", // -m
-        "2.0.0-dev", // -dev
-        "2.0.0-ea", // -ea
-        "2.0.0-atlassian-3", // -atlassian-
-        "2.0-public_draft", // public_draft
-        "2.0.0-cr1", // -cr
-        "2.0-preview", // -preview
-        "2.0.0.redhat-1", // redhat
-        "2.7.3m2", // END_NMN_PATTERN  ^.*\.[0-9]+[mM][0-9]+$
-        "2.0.0-1a2b3c4d", // GIT_SHA_PATTERN  ^.*-[0-9a-f]{7,}$
-      ])
+    [
+      "2.0.0-SNAPSHOT", // -snapshot
+      "2.0.0-RC1", // rc
+      "2.0.0.CR1", // .cr
+      "2.0.0-alpha", // alpha
+      "2.0.0-beta.1", // beta
+      "2.0.0-b2", // -b
+      "2.0.0.M1", // .m
+      "2.0.0-m1", // -m
+      "2.0.0-dev", // -dev
+      "2.0.0-ea", // -ea
+      "2.0.0-atlassian-3", // -atlassian-
+      "2.0-public_draft", // public_draft
+      "2.0.0-cr1", // -cr
+      "2.0-preview", // -preview
+      "2.0.0.redhat-1", // redhat
+      "2.7.3m2", // END_NMN_PATTERN  ^.*\.[0-9]+[mM][0-9]+$
+      "2.0.0-1a2b3c4d", // GIT_SHA_PATTERN  ^.*-[0-9a-f]{7,}$
+    ]
+  )
   fun `filterAndLimitVersions filters out pre-release versions when includeSnapshots is false`(
     preRelease: String
   ) {
@@ -80,8 +81,7 @@ class MuzzleVersionUtilsTest {
     val result = createVersionRangeResult("1.0.0", "1.1.0", "1.2.0", "1.3.0", "2.0.0", "3.0.0")
 
     val filtered =
-      MuzzleVersionUtils.filterAndLimitVersions(
-        result, setOf(versionToSkip), includeSnapshots = false)
+      MuzzleVersionUtils.filterAndLimitVersions(result, setOf(versionToSkip), includeSnapshots = false)
 
     assertThat(filtered.map { it.toString() }).doesNotContain(versionToSkip)
   }
@@ -91,8 +91,7 @@ class MuzzleVersionUtilsTest {
     val result = createVersionRangeResult("1.0.0", "2.0.0-custom", "3.0.0")
 
     val filtered =
-      MuzzleVersionUtils.filterAndLimitVersions(
-        result, setOf("2.0.0-Custom"), includeSnapshots = false)
+      MuzzleVersionUtils.filterAndLimitVersions(result, setOf("2.0.0-Custom"), includeSnapshots = false)
 
     assertThat(filtered.map { it.toString() })
       .withFailMessage("Expected '2.0.0-custom' to be kept because skipVersions entry 'Custom' does not match lowercased 'custom'")
@@ -109,15 +108,15 @@ class MuzzleVersionUtilsTest {
       MuzzleVersionUtils.filterAndLimitVersions(result, emptySet(), includeSnapshots = false)
 
     assertThat(filtered).withFailMessage("Expected fewer than 25 versions after trimming, got ${filtered.size}")
-        .hasSizeLessThan(RANGE_COUNT_LIMIT)
+      .hasSizeLessThan(RANGE_COUNT_LIMIT)
     assertThat(filtered).isNotEmpty()
     val filteredStrings = filtered.map { it.toString() }
     assertThat(filteredStrings).withFailMessage("lowestVersion (${result.lowestVersion}) must be preserved")
-        .contains(result.lowestVersion.toString())
+      .contains(result.lowestVersion.toString())
     assertThat(filteredStrings).withFailMessage("highestVersion (${result.highestVersion}) must be preserved")
-        .contains(result.highestVersion.toString())
+      .contains(result.highestVersion.toString())
     assertThat(filteredStrings).withFailMessage("All filtered versions must come from the original set")
-        .isSubsetOf(*versions)
+      .isSubsetOf(*versions)
   }
 
   @ParameterizedTest(name = "[{index}] {0} version(s) pass through unchanged")
@@ -135,14 +134,14 @@ class MuzzleVersionUtilsTest {
   companion object {
     @JvmStatic
     fun includeSnapshotsCases() = listOf(
-        Arguments.of("1.0.0-SNAPSHOT", emptySet<String>()),
-        Arguments.of("1.0.0-RC1", emptySet<String>()),
-        Arguments.of("1.0.0-alpha", emptySet<String>()),
-        Arguments.of("1.0.0-beta.1", emptySet<String>()),
-        Arguments.of("1.0.0-b2", emptySet<String>()),
-        // skipVersions is still respected even when includeSnapshots=true
-        Arguments.of("1.0.0-SNAPSHOT", setOf("2.0.0")),
-      )
+      Arguments.of("1.0.0-SNAPSHOT", emptySet<String>()),
+      Arguments.of("1.0.0-RC1", emptySet<String>()),
+      Arguments.of("1.0.0-alpha", emptySet<String>()),
+      Arguments.of("1.0.0-beta.1", emptySet<String>()),
+      Arguments.of("1.0.0-b2", emptySet<String>()),
+      // skipVersions is still respected even when includeSnapshots=true
+      Arguments.of("1.0.0-SNAPSHOT", setOf("2.0.0")),
+    )
   }
 
   private fun createVersionRangeResult(vararg versionStrings: String): VersionRangeResult {
@@ -153,4 +152,3 @@ class MuzzleVersionUtilsTest {
     return VersionRangeResult(request).apply { this.versions = versions }
   }
 }
-

@@ -74,17 +74,18 @@ abstract class MuzzleTask @Inject constructor(
   @TaskAction
   fun muzzle() {
     when {
-        // Version-specific task: created by MuzzlePlugin for each resolved artifact.
-        muzzleDirective.isPresent -> {
-          assertMuzzle(muzzleDirective.get())
-        }
-        // Fallback for the root "muzzle" lifecycle task when no pass{} directives are
-        // declared. In that case there are no version-specific pass tasks, so we assert
-        // the instrumentation against its own compile-time classpath as a basic sanity check.
-        !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass } -> {
-          project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
-          assertMuzzle()
-        }
+      // Version-specific task: created by MuzzlePlugin for each resolved artifact.
+      muzzleDirective.isPresent -> {
+        assertMuzzle(muzzleDirective.get())
+      }
+
+      // Fallback for the root "muzzle" lifecycle task when no pass{} directives are
+      // declared. In that case there are no version-specific pass tasks, so we assert
+      // the instrumentation against its own compile-time classpath as a basic sanity check.
+      !project.extensions.getByType<MuzzleExtension>().directives.any { it.assertPass } -> {
+        project.logger.info("No muzzle pass directives configured. Asserting pass against instrumentation compile-time dependencies")
+        assertMuzzle()
+      }
     }
   }
 
@@ -99,7 +100,7 @@ abstract class MuzzleTask @Inject constructor(
       workerExecutor.processIsolation {
         forkOptions {
           // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
-          if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
+          if (javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
           executable(javaLauncher.executablePath)

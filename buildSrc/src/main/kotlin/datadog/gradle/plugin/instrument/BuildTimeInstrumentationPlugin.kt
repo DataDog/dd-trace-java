@@ -134,7 +134,7 @@ class BuildTimeInstrumentationPlugin : Plugin<Project> {
 
         // Temporary location for raw (un-instrumented) classes.
         val tmpUninstrumentedClasses = project.objects.directoryProperty().value(
-          project.layout.buildDirectory.dir("tmp/${name}-raw-classes")
+          project.layout.buildDirectory.dir("tmp/$name-raw-classes")
         )
 
         // Class path to use for instrumentation post-processing.

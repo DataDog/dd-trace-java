@@ -1,12 +1,12 @@
 package datadog.gradle.plugin.muzzle
 
 import datadog.gradle.plugin.MavenRepoFixture
+import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.TaskOutcome.SUCCESS
 import org.gradle.testkit.runner.TaskOutcome.UP_TO_DATE
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
 import java.io.File
-import org.assertj.core.api.Assertions.assertThat
 
 class MuzzlePluginPerformanceTest {
 
@@ -64,7 +64,8 @@ class MuzzlePluginPerformanceTest {
       """
     )
     fixture.writeNoopScanPlugin()
-    fixture.addSubproject("dd-java-agent:instrumentation:other",
+    fixture.addSubproject(
+      "dd-java-agent:instrumentation:other",
       """
       plugins {
         id 'java'

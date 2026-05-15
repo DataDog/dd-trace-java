@@ -40,8 +40,10 @@ internal class RegularConfigCheckAction(
           if (fieldName.endsWith("_DEFAULT")) return@eachConstant
           val normalized = normalize(entry.value)
           if (normalized !in supported && normalized !in aliasMapping) {
-            add("$fileName:${entry.line} -> Config '${entry.value}' normalizes to '$normalized' " +
-              "which is missing from '${extension.jsonFile.get()}'")
+            add(
+              "$fileName:${entry.line} -> Config '${entry.value}' normalizes to '$normalized' " +
+                "which is missing from '${extension.jsonFile.get()}'"
+            )
           }
         }
       }
@@ -111,8 +113,9 @@ internal fun extractStringConstants(file: File): Map<String, ConstantEntry> {
   val map = mutableMapOf<String, ConstantEntry>()
   StaticJavaParser.parse(file).findAll(VariableDeclarator::class.java).forEach { varDecl ->
     val field = varDecl.parentNode.map { it as? FieldDeclaration }.orElse(null) ?: return@forEach
-    if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL)
-      && varDecl.typeAsString == "String") {
+    if (field.hasModifiers(Modifier.Keyword.PUBLIC, Modifier.Keyword.STATIC, Modifier.Keyword.FINAL) &&
+      varDecl.typeAsString == "String"
+    ) {
       val init = varDecl.initializer.orElse(null) as? StringLiteralExpr ?: return@forEach
       val line = varDecl.range.map { it.begin.line }.orElse(-1)
       map[varDecl.nameAsString] = ConstantEntry(init.value, line)

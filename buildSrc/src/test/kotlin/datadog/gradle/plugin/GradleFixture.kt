@@ -91,10 +91,10 @@ internal open class GradleFixture(protected val projectDir: File) {
     daemonDir.walkTopDown()
       .filter { it.isFile && it.name.endsWith(".out.log") && !it.name.startsWith("hs_err") }
       .forEach { logFile ->
-        val pid = logFile.nameWithoutExtension  // daemon-12345.out
-          .removeSuffix(".out")                 // daemon-12345
-          .removePrefix("daemon-")              // 12345
-          .toLongOrNull() ?: return@forEach     // skip UUIDs / unparseable names
+        val pid = logFile.nameWithoutExtension // daemon-12345.out
+          .removeSuffix(".out") // daemon-12345
+          .removePrefix("daemon-") // 12345
+          .toLongOrNull() ?: return@forEach // skip UUIDs / unparseable names
 
         val isWindows = System.getProperty("os.name").lowercase().contains("win")
         val killProcess = if (isWindows) {
@@ -151,10 +151,9 @@ internal open class GradleFixture(protected val projectDir: File) {
   /**
    * Creates or gets a file in the project directory, ensuring parent directories exist.
    */
-  protected fun file(path: String, mkdirs: Boolean = true): File =
-    File(projectDir, path).also { file ->
-      if (mkdirs) {
-        file.parentFile?.mkdirs()
-      }
+  protected fun file(path: String, mkdirs: Boolean = true): File = File(projectDir, path).also { file ->
+    if (mkdirs) {
+      file.parentFile?.mkdirs()
     }
+  }
 }
