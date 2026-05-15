@@ -57,6 +57,8 @@
 0 java.lang.Runtime
 # allow context tracking for VirtualThread
 0 java.lang.VirtualThread
+# allow object-wait profiling instrumentation (JDK 21+)
+0 java.lang.Object
 0 java.net.http.*
 0 java.net.HttpURLConnection
 0 java.net.InetAddress

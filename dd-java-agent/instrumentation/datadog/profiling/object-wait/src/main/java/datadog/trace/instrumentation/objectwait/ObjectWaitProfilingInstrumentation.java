@@ -46,13 +46,6 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
   }
 
   @Override
-  public String[] muzzleIgnoredClassNames() {
-    // Static helpers on the advice class produce intra-class references that core-JDK muzzle
-    // cannot resolve against an empty application classpath.
-    return new String[] {getClass().getName() + "$WaitAdvice"};
-  }
-
-  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
@@ -65,21 +58,21 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
 
   public static final class WaitAdvice {
 
+    /*
+     * IMPORTANT: advice bodies must only reference classes visible to the bootstrap class
+     * loader (here, TaskBlockHelper in agent-bootstrap). ByteBuddy inlines the bytecode of
+     * these methods into java.lang.Object#wait(long), but any static call back to a helper
+     * on this advice class itself would be left as INVOKESTATIC against a class living in
+     * the agent class loader, producing NoClassDefFoundError at every wait() site. Do not
+     * extract helpers onto this class.
+     */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static TaskBlockHelper.State before(@Advice.This Object monitor) {
-      return captureState(monitor);
+      return TaskBlockHelper.capture(System.identityHashCode(monitor));
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
     public static void after(@Advice.Enter TaskBlockHelper.State state) {
-      finish(state);
-    }
-
-    static TaskBlockHelper.State captureState(Object monitor) {
-      return TaskBlockHelper.capture(System.identityHashCode(monitor));
-    }
-
-    static void finish(TaskBlockHelper.State state) {
       TaskBlockHelper.finish(state);
     }
   }
