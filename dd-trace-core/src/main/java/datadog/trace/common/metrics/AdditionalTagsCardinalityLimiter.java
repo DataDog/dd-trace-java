@@ -1,92 +1,106 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.Collections;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicInteger;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Bounded per-tag cardinality protection for `additional_metric_tags`.
+ * Bounds how many distinct stat entries (MetricKeys) with any additional tags we'll let into a
+ * single flush bucket, and how long a single tag value can be.
  *
- * <p>For each configured tag key, admits at most {@code limitPerTag} distinct values within a
- * rolling window. Excess values are replaced with {@link #BLOCKED_VALUE} so the span's base stats
- * still flow through but the extra dimension is suppressed.
+ * <p>One global counter. It goes up by one each time we add a brand-new MetricKey to the bucket
+ * that includes any additional tags. When the counter reaches the cap, any further <em>new</em>
+ * MetricKeys drop all of their additional tags. Spans whose full MetricKey already exists in the
+ * bucket are unaffected — they keep merging into the existing entry.
  *
- * <p>The rolling window is implemented as a hard reset: callers schedule {@link #reset()} on a
- * fixed interval (10 minutes by default). After a reset, previously blocked values get a fresh
- * chance to be admitted.
+ * <p>The counter and both one-shot warn flags reset every flush via {@link #resetBucket()}.
  */
 final class AdditionalTagsCardinalityLimiter {
 
   static final String BLOCKED_VALUE = "blocked_by_tracer";
+  static final int MAX_ADDITIONAL_TAG_VALUE_LENGTH = 250;
 
   private static final Logger log = LoggerFactory.getLogger(AdditionalTagsCardinalityLimiter.class);
 
-  private final int limitPerTag;
+  private final int maxStatEntries;
   private final HealthMetrics healthMetrics;
-  private final ConcurrentHashMap<String, Set<String>> seenValuesPerTag = new ConcurrentHashMap<>();
-  private final Set<String> warnedAboutCardinality =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
-  private final Set<String> warnedAboutLength =
-      Collections.newSetFromMap(new ConcurrentHashMap<>());
+  private final AtomicInteger statEntryCounter = new AtomicInteger();
+  private volatile boolean warnedAboutCardinality;
+  private volatile boolean warnedAboutLength;
 
-  AdditionalTagsCardinalityLimiter(int limitPerTag, HealthMetrics healthMetrics) {
-    this.limitPerTag = limitPerTag;
+  AdditionalTagsCardinalityLimiter(int maxStatEntries, HealthMetrics healthMetrics) {
+    this.maxStatEntries = maxStatEntries;
     this.healthMetrics = healthMetrics;
   }
 
   /**
-   * @return {@code value} if admitted under the cap, otherwise {@link #BLOCKED_VALUE}.
+   * Returns {@code value} unchanged if it's short enough, or {@link #BLOCKED_VALUE} if it's longer
+   * than {@link #MAX_ADDITIONAL_TAG_VALUE_LENGTH}. Fires the health metric on every block and emits
+   * one warn log per bucket regardless of which tag triggered it.
    */
-  String admitOrBlock(String tagKey, String value) {
-    Set<String> seen =
-        seenValuesPerTag.computeIfAbsent(
-            tagKey, k -> Collections.newSetFromMap(new ConcurrentHashMap<>()));
-    if (seen.contains(value)) {
-      return value;
-    }
-    if (seen.size() >= limitPerTag) {
+  String applyLengthCap(String tagKey, String value) {
+    if (value.length() > MAX_ADDITIONAL_TAG_VALUE_LENGTH) {
       healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
-      if (warnedAboutCardinality.add(tagKey)) {
-        log.warn(
-            "Additional metric tag '{}' exceeded the per-tag cardinality limit of {}; "
-                + "replacing values with '{}' for the rest of the current window",
-            tagKey,
-            limitPerTag,
-            BLOCKED_VALUE);
+      if (!warnedAboutLength) {
+        synchronized (this) {
+          if (!warnedAboutLength) {
+            warnedAboutLength = true;
+            log.warn(
+                "Additional metric tag '{}' had a value of length {} exceeding the max length of {}; "
+                    + "replacing with '{}' for the rest of the current bucket",
+                tagKey,
+                value.length(),
+                MAX_ADDITIONAL_TAG_VALUE_LENGTH,
+                BLOCKED_VALUE);
+          }
+        }
       }
       return BLOCKED_VALUE;
     }
-    seen.add(value);
     return value;
   }
 
   /**
-   * Records that a value for {@code tagKey} was blocked due to exceeding the per-value length cap.
-   * Fires the same health metric as a cardinality block and emits a distinct warn log line once per
-   * tag key per window.
+   * Returns true if the global stat-entry counter has reached the cap. Read-only; no side effects.
    */
-  void noteBlockedDueToLength(String tagKey, int valueLength, int maxLength) {
-    healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
-    if (warnedAboutLength.add(tagKey)) {
-      log.warn(
-          "Additional metric tag '{}' had a value of length {} exceeding the max length of {}; "
-              + "replacing with '{}' for the rest of the current window",
-          tagKey,
-          valueLength,
-          maxLength,
-          BLOCKED_VALUE);
+  boolean isAtCap() {
+    return statEntryCounter.get() >= maxStatEntries;
+  }
+
+  /**
+   * Records that a span's additional tags were dropped because the bucket is at the cap. Emits one
+   * warn log per bucket regardless of how many spans get blocked.
+   */
+  void recordCardinalityBlock() {
+    if (!warnedAboutCardinality) {
+      synchronized (this) {
+        if (!warnedAboutCardinality) {
+          warnedAboutCardinality = true;
+          log.warn(
+              "Additional metric tag stat-entry limit of {} reached for the current bucket; "
+                  + "dropping additional tags from any new stat entries until the next flush",
+              maxStatEntries);
+        }
+      }
     }
   }
 
-  /** Clears per-tag value sets and rearms the per-key log lines. Invoked by the periodic task. */
-  void reset() {
-    for (Set<String> seen : seenValuesPerTag.values()) {
-      seen.clear();
-    }
-    warnedAboutCardinality.clear();
-    warnedAboutLength.clear();
+  /**
+   * Bumps the global stat-entry counter. Called once per brand-new MetricKey we admit that includes
+   * any additional tags.
+   */
+  void onNewStatEntryAdmitted() {
+    statEntryCounter.incrementAndGet();
+  }
+
+  /**
+   * Zeroes the counter and re-arms both warn flags. Called whenever the metrics aggregator flushes
+   * a bucket so the next bucket starts with a fresh budget.
+   */
+  void resetBucket() {
+    statEntryCounter.set(0);
+    warnedAboutCardinality = false;
+    warnedAboutLength = false;
   }
 }

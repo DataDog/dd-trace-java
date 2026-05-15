@@ -2,113 +2,85 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.common.metrics.AdditionalTagsCardinalityLimiter.BLOCKED_VALUE;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AdditionalTagsCardinalityLimiterTest {
 
   @Test
-  void belowLimitAdmitsAllValues() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP);
-    for (int i = 0; i < 99; i++) {
-      String v = "v" + i;
-      assertEquals(v, limiter.admitOrBlock("region", v));
-    }
+  void applyLengthCapAdmitsShortValues() {
+    AdditionalTagsCardinalityLimiter limiter = newLimiter(100);
+    assertEquals("us-east-1", limiter.applyLengthCap("region", "us-east-1"));
   }
 
   @Test
-  void atLimitNextNewValueIsBlocked() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(3, HealthMetrics.NO_OP);
-    assertEquals("a", limiter.admitOrBlock("region", "a"));
-    assertEquals("b", limiter.admitOrBlock("region", "b"));
-    assertEquals("c", limiter.admitOrBlock("region", "c"));
-    assertEquals(BLOCKED_VALUE, limiter.admitOrBlock("region", "d"));
+  void applyLengthCapBlocksLongValues() {
+    AdditionalTagsCardinalityLimiter limiter = newLimiter(100);
+    String tooLong =
+        repeat('x', AdditionalTagsCardinalityLimiter.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1);
+    assertEquals(BLOCKED_VALUE, limiter.applyLengthCap("region", tooLong));
   }
 
   @Test
-  void alreadyAdmittedValueStaysAdmittedAfterCapHit() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(3, HealthMetrics.NO_OP);
-    limiter.admitOrBlock("region", "a");
-    limiter.admitOrBlock("region", "b");
-    limiter.admitOrBlock("region", "c");
-    limiter.admitOrBlock("region", "d"); // blocked
-    assertEquals("a", limiter.admitOrBlock("region", "a"));
-    assertEquals("b", limiter.admitOrBlock("region", "b"));
-    assertNotEquals(BLOCKED_VALUE, limiter.admitOrBlock("region", "c"));
-  }
-
-  @Test
-  void differentTagsAreIndependent() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(2, HealthMetrics.NO_OP);
-    limiter.admitOrBlock("customer_id", "x");
-    limiter.admitOrBlock("customer_id", "y");
-    assertEquals(BLOCKED_VALUE, limiter.admitOrBlock("customer_id", "z"));
-    // region should be completely unaffected
-    assertEquals("us-east-1", limiter.admitOrBlock("region", "us-east-1"));
-    assertEquals("eu-west-1", limiter.admitOrBlock("region", "eu-west-1"));
-    assertEquals(BLOCKED_VALUE, limiter.admitOrBlock("region", "ap-south-1"));
-  }
-
-  @Test
-  void resetReadmitsPreviouslyBlockedValues() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(2, HealthMetrics.NO_OP);
-    limiter.admitOrBlock("region", "a");
-    limiter.admitOrBlock("region", "b");
-    assertEquals(BLOCKED_VALUE, limiter.admitOrBlock("region", "c"));
-    limiter.reset();
-    assertEquals("c", limiter.admitOrBlock("region", "c"));
-  }
-
-  @Test
-  void healthMetricFiresOnBlock() {
-    RecordingHealthMetrics health = new RecordingHealthMetrics();
-    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(2, health);
-    limiter.admitOrBlock("region", "a");
-    limiter.admitOrBlock("region", "b");
-    assertEquals(0, health.blocked.size());
-    limiter.admitOrBlock("region", "c"); // blocked
-    limiter.admitOrBlock("region", "d"); // blocked
-    assertEquals(2, health.blocked.size());
-    assertEquals("region", health.blocked.get(0));
-    assertEquals("region", health.blocked.get(1));
-  }
-
-  @Test
-  void noteBlockedDueToLengthFiresHealthMetric() {
+  void applyLengthCapFiresHealthMetricOnBlock() {
     RecordingHealthMetrics health = new RecordingHealthMetrics();
     AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(100, health);
-    limiter.noteBlockedDueToLength("region", 500, 250);
-    assertEquals(1, health.blocked.size());
-    assertEquals("region", health.blocked.get(0));
+    String tooLong =
+        repeat('x', AdditionalTagsCardinalityLimiter.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1);
+    limiter.applyLengthCap("region", tooLong);
+    limiter.applyLengthCap("region", tooLong);
+    assertEquals(2, health.blocked.size());
   }
 
   @Test
-  void lengthAndCardinalityBlocksAreCountedSeparatelyInHealth() {
+  void isAtCapTracksCounter() {
+    AdditionalTagsCardinalityLimiter limiter = newLimiter(3);
+    assertFalse(limiter.isAtCap());
+    limiter.onNewStatEntryAdmitted();
+    limiter.onNewStatEntryAdmitted();
+    assertFalse(limiter.isAtCap());
+    limiter.onNewStatEntryAdmitted();
+    assertTrue(limiter.isAtCap());
+  }
+
+  @Test
+  void resetBucketClearsCounter() {
+    AdditionalTagsCardinalityLimiter limiter = newLimiter(2);
+    limiter.onNewStatEntryAdmitted();
+    limiter.onNewStatEntryAdmitted();
+    assertTrue(limiter.isAtCap());
+    limiter.resetBucket();
+    assertFalse(limiter.isAtCap());
+  }
+
+  @Test
+  void resetBucketRearmsLengthWarnFlag() {
+    // We can't directly observe the warn flag, but resetBucket() should not throw and the next
+    // long value should still be considered a block (health metric fires per call regardless).
     RecordingHealthMetrics health = new RecordingHealthMetrics();
-    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(2, health);
-    // exhaust cardinality
-    limiter.admitOrBlock("region", "a");
-    limiter.admitOrBlock("region", "b");
-    limiter.admitOrBlock("region", "c"); // cardinality block -> 1 health event
-    // length block on same tag -> 2 health events total
-    limiter.noteBlockedDueToLength("region", 500, 250);
+    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(100, health);
+    String tooLong =
+        repeat('x', AdditionalTagsCardinalityLimiter.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1);
+    limiter.applyLengthCap("region", tooLong);
+    limiter.resetBucket();
+    limiter.applyLengthCap("region", tooLong);
     assertEquals(2, health.blocked.size());
-    // reset rearms both branches
-    limiter.reset();
-    limiter.admitOrBlock("region", "x");
-    limiter.admitOrBlock("region", "y");
-    limiter.admitOrBlock("region", "z"); // cardinality block again -> 3
-    limiter.noteBlockedDueToLength("region", 500, 250); // length block again -> 4
-    assertEquals(4, health.blocked.size());
+  }
+
+  private static AdditionalTagsCardinalityLimiter newLimiter(int maxStatEntries) {
+    return new AdditionalTagsCardinalityLimiter(maxStatEntries, HealthMetrics.NO_OP);
+  }
+
+  private static String repeat(char c, int len) {
+    char[] chars = new char[len];
+    Arrays.fill(chars, c);
+    return new String(chars);
   }
 
   private static final class RecordingHealthMetrics extends HealthMetrics {

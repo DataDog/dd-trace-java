@@ -131,10 +131,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
-  private volatile AgentTaskScheduler.Scheduled<?> cardinalityResetCancellation;
-
-  // Hard-reset window for per-tag value cardinality tracking.
-  static final long CARDINALITY_RESET_INTERVAL_MINUTES = 10;
 
   public ConflatingMetricsAggregator(
       Config config,
@@ -266,14 +262,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                 reportingInterval,
                 reportingInterval,
                 reportingIntervalTimeUnit);
-    cardinalityResetCancellation =
-        AgentTaskScheduler.get()
-            .scheduleAtFixedRate(
-                new CardinalityResetTask(),
-                this,
-                CARDINALITY_RESET_INTERVAL_MINUTES,
-                CARDINALITY_RESET_INTERVAL_MINUTES,
-                TimeUnit.MINUTES);
     log.debug("started metrics aggregator");
   }
 
@@ -295,6 +283,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!published) {
       log.debug("Skipped metrics reporting because the queue is full");
     }
+    cardinalityLimiter.resetBucket();
     return published;
   }
 
@@ -386,6 +375,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
+    List<UTF8BytesString> fullAdditionalTags = getAdditionalTagsLengthCapped(span);
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -402,7 +392,27 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
-            getAdditionalTags(span));
+            fullAdditionalTags);
+
+    // If this span's full MetricKey is already in the current bucket, just admit it as-is.
+    // We already paid the cardinality cost for these tag values earlier in this bucket, so the
+    // existing entry should keep receiving merges.
+    //
+    // Otherwise, if the bucket is at the global cap, replace every present tag's value with
+    // `blocked_by_tracer` so the dimension keys are preserved on the wire even though the
+    // values aren't (blocked spans collapse into one bucket per tag-presence shape rather than
+    // into the no-additional-tags base bucket). If it's a new entry under the cap, admit with
+    // the full tag set and remember to bump the counter below.
+    boolean newEntryUsedFullTags = false;
+    if (!fullAdditionalTags.isEmpty() && pending.get(newKey) == null) {
+      if (cardinalityLimiter.isAtCap()) {
+        cardinalityLimiter.recordCardinalityBlock();
+        newKey = rebuildKeyWithBlockedValues(span, newKey);
+      } else {
+        newEntryUsedFullTags = true;
+      }
+    }
+
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;
@@ -410,6 +420,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
     long durationNanos = span.getDurationNano();
     Batch batch = pending.get(key);
+    boolean isNewBucketEntry = (batch == null);
     if (null != batch) {
       // there is a pending batch, try to win the race to add to it
       // returning false means that either the batch can't take any
@@ -430,8 +441,54 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
+    // If we just added a brand-new MetricKey to this bucket and kept its additional tags, charge
+    // it against the global stat-entry budget.
+    if (isNewBucketEntry && newEntryUsedFullTags) {
+      cardinalityLimiter.onNewStatEntryAdmitted();
+    }
     // force keep keys if there are errors
     return span.getError() > 0;
+  }
+
+  /**
+   * Builds a copy of {@code fullKey} with each present additional tag's value replaced by {@code
+   * <tagKey>:blocked_by_tracer}. The set of configured tag keys present on the span is preserved as
+   * dimensions; only the values are masked. Also fires the per-tag health metric for each masked
+   * tag. Used when the bucket cardinality cap is hit and we need to suppress this span's
+   * contribution to per-value aggregation without losing the dimension keys entirely.
+   */
+  private MetricKey rebuildKeyWithBlockedValues(CoreSpan<?> span, MetricKey fullKey) {
+    List<UTF8BytesString> blockedTags = null;
+    for (String tagKey : additionalTagKeys) {
+      if (span.unsafeGetTag(tagKey) == null) continue;
+      healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
+      Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
+          ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
+      UTF8BytesString formatted =
+          cacheAndCreator
+              .getLeft()
+              .computeIfAbsent(
+                  AdditionalTagsCardinalityLimiter.BLOCKED_VALUE, cacheAndCreator.getRight());
+      if (blockedTags == null) {
+        blockedTags = new ArrayList<>(additionalTagKeys.size());
+      }
+      blockedTags.add(formatted);
+    }
+    return new MetricKey(
+        fullKey.getResource(),
+        fullKey.getService(),
+        fullKey.getOperationName(),
+        fullKey.getServiceSource(),
+        fullKey.getType(),
+        fullKey.getHttpStatusCode(),
+        fullKey.isSynthetics(),
+        fullKey.isTraceRoot(),
+        fullKey.getSpanKind(),
+        fullKey.getPeerTags(),
+        fullKey.getHttpMethod(),
+        fullKey.getHttpEndpoint(),
+        fullKey.getGrpcStatusCode(),
+        blockedTags == null ? Collections.emptyList() : blockedTags);
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
@@ -483,25 +540,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return Collections.unmodifiableList(new ArrayList<>(sorted));
   }
 
-  private List<UTF8BytesString> getAdditionalTags(CoreSpan<?> span) {
+  private List<UTF8BytesString> getAdditionalTagsLengthCapped(CoreSpan<?> span) {
     if (additionalTagKeys.isEmpty()) {
       return Collections.emptyList();
     }
     List<UTF8BytesString> result = null;
-    for (String tagKey : additionalTagKeys) {
+    for (int i = 0; i < additionalTagKeys.size(); i++) {
+      String tagKey = additionalTagKeys.get(i);
       Object value = span.unsafeGetTag(tagKey);
       if (value == null) {
         continue;
       }
       String rawValue = value.toString();
-      String admittedValue;
-      if (rawValue.length() > MAX_ADDITIONAL_TAG_VALUE_LENGTH) {
-        cardinalityLimiter.noteBlockedDueToLength(
-            tagKey, rawValue.length(), MAX_ADDITIONAL_TAG_VALUE_LENGTH);
-        admittedValue = AdditionalTagsCardinalityLimiter.BLOCKED_VALUE;
-      } else {
-        admittedValue = cardinalityLimiter.admitOrBlock(tagKey, rawValue);
-      }
+      String admittedValue = cardinalityLimiter.applyLengthCap(tagKey, rawValue);
       Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
           ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
       UTF8BytesString formatted =
@@ -529,9 +580,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   public void stop() {
     if (null != cancellation) {
       cancellation.cancel();
-    }
-    if (null != cardinalityResetCancellation) {
-      cardinalityResetCancellation.cancel();
     }
     inbox.offer(STOP);
   }
@@ -584,15 +632,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     @Override
     public void run(ConflatingMetricsAggregator target) {
       target.report();
-    }
-  }
-
-  private static final class CardinalityResetTask
-      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
-
-    @Override
-    public void run(ConflatingMetricsAggregator target) {
-      target.cardinalityLimiter.reset();
     }
   }
 }
