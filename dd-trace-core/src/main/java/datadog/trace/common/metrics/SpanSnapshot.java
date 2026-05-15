@@ -2,7 +2,8 @@ package datadog.trace.common.metrics;
 
 /**
  * Immutable per-span value posted from the producer to the aggregator thread. Carries the raw
- * inputs the aggregator needs to build a {@link MetricKey} and update an {@link AggregateMetric}.
+ * inputs the aggregator needs to build an {@link AggregateEntry} and update its {@link
+ * AggregateMetric}.
  *
  * <p>All cache-canonicalization (service-name, span-kind, peer-tag string interning) happens on the
  * aggregator thread; the producer just shuffles references.

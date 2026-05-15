@@ -142,12 +142,13 @@ public final class SerializingMetricWriter implements MetricWriter {
   }
 
   @Override
-  public void add(MetricKey key, AggregateMetric aggregate) {
+  public void add(AggregateEntry entry) {
+    final AggregateMetric aggregate = entry.aggregate;
     // Calculate dynamic map size based on optional fields
-    final boolean hasHttpMethod = key.getHttpMethod() != null;
-    final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
-    final boolean hasServiceSource = key.getServiceSource() != null;
-    final boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null;
+    final boolean hasHttpMethod = entry.getHttpMethod() != null;
+    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != null;
+    final boolean hasServiceSource = entry.getServiceSource() != null;
+    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null;
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
@@ -158,31 +159,31 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.startMap(mapSize);
 
     writer.writeUTF8(NAME);
-    writer.writeUTF8(key.getOperationName());
+    writer.writeUTF8(entry.getOperationName());
 
     writer.writeUTF8(SERVICE);
-    writer.writeUTF8(key.getService());
+    writer.writeUTF8(entry.getService());
 
     writer.writeUTF8(RESOURCE);
-    writer.writeUTF8(key.getResource());
+    writer.writeUTF8(entry.getResource());
 
     writer.writeUTF8(TYPE);
-    writer.writeUTF8(key.getType());
+    writer.writeUTF8(entry.getType());
 
     writer.writeUTF8(HTTP_STATUS_CODE);
-    writer.writeInt(key.getHttpStatusCode());
+    writer.writeInt(entry.getHttpStatusCode());
 
     writer.writeUTF8(SYNTHETICS);
-    writer.writeBoolean(key.isSynthetics());
+    writer.writeBoolean(entry.isSynthetics());
 
     writer.writeUTF8(IS_TRACE_ROOT);
-    writer.writeInt(key.isTraceRoot() ? TRISTATE_TRUE : TRISTATE_FALSE);
+    writer.writeInt(entry.isTraceRoot() ? TRISTATE_TRUE : TRISTATE_FALSE);
 
     writer.writeUTF8(SPAN_KIND);
-    writer.writeUTF8(key.getSpanKind());
+    writer.writeUTF8(entry.getSpanKind());
 
     writer.writeUTF8(PEER_TAGS);
-    final List<UTF8BytesString> peerTags = key.getPeerTags();
+    final List<UTF8BytesString> peerTags = entry.getPeerTags();
     writer.startArray(peerTags.size());
 
     for (UTF8BytesString peerTag : peerTags) {
@@ -191,24 +192,24 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     if (hasServiceSource) {
       writer.writeUTF8(SERVICE_SOURCE);
-      writer.writeUTF8(key.getServiceSource());
+      writer.writeUTF8(entry.getServiceSource());
     }
     // Only include HTTPMethod if present
     if (hasHttpMethod) {
       writer.writeUTF8(HTTP_METHOD);
-      writer.writeUTF8(key.getHttpMethod());
+      writer.writeUTF8(entry.getHttpMethod());
     }
 
     // Only include HTTPEndpoint if present
     if (hasHttpEndpoint) {
       writer.writeUTF8(HTTP_ENDPOINT);
-      writer.writeUTF8(key.getHttpEndpoint());
+      writer.writeUTF8(entry.getHttpEndpoint());
     }
 
     // Only include GRPCStatusCode if present (rpc-type spans)
     if (hasGrpcStatusCode) {
       writer.writeUTF8(GRPC_STATUS_CODE);
-      writer.writeUTF8(key.getGrpcStatusCode());
+      writer.writeUTF8(entry.getGrpcStatusCode());
     }
 
     writer.writeUTF8(HITS);

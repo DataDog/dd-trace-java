@@ -148,7 +148,7 @@ class AggregateTableTest {
     table.findOrInsert(snapshot("c", "op", "client")).recordOneDuration(3L | ERROR_TAG);
 
     Map<String, Long> visited = new HashMap<>();
-    table.forEach((key, agg) -> visited.put(key.getService().toString(), agg.getDuration()));
+    table.forEach(e -> visited.put(e.getService().toString(), e.aggregate.getDuration()));
 
     assertEquals(3, visited.size());
     assertEquals(1L, visited.get("a"));
@@ -172,17 +172,17 @@ class AggregateTableTest {
   }
 
   @Test
-  void canonicalMetricKeyIsBuiltOnInsert() {
+  void encodedLabelsAreBuiltOnInsert() {
     AggregateTable table = new AggregateTable(4);
-    List<MetricKey> seen = new ArrayList<>();
+    List<AggregateEntry> seen = new ArrayList<>();
     table.findOrInsert(snapshot("svc", "op", "client"));
-    table.forEach((key, agg) -> seen.add(key));
+    table.forEach(seen::add);
 
     assertEquals(1, seen.size());
-    MetricKey k = seen.get(0);
-    assertEquals("svc", k.getService().toString());
-    assertEquals("op", k.getOperationName().toString());
-    assertEquals("client", k.getSpanKind().toString());
+    AggregateEntry e = seen.get(0);
+    assertEquals("svc", e.getService().toString());
+    assertEquals("op", e.getOperationName().toString());
+    assertEquals("client", e.getSpanKind().toString());
   }
 
   // ---------- helpers ----------

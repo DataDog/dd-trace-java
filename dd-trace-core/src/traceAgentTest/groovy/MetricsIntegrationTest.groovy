@@ -8,9 +8,8 @@ import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.metrics.AggregateMetric
+import datadog.trace.common.metrics.AggregateEntry
 import datadog.trace.common.metrics.EventListener
-import datadog.trace.common.metrics.MetricKey
 import datadog.trace.common.metrics.OkHttpSink
 import datadog.trace.common.metrics.SerializingMetricWriter
 import java.util.concurrent.CopyOnWriteArrayList
@@ -39,14 +38,12 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
       sink
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
-    writer.add(
-      new MetricKey("resource1", "service1", "operation1", null, "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null),
-      new AggregateMetric().recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
-      )
-    writer.add(
-      new MetricKey("resource2", "service2", "operation2", null, "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null),
-      new AggregateMetric().recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
-      )
+    def entry1 = AggregateEntry.of("resource1", "service1", "operation1", null, "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null)
+    entry1.aggregate.recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
+    writer.add(entry1)
+    def entry2 = AggregateEntry.of("resource2", "service2", "operation2", null, "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null)
+    entry2.aggregate.recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
+    writer.add(entry2)
     writer.finishBucket()
 
     then:

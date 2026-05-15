@@ -1,16 +1,16 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.util.Hashtable;
-import java.util.function.BiConsumer;
+import java.util.function.Consumer;
 
 /**
  * Consumer-side {@link AggregateMetric} store, keyed on the raw fields of a {@link SpanSnapshot}.
  *
  * <p>Replaces the prior {@code LRUCache<MetricKey, AggregateMetric>}. The win is on the
  * steady-state hit path: a snapshot lookup is a 64-bit hash compute + bucket walk + field-wise
- * {@code matches}, with no {@link MetricKey} allocation and no UTF8 cache lookups. The canonical
- * {@link MetricKey} (with UTF8-encoded forms) is only built once per unique key, at insert time,
- * and lives on the {@link AggregateEntry}.
+ * {@code matches}, with no per-snapshot {@link AggregateEntry} allocation and no UTF8 cache
+ * lookups. The UTF8-encoded forms (formerly held on {@code MetricKey}) live on the {@link
+ * AggregateEntry} itself and are built once per unique key at insert time.
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer; {@link #clear()} must be
  * routed through the inbox rather than called from arbitrary threads.
@@ -53,8 +53,7 @@ final class AggregateTable {
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry =
-        new AggregateEntry(MetricKeys.fromSnapshot(snapshot), snapshot, new AggregateMetric());
+    AggregateEntry entry = AggregateEntry.forSnapshot(snapshot, new AggregateMetric());
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
     size++;
@@ -88,11 +87,10 @@ final class AggregateTable {
     return false;
   }
 
-  void forEach(BiConsumer<MetricKey, AggregateMetric> consumer) {
+  void forEach(Consumer<AggregateEntry> consumer) {
     for (int i = 0; i < buckets.length; i++) {
       for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-        AggregateEntry entry = (AggregateEntry) e;
-        consumer.accept(entry.key, entry.aggregate);
+        consumer.accept((AggregateEntry) e);
       }
     }
   }

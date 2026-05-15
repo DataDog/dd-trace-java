@@ -136,9 +136,9 @@ final class Aggregator implements Runnable {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
           aggregates.forEach(
-              (key, agg) -> {
-                writer.add(key, agg);
-                agg.clear();
+              entry -> {
+                writer.add(entry);
+                entry.aggregate.clear();
               });
           // note that this may do IO and block
           writer.finishBucket();
