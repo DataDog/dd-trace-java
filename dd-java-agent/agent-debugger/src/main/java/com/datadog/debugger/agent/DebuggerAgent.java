@@ -75,7 +75,11 @@ public class DebuggerAgent {
   static final AtomicBoolean symDBEnabled = new AtomicBoolean();
   private static ClassesToRetransformFinder classesToRetransformFinder;
 
-  public static synchronized void run(
+  public static void run(Config config, Instrumentation inst, SharedCommunicationObjects sco) {
+    sco.whenReady(() -> doRun(config, inst, sco));
+  }
+
+  private static synchronized void doRun(
       Config config, Instrumentation inst, SharedCommunicationObjects sco) {
     instrumentation = inst;
     sharedCommunicationObjects = sco;
