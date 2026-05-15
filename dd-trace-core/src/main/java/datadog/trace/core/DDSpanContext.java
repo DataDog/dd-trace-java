@@ -774,7 +774,7 @@ public class DDSpanContext
     spanKindOrdinal = spanKindOrdinalOf(kind);
   }
 
-  static byte spanKindOrdinalOf(String kind) {
+  public static byte spanKindOrdinalOf(String kind) {
     if (kind == null) {
       return SPAN_KIND_UNSET;
     } else if (tagEquals(kind, Tags.SPAN_KIND_SERVER)) {

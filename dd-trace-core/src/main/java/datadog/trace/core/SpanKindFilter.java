@@ -50,6 +50,11 @@ public final class SpanKindFilter {
 
   /** Test whether a span with the given span.kind string passes this filter. */
   public boolean matches(String spanKind) {
-    return (kindMask & (1 << DDSpanContext.spanKindOrdinalOf(spanKind))) != 0;
+    return matches(DDSpanContext.spanKindOrdinalOf(spanKind));
+  }
+
+  /** Fast-path test for callers that already hold the span's cached kind ordinal. */
+  public boolean matches(byte spanKindOrdinal) {
+    return (kindMask & (1 << spanKindOrdinal)) != 0;
   }
 }
