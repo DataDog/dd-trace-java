@@ -820,43 +820,68 @@ test_smoke:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    # Build the agent + test jars once
-    - ./gradlew stageMainDist -PtestJvm=$testJvm $GRADLE_ARGS
-    # In-job loop: 50 iterations of the 3 JULInterfaceLog4j2 suites. Capture forked-process logs each time.
+    # Build the agent + test jars once (also need the test app jars for direct invocation)
+    - ./gradlew stageMainDist :dd-smoke-tests:log-injection:JULInterfaceLog4j2Backend :dd-smoke-tests:log-injection:JULInterfaceLog4j2LatestBackend -PtestJvm=$testJvm $GRADLE_ARGS
+    # In-job loop: direct JVM invocations (no gradle overhead per iter). 8-sec timeout per iter.
+    # Each iter: agent attaches + app's first log call triggers JUL static init = race fires (or doesn't).
+    # We capture the first DDIAG output to determine if the LogManager swap succeeded.
     - mkdir -p loop-output
     - |
-      ITERS=50
-      FAILURES=0
+      JAVA_BIN="$JAVA_8_HOME/bin/java"
+      AGENT_JAR=$(ls dd-java-agent/build/libs/dd-java-agent-*.jar 2>/dev/null | grep -v sources | grep -v javadoc | head -1)
+      APP_JAR_BACKEND=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2Backend.jar
+      APP_JAR_LATEST=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2LatestBackend.jar
+      echo "JAVA_BIN=$JAVA_BIN"
+      echo "AGENT_JAR=$AGENT_JAR"
+      ls -la "$AGENT_JAR" "$APP_JAR_BACKEND" "$APP_JAR_LATEST" || true
+      "$JAVA_BIN" -version
+      ITERS="${LOOP_ITERS:-300}"
+      SWAP_OK=0
+      SWAP_FAIL=0
+      MISSING=0
       for i in $(seq 1 "$ITERS"); do
-        echo "=== Iteration $i/$ITERS (testJvm=$testJvm) ==="
-        ./gradlew :dd-smoke-tests:log-injection:test \
-          --tests "datadog.smoketest.JULInterfaceLog4j2*" \
-          --rerun-tasks \
-          -PtestJvm=$testJvm \
-          -PskipFlakyTests \
-          $GRADLE_ARGS \
-          --continue > loop-output/attempt-$(printf '%03d' "$i").log 2>&1 || FAILURES=$((FAILURES+1))
-        # Snapshot the per-iteration forked process logs so we can compare DDIAG across iters
-        for f in dd-smoke-tests/log-injection/build/reports/testProcess.datadog.smoketest.JULInterfaceLog4j2*.log; do
-          [ -f "$f" ] || continue
-          base=$(basename "$f")
-          cp "$f" "loop-output/iter-$(printf '%03d' "$i")-$base"
-        done
-        # If a logLines failure occurred, snapshot the test XML(s) which contain the captured `log lines: [...]` output
-        if grep -q "logLines.size() == 7" loop-output/attempt-$(printf '%03d' "$i").log 2>/dev/null; then
-          echo "[iter $i] *** LOGLINES FAILURE CAPTURED ***"
-          for x in dd-smoke-tests/log-injection/build/test-results/test/TEST-datadog.smoketest.JULInterfaceLog4j2*.xml; do
-            [ -f "$x" ] || continue
-            bx=$(basename "$x")
-            cp "$x" "loop-output/iter-$(printf '%03d' "$i")-$bx"
-          done
+        # Alternate between Backend and LatestBackend each iter for coverage
+        if [ $((i % 2)) -eq 0 ]; then APP_JAR="$APP_JAR_LATEST"; else APP_JAR="$APP_JAR_BACKEND"; fi
+        LOGFILE=$(mktemp -t logTest.XXXXXX.log)
+        JSONFILE=$(mktemp -t logTestJson.XXXXXX.log)
+        OUT=$(mktemp -t directjvm.XXXXXX.out)
+        timeout 8 "$JAVA_BIN" \
+          -Xmx512M -Xms64M \
+          -javaagent:"$AGENT_JAR" \
+          -Ddd.trace.agent.port=49182 \
+          -Ddd.env=smoketest -Ddd.version=99 -Ddd.service.name=smoke-test-java-app \
+          -Ddd.instrumentation.telemetry.enabled=false \
+          -Ddd.profiling.enabled=false \
+          -Ddd.remote_config.enabled=true \
+          -Ddd.remote_config.url=http://localhost:49182/v0.7/config \
+          -Ddd.remote_config.poll_interval.seconds=0.2 \
+          -Ddd.trace.flush.interval=0.3 \
+          -Ddd.test.logfile="$LOGFILE" \
+          -Ddd.test.jsonlogfile="$JSONFILE" \
+          -Ddd.trace.128.bit.traceid.generation.enabled=false \
+          -Ddd.trace.128.bit.traceid.logging.enabled=false \
+          -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
+          -jar "$APP_JAR" > "$OUT" 2>&1 || true
+        FIRST=$(grep -m 1 "^DDIAG seq=" "$OUT" || true)
+        if [ -z "$FIRST" ]; then
+          MISSING=$((MISSING+1))
+          [ "$i" -le 3 ] && cp "$OUT" "loop-output/missing-iter-$(printf '%04d' "$i").log"
+        elif echo "$FIRST" | grep -q "lm_class=org.apache.logging.log4j.jul.LogManager"; then
+          SWAP_OK=$((SWAP_OK+1))
+        elif echo "$FIRST" | grep -q "lm_class=java.util.logging.LogManager"; then
+          SWAP_FAIL=$((SWAP_FAIL+1))
+          cp "$OUT" "loop-output/SWAP-FAIL-iter-$(printf '%04d' "$i").log"
+          cp "$LOGFILE" "loop-output/SWAP-FAIL-iter-$(printf '%04d' "$i")-logfile.log" 2>/dev/null || true
+          echo "[iter $i] *** SWAP FAILED *** $(basename $APP_JAR) lm_class=DEFAULT_JUL (BUG REPRODUCED)"
+        else
+          echo "[iter $i] UNKNOWN lm_class in: $FIRST"
+        fi
+        rm -f "$LOGFILE" "$JSONFILE" "$OUT"
+        if [ $((i % 25)) -eq 0 ]; then
+          echo "progress: iter=$i swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING"
         fi
       done
-      echo "=== Loop done: $FAILURES test invocations had non-zero exit (any reason) ==="
-      echo "=== DDIAG first-line summary (unique lm_class values seen) ==="
-      grep -h "^DDIAG seq=1" loop-output/iter-*.log 2>/dev/null | sed -nE 's/.*lm_class=([^ ]+).*/\1/p' | sort | uniq -c
-      echo "=== logLines failures captured (XML files) ==="
-      ls loop-output/iter-*-TEST-*.xml 2>/dev/null || echo "(none)"
+      echo "=== FINAL: total=$ITERS swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING ==="
   # DIAG-BRANCH-ONLY: override artifacts to include loop-output (per-iteration attempt logs + captured failure XMLs)
   artifacts:
     when: always
