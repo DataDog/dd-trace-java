@@ -1,44 +1,57 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
-plugins {
-  id 'java'
-  id 'war'
-  id 'org.springframework.boot' version '2.6.0'
-}
-
-apply plugin: 'io.spring.dependency-management'
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'SpringBoot JPA Smoke Tests.'
 
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+tasks.register('bootWar', Exec) {
+  workingDir appDir
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
+  commandLine "$appDir/${gradlewCommand}", "bootWar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationWar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
 dependencies {
-  implementation 'org.springframework.boot:spring-boot-starter-web'
-  implementation 'org.springframework.boot:spring-boot-starter-data-jpa'
-  implementation 'org.apache.tomcat.embed:tomcat-embed-jasper'
-  implementation 'javax.servlet:jstl:1.2'
-  implementation 'com.h2database:h2:2.1.214'
-
   testImplementation project(':dd-smoke-tests')
-
-  compileOnly 'org.projectlombok:lombok:1.18.34'
-  annotationProcessor 'org.projectlombok:lombok:1.18.34'
-
-  testCompileOnly 'org.projectlombok:lombok:1.18.34'
-  testAnnotationProcessor 'org.projectlombok:lombok:1.18.34'
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "bootWar"
-
+  dependsOn 'bootWar'
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return ["-Ddatadog.smoketest.springboot.bootWar.path=${bootWarTask.archiveFile.get()}"]
+        return ["-Ddatadog.smoketest.springboot.bootWar.path=$appBuildDir/libs/springboot-jpa-smoketest.war"]
       }
     })
 }
 
 tasks.withType(GroovyCompile).configureEach {
   configureCompiler(it, 8)
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

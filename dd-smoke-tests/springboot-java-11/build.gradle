@@ -1,42 +1,66 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
-plugins {
-  id 'java'
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
-  id 'java-test-fixtures'
-}
-
 apply from: "$rootDir/gradle/java.gradle"
+
+apply plugin: 'java-test-fixtures'
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11
 }
 
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
 description = 'SpringBoot Java 11 Smoke Tests.'
 
-dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.2.0.RELEASE'
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
+tasks.register('bootJar', Exec) {
+  workingDir appDir
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(11)
+  ]
+  commandLine "$appDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir",
+    "-PiastUtil11Jar=${project(':dd-smoke-tests:iast-util:iast-util-11').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+tasks.named('bootJar', Exec) {
+  dependsOn project(':dd-smoke-tests:iast-util:iast-util-11').tasks.named('jar')
+}
+
+dependencies {
   testImplementation project(':dd-smoke-tests')
   testImplementation testFixtures(project(":dd-smoke-tests:iast-util:iast-util-11"))
   testImplementation testFixtures(project(':dd-smoke-tests:iast-util'))
-
-  implementation project(':dd-smoke-tests:iast-util:iast-util-11')
-}
-
-tasks.named("compileJava", JavaCompile) {
-  configureCompiler(it, 11, JavaVersion.VERSION_11)
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "bootJar"
-  def bootJarTask = tasks.named('bootJar', BootJar)
+  dependsOn 'bootJar'
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+        return ["-Ddatadog.smoketest.springboot.shadowJar.path=$appBuildDir/libs/springboot-java-11-smoketest.jar"]
       }
     })
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

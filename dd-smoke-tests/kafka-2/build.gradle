@@ -1,34 +1,62 @@
-import org.springframework.boot.gradle.tasks.bundling.BootJar
-
-plugins {
-  id 'org.springframework.boot' version '2.7.15'
-  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
-  id 'java-test-fixtures'
-}
-
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
+apply plugin: 'java-test-fixtures'
+
 description = 'Kafka 2.x Smoke Tests.'
 
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
+
+tasks.register('bootJar', Exec) {
+  workingDir appDir
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
+  commandLine "$appDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir",
+    "-PiastUtilJar=${project(':dd-smoke-tests:iast-util').tasks.jar.archiveFile.get()}"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationJar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
+}
+
+tasks.named('bootJar', Exec) {
+  dependsOn project(':dd-smoke-tests:iast-util').tasks.named('jar')
+}
+
 dependencies {
-  implementation('org.springframework.boot:spring-boot-starter-web')
-  implementation('org.springframework.boot:spring-boot-starter-actuator')
-  implementation('org.springframework.kafka:spring-kafka')
-
-  testImplementation('org.springframework.kafka:spring-kafka-test')
-
+  testImplementation('org.springframework.kafka:spring-kafka-test:2.8.11')
   testImplementation project(':dd-smoke-tests')
-  implementation project(':dd-smoke-tests:iast-util')
   testImplementation(testFixtures(project(":dd-smoke-tests:iast-util")))
 }
 
 tasks.withType(Test).configureEach {
-  def bootJarTask = tasks.named('bootJar', BootJar)
-  dependsOn bootJarTask
+  dependsOn 'bootJar'
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        return bootJarTask.map { ["-Ddatadog.smoketest.springboot.shadowJar.path=${it.archiveFile.get()}"] }.get()
+        return ["-Ddatadog.smoketest.springboot.shadowJar.path=$appBuildDir/libs/kafka-2-smoketest.jar"]
       }
     })
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }

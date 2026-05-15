@@ -1,126 +1,60 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
-plugins {
-  id 'war'
-  id 'org.springframework.boot' version '2.5.12'
-}
-
-ext {
-  serverName = 'tomcat'
-  serverModule = 'tomcat-9'
-  serverVersion = '9.0.117'
-  serverExtension = 'zip'
-}
-
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'SpringBoot Tomcat Smoke Tests.'
 
-repositories {
-  ivy {
-    url = 'https://dlcdn.apache.org'
-    patternLayout {
-      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
-    }
-    metadataSources {
-      it.artifact()
-    }
-  }
-}
+def appDir = "$projectDir/application"
+def appBuildDir = "$buildDir/application"
+def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
+def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
 
-configurations {
-  serverFile {
-    extendsFrom implementation
-    canBeResolved = true
-  }
+def serverName = 'tomcat'
+def serverVersion = '9.0.117'
+
+tasks.register('bootWar', Exec) {
+  workingDir appDir
+  environment += [
+    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
+    "JAVA_HOME": getLazyJavaHomeFor(8)
+  ]
+  commandLine "$appDir/${gradlewCommand}", "bootWar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
+
+  outputs.cacheIf { true }
+
+  outputs.dir(appBuildDir)
+    .withPropertyName("applicationWar")
+
+  inputs.files(fileTree(appDir) {
+    include '**/*'
+    exclude '.gradle/**'
+  })
+  .withPropertyName("application")
+  .withPathSensitivity(PathSensitivity.RELATIVE)
 }
 
 dependencies {
-  // uses the ivy repository url to download the tomcat server
-  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
-  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
-
   testImplementation project(':dd-smoke-tests')
-}
-
-tasks.register("unzip", Copy) {
-  def zipFileNamePrefix = "tomcat"
-  def serverZipTree = providers.provider {
-    // eager access
-    def zipPath = project.configurations.serverFile.find {
-      it.name.startsWith(zipFileNamePrefix)
-    }
-    if (zipPath == null) {
-      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
-    }
-    zipTree(zipPath)
-  }
-
-  from serverZipTree
-  into layout.buildDirectory
-
-  // When tests are disabled this would still be run, so disable this manually
-  onlyIf { !project.rootProject.hasProperty("skipTests") }
-}
-
-dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.12'
-  providedRuntime group: 'org.springframework.boot', name: 'spring-boot-starter-tomcat', version: '2.5.12'
   testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
-  testImplementation project(':dd-smoke-tests')
-}
-
-tasks.named('sourcesJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('javadocJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
-  dependsOn 'unzip'
-}
-
-tasks.named('war') {
-  dependsOn 'unzip'
-}
-
-tasks.named('javadocJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('sourcesJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('forbiddenApisMain') {
-  dependsOn 'unzip'
-}
-
-tasks.named('spotbugsMain') {
-  dependsOn 'unzip'
-}
-
-tasks.matching({it.name.startsWith('compileTest')}).configureEach {
-  dependsOn 'war', 'bootWar', 'unzip'
 }
 
 tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar", "unzip"
-
+  dependsOn 'bootWar'
   jvmArgumentProviders.add(new CommandLineArgumentProvider() {
       @Override
       Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
         return [
-          "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
-          "-Ddatadog.smoketest.tomcatDir=${layout.buildDirectory.get()}/apache-${serverName}-${serverVersion}"
+          "-Ddatadog.smoketest.springboot.war.path=$appBuildDir/libs/springboot-tomcat-smoketest.war",
+          "-Ddatadog.smoketest.tomcatDir=$appBuildDir/apache-${serverName}-${serverVersion}"
         ]
       }
     })
+}
+
+spotless {
+  java {
+    target "**/*.java"
+  }
+
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }
