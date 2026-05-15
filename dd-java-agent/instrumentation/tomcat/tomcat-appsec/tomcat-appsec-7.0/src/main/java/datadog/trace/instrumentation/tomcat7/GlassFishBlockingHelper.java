@@ -43,6 +43,7 @@ public final class GlassFishBlockingHelper {
         return false;
       }
     } catch (Exception ignored) {
+      // commit failed — response not sent, cannot block this request
       return false;
     }
     // Response was committed — mark as blocked on a best-effort basis.
@@ -97,11 +98,13 @@ public final class GlassFishBlockingHelper {
                   MultipartContentDecoder.readInputStream(
                       is, MAX_FILE_CONTENT_BYTES, part.getContentType()));
             } catch (Exception ignored) {
+              // stream read failed — report empty content rather than skipping the part entirely
               contents.add("");
             }
           }
         }
       } catch (Exception ignored) {
+        // malformed or inaccessible part — skip and continue with remaining parts
       }
     }
 
