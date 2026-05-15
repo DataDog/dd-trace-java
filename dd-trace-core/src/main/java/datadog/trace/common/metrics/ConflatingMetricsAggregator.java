@@ -289,8 +289,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
-        final CharSequence spanKind = span.unsafeGetTag(SPAN_KIND, "");
-        if (shouldComputeMetric(span, spanKind)) {
+        // CharSequence cast keeps unsafeGetTag's generic at CharSequence so UTF8BytesString
+        // tag values don't trigger a ClassCastException on the String assignment.
+        final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
+        if (shouldComputeMetric(span, isTopLevel, spanKind)) {
           final CharSequence resourceName = span.getResourceName();
           if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
@@ -306,19 +308,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return forceKeep;
   }
 
-  private boolean shouldComputeMetric(CoreSpan<?> span, @Nonnull CharSequence spanKind) {
-    return (span.isMeasured() || span.isTopLevel() || spanKindEligible(spanKind))
+  private boolean shouldComputeMetric(
+      CoreSpan<?> span, boolean isTopLevel, @Nonnull String spanKind) {
+    return (span.isMeasured() || isTopLevel || ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind))
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
   }
 
-  private boolean spanKindEligible(@Nonnull CharSequence spanKind) {
-    // use toString since it could be a CharSequence...
-    return ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
-  }
-
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, String spanKind) {
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -347,7 +345,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()),
+            getPeerTags(span, spanKind),
             httpMethod,
             httpEndpoint,
             grpcStatusCode);
@@ -385,19 +383,22 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
     if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
       final Set<String> eligiblePeerTags = features.peerTags();
-      List<UTF8BytesString> peerTags = new ArrayList<>(eligiblePeerTags.size());
+      List<UTF8BytesString> peerTags = null;
       for (String peerTag : eligiblePeerTags) {
         Object value = span.unsafeGetTag(peerTag);
         if (value != null) {
           final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
               cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
+          if (peerTags == null) {
+            peerTags = new ArrayList<>(eligiblePeerTags.size());
+          }
           peerTags.add(
               cacheAndCreator
                   .getLeft()
                   .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
         }
       }
-      return peerTags;
+      return peerTags == null ? Collections.emptyList() : peerTags;
     } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
       // in this case only the base service should be aggregated if present
       final Object baseService = span.unsafeGetTag(BASE_SERVICE);
