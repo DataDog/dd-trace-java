@@ -243,6 +243,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     boolean forceKeep = false;
     int counted = 0;
     if (features.supportsMetrics()) {
+      // Sync the peer-aggregation schema once per trace; peer-tag configuration is stable for
+      // the duration of a single trace publish in production (DDAgentFeaturesDiscovery returns
+      // the same Set instance until remote-config reconfiguration).
+      Set<String> eligiblePeerTags = features.peerTags();
+      PeerTagSchema peerAggSchema =
+          (eligiblePeerTags == null || eligiblePeerTags.isEmpty())
+              ? null
+              : PeerTagSchema.currentSyncedTo(eligiblePeerTags);
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
@@ -253,7 +261,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel);
+          forceKeep |= publish(span, isTopLevel, peerAggSchema);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -268,7 +276,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerAggSchema) {
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -293,7 +301,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
-    PeerTagSchema peerTagSchema = peerTagSchemaFor(span);
+    PeerTagSchema peerTagSchema = peerTagSchemaFor(span, peerAggSchema);
     String[] peerTagValues =
         peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
     if (peerTagValues == null) {
@@ -327,17 +335,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Picks the peer-tag schema for a span. For peer-aggregation kinds, syncs the schema with {@code
-   * features.peerTags()} so producer and consumer share the same name/handler ordering. For
-   * internal-kind spans returns the static {@link PeerTagSchema#INTERNAL} schema.
+   * Picks the peer-tag schema for a span. The {@code peerAggSchema} argument is the per-trace
+   * cached schema (synced from {@code features.peerTags()} once in {@link #publish(List)}); it's
+   * {@code null} when no peer tags are configured. For internal-kind spans the static {@link
+   * PeerTagSchema#INTERNAL} schema is used regardless.
    */
-  private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
-    if (span.isKind(PEER_AGGREGATION_KINDS)) {
-      Set<String> eligible = features.peerTags();
-      if (eligible == null || eligible.isEmpty()) {
-        return null;
-      }
-      return PeerTagSchema.currentSyncedTo(eligible);
+  private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerAggSchema) {
+    if (peerAggSchema != null && span.isKind(PEER_AGGREGATION_KINDS)) {
+      return peerAggSchema;
     }
     if (span.isKind(INTERNAL_KIND)) {
       return PeerTagSchema.INTERNAL;

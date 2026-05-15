@@ -253,13 +253,16 @@ class ClientStatsAggregatorTest extends DDSpecification {
     "client"                         | "GET"      | "/external/api"     | true
   }
 
-  def "should create bucket for each set of peer tags"() {
+  def "should create separate buckets for distinct peer tag values"() {
+    // Peer-tag NAMES are configured per-tracer and stable for the duration of a trace publish;
+    // peer-tag VALUES vary per-span. Two spans with the same names but different values should
+    // produce two distinct aggregate buckets.
     setup:
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.peerTags() >>> [["country"], ["country", "georegion"],]
+    features.peerTags() >> ["country", "georegion"]
     ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
@@ -270,7 +273,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
       .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
+      .setTag(SPAN_KIND, "client").setTag("country", "germany").setTag("georegion", "europe")
     ])
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
@@ -289,7 +292,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       false,
       false,
       "client",
-      [UTF8BytesString.create("country:france")],
+      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
       null,
       null,
       null
@@ -307,7 +310,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       false,
       false,
       "client",
-      [UTF8BytesString.create("country:france"), UTF8BytesString.create("georegion:europe")],
+      [UTF8BytesString.create("country:germany"), UTF8BytesString.create("georegion:europe")],
       null,
       null,
       null
