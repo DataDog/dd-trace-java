@@ -901,12 +901,28 @@ test_smoke:
       done
       echo "=== FINAL: total=$ITERS swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING ==="
       # Emit the unique RESULT_TOKEN multiple times so at least one survives Datadog Logs sampling.
-      # Format chosen for easy grep: 'RESULT_TOKEN_END swap_ok:N swap_failed:N missing:N total:N'
       for _ in 1 2 3 4 5; do
         echo "RESULT_TOKEN_END swap_ok:$SWAP_OK swap_failed:$SWAP_FAIL missing:$MISSING total:$ITERS"
       done
       # Also write to a file in loop-output so it ships as an artifact
       echo "swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING total=$ITERS" > loop-output/RESULT.txt
+      # Submit a Datadog EVENT (not sampled like logs) tagged uniquely so we can find it later.
+      # Use the DD_API_KEY_PROD that the after_script normally sets. Set it here too.
+      DD_API_KEY_PROD_LOCAL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text 2>/dev/null || echo "")
+      if [ -n "$DD_API_KEY_PROD_LOCAL" ]; then
+        EVENT_TITLE="zulu8-loginjection-flake-diag swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING total=$ITERS"
+        EVENT_TEXT="Pipeline $CI_PIPELINE_ID Job $CI_JOB_ID commit $CI_COMMIT_SHA"
+        for attempt in 1 2 3; do
+          curl -sS -X POST \
+            -H "Content-Type: application/json" \
+            -H "DD-API-KEY: $DD_API_KEY_PROD_LOCAL" \
+            "https://api.datadoghq.com/api/v1/events" \
+            -d "{\"title\":\"$EVENT_TITLE\",\"text\":\"$EVENT_TEXT\",\"tags\":[\"zulu8_loginjection_diag:true\",\"ci_job_id:$CI_JOB_ID\",\"ci_pipeline_id:$CI_PIPELINE_ID\",\"commit:$CI_COMMIT_SHA\",\"swap_failed:$SWAP_FAIL\",\"swap_ok:$SWAP_OK\"]}" \
+            && break
+          sleep 2
+        done
+        echo "datadog event submission attempted"
+      fi
       # Force exit 0 — we want the job to succeed regardless of swap outcomes,
       # so artifacts get uploaded via the success path (not on_failure)
       exit 0
