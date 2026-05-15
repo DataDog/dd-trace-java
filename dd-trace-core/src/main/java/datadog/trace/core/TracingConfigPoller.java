@@ -256,6 +256,8 @@ final class TracingConfigPoller {
     maybeOverride(builder::setTraceSampleRate, libConfig.traceSampleRate);
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
+    maybeOverride(
+        builder::setTransactionTrackingExtractionPatterns, libConfig.ttExtractionPatterns);
     DebuggerConfigBridge.updateConfig(
         new DebuggerConfigUpdate(
             libConfig.dynamicInstrumentationEnabled,
@@ -419,6 +421,9 @@ final class TracingConfigPoller {
     @Json(name = "data_streams_transaction_extractors")
     public DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
 
+    @Json(name = "tt_extraction_patterns")
+    public List<String> ttExtractionPatterns;
+
     /**
      * Merges a list of LibConfig objects by taking the first non-null value for each field.
      *
@@ -481,6 +486,9 @@ final class TracingConfigPoller {
         }
         if (merged.liveDebuggingEnabled == null) {
           merged.liveDebuggingEnabled = config.liveDebuggingEnabled;
+        }
+        if (merged.ttExtractionPatterns == null) {
+          merged.ttExtractionPatterns = config.ttExtractionPatterns;
         }
       }
 

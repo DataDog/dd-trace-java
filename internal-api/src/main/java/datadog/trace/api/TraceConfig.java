@@ -55,4 +55,10 @@ public interface TraceConfig {
    * @return List of Data Streams Transactions extractors.
    */
   List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors();
+
+  /**
+   * Glob patterns used by Transaction Tracking to flag inbound HTTP header / query-string parameter
+   * names. An empty list disables the feature.
+   */
+  List<String> getTransactionTrackingExtractionPatterns();
 }

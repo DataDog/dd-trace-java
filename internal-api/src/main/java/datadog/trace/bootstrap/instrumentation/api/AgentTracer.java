@@ -735,5 +735,10 @@ public class AgentTracer {
     public List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
       return null;
     }
+
+    @Override
+    public List<String> getTransactionTrackingExtractionPatterns() {
+      return Collections.emptyList();
+    }
   }
 }
