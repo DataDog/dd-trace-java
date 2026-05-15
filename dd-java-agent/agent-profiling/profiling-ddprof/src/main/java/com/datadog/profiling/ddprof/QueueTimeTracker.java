@@ -1,19 +1,20 @@
 package com.datadog.profiling.ddprof;
 
 import datadog.trace.api.profiling.QueueTiming;
-import datadog.trace.bootstrap.instrumentation.api.AsyncProfiledTaskHandoff;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AsyncProfiledTaskHandoff;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import java.lang.ref.WeakReference;
 
 public class QueueTimeTracker implements QueueTiming {
 
-  private final DatadogProfiler profiler;
+  private final QueueTimeRecorder recorder;
   private final Thread origin;
   private final long startTicks;
   private final long startMillis;
   private final long submittingSpanId;
+  private long activationStartNano;
   private WeakReference<Object> weakTask;
   // FIXME this can be eliminated by altering the instrumentation
   //  since it is known when the item is polled from the queue
@@ -22,11 +23,20 @@ public class QueueTimeTracker implements QueueTiming {
   private int queueLength;
 
   public QueueTimeTracker(DatadogProfiler profiler, long startTicks, long submittingSpanId) {
-    this.profiler = profiler;
+    this(new DatadogProfilerQueueTimeRecorder(profiler), startTicks, submittingSpanId);
+  }
+
+  QueueTimeTracker(QueueTimeRecorder recorder, long startTicks, long submittingSpanId) {
+    this.recorder = recorder;
     this.origin = Thread.currentThread();
     this.startTicks = startTicks;
     this.startMillis = System.currentTimeMillis();
     this.submittingSpanId = submittingSpanId;
+  }
+
+  @Override
+  public void setActivationStartNano(long activationStartNano) {
+    this.activationStartNano = activationStartNano;
   }
 
   @Override
@@ -55,19 +65,22 @@ public class QueueTimeTracker implements QueueTiming {
     Object task = this.weakTask.get();
     if (task != null) {
       long consumingSpanIdOverride = 0L;
-      if (isExecutorWrapperTask(task)) {
-        AgentSpan span = AgentTracer.activeSpan();
-        if (span != null && span.context() instanceof ProfilerContext) {
-          ProfilerContext pc = (ProfilerContext) span.context();
-          if (pc.getSpanId() == submittingSpanId) {
-            long startNano = System.nanoTime();
+      AgentSpan span = AgentTracer.activeSpan();
+      if (span != null && span.context() instanceof ProfilerContext) {
+        ProfilerContext pc = (ProfilerContext) span.context();
+        if (submittingSpanId != 0L && pc.getSpanId() == submittingSpanId) {
+          long startNano = activationStartNano;
+          if (startNano == 0L && isExecutorWrapperTask(task)) {
+            startNano = System.nanoTime();
             AsyncProfiledTaskHandoff.setPendingActivationStartNano(startNano);
+          }
+          if (startNano != 0L) {
             consumingSpanIdOverride = pc.getSyntheticWorkSpanIdForActivation(startNano);
           }
         }
       }
       // indirection reduces shallow size of the tracker instance
-      profiler.recordQueueTimeEvent(
+      recorder.recordQueueTimeEvent(
           startTicks,
           task,
           scheduler,
@@ -81,13 +94,13 @@ public class QueueTimeTracker implements QueueTiming {
 
   @Override
   public boolean sample() {
-    return profiler.shouldRecordQueueTimeEvent(startMillis);
+    return recorder.shouldRecordQueueTimeEvent(startMillis);
   }
 
   /**
-   * True for {@code Wrapper} / {@code ComparableRunnable} (agent-bootstrap) so we only align
-   * {@link AsyncProfiledTaskHandoff} with tasks that use the same execution path; avoids a
-   * compile dependency on agent-bootstrap.
+   * True for {@code Wrapper} / {@code ComparableRunnable} (agent-bootstrap) so we only align {@link
+   * AsyncProfiledTaskHandoff} with tasks that use the same execution path; avoids a compile
+   * dependency on agent-bootstrap.
    */
   private static boolean isExecutorWrapperTask(Object task) {
     if (task == null) {
@@ -96,5 +109,53 @@ public class QueueTimeTracker implements QueueTiming {
     String n = task.getClass().getName();
     return n.equals("datadog.trace.bootstrap.instrumentation.java.concurrent.Wrapper")
         || n.equals("datadog.trace.bootstrap.instrumentation.java.concurrent.ComparableRunnable");
+  }
+
+  interface QueueTimeRecorder {
+    boolean shouldRecordQueueTimeEvent(long startMillis);
+
+    void recordQueueTimeEvent(
+        long startTicks,
+        Object task,
+        Class<?> scheduler,
+        Class<?> queueType,
+        int queueLength,
+        Thread origin,
+        long submittingSpanId,
+        long consumingSpanIdOverride);
+  }
+
+  private static final class DatadogProfilerQueueTimeRecorder implements QueueTimeRecorder {
+    private final DatadogProfiler profiler;
+
+    private DatadogProfilerQueueTimeRecorder(DatadogProfiler profiler) {
+      this.profiler = profiler;
+    }
+
+    @Override
+    public boolean shouldRecordQueueTimeEvent(long startMillis) {
+      return profiler.shouldRecordQueueTimeEvent(startMillis);
+    }
+
+    @Override
+    public void recordQueueTimeEvent(
+        long startTicks,
+        Object task,
+        Class<?> scheduler,
+        Class<?> queueType,
+        int queueLength,
+        Thread origin,
+        long submittingSpanId,
+        long consumingSpanIdOverride) {
+      profiler.recordQueueTimeEvent(
+          startTicks,
+          task,
+          scheduler,
+          queueType,
+          queueLength,
+          origin,
+          submittingSpanId,
+          consumingSpanIdOverride);
+    }
   }
 }

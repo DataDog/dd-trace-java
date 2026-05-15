@@ -9,6 +9,7 @@ import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.AsyncProfiledTaskHandoff;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import java.util.Set;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -95,9 +96,10 @@ public final class TPEHelper {
     if (task == null || exclude(RUNNABLE, task)) {
       return null;
     }
-    AgentScope scope = AdviceUtils.startTaskScope(contextStore, task);
+    AgentScope scope = AdviceUtils.startTaskScopeWithActivationHandoff(contextStore, task);
     if (scope != null && threadLocalActivationNano != null) {
-      long startNano = System.nanoTime();
+      Long pendingStart = AsyncProfiledTaskHandoff.takePendingActivationStartNano();
+      long startNano = pendingStart != null ? pendingStart : System.nanoTime();
       threadLocalActivationNano.set(startNano);
       AgentSpan span = scope.span();
       if (span != null && span.context() instanceof ProfilerContext) {

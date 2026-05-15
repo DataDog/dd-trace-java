@@ -120,9 +120,15 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
       // ProfilerContext. Schedulers and native wakeups often call unpark() without an
       // active span, so TaskBlock events keep unblockingSpanId=0 in those cases.
       if (span == null || !(span.context() instanceof ProfilerContext)) {
+        State.UNPARKING_SPAN.remove(thread);
         return;
       }
-      State.UNPARKING_SPAN.put(thread, ((ProfilerContext) span.context()).getSpanId());
+      long spanId = ((ProfilerContext) span.context()).getSpanId();
+      if (spanId != 0L) {
+        State.UNPARKING_SPAN.put(thread, spanId);
+      } else {
+        State.UNPARKING_SPAN.remove(thread);
+      }
     }
   }
 }

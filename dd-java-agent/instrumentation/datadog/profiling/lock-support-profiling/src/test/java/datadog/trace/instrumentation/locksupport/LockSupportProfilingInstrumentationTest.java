@@ -171,4 +171,16 @@ class LockSupportProfilingInstrumentationTest {
         State.UNPARKING_SPAN.get(t),
         "Stale UNPARKING_SPAN entry must be drained even when state is null");
   }
+
+  @Test
+  void untraced_unpark_clears_existing_unblocking_span() {
+    Thread t = Thread.currentThread();
+    State.UNPARKING_SPAN.put(t, 99L);
+
+    LockSupportProfilingInstrumentation.UnparkAdvice.before(t);
+
+    assertNull(
+        State.UNPARKING_SPAN.get(t),
+        "Untraced unpark must not leave an older traced unparker attributed to this thread");
+  }
 }

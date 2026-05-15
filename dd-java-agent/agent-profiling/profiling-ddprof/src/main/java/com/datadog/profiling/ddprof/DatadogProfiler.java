@@ -43,11 +43,11 @@ import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
-import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.EnumSet;
 import java.util.List;
@@ -67,80 +67,93 @@ public final class DatadogProfiler {
   private static final Logger log = LoggerFactory.getLogger(DatadogProfiler.class);
 
   /**
-   * Extended {@link JavaProfiler} APIs that exist in newer ddprof builds but are absent from
-   * older published jars (e.g. 1.40.0). When a method is null, {@link DatadogProfiler} no-ops or
-   * falls back so we still compile and run against the minimum supported ddprof.
+   * Extended {@link JavaProfiler} APIs that exist in newer ddprof builds but are absent from older
+   * published jars (e.g. 1.40.0). When a method is null, {@link DatadogProfiler} no-ops or falls
+   * back so we still compile and run against the minimum supported ddprof.
    */
-  private static final Method RECORD_TRACE_ROOT_EXTENDED = optionalMethod(
-      "recordTraceRoot",
-      long.class,
-      long.class,
-      long.class,
-      String.class,
-      String.class,
-      int.class);
+  private static final Method RECORD_TRACE_ROOT_EXTENDED =
+      optionalMethod(
+          "recordTraceRoot",
+          long.class,
+          long.class,
+          long.class,
+          String.class,
+          String.class,
+          int.class);
 
-  private static final Method RECORD_TASK_BLOCK = optionalMethod(
-      "recordTaskBlock", long.class, long.class, long.class, long.class, long.class, long.class);
+  private static final Method RECORD_TASK_BLOCK =
+      optionalMethod(
+          "recordTaskBlock",
+          long.class,
+          long.class,
+          long.class,
+          long.class,
+          long.class,
+          long.class);
 
   private static final Method PARK_ENTER = optionalMethod("parkEnter", long.class, long.class);
 
   private static final Method PARK_EXIT = optionalMethod("parkExit", long.class, long.class);
 
-  private static final Method RECORD_SPAN_NODE = optionalMethod(
-      "recordSpanNode",
-      long.class,
-      long.class,
-      long.class,
-      long.class,
-      long.class,
-      int.class,
-      int.class);
+  private static final Method RECORD_SPAN_NODE =
+      optionalMethod(
+          "recordSpanNode",
+          long.class,
+          long.class,
+          long.class,
+          long.class,
+          long.class,
+          int.class,
+          int.class);
 
   /**
    * Oldest API: 7 args, no {@code submittingSpanId} (e.g. ddprof 1.40). Not present in 1.41+; use
    * {@link #RECORD_QUEUE_TIME_8} with {@code 0L} when this is null.
    */
-  private static final Method RECORD_QUEUE_TIME_7 = optionalMethod(
-      "recordQueueTime",
-      long.class,
-      long.class,
-      Class.class,
-      Class.class,
-      Class.class,
-      int.class,
-      Thread.class);
+  private static final Method RECORD_QUEUE_TIME_7 =
+      optionalMethod(
+          "recordQueueTime",
+          long.class,
+          long.class,
+          Class.class,
+          Class.class,
+          Class.class,
+          int.class,
+          Thread.class);
 
   /** (startTicks, endTicks, task, scheduler, queueType, queueLength, origin, submittingSpanId) */
-  private static final Method RECORD_QUEUE_TIME_8 = optionalMethod(
-      "recordQueueTime",
-      long.class,
-      long.class,
-      Class.class,
-      Class.class,
-      Class.class,
-      int.class,
-      Thread.class,
-      long.class);
+  private static final Method RECORD_QUEUE_TIME_8 =
+      optionalMethod(
+          "recordQueueTime",
+          long.class,
+          long.class,
+          Class.class,
+          Class.class,
+          Class.class,
+          int.class,
+          Thread.class,
+          long.class);
 
   /** submit + optional consuming override (newer ddprof) */
-  private static final Method RECORD_QUEUE_TIME_9 = optionalMethod(
-      "recordQueueTime",
-      long.class,
-      long.class,
-      Class.class,
-      Class.class,
-      Class.class,
-      int.class,
-      Thread.class,
-      long.class,
-      long.class);
+  private static final Method RECORD_QUEUE_TIME_9 =
+      optionalMethod(
+          "recordQueueTime",
+          long.class,
+          long.class,
+          Class.class,
+          Class.class,
+          Class.class,
+          int.class,
+          Thread.class,
+          long.class,
+          long.class);
 
   /**
    * Not on all published ddprof API surfaces; must be invoked reflectively for compile against
    * minimum ddprof, then work at runtime when a newer native jar is loaded.
    */
-  private static final Method SET_CONTEXT_VALUE = optionalMethod("setContextValue", int.class, int.class);
+  private static final Method SET_CONTEXT_VALUE =
+      optionalMethod("setContextValue", int.class, int.class);
 
   private static final Method CONTEXT_SETTER_SET_INT_INT =
       optionalContextSetterMethod("setContextValue", int.class, int.class);
@@ -153,9 +166,11 @@ public final class DatadogProfiler {
     }
   }
 
-  private static final Method CONTEXT_SETTER_ENCODE = optionalContextSetterMethod("encode", String.class);
+  private static final Method CONTEXT_SETTER_ENCODE =
+      optionalContextSetterMethod("encode", String.class);
 
-  private static final Method REGISTER_CONSTANT = optionalProfilerDeclared("registerConstant", String.class);
+  private static final Method REGISTER_CONSTANT =
+      optionalProfilerDeclared("registerConstant", String.class);
 
   private static Method optionalContextSetterMethod(String name, Class<?>... paramTypes) {
     try {
@@ -760,7 +775,14 @@ public final class DatadogProfiler {
         if (RECORD_QUEUE_TIME_7 != null) {
           try {
             RECORD_QUEUE_TIME_7.invoke(
-                profiler, startTicks, endTicks, taskType, scheduler, queueType, queueLength, origin);
+                profiler,
+                startTicks,
+                endTicks,
+                taskType,
+                scheduler,
+                queueType,
+                queueLength,
+                origin);
             return;
           } catch (InvocationTargetException | IllegalAccessException e) {
             if (detailedDebugLogging) {

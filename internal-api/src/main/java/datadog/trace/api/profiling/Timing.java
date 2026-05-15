@@ -17,6 +17,9 @@ public interface Timing {
     }
 
     @Override
+    public void setActivationStartNano(long activationStartNano) {}
+
+    @Override
     public void setTask(Object task) {}
 
     @Override

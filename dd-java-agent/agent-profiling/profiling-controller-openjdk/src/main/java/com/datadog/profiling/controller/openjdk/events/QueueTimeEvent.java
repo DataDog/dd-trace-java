@@ -52,6 +52,9 @@ public class QueueTimeEvent extends Event implements QueueTiming {
   }
 
   @Override
+  public void setActivationStartNano(long activationStartNano) {}
+
+  @Override
   public void setTask(Object task) {
     this.task = TaskWrapper.getUnwrappedType(task);
   }

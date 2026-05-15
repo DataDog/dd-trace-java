@@ -4,10 +4,10 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
 /**
- * Synchronises activation timing between thread-pool {@code beforeExecute} queue-timer
- * reporting and {@link ProfilerContext} activation in {@code Wrapper#run} so the synthetic
- * work-segment span id in {@code datadog.QueueTime} and the {@code SpanNode} emitted in
- * {@code onTaskDeactivation} are identical.
+ * Synchronises activation timing between thread-pool {@code beforeExecute} queue-timer reporting
+ * and {@link ProfilerContext} activation in {@code Wrapper#run} so the synthetic work-segment span
+ * id in {@code datadog.QueueTime} and the {@code SpanNode} emitted in {@code onTaskDeactivation}
+ * are identical.
  */
 public final class AsyncProfiledTaskHandoff {
 
@@ -23,7 +23,9 @@ public final class AsyncProfiledTaskHandoff {
     PENDING_START_NANO.set(startNano);
   }
 
-  /** @return the pending value if present; clears the thread-local */
+  /**
+   * @return the pending value if present; clears the thread-local
+   */
   public static Long takePendingActivationStartNano() {
     Long v = PENDING_START_NANO.get();
     PENDING_START_NANO.remove();
