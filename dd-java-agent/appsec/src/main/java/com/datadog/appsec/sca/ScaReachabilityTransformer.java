@@ -35,7 +35,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Observation-only {@link ClassFileTransformer} that detects when classes from vulnerable libraries
- * are loaded and reports reachability hits via {@link ScaReachabilityCollector}.
+ * are loaded and reports reachability hits via {@link ScaReachabilityDependencyRegistry}.
  *
  * <p>Design principles (see APPSEC-62260 and .claude-invariants.md):
  *
@@ -145,7 +145,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * <ul>
    *   <li>Class-level ({@code symbol.method() == null}): reports a hit immediately via {@link
-   *       ScaReachabilityCollector} with symbol {@link ScaReachabilityHit#CLASS_LEVEL_SYMBOL}.
+   *       ScaReachabilityDependencyRegistry} with symbol {@link
+   *       ScaReachabilityHit#CLASS_LEVEL_SYMBOL}.
    *   <li>Method-level ({@code symbol.method() != null}): injects a static callback into the method
    *       bytecode via ASM. The callback is invoked the first time the method is called and reports
    *       via {@link ScaReachabilityCallback}. Returns modified bytecode; {@code null} if only
@@ -239,7 +240,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * classes are skipped: they are always loaded regardless of which library is in the classpath and
    * would produce false positives if used as reachability proxies. See APPSEC-62260.
    */
-  public void checkAlreadyLoadedClasses(Instrumentation instrumentation) {
+  public void checkAlreadyLoadedClasses() {
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
       String internalName = clazz.getName().replace('.', '/');
       if (internalName.charAt(0) == '[') {
@@ -287,7 +288,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * </ol>
    *
    * <p>Called by {@code ScaReachabilityPeriodicAction} on each telemetry heartbeat via the {@code
-   * periodicWorkCallback} registered in {@link ScaReachabilityCollector}.
+   * periodicWorkCallback} registered in {@link ScaReachabilityDependencyRegistry}.
    */
   public void performPendingRetransforms() {
     if (instrumentation == null) {

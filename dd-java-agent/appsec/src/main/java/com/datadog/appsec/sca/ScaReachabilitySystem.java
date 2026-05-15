@@ -76,7 +76,7 @@ public final class ScaReachabilitySystem {
     // checkAlreadyLoadedClasses.
     instrumentation.addTransformer(transformer, true);
 
-    transformer.checkAlreadyLoadedClasses(instrumentation);
+    transformer.checkAlreadyLoadedClasses();
     log.debug("SCA Reachability: startup scan complete");
 
     // Register the periodic retransform callback so the telemetry heartbeat can retry
