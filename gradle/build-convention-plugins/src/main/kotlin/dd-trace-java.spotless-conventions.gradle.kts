@@ -1,7 +1,45 @@
 import com.diffplug.gradle.spotless.SpotlessExtension
+import com.diffplug.gradle.spotless.SpotlessExtensionPredeclare
 
 plugins {
   id("com.diffplug.spotless")
+}
+
+val googleJavaFormatVersion = "1.35.0"
+val tableTestFormatterVersion = "1.1.1"
+val ktlintVersion = "1.8.0"
+val scalafmtVersion = "3.11.1"
+val ktlintEditorConfigOverride = mapOf(
+  "ktlint_standard_trailing-comma-on-call-site" to "disabled",
+  "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
+)
+
+// Resolve formatter dependencies once, then let all subprojects reuse the cached provisioner.
+configure<SpotlessExtensionPredeclare> {
+  java {
+    tableTestFormatter(tableTestFormatterVersion)
+    googleJavaFormat(googleJavaFormatVersion)
+  }
+
+  groovyGradle {
+    greclipse()
+  }
+
+  groovy {
+    greclipse()
+  }
+
+  kotlinGradle {
+    ktlint(ktlintVersion)
+  }
+
+  kotlin {
+    ktlint(ktlintVersion)
+  }
+
+  scala {
+    scalafmt(scalafmtVersion)
+  }
 }
 
 // List of projects to exclude from processing by Spotless.
@@ -33,12 +71,7 @@ allprojects {
         toggleOffOn()
         target("**/*.gradle.kts")
         targetExclude(commonExcludes)
-        ktlint("1.8.0").editorConfigOverride(
-          mapOf(
-            "ktlint_standard_trailing-comma-on-call-site" to "disabled",
-            "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
-          )
-        )
+        ktlint(ktlintVersion).editorConfigOverride(ktlintEditorConfigOverride)
       }
 
       groovyGradle {
@@ -71,8 +104,8 @@ allprojects {
           toggleOffOn()
           target("src/**/*.java", "app*/**/*.java")
           targetExclude(commonExcludes)
-          tableTestFormatter("1.1.1")
-          googleJavaFormat("1.35.0")
+          tableTestFormatter(tableTestFormatterVersion)
+          googleJavaFormat(googleJavaFormatVersion)
         }
       }
 
@@ -81,12 +114,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.kt", "app*/**/*.kt")
           targetExclude(commonExcludes)
-          ktlint("1.8.0").editorConfigOverride(
-            mapOf(
-              "ktlint_standard_trailing-comma-on-call-site" to "disabled",
-              "ktlint_standard_trailing-comma-on-declaration-site" to "disabled"
-            )
-          )
+          ktlint(ktlintVersion).editorConfigOverride(ktlintEditorConfigOverride)
         }
       }
 
@@ -95,7 +123,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.scala", "app*/**/*.scala")
           targetExclude(commonExcludes)
-          scalafmt("3.11.1").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
+          scalafmt(scalafmtVersion).configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
         }
       }
 
