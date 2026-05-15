@@ -356,10 +356,51 @@ build_java_profiler_ddprof:
       rm -rf "$SRCDIR"
       git clone --depth 1 --branch "$JAVA_PROFILER_REF" https://github.com/DataDog/java-profiler.git "$SRCDIR"
       cd "$SRCDIR"
+      export ORG_GRADLE_PROJECT_mavenRepositoryProxy="$MAVEN_REPOSITORY_PROXY"
+      export ORG_GRADLE_PROJECT_gradlePluginProxy="$GRADLE_PLUGIN_PROXY"
+      PROFILER_GRADLE_INIT="${CI_PROJECT_DIR}/java-profiler-init.gradle"
+      cat > "$PROFILER_GRADLE_INIT" <<'EOF'
+      def mavenRepositoryProxy = System.getenv('MAVEN_REPOSITORY_PROXY')
+      def gradlePluginProxy = System.getenv('GRADLE_PLUGIN_PROXY') ?: mavenRepositoryProxy
+
+      def addPluginRepositories = { repositories ->
+        if (gradlePluginProxy) {
+          repositories.maven { url = uri(gradlePluginProxy) }
+        }
+        if (mavenRepositoryProxy && mavenRepositoryProxy != gradlePluginProxy) {
+          repositories.maven { url = uri(mavenRepositoryProxy) }
+        }
+      }
+
+      def addMavenRepositories = { repositories ->
+        if (mavenRepositoryProxy) {
+          repositories.maven { url = uri(mavenRepositoryProxy) }
+        }
+      }
+
+      beforeSettings { settings ->
+        settings.pluginManagement {
+          repositories {
+            addPluginRepositories(delegate)
+          }
+        }
+      }
+
+      allprojects {
+        buildscript {
+          repositories {
+            addPluginRepositories(delegate)
+          }
+        }
+        repositories {
+          addMavenRepositories(delegate)
+        }
+      }
+      EOF
       chmod +x ./gradlew
       ./gradlew --version
       # assembleRelease is the native link/assemble task only; the packaged jar is assembleReleaseJar.
-      ./gradlew :ddprof-lib:assembleReleaseJar -Pskip-tests -Pskip-gtest
+      ./gradlew --init-script "$PROFILER_GRADLE_INIT" :ddprof-lib:assembleReleaseJar -Pskip-tests -Pskip-gtest
       JAR=$(find ddprof-lib/build/libs -maxdepth 1 -type f \( -name 'ddprof-*.jar' \) ! -name '*-sources*' ! -name '*-javadoc*' | head -1)
       if [ -z "$JAR" ] || [ ! -f "$JAR" ]; then
         echo "No ddprof jar found under ddprof-lib/build/libs" >&2
