@@ -822,13 +822,24 @@ test_smoke:
     - ./gradlew --version
     # Build the agent shadowJar + test jars (need both for direct invocation)
     - ./gradlew :dd-java-agent:shadowJar :dd-smoke-tests:log-injection:JULInterfaceLog4j2Backend :dd-smoke-tests:log-injection:JULInterfaceLog4j2LatestBackend -PtestJvm=$testJvm $GRADLE_ARGS
-    # Discover jar locations (broad search — workspace layout may vary)
-    - echo "=== JAR LOCATIONS ==="
-    - pwd
-    - AGENT_JARS=$(find / -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | grep -v sources | grep -v javadoc | grep -v "/cache/" | head -5)
-    - APP_JARS=$(find / -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5)
-    - echo "AGENT_JARS:"; echo "$AGENT_JARS"
-    - echo "APP_JARS:"; echo "$APP_JARS"
+    # Discover jar locations (workspace-scoped, set +e for filesystem walk)
+    - |
+      set +e
+      echo "=== JAR LOCATIONS ==="
+      echo "pwd: $(pwd)"
+      AGENT_JARS=$(find /go -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | grep -v sources | grep -v javadoc | grep -v "/cache/" | head -5 || true)
+      APP_JARS=$(find /go -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5 || true)
+      echo "AGENT_JARS:"
+      echo "$AGENT_JARS"
+      echo "APP_JARS:"
+      echo "$APP_JARS"
+      # Persist for subsequent steps via env-file
+      echo "AGENT_JARS<<EOF" > /tmp/jar-paths.env
+      echo "$AGENT_JARS" >> /tmp/jar-paths.env
+      echo "EOF" >> /tmp/jar-paths.env
+      echo "APP_JARS<<EOF" >> /tmp/jar-paths.env
+      echo "$APP_JARS" >> /tmp/jar-paths.env
+      echo "EOF" >> /tmp/jar-paths.env
     # Submit early-checkpoint Datadog event with the discovered paths (immune to logs sampling)
     - |
       DD_API_KEY_PROD_LOCAL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text 2>/dev/null || echo "")
