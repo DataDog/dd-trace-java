@@ -801,6 +801,8 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
+  # DIAG-BRANCH-ONLY: make this job uninterruptible so back-to-back retriggers don't kill in-progress loops
+  interruptible: false
   variables:
     GRADLE_TARGET: "stageMainDist"
     GRADLE_PARAMS: ""
