@@ -33,6 +33,7 @@ public class JMXFetch {
   private static final Logger log = LoggerFactory.getLogger(JMXFetch.class);
 
   private static final String DEFAULT_CONFIG = "jmxfetch-config.yaml";
+  private static final String OTLP_JMX_CONFIG = "jmxfetch-config-no-jvm-defaults.yaml";
   private static final String WEBSPHERE_CONFIG = "jmxfetch-websphere-config.yaml";
 
   private static final int DELAY_BETWEEN_RUN_ATTEMPTS = 5000;
@@ -101,7 +102,13 @@ public class JMXFetch {
 
     TracerFlare.addReporter(reporter);
     final List<String> defaultConfigs = new ArrayList<>();
-    if (!otlpRuntimeMetricsEnabled) {
+    if (otlpRuntimeMetricsEnabled) {
+      // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
+      // exporter started by CoreTracer collects them. Started here so it rides the same
+      // delayed-start path as JMXFetch itself.
+      JvmOtlpRuntimeMetrics.start();
+      defaultConfigs.add(OTLP_JMX_CONFIG);
+    } else {
       defaultConfigs.add(DEFAULT_CONFIG);
     }
     if (config.isJmxFetchIntegrationEnabled(Collections.singletonList("websphere"), false)) {
@@ -175,14 +182,6 @@ public class JMXFetch {
               }
             });
     thread.setContextClassLoader(JMXFetch.class.getClassLoader());
-
-    // Register JVM runtime metric callbacks against the OtelMeterProvider so the OTLP
-    // exporter started by CoreTracer collects them. Started here so it rides the same
-    // delayed-start path as JMXFetch itself.
-    if (otlpRuntimeMetricsEnabled) {
-      JvmOtlpRuntimeMetrics.start();
-    }
-
     thread.start();
   }
 
