@@ -30,5 +30,5 @@ repositories {
 }
 
 dependencies {
-  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.5.0")
+  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.4.0")
 }
