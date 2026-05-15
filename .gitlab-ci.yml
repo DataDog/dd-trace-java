@@ -802,11 +802,73 @@ test_debugger:
 test_smoke:
   extends: .test_job
   variables:
-    GRADLE_TARGET: "stageMainDist :smokeTest"
-    GRADLE_PARAMS: "-PskipFlakyTests"
+    GRADLE_TARGET: "stageMainDist"
+    GRADLE_PARAMS: ""
     CACHE_TYPE: "smoke"
+    # DIAG-BRANCH-ONLY: bypass the testJvm DEFAULT_TEST_JVMS filter so zulu8 cells run on feature branch
+    NON_DEFAULT_JVMS: "true"
+    # DIAG-BRANCH-ONLY: SSI env vars to mirror test_ssi_smoke (which is master-only) — most failures originate there
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
   parallel:
-    matrix: *test_matrix_8
+    # DIAG-BRANCH-ONLY: scope to the single matrix cell where the logLines == 3 failure was historically seen
+    matrix:
+      - testJvm: ["zulu8"]
+        CI_SPLIT: ["5/8"]
+  script:
+    - *gitlab_base_ref_params
+    - *prepare_test_env
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - ./gradlew --version
+    # Build the agent + test jars once
+    - ./gradlew stageMainDist -PtestJvm=$testJvm $GRADLE_ARGS
+    # In-job loop: 50 iterations of the 3 JULInterfaceLog4j2 suites. Capture forked-process logs each time.
+    - mkdir -p loop-output
+    - |
+      ITERS=50
+      FAILURES=0
+      for i in $(seq 1 "$ITERS"); do
+        echo "=== Iteration $i/$ITERS (testJvm=$testJvm) ==="
+        ./gradlew :dd-smoke-tests:log-injection:test \
+          --tests "datadog.smoketest.JULInterfaceLog4j2*" \
+          --rerun-tasks \
+          -PtestJvm=$testJvm \
+          -PskipFlakyTests \
+          $GRADLE_ARGS \
+          --continue > loop-output/attempt-$(printf '%03d' "$i").log 2>&1 || FAILURES=$((FAILURES+1))
+        # Snapshot the per-iteration forked process logs so we can compare DDIAG across iters
+        for f in dd-smoke-tests/log-injection/build/reports/testProcess.datadog.smoketest.JULInterfaceLog4j2*.log; do
+          [ -f "$f" ] || continue
+          base=$(basename "$f")
+          cp "$f" "loop-output/iter-$(printf '%03d' "$i")-$base"
+        done
+        # If a logLines failure occurred, snapshot the test XML(s) which contain the captured `log lines: [...]` output
+        if grep -q "logLines.size() == 7" loop-output/attempt-$(printf '%03d' "$i").log 2>/dev/null; then
+          echo "[iter $i] *** LOGLINES FAILURE CAPTURED ***"
+          for x in dd-smoke-tests/log-injection/build/test-results/test/TEST-datadog.smoketest.JULInterfaceLog4j2*.xml; do
+            [ -f "$x" ] || continue
+            bx=$(basename "$x")
+            cp "$x" "loop-output/iter-$(printf '%03d' "$i")-$bx"
+          done
+        fi
+      done
+      echo "=== Loop done: $FAILURES test invocations had non-zero exit (any reason) ==="
+      echo "=== DDIAG first-line summary (unique lm_class values seen) ==="
+      grep -h "^DDIAG seq=1" loop-output/iter-*.log 2>/dev/null | sed -nE 's/.*lm_class=([^ ]+).*/\1/p' | sort | uniq -c
+      echo "=== logLines failures captured (XML files) ==="
+      ls loop-output/iter-*-TEST-*.xml 2>/dev/null || echo "(none)"
+  # DIAG-BRANCH-ONLY: override artifacts to include loop-output (per-iteration attempt logs + captured failure XMLs)
+  artifacts:
+    when: always
+    paths:
+      - ./reports.tar
+      - ./profiles.tar
+      - ./results
+      - './test_counts_*.json'
+      - '.gradle/daemon/*/*.out.log'
+      - ./loop-output/
+    reports:
+      junit: results/*.xml
 
 test_ssi_smoke:
   extends: .test_job
