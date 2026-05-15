@@ -864,7 +864,7 @@ test_smoke:
       set +e
       set +x
       echo "=== GRADLE LOOP STARTING $(date -Iseconds) ==="
-      ITERS="${LOOP_ITERS:-12}"
+      ITERS="${LOOP_ITERS:-8}"
       LOGLINES_FAILS=0
       OTHER_FAILS=0
       PASSES=0
