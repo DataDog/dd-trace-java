@@ -8,6 +8,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Enumeration;
+import java.util.function.Consumer;
 import javax.servlet.http.HttpServletRequest;
 
 public class Servlet2Decorator
@@ -72,6 +74,26 @@ public class Servlet2Decorator
   @Override
   protected String getRequestHeader(final HttpServletRequest request, String key) {
     return request.getHeader(key);
+  }
+
+  @Override
+  @SuppressWarnings("unchecked")
+  protected void forEachRequestHeaderName(
+      final HttpServletRequest request, final Consumer<String> consumer) {
+    if (request == null) {
+      return;
+    }
+    try {
+      Enumeration<String> names = request.getHeaderNames();
+      if (names == null) {
+        return;
+      }
+      while (names.hasMoreElements()) {
+        consumer.accept(names.nextElement());
+      }
+    } catch (Throwable ignored) {
+      // best-effort
+    }
   }
 
   @Override

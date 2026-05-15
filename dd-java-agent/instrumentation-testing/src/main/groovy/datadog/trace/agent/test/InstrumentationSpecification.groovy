@@ -260,6 +260,11 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     List<DataStreamsTransactionExtractor> getDataStreamsTransactionExtractors() {
       return null
     }
+
+    @Override
+    List<String> getTransactionTrackingExtractionPatterns() {
+      return Collections.emptyList()
+    }
   }
 
   @SuppressFBWarnings(value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE", justification = "The variable is accessed only by the test thread in setup and cleanup.")

@@ -7,6 +7,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import java.util.Enumeration;
+import java.util.function.Consumer;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
@@ -80,6 +82,26 @@ public class Servlet3Decorator
   @Override
   protected String getRequestHeader(final HttpServletRequest request, String key) {
     return request.getHeader(key);
+  }
+
+  @Override
+  protected void forEachRequestHeaderName(
+      final HttpServletRequest request, final Consumer<String> consumer) {
+    if (request == null) {
+      return;
+    }
+    try {
+      Enumeration<String> names = request.getHeaderNames();
+      if (names == null) {
+        return;
+      }
+      while (names.hasMoreElements()) {
+        consumer.accept(names.nextElement());
+      }
+    } catch (Throwable ignored) {
+      // some containers throw if headers are accessed at the wrong lifecycle stage;
+      // silently skip — the tt extraction-sources tag is best-effort.
+    }
   }
 
   @Override
