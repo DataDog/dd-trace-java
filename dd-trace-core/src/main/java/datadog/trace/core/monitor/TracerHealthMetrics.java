@@ -381,7 +381,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
 
-    private final long[] previousCounts = new long[51];
+    private final long[] previousCounts = new long[52];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;

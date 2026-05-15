@@ -10579,7 +10579,7 @@
     ],
     "DD_TRACE_STATS_ADDITIONAL_TAGS": [
       {
-        "version": "B",
+        "version": "A",
         "type": "array",
         "default": null,
         "aliases": []
@@ -10587,8 +10587,8 @@
     ],
     "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
       {
-        "version": "B",
-        "type": "number",
+        "version": "A",
+        "type": "int",
         "default": "100",
         "aliases": []
       }
