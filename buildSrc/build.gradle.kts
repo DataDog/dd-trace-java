@@ -39,6 +39,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
 
+    create("version-file-plugin") {
+      id = "dd-trace-java.version-file"
+      implementationClass = "datadog.gradle.plugin.version.WriteVersionFilePlugin"
+    }
+
     create("dump-hanged-test-plugin") {
       id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
