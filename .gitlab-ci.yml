@@ -856,109 +856,82 @@ test_smoke:
           > /tmp/curl-checkpoint1.log 2>&1
         cat /tmp/curl-checkpoint1.log
       fi
-    # In-job loop: direct JVM invocations (no gradle overhead per iter). 8-sec timeout per iter.
-    # Each iter: agent attaches + app's first log call triggers JUL static init = race fires (or doesn't).
-    # We capture the first DDIAG output to determine if the LogManager swap succeeded.
+    # In-job loop: GRADLE TEST invocations (the actual test harness fork — direct-JVM didn't reproduce).
+    # 12 iterations to fit in 1h timeout based on observed ~4 min/iter for ./gradlew :test --rerun-tasks.
     - mkdir -p loop-output
     - echo "LOOP_PREFLIGHT_REACHED at $(date -Iseconds)"
-    - echo "JAVA_8_HOME=$JAVA_8_HOME"
-    - find dd-java-agent/build/libs -name "dd-java-agent-*.jar" 2>/dev/null | head -5 || echo "(no agent jars found)"
-    - find dd-smoke-tests/log-injection/build/libs -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5 || echo "(no app jars found)"
     - |
-      # set +e: a single bad iter shouldn't kill the loop
-      # set +x: turn off command tracing so our actual echoes survive Datadog Logs sampling
       set +e
       set +x
-      echo "RESULT_TOKEN_LOOP_STARTING at=$(date -Iseconds)"
-      echo "=== LOOP STARTING $(date -Iseconds) ==="
-      # Source jar paths discovered in the JAR LOCATIONS step
-      if [ -f /tmp/jar-paths.env ]; then
-        source /tmp/jar-paths.env
-      fi
-      JAVA_BIN="$JAVA_8_HOME/bin/java"
-      AGENT_JAR="$AGENT_JAR_PATH"
-      APP_JAR_BACKEND="$APP_JAR_BACKEND_PATH"
-      APP_JAR_LATEST="$APP_JAR_LATEST_PATH"
-      echo "JAVA_BIN=$JAVA_BIN"
-      echo "AGENT_JAR=$AGENT_JAR"
-      if [ ! -x "$JAVA_BIN" ]; then echo "FATAL: JAVA_BIN not executable"; exit 0; fi
-      if [ ! -f "$AGENT_JAR" ]; then echo "FATAL: AGENT_JAR not found"; exit 0; fi
-      if [ ! -f "$APP_JAR_BACKEND" ]; then echo "FATAL: APP_JAR_BACKEND not found at $APP_JAR_BACKEND"; exit 0; fi
-      if [ ! -f "$APP_JAR_LATEST" ]; then echo "FATAL: APP_JAR_LATEST not found at $APP_JAR_LATEST"; exit 0; fi
-      ls -la "$AGENT_JAR" "$APP_JAR_BACKEND" "$APP_JAR_LATEST"
-      "$JAVA_BIN" -version 2>&1
-      ITERS="${LOOP_ITERS:-300}"
-      SWAP_OK=0
-      SWAP_FAIL=0
-      MISSING=0
+      echo "=== GRADLE LOOP STARTING $(date -Iseconds) ==="
+      ITERS="${LOOP_ITERS:-12}"
+      LOGLINES_FAILS=0
+      OTHER_FAILS=0
+      PASSES=0
       for i in $(seq 1 "$ITERS"); do
-        # Alternate between Backend and LatestBackend each iter for coverage
-        if [ $((i % 2)) -eq 0 ]; then APP_JAR="$APP_JAR_LATEST"; else APP_JAR="$APP_JAR_BACKEND"; fi
-        LOGFILE=$(mktemp -t logTest.XXXXXX.log)
-        JSONFILE=$(mktemp -t logTestJson.XXXXXX.log)
-        OUT=$(mktemp -t directjvm.XXXXXX.out)
-        timeout 8 "$JAVA_BIN" \
-          -Xmx512M -Xms64M \
-          -javaagent:"$AGENT_JAR" \
-          -Ddd.trace.agent.port=49182 \
-          -Ddd.env=smoketest -Ddd.version=99 -Ddd.service.name=smoke-test-java-app \
-          -Ddd.instrumentation.telemetry.enabled=false \
-          -Ddd.profiling.enabled=false \
-          -Ddd.remote_config.enabled=true \
-          -Ddd.remote_config.url=http://localhost:49182/v0.7/config \
-          -Ddd.remote_config.poll_interval.seconds=0.2 \
-          -Ddd.trace.flush.interval=0.3 \
-          -Ddd.test.logfile="$LOGFILE" \
-          -Ddd.test.jsonlogfile="$JSONFILE" \
-          -Ddd.trace.128.bit.traceid.generation.enabled=false \
-          -Ddd.trace.128.bit.traceid.logging.enabled=false \
-          -Djava.util.logging.manager=org.apache.logging.log4j.jul.LogManager \
-          -jar "$APP_JAR" > "$OUT" 2>&1 || true
-        FIRST=$(grep -m 1 "^DDIAG seq=" "$OUT" || true)
-        if [ -z "$FIRST" ]; then
-          MISSING=$((MISSING+1))
-          [ "$i" -le 3 ] && cp "$OUT" "loop-output/missing-iter-$(printf '%04d' "$i").log"
-        elif echo "$FIRST" | grep -q "lm_class=org.apache.logging.log4j.jul.LogManager"; then
-          SWAP_OK=$((SWAP_OK+1))
-        elif echo "$FIRST" | grep -q "lm_class=java.util.logging.LogManager"; then
-          SWAP_FAIL=$((SWAP_FAIL+1))
-          cp "$OUT" "loop-output/SWAP-FAIL-iter-$(printf '%04d' "$i").log"
-          cp "$LOGFILE" "loop-output/SWAP-FAIL-iter-$(printf '%04d' "$i")-logfile.log" 2>/dev/null || true
-          echo "[iter $i] *** SWAP FAILED *** $(basename $APP_JAR) lm_class=DEFAULT_JUL (BUG REPRODUCED)"
+        echo ""
+        echo "=== Iteration $i/$ITERS at $(date -Iseconds) ==="
+        ./gradlew :dd-smoke-tests:log-injection:test \
+          --tests "datadog.smoketest.JULInterfaceLog4j2*" \
+          --rerun-tasks \
+          -PtestJvm=$testJvm \
+          -PskipFlakyTests \
+          $GRADLE_ARGS \
+          --continue > loop-output/attempt-$(printf '%03d' "$i").log 2>&1
+        RC=$?
+        # Snapshot testProcess.*.log into loop-output for any iter (so we can inspect agent behavior)
+        for f in workspace/dd-smoke-tests/log-injection/build/reports/testProcess.datadog.smoketest.JULInterfaceLog4j2*.log; do
+          [ -f "$f" ] || continue
+          base=$(basename "$f")
+          cp "$f" "loop-output/iter-$(printf '%03d' "$i")-$base"
+        done
+        # If a logLines failure occurred, capture the JUnit XML (has `<system-out>` with the captured 3 lines)
+        if grep -q "logLines.size() == 7" "loop-output/attempt-$(printf '%03d' "$i").log" 2>/dev/null; then
+          LOGLINES_FAILS=$((LOGLINES_FAILS+1))
+          for x in workspace/dd-smoke-tests/log-injection/build/test-results/test/TEST-datadog.smoketest.JULInterfaceLog4j2*.xml; do
+            [ -f "$x" ] || continue
+            bx=$(basename "$x")
+            cp "$x" "loop-output/iter-$(printf '%03d' "$i")-$bx"
+          done
+          echo "[iter $i] *** LOGLINES FAILURE CAPTURED *** (BUG REPRODUCED)"
+        elif [ "$RC" -ne 0 ]; then
+          OTHER_FAILS=$((OTHER_FAILS+1))
         else
-          echo "[iter $i] UNKNOWN lm_class in: $FIRST"
+          PASSES=$((PASSES+1))
         fi
-        rm -f "$LOGFILE" "$JSONFILE" "$OUT"
-        if [ $((i % 25)) -eq 0 ]; then
-          echo "progress: iter=$i swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING"
-        fi
+        echo "[iter $i] rc=$RC pass=$PASSES other_fail=$OTHER_FAILS loglines_fail=$LOGLINES_FAILS"
       done
-      echo "=== FINAL: total=$ITERS swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING ==="
-      # Emit the unique RESULT_TOKEN multiple times so at least one survives Datadog Logs sampling.
-      for _ in 1 2 3 4 5; do
-        echo "RESULT_TOKEN_END swap_ok:$SWAP_OK swap_failed:$SWAP_FAIL missing:$MISSING total:$ITERS"
-      done
-      # Also write to a file in loop-output so it ships as an artifact
-      echo "swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING total=$ITERS" > loop-output/RESULT.txt
-      # Submit a Datadog EVENT (not sampled like logs) tagged uniquely so we can find it later.
-      # Use the DD_API_KEY_PROD that the after_script normally sets. Set it here too.
+      echo ""
+      echo "=== FINAL: total=$ITERS pass=$PASSES other_fail=$OTHER_FAILS loglines_fail=$LOGLINES_FAILS ==="
+      # Stash counters in variables used by the next checkpoint event step
+      echo "export LOOP_PASSES=$PASSES" > /tmp/loop-result.env
+      echo "export LOOP_OTHER_FAILS=$OTHER_FAILS" >> /tmp/loop-result.env
+      echo "export LOOP_LOGLINES_FAILS=$LOGLINES_FAILS" >> /tmp/loop-result.env
+      echo "export LOOP_ITERS=$ITERS" >> /tmp/loop-result.env
+    # Submit final-checkpoint Datadog event with loop result (immune to logs sampling).
+    - |
+      set +e
+      if [ -f /tmp/loop-result.env ]; then
+        source /tmp/loop-result.env
+      fi
+      echo "=== loop result: pass=$LOOP_PASSES other_fail=$LOOP_OTHER_FAILS loglines_fail=$LOOP_LOGLINES_FAILS total=$LOOP_ITERS ==="
+      echo "loglines_fail=$LOOP_LOGLINES_FAILS other_fail=$LOOP_OTHER_FAILS pass=$LOOP_PASSES total=$LOOP_ITERS" > loop-output/RESULT.txt
       DD_API_KEY_PROD_LOCAL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text 2>/dev/null || echo "")
       if [ -n "$DD_API_KEY_PROD_LOCAL" ]; then
-        EVENT_TITLE="zulu8-loginjection-flake-diag swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING total=$ITERS"
+        EVENT_TITLE="zulu8-diag CHECKPOINT-2 loglines_fail=$LOOP_LOGLINES_FAILS other_fail=$LOOP_OTHER_FAILS pass=$LOOP_PASSES total=$LOOP_ITERS"
         EVENT_TEXT="Pipeline $CI_PIPELINE_ID Job $CI_JOB_ID commit $CI_COMMIT_SHA"
         for attempt in 1 2 3; do
           curl -sS -X POST \
             -H "Content-Type: application/json" \
             -H "DD-API-KEY: $DD_API_KEY_PROD_LOCAL" \
             "https://api.datadoghq.com/api/v1/events" \
-            -d "{\"title\":\"$EVENT_TITLE\",\"text\":\"$EVENT_TEXT\",\"tags\":[\"zulu8_loginjection_diag:true\",\"ci_job_id:$CI_JOB_ID\",\"ci_pipeline_id:$CI_PIPELINE_ID\",\"commit:$CI_COMMIT_SHA\",\"swap_failed:$SWAP_FAIL\",\"swap_ok:$SWAP_OK\"]}" \
+            -d "{\"title\":\"$EVENT_TITLE\",\"text\":\"$EVENT_TEXT\",\"tags\":[\"zulu8_loginjection_diag:true\",\"ci_job_id:$CI_JOB_ID\",\"ci_pipeline_id:$CI_PIPELINE_ID\",\"checkpoint:loop-complete\",\"loglines_fail:$LOOP_LOGLINES_FAILS\"]}" \
             && break
           sleep 2
         done
         echo "datadog event submission attempted"
       fi
-      # Force exit 0 — we want the job to succeed regardless of swap outcomes,
-      # so artifacts get uploaded via the success path (not on_failure)
+      # Force exit 0 so artifacts upload via the success path
       exit 0
   # DIAG-BRANCH-ONLY: override artifacts to include loop-output (per-iteration attempt logs + captured failure XMLs)
   artifacts:
