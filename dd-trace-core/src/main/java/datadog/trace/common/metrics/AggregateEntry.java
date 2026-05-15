@@ -5,9 +5,7 @@ import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 
 /**
@@ -47,11 +45,6 @@ final class AggregateEntry extends Hashtable.Entry {
       new PropertyCardinalityHandler(32);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
       new PropertyCardinalityHandler(32);
-
-  /** Per-peer-tag-name {@link TagCardinalityHandler}, each sized to 512 distinct values. */
-  private static final Map<String, TagCardinalityHandler> PEER_TAG_HANDLERS = new HashMap<>();
-
-  private static final int PEER_TAG_VALUE_LIMIT = 512;
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -181,9 +174,7 @@ final class AggregateEntry extends Hashtable.Entry {
     HTTP_METHOD_HANDLER.reset();
     HTTP_ENDPOINT_HANDLER.reset();
     GRPC_STATUS_CODE_HANDLER.reset();
-    for (TagCardinalityHandler h : PEER_TAG_HANDLERS.values()) {
-      h.reset();
-    }
+    PeerTagSchema.resetAll();
   }
 
   /**
@@ -216,8 +207,10 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, synthetic);
     h = LongHashingUtils.addToHash(h, traceRoot);
     h = LongHashingUtils.addToHash(h, spanKind);
-    for (UTF8BytesString p : peerTags) {
-      h = LongHashingUtils.addToHash(h, p);
+    // indexed iteration -- avoids the iterator allocation a for-each over a List would do
+    int peerTagCount = peerTags.size();
+    for (int i = 0; i < peerTagCount; i++) {
+      h = LongHashingUtils.addToHash(h, peerTags.get(i));
     }
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
@@ -329,7 +322,14 @@ final class AggregateEntry extends Hashtable.Entry {
     short httpStatusCode;
     boolean synthetic;
     boolean traceRoot;
-    List<UTF8BytesString> peerTags;
+
+    /**
+     * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
+     * #populate}; on miss, {@link #toEntry} copies it into an immutable list for the entry to own.
+     * Zero allocation on the hit path.
+     */
+    final ArrayList<UTF8BytesString> peerTagsBuffer = new ArrayList<>(4);
+
     long keyHash;
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
@@ -349,7 +349,7 @@ final class AggregateEntry extends Hashtable.Entry {
       this.httpStatusCode = s.httpStatusCode;
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
-      this.peerTags = canonicalizePeerTags(s.peerTagPairs);
+      populatePeerTags(s.peerTagSchema, s.peerTagValues);
       this.keyHash =
           hashOf(
               resource,
@@ -364,7 +364,26 @@ final class AggregateEntry extends Hashtable.Entry {
               httpStatusCode,
               synthetic,
               traceRoot,
-              peerTags);
+              peerTagsBuffer);
+    }
+
+    /**
+     * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying {@code schema.handler(i)}
+     * to each non-null value at the same index. No allocation when the schema/values are absent or
+     * all values are null (buffer is just cleared).
+     */
+    private void populatePeerTags(PeerTagSchema schema, String[] values) {
+      peerTagsBuffer.clear();
+      if (schema == null || values == null) {
+        return;
+      }
+      int n = schema.size();
+      for (int i = 0; i < n; i++) {
+        String v = values[i];
+        if (v != null) {
+          peerTagsBuffer.add(schema.handler(i).register(v));
+        }
+      }
     }
 
     /**
@@ -382,14 +401,41 @@ final class AggregateEntry extends Hashtable.Entry {
           && Objects.equals(serviceSource, e.serviceSource)
           && Objects.equals(type, e.type)
           && Objects.equals(spanKind, e.spanKind)
-          && peerTags.equals(e.peerTags)
+          && peerTagsEqual(peerTagsBuffer, e.peerTags)
           && Objects.equals(httpMethod, e.httpMethod)
           && Objects.equals(httpEndpoint, e.httpEndpoint)
           && Objects.equals(grpcStatusCode, e.grpcStatusCode);
     }
 
-    /** Build a new entry from the currently-populated canonical fields. */
+    /** Indexed list comparison -- avoids the iterator a {@code List.equals} would allocate. */
+    private static boolean peerTagsEqual(List<UTF8BytesString> a, List<UTF8BytesString> b) {
+      int n = a.size();
+      if (n != b.size()) {
+        return false;
+      }
+      for (int i = 0; i < n; i++) {
+        if (!a.get(i).equals(b.get(i))) {
+          return false;
+        }
+      }
+      return true;
+    }
+
+    /**
+     * Build a new entry from the currently-populated canonical fields. The peer-tag buffer is
+     * copied into an immutable list so the entry's reference stays stable across subsequent {@link
+     * #populate} calls.
+     */
     AggregateEntry toEntry(AggregateMetric aggregate) {
+      List<UTF8BytesString> snapshottedPeerTags;
+      int n = peerTagsBuffer.size();
+      if (n == 0) {
+        snapshottedPeerTags = Collections.emptyList();
+      } else if (n == 1) {
+        snapshottedPeerTags = Collections.singletonList(peerTagsBuffer.get(0));
+      } else {
+        snapshottedPeerTags = new ArrayList<>(peerTagsBuffer);
+      }
       return new AggregateEntry(
           keyHash,
           resource,
@@ -404,7 +450,7 @@ final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          peerTags,
+          snapshottedPeerTags,
           aggregate);
     }
   }
@@ -425,30 +471,5 @@ final class AggregateEntry extends Hashtable.Entry {
       return (UTF8BytesString) cs;
     }
     return UTF8BytesString.create(cs.toString());
-  }
-
-  /** Production-path peer-tag canonicalization via per-name {@link TagCardinalityHandler}. */
-  private static List<UTF8BytesString> canonicalizePeerTags(String[] pairs) {
-    if (pairs == null || pairs.length == 0) {
-      return Collections.emptyList();
-    }
-    if (pairs.length == 2) {
-      return Collections.singletonList(handlerFor(pairs[0]).register(pairs[1]));
-    }
-    List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
-    for (int i = 0; i < pairs.length; i += 2) {
-      tags.add(handlerFor(pairs[i]).register(pairs[i + 1]));
-    }
-    return tags;
-  }
-
-  private static TagCardinalityHandler handlerFor(String peerTagName) {
-    TagCardinalityHandler h = PEER_TAG_HANDLERS.get(peerTagName);
-    if (h != null) {
-      return h;
-    }
-    h = new TagCardinalityHandler(peerTagName, PEER_TAG_VALUE_LIMIT);
-    PEER_TAG_HANDLERS.put(peerTagName, h);
-    return h;
   }
 }

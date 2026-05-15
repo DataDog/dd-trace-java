@@ -220,7 +220,8 @@ class AggregateTableTest {
     private final String service;
     private final String operation;
     private final String spanKind;
-    private String[] peerTagPairs;
+    private PeerTagSchema peerTagSchema;
+    private String[] peerTagValues;
     private long tagAndDuration = 0L;
 
     SnapshotBuilder(String service, String operation, String spanKind) {
@@ -230,7 +231,23 @@ class AggregateTableTest {
     }
 
     SnapshotBuilder peerTags(String... namesAndValues) {
-      this.peerTagPairs = namesAndValues;
+      // Build a schema from the (name, value, name, value, ...) input. Synced through the
+      // production singleton so canonicalization actually goes through the same handlers the
+      // aggregator would use in production -- which is the surface the test wants to exercise.
+      java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
+      for (int i = 0; i < namesAndValues.length; i += 2) {
+        names.add(namesAndValues[i]);
+      }
+      this.peerTagSchema = PeerTagSchema.currentSyncedTo(names);
+      this.peerTagValues = new String[peerTagSchema.size()];
+      for (int i = 0; i < namesAndValues.length; i += 2) {
+        for (int j = 0; j < peerTagSchema.size(); j++) {
+          if (peerTagSchema.name(j).equals(namesAndValues[i])) {
+            peerTagValues[j] = namesAndValues[i + 1];
+            break;
+          }
+        }
+      }
       return this;
     }
 
@@ -245,7 +262,8 @@ class AggregateTableTest {
           false,
           true,
           spanKind,
-          peerTagPairs,
+          peerTagSchema,
+          peerTagValues,
           null,
           null,
           null,

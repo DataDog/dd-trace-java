@@ -2,7 +2,6 @@ package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.api.DDSpanTypes.RPC;
-import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
@@ -294,6 +293,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
+    PeerTagSchema peerTagSchema = peerTagSchemaFor(span);
+    String[] peerTagValues =
+        peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
+    if (peerTagValues == null) {
+      // capture returned no non-null values -- drop the schema reference so the consumer doesn't
+      // bother iterating an all-null array.
+      peerTagSchema = null;
+    }
+
     SpanSnapshot snapshot =
         new SpanSnapshot(
             span.getResourceName(),
@@ -305,7 +313,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             isSynthetic(span),
             span.getParentId() == 0,
             spanKind,
-            extractPeerTagPairs(span),
+            peerTagSchema,
+            peerTagValues,
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
@@ -317,39 +326,42 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return error;
   }
 
-  private String[] extractPeerTagPairs(CoreSpan<?> span) {
+  /**
+   * Picks the peer-tag schema for a span. For peer-aggregation kinds, syncs the schema with
+   * {@code features.peerTags()} so producer and consumer share the same name/handler ordering.
+   * For internal-kind spans returns the static {@link PeerTagSchema#INTERNAL} schema.
+   */
+  private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
     if (span.isKind(PEER_AGGREGATION_KINDS)) {
-      final Set<String> eligiblePeerTags = features.peerTags();
-      String[] pairs = null;
-      int count = 0;
-      for (String peerTag : eligiblePeerTags) {
-        Object value = span.unsafeGetTag(peerTag);
-        if (value != null) {
-          if (pairs == null) {
-            // pairs are flattened [name, value, ...]; size for worst case
-            pairs = new String[eligiblePeerTags.size() * 2];
-          }
-          pairs[count++] = peerTag;
-          pairs[count++] = value.toString();
-        }
-      }
-      if (pairs == null) {
+      Set<String> eligible = features.peerTags();
+      if (eligible == null || eligible.isEmpty()) {
         return null;
       }
-      if (count < pairs.length) {
-        String[] trimmed = new String[count];
-        System.arraycopy(pairs, 0, trimmed, 0, count);
-        return trimmed;
-      }
-      return pairs;
-    } else if (span.isKind(INTERNAL_KIND)) {
-      // in this case only the base service should be aggregated if present
-      final Object baseService = span.unsafeGetTag(BASE_SERVICE);
-      if (baseService != null) {
-        return new String[] {BASE_SERVICE, baseService.toString()};
-      }
+      return PeerTagSchema.currentSyncedTo(eligible);
+    }
+    if (span.isKind(INTERNAL_KIND)) {
+      return PeerTagSchema.INTERNAL;
     }
     return null;
+  }
+
+  /**
+   * Captures the span's peer tag values into a {@code String[]} parallel to {@code schema.names}.
+   * Returns {@code null} when none of the configured peer tags are set on the span.
+   */
+  private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
+    int n = schema.size();
+    String[] values = null;
+    for (int i = 0; i < n; i++) {
+      Object v = span.unsafeGetTag(schema.name(i));
+      if (v != null) {
+        if (values == null) {
+          values = new String[n];
+        }
+        values[i] = v.toString();
+      }
+    }
+    return values;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
