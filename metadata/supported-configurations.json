@@ -1033,6 +1033,14 @@
         "aliases": []
       }
     ],
+    "DD_CUSTOM_PARENT_ID": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_CUSTOM_TRACE_ID": [
       {
         "version": "A",
@@ -2254,6 +2262,38 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_INTERVAL": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_TIMEOUT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "30000",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_QUEUE_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "2048",
+        "aliases": []
+      }
+    ],
+    "DD_LOGS_OTEL_BATCH_SIZE": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "512",
         "aliases": []
       }
     ],
@@ -10551,6 +10591,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [

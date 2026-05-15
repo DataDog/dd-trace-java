@@ -11,7 +11,6 @@ import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_AT
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.communication.serialization.GenerationalUtf8Cache;
-import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.SimpleUtf8Cache;
 import datadog.communication.serialization.StreamingBuffer;
 import datadog.trace.api.Config;
@@ -109,6 +108,10 @@ public final class OtlpCommonProto {
     writeString(buf, value.getBytes(UTF_8));
   }
 
+  public static void writeStringCached(StreamingBuffer buf, String value) {
+    writeString(buf, valueUtf8(value));
+  }
+
   public static int sizeTag(int fieldNum) {
     return sizeVarInt(fieldNum << 3);
   }
@@ -119,26 +122,6 @@ public final class OtlpCommonProto {
 
   public static void writeTag(StreamingBuffer buf, int fieldNum, int wireType) {
     writeVarInt(buf, fieldNum << 3 | wireType);
-  }
-
-  public static byte[] recordMessage(GrowableBuffer buf, int fieldNum) {
-    return recordMessage(buf, fieldNum, 0);
-  }
-
-  public static byte[] recordMessage(GrowableBuffer buf, int fieldNum, int remainingBytes) {
-    try {
-      ByteBuffer data = buf.flip();
-      int dataSize = data.remaining();
-      int expectedSize = dataSize + remainingBytes;
-      ByteBuffer message =
-          ByteBuffer.allocate(sizeTag(fieldNum) + sizeVarInt(expectedSize) + dataSize);
-      writeTag(message, fieldNum, LEN_WIRE_TYPE);
-      writeVarInt(message, expectedSize);
-      message.put(data);
-      return message.array();
-    } finally {
-      buf.reset();
-    }
   }
 
   public static void writeInstrumentationScope(

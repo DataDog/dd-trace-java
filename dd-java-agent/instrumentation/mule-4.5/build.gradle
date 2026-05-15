@@ -9,6 +9,9 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-core'
     versions = "[$muleVersion,)"
+    // 4.11.4 has a broken POM chain: mule-plugin-mgmt-parent-pom:4.11.4 was never published
+    // see https://repository.mulesoft.org/releases/org/mule/mule-plugin-mgmt-parent-pom/maven-metadata.xml
+    skipVersions += "4.11.4"
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'
@@ -18,6 +21,9 @@ muzzle {
     group = 'org.mule.runtime'
     module = 'mule-tracer-customization-impl'
     versions = "[$muleVersion,)"
+    // 4.11.4 has a broken POM chain: mule-plugin-mgmt-parent-pom:4.11.4 was never published
+    // see https://repository.mulesoft.org/releases/org/mule/mule-plugin-mgmt-parent-pom/maven-metadata.xml
+    skipVersions += "4.11.4"
     javaVersion = "17"
     excludeDependency 'om.google.guava:guava'
     excludeDependency 'com.google.code.findbugs:jsr305'

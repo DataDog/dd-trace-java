@@ -1,9 +1,3 @@
-repositories {
-  maven {
-    url = 'https://maven.repository.redhat.com/ga/'
-  }
-}
-
 muzzle {
   extraRepository('redhat-ga', 'https://maven.repository.redhat.com/ga/')
   pass {
@@ -15,6 +9,20 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+
+repositories {
+  // Declared after java.gradle so Maven Central is tried first; this repo only acts as a
+  // fallback for WildFly / JBoss artifacts not published to Central. The content filter
+  // also prevents Gradle from probing this host for unrelated dependencies (e.g. JUnit),
+  // which made the build flaky when the host was unreachable.
+  maven {
+    url = 'https://maven.repository.redhat.com/ga/'
+    content {
+      includeGroupAndSubgroups 'org.wildfly'
+      includeGroupAndSubgroups 'org.jboss'
+    }
+  }
+}
 
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_11

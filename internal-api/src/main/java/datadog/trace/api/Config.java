@@ -113,6 +113,10 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIM
 import static datadog.trace.api.ConfigDefaults.DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LLM_OBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_INJECTION_ENABLED;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_BATCH_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_QUEUE_SIZE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
@@ -121,7 +125,6 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_LOGS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_METRICS_ENDPOINT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_PORT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_HTTP_TRACES_ENDPOINT;
-import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_LOGS_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_TRACES_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
@@ -415,6 +418,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TRIAGE;
 import static datadog.trace.api.config.GeneralConfig.TRIAGE_REPORT_DIR;
@@ -456,7 +460,11 @@ import static datadog.trace.api.config.JmxFetchConfig.JMX_FETCH_STATSD_PORT;
 import static datadog.trace.api.config.JmxFetchConfig.JMX_TAGS;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_AGENTLESS_ENABLED;
 import static datadog.trace.api.config.LlmObsConfig.LLMOBS_ML_APP;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_BATCH_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_EXPORTER;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
+import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
@@ -948,6 +956,10 @@ public class Config {
   private final int jmxFetchMultipleRuntimeServicesLimit;
 
   private final String logsOtelExporter;
+  private final int logsOtelInterval;
+  private final int logsOtelTimeout;
+  private final int logsOtelQueueSize;
+  private final int logsOtelBatchSize;
   private final String otlpLogsEndpoint;
   private final Map<String, String> otlpLogsHeaders;
   private final OtlpConfig.Protocol otlpLogsProtocol;
@@ -979,6 +991,7 @@ public class Config {
   private final boolean perfMetricsEnabled;
 
   private final boolean tracerMetricsEnabled;
+  private final boolean tracerMetricsIgnoreAgentVersion;
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
@@ -1951,11 +1964,42 @@ public class Config {
 
     logsOtelExporter = configProvider.getString(LOGS_OTEL_EXPORTER);
 
+    int otelInterval = configProvider.getInteger(LOGS_OTEL_INTERVAL, DEFAULT_LOGS_OTEL_INTERVAL);
+    if (otelInterval < 0) {
+      log.warn("Invalid OTel logs interval: {}. The value must be positive", otelInterval);
+      otelInterval = DEFAULT_LOGS_OTEL_INTERVAL;
+    }
+    logsOtelInterval = otelInterval;
+
+    int otelTimeout = configProvider.getInteger(LOGS_OTEL_TIMEOUT, DEFAULT_LOGS_OTEL_TIMEOUT);
+    if (otelTimeout < 0) {
+      log.warn("Invalid OTel logs timeout: {}. The value must be positive", otelTimeout);
+      otelTimeout = DEFAULT_LOGS_OTEL_TIMEOUT;
+    }
+    logsOtelTimeout = otelTimeout;
+
+    int otelQueueSize =
+        configProvider.getInteger(LOGS_OTEL_QUEUE_SIZE, DEFAULT_LOGS_OTEL_QUEUE_SIZE);
+    if (otelQueueSize <= 0) {
+      log.warn("Invalid OTel logs queue size: {}. The value must be positive", otelQueueSize);
+      otelQueueSize = DEFAULT_LOGS_OTEL_QUEUE_SIZE;
+    }
+    logsOtelQueueSize = otelQueueSize;
+
+    int otelBatchSize =
+        configProvider.getInteger(LOGS_OTEL_BATCH_SIZE, DEFAULT_LOGS_OTEL_BATCH_SIZE);
+    if (otelBatchSize <= 0) {
+      log.warn("Invalid OTel logs batch size: {}. The value must be positive", otelBatchSize);
+      otelBatchSize = DEFAULT_LOGS_OTEL_BATCH_SIZE;
+    }
+    logsOtelBatchSize = otelBatchSize;
+
     // keep OTLP default timeout below the overall export timeout
-    int otlpTimeout = configProvider.getInteger(OTLP_LOGS_TIMEOUT, DEFAULT_OTLP_LOGS_TIMEOUT);
+    int defaultOtlpLogsTimeout = Math.min(logsOtelTimeout, DEFAULT_LOGS_OTEL_TIMEOUT);
+    int otlpTimeout = configProvider.getInteger(OTLP_LOGS_TIMEOUT, defaultOtlpLogsTimeout);
     if (otlpTimeout < 0) {
       log.warn("Invalid OTLP logs timeout: {}. The value must be positive", otlpTimeout);
-      otlpTimeout = DEFAULT_OTLP_LOGS_TIMEOUT;
+      otlpTimeout = defaultOtlpLogsTimeout;
     }
     otlpLogsTimeout = otlpTimeout;
 
@@ -1996,15 +2040,14 @@ public class Config {
     }
     metricsOtelCardinalityLimit = cardinalityLimit;
 
-    int otelInterval =
-        configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
+    otelInterval = configProvider.getInteger(METRICS_OTEL_INTERVAL, DEFAULT_METRICS_OTEL_INTERVAL);
     if (otelInterval < 0) {
       log.warn("Invalid OTel metrics interval: {}. The value must be positive", otelInterval);
       otelInterval = DEFAULT_METRICS_OTEL_INTERVAL;
     }
     metricsOtelInterval = otelInterval;
 
-    int otelTimeout = configProvider.getInteger(METRICS_OTEL_TIMEOUT, DEFAULT_METRICS_OTEL_TIMEOUT);
+    otelTimeout = configProvider.getInteger(METRICS_OTEL_TIMEOUT, DEFAULT_METRICS_OTEL_TIMEOUT);
     if (otelTimeout < 0) {
       log.warn("Invalid OTel metrics timeout: {}. The value must be positive", otelTimeout);
       otelTimeout = DEFAULT_METRICS_OTEL_TIMEOUT;
@@ -2125,6 +2168,8 @@ public class Config {
 
     tracerMetricsEnabled =
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_ENABLED, true, TRACER_METRICS_ENABLED);
+    tracerMetricsIgnoreAgentVersion =
+        configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
@@ -3696,6 +3741,10 @@ public class Config {
   public boolean isTracerMetricsEnabled() {
     // When ASM Standalone Billing is enabled metrics should be disabled
     return tracerMetricsEnabled && isApmTracingEnabled();
+  }
+
+  public boolean isTracerMetricsIgnoreAgentVersion() {
+    return tracerMetricsIgnoreAgentVersion;
   }
 
   public boolean isTracerMetricsBufferingEnabled() {
@@ -5386,6 +5435,22 @@ public class Config {
     return "otlp".equalsIgnoreCase(logsOtelExporter);
   }
 
+  public int getLogsOtelInterval() {
+    return logsOtelInterval;
+  }
+
+  public int getLogsOtelTimeout() {
+    return logsOtelTimeout;
+  }
+
+  public int getLogsOtelQueueSize() {
+    return logsOtelQueueSize;
+  }
+
+  public int getLogsOtelBatchSize() {
+    return logsOtelBatchSize;
+  }
+
   public String getOtlpLogsEndpoint() {
     return otlpLogsEndpoint;
   }
@@ -6207,6 +6272,8 @@ public class Config {
         + perfMetricsEnabled
         + ", tracerMetricsEnabled="
         + tracerMetricsEnabled
+        + ", tracerMetricsIgnoreAgentVersion="
+        + tracerMetricsIgnoreAgentVersion
         + ", tracerMetricsBufferingEnabled="
         + tracerMetricsBufferingEnabled
         + ", tracerMetricsMaxAggregates="
@@ -6508,6 +6575,14 @@ public class Config {
         + aiGuardEndpoint
         + ", logsOtelExporter="
         + logsOtelExporter
+        + ", logsOtelInterval="
+        + logsOtelInterval
+        + ", logsOtelTimeout="
+        + logsOtelTimeout
+        + ", logsOtelQueueSize="
+        + logsOtelQueueSize
+        + ", logsOtelBatchSize="
+        + logsOtelBatchSize
         + ", otlpLogsEndpoint="
         + otlpLogsEndpoint
         + ", otlpLogsHeaders="
