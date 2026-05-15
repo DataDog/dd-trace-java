@@ -88,6 +88,27 @@ class AggregateTableTest {
   }
 
   @Test
+  void cardinalityBlockedValuesCollapseIntoOneEntry() {
+    // SERVICE_HANDLER has a cardinality limit of 32. With 50 distinct service names, services 33+
+    // canonicalize to the "blocked_by_tracer" sentinel. Because the table hashes from the canonical
+    // (post-handler) form, all blocked services land in the same bucket and merge into a single
+    // entry rather than fragmenting.
+    AggregateEntry.resetCardinalityHandlers();
+    AggregateTable table = new AggregateTable(128);
+
+    for (int i = 0; i < 50; i++) {
+      AggregateMetric agg = table.findOrInsert(snapshot("svc-" + i, "op", "client"));
+      assertNotNull(agg);
+      agg.recordOneDuration(1L);
+    }
+
+    // 32 in-budget services + 1 collapsed "blocked_by_tracer" entry = 33 total.
+    assertEquals(33, table.size());
+
+    AggregateEntry.resetCardinalityHandlers();
+  }
+
+  @Test
   void capOverrunEvictsStaleEntry() {
     AggregateTable table = new AggregateTable(2);
 

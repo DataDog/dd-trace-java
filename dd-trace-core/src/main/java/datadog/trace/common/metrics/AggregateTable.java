@@ -4,13 +4,14 @@ import datadog.trace.util.Hashtable;
 import java.util.function.Consumer;
 
 /**
- * Consumer-side {@link AggregateMetric} store, keyed on the raw fields of a {@link SpanSnapshot}.
+ * Consumer-side {@link AggregateMetric} store, keyed on the canonical UTF8-encoded labels of a
+ * {@link SpanSnapshot}.
  *
- * <p>Replaces the prior {@code LRUCache<MetricKey, AggregateMetric>}. The win is on the
- * steady-state hit path: a snapshot lookup is a 64-bit hash compute + bucket walk + field-wise
- * {@code matches}, with no per-snapshot {@link AggregateEntry} allocation and no UTF8 cache
- * lookups. The UTF8-encoded forms (formerly held on {@code MetricKey}) live on the {@link
- * AggregateEntry} itself and are built once per unique key at insert time.
+ * <p>{@link #findOrInsert} canonicalizes the snapshot's fields through the cardinality handlers (so
+ * cardinality-blocked values share a sentinel and collapse into one entry) and then computes the
+ * lookup hash from that canonical form. Canonicalization runs into a reusable {@link
+ * AggregateEntry.Canonical} scratch buffer; on a hit nothing is allocated, on a miss the buffer's
+ * references are copied into a fresh entry and the buffer is overwritten on the next call.
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer; {@link #clear()} must be
  * routed through the inbox rather than called from arbitrary threads.
@@ -19,6 +20,7 @@ final class AggregateTable {
 
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
+  private final AggregateEntry.Canonical canonical = new AggregateEntry.Canonical();
   private int size;
 
   AggregateTable(int maxAggregates) {
@@ -40,12 +42,13 @@ final class AggregateTable {
    * the caller should drop the data point in that case.
    */
   AggregateMetric findOrInsert(SpanSnapshot snapshot) {
-    long keyHash = AggregateEntry.hashOf(snapshot);
+    canonical.populate(snapshot);
+    long keyHash = canonical.keyHash;
     int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
     for (Hashtable.Entry e = buckets[bucketIndex]; e != null; e = e.next()) {
       if (e.keyHash == keyHash) {
         AggregateEntry candidate = (AggregateEntry) e;
-        if (candidate.matches(snapshot)) {
+        if (canonical.matches(candidate)) {
           return candidate.aggregate;
         }
       }
@@ -53,7 +56,7 @@ final class AggregateTable {
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = AggregateEntry.forSnapshot(snapshot, new AggregateMetric());
+    AggregateEntry entry = canonical.toEntry(new AggregateMetric());
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
     size++;
