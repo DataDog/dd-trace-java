@@ -37,7 +37,7 @@ if (testGraalvmVersion >= 17) {
       'NATIVE_IMAGE_DEPRECATED_BUILDER_SANITATION' : 'true'
     ]
     commandLine(
-      "$rootDir/${gradlewCommand}",
+      "$appDir/${gradlewCommand}",
       'nativeCompile',
       '--no-daemon',
       '--max-workers=4',

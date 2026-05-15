@@ -26,7 +26,7 @@ tasks.register('bootJar', Exec) {
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
     "JAVA_HOME": getLazyJavaHomeFor(17)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
+  commandLine "$appDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir"
 
   outputs.cacheIf { true }
 

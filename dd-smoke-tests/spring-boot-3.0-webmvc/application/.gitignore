@@ -1,6 +1,3 @@
-# Ignore all project specific gradle directories/files
+# Ignore build artifacts
 .gradle
-gradle
 build
-gradlew
-gradlew.bat

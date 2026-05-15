@@ -18,7 +18,7 @@ tasks.register('webfluxBuild', Exec) {
     "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
     "JAVA_HOME": getLazyJavaHomeFor(8)
   ]
-  commandLine "$rootDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+  commandLine "$appDir/${gradlewCommand}", "bootJar", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
 
   outputs.cacheIf { true }
 
