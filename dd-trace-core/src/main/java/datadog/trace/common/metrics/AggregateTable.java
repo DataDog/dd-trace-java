@@ -4,7 +4,7 @@ import datadog.trace.util.Hashtable;
 import java.util.function.Consumer;
 
 /**
- * Consumer-side {@link AggregateMetric} store, keyed on the canonical UTF8-encoded labels of a
+ * Consumer-side {@link AggregateEntry} store, keyed on the canonical UTF8-encoded labels of a
  * {@link SpanSnapshot}.
  *
  * <p>{@link #findOrInsert} canonicalizes the snapshot's fields through the cardinality handlers (so
@@ -37,11 +37,11 @@ final class AggregateTable {
   }
 
   /**
-   * Returns the {@link AggregateMetric} to update for {@code snapshot}, lazily creating an entry on
-   * miss. Returns {@code null} when the table is at capacity and no stale entry can be evicted --
-   * the caller should drop the data point in that case.
+   * Returns the {@link AggregateEntry} to update for {@code snapshot}, lazily creating it on miss.
+   * Returns {@code null} when the table is at capacity and no stale entry can be evicted -- the
+   * caller should drop the data point in that case.
    */
-  AggregateMetric findOrInsert(SpanSnapshot snapshot) {
+  AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populate(snapshot);
     long keyHash = canonical.keyHash;
     int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
@@ -49,28 +49,28 @@ final class AggregateTable {
       if (e.keyHash == keyHash) {
         AggregateEntry candidate = (AggregateEntry) e;
         if (canonical.matches(candidate)) {
-          return candidate.aggregate;
+          return candidate;
         }
       }
     }
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = canonical.toEntry(new AggregateMetric());
+    AggregateEntry entry = canonical.toEntry();
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
     size++;
-    return entry.aggregate;
+    return entry;
   }
 
-  /** Unlink the first entry whose {@code AggregateMetric.getHitCount() == 0}. */
+  /** Unlink the first entry whose {@code getHitCount() == 0}. */
   private boolean evictOneStale() {
     for (int i = 0; i < buckets.length; i++) {
       Hashtable.Entry head = buckets[i];
       if (head == null) {
         continue;
       }
-      if (((AggregateEntry) head).aggregate.getHitCount() == 0) {
+      if (((AggregateEntry) head).getHitCount() == 0) {
         buckets[i] = head.next();
         size--;
         return true;
@@ -78,7 +78,7 @@ final class AggregateTable {
       Hashtable.Entry prev = head;
       Hashtable.Entry cur = head.next();
       while (cur != null) {
-        if (((AggregateEntry) cur).aggregate.getHitCount() == 0) {
+        if (((AggregateEntry) cur).getHitCount() == 0) {
           prev.setNext(cur.next());
           size--;
           return true;
@@ -98,12 +98,12 @@ final class AggregateTable {
     }
   }
 
-  /** Removes entries whose {@code AggregateMetric.getHitCount() == 0}. */
+  /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
     for (int i = 0; i < buckets.length; i++) {
       // unlink leading stale entries
       Hashtable.Entry head = buckets[i];
-      while (head != null && ((AggregateEntry) head).aggregate.getHitCount() == 0) {
+      while (head != null && ((AggregateEntry) head).getHitCount() == 0) {
         head = head.next();
         size--;
       }
@@ -115,7 +115,7 @@ final class AggregateTable {
       Hashtable.Entry prev = head;
       Hashtable.Entry cur = head.next();
       while (cur != null) {
-        if (((AggregateEntry) cur).aggregate.getHitCount() == 0) {
+        if (((AggregateEntry) cur).getHitCount() == 0) {
           Hashtable.Entry skipped = cur.next();
           prev.setNext(skipped);
           size--;

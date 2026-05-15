@@ -1,16 +1,20 @@
 package datadog.trace.common.metrics;
 
+import datadog.metrics.api.Histogram;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
- * {@link SerializingMetricWriter} writes to the wire) plus the mutable {@link AggregateMetric}.
+ * {@link SerializingMetricWriter} writes to the wire) plus the mutable per-bucket counters and
+ * latency histograms.
  *
  * <p>UTF8 canonicalization runs through per-field {@link PropertyCardinalityHandler}s (and {@link
  * TagCardinalityHandler}s for peer tags), so cardinality is capped per reporting interval. The
@@ -30,7 +34,17 @@ import java.util.Objects;
  * the aggregator thread may call {@link Canonical#populate} or {@link #resetCardinalityHandlers}.
  * Test code uses {@link #of} which constructs entries without touching the handlers.
  */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification =
+        "Recording counters are mutated only on the aggregator thread; not thread-safe by design.")
 final class AggregateEntry extends Hashtable.Entry {
+
+  /** Top bit of the duration word: set when the recorded span was an error. */
+  static final long ERROR_TAG = 0x8000000000000000L;
+
+  /** Second-from-top bit: set when the recorded span was a top-level span. */
+  static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   // Per-field cardinality limits. Identical to the prior DDCache sizes.
   static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(32);
@@ -59,7 +73,14 @@ final class AggregateEntry extends Hashtable.Entry {
   final boolean synthetic;
   final boolean traceRoot;
   final List<UTF8BytesString> peerTags;
-  final AggregateMetric aggregate;
+
+  // Recording state. Mutated only on the aggregator thread. Not thread-safe.
+  private final Histogram okLatencies;
+  private final Histogram errorLatencies;
+  private int errorCount;
+  private int hitCount;
+  private int topLevelCount;
+  private long duration;
 
   /** Field-bearing constructor used by both the hot path and the test factory. */
   private AggregateEntry(
@@ -76,8 +97,7 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags,
-      AggregateMetric aggregate) {
+      List<UTF8BytesString> peerTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -92,7 +112,8 @@ final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
-    this.aggregate = aggregate;
+    this.okLatencies = Histogram.newHistogram();
+    this.errorLatencies = Histogram.newHistogram();
   }
 
   /**
@@ -154,8 +175,7 @@ final class AggregateEntry extends Hashtable.Entry {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList,
-        new AggregateMetric());
+        peerTagsList);
   }
 
   /**
@@ -271,10 +291,92 @@ final class AggregateEntry extends Hashtable.Entry {
     return peerTags;
   }
 
+  // ----- recording state accessors -----
+
+  int getHitCount() {
+    return hitCount;
+  }
+
+  int getErrorCount() {
+    return errorCount;
+  }
+
+  int getTopLevelCount() {
+    return topLevelCount;
+  }
+
+  long getDuration() {
+    return duration;
+  }
+
+  Histogram getOkLatencies() {
+    return okLatencies;
+  }
+
+  Histogram getErrorLatencies() {
+    return errorLatencies;
+  }
+
   /**
-   * Equality on the 13 label fields (not on the aggregate). Used only by test mock matchers; the
-   * {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link Canonical#matches} and
-   * never calls {@code equals}.
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   */
+  AggregateEntry recordOneDuration(long tagAndDuration) {
+    ++hitCount;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      ++topLevelCount;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatencies.accept(tagAndDuration);
+      ++errorCount;
+    } else {
+      okLatencies.accept(tagAndDuration);
+    }
+    duration += tagAndDuration;
+    return this;
+  }
+
+  /**
+   * Records {@code count} durations from {@code durations} (positions 0..count-1). Used by
+   * integration tests; production code uses {@link #recordOneDuration}.
+   */
+  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
+    this.hitCount += count;
+    for (int i = 0; i < count && i < durations.length(); ++i) {
+      long d = durations.getAndSet(i, 0);
+      if ((d & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+        d ^= TOP_LEVEL_TAG;
+        ++topLevelCount;
+      }
+      if ((d & ERROR_TAG) == ERROR_TAG) {
+        d ^= ERROR_TAG;
+        errorLatencies.accept(d);
+        ++errorCount;
+      } else {
+        okLatencies.accept(d);
+      }
+      this.duration += d;
+    }
+    return this;
+  }
+
+  /** Clears the recording state. Histograms are reused. */
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
+  void clearAggregate() {
+    this.errorCount = 0;
+    this.hitCount = 0;
+    this.topLevelCount = 0;
+    this.duration = 0;
+    this.okLatencies.clear();
+    this.errorLatencies.clear();
+  }
+
+  /**
+   * Equality on the 13 label fields (not on the recording counters). Used only by test mock
+   * matchers; the {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link
+   * Canonical#matches} and never calls {@code equals}.
    */
   @Override
   public boolean equals(Object o) {
@@ -426,7 +528,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * copied into an immutable list so the entry's reference stays stable across subsequent {@link
      * #populate} calls.
      */
-    AggregateEntry toEntry(AggregateMetric aggregate) {
+    AggregateEntry toEntry() {
       List<UTF8BytesString> snapshottedPeerTags;
       int n = peerTagsBuffer.size();
       if (n == 0) {
@@ -450,8 +552,7 @@ final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          snapshottedPeerTags,
-          aggregate);
+          snapshottedPeerTags);
     }
   }
 

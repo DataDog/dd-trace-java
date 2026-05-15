@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
-import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
@@ -25,33 +25,32 @@ class AggregateTableTest {
 
   @BeforeAll
   static void initAgentMeter() {
-    // AggregateMetric.recordOneDuration -> Histogram.accept needs AgentMeter to be initialized.
-    // Mirror what AggregateMetricTest does.
+    // AggregateEntry.recordOneDuration -> Histogram.accept needs AgentMeter to be initialized.
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
     AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY);
     monitoring.newTimer("test.init");
   }
 
   @Test
-  void insertOnMissReturnsNewAggregate() {
+  void insertOnMissReturnsNewEntry() {
     AggregateTable table = new AggregateTable(8);
     SpanSnapshot s = snapshot("svc", "op", "client");
 
-    AggregateMetric agg = table.findOrInsert(s);
+    AggregateEntry entry = table.findOrInsert(s);
 
-    assertNotNull(agg);
+    assertNotNull(entry);
     assertEquals(1, table.size());
-    assertEquals(0, agg.getHitCount());
+    assertEquals(0, entry.getHitCount());
   }
 
   @Test
-  void hitReturnsSameAggregateInstance() {
+  void hitReturnsSameEntryInstance() {
     AggregateTable table = new AggregateTable(8);
     SpanSnapshot s1 = snapshot("svc", "op", "client");
     SpanSnapshot s2 = snapshot("svc", "op", "client");
 
-    AggregateMetric first = table.findOrInsert(s1);
-    AggregateMetric second = table.findOrInsert(s2);
+    AggregateEntry first = table.findOrInsert(s1);
+    AggregateEntry second = table.findOrInsert(s2);
 
     assertSame(first, second);
     assertEquals(1, table.size());
@@ -61,10 +60,10 @@ class AggregateTableTest {
   void differentKindFieldsAreDistinct() {
     AggregateTable table = new AggregateTable(8);
 
-    AggregateMetric clientAgg = table.findOrInsert(snapshot("svc", "op", "client"));
-    AggregateMetric serverAgg = table.findOrInsert(snapshot("svc", "op", "server"));
+    AggregateEntry clientEntry = table.findOrInsert(snapshot("svc", "op", "client"));
+    AggregateEntry serverEntry = table.findOrInsert(snapshot("svc", "op", "server"));
 
-    assertNotSame(clientAgg, serverAgg);
+    assertNotSame(clientEntry, serverEntry);
     assertEquals(2, table.size());
   }
 
@@ -77,9 +76,9 @@ class AggregateTableTest {
         builder("svc", "op", "client").peerTags("peer.hostname", "host-b").build();
     SpanSnapshot noTags = builder("svc", "op", "client").build();
 
-    AggregateMetric a = table.findOrInsert(withTags);
-    AggregateMetric b = table.findOrInsert(otherTags);
-    AggregateMetric c = table.findOrInsert(noTags);
+    AggregateEntry a = table.findOrInsert(withTags);
+    AggregateEntry b = table.findOrInsert(otherTags);
+    AggregateEntry c = table.findOrInsert(noTags);
 
     assertNotSame(a, b);
     assertNotSame(a, c);
@@ -97,9 +96,9 @@ class AggregateTableTest {
     AggregateTable table = new AggregateTable(128);
 
     for (int i = 0; i < 50; i++) {
-      AggregateMetric agg = table.findOrInsert(snapshot("svc-" + i, "op", "client"));
-      assertNotNull(agg);
-      agg.recordOneDuration(1L);
+      AggregateEntry entry = table.findOrInsert(snapshot("svc-" + i, "op", "client"));
+      assertNotNull(entry);
+      entry.recordOneDuration(1L);
     }
 
     // 32 in-budget services + 1 collapsed "blocked_by_tracer" entry = 33 total.
@@ -112,19 +111,19 @@ class AggregateTableTest {
   void capOverrunEvictsStaleEntry() {
     AggregateTable table = new AggregateTable(2);
 
-    AggregateMetric stale = table.findOrInsert(snapshot("svc-a", "op", "client"));
+    AggregateEntry stale = table.findOrInsert(snapshot("svc-a", "op", "client"));
     // do not record on stale -> hitCount stays at 0
 
-    AggregateMetric live = table.findOrInsert(snapshot("svc-b", "op", "client"));
+    AggregateEntry live = table.findOrInsert(snapshot("svc-b", "op", "client"));
     live.recordOneDuration(10L | TOP_LEVEL_TAG); // hitCount=1, not evictable
 
     // table is full (size=2). Inserting a third should evict the stale one and succeed.
-    AggregateMetric newcomer = table.findOrInsert(snapshot("svc-c", "op", "client"));
+    AggregateEntry newcomer = table.findOrInsert(snapshot("svc-c", "op", "client"));
     assertNotNull(newcomer);
     assertEquals(2, table.size());
 
     // re-inserting the stale snapshot should miss now (it was evicted) and produce a fresh entry
-    AggregateMetric staleAgain = table.findOrInsert(snapshot("svc-a", "op", "client"));
+    AggregateEntry staleAgain = table.findOrInsert(snapshot("svc-a", "op", "client"));
     assertNotSame(stale, staleAgain);
   }
 
@@ -132,12 +131,12 @@ class AggregateTableTest {
   void capOverrunWithNoStaleReturnsNull() {
     AggregateTable table = new AggregateTable(2);
 
-    AggregateMetric a = table.findOrInsert(snapshot("svc-a", "op", "client"));
-    AggregateMetric b = table.findOrInsert(snapshot("svc-b", "op", "client"));
+    AggregateEntry a = table.findOrInsert(snapshot("svc-a", "op", "client"));
+    AggregateEntry b = table.findOrInsert(snapshot("svc-b", "op", "client"));
     a.recordOneDuration(10L);
     b.recordOneDuration(20L);
 
-    AggregateMetric c = table.findOrInsert(snapshot("svc-c", "op", "client"));
+    AggregateEntry c = table.findOrInsert(snapshot("svc-c", "op", "client"));
     assertNull(c);
     assertEquals(2, table.size());
   }
@@ -146,10 +145,10 @@ class AggregateTableTest {
   void expungeStaleAggregatesRemovesZeroHitsOnly() {
     AggregateTable table = new AggregateTable(16);
 
-    AggregateMetric live = table.findOrInsert(snapshot("svc-live", "op", "client"));
+    AggregateEntry live = table.findOrInsert(snapshot("svc-live", "op", "client"));
     live.recordOneDuration(10L);
-    AggregateMetric stale1 = table.findOrInsert(snapshot("svc-stale1", "op", "client"));
-    AggregateMetric stale2 = table.findOrInsert(snapshot("svc-stale2", "op", "client"));
+    AggregateEntry stale1 = table.findOrInsert(snapshot("svc-stale1", "op", "client"));
+    AggregateEntry stale2 = table.findOrInsert(snapshot("svc-stale2", "op", "client"));
     assertEquals(3, table.size());
     assertEquals(0, stale1.getHitCount());
     assertEquals(0, stale2.getHitCount());
@@ -169,7 +168,7 @@ class AggregateTableTest {
     table.findOrInsert(snapshot("c", "op", "client")).recordOneDuration(3L | ERROR_TAG);
 
     Map<String, Long> visited = new HashMap<>();
-    table.forEach(e -> visited.put(e.getService().toString(), e.aggregate.getDuration()));
+    table.forEach(e -> visited.put(e.getService().toString(), e.getDuration()));
 
     assertEquals(3, visited.size());
     assertEquals(1L, visited.get("a"));

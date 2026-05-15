@@ -4,8 +4,8 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
-import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
 import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
