@@ -66,10 +66,6 @@ final class Aggregator implements Runnable {
     this.healthMetrics = healthMetrics;
   }
 
-  public void clearAggregates() {
-    this.aggregates.clear();
-  }
-
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();

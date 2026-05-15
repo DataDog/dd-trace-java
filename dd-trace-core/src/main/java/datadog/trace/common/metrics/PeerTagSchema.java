@@ -42,8 +42,8 @@ final class PeerTagSchema {
   /**
    * Identity cache of the most recently observed {@code features.peerTags()} {@link Set} instance.
    * The producer hot path checks this first and skips the {@code names}-vs-set comparison when the
-   * caller's set instance hasn't changed. In production this is the common case --
-   * {@code DDAgentFeaturesDiscovery} returns the same Set instance until reconfiguration.
+   * caller's set instance hasn't changed. In production this is the common case -- {@code
+   * DDAgentFeaturesDiscovery} returns the same Set instance until reconfiguration.
    */
   private static volatile Set<String> LAST_SYNCED_INPUT;
 
