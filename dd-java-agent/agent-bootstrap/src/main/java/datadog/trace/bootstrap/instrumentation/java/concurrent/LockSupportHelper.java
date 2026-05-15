@@ -62,8 +62,8 @@ public final class LockSupportHelper {
     // zero-span intervals at exit.
     long spanId = 0L;
     long rootSpanId = 0L;
-    if (span != null && span.context() instanceof ProfilerContext) {
-      ProfilerContext ctx = (ProfilerContext) span.context();
+    ProfilerContext ctx = ProfilerContexts.of(span);
+    if (ctx != null) {
       spanId = ctx.getSpanId();
       rootSpanId = ctx.getRootSpanId();
     }
@@ -93,11 +93,10 @@ public final class LockSupportHelper {
     if (thread == null) {
       return;
     }
-    AgentSpan span = AgentTracer.activeSpan();
-    if (span == null || !(span.context() instanceof ProfilerContext)) {
+    ProfilerContext ctx = ProfilerContexts.of(AgentTracer.activeSpan());
+    if (ctx == null) {
       return;
     }
-    ProfilerContext ctx = (ProfilerContext) span.context();
     UNPARKING_SPAN.put(thread.getId(), ctx.getSpanId());
   }
 }

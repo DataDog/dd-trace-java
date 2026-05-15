@@ -41,10 +41,13 @@ public final class TaskBlockHelper {
   }
 
   static State capture(long blocker, ProfilingContextIntegration profiling, AgentSpan span) {
-    if (profiling == null || span == null || !(span.context() instanceof ProfilerContext)) {
+    if (profiling == null) {
       return null;
     }
-    ProfilerContext context = (ProfilerContext) span.context();
+    ProfilerContext context = ProfilerContexts.of(span);
+    if (context == null) {
+      return null;
+    }
     return new State(
         profiling,
         profiling.getCurrentTicks(),
