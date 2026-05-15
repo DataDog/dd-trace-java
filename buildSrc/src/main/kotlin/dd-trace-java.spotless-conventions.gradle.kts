@@ -63,6 +63,7 @@ allprojects {
       val commonExcludes = listOf(
         "build/**",
         "buildSrc/build/**",
+        "buildSrc/**/build/**",
         "dd-java-agent/agent-jmxfetch/**"
       )
 
@@ -78,6 +79,24 @@ allprojects {
         target("**/*.gradle")
         targetExclude(commonExcludes)
         greclipse().configFile("$rootDir/gradle/enforcement/spotless-groovy.properties")
+      }
+
+      // buildSrc is a separate Gradle build, so its non-script sources are not
+      // covered by the per-subproject configuration below. Format them from root
+      // via file-glob targets so a single `./gradlew spotlessApply` covers them.
+      kotlin {
+        toggleOffOn()
+        target("buildSrc/**/*.kt")
+        targetExclude(commonExcludes)
+        ktlint(ktlintVersion).editorConfigOverride(ktlintEditorConfigOverride)
+      }
+
+      java {
+        toggleOffOn()
+        target("buildSrc/**/*.java")
+        targetExclude(commonExcludes)
+        tableTestFormatter(tableTestFormatterVersion)
+        googleJavaFormat(googleJavaFormatVersion)
       }
 
       format("markdown") {
