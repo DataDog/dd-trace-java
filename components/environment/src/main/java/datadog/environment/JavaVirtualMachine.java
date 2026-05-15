@@ -116,6 +116,15 @@ public final class JavaVirtualMachine {
     return isIbm() && isJavaVersion(8);
   }
 
+  /**
+   * Checks whether the current JVM is Azul Zulu 8.
+   *
+   * @return {@code true} if the current JVM is Azul Zulu 8, {@code false} otherwise.
+   */
+  public static boolean isZulu8() {
+    return isJavaVersion(8) && runtime.vendor.contains("Azul");
+  }
+
   public static boolean isGraalVM() {
     return runtime.vendorVersion.toLowerCase().contains("graalvm");
   }
