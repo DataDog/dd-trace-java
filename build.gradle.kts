@@ -11,7 +11,7 @@ plugins {
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
 
-  id("com.diffplug.spotless") version "8.4.0"
+  id("com.diffplug.spotless") version "8.5.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("com.github.spotbugs") version "6.5.0"
   id("de.thetaphi.forbiddenapis") version "3.10"
@@ -90,6 +90,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.java", "app*/**/*.java")
           targetExclude(commonExcludes)
+          tableTestFormatter("1.1.1")
           googleJavaFormat("1.35.0")
         }
       }
@@ -113,7 +114,7 @@ allprojects {
           toggleOffOn()
           target("src/**/*.scala", "app*/**/*.scala")
           targetExclude(commonExcludes)
-          scalafmt("3.10.2").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
+          scalafmt("3.11.1").configFile("$rootDir/gradle/enforcement/spotless-scalafmt.conf")
         }
       }
 
