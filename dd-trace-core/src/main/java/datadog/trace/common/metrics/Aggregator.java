@@ -149,6 +149,9 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
+    // Reset cardinality handlers each report cycle so the per-field budgets refresh.
+    // Safe to call on this (aggregator) thread; handlers are HashMap-based and not thread-safe.
+    AggregateEntry.resetCardinalityHandlers();
     signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");

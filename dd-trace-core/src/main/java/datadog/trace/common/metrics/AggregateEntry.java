@@ -1,19 +1,15 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
-
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
-import java.util.function.Function;
+import java.util.Map;
+import java.util.Objects;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -24,45 +20,41 @@ import java.util.function.Function;
  * String} vs {@code UTF8BytesString} mixing on the same logical key collapses into one entry
  * instead of splitting.
  *
- * <p>The static UTF8 caches that used to live on {@code MetricKey} and {@code
- * ConflatingMetricsAggregator} are consolidated here.
+ * <p>UTF8 canonicalization runs through per-field {@link PropertyCardinalityHandler}s (and {@link
+ * TagCardinalityHandler}s for peer tags), so cardinality is capped per reporting interval and
+ * overflow values are bucketed into a {@code blocked_by_tracer} sentinel rather than allowed to
+ * grow without bound. The handlers are reset on the aggregator thread every reporting cycle via
+ * {@link #resetCardinalityHandlers()}.
+ *
+ * <p><b>Thread-safety:</b> the cardinality handlers are not thread-safe. Only the aggregator thread
+ * may call {@link #forSnapshot} or {@link #resetCardinalityHandlers}. Test code uses {@link #of}
+ * which constructs entries without touching the handlers.
  */
 final class AggregateEntry extends Hashtable.Entry {
 
-  // UTF8 caches consolidated from the previous MetricKey + ConflatingMetricsAggregator split.
-  private static final DDCache<String, UTF8BytesString> RESOURCE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> SERVICE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> OPERATION_CACHE =
-      DDCaches.newFixedSizeCache(64);
-  private static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> SPAN_KIND_CACHE =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE =
-      DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
-      DDCaches.newFixedSizeCache(32);
+  // Per-field cardinality limits. Identical to the prior DDCache sizes.
+  private static final PropertyCardinalityHandler RESOURCE_HANDLER =
+      new PropertyCardinalityHandler(32);
+  private static final PropertyCardinalityHandler SERVICE_HANDLER =
+      new PropertyCardinalityHandler(32);
+  private static final PropertyCardinalityHandler OPERATION_HANDLER =
+      new PropertyCardinalityHandler(64);
+  private static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
+      new PropertyCardinalityHandler(16);
+  private static final PropertyCardinalityHandler TYPE_HANDLER = new PropertyCardinalityHandler(8);
+  private static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
+      new PropertyCardinalityHandler(16);
+  private static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
+      new PropertyCardinalityHandler(8);
+  private static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
+      new PropertyCardinalityHandler(32);
+  private static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
+      new PropertyCardinalityHandler(32);
 
-  /**
-   * Outer cache keyed by peer-tag name, with an inner per-name cache keyed by value. The inner
-   * cache produces the "name:value" encoded form the serializer writes.
-   */
-  private static final DDCache<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE = DDCaches.newFixedSizeCache(64);
+  /** Per-peer-tag-name {@link TagCardinalityHandler}, each sized to 512 distinct values. */
+  private static final Map<String, TagCardinalityHandler> PEER_TAG_HANDLERS = new HashMap<>();
 
-  private static final Function<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE_ADDER =
-          key ->
-              Pair.of(
-                  DDCaches.newFixedSizeCache(512),
-                  value -> UTF8BytesString.create(key + ":" + value));
+  private static final int PEER_TAG_VALUE_LIMIT = 512;
 
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
@@ -84,39 +76,79 @@ final class AggregateEntry extends Hashtable.Entry {
 
   final AggregateMetric aggregate;
 
-  /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
-  private AggregateEntry(SpanSnapshot s, long keyHash, AggregateMetric aggregate) {
+  /** Field-bearing constructor used by both the hot path and the test factory. */
+  private AggregateEntry(
+      long keyHash,
+      UTF8BytesString resource,
+      UTF8BytesString service,
+      UTF8BytesString operationName,
+      UTF8BytesString serviceSource,
+      UTF8BytesString type,
+      UTF8BytesString spanKind,
+      UTF8BytesString httpMethod,
+      UTF8BytesString httpEndpoint,
+      UTF8BytesString grpcStatusCode,
+      short httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      String[] peerTagPairsRaw,
+      List<UTF8BytesString> peerTags,
+      AggregateMetric aggregate) {
     super(keyHash);
-    this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
-    this.service = SERVICE_CACHE.computeIfAbsent(s.serviceName, UTF8_ENCODE);
-    this.operationName = canonicalize(OPERATION_CACHE, s.operationName);
-    this.serviceSource =
-        s.serviceNameSource == null
-            ? null
-            : canonicalize(SERVICE_SOURCE_CACHE, s.serviceNameSource);
-    this.type = canonicalize(TYPE_CACHE, s.spanType);
-    this.spanKind = SPAN_KIND_CACHE.computeIfAbsent(s.spanKind, UTF8BytesString::create);
-    this.httpMethod =
-        s.httpMethod == null
-            ? null
-            : HTTP_METHOD_CACHE.computeIfAbsent(s.httpMethod, UTF8BytesString::create);
-    this.httpEndpoint =
-        s.httpEndpoint == null
-            ? null
-            : HTTP_ENDPOINT_CACHE.computeIfAbsent(s.httpEndpoint, UTF8BytesString::create);
-    this.grpcStatusCode =
-        s.grpcStatusCode == null
-            ? null
-            : GRPC_STATUS_CODE_CACHE.computeIfAbsent(s.grpcStatusCode, UTF8BytesString::create);
-    this.httpStatusCode = s.httpStatusCode;
-    this.synthetic = s.synthetic;
-    this.traceRoot = s.traceRoot;
-    this.peerTagPairsRaw = s.peerTagPairs;
-    this.peerTags = materializePeerTags(s.peerTagPairs);
+    this.resource = resource;
+    this.service = service;
+    this.operationName = operationName;
+    this.serviceSource = serviceSource;
+    this.type = type;
+    this.spanKind = spanKind;
+    this.httpMethod = httpMethod;
+    this.httpEndpoint = httpEndpoint;
+    this.grpcStatusCode = grpcStatusCode;
+    this.httpStatusCode = httpStatusCode;
+    this.synthetic = synthetic;
+    this.traceRoot = traceRoot;
+    this.peerTagPairsRaw = peerTagPairsRaw;
+    this.peerTags = peerTags;
     this.aggregate = aggregate;
   }
 
-  /** Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. */
+  /**
+   * Production hot path: canonicalize each snapshot field via the cardinality handlers. Must be
+   * called on the aggregator thread. Null-valued fields short-circuit to {@link
+   * UTF8BytesString#EMPTY} (or {@code null} for optional ones) so they don't consume a cardinality
+   * slot.
+   */
+  static AggregateEntry forSnapshot(SpanSnapshot s, AggregateMetric aggregate) {
+    return new AggregateEntry(
+        hashOf(s),
+        registerOrEmpty(RESOURCE_HANDLER, s.resourceName),
+        registerOrEmpty(SERVICE_HANDLER, s.serviceName),
+        registerOrEmpty(OPERATION_HANDLER, s.operationName),
+        s.serviceNameSource == null ? null : SERVICE_SOURCE_HANDLER.register(s.serviceNameSource),
+        registerOrEmpty(TYPE_HANDLER, s.spanType),
+        registerOrEmpty(SPAN_KIND_HANDLER, s.spanKind),
+        s.httpMethod == null ? null : HTTP_METHOD_HANDLER.register(s.httpMethod),
+        s.httpEndpoint == null ? null : HTTP_ENDPOINT_HANDLER.register(s.httpEndpoint),
+        s.grpcStatusCode == null ? null : GRPC_STATUS_CODE_HANDLER.register(s.grpcStatusCode),
+        s.httpStatusCode,
+        s.synthetic,
+        s.traceRoot,
+        s.peerTagPairs,
+        canonicalizePeerTags(s.peerTagPairs),
+        aggregate);
+  }
+
+  private static UTF8BytesString registerOrEmpty(
+      PropertyCardinalityHandler handler, CharSequence value) {
+    return value == null ? UTF8BytesString.EMPTY : handler.register(value);
+  }
+
+  /**
+   * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Bypasses
+   * the cardinality handlers so tests don't pollute their state -- {@link UTF8BytesString}s are
+   * created directly. Content-equality on the resulting entry still matches an entry built via
+   * {@link #forSnapshot} from a snapshot of the same shape.
+   */
   static AggregateEntry of(
       CharSequence resource,
       CharSequence service,
@@ -132,7 +164,7 @@ final class AggregateEntry extends Hashtable.Entry {
       CharSequence httpEndpoint,
       CharSequence grpcStatusCode) {
     String[] rawPairs = peerTagsToRawPairs(peerTags);
-    SpanSnapshot synthetic_snapshot =
+    SpanSnapshot syntheticSnapshot =
         new SpanSnapshot(
             resource,
             service == null ? null : service.toString(),
@@ -149,12 +181,43 @@ final class AggregateEntry extends Hashtable.Entry {
             grpcStatusCode == null ? null : grpcStatusCode.toString(),
             0L);
     return new AggregateEntry(
-        synthetic_snapshot, hashOf(synthetic_snapshot), new AggregateMetric());
+        hashOf(syntheticSnapshot),
+        createUtf8(resource),
+        createUtf8(service),
+        createUtf8(operationName),
+        serviceSource == null ? null : createUtf8(serviceSource),
+        createUtf8(type),
+        createUtf8(spanKind),
+        httpMethod == null ? null : createUtf8(httpMethod),
+        httpEndpoint == null ? null : createUtf8(httpEndpoint),
+        grpcStatusCode == null ? null : createUtf8(grpcStatusCode),
+        (short) httpStatusCode,
+        synthetic,
+        traceRoot,
+        rawPairs,
+        peerTags == null ? Collections.emptyList() : peerTags,
+        new AggregateMetric());
   }
 
-  /** Construct from a snapshot at consumer-thread miss time. */
-  static AggregateEntry forSnapshot(SpanSnapshot s, AggregateMetric aggregate) {
-    return new AggregateEntry(s, hashOf(s), aggregate);
+  /**
+   * Resets every cardinality handler's working set. Must be called on the aggregator thread.
+   * Existing entries continue to hold their previously-issued {@link UTF8BytesString} references;
+   * matches() uses content-equality so snapshots delivered after a reset still resolve to the
+   * existing entries.
+   */
+  static void resetCardinalityHandlers() {
+    RESOURCE_HANDLER.reset();
+    SERVICE_HANDLER.reset();
+    OPERATION_HANDLER.reset();
+    SERVICE_SOURCE_HANDLER.reset();
+    TYPE_HANDLER.reset();
+    SPAN_KIND_HANDLER.reset();
+    HTTP_METHOD_HANDLER.reset();
+    HTTP_ENDPOINT_HANDLER.reset();
+    GRPC_STATUS_CODE_HANDLER.reset();
+    for (TagCardinalityHandler h : PEER_TAG_HANDLERS.values()) {
+      h.reset();
+    }
   }
 
   boolean matches(SpanSnapshot s) {
@@ -175,12 +238,9 @@ final class AggregateEntry extends Hashtable.Entry {
 
   /**
    * Computes the 64-bit lookup hash for a {@link SpanSnapshot}. Chained per-field calls -- no
-   * varargs / Object[] allocation, no autoboxing on primitive overloads. The constructor's
-   * super({@code hashOf(s)}) call uses the same function so an entry built from a snapshot hashes
-   * to the same bucket the snapshot itself looks up.
-   *
-   * <p>Hashes are content-stable across {@code String} / {@code UTF8BytesString}: {@link
-   * UTF8BytesString#hashCode()} returns the underlying {@code String}'s hash.
+   * varargs / Object[] allocation, no autoboxing on primitive overloads. Hashes are content-stable
+   * across {@code String} / {@code UTF8BytesString} because {@link UTF8BytesString#hashCode()}
+   * returns the underlying {@code String}'s hash.
    */
   static long hashOf(SpanSnapshot s) {
     long h = 0;
@@ -270,16 +330,16 @@ final class AggregateEntry extends Hashtable.Entry {
     return httpStatusCode == that.httpStatusCode
         && synthetic == that.synthetic
         && traceRoot == that.traceRoot
-        && java.util.Objects.equals(resource, that.resource)
-        && java.util.Objects.equals(service, that.service)
-        && java.util.Objects.equals(operationName, that.operationName)
-        && java.util.Objects.equals(serviceSource, that.serviceSource)
-        && java.util.Objects.equals(type, that.type)
-        && java.util.Objects.equals(spanKind, that.spanKind)
+        && Objects.equals(resource, that.resource)
+        && Objects.equals(service, that.service)
+        && Objects.equals(operationName, that.operationName)
+        && Objects.equals(serviceSource, that.serviceSource)
+        && Objects.equals(type, that.type)
+        && Objects.equals(spanKind, that.spanKind)
         && peerTags.equals(that.peerTags)
-        && java.util.Objects.equals(httpMethod, that.httpMethod)
-        && java.util.Objects.equals(httpEndpoint, that.httpEndpoint)
-        && java.util.Objects.equals(grpcStatusCode, that.grpcStatusCode);
+        && Objects.equals(httpMethod, that.httpMethod)
+        && Objects.equals(httpEndpoint, that.httpEndpoint)
+        && Objects.equals(grpcStatusCode, that.grpcStatusCode);
   }
 
   @Override
@@ -289,15 +349,15 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // ----- helpers -----
 
-  private static UTF8BytesString canonicalize(
-      DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
-    if (charSeq == null) {
-      return EMPTY;
+  /** Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers. */
+  private static UTF8BytesString createUtf8(CharSequence cs) {
+    if (cs == null) {
+      return UTF8BytesString.EMPTY;
     }
-    if (charSeq instanceof UTF8BytesString) {
-      return (UTF8BytesString) charSeq;
+    if (cs instanceof UTF8BytesString) {
+      return (UTF8BytesString) cs;
     }
-    return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
+    return UTF8BytesString.create(cs.toString());
   }
 
   /** UTF8 vs raw CharSequence content-equality, no allocation in the common (String) case. */
@@ -326,28 +386,33 @@ final class AggregateEntry extends Hashtable.Entry {
     return b != null && a.toString().equals(b);
   }
 
-  private static List<UTF8BytesString> materializePeerTags(String[] pairs) {
+  /** Production-path peer-tag canonicalization via per-name {@link TagCardinalityHandler}. */
+  private static List<UTF8BytesString> canonicalizePeerTags(String[] pairs) {
     if (pairs == null || pairs.length == 0) {
       return Collections.emptyList();
     }
     if (pairs.length == 2) {
-      return Collections.singletonList(encodePeerTag(pairs[0], pairs[1]));
+      return Collections.singletonList(handlerFor(pairs[0]).register(pairs[1]));
     }
     List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
     for (int i = 0; i < pairs.length; i += 2) {
-      tags.add(encodePeerTag(pairs[i], pairs[i + 1]));
+      tags.add(handlerFor(pairs[i]).register(pairs[i + 1]));
     }
     return tags;
   }
 
-  private static UTF8BytesString encodePeerTag(String name, String value) {
-    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
-    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
+  private static TagCardinalityHandler handlerFor(String peerTagName) {
+    TagCardinalityHandler h = PEER_TAG_HANDLERS.get(peerTagName);
+    if (h != null) {
+      return h;
+    }
+    h = new TagCardinalityHandler(peerTagName, PEER_TAG_VALUE_LIMIT);
+    PEER_TAG_HANDLERS.put(peerTagName, h);
+    return h;
   }
 
   /**
-   * Inverse of {@link #materializePeerTags}: takes pre-encoded UTF8 peer tags and recovers the raw
+   * Inverse of {@link #canonicalizePeerTags}: takes pre-encoded UTF8 peer tags and recovers the raw
    * {@code [name0, value0, name1, value1, ...]} pairs. Used by the test factory {@link #of}, not by
    * the hot path.
    */
