@@ -4,7 +4,6 @@ import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
@@ -46,7 +45,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
-  private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
+  private static final String SYNTHETICS_ORIGIN = "synthetics";
 
   private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
       SpanKindFilter.builder()
@@ -293,9 +292,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
-    // CharSequence default keeps unsafeGetTag's generic at CharSequence so UTF8BytesString
-    // tag values don't trigger a ClassCastException on the String assignment.
-    final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
+    // DDSpan resolves this from a cached span.kind ordinal via a small lookup array, skipping a
+    // tag-map lookup. Other CoreSpan impls fall back to the tag map by default.
+    String spanKind = span.getSpanKindString();
+    if (spanKind == null) {
+      spanKind = "";
+    }
 
     boolean error = span.getError() > 0;
     long tagAndDuration =
@@ -355,10 +357,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Returns {@code null} when none of the configured peer tags are set on the span.
    */
   private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
-    int n = schema.size();
+    String[] names = schema.names;
+    int n = names.length;
     String[] values = null;
     for (int i = 0; i < n; i++) {
-      Object v = span.unsafeGetTag(schema.name(i));
+      Object v = span.unsafeGetTag(names[i]);
       if (v != null) {
         if (values == null) {
           values = new String[n];
@@ -370,7 +373,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
-    return span.getOrigin() != null && SYNTHETICS_ORIGIN.equals(span.getOrigin().toString());
+    CharSequence origin = span.getOrigin();
+    return origin != null && SYNTHETICS_ORIGIN.contentEquals(origin);
   }
 
   public void stop() {
