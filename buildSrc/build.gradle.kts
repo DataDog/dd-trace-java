@@ -1,3 +1,6 @@
+import org.gradle.api.attributes.java.TargetJvmVersion
+import org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE
+
 plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
@@ -7,13 +10,25 @@ plugins {
 // The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
 // allow to schedule workers on different JDK version.
 java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
 kotlin {
+  jvmToolchain(21)
+
   compilerOptions {
     jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+  }
+}
+
+configurations.configureEach {
+  if (isCanBeResolved) {
+    attributes.attribute(TARGET_JVM_VERSION_ATTRIBUTE, 17)
   }
 }
 
@@ -77,6 +92,7 @@ dependencies {
   implementation(gradleApi())
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.8")
+  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.5.0")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

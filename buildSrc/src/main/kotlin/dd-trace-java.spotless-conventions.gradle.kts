@@ -63,7 +63,6 @@ allprojects {
       val commonExcludes = listOf(
         "build/**",
         "buildSrc/build/**",
-        "gradle/build-convention-plugins/build/**",
         "dd-java-agent/agent-jmxfetch/**"
       )
 
