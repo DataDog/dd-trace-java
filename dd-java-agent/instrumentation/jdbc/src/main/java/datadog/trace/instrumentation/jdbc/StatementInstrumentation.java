@@ -5,6 +5,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.nameSta
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DBM_TRACE_INJECTED;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DATABASE_QUERY;
 import static datadog.trace.instrumentation.jdbc.JDBCDecorator.DECORATE;
@@ -97,15 +98,19 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             // The span ID is pre-determined so that we can reference it when setting the context
             final long spanID = DECORATE.setContextInfo(connection, dbInfo);
             // we then force that pre-determined span ID for the span covering the actual query
-            span = AgentTracer.get().singleSpanBuilder(DATABASE_QUERY).withSpanId(spanID).start();
+            span =
+                AgentTracer.get()
+                    .singleSpanBuilder("java-jdbc-statement", DATABASE_QUERY)
+                    .withSpanId(spanID)
+                    .start();
           } else if (isOracle) {
-            span = startSpan(DATABASE_QUERY);
+            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
             DECORATE.setAction(span, connection);
           } else {
-            span = startSpan(DATABASE_QUERY);
+            span = startSpan("java-jdbc-statement", DATABASE_QUERY);
           }
         } else {
-          span = startSpan(DATABASE_QUERY);
+          span = startSpan("java-jdbc-statement", DATABASE_QUERY);
         }
 
         DECORATE.afterStart(span);
@@ -145,10 +150,21 @@ public final class StatementInstrumentation extends InstrumenterModule.Tracing
             appendComment = true;
           }
 
+          final String dbService;
+          if (isOracle) {
+            String oracleService = DECORATE.getDbService(dbInfo);
+            if (oracleService != null) {
+              oracleService =
+                  traceConfig(span).getServiceMapping().getOrDefault(oracleService, oracleService);
+            }
+            dbService = oracleService;
+          } else {
+            dbService = span.getServiceName();
+          }
           sql =
               SQLCommenter.inject(
                   sql,
-                  span.getServiceName(),
+                  dbService,
                   dbInfo.getType(),
                   dbInfo.getHost(),
                   dbInfo.getDb(),

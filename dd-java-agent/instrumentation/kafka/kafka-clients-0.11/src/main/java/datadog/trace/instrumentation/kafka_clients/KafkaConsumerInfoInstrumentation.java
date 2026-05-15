@@ -6,6 +6,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_POLL;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
@@ -23,6 +24,8 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder;
+import datadog.trace.instrumentation.kafka_common.KafkaConfigHelper;
+import datadog.trace.instrumentation.kafka_common.MetadataState;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -60,7 +63,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
   @Override
   public Map<String, String> contextStore() {
     Map<String, String> contextStores = new HashMap<>();
-    contextStores.put("org.apache.kafka.clients.Metadata", "java.lang.String");
+    contextStores.put(
+        "org.apache.kafka.clients.Metadata",
+        "datadog.trace.instrumentation.kafka_common.MetadataState");
     contextStores.put(
         "org.apache.kafka.clients.consumer.ConsumerRecords", KafkaConsumerInfo.class.getName());
     contextStores.put(
@@ -82,6 +87,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       packageName + ".KafkaDecorator",
       packageName + ".KafkaConsumerInfo",
       "datadog.trace.instrumentation.kafka_common.ClusterIdHolder",
+      "datadog.trace.instrumentation.kafka_common.KafkaConfigHelper",
+      "datadog.trace.instrumentation.kafka_common.PendingConfig",
+      "datadog.trace.instrumentation.kafka_common.MetadataState",
     };
   }
 
@@ -148,6 +156,16 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
               .put(coordinator, kafkaConsumerInfo);
         }
       }
+
+      if (Config.get().isDataStreamsEnabled()) {
+        MetadataState state =
+            InstrumentationContext.get(Metadata.class, MetadataState.class)
+                .putIfAbsent(metadata, MetadataState::new);
+        KafkaConfigHelper.storePendingConsumerConfig(
+            state,
+            normalizedConsumerGroup,
+            KafkaConfigHelper.extractConsumerConfig(consumerConfig));
+      }
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -191,6 +209,16 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
               .put(coordinator, kafkaConsumerInfo);
         }
       }
+
+      if (Config.get().isDataStreamsEnabled()) {
+        MetadataState state =
+            InstrumentationContext.get(Metadata.class, MetadataState.class)
+                .putIfAbsent(metadata, MetadataState::new);
+        KafkaConfigHelper.storePendingConsumerConfig(
+            state,
+            normalizedConsumerGroup,
+            KafkaConfigHelper.extractConsumerConfigFromMap(consumerConfig));
+      }
     }
 
     public static void muzzleCheck(ConsumerRecord record) {
@@ -214,8 +242,9 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       if (kafkaConsumerInfo != null && Config.get().isDataStreamsEnabled()) {
         Metadata consumerMetadata = kafkaConsumerInfo.getClientMetadata();
         if (consumerMetadata != null) {
-          String clusterId =
-              InstrumentationContext.get(Metadata.class, String.class).get(consumerMetadata);
+          MetadataState metadataState =
+              InstrumentationContext.get(Metadata.class, MetadataState.class).get(consumerMetadata);
+          String clusterId = metadataState != null ? metadataState.clusterId : null;
           if (clusterId != null) {
             ClusterIdHolder.set(clusterId);
           }
@@ -223,7 +252,7 @@ public final class KafkaConsumerInfoInstrumentation extends InstrumenterModule.T
       }
 
       if (traceConfig().isDataStreamsEnabled()) {
-        final AgentSpan span = startSpan(KAFKA_POLL);
+        final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
         return activateSpan(span);
       }
       return null;

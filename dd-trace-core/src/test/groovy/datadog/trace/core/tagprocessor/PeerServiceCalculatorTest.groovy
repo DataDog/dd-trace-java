@@ -2,6 +2,7 @@ package datadog.trace.core.tagprocessor
 
 import datadog.trace.api.Config
 import datadog.trace.api.DDTags
+import datadog.trace.api.TagMap
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.naming.v0.NamingSchemaV0
 import datadog.trace.api.naming.v1.NamingSchemaV1
@@ -13,10 +14,12 @@ class PeerServiceCalculatorTest extends DDSpecification {
     setup:
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
     when:
-    def enrichedTags = calculator.processTags(tags, null, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    calculator.processTags(unsafeTags, null, {link ->})
+
     then:
     // tags are not modified
-    assert enrichedTags == tags
+    assert unsafeTags == tags
 
     where:
     tags                                                 | _
@@ -31,13 +34,16 @@ class PeerServiceCalculatorTest extends DDSpecification {
   def "schema v1: test peer service default logic and precursors"() {
     setup:
     def calculator = new PeerServiceCalculator(new NamingSchemaV1().peerService(), Collections.emptyMap())
+
     when:
     tags.put(Tags.SPAN_KIND, Tags.SPAN_KIND_CLIENT)
-    def calculated = calculator.processTags(tags, null, [])
+
+    def unsafeTags = TagMap.fromMap(tags)
+    calculator.processTags(unsafeTags, null, {link ->})
 
     then:
-    calculated.get(DDTags.PEER_SERVICE_SOURCE) == provenance
-    calculated.get(Tags.PEER_SERVICE) == peerService
+    unsafeTags.get(DDTags.PEER_SERVICE_SOURCE) == provenance
+    unsafeTags.get(Tags.PEER_SERVICE) == peerService
 
     where:
     tags                                                                          | provenance         | peerService
@@ -55,10 +61,13 @@ class PeerServiceCalculatorTest extends DDSpecification {
     setup:
     injectSysConfig(TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED, "true")
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Collections.emptyMap())
+
     when:
-    def calculated = calculator.processTags(["span.kind": "client", "peer.hostname": "test"], null, [])
+    def unsafeTags = TagMap.fromMap(["span.kind": "client", "peer.hostname": "test"])
+    calculator.processTags(unsafeTags, null, {link ->})
+
     then:
-    assert calculated.get(Tags.PEER_SERVICE) == "test"
+    assert unsafeTags.get(Tags.PEER_SERVICE) == "test"
   }
 
 
@@ -68,9 +77,12 @@ class PeerServiceCalculatorTest extends DDSpecification {
 
     when:
     def tags = ["span.kind": kind, "peer.hostname": "test"]
+    def unsafeTags = TagMap.fromMap(tags)
+
+    calculator.processTags(unsafeTags, null, {link -> })
 
     then:
-    assert calculator.processTags(tags, null, []).containsKey(Tags.PEER_SERVICE) == calculate
+    assert unsafeTags.containsKey(Tags.PEER_SERVICE) == calculate
 
     where:
     kind       | calculate
@@ -87,11 +99,12 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceMapping())
 
     when:
-    def calculated = calculator.processTags(tags, null, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    calculator.processTags(unsafeTags, null, {link ->})
 
     then:
-    assert calculated.get(Tags.PEER_SERVICE) == expected
-    assert calculated.get(DDTags.PEER_SERVICE_REMAPPED_FROM) == original
+    assert unsafeTags.get(Tags.PEER_SERVICE) == expected
+    assert unsafeTags.get(DDTags.PEER_SERVICE_REMAPPED_FROM) == original
 
     where:
     tags                                                                    | expected            | original
@@ -108,11 +121,12 @@ class PeerServiceCalculatorTest extends DDSpecification {
     def calculator = new PeerServiceCalculator(new NamingSchemaV0().peerService(), Config.get().getPeerServiceComponentOverrides())
 
     when:
-    def calculated = calculator.processTags(tags, null, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    calculator.processTags(unsafeTags, null, {link -> })
 
     then:
-    assert calculated.get(Tags.PEER_SERVICE) == expected
-    assert calculated.get(DDTags.PEER_SERVICE_SOURCE) == source
+    assert unsafeTags.get(Tags.PEER_SERVICE) == expected
+    assert unsafeTags.get(DDTags.PEER_SERVICE_SOURCE) == source
 
     where:
     tags                                                                                   | expected       | source

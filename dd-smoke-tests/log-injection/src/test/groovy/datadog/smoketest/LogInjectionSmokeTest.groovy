@@ -231,9 +231,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     assert logLines[1].endsWith("- ${tagsPart} ${firstTraceId} ${firstSpanId} - INSIDE FIRST SPAN")
     assert logLines[2].endsWith("- ${tagsPart}   - AFTER FIRST SPAN") || logLines[2].endsWith("- ${tagsPart} 0 0 - AFTER FIRST SPAN")
     assert logLines[3].endsWith("- ${tagsPart} ${secondTraceId} ${secondSpanId} - INSIDE SECOND SPAN")
-    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[0].endsWith("-    0 0 - INSIDE THIRD SPAN")
+    assert logLines[4].endsWith("-      - INSIDE THIRD SPAN") || logLines[4].endsWith("-    0 0 - INSIDE THIRD SPAN")
     assert logLines[5].endsWith("- ${tagsPart} ${forthTraceId} ${forthSpanId} - INSIDE FORTH SPAN")
-    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[0].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
+    assert logLines[6].endsWith("- ${tagsPart}   - AFTER FORTH SPAN") || logLines[6].endsWith("- ${tagsPart} 0 0 - AFTER FORTH SPAN")
     return true
   }
 
@@ -347,6 +347,60 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return logEvent[key]
   }
 
+  /**
+   * Like {@link AbstractSmokeTest#waitForTraceCount} but checks process liveness on every poll
+   * iteration and dumps diagnostic state on failure, so CI failures produce actionable output
+   * instead of a bare "Condition not satisfied" after a 30s timeout.
+   */
+  int waitForTraceCountAlive(int count) {
+    try {
+      defaultPoll.eventually {
+        if (traceDecodingFailure != null) {
+          throw traceDecodingFailure
+        }
+        // Check the count BEFORE liveness — the process may have exited normally
+        // after delivering all traces, and we don't want to treat that as a failure.
+        if (traceCount.get() >= count) {
+          return
+        }
+        if (testedProcess != null && !testedProcess.isAlive()) {
+          def lastLines = tailProcessLog(20)
+          // RuntimeException (not AssertionError) so PollingConditions propagates
+          // immediately instead of retrying for the full timeout.
+          throw new RuntimeException(
+          "Process exited with code ${testedProcess.exitValue()} while waiting for ${count} traces " +
+          "(received ${traceCount.get()}, RC polls: ${rcClientMessages.size()}).\n" +
+          "Last process output:\n${lastLines}")
+        }
+        assert traceCount.get() >= count
+      }
+    } catch (AssertionError e) {
+      // The default error ("Condition not satisfied after 30s") is useless — enrich with diagnostic state
+      def alive = testedProcess?.isAlive()
+      def lastLines = tailProcessLog(30)
+      throw new AssertionError(
+      "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
+      "traceCount=${traceCount.get()}, process.alive=${alive}, " +
+      "RC polls received: ${rcClientMessages.size()}.\n" +
+      "Last process output:\n${lastLines}", e)
+    }
+    traceCount.get()
+  }
+
+  private String tailProcessLog(int lines) {
+    try {
+      def logFile = new File(logFilePath)
+      if (!logFile.exists()) {
+        return "(log file does not exist: ${logFilePath})"
+      }
+      def allLines = logFile.readLines()
+      def tail = allLines.size() > lines ? allLines[-lines..-1] : allLines
+      return tail.join("\n")
+    } catch (Exception e) {
+      return "(failed to read log: ${e.message})"
+    }
+  }
+
   def parseTraceFromStdOut( String line ) {
     if (line == null) {
       throw new IllegalArgumentException("Line is null")
@@ -365,7 +419,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
   @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8())
   def "check raw file injection"() {
     when:
-    def count = waitForTraceCount(2)
+    def count = waitForTraceCountAlive(2)
 
     def newConfig = """
         {"lib_config":
@@ -374,14 +428,15 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
      """.toString()
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", newConfig)
 
-    count = waitForTraceCount(3)
+    count = waitForTraceCountAlive(3)
 
     setRemoteConfig("datadog/2/APM_TRACING/config_overrides/config", """{"lib_config":{}}""".toString())
 
-    testedProcess.waitFor(TIMEOUT_SECS, SECONDS)
-    def exitValue = testedProcess.exitValue()
+    // Wait for all 4 traces before waiting for process exit to ensure trace delivery is confirmed
+    count = waitForTraceCountAlive(4)
 
-    count = waitForTraceCount(4)
+    assert testedProcess.waitFor(TIMEOUT_SECS, SECONDS) : "Process did not exit within ${TIMEOUT_SECS}s"
+    def exitValue = testedProcess.exitValue()
 
     def logLines = outputLogFile.readLines()
     println "log lines: " + logLines

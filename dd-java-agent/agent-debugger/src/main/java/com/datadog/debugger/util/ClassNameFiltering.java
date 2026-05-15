@@ -50,7 +50,7 @@ public class ClassNameFiltering implements ClassNameFilter {
   }
 
   static boolean isLambdaProxyClass(String className) {
-    return LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
+    return className.contains("Lambda") && LAMBDA_PROXY_CLASS_PATTERN.matcher(className).matches();
   }
 
   int shadedIndexOf(String className) {

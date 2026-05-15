@@ -46,6 +46,9 @@ tasks.withType<Test>().configureEach {
   // Use a task-specific user prefs directory
   systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("tmp/userPrefs/$name").get().asFile.absolutePath)
 
+  // Enable JUnit 5 auto-detection so ConfigInversionExtension (STRICT mode) is loaded automatically
+  systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
+
   // Split up tests that want to run forked in their own separate JVM for generated tasks
   if (name.startsWith("forkedTest") || name.endsWith("ForkedTest")) {
     setExcludes(emptyList())

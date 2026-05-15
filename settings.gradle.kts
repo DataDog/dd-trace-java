@@ -20,7 +20,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.3.2"
+  id("com.gradle.develocity") version "4.4.1"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -60,7 +60,7 @@ include(
   ":dd-trace-core",
   ":dd-java-agent",
   ":dd-java-agent:agent-bootstrap",
-  ":dd-java-agent:agent-builder",
+  ":dd-java-agent:agent-installer",
   ":dd-java-agent:agent-tooling",
   ":dd-java-agent:agent-jmxfetch",
   ":dd-java-agent:agent-logging",
@@ -105,6 +105,7 @@ include(
   ":communication",
   ":components:context",
   ":components:environment",
+  ":components:http:http-api",
   ":components:json",
   ":components:native-loader",
   ":products:metrics:metrics-agent",
@@ -158,8 +159,10 @@ include(
   ":dd-java-agent:testing",
   ":utils:config-utils",
   ":utils:container-utils",
+  ":utils:junit-utils",
   ":utils:filesystem-utils",
   ":utils:flare-utils",
+  ":utils:logging-utils",
   ":utils:queue-utils",
   ":utils:socket-utils",
   ":utils:test-agent-utils:decoder",
@@ -184,6 +187,7 @@ include(
   ":dd-smoke-tests:gradle",
   ":dd-smoke-tests:grpc-1.5",
   ":dd-smoke-tests:java9-modules",
+  ":dd-smoke-tests:jdk-tool-abort",
   ":dd-smoke-tests:jersey-2",
   ":dd-smoke-tests:jersey-3",
   ":dd-smoke-tests:jboss-modules",
@@ -246,6 +250,7 @@ include(
   ":dd-smoke-tests:vertx-3.9",
   ":dd-smoke-tests:vertx-3.9-resteasy",
   ":dd-smoke-tests:vertx-4.2",
+  ":dd-smoke-tests:websphere-jmx",
   ":dd-smoke-tests:wildfly",
   ":dd-smoke-tests:appsec",
   ":dd-smoke-tests:appsec:spring-tomcat7",
@@ -330,6 +335,7 @@ include(
   ":dd-java-agent:instrumentation:datastax-cassandra:datastax-cassandra-4.0",
   ":dd-java-agent:instrumentation:dropwizard:dropwizard-views-0.7",
   ":dd-java-agent:instrumentation:dropwizard:dropwizard-0.8",
+  ":dd-java-agent:instrumentation:drools:drools-6.0",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-5.0",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-6.4",
   ":dd-java-agent:instrumentation:elasticsearch:elasticsearch-rest:elasticsearch-rest-7.0",
@@ -385,6 +391,7 @@ include(
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-15.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-17.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-21.0",
+  ":dd-java-agent:instrumentation:java:java-lang:java-lang-22.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-9.0",
   ":dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8",
   ":dd-java-agent:instrumentation:java:java-net:java-net-1.8",
@@ -489,6 +496,7 @@ include(
   ":dd-java-agent:instrumentation:opensearch:opensearch-common",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-0.3",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.4",
+  ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.27",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-1.47",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.20",
   ":dd-java-agent:instrumentation:opentelemetry:opentelemetry-annotations-1.26",
@@ -555,6 +563,7 @@ include(
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-iast",
   ":dd-java-agent:instrumentation:slick-3.2",
   ":dd-java-agent:instrumentation:snakeyaml-1.33",
+  ":dd-java-agent:instrumentation:sofarpc:sofarpc-5.0",
   ":dd-java-agent:instrumentation:spark:spark-common",
   ":dd-java-agent:instrumentation:spark:spark_2.12",
   ":dd-java-agent:instrumentation:spark:spark_2.13",

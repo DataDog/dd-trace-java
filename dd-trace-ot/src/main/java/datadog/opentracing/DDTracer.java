@@ -522,6 +522,11 @@ public class DDTracer implements Tracer, datadog.trace.api.Tracer, InternalTrace
   }
 
   @Override
+  public void flushLogs() {
+    tracer.flushLogs();
+  }
+
+  @Override
   public Profiling getProfilingContext() {
     return tracer != null ? tracer.getProfilingContext() : Profiling.NoOp.INSTANCE;
   }

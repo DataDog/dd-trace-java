@@ -20,9 +20,6 @@ import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.TempDir
 
-@IgnoreIf(reason = "TODO: Fix for Java 26. Javac plugin fails to populate source tags correctly.", value = {
-  JavaVirtualMachine.isJavaVersionAtLeast(26)
-})
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service"

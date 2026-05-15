@@ -1,9 +1,17 @@
 import datadog.environment.EnvironmentVariables
 import datadog.trace.agent.test.InstrumentationSpecification
+import datadog.trace.config.inversion.ConfigHelper
 import datadog.trace.api.Config
 import spock.lang.Shared
 
 class ConfigResetTest extends InstrumentationSpecification {
+
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    // Opt out of strict config validation - test module loads test instrumentations with fake names
+    ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
+  }
 
   @Shared
   def sharedInstance = checkStaticAssertions()

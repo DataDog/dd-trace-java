@@ -1,5 +1,7 @@
 package datadog.trace.common.writer.ddagent;
 
+import datadog.communication.serialization.GenerationalUtf8Cache;
+import datadog.communication.serialization.SimpleUtf8Cache;
 import java.nio.charset.StandardCharsets;
 import java.util.concurrent.ThreadLocalRandom;
 import org.openjdk.jmh.annotations.Benchmark;

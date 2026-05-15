@@ -5,10 +5,10 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
   id 'com.gradleup.shadow'
   id 'org.jetbrains.kotlin.jvm'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/version.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 apply from: "$rootDir/gradle/test-with-scala.gradle"
 
@@ -37,6 +37,7 @@ dependencies {
   testImplementation group: 'org.skyscreamer', name: 'jsonassert', version: '1.5.1'
   testImplementation group: 'org.freemarker', name: 'freemarker', version: '2.3.31'
   testImplementation group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
+  testImplementation libs.bundles.mockito
 }
 
 tasks.named("shadowJar", ShadowJar) {

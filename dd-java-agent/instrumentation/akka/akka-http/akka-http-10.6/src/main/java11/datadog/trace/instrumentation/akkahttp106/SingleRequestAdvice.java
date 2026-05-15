@@ -2,8 +2,8 @@ package datadog.trace.instrumentation.akkahttp106;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.AKKA_HTTP_CLIENT;
 import static datadog.trace.instrumentation.akkahttp106.AkkaHttpClientDecorator.DECORATE;
 
 import akka.http.scaladsl.HttpExt;
@@ -16,22 +16,16 @@ import scala.concurrent.Future;
 
 public class SingleRequestAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static AgentScope methodEnter(
-      @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+  public static AgentScope methodEnter(@Advice.Argument(value = 0) final HttpRequest request) {
     final AkkaHttpClientHelpers.AkkaHttpHeaders headers =
         new AkkaHttpClientHelpers.AkkaHttpHeaders(request);
     if (headers.hadSpan()) {
       return null;
     }
 
-    final AgentSpan span = startSpan("akka-http", AKKA_CLIENT_REQUEST);
+    final AgentSpan span = startSpan(AKKA_HTTP_CLIENT.toString(), AKKA_CLIENT_REQUEST);
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    if (request != null) {
-      DECORATE.injectContext(getCurrentContext().with(span), request, headers);
-      // Request is immutable, so we have to assign new value once we update headers
-      request = headers.getRequest();
-    }
     return activateSpan(span);
   }
 

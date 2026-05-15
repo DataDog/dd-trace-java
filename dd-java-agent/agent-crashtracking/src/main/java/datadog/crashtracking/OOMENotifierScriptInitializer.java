@@ -2,26 +2,17 @@ package datadog.crashtracking;
 
 import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
-import static datadog.crashtracking.Initializer.RWXRWXRWX;
-import static datadog.crashtracking.Initializer.R_XR_XR_X;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
-import static java.nio.file.FileVisitResult.CONTINUE;
-import static java.nio.file.attribute.PosixFilePermissions.asFileAttribute;
-import static java.nio.file.attribute.PosixFilePermissions.fromString;
 
 import datadog.trace.util.PidHelper;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.io.IOException;
-import java.nio.file.FileAlreadyExistsException;
-import java.nio.file.FileVisitResult;
-import java.nio.file.FileVisitor;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.nio.file.attribute.BasicFileAttributes;
+import java.io.InputStream;
 import java.util.Set;
 
 public final class OOMENotifierScriptInitializer {
@@ -37,8 +28,8 @@ public final class OOMENotifierScriptInitializer {
           "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
       return;
     }
-    Path scriptPath = getOOMEScriptPath(onOutOfMemoryVal);
-    if (scriptPath == null) {
+    File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
+    if (scriptFile == null) {
       LOG.error(
           SEND_TELEMETRY,
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
@@ -52,123 +43,99 @@ public final class OOMENotifierScriptInitializer {
           "Unable to locate the agent jar. OOME notification will not work properly.");
       return;
     }
-    if (!copyOOMEscript(scriptPath)) {
+    if (!copyOOMEscript(scriptFile)) {
       return;
     }
-    writeConfigToPath(scriptPath, "agent", agentJar);
+    writeConfigToPath(scriptFile, "agent", agentJar);
   }
 
-  private static Path getOOMEScriptPath(String onOutOfMemoryVal) {
+  private static File getOOMEScriptFile(String onOutOfMemoryVal) {
     String path = getScriptPathFromArg(onOutOfMemoryVal, OOME_NOTIFIER_SCRIPT_PREFIX);
-    return path == null ? null : Paths.get(path);
+    return path == null ? null : new File(path);
   }
 
-  private static boolean copyOOMEscript(Path scriptPath) {
-    Path scriptDirectory = scriptPath.getParent();
+  private static boolean copyOOMEscript(File scriptFile) {
+    File scriptDirectory = scriptFile.getParentFile();
 
     // cleanup all stale process-specific generated files in the parent folder of the given OOME
     // notifier script
-    ScriptCleanupVisitor.run(scriptDirectory);
+    runScriptCleanup(scriptDirectory);
 
-    try {
-      if (Files.exists(scriptDirectory)) {
-        // can be safely ignored; if the folder exists we will just reuse it
-        if (!Files.isWritable(scriptDirectory)) {
-          LOG.warn(
-              SEND_TELEMETRY,
-              "Read only directory {}. OOME notification will not work properly.",
-              scriptDirectory);
-          return false;
-        }
-      } else {
-        Files.createDirectories(scriptDirectory, asFileAttribute(fromString(RWXRWXRWX)));
+    if (scriptDirectory.exists()) {
+      // can be safely ignored; if the folder exists we will just reuse it
+      if (!scriptDirectory.canWrite()) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Read only directory {}. OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
       }
-    } catch (UnsupportedOperationException e) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Unsupported permissions '{"
-              + RWXRWXRWX
-              + "' for {}. OOME notification will not work properly.",
-          scriptDirectory);
-      return false;
-    } catch (FileAlreadyExistsException ignored) {
-      LOG.warn(SEND_TELEMETRY, "Path {} already exists and is not a directory.", scriptDirectory);
-      return false;
-    } catch (IOException e) {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
-          scriptDirectory);
-      return false;
+    } else {
+      if (!scriptDirectory.mkdirs()) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      scriptDirectory.setReadable(true, false);
+      scriptDirectory.setWritable(true, false);
+      scriptDirectory.setExecutable(true, false);
     }
 
     try {
       // do not overwrite existing
-      if (!Files.exists(scriptPath)) {
-        Files.copy(getOomeNotifierTemplate(), scriptPath);
+      if (!scriptFile.exists()) {
+        copyStream(getOomeNotifierTemplate(), scriptFile);
       }
-      Files.setPosixFilePermissions(scriptPath, fromString(R_XR_XR_X));
+      scriptFile.setReadable(true, false);
+      scriptFile.setWritable(false, false);
+      scriptFile.setExecutable(true, false);
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
           "Failed to copy OOME script {}. OOME notification will not work properly.",
-          scriptPath);
+          scriptFile);
       return false;
     }
     return true;
   }
 
-  private static class ScriptCleanupVisitor implements FileVisitor<Path> {
-    private Set<String> pidSet;
-
-    static void run(Path dir) {
-      try {
-        if (Files.exists(dir)) {
-          Files.walkFileTree(dir, new ScriptCleanupVisitor());
-        }
-      } catch (IOException e) {
-        if (LOG.isDebugEnabled()) {
-          LOG.info("Failed cleaning up process specific files in {}", dir, e);
-        } else {
-          LOG.info("Failed cleaning up process specific files in {}: {}", dir, e.toString());
-        }
+  private static void copyStream(InputStream in, File dest) throws IOException {
+    try (InputStream src = in;
+        FileOutputStream out = new FileOutputStream(dest)) {
+      byte[] buf = new byte[4096];
+      int n;
+      while ((n = src.read(buf)) >= 0) {
+        out.write(buf, 0, n);
       }
     }
+  }
 
-    private ScriptCleanupVisitor() {}
-
-    @Override
-    public FileVisitResult preVisitDirectory(Path dir, BasicFileAttributes attrs) {
-      return CONTINUE;
+  private static void runScriptCleanup(File dir) {
+    if (!dir.exists()) {
+      return;
     }
-
-    @Override
-    public FileVisitResult visitFile(Path file, BasicFileAttributes attrs) throws IOException {
-      String fileName = file.getFileName().toString();
-      String pid = pidFromSpecialFileName(fileName);
+    File[] files = dir.listFiles();
+    if (files == null) {
+      return;
+    }
+    Set<String> pidSet = null;
+    for (File file : files) {
+      if (!file.isFile()) {
+        continue;
+      }
+      String pid = pidFromSpecialFileName(file.getName());
       if (pid != null && !pid.equals(PidHelper.getPid())) {
-        if (this.pidSet == null) {
-          // if pidSet is not initialized, initialize it
-          // this will fork jps to get the list of Java PIDs
-          this.pidSet = PidHelper.getJavaPids();
+        if (pidSet == null) {
+          // lazy init: forks jps to get the list of running Java PIDs
+          pidSet = PidHelper.getJavaPids();
         }
-        if (!this.pidSet.contains(pid)) {
+        if (!pidSet.contains(pid)) {
           LOG.debug("Cleaning process specific file {}", file);
-          Files.delete(file);
+          file.delete();
         }
       }
-      return CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult visitFileFailed(Path file, IOException exc) {
-      LOG.debug("Failed to delete file {}", file, exc);
-      return CONTINUE;
-    }
-
-    @Override
-    public FileVisitResult postVisitDirectory(Path dir, IOException exc) {
-      return CONTINUE;
     }
   }
 }

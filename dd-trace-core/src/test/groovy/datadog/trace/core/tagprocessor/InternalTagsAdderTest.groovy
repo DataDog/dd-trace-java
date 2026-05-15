@@ -2,6 +2,8 @@ package datadog.trace.core.tagprocessor
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION
 
+import datadog.trace.api.TagMap
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.DDSpanContext
 import datadog.trace.test.util.DDSpecification
@@ -11,15 +13,17 @@ class InternalTagsAdderTest extends DDSpecification {
     setup:
     def calculator = new InternalTagsAdder("test", null)
     def spanContext = Mock(DDSpanContext)
+    def links = Mock(AppendableSpanLinks)
 
     when:
-    def enrichedTags = calculator.processTags([:], spanContext, [])
+    def unsafeTags = TagMap.fromMap([:])
+    calculator.processTags(unsafeTags, spanContext, links)
 
     then:
     1 * spanContext.getServiceName() >> serviceName
 
     and:
-    assert enrichedTags == expectedTags
+    assert unsafeTags == expectedTags
 
     where:
     serviceName  | expectedTags
@@ -32,15 +36,17 @@ class InternalTagsAdderTest extends DDSpecification {
     setup:
     def calculator = new InternalTagsAdder("same", ddVersion)
     def spanContext = Mock(DDSpanContext)
+    def links = Mock(AppendableSpanLinks)
 
     when:
-    def enrichedTags = calculator.processTags(tags, spanContext, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    calculator.processTags(unsafeTags, spanContext, links)
 
     then:
     1 * spanContext.getServiceName() >> serviceName
 
     and:
-    assert enrichedTags?.get(VERSION)?.toString() == expected
+    assert unsafeTags?.get(VERSION)?.toString() == expected
 
 
     where:

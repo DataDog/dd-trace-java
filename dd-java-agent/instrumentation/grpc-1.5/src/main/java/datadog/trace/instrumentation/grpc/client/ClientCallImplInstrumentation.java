@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.grpc.client;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.instrumentation.grpc.client.GrpcClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.grpc.client.GrpcInjectAdapter.SETTER;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
@@ -9,6 +11,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import datadog.trace.agent.tooling.Instrumenter;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -33,7 +36,10 @@ public final class ClientCallImplInstrumentation
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(isConstructor(), getClass().getName() + "$Capture");
-    transformer.applyAdvice(named("start").and(isMethod()), getClass().getName() + "$Start");
+    transformer.applyAdvices(
+        named("start").and(isMethod()),
+        getClass().getName() + "$Start",
+        getClass().getName() + "$StartContextPropagationAdvice");
     transformer.applyAdvice(named("cancel").and(isMethod()), getClass().getName() + "$Cancel");
     transformer.applyAdvice(
         named("request")
@@ -67,7 +73,6 @@ public final class ClientCallImplInstrumentation
         @Advice.Local("$$ddSpan") AgentSpan span) {
       span = InstrumentationContext.get(ClientCall.class, AgentSpan.class).get(call);
       if (null != span) {
-        DECORATE.injectContext(span, headers, SETTER);
         return activateSpan(span);
       }
       return null;
@@ -88,6 +93,18 @@ public final class ClientCallImplInstrumentation
         span.finish();
         throw error;
       }
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static final class StartContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void before(@Advice.Argument(1) Metadata headers) {
+      AgentSpan span = activeSpan();
+      if (span == null) {
+        return;
+      }
+      DECORATE.injectContext(span, headers, SETTER);
     }
   }
 

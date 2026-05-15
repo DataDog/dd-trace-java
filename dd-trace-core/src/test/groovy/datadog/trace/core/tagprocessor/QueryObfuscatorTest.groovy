@@ -1,6 +1,7 @@
 package datadog.trace.core.tagprocessor
 
 import datadog.trace.api.DDTags
+import datadog.trace.api.TagMap
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 
@@ -14,11 +15,12 @@ class QueryObfuscatorTest extends DDSpecification {
     ]
 
     when:
-    def result = obfuscator.processTags(tags, null, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    obfuscator.processTags(unsafeTags, null, {link ->})
 
     then:
-    assert result.get(DDTags.HTTP_QUERY) == expectedQuery
-    assert result.get(Tags.HTTP_URL) == 'http://site.com/index?' + expectedQuery
+    assert unsafeTags.get(DDTags.HTTP_QUERY) == expectedQuery
+    assert unsafeTags.get(Tags.HTTP_URL) == 'http://site.com/index?' + expectedQuery
 
     where:
     query                                                               | expectedQuery
@@ -36,11 +38,12 @@ class QueryObfuscatorTest extends DDSpecification {
     ]
 
     when:
-    def result = obfuscator.processTags(tags, null, [])
+    def unsafeTags = TagMap.fromMap(tags)
+    obfuscator.processTags(unsafeTags, null, {link ->})
 
     then:
-    assert result.get(DDTags.HTTP_QUERY) == expectedQuery
-    assert result.get(Tags.HTTP_URL) == 'http://site.com/index?' + expectedQuery
+    assert unsafeTags.get(DDTags.HTTP_QUERY) == expectedQuery
+    assert unsafeTags.get(Tags.HTTP_URL) == 'http://site.com/index?' + expectedQuery
 
     where:
     query                                                               | expectedQuery

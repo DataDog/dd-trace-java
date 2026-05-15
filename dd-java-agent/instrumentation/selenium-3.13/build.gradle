@@ -32,7 +32,13 @@ dependencies {
   testImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '2.70.0'
 
   latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'selenium-java', version: '+'
-  latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit-driver', version: '+'
+  latestDepTestImplementation group: 'org.seleniumhq.selenium', name: 'htmlunit3-driver', version: '+'
+}
+
+configurations {
+  // Needed for test, but for latestDepTest the old htmlunit-driver was renamed to htmlunit3-driver,
+  // and both define the same HtmlUnitDriver class, so exclude the old one.
+  latestDepTestImplementation.exclude group: 'org.seleniumhq.selenium', module: 'htmlunit-driver'
 }
 
 configurations.matching({ it.name.startsWith('test') || it.name.startsWith('latestDepTest') }).configureEach({

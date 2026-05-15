@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -131,11 +132,11 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while creating execution settings");
-      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
 
     } catch (ExecutionException e) {
       LOGGER.error("Error while creating execution settings", e);
-      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.EMPTY);
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
 
     } finally {
       settingsExecutor.shutdownNow();
@@ -146,6 +147,10 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
   private Map<String, ExecutionSettings> doCreate(
       TracerEnvironment tracerEnvironment, CiVisibilitySettings settings, ExecutorService executor)
       throws InterruptedException, ExecutionException {
+    if (settings.isSettingsRequestError()) {
+      return Collections.singletonMap(DEFAULT_SETTINGS, ExecutionSettings.SETTINGS_REQUEST_ERROR);
+    }
+
     boolean itrEnabled =
         isFeatureEnabled(
             settings, CiVisibilitySettings::isItrEnabled, Config::isCiVisibilityItrEnabled);
@@ -219,17 +224,28 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
         codeCoverageReportUpload,
         failedTestReplayEnabled);
 
+    AtomicBoolean skippableTestsError = new AtomicBoolean();
+    AtomicBoolean flakyTestsError = new AtomicBoolean();
+    AtomicBoolean knownTestsError = new AtomicBoolean();
+    AtomicBoolean testManagementTestsError = new AtomicBoolean();
+
     Future<SkippableTests> skippableTestsFuture =
-        executor.submit(() -> getSkippableTests(tracerEnvironment, itrEnabled));
+        executor.submit(
+            () -> getSkippableTests(tracerEnvironment, itrEnabled, skippableTestsError));
     Future<Map<String, Collection<TestFQN>>> flakyTestsFuture =
-        executor.submit(() -> getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled));
+        executor.submit(
+            () ->
+                getFlakyTestsByModule(tracerEnvironment, flakyTestRetriesEnabled, flakyTestsError));
     Future<Map<String, Collection<TestFQN>>> knownTestsFuture =
-        executor.submit(() -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest));
+        executor.submit(
+            () -> getKnownTestsByModule(tracerEnvironment, knownTestsRequest, knownTestsError));
     Future<Map<TestSetting, Map<String, Collection<TestFQN>>>> testManagementTestsFuture =
         executor.submit(
             () ->
                 getTestManagementTestsByModule(
-                    tracerEnvironment, testManagementSettings.isEnabled()));
+                    tracerEnvironment,
+                    testManagementSettings.isEnabled(),
+                    testManagementTestsError));
     Future<Diff> pullRequestDiffFuture =
         executor.submit(
             () -> getPullRequestDiff(impactedTestsEnabled, settings.getDefaultBranch()));
@@ -249,6 +265,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
             TestSetting.ATTEMPT_TO_FIX, Collections.emptyMap());
 
     Diff pullRequestDiff = pullRequestDiffFuture.get();
+
+    ConfigurationErrors configurationErrors =
+        new ConfigurationErrors(
+            false,
+            skippableTestsError.get(),
+            flakyTestsError.get(),
+            knownTestsError.get(),
+            testManagementTestsError.get());
 
     Map<String, ExecutionSettings> settingsByModule = new HashMap<>();
     Set<String> moduleNames =
@@ -287,7 +311,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
               quarantinedTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               disabledTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
               attemptToFixTestsByModule.getOrDefault(moduleName, Collections.emptyList()),
-              pullRequestDiff));
+              pullRequestDiff,
+              configurationErrors));
     }
     return settingsByModule;
   }
@@ -307,8 +332,8 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
 
     } catch (Exception e) {
-      LOGGER.warn("Error while obtaining CI Visibility settings", e);
-      return CiVisibilitySettings.DEFAULT;
+      LOGGER.error("Error while obtaining CI Visibility settings", e);
+      return CiVisibilitySettings.SETTINGS_REQUEST_ERROR;
     }
   }
 
@@ -341,7 +366,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
   @Nonnull
   private SkippableTests getSkippableTests(
-      TracerEnvironment tracerEnvironment, boolean itrEnabled) {
+      TracerEnvironment tracerEnvironment, boolean itrEnabled, AtomicBoolean errorFlag) {
     if (!itrEnabled || repositoryRoot == null) {
       return SkippableTests.EMPTY;
     }
@@ -370,16 +395,20 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
     } catch (InterruptedException e) {
       Thread.currentThread().interrupt();
       LOGGER.error("Interrupted while waiting for git data upload", e);
+      errorFlag.set(true);
       return SkippableTests.EMPTY;
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of skippable tests, will proceed without skipping", e);
+      errorFlag.set(true);
       return SkippableTests.EMPTY;
     }
   }
 
   @Nullable
   private Map<String, Collection<TestFQN>> getFlakyTestsByModule(
-      TracerEnvironment tracerEnvironment, boolean flakyTestRetriesEnabled) {
+      TracerEnvironment tracerEnvironment,
+      boolean flakyTestRetriesEnabled,
+      AtomicBoolean errorFlag) {
     if (!(flakyTestRetriesEnabled && config.isCiVisibilityFlakyRetryOnlyKnownFlakes())
         && !CIConstants.FAIL_FAST_TEST_ORDER.equalsIgnoreCase(config.getCiVisibilityTestOrder())) {
       return null;
@@ -388,13 +417,14 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       return configurationApi.getFlakyTestsByModule(tracerEnvironment);
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of flaky tests", e);
+      errorFlag.set(true);
       return null;
     }
   }
 
   @Nullable
   private Map<String, Collection<TestFQN>> getKnownTestsByModule(
-      TracerEnvironment tracerEnvironment, boolean knownTestsRequest) {
+      TracerEnvironment tracerEnvironment, boolean knownTestsRequest, AtomicBoolean errorFlag) {
     if (!knownTestsRequest) {
       return null;
     }
@@ -403,13 +433,16 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
 
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of known tests", e);
+      errorFlag.set(true);
       return null;
     }
   }
 
   @Nullable
   private Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
-      TracerEnvironment tracerEnvironment, boolean testManagementTestsRequest) {
+      TracerEnvironment tracerEnvironment,
+      boolean testManagementTestsRequest,
+      AtomicBoolean errorFlag) {
     if (!testManagementTestsRequest) {
       return Collections.emptyMap();
     }
@@ -426,6 +459,7 @@ public class ExecutionSettingsFactoryImpl implements ExecutionSettingsFactory {
       }
     } catch (Exception e) {
       LOGGER.error("Could not obtain list of test management tests", e);
+      errorFlag.set(true);
       return Collections.emptyMap();
     }
   }

@@ -182,7 +182,7 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   <U> U getTag(CharSequence name, U defaultValue) {
-    def tagValue = tags.get(String.valueOf(name)) ?: defaultValue
+    def tagValue = tags.get(String.valueOf(name))
     return tagValue != null ? (U) tagValue : defaultValue
   }
 
@@ -221,6 +221,9 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
 
   @Override
   void processTagsAndBaggage(MetadataConsumer consumer) {}
+
+  @Override
+  void processTagsAndBaggage(MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {}
 
   @Override
   SimpleSpan setSamplingPriority(int samplingPriority, int samplingMechanism) {

@@ -19,11 +19,19 @@ interface CommonTags {
   String MODEL_PROVIDER = TAG_PREFIX + LLMObsTags.MODEL_PROVIDER;
 
   String ML_APP = TAG_PREFIX + LLMObsTags.ML_APP;
+  String INTEGRATION = TAG_PREFIX + "integration";
   String VERSION = TAG_PREFIX + "version";
+  String DDTRACE_VERSION = TAG_PREFIX + "ddtrace.version";
+  String SOURCE = TAG_PREFIX + "source";
+
+  String ERROR = TAG_PREFIX + "error";
+  String ERROR_TYPE = TAG_PREFIX + "error_type";
 
   String ENV = TAG_PREFIX + "env";
   String SERVICE = TAG_PREFIX + "service";
   String PARENT_ID = TAG_PREFIX + "parent_id";
+
+  String TOOL_DEFINITIONS = TAG_PREFIX + "tool_definitions";
 
   String METRIC_PREFIX = "_ml_obs_metric.";
   String INPUT_TOKENS = METRIC_PREFIX + "input_tokens";
@@ -33,4 +41,5 @@ interface CommonTags {
   String CACHE_READ_INPUT_TOKENS = METRIC_PREFIX + "cache_read_input_tokens";
 
   String REQUEST_REASONING = "_ml_obs_request.reasoning";
+  String REQUEST_PROMPT = "_ml_obs_request.prompt";
 }

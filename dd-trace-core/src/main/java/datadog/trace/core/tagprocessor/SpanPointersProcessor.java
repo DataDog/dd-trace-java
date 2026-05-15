@@ -13,6 +13,7 @@ import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.S3
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.SpanAttributes;
 import datadog.trace.bootstrap.instrumentation.api.SpanLink;
 import datadog.trace.core.DDSpanContext;
@@ -21,7 +22,6 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.util.Arrays;
-import java.util.List;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,16 +38,16 @@ public class SpanPointersProcessor extends TagsPostProcessor {
 
   @Override
   public void processTags(
-      TagMap unsafeTags, DDSpanContext spanContext, List<AgentSpanLink> spanLinks) {
+      TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
     // DQH - TODO - There's a lot room to optimize this using TagMap's capabilities
     AgentSpanLink s3Link = handleS3SpanPointer(unsafeTags);
     if (s3Link != null) {
-      spanLinks.add(s3Link);
+      spanLinks.addLink(s3Link);
     }
 
     AgentSpanLink dynamoDbLink = handleDynamoDbSpanPointer(unsafeTags);
     if (dynamoDbLink != null) {
-      spanLinks.add(dynamoDbLink);
+      spanLinks.addLink(dynamoDbLink);
     }
   }
 

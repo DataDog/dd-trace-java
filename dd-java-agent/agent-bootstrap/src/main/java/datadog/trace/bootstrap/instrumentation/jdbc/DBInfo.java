@@ -193,7 +193,7 @@ public final class DBInfo {
   }
 
   public String getDb() {
-    return db;
+    return db != null ? db : instance;
   }
 
   public String getHost() {

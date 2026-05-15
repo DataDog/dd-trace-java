@@ -18,8 +18,10 @@ class CallSiteInstrumentationPluginTest {
       id 'dd-trace-java.call-site-instrumentation'
     }
 
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     csi {
       suffix = 'CallSite'
@@ -32,7 +34,7 @@ class CallSiteInstrumentationPluginTest {
     }
   
     dependencies {
-      implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3'
+      implementation group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       implementation group: 'com.google.auto.service', name: 'auto-service-annotations', version: '1.1.1'
     }
   """.trimIndent()

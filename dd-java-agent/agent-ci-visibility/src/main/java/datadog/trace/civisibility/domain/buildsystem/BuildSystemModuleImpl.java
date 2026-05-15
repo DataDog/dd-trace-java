@@ -110,6 +110,8 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
                 sessionSettings));
 
     setTag(Tags.TEST_COMMAND, startCommand);
+
+    executionSettings.getConfigurationErrors().applyTags(span);
   }
 
   @ParametersAreNonnullByDefault

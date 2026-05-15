@@ -2,6 +2,8 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.HashingUtils;
 import java.util.Collections;
@@ -10,6 +12,19 @@ import java.util.Objects;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
+  static final DDCache<String, UTF8BytesString> RESOURCE_CACHE = DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> SERVICE_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
+      DDCaches.newFixedSizeCache(16);
+  static final DDCache<String, UTF8BytesString> OPERATION_CACHE = DDCaches.newFixedSizeCache(64);
+  static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> KIND_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
+      DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
+      DDCaches.newFixedSizeCache(32);
+
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
   private final UTF8BytesString serviceSource;
@@ -23,6 +38,7 @@ public final class MetricKey {
   private final List<UTF8BytesString> peerTags;
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
+  private final UTF8BytesString grpcStatusCode;
 
   public MetricKey(
       CharSequence resource,
@@ -36,19 +52,22 @@ public final class MetricKey {
       CharSequence spanKind,
       List<UTF8BytesString> peerTags,
       CharSequence httpMethod,
-      CharSequence httpEndpoint) {
-    this.resource = null == resource ? EMPTY : UTF8BytesString.create(resource);
-    this.service = null == service ? EMPTY : UTF8BytesString.create(service);
-    this.serviceSource = null == serviceSource ? null : UTF8BytesString.create(serviceSource);
-    this.operationName = null == operationName ? EMPTY : UTF8BytesString.create(operationName);
-    this.type = null == type ? EMPTY : UTF8BytesString.create(type);
+      CharSequence httpEndpoint,
+      CharSequence grpcStatusCode) {
+    this.resource = null == resource ? EMPTY : utf8(RESOURCE_CACHE, resource);
+    this.service = null == service ? EMPTY : utf8(SERVICE_CACHE, service);
+    this.serviceSource = null == serviceSource ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
+    this.operationName = null == operationName ? EMPTY : utf8(OPERATION_CACHE, operationName);
+    this.type = null == type ? EMPTY : utf8(TYPE_CACHE, type);
     this.httpStatusCode = httpStatusCode;
     this.synthetics = synthetics;
     this.isTraceRoot = isTraceRoot;
-    this.spanKind = null == spanKind ? EMPTY : UTF8BytesString.create(spanKind);
+    this.spanKind = null == spanKind ? EMPTY : utf8(KIND_CACHE, spanKind);
     this.peerTags = peerTags == null ? Collections.emptyList() : peerTags;
-    this.httpMethod = httpMethod == null ? null : UTF8BytesString.create(httpMethod);
-    this.httpEndpoint = httpEndpoint == null ? null : UTF8BytesString.create(httpEndpoint);
+    this.httpMethod = httpMethod == null ? null : utf8(HTTP_METHOD_CACHE, httpMethod);
+    this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
+    this.grpcStatusCode =
+        grpcStatusCode == null ? null : utf8(GRPC_STATUS_CODE_CACHE, grpcStatusCode);
 
     int tmpHash = 0;
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
@@ -63,7 +82,16 @@ public final class MetricKey {
     tmpHash = HashingUtils.addToHash(tmpHash, this.serviceSource);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpEndpoint);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpMethod);
+    tmpHash = HashingUtils.addToHash(tmpHash, this.grpcStatusCode);
     this.hash = tmpHash;
+  }
+
+  static UTF8BytesString utf8(DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
+    if (charSeq instanceof UTF8BytesString) {
+      return (UTF8BytesString) charSeq;
+    } else {
+      return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
+    }
   }
 
   public UTF8BytesString getResource() {
@@ -114,6 +142,10 @@ public final class MetricKey {
     return httpEndpoint;
   }
 
+  public UTF8BytesString getGrpcStatusCode() {
+    return grpcStatusCode;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -133,7 +165,8 @@ public final class MetricKey {
           && peerTags.equals(metricKey.peerTags)
           && Objects.equals(serviceSource, metricKey.serviceSource)
           && Objects.equals(httpMethod, metricKey.httpMethod)
-          && Objects.equals(httpEndpoint, metricKey.httpEndpoint);
+          && Objects.equals(httpEndpoint, metricKey.httpEndpoint)
+          && Objects.equals(grpcStatusCode, metricKey.grpcStatusCode);
     }
     return false;
   }

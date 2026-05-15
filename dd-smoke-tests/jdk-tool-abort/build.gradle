@@ -1,0 +1,6 @@
+apply from: "$rootDir/gradle/java.gradle"
+description = 'JDK Tool Abort Smoke Tests'
+
+dependencies {
+  testImplementation project(':dd-smoke-tests')
+}

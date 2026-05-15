@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.apachehttpclient;
 import static datadog.context.Context.current;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.APACHE_HTTP_CLIENT;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.apachehttpclient.ApacheHttpClientDecorator.HTTP_REQUEST;
 import static datadog.trace.instrumentation.apachehttpclient.HttpHeadersInjectAdapter.SETTER;
@@ -35,19 +36,30 @@ public class HelperMethods {
   }
 
   private static AgentScope activateHttpSpan(final HttpUriRequest request) {
-    final AgentSpan span = startSpan(HTTP_REQUEST);
+    final AgentSpan span = startSpan(APACHE_HTTP_CLIENT.toString(), HTTP_REQUEST);
     final AgentScope scope = activateSpan(span);
 
     DECORATE.afterStart(span);
     DECORATE.onRequest(span, request);
-    final boolean awsClientCall = request.containsHeader("amz-sdk-invocation-id");
-
-    // AWS calls are often signed, so we can't add headers without breaking the signature.
-    if (!awsClientCall) {
-      DECORATE.injectContext(current().with(span), request, SETTER);
-    }
 
     return scope;
+  }
+
+  public static void doInjectContext(final HttpUriRequest request) {
+    if (request.containsHeader("amz-sdk-invocation-id")) {
+      return;
+    }
+    DECORATE.injectContext(current(), request, SETTER);
+  }
+
+  public static void doInjectContext(final HttpHost host, final HttpRequest request) {
+    final HttpUriRequest uriRequest;
+    if (request instanceof HttpUriRequest) {
+      uriRequest = (HttpUriRequest) request;
+    } else {
+      uriRequest = new HostAndRequestAsHttpUriRequest(host, request);
+    }
+    doInjectContext(uriRequest);
   }
 
   public static void doMethodExit(

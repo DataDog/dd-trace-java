@@ -1,11 +1,13 @@
 package datadog.trace.instrumentation.pekkohttp;
 
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.CONTEXT_TRACKING;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getCurrentContext;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.DECORATE;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_CLIENT_REQUEST;
+import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientDecorator.PEKKO_HTTP_CLIENT;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.OnCompleteHandler;
 import static datadog.trace.instrumentation.pekkohttp.PekkoHttpClientHelpers.PekkoHttpHeaders;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -13,6 +15,7 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import net.bytebuddy.asm.Advice;
@@ -47,15 +50,19 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     // This is mainly for compatibility with 10.0
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("singleRequest")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
-        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
+        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+        PekkoHttpSingleRequestInstrumentation.class.getName()
+            + "$SingleRequestContextPropagationAdvice");
     // This is for 10.1+
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         named("singleRequestImpl")
             .and(takesArgument(0, named("org.apache.pekko.http.scaladsl.model.HttpRequest"))),
-        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice");
+        PekkoHttpSingleRequestInstrumentation.class.getName() + "$SingleRequestAdvice",
+        PekkoHttpSingleRequestInstrumentation.class.getName()
+            + "$SingleRequestContextPropagationAdvice");
   }
 
   public static class SingleRequestAdvice {
@@ -73,15 +80,9 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
         return null;
       }
 
-      final AgentSpan span = startSpan("pekko-http", PEKKO_CLIENT_REQUEST);
+      final AgentSpan span = startSpan(PEKKO_HTTP_CLIENT.toString(), PEKKO_CLIENT_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
-
-      if (request != null) {
-        DECORATE.injectContext(getCurrentContext().with(span), request, headers);
-        // Request is immutable, so we have to assign new value once we update headers
-        request = headers.getRequest();
-      }
       return activateSpan(span);
     }
 
@@ -105,6 +106,17 @@ public final class PekkoHttpSingleRequestInstrumentation extends InstrumenterMod
         span.finish();
       }
       scope.close();
+    }
+  }
+
+  @AppliesOn(CONTEXT_TRACKING)
+  public static class SingleRequestContextPropagationAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void methodEnter(
+        @Advice.Argument(value = 0, readOnly = false) HttpRequest request) {
+      final PekkoHttpHeaders headers = new PekkoHttpHeaders(request);
+      DECORATE.injectContext(getCurrentContext(), request, headers);
+      request = headers.getRequest();
     }
   }
 }

@@ -12,7 +12,7 @@ jobs:
       contents: read
       id-token: write # Required for OIDC token federation
     steps:
-      - uses: DataDog/dd-octo-sts-action@acaa02eee7e3bb0839e4272dacb37b8f3b58ba80 # v1.0.3
+      - uses: DataDog/dd-octo-sts-action@96a25462dbcb10ebf0bfd6e2ccc917d2ab235b9a # v1.0.4
         id: octo-sts
         with:
           scope: DataDog/dd-trace-java
@@ -69,22 +69,19 @@ jobs:
 
       - name: Create core commit
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        id: create-core-commit
         run: |
           git add --all
           git commit -m "chore: Update Gradle dependencies"
-          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Push core changes
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.core_branch }}"
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-core-commit.outputs.commit }}"
 
       - name: Create core pull request
         if: steps.check-core-changes.outputs.commit_changes == 'true'
@@ -129,22 +126,19 @@ jobs:
 
       - name: Create instrumentation commit
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        id: create-instrumentation-commit
         run: |
           git add --all
           git commit -m "chore: Update instrumentation Gradle dependencies"
-          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
 
       - name: Push instrumentation changes
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"
           head-sha: "${{ github.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-instrumentation-commit.outputs.commit }}"
 
       - name: Create instrumentation pull request
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'

@@ -47,7 +47,7 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
-    transformer.applyAdvice(
+    transformer.applyAdvices(
         isMethod()
             .and(named("send"))
             .and(
@@ -57,7 +57,8 @@ public class JettyClientInstrumentation extends InstrumenterModule.Tracing
                         "org.eclipse.jetty.client.api.Request",
                         "org.eclipse.jetty.client.HttpRequest")))
             .and(takesArgument(1, List.class)),
-        packageName + ".SendAdvice");
+        packageName + ".SendAdvice",
+        packageName + ".SendContextPropagationAdvice");
   }
 
   @Override

@@ -23,7 +23,7 @@ public class ReactorAsyncResultExtension implements AsyncResultExtension, EagerH
 
   @Override
   public boolean supports(Class<?> result) {
-    return result == Flux.class || result == Mono.class;
+    return Flux.class.isAssignableFrom(result) || Mono.class.isAssignableFrom(result);
   }
 
   @Override

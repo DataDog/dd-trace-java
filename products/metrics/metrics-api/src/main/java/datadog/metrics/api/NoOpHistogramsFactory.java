@@ -19,7 +19,12 @@ final class NoOpHistogramsFactory implements Histograms.Factory {
   }
 
   @Override
-  public Histogram newHistogram(List<Double> binBoundaries) {
+  public HistogramWithSum newHistogramWithSum(double relativeAccuracy, int maxNumBins) {
+    return NoOpHistogram.INSTANCE;
+  }
+
+  @Override
+  public HistogramWithSum newHistogramWithSum(List<Double> binBoundaries) {
     return NoOpHistogram.INSTANCE;
   }
 }

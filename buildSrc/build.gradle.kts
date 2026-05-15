@@ -1,5 +1,4 @@
 plugins {
-  groovy
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
@@ -39,6 +38,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.version.TracerVersionPlugin"
     }
 
+    create("version-file-plugin") {
+      id = "dd-trace-java.version-file"
+      implementationClass = "datadog.gradle.plugin.version.WriteVersionFilePlugin"
+    }
+
     create("dump-hanged-test-plugin") {
       id = "dd-trace-java.dump-hanged-test"
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
@@ -71,9 +75,8 @@ repositories {
 
 dependencies {
   implementation(gradleApi())
-  implementation(localGroovy())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.3")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.8")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
@@ -108,7 +111,7 @@ testing {
       }
       targets.configureEach {
         testTask.configure {
-          enabled = providers.systemProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
+          enabled = providers.gradleProperty("runBuildSrcTests").isPresent or providers.systemProperty("idea.active").isPresent
         }
       }
     }

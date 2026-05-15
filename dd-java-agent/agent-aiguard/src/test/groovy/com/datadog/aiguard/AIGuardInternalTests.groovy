@@ -7,9 +7,11 @@ import com.squareup.moshi.Moshi
 import datadog.common.version.VersionInfo
 import datadog.trace.api.Config
 import datadog.trace.api.aiguard.AIGuard
+import datadog.trace.api.gateway.RequestContext
 import datadog.trace.api.telemetry.WafMetricCollector
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.test.util.DDSpecification
 import okhttp3.Call
@@ -168,7 +170,7 @@ class AIGuardInternalTests extends DDSpecification {
         return mockResponse(
           request,
           200,
-          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], is_blocking_enabled: suite.blocking]]]
+          [data: [attributes: [action: suite.action, reason: suite.reason, tags: suite.tags ?: [], tag_probs: suite.tagProbabilities ?: [:], is_blocking_enabled: suite.blocking]]]
           )
       }
     }
@@ -190,6 +192,7 @@ class AIGuardInternalTests extends DDSpecification {
     then:
     1 * span.setTag(AIGuardInternal.TARGET_TAG, suite.target)
     1 * localRootSpan.setTag(Tags.AI_GUARD_KEEP, true)
+    1 * localRootSpan.setTag(AIGuardInternal.EVENT_TAG, true)
     if (suite.target == 'tool') {
       1 * span.setTag(AIGuardInternal.TOOL_TAG, 'calc')
     }
@@ -210,16 +213,167 @@ class AIGuardInternalTests extends DDSpecification {
       error.action == suite.action
       error.reason == suite.reason
       error.tags == suite.tags
+      error.tagProbabilities == suite.tagProbabilities
+      error.sds == []
     } else {
       error == null
       eval.action == suite.action
       eval.reason == suite.reason
       eval.tags == suite.tags
+      eval.tagProbabilities == suite.tagProbabilities
+      eval.sds == []
     }
     assertTelemetry('ai_guard.requests', "action:$suite.action", "block:$throwAbortError", 'error:false')
 
     where:
     suite << TestSuite.build()
+  }
+
+  void 'test evaluate block defaults to remote is_blocking_enabled'() {
+    given:
+    def request
+    final call = Mock(Call) {
+      execute() >> {
+        return mockResponse(
+          request,
+          200,
+          [data: [attributes: [action: 'DENY', reason: 'Nope', tags: ['deny_everything'], is_blocking_enabled: remoteBlocking]]]
+          )
+      }
+    }
+    final client = Mock(OkHttpClient) {
+      newCall(_ as Request) >> {
+        request = (Request) it[0]
+        return call
+      }
+    }
+    final aiguard = new AIGuardInternal(URL, HEADERS, client)
+
+    when:
+    Throwable error = null
+    AIGuard.Evaluation eval = null
+    try {
+      eval = aiguard.evaluate(TOOL_CALL, options)
+    } catch (Throwable e) {
+      error = e
+    }
+
+    then:
+    if (shouldBlock) {
+      error instanceof AIGuard.AIGuardAbortError
+      error.action == DENY
+    } else {
+      error == null
+      eval.action == DENY
+    }
+
+    where:
+    options                            | remoteBlocking | shouldBlock
+    AIGuard.Options.DEFAULT            | true           | true
+    AIGuard.Options.DEFAULT            | false          | false
+    new AIGuard.Options().block(false) | true           | false
+  }
+
+  void 'test evaluate applies captured client ip tags to local root span'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> null
+    localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, '4.4.4.4')
+    1 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, '2.3.4.5')
+  }
+
+  void 'test evaluate does not overwrite existing client ip tags'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getClientIpAddressData() >> new ClientIpAddressData('4.4.4.4', '2.3.4.5')
+    localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> '9.9.9.9'
+    localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> '8.8.8.8'
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'test evaluate is a noop for client ip tags when no data captured'() {
+    given:
+    final requestContext = Mock(RequestContext)
+    localRootSpan.getRequestContext() >> requestContext
+    requestContext.getClientIpAddressData() >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'test evaluate is a noop for client ip tags when no request context'() {
+    given:
+    localRootSpan.getRequestContext() >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    0 * localRootSpan.setTag(Tags.NETWORK_CLIENT_IP, _)
+    0 * localRootSpan.setTag(Tags.HTTP_CLIENT_IP, _)
+  }
+
+  void 'test evaluate copies anomaly detection tags from local root span to ai_guard span'() {
+    given:
+    localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> '1.2.3.4'
+    localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> '5.6.7.8'
+    localRootSpan.getTag(Tags.HTTP_USER_AGENT) >> 'curl/8.0'
+    localRootSpan.getTag('usr.id') >> 'u-123'
+    localRootSpan.getTag('usr.session_id') >> 's-456'
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setTag('ai_guard.http.client_ip', '1.2.3.4')
+    1 * span.setTag('ai_guard.network.client.ip', '5.6.7.8')
+    1 * span.setTag('ai_guard.http.useragent', 'curl/8.0')
+    1 * span.setTag('ai_guard.usr.id', 'u-123')
+    1 * span.setTag('ai_guard.usr.session_id', 's-456')
+  }
+
+  void 'test evaluate skips missing anomaly detection tags'() {
+    given:
+    localRootSpan.getTag(Tags.HTTP_CLIENT_IP) >> '1.2.3.4'
+    localRootSpan.getTag(Tags.NETWORK_CLIENT_IP) >> null
+    localRootSpan.getTag(Tags.HTTP_USER_AGENT) >> null
+    localRootSpan.getTag('usr.id') >> 'u-123'
+    localRootSpan.getTag('usr.session_id') >> null
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ALLOW', reason: 'It is fine']]])
+
+    when:
+    aiguard.evaluate(TOOL_CALL, AIGuard.Options.DEFAULT)
+
+    then:
+    1 * span.setTag('ai_guard.http.client_ip', '1.2.3.4')
+    1 * span.setTag('ai_guard.usr.id', 'u-123')
+    0 * span.setTag('ai_guard.network.client.ip', _)
+    0 * span.setTag('ai_guard.http.useragent', _)
+    0 * span.setTag('ai_guard.usr.session_id', _)
   }
 
   void 'test evaluate with API errors'() {
@@ -366,7 +520,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -374,6 +528,7 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     receivedMeta.sds == sdsFindings
+    result.sds == sdsFindings
   }
 
   void 'test evaluate with empty sds findings'() {
@@ -382,7 +537,7 @@ class AIGuardInternalTests extends DDSpecification {
     Map<String, Object> receivedMeta
 
     when:
-    aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
+    final result = aiguard.evaluate(PROMPT, AIGuard.Options.DEFAULT)
 
     then:
     1 * span.setMetaStruct(AIGuardInternal.META_STRUCT_TAG, _) >> {
@@ -390,9 +545,31 @@ class AIGuardInternalTests extends DDSpecification {
       return span
     }
     !receivedMeta.containsKey('sds')
+    result.sds == (sdsFindings ?: [])
 
     where:
     sdsFindings << [null, []]
+  }
+
+  void 'test evaluate with sds findings in abort error'() {
+    given:
+    final sdsFindings = [
+      [
+        rule_display_name: 'Credit Card Number',
+        rule_tag: 'credit_card',
+        category: 'pii',
+        matched_text: '4111111111111111',
+        location: [start_index: 10, end_index_exclusive: 26, path: 'messages[0].content[0].text']
+      ]
+    ]
+    final aiguard = mockClient(200, [data: [attributes: [action: 'ABORT', reason: 'PII detected', tags: ['pii'], sds_findings: sdsFindings, is_blocking_enabled: true]]])
+
+    when:
+    aiguard.evaluate(PROMPT, new AIGuard.Options().block(true))
+
+    then:
+    final error = thrown(AIGuard.AIGuardAbortError)
+    error.sds == sdsFindings
   }
 
   void 'test missing tool name'() {
@@ -484,6 +661,9 @@ class AIGuardInternalTests extends DDSpecification {
   private static assertMeta(final Map<String, Object> meta, final TestSuite suite) {
     if (suite.tags) {
       assert meta.attack_categories == suite.tags
+    }
+    if (suite.tagProbabilities)  {
+      assert meta.tag_probs == suite.tagProbabilities
     }
     final receivedMessages = snakeCaseJson(meta.messages)
     final expectedMessages = snakeCaseJson(suite.messages)
@@ -704,15 +884,17 @@ class AIGuardInternalTests extends DDSpecification {
     private final AIGuard.Action action
     private final String reason
     private final List<String> tags
+    private final Map<String, Double> tagProbabilities
     private final boolean blocking
     private final String description
     private final String target
     private final List<AIGuard.Message> messages
 
-    TestSuite(AIGuard.Action action, String reason, List<String> tags, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
+    TestSuite(AIGuard.Action action, String reason, Map<String, Double> tagProbabilities, boolean blocking, String description, String target, List<AIGuard.Message> messages) {
       this.action = action
       this.reason = reason
-      this.tags = tags
+      this.tags = new ArrayList<>(tagProbabilities.keySet())
+      this.tagProbabilities = tagProbabilities
       this.blocking = blocking
       this.description = description
       this.target = target
@@ -721,9 +903,9 @@ class AIGuardInternalTests extends DDSpecification {
 
     static List<TestSuite> build() {
       def actionValues = [
-        [ALLOW, 'Go ahead', []],
-        [DENY, 'Nope', ['deny_everything', 'test_deny']],
-        [ABORT, 'Kill it with fire', ['alarm_tag', 'abort_everything']]
+        [ALLOW, 'Go ahead', [:]],
+        [DENY, 'Nope', ['deny_everything': 0.2D, 'test_deny': 0.8D]],
+        [ABORT, 'Kill it with fire', ['alarm_tag': 0.1D, 'abort_everything': 0.9D]]
       ]
       def blockingValues = [true, false]
       def suiteValues = [
@@ -746,7 +928,7 @@ class AIGuardInternalTests extends DDSpecification {
       ", reason='" + reason + '\'' +
       ", blocking=" + blocking +
       ", target='" + target + '\'' +
-      ", messages=" + messages + '\'' +
+      ", messages=" + messages.collect {it.content } + '\'' +
       ", tags=" + tags +
       '}'
     }
