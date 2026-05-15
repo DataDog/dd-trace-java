@@ -820,8 +820,12 @@ test_smoke:
     - *prepare_test_env
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
     - ./gradlew --version
-    # Build the agent + test jars once (also need the test app jars for direct invocation)
-    - ./gradlew stageMainDist :dd-smoke-tests:log-injection:JULInterfaceLog4j2Backend :dd-smoke-tests:log-injection:JULInterfaceLog4j2LatestBackend -PtestJvm=$testJvm $GRADLE_ARGS
+    # Build the agent shadowJar + test jars (need both for direct invocation)
+    - ./gradlew :dd-java-agent:shadowJar :dd-smoke-tests:log-injection:JULInterfaceLog4j2Backend :dd-smoke-tests:log-injection:JULInterfaceLog4j2LatestBackend -PtestJvm=$testJvm $GRADLE_ARGS
+    # Discover where the agent jar landed (CI cache may put it elsewhere)
+    - echo "=== JAR LOCATIONS ==="
+    - find . -path ./node_modules -prune -o -name "dd-java-agent-*-SNAPSHOT.jar" -print 2>/dev/null | head -10
+    - find . -path ./node_modules -prune -o -name "JULInterfaceLog4j2*.jar" -print 2>/dev/null | head -10
     # In-job loop: direct JVM invocations (no gradle overhead per iter). 8-sec timeout per iter.
     # Each iter: agent attaches + app's first log call triggers JUL static init = race fires (or doesn't).
     # We capture the first DDIAG output to determine if the LogManager swap succeeded.
