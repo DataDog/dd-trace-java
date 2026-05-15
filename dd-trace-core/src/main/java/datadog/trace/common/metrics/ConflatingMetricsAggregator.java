@@ -80,16 +80,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
               Pair.of(
                   DDCaches.newFixedSizeCache(512),
                   value -> UTF8BytesString.create(key + ":" + value));
-  private static final DDCache<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      ADDITIONAL_TAG_VALUES_CACHE = DDCaches.newFixedSizeCache(64);
-  private static final Function<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      ADDITIONAL_TAG_VALUES_CACHE_ADDER =
-          key ->
-              Pair.of(
-                  DDCaches.newFixedSizeCache(512),
-                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
@@ -201,7 +191,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         features,
         healthMetric,
         sink,
-        new SerializingMetricWriter(wellKnownTags, sink),
+        new SerializingMetricWriter(
+            wellKnownTags,
+            encodeAdditionalTagKeyBytes(normalizeAdditionalTagKeys(additionalTagKeys)),
+            sink),
         maxAggregates,
         queueSize,
         reportingInterval,
@@ -375,7 +368,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
-    List<UTF8BytesString> fullAdditionalTags = getAdditionalTagsLengthCapped(span);
+    String[] additionalTagValues = getAdditionalTagValuesLengthCapped(span);
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -392,7 +385,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
-            fullAdditionalTags);
+            additionalTagValues);
 
     // If this span's full MetricKey is already in the current bucket, just admit it as-is.
     // We already paid the cardinality cost for these tag values earlier in this bucket, so the
@@ -404,10 +397,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     // into the no-additional-tags base bucket). If it's a new entry under the cap, admit with
     // the full tag set and remember to bump the counter below.
     boolean newEntryUsedFullTags = false;
-    if (!fullAdditionalTags.isEmpty() && pending.get(newKey) == null) {
+    if (additionalTagValues.length > 0 && pending.get(newKey) == null) {
       if (cardinalityLimiter.isAtCap()) {
         cardinalityLimiter.recordCardinalityBlock();
-        newKey = rebuildKeyWithBlockedValues(span, newKey);
+        newKey = rebuildKeyWithBlockedValues(newKey);
       } else {
         newEntryUsedFullTags = true;
       }
@@ -451,28 +444,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   /**
-   * Builds a copy of {@code fullKey} with each present additional tag's value replaced by {@code
-   * <tagKey>:blocked_by_tracer}. The set of configured tag keys present on the span is preserved as
-   * dimensions; only the values are masked. Also fires the per-tag health metric for each masked
-   * tag. Used when the bucket cardinality cap is hit and we need to suppress this span's
-   * contribution to per-value aggregation without losing the dimension keys entirely.
+   * Builds a copy of {@code fullKey} with each present additional tag's value replaced by {@link
+   * AdditionalTagsCardinalityLimiter#BLOCKED_VALUE}. The set of configured tag keys present on the
+   * span is preserved (we keep the same positions populated in the values array); only the values
+   * are masked. Fires the per-tag health metric for each masked tag.
    */
-  private MetricKey rebuildKeyWithBlockedValues(CoreSpan<?> span, MetricKey fullKey) {
-    List<UTF8BytesString> blockedTags = null;
-    for (String tagKey : additionalTagKeys) {
-      if (span.unsafeGetTag(tagKey) == null) continue;
-      healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
-      Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
-          ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
-      UTF8BytesString formatted =
-          cacheAndCreator
-              .getLeft()
-              .computeIfAbsent(
-                  AdditionalTagsCardinalityLimiter.BLOCKED_VALUE, cacheAndCreator.getRight());
-      if (blockedTags == null) {
-        blockedTags = new ArrayList<>(additionalTagKeys.size());
+  private MetricKey rebuildKeyWithBlockedValues(MetricKey fullKey) {
+    String[] originalValues = fullKey.getAdditionalTagValues();
+    String[] blocked = new String[originalValues.length];
+    for (int i = 0; i < originalValues.length; i++) {
+      if (originalValues[i] != null) {
+        blocked[i] = AdditionalTagsCardinalityLimiter.BLOCKED_VALUE;
+        healthMetrics.onAdditionalTagValueCardinalityBlocked(additionalTagKeys.get(i));
       }
-      blockedTags.add(formatted);
     }
     return new MetricKey(
         fullKey.getResource(),
@@ -488,7 +472,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         fullKey.getHttpMethod(),
         fullKey.getHttpEndpoint(),
         fullKey.getGrpcStatusCode(),
-        blockedTags == null ? Collections.emptyList() : blockedTags);
+        blocked);
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
@@ -540,29 +524,44 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return Collections.unmodifiableList(new ArrayList<>(sorted));
   }
 
-  private List<UTF8BytesString> getAdditionalTagsLengthCapped(CoreSpan<?> span) {
+  /**
+   * Builds the raw-value array for this span's additional tags. Element {@code i} holds the span's
+   * value for {@code additionalTagKeys.get(i)} (or {@code null} if not set). Values exceeding the
+   * per-value length cap are substituted with {@link
+   * AdditionalTagsCardinalityLimiter#BLOCKED_VALUE}.
+   *
+   * <p>Returns an empty array when no additional tags are configured or none are set on the span —
+   * keeps the no-additional-tags path zero-allocation.
+   */
+  private String[] getAdditionalTagValuesLengthCapped(CoreSpan<?> span) {
     if (additionalTagKeys.isEmpty()) {
-      return Collections.emptyList();
+      return EMPTY_ADDITIONAL_TAG_VALUES;
     }
-    List<UTF8BytesString> result = null;
+    String[] result = null;
     for (int i = 0; i < additionalTagKeys.size(); i++) {
       String tagKey = additionalTagKeys.get(i);
       Object value = span.unsafeGetTag(tagKey);
       if (value == null) {
         continue;
       }
-      String rawValue = value.toString();
-      String admittedValue = cardinalityLimiter.applyLengthCap(tagKey, rawValue);
-      Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>> cacheAndCreator =
-          ADDITIONAL_TAG_VALUES_CACHE.computeIfAbsent(tagKey, ADDITIONAL_TAG_VALUES_CACHE_ADDER);
-      UTF8BytesString formatted =
-          cacheAndCreator.getLeft().computeIfAbsent(admittedValue, cacheAndCreator.getRight());
+      String admittedValue = cardinalityLimiter.applyLengthCap(tagKey, value.toString());
       if (result == null) {
-        result = new ArrayList<>(additionalTagKeys.size());
+        result = new String[additionalTagKeys.size()];
       }
-      result.add(formatted);
+      result[i] = admittedValue;
     }
-    return result == null ? Collections.emptyList() : result;
+    return result == null ? EMPTY_ADDITIONAL_TAG_VALUES : result;
+  }
+
+  private static final String[] EMPTY_ADDITIONAL_TAG_VALUES = new String[0];
+
+  /** UTF-8 encodes each configured tag key once; the bytes flow into the serializer. */
+  private static byte[][] encodeAdditionalTagKeyBytes(List<String> tagKeys) {
+    byte[][] encoded = new byte[tagKeys.size()][];
+    for (int i = 0; i < tagKeys.size(); i++) {
+      encoded[i] = tagKeys.get(i).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+    return encoded;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

@@ -6,12 +6,15 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.HashingUtils;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 
 /** The aggregation key for tracked metrics. */
 public final class MetricKey {
+  private static final String[] EMPTY_ADDITIONAL_TAG_VALUES = new String[0];
+
   static final DDCache<String, UTF8BytesString> RESOURCE_CACHE = DDCaches.newFixedSizeCache(32);
   static final DDCache<String, UTF8BytesString> SERVICE_CACHE = DDCaches.newFixedSizeCache(8);
   static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
@@ -39,7 +42,11 @@ public final class MetricKey {
   private final UTF8BytesString httpMethod;
   private final UTF8BytesString httpEndpoint;
   private final UTF8BytesString grpcStatusCode;
-  private final List<UTF8BytesString> additionalTags;
+  // Raw span tag values for each configured additional-tag position. Length matches the
+  // aggregator's configured-tags list; null in slot i means the span did not set that tag.
+  // Deferred concatenation: the wire format "<key>:<value>" is built at serialize time from
+  // these values together with the aggregator's pre-encoded key bytes.
+  private final String[] additionalTagValues;
 
   public MetricKey(
       CharSequence resource,
@@ -55,7 +62,7 @@ public final class MetricKey {
       CharSequence httpMethod,
       CharSequence httpEndpoint,
       CharSequence grpcStatusCode,
-      List<UTF8BytesString> additionalTags) {
+      String[] additionalTagValues) {
     this.resource = null == resource ? EMPTY : utf8(RESOURCE_CACHE, resource);
     this.service = null == service ? EMPTY : utf8(SERVICE_CACHE, service);
     this.serviceSource = null == serviceSource ? null : utf8(SERVICE_SOURCE_CACHE, serviceSource);
@@ -70,7 +77,10 @@ public final class MetricKey {
     this.httpEndpoint = httpEndpoint == null ? null : utf8(HTTP_ENDPOINT_CACHE, httpEndpoint);
     this.grpcStatusCode =
         grpcStatusCode == null ? null : utf8(GRPC_STATUS_CODE_CACHE, grpcStatusCode);
-    this.additionalTags = additionalTags == null ? Collections.emptyList() : additionalTags;
+    this.additionalTagValues =
+        additionalTagValues == null || additionalTagValues.length == 0
+            ? EMPTY_ADDITIONAL_TAG_VALUES
+            : additionalTagValues;
 
     int tmpHash = 0;
     tmpHash = HashingUtils.addToHash(tmpHash, this.isTraceRoot);
@@ -86,7 +96,7 @@ public final class MetricKey {
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpEndpoint);
     tmpHash = HashingUtils.addToHash(tmpHash, this.httpMethod);
     tmpHash = HashingUtils.addToHash(tmpHash, this.grpcStatusCode);
-    tmpHash = HashingUtils.addToHash(tmpHash, this.additionalTags);
+    tmpHash = HashingUtils.addToHash(tmpHash, Arrays.hashCode(this.additionalTagValues));
     this.hash = tmpHash;
   }
 
@@ -150,8 +160,13 @@ public final class MetricKey {
     return grpcStatusCode;
   }
 
-  public List<UTF8BytesString> getAdditionalTags() {
-    return additionalTags;
+  /**
+   * @return the raw span tag values for each configured additional-tag position. Length matches the
+   *     configured-tags list; element {@code i} is {@code null} if the span did not set the
+   *     corresponding tag.
+   */
+  public String[] getAdditionalTagValues() {
+    return additionalTagValues;
   }
 
   @Override
@@ -175,7 +190,7 @@ public final class MetricKey {
           && Objects.equals(httpMethod, metricKey.httpMethod)
           && Objects.equals(httpEndpoint, metricKey.httpEndpoint)
           && Objects.equals(grpcStatusCode, metricKey.grpcStatusCode)
-          && additionalTags.equals(metricKey.additionalTags);
+          && Arrays.equals(additionalTagValues, metricKey.additionalTagValues);
     }
     return false;
   }

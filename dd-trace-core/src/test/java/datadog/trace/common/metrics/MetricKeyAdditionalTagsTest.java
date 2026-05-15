@@ -1,63 +1,53 @@
 package datadog.trace.common.metrics;
 
 import static java.util.Collections.emptyList;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.ArrayList;
-import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class MetricKeyAdditionalTagsTest {
 
   @Test
-  void emptyAndNullAdditionalTagsAreEquivalent() {
+  void nullAndEmptyArrayAreEquivalent() {
     MetricKey a = key(null);
-    MetricKey b = key(emptyList());
+    MetricKey b = key(new String[0]);
     assertEquals(a, b);
     assertEquals(a.hashCode(), b.hashCode());
-    assertEquals(emptyList(), a.getAdditionalTags());
+    assertArrayEquals(new String[0], a.getAdditionalTagValues());
   }
 
   @Test
-  void sameOrderProducesEqualKeys() {
-    MetricKey a = key(tags("region:us-east-1", "tenant_id:acme"));
-    MetricKey b = key(tags("region:us-east-1", "tenant_id:acme"));
+  void sameValuesProduceEqualKeys() {
+    MetricKey a = key(new String[] {"us-east-1", "acme"});
+    MetricKey b = key(new String[] {"us-east-1", "acme"});
     assertEquals(a, b);
     assertEquals(a.hashCode(), b.hashCode());
   }
 
   @Test
   void differentValuesProduceDifferentKeys() {
-    MetricKey a = key(tags("region:us-east-1"));
-    MetricKey b = key(tags("region:eu-west-1"));
+    MetricKey a = key(new String[] {"us-east-1", null});
+    MetricKey b = key(new String[] {"eu-west-1", null});
     assertNotEquals(a, b);
   }
 
   @Test
-  void differentTagSetsProduceDifferentKeys() {
-    MetricKey a = key(tags("region:us-east-1"));
-    MetricKey b = key(tags("region:us-east-1", "tenant_id:acme"));
+  void differentTagPresenceProducesDifferentKeys() {
+    MetricKey a = key(new String[] {"us-east-1", null});
+    MetricKey b = key(new String[] {"us-east-1", "acme"});
     assertNotEquals(a, b);
   }
 
   @Test
   void keyWithAdditionalTagsDiffersFromKeyWithout() {
-    MetricKey a = key(emptyList());
-    MetricKey b = key(tags("region:us-east-1"));
+    MetricKey a = key(new String[0]);
+    MetricKey b = key(new String[] {"us-east-1"});
     assertNotEquals(a, b);
   }
 
-  private static List<UTF8BytesString> tags(String... entries) {
-    List<UTF8BytesString> list = new ArrayList<>(entries.length);
-    for (String e : entries) {
-      list.add(UTF8BytesString.create(e));
-    }
-    return list;
-  }
-
-  private static MetricKey key(List<UTF8BytesString> additionalTags) {
+  private static MetricKey key(String[] additionalTagValues) {
     return new MetricKey(
         "resource",
         "service",
@@ -72,6 +62,6 @@ class MetricKeyAdditionalTagsTest {
         null,
         null,
         null,
-        additionalTags);
+        additionalTagValues);
   }
 }

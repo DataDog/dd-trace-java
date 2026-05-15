@@ -4,7 +4,6 @@ import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static java.nio.charset.StandardCharsets.ISO_8859_1;
 
 import datadog.communication.serialization.GrowableBuffer;
-import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
@@ -13,6 +12,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.function.Function;
 
@@ -58,8 +58,14 @@ public final class SerializingMetricWriter implements MetricWriter {
               ? UTF8BytesString.create(gitInfo.getCommit().getSha())
               : EMPTY;
 
+  private static final byte[][] NO_ADDITIONAL_TAG_KEYS = new byte[0][];
+
   private final WellKnownTags wellKnownTags;
-  private final WritableFormatter writer;
+  // UTF-8 bytes for each configured additional tag key. Parallel to the aggregator's
+  // configured-tags list; used at write time to compose `<key>:<value>` directly into the buffer
+  // without allocating an intermediate UTF8BytesString or formatted String.
+  private final byte[][] additionalTagKeyBytes;
+  private final MsgPackWriter writer;
   private final Sink sink;
   private final GrowableBuffer buffer;
   private final DDCache<GitInfo, UTF8BytesString> gitInfoCache =
@@ -68,11 +74,21 @@ public final class SerializingMetricWriter implements MetricWriter {
   private final GitInfoProvider gitInfoProvider;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
-    this(wellKnownTags, sink, 512 * 1024);
+    this(wellKnownTags, NO_ADDITIONAL_TAG_KEYS, sink, 512 * 1024);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags, byte[][] additionalTagKeyBytes, Sink sink) {
+    this(wellKnownTags, additionalTagKeyBytes, sink, 512 * 1024);
   }
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink, int initialCapacity) {
-    this(wellKnownTags, sink, initialCapacity, GitInfoProvider.INSTANCE);
+    this(wellKnownTags, NO_ADDITIONAL_TAG_KEYS, sink, initialCapacity, GitInfoProvider.INSTANCE);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags, byte[][] additionalTagKeyBytes, Sink sink, int initialCapacity) {
+    this(wellKnownTags, additionalTagKeyBytes, sink, initialCapacity, GitInfoProvider.INSTANCE);
   }
 
   public SerializingMetricWriter(
@@ -80,7 +96,17 @@ public final class SerializingMetricWriter implements MetricWriter {
       Sink sink,
       int initialCapacity,
       final GitInfoProvider gitInfoProvider) {
+    this(wellKnownTags, NO_ADDITIONAL_TAG_KEYS, sink, initialCapacity, gitInfoProvider);
+  }
+
+  public SerializingMetricWriter(
+      WellKnownTags wellKnownTags,
+      byte[][] additionalTagKeyBytes,
+      Sink sink,
+      int initialCapacity,
+      final GitInfoProvider gitInfoProvider) {
     this.wellKnownTags = wellKnownTags;
+    this.additionalTagKeyBytes = additionalTagKeyBytes;
     this.buffer = new GrowableBuffer(initialCapacity);
     this.writer = new MsgPackWriter(buffer);
     this.sink = sink;
@@ -149,7 +175,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasHttpEndpoint = key.getHttpEndpoint() != null;
     final boolean hasServiceSource = key.getServiceSource() != null;
     final boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null;
-    final boolean hasAdditionalTags = !key.getAdditionalTags().isEmpty();
+    final String[] additionalTagValues = key.getAdditionalTagValues();
+    final int additionalTagCount = countNonNull(additionalTagValues);
+    final boolean hasAdditionalTags = additionalTagCount > 0;
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
@@ -194,10 +222,16 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     if (hasAdditionalTags) {
       writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
-      final List<UTF8BytesString> additionalTags = key.getAdditionalTags();
-      writer.startArray(additionalTags.size());
-      for (UTF8BytesString tag : additionalTags) {
-        writer.writeUTF8(tag);
+      writer.startArray(additionalTagCount);
+      // Each entry is written as "<configured tag key>:<value>" directly into the msgpack
+      // buffer — no intermediate UTF8BytesString or concatenated String is allocated. The tag
+      // keys' UTF-8 bytes are pre-encoded in `additionalTagKeyBytes`; the per-write byte[] for
+      // the value bytes is the only allocation in this loop.
+      for (int i = 0; i < additionalTagValues.length; i++) {
+        String value = additionalTagValues[i];
+        if (value == null) continue;
+        byte[] valueBytes = value.getBytes(StandardCharsets.UTF_8);
+        writer.writeUTF8(additionalTagKeyBytes[i], (byte) ':', valueBytes);
       }
     }
 
@@ -252,5 +286,13 @@ public final class SerializingMetricWriter implements MetricWriter {
   @Override
   public void reset() {
     buffer.reset();
+  }
+
+  private static int countNonNull(String[] values) {
+    int count = 0;
+    for (String value : values) {
+      if (value != null) count++;
+    }
+    return count;
   }
 }

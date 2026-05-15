@@ -10,8 +10,8 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 import datadog.metrics.api.Histograms;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.ByteBuffer;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -30,25 +30,37 @@ class SerializingMetricWriterAdditionalTagsTest {
 
   @Test
   void emptyAdditionalTagsOmitTheField() throws Exception {
-    List<String> emitted = roundTripAdditionalTags(emptyList());
+    List<String> emitted =
+        roundTripAdditionalTags(new String[] {"region", "tenant_id"}, new String[] {null, null});
     assertNull(emitted);
   }
 
   @Test
   void populatedAdditionalTagsAreEmittedInOrder() throws Exception {
-    List<UTF8BytesString> tags =
-        Arrays.asList(
-            UTF8BytesString.create("region:us-east-1"), UTF8BytesString.create("tenant_id:acme"));
-    List<String> emitted = roundTripAdditionalTags(tags);
+    String[] tagKeys = {"region", "tenant_id"};
+    String[] values = {"us-east-1", "acme"};
+    List<String> emitted = roundTripAdditionalTags(tagKeys, values);
     assertEquals(Arrays.asList("region:us-east-1", "tenant_id:acme"), emitted);
   }
 
-  private List<String> roundTripAdditionalTags(List<UTF8BytesString> additionalTags)
-      throws Exception {
+  @Test
+  void partiallyPopulatedTagsOnlyEmitNonNullEntries() throws Exception {
+    String[] tagKeys = {"region", "tenant_id"};
+    String[] values = {null, "acme"};
+    List<String> emitted = roundTripAdditionalTags(tagKeys, values);
+    assertEquals(Arrays.asList("tenant_id:acme"), emitted);
+  }
+
+  private List<String> roundTripAdditionalTags(String[] tagKeys, String[] values) throws Exception {
     WellKnownTags wellKnownTags =
         new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language");
     CapturingSink sink = new CapturingSink();
-    SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128);
+    byte[][] tagKeyBytes = new byte[tagKeys.length][];
+    for (int i = 0; i < tagKeys.length; i++) {
+      tagKeyBytes[i] = tagKeys[i].getBytes(StandardCharsets.UTF_8);
+    }
+    SerializingMetricWriter writer =
+        new SerializingMetricWriter(wellKnownTags, tagKeyBytes, sink, 128);
     MetricKey key =
         new MetricKey(
             "resource",
@@ -64,7 +76,7 @@ class SerializingMetricWriterAdditionalTagsTest {
             null,
             null,
             null,
-            additionalTags);
+            values);
     AggregateMetric aggregate =
         new AggregateMetric().recordDurations(1, new AtomicLongArray(new long[] {1L}));
     long start = MILLISECONDS.toNanos(System.currentTimeMillis());
