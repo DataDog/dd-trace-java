@@ -408,6 +408,7 @@ spotless:
   needs: []
   variables:
     GRADLE_MEMORY_MAX: 6G
+    GRADLE_WORKERS: 2
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
