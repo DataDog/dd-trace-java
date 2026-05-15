@@ -960,7 +960,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   public boolean isKind(SpanKindFilter filter) {
-    return (filter.kindMask & (1 << context.getSpanKindOrdinal())) != 0;
+    return filter.matches(context.getSpanKindOrdinal());
   }
 
   @Override

@@ -42,9 +42,9 @@ public final class SpanKindFilter {
     return new Builder();
   }
 
-  final int kindMask;
+  private final int kindMask;
 
-  SpanKindFilter(int kindMask) {
+  private SpanKindFilter(int kindMask) {
     this.kindMask = kindMask;
   }
 
