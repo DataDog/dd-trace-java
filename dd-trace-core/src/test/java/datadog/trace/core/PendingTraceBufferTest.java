@@ -9,7 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.Mockito.atLeastOnce;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.mock;
@@ -144,7 +144,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     continuations.get(0).cancel();
 
     assertEquals(0, trace.getPendingReferenceCount());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 1));
     verify(tracer).writeTimer();
   }
 
@@ -169,7 +169,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
 
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 2));
     verify(tracer).writeTimer();
   }
 
@@ -214,7 +214,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     addContinuation(newSpanOf(pendingTrace)).finish();
 
     verify(bufferSpy).enqueue(any());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 1));
     verify(tracer).onRootSpanPublished(any());
     assertEquals(0, pendingTrace.getIsEnqueued());
   }
@@ -230,6 +230,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
 
     assertEquals(capacity, delayingBuffer.getQueue().size());
     verify(bufferSpy, times(capacity)).enqueue(any());
+    verify(tracer, times(capacity)).onRootSpanPublished(any());
 
     clearInvocations(bufferSpy, tracer, traceConfig);
 
@@ -237,8 +238,10 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     pendingTrace.setLongRunningTrackedState(LongRunningTracesTracker.TO_TRACK);
     addContinuation(newSpanOf(pendingTrace)).finish();
 
+    verify(tracer).captureTraceConfig();
     verify(bufferSpy).enqueue(any());
-    verify(tracer, never()).write(any());
+    verify(tracer, never()).writeTimer();
+    verify(tracer, never()).write(argThat(it -> it.size() == 1));
     verify(tracer).onRootSpanPublished(any());
     assertEquals(0, pendingTrace.getIsEnqueued());
   }
@@ -278,7 +281,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
     assertTrue(trace.isRootSpanWritten());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 2));
     verify(tracer).writeTimer();
   }
 
@@ -310,7 +313,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
     assertTrue(trace.isRootSpanWritten());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 1));
     verify(tracer).onRootSpanPublished(parent);
 
     clearInvocations(bufferSpy, tracer, traceConfig);
@@ -322,8 +325,8 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(0, trace.size());
     assertEquals(0, trace.getPendingReferenceCount());
     assertTrue(trace.isRootSpanWritten());
-    verify(bufferSpy, atLeastOnce()).enqueue(trace);
-    verify(tracer).write(any());
+    verify(bufferSpy).enqueue(trace);
+    verify(tracer).write(argThat(it -> it.size() == 1));
   }
 
   @Test
@@ -386,7 +389,7 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertTrue(pendingTrace.isRootSpanWritten());
     assertEquals(0, pendingTrace.getIsEnqueued());
     assertEquals(0, delayingBuffer.getQueue().size());
-    verify(tracer).write(any());
+    verify(tracer).write(argThat(it -> it.size() == 1));
 
     clearInvocations(bufferSpy, tracer, traceConfig);
 
