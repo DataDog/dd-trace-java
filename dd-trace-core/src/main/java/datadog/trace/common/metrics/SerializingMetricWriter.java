@@ -13,7 +13,6 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.List;
 import java.util.function.Function;
 
 public final class SerializingMetricWriter implements MetricWriter {
@@ -182,11 +181,10 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(entry.getSpanKind());
 
     writer.writeUTF8(PEER_TAGS);
-    final List<UTF8BytesString> peerTags = entry.getPeerTags();
-    writer.startArray(peerTags.size());
-
-    for (UTF8BytesString peerTag : peerTags) {
-      writer.writeUTF8(peerTag);
+    final UTF8BytesString[] peerTags = entry.getPeerTags();
+    writer.startArray(peerTags.length);
+    for (int i = 0; i < peerTags.length; i++) {
+      writer.writeUTF8(peerTags[i]);
     }
 
     if (hasServiceSource) {

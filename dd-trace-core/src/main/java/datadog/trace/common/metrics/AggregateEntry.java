@@ -5,8 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -46,6 +45,9 @@ final class AggregateEntry extends Hashtable.Entry {
   /** Second-from-top bit: set when the recorded span was a top-level span. */
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
+  /** Shared empty array used by entries with no peer tags. */
+  private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
+
   // Per-field cardinality limits. Identical to the prior DDCache sizes.
   static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(32);
   static final PropertyCardinalityHandler SERVICE_HANDLER = new PropertyCardinalityHandler(32);
@@ -72,7 +74,7 @@ final class AggregateEntry extends Hashtable.Entry {
   final short httpStatusCode;
   final boolean synthetic;
   final boolean traceRoot;
-  final List<UTF8BytesString> peerTags;
+  final UTF8BytesString[] peerTags;
 
   // Recording state. Mutated only on the aggregator thread. Not thread-safe.
   private final Histogram okLatencies;
@@ -97,7 +99,7 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags) {
+      UTF8BytesString[] peerTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -145,7 +147,10 @@ final class AggregateEntry extends Hashtable.Entry {
     UTF8BytesString httpMethodUtf = httpMethod == null ? null : createUtf8(httpMethod);
     UTF8BytesString httpEndpointUtf = httpEndpoint == null ? null : createUtf8(httpEndpoint);
     UTF8BytesString grpcUtf = grpcStatusCode == null ? null : createUtf8(grpcStatusCode);
-    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
+    UTF8BytesString[] peerTagsArray =
+        peerTags == null || peerTags.isEmpty()
+            ? EMPTY_PEER_TAGS
+            : peerTags.toArray(new UTF8BytesString[0]);
     long keyHash =
         hashOf(
             resourceUtf,
@@ -160,7 +165,8 @@ final class AggregateEntry extends Hashtable.Entry {
             (short) httpStatusCode,
             synthetic,
             traceRoot,
-            peerTagsList);
+            peerTagsArray,
+            peerTagsArray.length);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -175,7 +181,7 @@ final class AggregateEntry extends Hashtable.Entry {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList);
+        peerTagsArray);
   }
 
   /**
@@ -216,7 +222,8 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags) {
+      UTF8BytesString[] peerTags,
+      int peerTagsLen) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -227,10 +234,8 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, synthetic);
     h = LongHashingUtils.addToHash(h, traceRoot);
     h = LongHashingUtils.addToHash(h, spanKind);
-    // indexed iteration -- avoids the iterator allocation a for-each over a List would do
-    int peerTagCount = peerTags.size();
-    for (int i = 0; i < peerTagCount; i++) {
-      h = LongHashingUtils.addToHash(h, peerTags.get(i));
+    for (int i = 0; i < peerTagsLen; i++) {
+      h = LongHashingUtils.addToHash(h, peerTags[i]);
     }
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
@@ -287,7 +292,7 @@ final class AggregateEntry extends Hashtable.Entry {
     return traceRoot;
   }
 
-  List<UTF8BytesString> getPeerTags() {
+  UTF8BytesString[] getPeerTags() {
     return peerTags;
   }
 
@@ -392,7 +397,7 @@ final class AggregateEntry extends Hashtable.Entry {
         && Objects.equals(serviceSource, that.serviceSource)
         && Objects.equals(type, that.type)
         && Objects.equals(spanKind, that.spanKind)
-        && peerTags.equals(that.peerTags)
+        && Arrays.equals(peerTags, that.peerTags)
         && Objects.equals(httpMethod, that.httpMethod)
         && Objects.equals(httpEndpoint, that.httpEndpoint)
         && Objects.equals(grpcStatusCode, that.grpcStatusCode);
@@ -426,11 +431,14 @@ final class AggregateEntry extends Hashtable.Entry {
     boolean traceRoot;
 
     /**
-     * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
-     * #populate}; on miss, {@link #toEntry} copies it into an immutable list for the entry to own.
-     * Zero allocation on the hit path.
+     * Reusable buffer of canonicalized peer-tag UTF8 forms. Slots {@code [0..peerTagsCount)} are
+     * the canonicalized values for the current snapshot; the rest is uninitialized space the
+     * buffer holds onto across calls so we don't reallocate. {@link #toEntry} copies a
+     * tightly-sized array out of this buffer for the entry to own.
      */
-    final ArrayList<UTF8BytesString> peerTagsBuffer = new ArrayList<>(4);
+    UTF8BytesString[] peerTagsBuffer = new UTF8BytesString[4];
+
+    int peerTagsCount;
 
     long keyHash;
 
@@ -466,16 +474,17 @@ final class AggregateEntry extends Hashtable.Entry {
               httpStatusCode,
               synthetic,
               traceRoot,
-              peerTagsBuffer);
+              peerTagsBuffer,
+              peerTagsCount);
     }
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying {@code schema.handler(i)}
-     * to each non-null value at the same index. No allocation when the schema/values are absent or
-     * all values are null (buffer is just cleared).
+     * to each non-null value at the same index. Reuses the existing buffer; grows it only when
+     * the snapshot has more non-null peer-tag values than the buffer's current capacity.
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
-      peerTagsBuffer.clear();
+      peerTagsCount = 0;
       if (schema == null || values == null) {
         return;
       }
@@ -483,7 +492,10 @@ final class AggregateEntry extends Hashtable.Entry {
       for (int i = 0; i < n; i++) {
         String v = values[i];
         if (v != null) {
-          peerTagsBuffer.add(schema.handler(i).register(v));
+          if (peerTagsCount == peerTagsBuffer.length) {
+            peerTagsBuffer = Arrays.copyOf(peerTagsBuffer, peerTagsBuffer.length * 2);
+          }
+          peerTagsBuffer[peerTagsCount++] = schema.handler(i).register(v);
         }
       }
     }
@@ -503,20 +515,22 @@ final class AggregateEntry extends Hashtable.Entry {
           && Objects.equals(serviceSource, e.serviceSource)
           && Objects.equals(type, e.type)
           && Objects.equals(spanKind, e.spanKind)
-          && peerTagsEqual(peerTagsBuffer, e.peerTags)
+          && peerTagsEqual(peerTagsBuffer, peerTagsCount, e.peerTags)
           && Objects.equals(httpMethod, e.httpMethod)
           && Objects.equals(httpEndpoint, e.httpEndpoint)
           && Objects.equals(grpcStatusCode, e.grpcStatusCode);
     }
 
-    /** Indexed list comparison -- avoids the iterator a {@code List.equals} would allocate. */
-    private static boolean peerTagsEqual(List<UTF8BytesString> a, List<UTF8BytesString> b) {
-      int n = a.size();
-      if (n != b.size()) {
+    /**
+     * Compares the first {@code aLen} elements of {@code a} against all of {@code b}. Avoids the
+     * iterator a {@code List.equals} would allocate.
+     */
+    private static boolean peerTagsEqual(UTF8BytesString[] a, int aLen, UTF8BytesString[] b) {
+      if (aLen != b.length) {
         return false;
       }
-      for (int i = 0; i < n; i++) {
-        if (!a.get(i).equals(b.get(i))) {
+      for (int i = 0; i < aLen; i++) {
+        if (!a[i].equals(b[i])) {
           return false;
         }
       }
@@ -525,18 +539,16 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Build a new entry from the currently-populated canonical fields. The peer-tag buffer is
-     * copied into an immutable list so the entry's reference stays stable across subsequent {@link
-     * #populate} calls.
+     * copied into a tightly-sized array so the entry's reference stays stable across subsequent
+     * {@link #populate} calls.
      */
     AggregateEntry toEntry() {
-      List<UTF8BytesString> snapshottedPeerTags;
-      int n = peerTagsBuffer.size();
-      if (n == 0) {
-        snapshottedPeerTags = Collections.emptyList();
-      } else if (n == 1) {
-        snapshottedPeerTags = Collections.singletonList(peerTagsBuffer.get(0));
+      UTF8BytesString[] snapshottedPeerTags;
+      if (peerTagsCount == 0) {
+        snapshottedPeerTags = EMPTY_PEER_TAGS;
       } else {
-        snapshottedPeerTags = new ArrayList<>(peerTagsBuffer);
+        snapshottedPeerTags = new UTF8BytesString[peerTagsCount];
+        System.arraycopy(peerTagsBuffer, 0, snapshottedPeerTags, 0, peerTagsCount);
       }
       return new AggregateEntry(
           keyHash,
