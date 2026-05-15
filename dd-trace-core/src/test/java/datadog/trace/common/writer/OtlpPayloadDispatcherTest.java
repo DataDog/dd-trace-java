@@ -1,6 +1,8 @@
 package datadog.trace.common.writer;
 
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -13,10 +15,9 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.otlp.common.OtlpPayload;
 import datadog.trace.core.otlp.common.OtlpSender;
 import datadog.trace.core.otlp.trace.OtlpTraceCollector;
-import java.util.ArrayDeque;
+import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
-import java.util.Deque;
 import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -26,22 +27,23 @@ import org.mockito.junit.jupiter.MockitoExtension;
 
 @ExtendWith(MockitoExtension.class)
 class OtlpPayloadDispatcherTest {
-
   @Mock OtlpSender sender;
-  @Mock OtlpTraceCollector collector;
+
+  TestCollector collector = new TestCollector();
 
   @Test
-  @SuppressWarnings({"unchecked", "rawtypes"})
   void sampledTraceForwardsAllSpans() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
     List<CoreSpan<?>> trace = Arrays.asList(sampledSpan(), sampledSpan());
 
     dispatcher.addTrace(trace);
+    assertEquals(collector.spansToExport, trace);
+    dispatcher.flush();
 
-    ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
-    verify(collector).addTrace(captor.capture());
-    assertEquals(trace, captor.getValue());
-    verifyNoInteractions(sender);
+    // expect two spans to be exported
+    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+    verify(sender).send(captor.capture());
+    assertEquals(2 /*spans*/, captor.getValue().getContentLength());
   }
 
   @Test
@@ -49,8 +51,10 @@ class OtlpPayloadDispatcherTest {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
     dispatcher.addTrace(Arrays.asList(droppedSpan(), droppedSpan()));
+    assertEquals(collector.spansToExport, emptyList());
+    dispatcher.flush();
 
-    verifyNoInteractions(collector, sender);
+    verifyNoInteractions(sender);
   }
 
   @Test
@@ -58,12 +62,13 @@ class OtlpPayloadDispatcherTest {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
     dispatcher.addTrace(Arrays.asList(unsetSpan(), unsetSpan()));
+    assertEquals(collector.spansToExport, emptyList());
+    dispatcher.flush();
 
-    verifyNoInteractions(collector, sender);
+    verifyNoInteractions(sender);
   }
 
   @Test
-  @SuppressWarnings({"unchecked", "rawtypes"})
   void droppedTraceWithSingleSpanSampledForwardsOnlyThoseSpans() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
     CoreSpan<?> keep = singleSpanSampledSpan();
@@ -71,39 +76,20 @@ class OtlpPayloadDispatcherTest {
     CoreSpan<?> drop2 = droppedSpan();
 
     dispatcher.addTrace(Arrays.asList(drop1, keep, drop2));
+    assertEquals(collector.spansToExport, singletonList(keep));
+    dispatcher.flush();
 
-    ArgumentCaptor<List> captor = ArgumentCaptor.forClass(List.class);
-    verify(collector).addTrace(captor.capture());
-    assertEquals(Collections.singletonList(keep), captor.getValue());
+    // expect only one span to be exported
+    ArgumentCaptor<OtlpPayload> captor = ArgumentCaptor.forClass(OtlpPayload.class);
+    verify(sender).send(captor.capture());
+    assertEquals(1 /*spans*/, captor.getValue().getContentLength());
   }
 
   @Test
   void emptyTraceForwardsNothing() {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
-    dispatcher.addTrace(Collections.emptyList());
-
-    verifyNoInteractions(collector, sender);
-  }
-
-  @Test
-  void flushSendsNonEmptyPayload() {
-    Deque<byte[]> chunks = new ArrayDeque<>();
-    chunks.add(new byte[] {1, 2, 3});
-    OtlpPayload payload = new OtlpPayload(chunks, 3, "application/x-protobuf");
-    when(collector.collectTraces()).thenReturn(payload);
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
-    dispatcher.flush();
-
-    verify(sender).send(payload);
-  }
-
-  @Test
-  void flushSkipsEmptyPayload() {
-    when(collector.collectTraces()).thenReturn(OtlpPayload.EMPTY);
-    OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
-
+    dispatcher.addTrace(emptyList());
     dispatcher.flush();
 
     verifyNoInteractions(sender);
@@ -121,8 +107,9 @@ class OtlpPayloadDispatcherTest {
     OtlpPayloadDispatcher dispatcher = new OtlpPayloadDispatcher(sender, collector);
 
     dispatcher.onDroppedTrace(5);
+    dispatcher.flush();
 
-    verifyNoInteractions(collector, sender);
+    verifyNoInteractions(sender);
   }
 
   private static CoreSpan<?> sampledSpan() {
@@ -150,5 +137,33 @@ class OtlpPayloadDispatcherTest {
     when(span.samplingPriority()).thenReturn((int) PrioritySampling.UNSET);
     when(span.getTag(SPAN_SAMPLING_MECHANISM_TAG)).thenReturn(null);
     return span;
+  }
+
+  /** Test collector that creates payloads whose size equals the number of exported spans. */
+  private static class TestCollector extends OtlpTraceCollector {
+    final List<CoreSpan<?>> spansToExport = new ArrayList<>();
+
+    @Override
+    public void addTrace(List<? extends CoreSpan<?>> spans) {
+      for (CoreSpan<?> span : spans) {
+        if (shouldExport(span)) {
+          spansToExport.add(span);
+        }
+      }
+    }
+
+    @Override
+    public OtlpPayload collectTraces() {
+      if (spansToExport.isEmpty()) {
+        return OtlpPayload.EMPTY;
+      }
+      try {
+        // number of bytes returned represents the number of exported spans
+        int contentLength = spansToExport.size();
+        return new OtlpPayload(ByteBuffer.allocate(contentLength), "application/octet-stream");
+      } finally {
+        spansToExport.clear();
+      }
+    }
   }
 }

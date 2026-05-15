@@ -33,6 +33,7 @@ import datadog.metrics.api.statsd.StatsDClient
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.agent.test.asserts.ListWriterAssert
+import datadog.trace.agent.test.asserts.TagsAssert
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -390,7 +391,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       OkHttpClient client = buildHttpClient(true, null, null, TimeUnit.SECONDS.toMillis(DEFAULT_AGENT_TIMEOUT))
 
       Config cfg = Config.get()
-      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled())
+      DDAgentFeaturesDiscovery featureDiscovery = new DDAgentFeaturesDiscovery(client, Monitoring.DISABLED, agentUrl, cfg.getProtocolVersion(), cfg.isTracerMetricsEnabled(), cfg.isTracerMetricsIgnoreAgentVersion())
       TEST_AGENT_API = new DDAgentApi(client, agentUrl, featureDiscovery, Monitoring.DISABLED, cfg.isTracerMetricsEnabled())
       TEST_AGENT_WRITER = DDAgentWriter.builder().agentApi(TEST_AGENT_API).build()
     }
@@ -407,15 +408,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     TracerInstaller.forceInstallGlobalTracer(TEST_TRACER)
 
     boolean enabledFinishTimingChecks = this.enabledFinishTimingChecks()
-    TEST_TRACER.startSpan(*_) >> {
-      AgentSpan agentSpan = callRealMethod()
-      if (!enabledFinishTimingChecks) {
-        return agentSpan
-      }
-
-      def trackingSpan = new TrackingSpanDecorator(agentSpan, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
-      originalToTrackingSpan[agentSpan] = trackingSpan
-      return trackingSpan
+    TEST_TRACER.startSpan(*_) >> { args ->
+      trackStartSpan(callRealMethod(), args[0] as String, enabledFinishTimingChecks)
     }
 
     ClassInjector.enableClassInjection(INSTRUMENTATION)
@@ -571,6 +565,16 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   boolean useStrictTraceWrites() {
     return true
+  }
+
+  protected AgentSpan trackStartSpan(AgentSpan span, String instrName, boolean enabledFinishTimingChecks) {
+    TagsAssert.INSTRUMENTATION_NAMES[span.spanId] = instrName
+    if (!enabledFinishTimingChecks) {
+      return span
+    }
+    def trackingSpan = new TrackingSpanDecorator(span, spanFinishLocations, originalToTrackingSpan, useStrictTraceWrites())
+    originalToTrackingSpan[span] = trackingSpan
+    return trackingSpan
   }
 
   void assertTraces(

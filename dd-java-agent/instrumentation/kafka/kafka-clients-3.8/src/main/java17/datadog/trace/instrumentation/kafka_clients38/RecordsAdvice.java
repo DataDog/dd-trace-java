@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.traceConfig;
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.KAFKA_RECORDS_COUNT;
+import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients38.KafkaDecorator.KAFKA_POLL;
 
 import datadog.trace.api.Config;
@@ -38,7 +39,7 @@ public class RecordsAdvice {
     }
 
     if (traceConfig().isDataStreamsEnabled()) {
-      final AgentSpan span = startSpan(KAFKA_POLL);
+      final AgentSpan span = startSpan(JAVA_KAFKA.toString(), KAFKA_POLL);
       return activateSpan(span);
     }
     return null;

@@ -36,7 +36,7 @@ public final class CrashLogParser {
     if (isJ9Javacore(content)) {
       return fromJ9Javacore(uuid, content);
     }
-    return fromHotspotCrashLog(uuid, content);
+    return new HotspotCrashLogParser().parse(uuid, content);
   }
 
   /** Check if the content appears to be a J9 javacore file. */

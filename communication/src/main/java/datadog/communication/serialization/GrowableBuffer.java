@@ -1,5 +1,7 @@
 package datadog.communication.serialization;
 
+import static datadog.trace.util.BitUtils.nextPowerOfTwo;
+
 import java.nio.ByteBuffer;
 
 /**
@@ -12,8 +14,8 @@ public final class GrowableBuffer implements StreamingBuffer {
   private ByteBuffer buffer;
   private int messageCount;
 
-  public GrowableBuffer(int initialCapacity) {
-    this.initialCapacity = initialCapacity;
+  public GrowableBuffer(int requiredCapacity) {
+    this.initialCapacity = nextPowerOfTwo(requiredCapacity);
     this.buffer = ByteBuffer.allocate(initialCapacity);
   }
 
@@ -122,7 +124,7 @@ public final class GrowableBuffer implements StreamingBuffer {
 
   private void checkCapacity(int required) {
     if (buffer.remaining() < required) {
-      // round up to next multiple of required
+      // round up to next multiple of initialCapacity that can accommodate required
       int newSize = (buffer.capacity() + required + initialCapacity - 1) & -initialCapacity;
       ByteBuffer newBuffer = ByteBuffer.allocate(newSize);
       buffer.flip();

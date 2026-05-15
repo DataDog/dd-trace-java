@@ -103,7 +103,7 @@ public class TempLocationManagerTest {
     assertNotNull(tempDir);
 
     // fake temp location
-    Path fakeTempDir = myDir.resolve(TempLocationManager.getBaseTempDirName()).resolve("pid_0000");
+    Path fakeTempDir = myDir.resolve(TempLocationManager.getBaseTempDirName()).resolve("pid_fake");
     Files.createDirectories(fakeTempDir);
     Path tmpFile = Files.createFile(fakeTempDir.resolve("test.txt"));
     tmpFile.toFile().deleteOnExit(); // make sure this is deleted at exit
@@ -138,7 +138,7 @@ public class TempLocationManagerTest {
     baseDir.toFile().deleteOnExit();
 
     Path fakeTempDir =
-        baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_1234/scratch");
+        baseDir.resolve(TempLocationManager.getBaseTempDirName() + "/pid_fake/scratch");
     Files.createDirectories(fakeTempDir);
     Path fakeTempFile = fakeTempDir.resolve("libxxx.so");
     Files.createFile(fakeTempFile);
@@ -291,7 +291,7 @@ public class TempLocationManagerTest {
     baseDir.toFile().deleteOnExit();
     TempLocationManager instance = instance(baseDir, false, delayer, timeSource);
     Path mytempdir = instance.getTempDir();
-    Path otherTempdir = mytempdir.getParent().resolve("pid_0000");
+    Path otherTempdir = mytempdir.getParent().resolve("pid_fake");
     Files.createDirectories(otherTempdir);
     Files.createFile(mytempdir.resolve("dummy"));
     Files.createFile(otherTempdir.resolve("dummy"));

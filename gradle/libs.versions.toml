@@ -53,7 +53,7 @@ commons = "3.2"
 guava = "[16.0,20.0]" # Last version to support Java 7
 javaparser = "3.24.4"
 jctools = "4.0.6"
-lz4 = "1.7.1"
+lz4 = "1.11.0"
 
 # Logging
 slf4j = "1.7.30"
@@ -118,7 +118,6 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
-jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
@@ -136,7 +135,7 @@ guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
 jctools = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
+lz4 = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4" }
 
 # Logging
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }

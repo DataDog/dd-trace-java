@@ -37,6 +37,8 @@ public class BazelMode {
   private final boolean payloadFilesEnabled;
   /* payloadsDir is the root directory containing payload output directories */
   @Nullable private final String payloadsDir;
+  /* repoRoot is the absolute path to the runfiles workspace dir, used as a virtual repo root */
+  @Nullable private final String repoRoot;
 
   public static BazelMode get() {
     if (INSTANCE == null) {
@@ -91,7 +93,42 @@ public class BazelMode {
       }
     }
 
+    repoRoot = resolveRepoRoot();
+    if (repoRoot != null) {
+      LOGGER.info("[bazel mode] Repo root resolved to runfiles workspace dir {}", repoRoot);
+    }
+
     LOGGER.debug("[bazel mode] Resolved mode {}", this);
+  }
+
+  /**
+   * Resolves the runfiles workspace dir to use as a virtual repo root for source-path resolution.
+   * Returns {@code null} if the runfiles layout cannot be determined.
+   */
+  @Nullable
+  private static String resolveRepoRoot() {
+    String workspace = ConfigHelper.env("TEST_WORKSPACE");
+    if (Strings.isBlank(workspace)) {
+      return null;
+    }
+
+    String testSrcDir = ConfigHelper.env("TEST_SRCDIR");
+    if (Strings.isNotBlank(testSrcDir)) {
+      File candidate = new File(testSrcDir, workspace);
+      if (candidate.isDirectory()) {
+        return candidate.getAbsolutePath();
+      }
+    }
+
+    String runfilesDir = ConfigHelper.env("RUNFILES_DIR");
+    if (Strings.isNotBlank(runfilesDir)) {
+      File candidate = new File(runfilesDir, workspace);
+      if (candidate.isDirectory()) {
+        return candidate.getAbsolutePath();
+      }
+    }
+
+    return null;
   }
 
   @Override
@@ -107,6 +144,8 @@ public class BazelMode {
         + payloadFilesEnabled
         + ", payloadsDir="
         + payloadsDir
+        + ", repoRoot="
+        + repoRoot
         + '}';
   }
 
@@ -141,6 +180,15 @@ public class BazelMode {
   @Nullable
   public String getTelemetryPayloadsDir() {
     return payloadsDir != null ? payloadsDir + File.separator + "telemetry" : null;
+  }
+
+  /**
+   * Returns the absolute path of the runfiles workspace dir, suitable for use as a virtual repo
+   * root by the source-path resolver. {@code null} when the runfiles layout cannot be determined.
+   */
+  @Nullable
+  public String getRepoRoot() {
+    return repoRoot;
   }
 
   @Nullable

@@ -41,7 +41,7 @@ public class OgnlInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      AgentSpan agentSpan = startSpan("ognl.parse", parentSpan.context());
+      AgentSpan agentSpan = startSpan("ognl", "ognl.parse", parentSpan.context());
       agentSpan.setTag("ognl.expression", expression);
       agentSpan.finish();
     }
