@@ -28,6 +28,6 @@ class MetricsAggregatorFactoryTest extends DDSpecification {
     expect:
     def aggregator = MetricsAggregatorFactory.createMetricsAggregator(config, sco, HealthMetrics.NO_OP,
       )
-    assert aggregator instanceof ConflatingMetricsAggregator
+    assert aggregator instanceof ClientStatsAggregator
   }
 }

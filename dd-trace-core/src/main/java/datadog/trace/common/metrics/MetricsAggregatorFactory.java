@@ -15,7 +15,7 @@ public class MetricsAggregatorFactory {
       HealthMetrics healthMetrics) {
     if (config.isTracerMetricsEnabled()) {
       log.debug("tracer metrics enabled");
-      return new ConflatingMetricsAggregator(config, sharedCommunicationObjects, healthMetrics);
+      return new ClientStatsAggregator(config, sharedCommunicationObjects, healthMetrics);
     }
     log.debug("tracer metrics disabled");
     return NoOpMetricsAggregator.INSTANCE;

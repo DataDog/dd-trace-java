@@ -39,9 +39,9 @@ import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-public final class ConflatingMetricsAggregator implements MetricsAggregator, EventListener {
+public final class ClientStatsAggregator implements MetricsAggregator, EventListener {
 
-  private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
+  private static final Logger log = LoggerFactory.getLogger(ClientStatsAggregator.class);
 
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
@@ -75,7 +75,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
-  public ConflatingMetricsAggregator(
+  public ClientStatsAggregator(
       Config config,
       SharedCommunicationObjects sharedCommunicationObjects,
       HealthMetrics healthMetrics) {
@@ -96,7 +96,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         config.isTraceResourceRenamingEnabled());
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -118,7 +118,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         includeEndpointInMetrics);
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -142,7 +142,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         includeEndpointInMetrics);
   }
 
-  ConflatingMetricsAggregator(
+  ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
@@ -327,9 +327,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   /**
-   * Picks the peer-tag schema for a span. For peer-aggregation kinds, syncs the schema with
-   * {@code features.peerTags()} so producer and consumer share the same name/handler ordering.
-   * For internal-kind spans returns the static {@link PeerTagSchema#INTERNAL} schema.
+   * Picks the peer-tag schema for a span. For peer-aggregation kinds, syncs the schema with {@code
+   * features.peerTags()} so producer and consumer share the same name/handler ordering. For
+   * internal-kind spans returns the static {@link PeerTagSchema#INTERNAL} schema.
    */
   private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
     if (span.isKind(PEER_AGGREGATION_KINDS)) {
@@ -411,17 +411,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
       // Route the clear through the inbox so the aggregator thread is the only writer.
-      // AggregateTable is not thread-safe; calling clearAggregates() directly from this thread
-      // would race with Drainer.accept on the aggregator thread.
+      // AggregateTable is not thread-safe; clearing it directly from this thread would race
+      // with Drainer.accept on the aggregator thread.
       inbox.offer(CLEAR);
     }
   }
 
-  private static final class ReportTask
-      implements AgentTaskScheduler.Task<ConflatingMetricsAggregator> {
+  private static final class ReportTask implements AgentTaskScheduler.Task<ClientStatsAggregator> {
 
     @Override
-    public void run(ConflatingMetricsAggregator target) {
+    public void run(ClientStatsAggregator target) {
       target.report();
     }
   }
