@@ -62,7 +62,7 @@ class DependencyAgeScriptTest(unittest.TestCase):
             str(FIXTURES / "gradle-no-eligible.json"),
         )
 
-        self.assertEqual(result.returncode, 1, result.stdout)
+        self.assertEqual(result.returncode, 1, result.stderr)
         outputs = self.parse_outputs(result.stdout)
         self.assertEqual(outputs["found"], "false")
         self.assertIn("No eligible stable Gradle release", outputs["reason"])
