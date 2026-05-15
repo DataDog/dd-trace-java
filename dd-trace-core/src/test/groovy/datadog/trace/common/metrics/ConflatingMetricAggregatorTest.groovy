@@ -877,7 +877,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
-  def "test least recently written to aggregate flushed when size limit exceeded"() {
+  def "new aggregates beyond size limit are dropped when no stale entries can be evicted"() {
+    // The table only evicts entries with hitCount == 0 to make room. When all entries are live
+    // (all have been recorded against), an over-cap insert drops the new key rather than evicting
+    // an established one. This protects the data we've already collected from a burst of new keys.
     setup:
     int maxAggregates = 10
     MetricWriter writer = Mock(MetricWriter)
@@ -901,10 +904,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.report()
     def latchTriggered = latch.await(2, SECONDS)
 
-    then: "the first aggregate should be dropped but the rest reported"
+    then: "the established service0..service9 are reported; service10 is dropped"
     latchTriggered
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
-    for (int i = 1; i < 11; ++i) {
+    for (int i = 0; i < 10; ++i) {
       1 * writer.add(new MetricKey(
         "resource",
         "service" + i,
@@ -925,7 +928,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     }
     0 * writer.add(new MetricKey(
       "resource",
-      "service0",
+      "service10",
       "operation",
       null,
       "type",

@@ -8,6 +8,7 @@ import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
+import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
 import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
@@ -418,8 +419,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      this.inbox.clear();
-      this.aggregator.clearAggregates();
+      // Route the clear through the inbox so the aggregator thread is the only writer.
+      // AggregateTable is not thread-safe; calling clearAggregates() directly from this thread
+      // would race with Drainer.accept on the aggregator thread.
+      inbox.offer(CLEAR);
     }
   }
 

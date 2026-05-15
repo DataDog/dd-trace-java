@@ -28,4 +28,15 @@ abstract class SignalItem implements InboxItem {
   static final class ReportSignal extends SignalItem {
     static final ReportSignal REPORT = new ReportSignal();
   }
+
+  /**
+   * Posted from arbitrary threads (e.g. the Sink event thread during agent downgrade) so the
+   * aggregator thread is the one that actually performs the table reset. Keeps {@link
+   * AggregateTable} and {@code inbox.clear()} single-writer.
+   */
+  static final class ClearSignal extends SignalItem {
+    static final ClearSignal CLEAR = new ClearSignal();
+
+    private ClearSignal() {}
+  }
 }

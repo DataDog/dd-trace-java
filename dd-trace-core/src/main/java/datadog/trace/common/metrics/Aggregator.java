@@ -1,26 +1,12 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.api.Functions.UTF8_ENCODE;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE_ADDER;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SERVICE_NAMES;
-import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SPAN_KINDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
-import datadog.trace.api.Pair;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.ArrayList;
-import java.util.Collections;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -32,8 +18,9 @@ final class Aggregator implements Runnable {
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
   private final MessagePassingQueue<InboxItem> inbox;
-  private final LRUCache<MetricKey, AggregateMetric> aggregates;
+  private final AggregateTable aggregates;
   private final MetricWriter writer;
+  private final HealthMetrics healthMetrics;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
@@ -73,27 +60,10 @@ final class Aggregator implements Runnable {
       HealthMetrics healthMetrics) {
     this.writer = writer;
     this.inbox = inbox;
-    this.aggregates =
-        new LRUCache<>(
-            new AggregateExpiry(healthMetrics), maxAggregates * 4 / 3, 0.75f, maxAggregates);
+    this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
-  }
-
-  private static final class AggregateExpiry
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-    private final HealthMetrics healthMetrics;
-
-    AggregateExpiry(HealthMetrics healthMetrics) {
-      this.healthMetrics = healthMetrics;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      if (expired.getValue().getHitCount() > 0) {
-        healthMetrics.onStatsAggregateDropped();
-      }
-    }
+    this.healthMetrics = healthMetrics;
   }
 
   public void clearAggregates() {
@@ -126,7 +96,13 @@ final class Aggregator implements Runnable {
 
     @Override
     public void accept(InboxItem item) {
-      if (item instanceof SignalItem) {
+      if (item == ClearSignal.CLEAR) {
+        if (!stopped) {
+          aggregates.clear();
+          inbox.clear();
+        }
+        ((SignalItem) item).complete();
+      } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
         if (!stopped) {
           report(wallClockTime(), signal);
@@ -139,64 +115,31 @@ final class Aggregator implements Runnable {
         }
       } else if (item instanceof SpanSnapshot && !stopped) {
         SpanSnapshot snapshot = (SpanSnapshot) item;
-        MetricKey key = buildMetricKey(snapshot);
-        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        aggregate.recordOneDuration(snapshot.tagAndDuration);
-        dirty = true;
+        AggregateMetric aggregate = aggregates.findOrInsert(snapshot);
+        if (aggregate != null) {
+          aggregate.recordOneDuration(snapshot.tagAndDuration);
+          dirty = true;
+        } else {
+          // table at cap with no stale entry available to evict
+          healthMetrics.onStatsAggregateDropped();
+        }
       }
     }
-  }
-
-  private static MetricKey buildMetricKey(SpanSnapshot s) {
-    return new MetricKey(
-        s.resourceName,
-        SERVICE_NAMES.computeIfAbsent(s.serviceName, UTF8_ENCODE),
-        s.operationName,
-        s.serviceNameSource,
-        s.spanType,
-        s.httpStatusCode,
-        s.synthetic,
-        s.traceRoot,
-        SPAN_KINDS.computeIfAbsent(s.spanKind, UTF8BytesString::create),
-        materializePeerTags(s.peerTagPairs),
-        s.httpMethod,
-        s.httpEndpoint,
-        s.grpcStatusCode);
-  }
-
-  private static List<UTF8BytesString> materializePeerTags(String[] pairs) {
-    if (pairs == null || pairs.length == 0) {
-      return Collections.emptyList();
-    }
-    if (pairs.length == 2) {
-      // single-entry fast path (matches the original singletonList shape for INTERNAL spans)
-      return Collections.singletonList(encodePeerTag(pairs[0], pairs[1]));
-    }
-    List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
-    for (int i = 0; i < pairs.length; i += 2) {
-      tags.add(encodePeerTag(pairs[i], pairs[i + 1]));
-    }
-    return tags;
-  }
-
-  private static UTF8BytesString encodePeerTag(String name, String value) {
-    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
-    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
   }
 
   private void report(long when, SignalItem signal) {
     boolean skipped = true;
     if (dirty) {
       try {
-        expungeStaleAggregates();
+        aggregates.expungeStaleAggregates();
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
-          }
+          aggregates.forEach(
+              (key, agg) -> {
+                writer.add(key, agg);
+                agg.clear();
+              });
           // note that this may do IO and block
           writer.finishBucket();
         }
@@ -209,17 +152,6 @@ final class Aggregator implements Runnable {
     signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
-    }
-  }
-
-  private void expungeStaleAggregates() {
-    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<MetricKey, AggregateMetric> pair = it.next();
-      AggregateMetric metric = pair.getValue();
-      if (metric.getHitCount() == 0) {
-        it.remove();
-      }
     }
   }
 
