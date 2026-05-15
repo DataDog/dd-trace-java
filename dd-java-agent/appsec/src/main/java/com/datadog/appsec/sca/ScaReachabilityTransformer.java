@@ -59,8 +59,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   private final ScaCveDatabase database;
   private final Instrumentation instrumentation;
 
-  /** Cache: JAR URL → resolved dependencies. Only non-empty results are cached to allow retries. */
-  private final ConcurrentHashMap<URL, List<Dependency>> jarCache = new ConcurrentHashMap<>();
+  /**
+   * Cache: JAR URI → resolved dependencies. URI is used instead of URL to avoid DNS lookups in
+   * equals/hashCode (DMI_COLLECTION_OF_URLS). Only non-empty results are cached to allow retries.
+   */
+  private final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
   /**
    * Cache: artifact name → classpath-resolved version. Used when the class's own JAR does not
@@ -516,18 +519,23 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   // package-private for testing
   String findArtifactVersionInClasspath(String artifactName) {
-    Set<URL> scanned = new HashSet<>();
+    // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
+    Set<URI> scanned = new HashSet<>();
 
     // Walk URLClassLoader chain (covers Java 8 system classloader and custom classloaders on 9+)
     ClassLoader cl = Thread.currentThread().getContextClassLoader();
     while (cl != null) {
       if (cl instanceof URLClassLoader) {
         for (URL url : ((URLClassLoader) cl).getURLs()) {
-          if (scanned.add(url)) {
-            String version = findArtifactInUrl(artifactName, url);
-            if (version != null) {
-              return version;
+          try {
+            if (scanned.add(url.toURI())) {
+              String version = findArtifactInUrl(artifactName, url);
+              if (version != null) {
+                return version;
+              }
             }
+          } catch (Exception e) {
+            log.debug("SCA Reachability: could not scan classloader URL {}", url, e);
           }
         }
       }
@@ -543,9 +551,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
       try {
-        URL url = new File(entry).toURI().toURL();
-        if (scanned.add(url)) {
-          String version = findArtifactInUrl(artifactName, url);
+        URI uri = new File(entry).toURI();
+        if (scanned.add(uri)) {
+          String version = findArtifactInUrl(artifactName, uri.toURL());
           if (version != null) {
             return version;
           }
@@ -588,28 +596,27 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   private List<Dependency> resolveDependencies(URL url) {
-    List<Dependency> cached = jarCache.get(url);
-    if (cached != null) {
-      return cached;
-    }
-    List<Dependency> resolved;
     try {
       URI uri = url.toURI();
-      resolved = DependencyResolver.resolve(uri);
+      List<Dependency> cached = jarCache.get(uri);
+      if (cached != null) {
+        return cached;
+      }
+      List<Dependency> resolved = DependencyResolver.resolve(uri);
       if (resolved == null) {
         resolved = Collections.emptyList();
       }
+      // Only cache non-empty results: empty means the JAR had no pom.properties, which may be
+      // a transient failure. Not caching allows the periodic retransform to retry successfully.
+      if (!resolved.isEmpty()) {
+        List<Dependency> existing = jarCache.putIfAbsent(uri, resolved);
+        return existing != null ? existing : resolved;
+      }
+      return resolved;
     } catch (Exception e) {
       log.debug("SCA Reachability: could not resolve {}", url, e);
-      resolved = Collections.emptyList();
+      return Collections.emptyList();
     }
-    // Only cache non-empty results: empty means the JAR had no pom.properties, which may be
-    // a transient failure. Not caching allows the periodic retransform to retry successfully.
-    if (!resolved.isEmpty()) {
-      List<Dependency> existing = jarCache.putIfAbsent(url, resolved);
-      return existing != null ? existing : resolved;
-    }
-    return resolved;
   }
 
   private static URL locationOf(ProtectionDomain pd) {
