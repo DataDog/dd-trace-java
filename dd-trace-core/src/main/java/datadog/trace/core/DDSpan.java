@@ -126,7 +126,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(
+  // @VisibleForTesting
+  DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,
@@ -701,6 +702,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public long getDurationNano() {
     return durationNano;
+  }
+
+  // @VisibleForTesting
+  void setDurationNano(long duration) {
+    DURATION_NANO_UPDATER.set(this, duration);
   }
 
   @Override
