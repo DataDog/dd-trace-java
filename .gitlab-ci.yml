@@ -831,9 +831,11 @@ test_smoke:
     - find dd-java-agent/build/libs -name "dd-java-agent-*.jar" 2>/dev/null | head -5 || echo "(no agent jars found)"
     - find dd-smoke-tests/log-injection/build/libs -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5 || echo "(no app jars found)"
     - |
-      # Disable errexit so a single bad iteration doesn't kill the loop.
-      # Enable xtrace temporarily to debug script issues.
+      # set +e: a single bad iter shouldn't kill the loop
+      # set +x: turn off command tracing so our actual echoes survive Datadog Logs sampling
       set +e
+      set +x
+      echo "RESULT_TOKEN_LOOP_STARTING at=$(date -Iseconds)"
       echo "=== LOOP STARTING $(date -Iseconds) ==="
       JAVA_BIN="$JAVA_8_HOME/bin/java"
       AGENT_JAR=$(find dd-java-agent/build/libs -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | head -1)
@@ -894,6 +896,13 @@ test_smoke:
         fi
       done
       echo "=== FINAL: total=$ITERS swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING ==="
+      # Emit the unique RESULT_TOKEN multiple times so at least one survives Datadog Logs sampling.
+      # Format chosen for easy grep: 'RESULT_TOKEN_END swap_ok:N swap_failed:N missing:N total:N'
+      for _ in 1 2 3 4 5; do
+        echo "RESULT_TOKEN_END swap_ok:$SWAP_OK swap_failed:$SWAP_FAIL missing:$MISSING total:$ITERS"
+      done
+      # Also write to a file in loop-output so it ships as an artifact
+      echo "swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING total=$ITERS" > loop-output/RESULT.txt
       # Force exit 0 — we want the job to succeed regardless of swap outcomes,
       # so artifacts get uploaded via the success path (not on_failure)
       exit 0
