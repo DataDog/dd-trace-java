@@ -95,8 +95,6 @@ public class JMXFetch {
     final StatsDClient statsd = statsDClientManager.statsDClient(host, port, namedPipe, null, null);
     final AgentStatsdReporter reporter = new AgentStatsdReporter(statsd);
 
-    // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
-    // JVM config to avoid double-reporting.
     final boolean otlpRuntimeMetricsEnabled =
         InstrumenterConfig.get().isMetricsOtelEnabled() && config.isMetricsOtlpExporterEnabled();
 
@@ -107,6 +105,8 @@ public class JMXFetch {
       // exporter started by CoreTracer collects them. Started here so it rides the same
       // delayed-start path as JMXFetch itself.
       JvmOtlpRuntimeMetrics.start();
+      // When the OTLP exporter is collecting JVM runtime metrics, skip the default JMXFetch
+      // JVM config to avoid double-reporting.
       defaultConfigs.add(OTLP_JMX_CONFIG);
     } else {
       defaultConfigs.add(DEFAULT_CONFIG);

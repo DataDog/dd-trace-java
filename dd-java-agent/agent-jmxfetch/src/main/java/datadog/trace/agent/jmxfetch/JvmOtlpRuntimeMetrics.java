@@ -76,8 +76,6 @@ public final class JvmOtlpRuntimeMetrics {
     }
   }
 
-  // jvm.gc.duration is excluded — spec requires Histogram, JMX only exposes cumulative time.
-
   /**
    * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.init,
    * jvm.memory.used_after_last_gc — all UpDownCounter per spec.
