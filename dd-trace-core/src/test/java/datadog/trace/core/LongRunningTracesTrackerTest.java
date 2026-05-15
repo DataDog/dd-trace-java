@@ -1,6 +1,9 @@
 package datadog.trace.core;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.clearInvocations;
@@ -17,16 +20,26 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
+import datadog.trace.api.flare.TracerFlare;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.time.ControllableTimeSource;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.zip.ZipEntry;
+import java.util.zip.ZipInputStream;
+import java.util.zip.ZipOutputStream;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
@@ -200,6 +213,67 @@ public class LongRunningTracesTrackerTest extends DDJavaSpecification {
 
     assertEquals(trackerExpectedSize, tracker.trackedCount());
     assertEquals(traceExpectedState, trace.getLongRunningTrackedState());
+  }
+
+  @Test
+  void getTracesAsJsonWithNoTraces() {
+    String json = tracker.getTracesAsJson();
+    assertEquals("", json);
+  }
+
+  @Test
+  void getTracesAsJsonWithTraces() {
+    PendingTrace trace = newTraceToTrack();
+    tracker.add(trace);
+
+    String json = tracker.getTracesAsJson();
+
+    assertNotNull(json);
+    assertFalse(json.isEmpty());
+    assertTrue(json.contains("\"service\""));
+    assertTrue(json.contains("\"name\""));
+  }
+
+  @Test
+  void tracerFlareDumpWithTrace() throws IOException {
+    PendingTrace trace = newTraceToTrack();
+    tracker.add(trace);
+
+    Map<String, Object> entries = buildAndExtractZip();
+
+    assertTrue(entries.containsKey("long_running_traces.txt"));
+    String jsonContent = (String) entries.get("long_running_traces.txt");
+    assertTrue(jsonContent.contains("\"service\""));
+    assertTrue(jsonContent.contains("\"name\""));
+  }
+
+  private static Map<String, Object> buildAndExtractZip() throws IOException {
+    TracerFlare.prepareForFlare();
+    ByteArrayOutputStream out = new ByteArrayOutputStream();
+    try (ZipOutputStream zip = new ZipOutputStream(out)) {
+      TracerFlare.addReportsToFlare(zip);
+    } finally {
+      TracerFlare.cleanupAfterFlare();
+    }
+
+    Map<String, Object> entries = new HashMap<>();
+    try (ZipInputStream zip = new ZipInputStream(new ByteArrayInputStream(out.toByteArray()))) {
+      ZipEntry entry;
+      while ((entry = zip.getNextEntry()) != null) {
+        ByteArrayOutputStream bytes = new ByteArrayOutputStream();
+        byte[] buffer = new byte[4096];
+        int len;
+        while ((len = zip.read(buffer)) != -1) {
+          bytes.write(buffer, 0, len);
+        }
+        entries.put(
+            entry.getName(),
+            entry.getName().endsWith(".bin")
+                ? bytes.toByteArray()
+                : new String(bytes.toByteArray(), StandardCharsets.UTF_8));
+      }
+    }
+    return entries;
   }
 
   private void flushAt(long timeMilli) {
