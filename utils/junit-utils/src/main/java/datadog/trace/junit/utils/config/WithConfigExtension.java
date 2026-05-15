@@ -9,8 +9,6 @@ import static net.bytebuddy.matcher.ElementMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.none;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
@@ -18,6 +16,7 @@ import edu.umd.cs.findbugs.annotations.NonNull;
 import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.lang.reflect.Modifier;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -40,7 +39,11 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * JUnit 5 extension that manages DD config injection for tests. Handles:
  *
  * <ul>
- *   <li>Making {@code Config} and {@code InstrumenterConfig} singletons modifiable via ByteBuddy
+ *   <li>Making {@code Config} and {@code InstrumenterConfig} singletons modifiable. Primary
+ *       strategy: ByteBuddy retransformation to relax the {@code INSTANCE} fields to {@code public
+ *       static volatile}. Fallback strategy (used on JVMs where retransformation silently fails,
+ *       e.g. IBM J9 / OpenJ9 / Semeru): direct field writes via {@code
+ *       sun.misc.Unsafe.putObjectVolatile} accessed reflectively.
  *   <li>Saving/restoring system properties between tests
  *   <li>Managing test environment variables
  *   <li>Applying {@link WithConfig} annotations (class and method level, including composed
@@ -58,10 +61,23 @@ public class WithConfigExtension
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig";
   static final String CONFIG = "datadog.trace.api.Config";
 
+  private enum WriteMode {
+    /** Field has been retransformed to public/volatile — write via {@link Field#set}. */
+    REFLECTION,
+    /** Retransformation failed — write via {@code sun.misc.Unsafe.putObjectVolatile}. */
+    UNSAFE
+  }
+
+  private static WriteMode writeMode;
+
   private static Field instConfigInstanceField;
   private static Constructor<?> instConfigConstructor;
   private static Field configInstanceField;
   private static Constructor<?> configConstructor;
+
+  // Used in UNSAFE mode only.
+  private static UnsafeFieldWriter instConfigUnsafeWriter;
+  private static UnsafeFieldWriter configUnsafeWriter;
 
   private static volatile boolean configTransformerInstalled = false;
   private static volatile boolean isConfigInstanceModifiable = false;
@@ -75,28 +91,15 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    /*
-     * Patch config classes to make them modifiable.
-     */
-    // Install config transformer error listener
     if (!configTransformerInstalled) {
       installConfigTransformer();
       configTransformerInstalled = true;
     }
-    // Make config instance modifiable
     makeConfigInstanceModifiable();
-    // Verify that config class transformation succeeded
     assertFalse(configModificationFailed, "Config class modification failed");
-    if (isConfigInstanceModifiable) {
-      checkConfigTransformation();
-    }
-    /*
-     * Back up config and apply class-level config values.
-     */
     if (originalSystemProperties == null) {
       saveProperties();
     }
-    // Apply class-level @WithConfig so config is available before @BeforeAll methods
     applyClassLevelConfig(context);
     if (isConfigInstanceModifiable) {
       rebuildConfig();
@@ -257,7 +260,6 @@ public class WithConfigExtension
     if (isConfigInstanceModifiable || configModificationFailed) {
       return;
     }
-
     try {
       Class<?> instConfigClass = Class.forName(INST_CONFIG);
       instConfigInstanceField = instConfigClass.getDeclaredField("INSTANCE");
@@ -267,6 +269,19 @@ public class WithConfigExtension
       configInstanceField = configClass.getDeclaredField("INSTANCE");
       configConstructor = configClass.getDeclaredConstructor();
       configConstructor.setAccessible(true);
+
+      // Decide write strategy based on whether ByteBuddy retransformation actually relaxed the
+      // INSTANCE fields. On HotSpot it does; on IBM J9 / OpenJ9 / Semeru it can silently fail and
+      // leave the fields as private static final.
+      if (isFieldModifiable(instConfigInstanceField) && isFieldModifiable(configInstanceField)) {
+        writeMode = WriteMode.REFLECTION;
+        instConfigInstanceField.setAccessible(true);
+        configInstanceField.setAccessible(true);
+      } else {
+        writeMode = WriteMode.UNSAFE;
+        instConfigUnsafeWriter = UnsafeFieldWriter.forStaticField(instConfigInstanceField);
+        configUnsafeWriter = UnsafeFieldWriter.forStaticField(configInstanceField);
+      }
 
       isConfigInstanceModifiable = true;
     } catch (ClassNotFoundException e) {
@@ -288,12 +303,86 @@ public class WithConfigExtension
     synchronized (WithConfigExtension.class) {
       try {
         Object newInstConfig = instConfigConstructor.newInstance();
-        instConfigInstanceField.set(null, newInstConfig);
         Object newConfig = configConstructor.newInstance();
-        configInstanceField.set(null, newConfig);
+        if (writeMode == WriteMode.REFLECTION) {
+          instConfigInstanceField.set(null, newInstConfig);
+          configInstanceField.set(null, newConfig);
+        } else {
+          instConfigUnsafeWriter.putVolatile(newInstConfig);
+          configUnsafeWriter.putVolatile(newConfig);
+        }
       } catch (ReflectiveOperationException e) {
         throw new AssertionError("Failed to rebuild config", e);
       }
+    }
+  }
+
+  private static boolean isFieldModifiable(Field field) {
+    int mods = field.getModifiers();
+    return Modifier.isPublic(mods)
+        && Modifier.isStatic(mods)
+        && Modifier.isVolatile(mods)
+        && !Modifier.isFinal(mods);
+  }
+
+  /**
+   * Encapsulates {@code sun.misc.Unsafe}-based volatile writes to a single static field. Used as
+   * the fallback when ByteBuddy retransformation does not relax the field modifiers (IBM J9 /
+   * OpenJ9 / Semeru).
+   *
+   * <p>{@code sun.misc.Unsafe} is accessed entirely via reflection so the module can keep the
+   * default {@code --release} compile setting (the internal {@code sun.misc} package would
+   * otherwise be off-limits to the compiler).
+   */
+  @SuppressForbidden
+  private static final class UnsafeFieldWriter {
+    private static Object unsafe;
+    private static Method staticFieldBase;
+    private static Method staticFieldOffset;
+    private static Method putObjectVolatile;
+
+    private final Object base;
+    private final long offset;
+
+    private UnsafeFieldWriter(Object base, long offset) {
+      this.base = base;
+      this.offset = offset;
+    }
+
+    /**
+     * @throws ReflectiveOperationException if {@code sun.misc.Unsafe} or one of the required
+     *     methods is unavailable on this JVM. Lets the caller mark config modification as failed
+     *     and surface a clean test failure instead of a {@link ExceptionInInitializerError}.
+     */
+    static UnsafeFieldWriter forStaticField(Field staticField) throws ReflectiveOperationException {
+      ensureInitialized();
+      Object fieldBase = staticFieldBase.invoke(unsafe, staticField);
+      long fieldOffset = (long) staticFieldOffset.invoke(unsafe, staticField);
+      return new UnsafeFieldWriter(fieldBase, fieldOffset);
+    }
+
+    void putVolatile(Object value) {
+      try {
+        putObjectVolatile.invoke(unsafe, base, offset, value);
+      } catch (ReflectiveOperationException e) {
+        throw new AssertionError("Failed to write static field via Unsafe", e);
+      }
+    }
+
+    private static synchronized void ensureInitialized() throws ReflectiveOperationException {
+      if (unsafe != null) {
+        return;
+      }
+      Class<?> unsafeClass = Class.forName("sun.misc.Unsafe");
+      Field theUnsafe = unsafeClass.getDeclaredField("theUnsafe");
+      theUnsafe.setAccessible(true);
+      Object instance = theUnsafe.get(null);
+      staticFieldBase = unsafeClass.getMethod("staticFieldBase", Field.class);
+      staticFieldOffset = unsafeClass.getMethod("staticFieldOffset", Field.class);
+      putObjectVolatile =
+          unsafeClass.getMethod("putObjectVolatile", Object.class, long.class, Object.class);
+      // Publish `unsafe` last so a partially-initialized state can't fool the early-return guard.
+      unsafe = instance;
     }
   }
 
@@ -312,26 +401,6 @@ public class WithConfigExtension
       copy.putAll(originalSystemProperties);
       System.setProperties(copy);
     }
-  }
-
-  // endregion
-
-  // region Validation
-
-  private static void checkConfigTransformation() {
-    assertTrue(isConfigInstanceModifiable);
-    assertNotNull(instConfigConstructor);
-    checkWritable(instConfigInstanceField);
-    assertNotNull(configConstructor);
-    checkWritable(configInstanceField);
-  }
-
-  private static void checkWritable(Field field) {
-    assertNotNull(field);
-    assertTrue(Modifier.isPublic(field.getModifiers()));
-    assertTrue(Modifier.isStatic(field.getModifiers()));
-    assertTrue(Modifier.isVolatile(field.getModifiers()));
-    assertFalse(Modifier.isFinal(field.getModifiers()));
   }
 
   // endregion
@@ -393,7 +462,10 @@ public class WithConfigExtension
         JavaModule module,
         boolean loaded,
         @NonNull Throwable throwable) {
-      if (CONFIG.equals(typeName)) {
+      if (INST_CONFIG.equals(typeName) || CONFIG.equals(typeName)) {
+        // Note: this only marks failure for ByteBuddy errors that surface as listener errors.
+        // Silent retransformation failures (IBM J9 / Semeru) are detected later in
+        // makeConfigInstanceModifiable() by inspecting the actual field modifiers.
         configModificationFailed = true;
       }
     }
