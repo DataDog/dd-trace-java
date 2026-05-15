@@ -65,6 +65,6 @@ public class DDTagsConverter implements ArgumentConverter {
           throw new ArgumentConversionException("Cannot convert " + source);
       }
     }
-    return source.toString();
+    return source;
   }
 }
