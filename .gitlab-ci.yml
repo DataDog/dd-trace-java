@@ -833,13 +833,15 @@ test_smoke:
       echo "$AGENT_JARS"
       echo "APP_JARS:"
       echo "$APP_JARS"
-      # Persist for subsequent steps via env-file
-      echo "AGENT_JARS<<EOF" > /tmp/jar-paths.env
-      echo "$AGENT_JARS" >> /tmp/jar-paths.env
-      echo "EOF" >> /tmp/jar-paths.env
-      echo "APP_JARS<<EOF" >> /tmp/jar-paths.env
-      echo "$APP_JARS" >> /tmp/jar-paths.env
-      echo "EOF" >> /tmp/jar-paths.env
+      # Persist single absolute paths for the loop step to source
+      AGENT_JAR_PATH=$(echo "$AGENT_JARS" | head -1)
+      APP_JAR_BACKEND_PATH=$(echo "$APP_JARS" | grep "JULInterfaceLog4j2Backend.jar$" | head -1)
+      APP_JAR_LATEST_PATH=$(echo "$APP_JARS" | grep "JULInterfaceLog4j2LatestBackend.jar$" | head -1)
+      echo "export AGENT_JAR_PATH=$AGENT_JAR_PATH" > /tmp/jar-paths.env
+      echo "export APP_JAR_BACKEND_PATH=$APP_JAR_BACKEND_PATH" >> /tmp/jar-paths.env
+      echo "export APP_JAR_LATEST_PATH=$APP_JAR_LATEST_PATH" >> /tmp/jar-paths.env
+      echo "--- /tmp/jar-paths.env contents:"
+      cat /tmp/jar-paths.env
     # Submit early-checkpoint Datadog event with the discovered paths (immune to logs sampling)
     - |
       DD_API_KEY_PROD_LOCAL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text 2>/dev/null || echo "")
@@ -869,10 +871,14 @@ test_smoke:
       set +x
       echo "RESULT_TOKEN_LOOP_STARTING at=$(date -Iseconds)"
       echo "=== LOOP STARTING $(date -Iseconds) ==="
+      # Source jar paths discovered in the JAR LOCATIONS step
+      if [ -f /tmp/jar-paths.env ]; then
+        source /tmp/jar-paths.env
+      fi
       JAVA_BIN="$JAVA_8_HOME/bin/java"
-      AGENT_JAR=$(find dd-java-agent/build/libs -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | head -1)
-      APP_JAR_BACKEND=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2Backend.jar
-      APP_JAR_LATEST=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2LatestBackend.jar
+      AGENT_JAR="$AGENT_JAR_PATH"
+      APP_JAR_BACKEND="$APP_JAR_BACKEND_PATH"
+      APP_JAR_LATEST="$APP_JAR_LATEST_PATH"
       echo "JAVA_BIN=$JAVA_BIN"
       echo "AGENT_JAR=$AGENT_JAR"
       if [ ! -x "$JAVA_BIN" ]; then echo "FATAL: JAVA_BIN not executable"; exit 0; fi
