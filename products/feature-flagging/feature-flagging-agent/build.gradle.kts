@@ -4,10 +4,10 @@ import org.gradle.kotlin.dsl.project
 plugins {
   `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.version-file")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/version.gradle")
 
 description = "Feature flagging agent system"
 

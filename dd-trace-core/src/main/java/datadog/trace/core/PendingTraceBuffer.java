@@ -308,6 +308,16 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     LongRunningTracesTracker getRunningTracesTracker() {
       return runningTracesTracker;
     }
+
+    // @VisibleForTesting
+    Thread getWorker() {
+      return worker;
+    }
+
+    // @VisibleForTesting
+    MessagePassingBlockingQueue<Element> getQueue() {
+      return queue;
+    }
   }
 
   static class DiscardingPendingTraceBuffer extends PendingTraceBuffer {
