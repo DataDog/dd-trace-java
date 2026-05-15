@@ -1,5 +1,6 @@
 package datadog.gradle.plugin
 
+import datadog.gradle.plugin.GradleFixture.Companion.sharedTestKitDir
 import org.gradle.testkit.runner.BuildResult
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.UnexpectedBuildResultException
@@ -30,8 +31,8 @@ open class GradleFixture {
     // locks. See https://github.com/gradle/gradle/issues/12535
     //
     // TestKit may reuse the same daemon for builds with different withEnvironment()
-    // values, so build logic must not cache environment-derived state in daemon-
-    // static fields.
+    // values, so build logic must not cache environment-derived state in daemon-static
+    // fields.
     private val sharedTestKitDir: File by lazy {
       Files.createTempDirectory("gradle-testkit-").toFile().also { dir ->
         Runtime.getRuntime().addShutdownHook(Thread {
@@ -100,18 +101,18 @@ open class GradleFixture {
   /**
    * Runs Gradle with the specified arguments.
    *
-   * The TestKit daemon spawned by the first call is reused for every subsequent
-   * call in the JVM (shared [testKitDir]) so kotlinc compilation of
-   * `.gradle.kts` scripts amortizes across tests instead of being re-paid per
-   * test. Daemons are reaped at JVM shutdown by the hook registered when
+   * The TestKit daemon spawned by the first call and reused for every subsequent
+   * call in the JVM (shared [testKitDir]) so Kotlin compilation of `.gradle.kts`
+   * scripts amortizes across tests instead of being re-paid per test.
+   * Daemons are reaped at JVM shutdown by the hook registered when
    * [sharedTestKitDir] is created.
    *
    * @param args Gradle task names and arguments
    * @param expectFailure Whether the build is expected to fail
    * @param env Environment variables to set (merged with system environment)
    * @param forwardOutput Forward the build's stdout/stderr to the test's output
-   * @param projectDir Override the project directory used by Gradle (useful for git worktree
-   *                   tests); when null, defaults to the fixture's project directory.
+   * @param gradleProjectDir Override the project directory used by Gradle (useful for git worktree tests);
+   *     defaults to the fixture's project directory.
    * @return The build result
    */
   fun run(
@@ -119,12 +120,12 @@ open class GradleFixture {
     expectFailure: Boolean = false,
     env: Map<String, String> = emptyMap(),
     forwardOutput: Boolean = false,
-    projectDir: File? = null,
+    gradleProjectDir: File = projectDir,
   ): BuildResult {
     val runner = GradleRunner.create()
       .withTestKitDir(testKitDir)
       .withPluginClasspath()
-      .withProjectDir(projectDir ?: this.projectDir)
+      .withProjectDir(gradleProjectDir)
       // Using withDebug prevents starting a daemon, but it doesn't work with withEnvironment
       .withEnvironment(System.getenv() + env)
       .withArguments(*args)

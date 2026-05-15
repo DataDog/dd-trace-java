@@ -146,7 +146,7 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
 
   private fun assertTracerVersion(
     expectedVersion: String,
-    workingDirectory: File? = null,
+    workingDirectory: File = projectDir,
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ) {
     writeSettings(
@@ -171,7 +171,7 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
 
     beforeGradle()
 
-    val buildResult = run("printVersion", "--quiet", projectDir = workingDirectory)
+    val buildResult = run("printVersion", "--quiet", gradleProjectDir = workingDirectory)
 
     assertThat(buildResult.output.lines().first()).isEqualTo(expectedVersion)
   }
