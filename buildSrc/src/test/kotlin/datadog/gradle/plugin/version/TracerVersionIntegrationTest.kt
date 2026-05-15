@@ -90,6 +90,29 @@ class TracerVersionIntegrationTest {
   }
 
   @Test
+  fun `should increment minor from merged main version tag on feature branch`(@TempDir projectDir: File) {
+    val fixture = VersionPluginsFixture(projectDir)
+    fixture.assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      beforeGradle = {
+        fixture.initGitRepo()
+        fixture.exec("git", "tag", "v1.50.0", "-m", "")
+        fixture.exec("git", "switch", "-c", "feature")
+        File(projectDir, "feature.txt").writeText("feature")
+        fixture.exec("git", "add", "feature.txt")
+        fixture.exec("git", "commit", "-m", "Feature commit")
+        fixture.exec("git", "switch", "main")
+        File(projectDir, "main.txt").writeText("main")
+        fixture.exec("git", "add", "main.txt")
+        fixture.exec("git", "commit", "-m", "Main commit")
+        fixture.exec("git", "tag", "v1.52.0", "-m", "")
+        fixture.exec("git", "switch", "feature")
+        fixture.exec("git", "merge", "main", "--no-edit")
+      },
+    )
+  }
+
+  @Test
   fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`(@TempDir projectDir: File) {
     val fixture = VersionPluginsFixture(projectDir)
     fixture.assertTracerVersion(
@@ -102,6 +125,29 @@ class TracerVersionIntegrationTest {
         settings.appendText("\n// uncommitted change ")
         fixture.exec("git", "commit", "-am", "Another commit")
         settings.appendText("\n// An uncommitted modification")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment patch from first parent on release branch after main merge`(@TempDir projectDir: File) {
+    val fixture = VersionPluginsFixture(projectDir)
+    fixture.assertTracerVersion(
+      expectedVersion = "1.52.1-SNAPSHOT",
+      beforeGradle = {
+        fixture.initGitRepo()
+        fixture.exec("git", "tag", "v1.52.0", "-m", "")
+        fixture.exec("git", "switch", "-c", "release/v1.52.x")
+        File(projectDir, "release.txt").writeText("release")
+        fixture.exec("git", "add", "release.txt")
+        fixture.exec("git", "commit", "-m", "Release commit")
+        fixture.exec("git", "switch", "main")
+        File(projectDir, "main.txt").writeText("main")
+        fixture.exec("git", "add", "main.txt")
+        fixture.exec("git", "commit", "-m", "Main commit")
+        fixture.exec("git", "tag", "v1.53.0", "-m", "")
+        fixture.exec("git", "switch", "release/v1.52.x")
+        fixture.exec("git", "merge", "main", "--no-edit")
       },
     )
   }
