@@ -1,4 +1,6 @@
 pluginManagement {
+  includeBuild("gradle/build-convention-plugins")
+
   repositories {
     mavenLocal()
 
