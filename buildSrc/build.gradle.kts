@@ -1,20 +1,43 @@
+import org.gradle.api.attributes.java.TargetJvmVersion.TARGET_JVM_VERSION_ATTRIBUTE
+import org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8
+
 plugins {
   `java-gradle-plugin`
   `kotlin-dsl`
   `jvm-test-suite`
-  id("com.diffplug.spotless") version "8.4.0"
 }
 
-// The buildSrc still needs to target Java 8 as build time instrumentation and muzzle plugin
-// allow to schedule workers on different JDK version.
+// Compile with a modern JDK toolchain (21), but keep the emitted bytecode at Java 8.
+// Rationale: the build-time instrumentation and muzzle plugins schedule Gradle workers
+// on different JDK versions, including Java 8, so any class loaded from buildSrc must
+// remain Java 8 compatible.
 java {
+  toolchain {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+
   sourceCompatibility = JavaVersion.VERSION_1_8
   targetCompatibility = JavaVersion.VERSION_1_8
 }
 
+// Same split for Kotlin: compile on JDK 21 but target the Java 8 bytecode level so the
+// Kotlin output can be loaded by the same Java-8 workers described above.
 kotlin {
+  jvmToolchain(21)
+
   compilerOptions {
-    jvmTarget.set(org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_1_8)
+    jvmTarget.set(JVM_1_8)
+  }
+}
+
+// Advertise Java 17 as the target JVM version when *resolving* dependencies. Several
+// modern Gradle plugins (notably Spotless 8.x) publish only Java 17+ variants via Gradle
+// Module Metadata; without this attribute, resolution fails with "no matching variant"
+// because our targetCompatibility above declares Java 8. This affects dependency
+// resolution only — it does not change the bytecode level we emit, which stays at Java 8.
+configurations.configureEach {
+  if (isCanBeResolved) {
+    attributes.attribute(TARGET_JVM_VERSION_ATTRIBUTE, 17)
   }
 }
 
@@ -78,6 +101,7 @@ dependencies {
   implementation(gradleApi())
 
   implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.8")
+  implementation("com.diffplug.spotless:spotless-plugin-gradle:8.5.0")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")
