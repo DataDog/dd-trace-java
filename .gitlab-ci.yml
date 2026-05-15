@@ -407,7 +407,7 @@ spotless:
   stage: tests
   needs: []
   variables:
-    GRADLE_MEMORY_MAX: 6G
+    GRADLE_MEMORY_MAX: 8G
     GRADLE_WORKERS: 2
   script:
     - ./gradlew --version
