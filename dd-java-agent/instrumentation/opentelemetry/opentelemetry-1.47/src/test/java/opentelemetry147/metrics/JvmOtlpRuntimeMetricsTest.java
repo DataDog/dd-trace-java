@@ -103,14 +103,18 @@ public class JvmOtlpRuntimeMetricsTest {
 
     List<DataPointEntry> points = collector.points.get("jvm.memory.used");
     assertNotNull(points, "jvm.memory.used should have data points");
-    List<DataPointEntry> heapPoints =
+    DataPointEntry heapAggregate =
         points.stream()
-            .filter(p -> "heap".equals(p.attrs.get("jvm.memory.type")))
-            .collect(Collectors.toList());
-    assertFalse(heapPoints.isEmpty(), "jvm.memory.used should have heap data point");
+            .filter(
+                p ->
+                    "heap".equals(p.attrs.get("jvm.memory.type"))
+                        && p.attrs.get("jvm.memory.pool.name") == null)
+            .findFirst()
+            .orElse(null);
+    assertNotNull(heapAggregate, "jvm.memory.used should have a heap aggregate data point");
     assertTrue(
-        heapPoints.get(0).value.longValue() > 0,
-        "jvm.memory.used heap value should be positive, got " + heapPoints.get(0).value);
+        heapAggregate.value.longValue() > 0,
+        "jvm.memory.used heap aggregate should be positive, got " + heapAggregate.value);
   }
 
   @Test
