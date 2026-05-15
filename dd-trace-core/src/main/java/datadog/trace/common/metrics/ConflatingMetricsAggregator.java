@@ -330,7 +330,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             httpEndpoint,
             grpcStatusCode,
             tagAndDuration);
-    inbox.offer(snapshot);
+    if (!inbox.offer(snapshot)) {
+      healthMetrics.onStatsInboxFull();
+    }
     // force keep keys if there are errors
     return error;
   }

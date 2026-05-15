@@ -98,6 +98,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsDowngrades = new LongAdder();
 
   private final LongAdder statsAggregateDropped = new LongAdder();
+  private final LongAdder statsInboxFull = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -358,6 +359,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onStatsInboxFull() {
+    statsInboxFull.increment();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -374,6 +380,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] UNSET_TAG = new String[] {"priority:unset"};
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
+    private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
 
     private final long[] previousCounts = new long[51];
 
@@ -504,6 +511,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             "stats.dropped_aggregates",
             target.statsAggregateDropped,
             REASON_LRU_EVICTION_TAG);
+        reportIfChanged(
+            target.statsd,
+            "stats.dropped_aggregates",
+            target.statsInboxFull,
+            REASON_INBOX_FULL_TAG);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -637,6 +649,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nclientStatsProcessedTraces="
         + clientStatsProcessedTraces.sum()
         + "\nstatsAggregateDropped="
-        + statsAggregateDropped.sum();
+        + statsAggregateDropped.sum()
+        + "\nstatsInboxFull="
+        + statsInboxFull.sum();
   }
 }
