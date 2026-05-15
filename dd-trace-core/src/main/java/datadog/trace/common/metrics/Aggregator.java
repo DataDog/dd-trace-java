@@ -1,16 +1,26 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE_ADDER;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SERVICE_NAMES;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SPAN_KINDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.Pair;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,11 +31,8 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<Batch> batchPool;
   private final MessagePassingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final ConcurrentMap<MetricKey, Batch> pending;
-  private final Set<MetricKey> commonKeys;
   private final MetricWriter writer;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
@@ -41,20 +48,14 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics) {
     this(
         writer,
-        batchPool,
         inbox,
-        pending,
-        commonKeys,
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
@@ -64,28 +65,35 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics) {
     this.writer = writer;
-    this.batchPool = batchPool;
     this.inbox = inbox;
-    this.commonKeys = commonKeys;
     this.aggregates =
         new LRUCache<>(
-            new CommonKeyCleaner(commonKeys, healthMetrics),
-            maxAggregates * 4 / 3,
-            0.75f,
-            maxAggregates);
-    this.pending = pending;
+            new AggregateExpiry(healthMetrics), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
+  }
+
+  private static final class AggregateExpiry
+      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
+    private final HealthMetrics healthMetrics;
+
+    AggregateExpiry(HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+    }
+
+    @Override
+    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
+      if (expired.getValue().getHitCount() > 0) {
+        healthMetrics.onStatsAggregateDropped();
+      }
+    }
   }
 
   public void clearAggregates() {
@@ -129,18 +137,52 @@ final class Aggregator implements Runnable {
         } else {
           signal.ignore();
         }
-      } else if (item instanceof Batch && !stopped) {
-        Batch batch = (Batch) item;
-        MetricKey key = batch.getKey();
-        // important that it is still *this* batch pending, must not remove otherwise
-        pending.remove(key, batch);
+      } else if (item instanceof SpanSnapshot && !stopped) {
+        SpanSnapshot snapshot = (SpanSnapshot) item;
+        MetricKey key = buildMetricKey(snapshot);
         AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        batch.contributeTo(aggregate);
+        aggregate.recordOneDuration(snapshot.tagAndDuration);
         dirty = true;
-        // return the batch for reuse
-        batchPool.offer(batch);
       }
     }
+  }
+
+  private static MetricKey buildMetricKey(SpanSnapshot s) {
+    return new MetricKey(
+        s.resourceName,
+        SERVICE_NAMES.computeIfAbsent(s.serviceName, UTF8_ENCODE),
+        s.operationName,
+        s.serviceNameSource,
+        s.spanType,
+        s.httpStatusCode,
+        s.synthetic,
+        s.traceRoot,
+        SPAN_KINDS.computeIfAbsent(s.spanKind, UTF8BytesString::create),
+        materializePeerTags(s.peerTagPairs),
+        s.httpMethod,
+        s.httpEndpoint,
+        s.grpcStatusCode);
+  }
+
+  private static List<UTF8BytesString> materializePeerTags(String[] pairs) {
+    if (pairs == null || pairs.length == 0) {
+      return Collections.emptyList();
+    }
+    if (pairs.length == 2) {
+      // single-entry fast path (matches the original singletonList shape for INTERNAL spans)
+      return Collections.singletonList(encodePeerTag(pairs[0], pairs[1]));
+    }
+    List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
+    for (int i = 0; i < pairs.length; i += 2) {
+      tags.add(encodePeerTag(pairs[i], pairs[i + 1]));
+    }
+    return tags;
+  }
+
+  private static UTF8BytesString encodePeerTag(String name, String value) {
+    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
+    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
   }
 
   private void report(long when, SignalItem signal) {
@@ -177,32 +219,11 @@ final class Aggregator implements Runnable {
       AggregateMetric metric = pair.getValue();
       if (metric.getHitCount() == 0) {
         it.remove();
-        commonKeys.remove(pair.getKey());
       }
     }
   }
 
   private long wallClockTime() {
     return MILLISECONDS.toNanos(System.currentTimeMillis());
-  }
-
-  private static final class CommonKeyCleaner
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-
-    private final Set<MetricKey> commonKeys;
-    private final HealthMetrics healthMetrics;
-
-    private CommonKeyCleaner(Set<MetricKey> commonKeys, HealthMetrics healthMetrics) {
-      this.commonKeys = commonKeys;
-      this.healthMetrics = healthMetrics;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      commonKeys.remove(expired.getKey());
-      if (expired.getValue().getHitCount() > 0) {
-        healthMetrics.onStatsAggregateDropped();
-      }
-    }
   }
 }

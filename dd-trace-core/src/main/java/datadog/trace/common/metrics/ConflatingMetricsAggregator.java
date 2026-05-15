@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
-import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
@@ -33,13 +32,11 @@ import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
@@ -54,18 +51,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
-  private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
-      DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> SERVICE_NAMES = DDCaches.newFixedSizeCache(32);
 
-  private static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<
+  static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS = DDCaches.newFixedSizeCache(16);
+  static final DDCache<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE =
           DDCaches.newFixedSizeCache(
               64); // it can be unbounded since those values are returned by the agent and should be
   // under control. 64 entries is enough in this case to contain all the peer tags.
-  private static final Function<
+  static final Function<
           String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
       PEER_TAGS_CACHE_ADDER =
           key ->
@@ -89,9 +84,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       SpanKindFilter.builder().includeInternal().build();
 
   private final Set<String> ignoredResources;
-  private final MessagePassingQueue<Batch> batchPool;
-  private final ConcurrentHashMap<MetricKey, Batch> pending;
-  private final ConcurrentHashMap<MetricKey, MetricKey> keys;
   private final Thread thread;
   private final MessagePassingQueue<InboxItem> inbox;
   private final Sink sink;
@@ -185,23 +177,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.ignoredResources = ignoredResources;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
-    this.batchPool = Queues.spmcArrayQueue(maxAggregates);
-    this.pending = new ConcurrentHashMap<>(maxAggregates * 4 / 3);
-    this.keys = new ConcurrentHashMap<>();
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.aggregator =
         new Aggregator(
-            metricWriter,
-            batchPool,
-            inbox,
-            pending,
-            keys.keySet(),
-            maxAggregates,
-            reportingInterval,
-            timeUnit,
-            healthMetric);
+            metricWriter, inbox, maxAggregates, reportingInterval, timeUnit, healthMetric);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -328,97 +309,69 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     // CharSequence default keeps unsafeGetTag's generic at CharSequence so UTF8BytesString
     // tag values don't trigger a ClassCastException on the String assignment.
     final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
-    MetricKey newKey =
-        new MetricKey(
+
+    boolean error = span.getError() > 0;
+    long tagAndDuration =
+        span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
+
+    SpanSnapshot snapshot =
+        new SpanSnapshot(
             span.getResourceName(),
-            SERVICE_NAMES.computeIfAbsent(span.getServiceName(), UTF8_ENCODE),
+            span.getServiceName(),
             span.getOperationName(),
             span.getServiceNameSource(),
             spanType,
             span.getHttpStatusCode(),
             isSynthetic(span),
             span.getParentId() == 0,
-            SPAN_KINDS.computeIfAbsent(
-                spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span),
+            spanKind,
+            extractPeerTagPairs(span),
             httpMethod,
             httpEndpoint,
-            grpcStatusCode);
-    MetricKey key = keys.putIfAbsent(newKey, newKey);
-    if (null == key) {
-      key = newKey;
-    }
-    long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
-    long durationNanos = span.getDurationNano();
-    Batch batch = pending.get(key);
-    if (null != batch) {
-      // there is a pending batch, try to win the race to add to it
-      // returning false means that either the batch can't take any
-      // more data, or it has already been consumed
-      if (batch.add(tag, durationNanos)) {
-        // added to a pending batch prior to consumption,
-        // so skip publishing to the queue (we also know
-        // the key isn't rare enough to override the sampler)
-        return false;
-      }
-      // recycle the older key
-      key = batch.getKey();
-    }
-    batch = newBatch(key);
-    batch.add(tag, durationNanos);
-    // overwrite the last one if present, it was already full
-    // or had been consumed by the time we tried to add to it
-    pending.put(key, batch);
-    // must offer to the queue after adding to pending
-    inbox.offer(batch);
+            grpcStatusCode,
+            tagAndDuration);
+    inbox.offer(snapshot);
     // force keep keys if there are errors
-    return span.getError() > 0;
+    return error;
   }
 
-  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span) {
+  private String[] extractPeerTagPairs(CoreSpan<?> span) {
     if (span.isKind(PEER_AGGREGATION_KINDS)) {
       final Set<String> eligiblePeerTags = features.peerTags();
-      List<UTF8BytesString> peerTags = null;
+      String[] pairs = null;
+      int count = 0;
       for (String peerTag : eligiblePeerTags) {
         Object value = span.unsafeGetTag(peerTag);
         if (value != null) {
-          final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-              cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
-          if (peerTags == null) {
-            peerTags = new ArrayList<>(eligiblePeerTags.size());
+          if (pairs == null) {
+            // pairs are flattened [name, value, ...]; size for worst case
+            pairs = new String[eligiblePeerTags.size() * 2];
           }
-          peerTags.add(
-              cacheAndCreator
-                  .getLeft()
-                  .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
+          pairs[count++] = peerTag;
+          pairs[count++] = value.toString();
         }
       }
-      return peerTags == null ? Collections.emptyList() : peerTags;
+      if (pairs == null) {
+        return null;
+      }
+      if (count < pairs.length) {
+        String[] trimmed = new String[count];
+        System.arraycopy(pairs, 0, trimmed, 0, count);
+        return trimmed;
+      }
+      return pairs;
     } else if (span.isKind(INTERNAL_KIND)) {
       // in this case only the base service should be aggregated if present
       final Object baseService = span.unsafeGetTag(BASE_SERVICE);
       if (baseService != null) {
-        final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
-            cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
-        return Collections.singletonList(
-            cacheAndCreator
-                .getLeft()
-                .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
+        return new String[] {BASE_SERVICE, baseService.toString()};
       }
     }
-    return Collections.emptyList();
+    return null;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
     return span.getOrigin() != null && SYNTHETICS_ORIGIN.equals(span.getOrigin().toString());
-  }
-
-  private Batch newBatch(MetricKey key) {
-    Batch batch = batchPool.poll();
-    if (null == batch) {
-      return new Batch(key);
-    }
-    return batch.reset(key);
   }
 
   public void stop() {
@@ -463,8 +416,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      this.pending.clear();
-      this.batchPool.clear();
       this.inbox.clear();
       this.aggregator.clearAggregates();
     }
