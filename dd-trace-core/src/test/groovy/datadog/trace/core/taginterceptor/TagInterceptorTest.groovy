@@ -38,7 +38,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    def span = tracer.buildSpan("some span").withTag(tag, name).start()
+    def span = tracer.buildSpan("datadog", "some span").withTag(tag, name).start()
     span.finish()
 
     then:
@@ -73,7 +73,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    def span = tracer.buildSpan("some span").start()
+    def span = tracer.buildSpan("datadog", "some span").start()
     span.finish()
 
     then:
@@ -92,7 +92,7 @@ class TagInterceptorTest extends DDCoreSpecification {
   def "set service name from servlet.context with context '#context'"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag(DDTags.SERVICE_NAME, serviceName)
     span.setTag("servlet.context", context)
 
@@ -118,7 +118,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     when:
     injectSysConfig("service", serviceName)
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag("servlet.context", context)
 
     then:
@@ -153,7 +153,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    def span = tracer.buildSpan("some span").start()
+    def span = tracer.buildSpan("datadog", "some span").start()
     span.setTag("servlet.context", context)
     span.finish()
 
@@ -192,7 +192,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       Collections.emptySet(), new RuleFlags(), jeeActive))
       .build()
     when:
-    def span = tracer.buildSpan("some span").start()
+    def span = tracer.buildSpan("datadog", "some span").start()
     span.setTag(InstrumentationTags.SERVLET_CONTEXT, "some-context")
     span.finish()
 
@@ -213,7 +213,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
-    def span = tracer.buildSpan("some span")
+    def span = tracer.buildSpan("datadog", "some span")
       .withTag(Tags.PEER_SERVICE, "peer-service")
       .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
       .start()
@@ -231,7 +231,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
-    def span = tracer.buildSpan("some span").start()
+    def span = tracer.buildSpan("datadog", "some span").start()
     span.setTag(Tags.PEER_SERVICE, "peer-service")
     span.setTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
     span.finish()
@@ -249,7 +249,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
-    def span = tracer.buildSpan("some span")
+    def span = tracer.buildSpan("datadog", "some span")
       .withTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
       .withTag(Tags.PEER_SERVICE, "peer-service")
       .start()
@@ -271,7 +271,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = createSplittingTracer(Tags.MESSAGE_BUS_DESTINATION)
 
     when:
-    def span = tracer.buildSpan("some span").start()
+    def span = tracer.buildSpan("datadog", "some span").start()
     span.setTag(Tags.MESSAGE_BUS_DESTINATION, "some-queue")
     span.setTag(Tags.PEER_SERVICE, "peer-service")
     span.finish()
@@ -288,7 +288,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
 
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag(DDTags.RESOURCE_NAME, name)
     span.finish()
     writer.waitForTraces(1)
@@ -308,7 +308,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
 
-    def span = tracer.buildSpan("test").withResourceName("keep").start()
+    def span = tracer.buildSpan("datadog", "test").withResourceName("keep").start()
     span.setTag(DDTags.RESOURCE_NAME, null)
     span.finish()
     writer.waitForTraces(1)
@@ -323,7 +323,7 @@ class TagInterceptorTest extends DDCoreSpecification {
   def "set span type"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setSpanType(type)
     span.finish()
 
@@ -341,7 +341,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     when:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag(DDTags.SPAN_TYPE, type)
     span.finish()
     writer.waitForTraces(1)
@@ -360,7 +360,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     when:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
 
     then:
     span.getTag(ANALYTICS_SAMPLE_RATE) == null
@@ -399,7 +399,7 @@ class TagInterceptorTest extends DDCoreSpecification {
   def "set priority sampling via tag"() {
     when:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag(tag, value)
 
     then:
@@ -443,7 +443,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     when:
     def writer = new ListWriter()
     def tracer = tracerBuilder().writer(writer).build()
-    def span = tracer.buildSpan("test").start()
+    def span = tracer.buildSpan("datadog", "test").start()
     span.setTag(Tags.ERROR, error)
     span.finish()
     writer.waitForTraces(1)
@@ -466,7 +466,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
 
     when:
-    def span = tracer.buildSpan("interceptor.test").withTag(name, value).start()
+    def span = tracer.buildSpan("datadog", "interceptor.test").withTag(name, value).start()
     span.finish()
     writer.waitForTraces(1)
 
@@ -489,7 +489,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     def tracer = tracerBuilder().writer(writer).build()
 
     when:
-    def span = tracer.buildSpan("decorator.test").withTag("sn.tag1", "some val").start()
+    def span = tracer.buildSpan("datadog", "decorator.test").withTag("sn.tag1", "some val").start()
     span.finish()
     writer.waitForTraces(1)
 
@@ -497,13 +497,13 @@ class TagInterceptorTest extends DDCoreSpecification {
     span.serviceName == "some val"
 
     when:
-    span = tracer.buildSpan("decorator.test").withTag("servlet.context", "/my-servlet").start()
+    span = tracer.buildSpan("datadog", "decorator.test").withTag("servlet.context", "/my-servlet").start()
 
     then:
     span.serviceName == "my-servlet"
 
     when:
-    span = tracer.buildSpan("decorator.test").withTag("error", "true").start()
+    span = tracer.buildSpan("datadog", "decorator.test").withTag("error", "true").start()
     span.finish()
     writer.waitForTraces(2)
 
@@ -511,7 +511,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     span.error
 
     when:
-    span = tracer.buildSpan("decorator.test").withTag(Tags.DB_STATEMENT, "some-statement").start()
+    span = tracer.buildSpan("datadog", "decorator.test").withTag(Tags.DB_STATEMENT, "some-statement").start()
     span.finish()
     writer.waitForTraces(3)
 
@@ -533,7 +533,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    def span = tracer.buildSpan("some span").withTag(DDTags.SERVICE_NAME, "other-service").start()
+    def span = tracer.buildSpan("datadog", "some span").withTag(DDTags.SERVICE_NAME, "other-service").start()
     span.finish()
 
     then:
@@ -561,7 +561,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    def span = tracer.buildSpan("some span").withTag(tag, name).start()
+    def span = tracer.buildSpan("datadog", "some span").withTag(tag, name).start()
     span.finish()
 
     then:
@@ -585,11 +585,11 @@ class TagInterceptorTest extends DDCoreSpecification {
       .sampler(new AllSampler())
       .build()
 
-    AgentSpan parent = tracer.buildSpan("parent")
+    AgentSpan parent = tracer.buildSpan("datadog", "parent")
       .withServiceName("parent").start()
 
     when: "the service name doesn't match the parent"
-    AgentSpan child = tracer.buildSpan("child")
+    AgentSpan child = tracer.buildSpan("datadog", "child")
       .withServiceName("child")
       .asChildOf(parent)
       .start()
@@ -622,7 +622,7 @@ class TagInterceptorTest extends DDCoreSpecification {
       .build()
 
     when:
-    AgentSpan span = tracer.buildSpan("test").start()
+    AgentSpan span = tracer.buildSpan("datadog", "test").start()
 
     then:
     span.getSamplingPriority() == null
@@ -649,7 +649,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
-    def span = tracer.buildSpan("fakeOperation").start()
+    def span = tracer.buildSpan("datadog", "fakeOperation").start()
     meta.each {
       span.setTag(it.key, (String) it.value)
     }
@@ -681,7 +681,7 @@ class TagInterceptorTest extends DDCoreSpecification {
     setup:
     def tracer = tracerBuilder().writer(new ListWriter()).build()
 
-    def span = tracer.buildSpan("fakeOperation").start()
+    def span = tracer.buildSpan("datadog", "fakeOperation").start()
 
 
     when:
@@ -696,6 +696,7 @@ class TagInterceptorTest extends DDCoreSpecification {
   }
 
   void "when interceptServiceName extraServiceProvider is called"() {
+    def origServiceNameCollector = ServiceNameCollector.INSTANCE
     setup:
     final extraServiceProvider = Mock(ServiceNameCollector)
     ServiceNameCollector.INSTANCE = extraServiceProvider
@@ -708,9 +709,13 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     then:
     1 * extraServiceProvider.addService("some-service")
+
+    cleanup:
+    ServiceNameCollector.INSTANCE = origServiceNameCollector
   }
 
   void "when interceptServletContext extraServiceProvider is called"() {
+    def origServiceNameCollector = ServiceNameCollector.INSTANCE
     setup:
     final extraServiceProvider = Mock(ServiceNameCollector)
     ServiceNameCollector.INSTANCE = extraServiceProvider
@@ -723,6 +728,9 @@ class TagInterceptorTest extends DDCoreSpecification {
 
     then:
     1 * extraServiceProvider.addService(expected)
+
+    cleanup:
+    ServiceNameCollector.INSTANCE = origServiceNameCollector
 
     where:
     value   | expected

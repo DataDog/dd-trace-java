@@ -39,7 +39,7 @@ class ExecutionSettingsTest extends DDSpecification {
       new HashSet<>([]),
       new HashSet<>([]),
       LineDiff.EMPTY,
-      false),
+      ConfigurationErrors.NONE),
 
       new ExecutionSettings(
       true,
@@ -60,7 +60,7 @@ class ExecutionSettingsTest extends DDSpecification {
       new HashSet<>([new TestFQN("suite", "disabled")]),
       new HashSet<>([new TestFQN("suite", "attemptToFix")]),
       new LineDiff(["path": lines()]),
-      false
+      ConfigurationErrors.NONE
       ),
 
       new ExecutionSettings(
@@ -86,7 +86,7 @@ class ExecutionSettingsTest extends DDSpecification {
       new HashSet<>([new TestFQN("suite", "disabled"), new TestFQN("another", "another-disabled")]),
       new HashSet<>([new TestFQN("suite", "attemptToFix"), new TestFQN("another", "another-attemptToFix")]),
       new LineDiff(["path": lines(1, 2, 3)]),
-      false
+      new ConfigurationErrors(false, true, false, true, false)
       ),
 
       new ExecutionSettings(
@@ -112,7 +112,7 @@ class ExecutionSettingsTest extends DDSpecification {
       new HashSet<>([new TestFQN("suite", "disabled"), new TestFQN("another", "another-disabled")]),
       new HashSet<>([new TestFQN("suite", "attemptToFix"), new TestFQN("another", "another-attemptToFix")]),
       new LineDiff(["path": lines(1, 2, 3), "path-b": lines(1, 2, 128, 257, 999)]),
-      true
+      new ConfigurationErrors(true, true, true, true, true)
       ),
     ]
   }

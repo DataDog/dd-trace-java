@@ -1,5 +1,9 @@
 package datadog.trace.bootstrap.otel.metrics;
 
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_GAUGE;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
+
 import javax.annotation.Nullable;
 
 public final class OtelInstrumentBuilder {
@@ -91,11 +95,11 @@ public final class OtelInstrumentBuilder {
   private OtelInstrumentType observableType(OtelInstrumentType instrumentType) {
     switch (instrumentType) {
       case COUNTER:
-        return OtelInstrumentType.OBSERVABLE_COUNTER;
+        return OBSERVABLE_COUNTER;
       case UP_DOWN_COUNTER:
-        return OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
+        return OBSERVABLE_UP_DOWN_COUNTER;
       case GAUGE:
-        return OtelInstrumentType.OBSERVABLE_GAUGE;
+        return OBSERVABLE_GAUGE;
       default:
         throw new IllegalArgumentException(instrumentType + " has no observable equivalent");
     }

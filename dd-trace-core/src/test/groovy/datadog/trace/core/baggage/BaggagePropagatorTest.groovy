@@ -222,4 +222,74 @@ class BaggagePropagatorTest extends DDSpecification {
     "key1=val1,key2=val2"           | "key1=val1,key2=val2"
     "key1=val1,key2=val2,key3=val3" | "key1=val1,key2=val2"
   }
+
+  def "test baggage extract items limit"() {
+    setup:
+    propagator = new BaggagePropagator(true, true, 2, DEFAULT_TRACE_BAGGAGE_MAX_BYTES) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : baggageHeader,
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then: 'parsing stops once the item limit is exceeded'
+    Baggage.fromContext(context).asMap() == baggageMap
+
+    where:
+    baggageHeader                   | baggageMap
+    "key1=val1"                     | [key1: "val1"]
+    "key1=val1,key2=val2"           | [key1: "val1", key2: "val2"]
+    "key1=val1,key2=val2,key3=val3" | [key1: "val1", key2: "val2"]
+  }
+
+  def "test baggage extract bytes limit"() {
+    setup:
+    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 20) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : baggageHeader,
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then: 'parsing stops once the byte limit is exceeded'
+    Baggage.fromContext(context).asMap() == baggageMap
+
+    where:
+    baggageHeader                   | baggageMap
+    "key1=val1"                     | [key1: "val1"]
+    "key1=val1,key2=val2"           | [key1: "val1", key2: "val2"]
+    "key1=val1,key2=val2,key3=val3" | [key1: "val1", key2: "val2"]
+  }
+
+  def "test baggage extract 0 item limit"() {
+    setup:
+    propagator = new BaggagePropagator(true, true, 0, DEFAULT_TRACE_BAGGAGE_MAX_BYTES) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : "key1=value1",
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then:
+    Baggage.fromContext(context) == null
+  }
+
+
+
+  def "test baggage extract 0 byte limit"() {
+    setup:
+    propagator = new BaggagePropagator(true, true, DEFAULT_TRACE_BAGGAGE_MAX_ITEMS, 0) //creating a new instance after injecting config
+    def headers = [
+      (BAGGAGE_KEY) : "key1=value1",
+    ]
+
+    when:
+    context = this.propagator.extract(context, headers, ContextVisitors.stringValuesMap())
+
+    then:
+    Baggage.fromContext(context) == null
+  }
 }

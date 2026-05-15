@@ -193,6 +193,68 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
     }
   }
 
+  def "sql analysis failure on missing table marks application span as error"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      sparkSession.sql("SELECT * FROM missing_table").show()
+    } catch (Exception ignored) {
+      // Expected: AnalysisException thrown by Catalyst before any Spark job is submitted
+    }
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark SQL Failed"
+          assert span.tags["error.message"] =~ /(?i).*missing_table.*/
+          assert span.tags["error.stack"] =~ /(?s).*AnalysisException.*/
+        }
+      }
+    }
+  }
+
+  def "DataFrame analysis failure on unresolved column marks application span as error"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local[2]")
+      .getOrCreate()
+
+    try {
+      // Triggers AnalysisException via Dataset.select() -> QueryExecution.assertAnalyzed(),
+      // NOT through SparkSession.sql(). This exercises the QueryExecutionFailureAdvice.
+      sparkSession.range(1).toDF("id").select("nonexistent_column")
+    } catch (Exception ignored) {
+      // Expected: AnalysisException thrown by Catalyst analysis
+    }
+    sparkSession.stop()
+
+    expect:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          resourceName "spark.application"
+          spanType "spark"
+          errored true
+          parent()
+          assert span.tags["error.type"] == "Spark SQL Failed"
+          assert span.tags["error.message"] =~ /(?i).*nonexistent_column.*/
+          assert span.tags["error.stack"] =~ /(?s).*AnalysisException.*/
+        }
+      }
+    }
+  }
+
   def "capture SparkSubmit.runMain() errors"() {
     setup:
     def sparkSession = SparkSession.builder()
@@ -374,6 +436,50 @@ abstract class AbstractSparkTest extends InstrumentationSpecification {
           assert span.tags["databricks_job_id"] == null
           assert span.tags["databricks_job_run_id"] == "8765"
           assert span.tags["databricks_task_run_id"] == null
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+        span {
+          operationName "spark.stage"
+          spanType "spark"
+          childOf(span(0))
+        }
+      }
+    }
+
+    cleanup:
+    sparkSession.stop()
+  }
+
+  def "fallback to jobGroup.id when spark.databricks.job.runId equals parentRunId on Databricks 18.2+"() {
+    setup:
+    def sparkSession = SparkSession.builder()
+      .config("spark.master", "local")
+      .config("spark.default.parallelism", "2")
+      .config("spark.sql.shuffle.partitions", "2")
+      .config("spark.databricks.sparkContextId", "some_id")
+      .getOrCreate()
+
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.id", "1234")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.runId", "5678") // Same as parentRunId
+    sparkSession.sparkContext().setLocalProperty("spark.jobGroup.id", "0000_job-1234-run-7890-action-0000")
+    sparkSession.sparkContext().setLocalProperty("spark.databricks.job.parentRunId", "5678")
+    TestSparkComputation.generateTestSparkComputation(sparkSession)
+
+    expect:
+    assertTraces(1) {
+      trace(3) {
+        span {
+          operationName "spark.job"
+          spanType "spark"
+          traceId 8944764253919609482G
+          parentSpanId 3503717452567411167G
+          assert span.tags["databricks_job_id"] == "1234"
+          assert span.tags["databricks_job_run_id"] == "5678"
+          assert span.tags["databricks_task_run_id"] == "7890"
         }
         span {
           operationName "spark.stage"

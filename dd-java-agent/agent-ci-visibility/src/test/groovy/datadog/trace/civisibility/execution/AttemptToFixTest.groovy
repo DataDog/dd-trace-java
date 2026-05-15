@@ -9,7 +9,7 @@ class AttemptToFixTest extends Specification {
 
   def "test attempt to fix exits on failure"() {
     setup:
-    def executionPolicy = new AttemptToFix(3, false)
+    def executionPolicy = new AttemptToFix(3)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
@@ -24,7 +24,7 @@ class AttemptToFixTest extends Specification {
 
   def "test attempt to fix succeeded all executions"() {
     setup:
-    def executionPolicy = new AttemptToFix(3, false)
+    def executionPolicy = new AttemptToFix(3)
 
     when:
     def outcome = executionPolicy.registerExecution(TestStatus.pass, 0)
@@ -55,20 +55,5 @@ class AttemptToFixTest extends Specification {
     !outcome3.failureSuppressed()
     outcome3.aggregation() == ExecutionAggregation.ONLY_PASSED
     outcome3.finalStatus() == TestStatus.pass
-  }
-
-  def "test attempt to fix suppresses failures when quarantined or disabled"() {
-    setup:
-    def executionPolicy = new AttemptToFix(3, true)
-
-    when:
-    def outcome = executionPolicy.registerExecution(TestStatus.fail, 0)
-
-    then:
-    outcome.retryReason() == null
-    outcome.lastExecution()
-    outcome.failureSuppressed()
-    outcome.aggregation() == ExecutionAggregation.ONLY_FAILED
-    outcome.finalStatus() == TestStatus.pass
   }
 }

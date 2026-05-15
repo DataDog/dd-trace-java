@@ -71,7 +71,7 @@ final class OtelLongUpDownCounter extends OtelInstrument implements LongUpDownCo
 
     @Override
     public ObservableLongMeasurement buildObserver() {
-      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongSumStorage);
+      return meter.registerObservableStorage(builder, OtelMetricStorage::newLongDeltaStorage);
     }
 
     @Override

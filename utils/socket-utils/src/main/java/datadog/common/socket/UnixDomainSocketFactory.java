@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.MINUTES;
 
 import datadog.environment.JavaVirtualMachine;
 import datadog.logging.RatelimitedLogger;
-import datadog.trace.api.Config;
 import java.io.File;
 import java.io.IOException;
 import java.net.InetAddress;
@@ -30,24 +29,29 @@ public final class UnixDomainSocketFactory extends SocketFactory {
   private final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, MINUTES);
 
   private final File path;
+  private final boolean useJdkUdsSocket;
+  private final boolean agentConfiguredUsingDefault;
 
-  public UnixDomainSocketFactory(final File path) {
+  public UnixDomainSocketFactory(
+      final File path, boolean isJdkSocketEnabled, boolean agentConfiguredUsingDefault) {
     this.path = path;
+    this.useJdkUdsSocket = isJdkSocketEnabled && JavaVirtualMachine.isJavaVersionAtLeast(16);
+    this.agentConfiguredUsingDefault = agentConfiguredUsingDefault;
   }
 
   @Override
   public Socket createSocket() throws IOException {
     try {
-      if (JDK_SUPPORTS_UDS && Config.get().isJdkSocketEnabled()) {
+      if (this.useJdkUdsSocket) {
         try {
-          return new TunnelingJdkSocket(path.toPath());
+          return new TunnelingJdkSocket(this.path.toPath());
         } catch (Throwable ignore) {
           // fall back to jnr-unixsocket library
         }
       }
-      return new TunnelingUnixSocket(path, UnixSocketChannel.open());
+      return new TunnelingUnixSocket(this.path, UnixSocketChannel.open());
     } catch (Throwable e) {
-      if (Config.get().isAgentConfiguredUsingDefault()) {
+      if (this.agentConfiguredUsingDefault) {
         // fall back to port if we previously auto-discovered this socket file
         if (log.isDebugEnabled()) {
           rlLog.warn("Problem opening {}, using port instead", path, e);

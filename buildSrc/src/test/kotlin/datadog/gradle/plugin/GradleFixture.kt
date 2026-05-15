@@ -151,8 +151,10 @@ internal open class GradleFixture(protected val projectDir: File) {
   /**
    * Creates or gets a file in the project directory, ensuring parent directories exist.
    */
-  protected fun file(path: String): File =
+  protected fun file(path: String, mkdirs: Boolean = true): File =
     File(projectDir, path).also { file ->
-      file.parentFile?.mkdirs()
+      if (mkdirs) {
+        file.parentFile?.mkdirs()
+      }
     }
 }

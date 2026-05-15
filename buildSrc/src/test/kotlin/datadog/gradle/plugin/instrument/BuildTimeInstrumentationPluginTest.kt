@@ -21,15 +21,17 @@ class BuildTimeInstrumentationPluginTest {
       id 'dd-trace-java.build-time-instrumentation'
     }
 
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     repositories {
       mavenCentral()
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3' // just to build TestPlugin
+      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8' // just to build TestPlugin
     }
 
     buildTimeInstrumentation.plugins = [
@@ -76,15 +78,17 @@ class BuildTimeInstrumentationPluginTest {
         id 'dd-trace-java.build-time-instrumentation'
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3'
+        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       }
 
       buildTimeInstrumentation {
@@ -121,15 +125,17 @@ class BuildTimeInstrumentationPluginTest {
         id 'dd-trace-java.build-time-instrumentation'
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.3'
+        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
       }
 
       buildTimeInstrumentation {

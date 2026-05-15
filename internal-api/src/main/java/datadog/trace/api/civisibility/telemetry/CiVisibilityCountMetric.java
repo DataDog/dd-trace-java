@@ -168,10 +168,10 @@ public enum CiVisibilityCountMetric {
   /** The number of tests requests sent to the flaky tests endpoint that errored */
   FLAKY_TESTS_REQUEST_ERRORS("flaky_tests.request_errors", ErrorType.class, StatusCode.class),
   /** The number of requests sent to the test management tests endpoint */
-  TEST_MANAGEMENT_TESTS_REQUEST("test_management.request", RequestCompressed.class),
+  TEST_MANAGEMENT_TESTS_REQUEST("test_management_tests.request", RequestCompressed.class),
   /** The number of tests requests sent to the test management tests endpoint that errored */
   TEST_MANAGEMENT_TESTS_REQUEST_ERRORS(
-      "test_management.request_errors", ErrorType.class, StatusCode.class),
+      "test_management_tests.request_errors", ErrorType.class, StatusCode.class),
   /** The number of coverage upload requests sent */
   COVERAGE_UPLOAD_REQUEST("coverage_upload.request", RequestCompressed.class),
   /** The number of coverage upload requests that errored */

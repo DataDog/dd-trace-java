@@ -497,11 +497,10 @@ public final class DatadogProfiler {
     return contextSetter.offsetOf(attribute);
   }
 
-  @SuppressWarnings("deprecation")
-  public void setSpanContext(long spanId, long rootSpanId) {
+  public void setSpanContext(long rootSpanId, long spanId, long traceIdHigh, long traceIdLow) {
     debugLogging(rootSpanId);
     try {
-      profiler.setContext(spanId, rootSpanId);
+      profiler.setContext(rootSpanId, spanId, traceIdHigh, traceIdLow);
     } catch (Throwable e) {
       log.debug("Failed to clear context", e);
     }
@@ -510,7 +509,7 @@ public final class DatadogProfiler {
   public void clearSpanContext() {
     debugLogging(0L);
     try {
-      profiler.clearContext();
+      profiler.setContext(0L, 0L, 0L, 0L);
     } catch (Throwable e) {
       log.debug("Failed to set context", e);
     }
@@ -544,10 +543,9 @@ public final class DatadogProfiler {
   }
 
   public boolean setContextValue(int offset, CharSequence value) {
-    if (contextSetter != null && offset >= 0) {
+    if (contextSetter != null && offset >= 0 && value != null) {
       try {
-        return contextSetter.setContextValue(
-            offset, value != null ? value.toString() : null);
+        return contextSetter.setContextValue(offset, value.toString());
       } catch (Throwable e) {
         log.debug("Failed to set context", e);
       }

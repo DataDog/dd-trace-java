@@ -944,6 +944,86 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "should report dropped aggregate to health metrics on LRU eviction"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    for (int i = 0; i < maxAggregates + 1; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.finishBucket() >> { latch.countDown() }
+    1 * healthMetrics.onStatsAggregateDropped()
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should not report dropped aggregate when evicted entry was already flushed"() {
+    setup:
+    int maxAggregates = 5
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when: "fill cache and flush — entries are cleared (hitCount=0) but stay in the LRU"
+    CountDownLatch latch1 = new CountDownLatch(1)
+    for (int i = 0; i < maxAggregates; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    latch1.await(2, SECONDS)
+
+    then:
+    1 * writer.finishBucket() >> { latch1.countDown() }
+
+    when: "publish new distinct spans — LRU evicts the cleared entries before the next report"
+    CountDownLatch latch2 = new CountDownLatch(1)
+    for (int i = maxAggregates; i < maxAggregates * 2; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    latch2.await(2, SECONDS)
+
+    then: "no drop metric because all evicted entries had hitCount=0 (already reported)"
+    1 * writer.finishBucket() >> { latch2.countDown() }
+    0 * healthMetrics.onStatsAggregateDropped()
+
+    cleanup:
+    aggregator.close()
+  }
+
   def "aggregate not updated in reporting interval not reported"() {
     setup:
     int maxAggregates = 10

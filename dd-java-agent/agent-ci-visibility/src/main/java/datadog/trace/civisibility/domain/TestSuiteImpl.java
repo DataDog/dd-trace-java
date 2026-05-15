@@ -5,7 +5,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.DDTags;
 import datadog.trace.api.civisibility.DDTestSuite;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
@@ -20,10 +19,10 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.civisibility.codeowners.Codeowners;
+import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
-import datadog.trace.civisibility.source.SourceResolutionException;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
@@ -42,6 +41,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final String moduleName;
   private final String testSuiteName;
   private final String itrCorrelationId;
+  private final boolean testSkippingEnabled;
   private final Class<?> testClass;
   private final InstrumentationType instrumentationType;
   private final TestFrameworkInstrumentation instrumentation;
@@ -54,7 +54,7 @@ public class TestSuiteImpl implements DDTestSuite {
   private final CoverageStore.Factory coverageStoreFactory;
   private final ExecutionResults executionResults;
   private final boolean parallelized;
-  private final boolean configurationError;
+  private final ConfigurationErrors configurationErrors;
   private final Collection<LibraryCapability> capabilities;
   private final Consumer<AgentSpan> onSpanFinish;
   private final SpanTagsPropagator tagsPropagator;
@@ -64,6 +64,7 @@ public class TestSuiteImpl implements DDTestSuite {
       String moduleName,
       String testSuiteName,
       String itrCorrelationId,
+      boolean testSkippingEnabled,
       @Nullable Class<?> testClass,
       @Nullable Long startTime,
       boolean parallelized,
@@ -77,13 +78,14 @@ public class TestSuiteImpl implements DDTestSuite {
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionResults executionResults,
-      boolean configurationError,
+      @Nonnull ConfigurationErrors configurationErrors,
       @Nonnull Collection<LibraryCapability> capabilities,
       Consumer<AgentSpan> onSpanFinish) {
     this.moduleSpanContext = moduleSpanContext;
     this.moduleName = moduleName;
     this.testSuiteName = testSuiteName;
     this.itrCorrelationId = itrCorrelationId;
+    this.testSkippingEnabled = testSkippingEnabled;
     this.parallelized = parallelized;
     this.instrumentationType = instrumentationType;
     this.instrumentation = instrumentation;
@@ -95,7 +97,7 @@ public class TestSuiteImpl implements DDTestSuite {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.executionResults = executionResults;
-    this.configurationError = configurationError;
+    this.configurationErrors = configurationErrors;
     this.capabilities = capabilities;
     this.onSpanFinish = onSpanFinish;
 
@@ -135,9 +137,11 @@ public class TestSuiteImpl implements DDTestSuite {
 
     testDecorator.afterStart(span);
 
-    if (configurationError) {
-      span.setTag(DDTags.CI_LIBRARY_CONFIGURATION_ERROR, true);
+    if (testSkippingEnabled) {
+      span.setTag(Tags.TEST_ITR_TESTS_SKIPPING_ENABLED, true);
     }
+
+    configurationErrors.applyTags(span);
 
     if (!parallelized) {
       activateSpanWithoutScope(span);
@@ -159,17 +163,13 @@ public class TestSuiteImpl implements DDTestSuite {
       return;
     }
 
-    String sourcePath;
-    try {
-      sourcePath = sourcePathResolver.getSourcePath(testClass);
-      if (sourcePath == null || sourcePath.isEmpty()) {
-        return;
-      }
-    } catch (SourceResolutionException e) {
-      log.debug("Could not populate source path for {}", testClass, e);
+    Collection<String> sourcePaths = sourcePathResolver.getSourcePaths(testClass);
+    if (sourcePaths.size() != 1) {
+      log.debug("Could not populate source path for {}", testClass);
       return;
     }
 
+    String sourcePath = sourcePaths.iterator().next();
     span.setTag(Tags.TEST_SOURCE_FILE, sourcePath);
 
     LinesResolver.Lines testClassLines = linesResolver.getClassLines(testClass);
@@ -259,6 +259,7 @@ public class TestSuiteImpl implements DDTestSuite {
         testName,
         testParameters,
         itrCorrelationId,
+        testSkippingEnabled,
         startTime,
         testClass,
         testMethod,
@@ -272,7 +273,7 @@ public class TestSuiteImpl implements DDTestSuite {
         codeowners,
         coverageStoreFactory,
         executionResults,
-        configurationError,
+        configurationErrors,
         capabilities,
         tagsPropagator::propagateStatus);
   }

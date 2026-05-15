@@ -2,13 +2,13 @@
 # NOTE: Ranges for some versions are needed to allow instrumentation tests to specify the desired version.
 
 # Build
-develocity = "4.2.2"
+develocity = "4.4.1"
 forbiddenapis = "3.10"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
-ddprof = "1.40.0"
-dogstatsd = "4.4.3"
+ddprof = "1.42.0"
+dogstatsd = "4.4.5"
 okhttp = "3.12.15" # Datadog fork to support Java 7
 
 # Languages
@@ -30,7 +30,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9.1"
-byte-buddy = "1.18.3"
+byte-buddy = "1.18.8"
 instrument-java = "0.0.3"
 
 # Benchmarks
@@ -53,7 +53,7 @@ commons = "3.2"
 guava = "[16.0,20.0]" # Last version to support Java 7
 javaparser = "3.24.4"
 jctools = "4.0.6"
-lz4 = "1.7.1"
+lz4 = "1.11.0"
 
 # Logging
 slf4j = "1.7.30"
@@ -70,6 +70,7 @@ junit5 = "5.14.1"
 junit-platform = "1.14.1"
 mockito = "4.4.0"
 spock = "2.4-groovy-3.0"
+json-unit = "2.40.1"
 tabletest = "1.2.1"
 testcontainers = "1.21.4"
 
@@ -117,7 +118,6 @@ instrument-java = { module = "com.datadoghq:dd-instrument-java", version.ref = "
 # Profiling
 jmc-common = { module = "org.openjdk.jmc:common", version.ref = "jmc" }
 jmc-flightrecorder = { module = "org.openjdk.jmc:flightrecorder", version.ref = "jmc" }
-jafar-parser = { module = "io.btrace:jafar-parser", version.ref = "jafar" }
 jafar-tools = { module = "io.btrace:jafar-tools", version.ref = "jafar" }
 
 # Web & Network
@@ -135,7 +135,7 @@ guava = { module = "com.google.guava:guava", version.ref = "guava" }
 javaparser = {module = "com.github.javaparser:javaparser-core", version.ref = "javaparser"}
 javaparser-symbol-solver = {module = "com.github.javaparser:javaparser-symbol-solver-core", version.ref = "javaparser"}
 jctools = { module = "org.jctools:jctools-core-jdk11", version.ref = "jctools" }
-lz4 = { module = "org.lz4:lz4-java", version.ref = "lz4" }
+lz4 = { module = "at.yawk.lz4:lz4-java", version.ref = "lz4" }
 
 # Logging
 logback-classic = { module = "ch.qos.logback:logback-classic", version.ref = "logback" }
@@ -151,6 +151,7 @@ moshi = { module = "com.squareup.moshi:moshi", version.ref = "moshi" }
 
 # Testing
 assertj-core = { module = "org.assertj:assertj-core", version.ref = "assertj" }
+json-unit-assertj = { module = "net.javacrumbs.json-unit:json-unit-assertj", version.ref = "json-unit" }
 junit4 = { module = "junit:junit", version.ref = "junit4" }
 junit-jupiter = { module = "org.junit.jupiter:junit-jupiter", version.ref = "junit5" }
 junit-jupiter-params = { module = "org.junit.jupiter:junit-jupiter-params", version.ref = "junit5" }

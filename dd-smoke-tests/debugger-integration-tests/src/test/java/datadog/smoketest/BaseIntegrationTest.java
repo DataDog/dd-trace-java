@@ -9,8 +9,10 @@ import com.datadog.debugger.agent.JsonSnapshotSerializer;
 import com.datadog.debugger.agent.ProbeStatus;
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
+import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
+import com.datadog.debugger.probe.TriggerProbe;
 import com.datadog.debugger.sink.Snapshot;
 import com.datadog.debugger.util.MoshiHelper;
 import com.datadog.debugger.util.MoshiSnapshotTestHelper;
@@ -89,7 +91,6 @@ public abstract class BaseIntegrationTest {
   protected static final MockResponse EMPTY_200_RESPONSE = new MockResponse().setResponseCode(200);
 
   private static final ByteString DIAGNOSTICS_STR = ByteString.encodeUtf8("{\"diagnostics\":");
-  private static final String LD_CONFIG_ID = UUID.randomUUID().toString();
   private static final String APM_CONFIG_ID = UUID.randomUUID().toString();
   public static final String LIVE_DEBUGGING_PRODUCT = "LIVE_DEBUGGING";
   public static final String APM_TRACING_PRODUCT = "APM_TRACING";
@@ -161,7 +162,9 @@ public abstract class BaseIntegrationTest {
             "-Ddd.service.name=" + getAppId(),
             "-Ddd.profiling.enabled=false",
             "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=info",
+            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.agent.core=debug",
             "-Ddatadog.slf4j.simpleLogger.log.com.datadog.debugger=debug",
+            "-Ddatadog.slf4j.simpleLogger.log.datadog.trace.bootstrap.debugger=debug",
             "-Ddatadog.slf4j.simpleLogger.log.datadog.remoteconfig=debug",
             "-Ddd.jmxfetch.start-delay=0",
             "-Ddd.jmxfetch.enabled=false",
@@ -441,14 +444,23 @@ public abstract class BaseIntegrationTest {
       configuration = createConfig(Collections.emptyList());
     }
     try {
-      JsonAdapter<Configuration> adapter =
-          MoshiConfigTestHelper.createMoshiConfig().adapter(Configuration.class);
-      String liveDebuggingJson = adapter.toJson(configuration);
-      LOG.info("Sending Live Debugging json: {}", liveDebuggingJson);
+      JsonAdapter<LogProbe> logAdapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(LogProbe.class);
+      JsonAdapter<MetricProbe> metricAdapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(MetricProbe.class);
+      JsonAdapter<SpanProbe> spanAdapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(SpanProbe.class);
+      JsonAdapter<SpanDecorationProbe> spanDecorationAdapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(SpanDecorationProbe.class);
+      JsonAdapter<TriggerProbe> triggerAdapter =
+          MoshiConfigTestHelper.createMoshiConfig().adapter(TriggerProbe.class);
       List<RemoteConfigHelper.RemoteConfig> remoteConfigs = new ArrayList<>();
-      remoteConfigs.add(
-          new RemoteConfigHelper.RemoteConfig(
-              LIVE_DEBUGGING_PRODUCT, liveDebuggingJson, LD_CONFIG_ID));
+      addToRemoteConfig(configuration.getLogProbes(), logAdapter, remoteConfigs);
+      addToRemoteConfig(configuration.getMetricProbes(), metricAdapter, remoteConfigs);
+      addToRemoteConfig(configuration.getSpanProbes(), spanAdapter, remoteConfigs);
+      addToRemoteConfig(
+          configuration.getSpanDecorationProbes(), spanDecorationAdapter, remoteConfigs);
+      addToRemoteConfig(configuration.getTriggerProbes(), triggerAdapter, remoteConfigs);
       if (configOverrides != null) {
         JsonAdapter<ConfigOverrides> configAdapter =
             new Moshi.Builder().build().adapter(ConfigOverrides.class);
@@ -463,6 +475,38 @@ public abstract class BaseIntegrationTest {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  private static <T extends ProbeDefinition> void addToRemoteConfig(
+      Collection<T> probes,
+      JsonAdapter<T> probeAdapter,
+      List<RemoteConfigHelper.RemoteConfig> remoteConfigs) {
+    for (T probe : probes) {
+      String json = probeAdapter.toJson(probe);
+      LOG.info("Sending {} json: {}", probe.getClass().getSimpleName(), json);
+      remoteConfigs.add(
+          new RemoteConfigHelper.RemoteConfig(
+              LIVE_DEBUGGING_PRODUCT, json, getProbePrefix(probe) + UUID.randomUUID()));
+    }
+  }
+
+  private static String getProbePrefix(ProbeDefinition probeDefinition) {
+    if (probeDefinition instanceof LogProbe) {
+      return "logProbe_";
+    }
+    if (probeDefinition instanceof MetricProbe) {
+      return "metricProbe_";
+    }
+    if (probeDefinition instanceof SpanProbe) {
+      return "spanProbe_";
+    }
+    if (probeDefinition instanceof SpanDecorationProbe) {
+      return "spanDecorationProbe_";
+    }
+    if (probeDefinition instanceof TriggerProbe) {
+      return "triggerProbe_";
+    }
+    return "";
   }
 
   private Configuration getCurrentConfiguration() {
@@ -592,7 +636,7 @@ public abstract class BaseIntegrationTest {
   }
 
   protected static class MockDispatcher extends okhttp3.mockwebserver.QueueDispatcher {
-    private Function<RecordedRequest, MockResponse> dispatcher;
+    private volatile Function<RecordedRequest, MockResponse> dispatcher;
 
     @Override
     public MockResponse dispatch(RecordedRequest request) throws InterruptedException {

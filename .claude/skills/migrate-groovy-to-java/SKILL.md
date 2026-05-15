@@ -12,7 +12,6 @@ Migrate test Groovy files to Java using JUnit 5
 2. Convert Groovy files to Java using JUnit 5
 3. Make sure the tests are still passing after migration and that the test count has not changed
 4. Remove Groovy files
-5. Add the migrated module path(s) to `.github/g2j-migrated-modules.txt`
 
 When converting Groovy code to Java code, make sure that:
 - The Java code generated is compatible with JDK 8
@@ -20,6 +19,7 @@ When converting Groovy code to Java code, make sure that:
 - `@TableTest` and `@MethodSource` may be combined on the same `@ParameterizedTest` when most cases are tabular but a few cases require programmatic setup.
 - In combined mode, keep table-friendly cases in `@TableTest`, and put only non-tabular/complex cases in `@MethodSource`.
 - If `@TableTest` is not viable for the test at all, use `@MethodSource` only.
+- If `@TableTest` was successfully used and if the `@ParameterizedTest` is not used to specify the test name, `@ParameterizedTest` can then be removed as `@TableTest` replace it fully.
 - For `@MethodSource`, name the arguments method `<testMethodName>Arguments` (camelCase, e.g. `testMethodArguments`) and return `Stream<Arguments>` using `Stream.of(...)` and `arguments(...)` with static import.
 - Ensure parameterized test names are human-readable (i.e. no hashcodes); instead add a description string as the first `Arguments.arguments(...)` value or index the test case
 - When converting tuples, create a light dedicated structure instead to keep the typing system
@@ -30,6 +30,8 @@ When converting Groovy code to Java code, make sure that:
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
+- Keep inline comments
+- Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 
 TableTest usage
   Import: `import org.tabletest.junit.TableTest;`

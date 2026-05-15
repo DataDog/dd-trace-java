@@ -95,6 +95,10 @@ public class ExceptionProbe extends LogProbe implements ForceMethodInstrumentati
       return;
     }
     Throwable innerMostThrowable = getInnerMostThrowable(throwable);
+    if (innerMostThrowable == null) {
+      LOGGER.debug("Cannot get inner most throwable (cycle?)");
+      return;
+    }
     String fingerprint =
         Fingerprinter.fingerprint(innerMostThrowable, exceptionProbeManager.getClassNameFilter());
     if (exceptionProbeManager.shouldCaptureException(fingerprint)) {

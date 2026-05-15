@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSp
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge.getRootContext;
+import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.COMPONENT_NAME;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.DECORATE;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageDecorator.SPRING_INBOUND;
 import static datadog.trace.instrumentation.springmessaging.SpringMessageExtractAdapter.GETTER;
@@ -20,6 +21,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.annotation.AppliesOn;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
 import net.bytebuddy.asm.Advice;
 import org.springframework.messaging.Message;
 import org.springframework.messaging.handler.invocation.InvocableHandlerMethod;
@@ -53,12 +55,13 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
     return new String[] {
       packageName + ".SpringMessageDecorator",
       packageName + ".SpringMessageExtractAdapter",
-      packageName + ".SpringMessageExtractAdapter$1"
+      packageName + ".SpringMessageExtractAdapter$1",
     };
   }
 
   @AppliesOn(CONTEXT_TRACKING)
   public static class ContextPropagationAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void onEnter(
         @Advice.Argument(0) Message<?> message, @Advice.Local("ctxScope") ContextScope scope) {
@@ -75,24 +78,37 @@ public final class SpringMessageHandlerInstrumentation extends InstrumenterModul
   }
 
   public static class HandleMessageAdvice {
+
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(@Advice.This InvocableHandlerMethod thiz) {
-      AgentSpan span = startSpan(SPRING_INBOUND);
+      AgentSpan span = startSpan(COMPONENT_NAME.toString(), SPRING_INBOUND);
       DECORATE.afterStart(span);
       span.setResourceName(DECORATE.spanNameForMethod(thiz.getMethod()));
       return activateSpan(span);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void onExit(@Advice.Enter AgentScope scope, @Advice.Thrown Throwable error) {
+    public static void onExit(
+        @Advice.Enter AgentScope scope,
+        @Advice.Return(readOnly = false) Object result,
+        @Advice.Thrown Throwable error) {
       if (null == scope) {
         return;
       }
       AgentSpan span = scope.span();
+      scope.close();
       if (null != error) {
         DECORATE.onError(span, error);
       }
-      scope.close();
+      if (result != null) {
+        Object wrappedResult =
+            AsyncResultExtensions.wrapAsyncResult(result, result.getClass(), span);
+        if (wrappedResult != null) {
+          result = wrappedResult;
+          // span will be finished by the wrapper
+          return;
+        }
+      }
       DECORATE.beforeFinish(span);
       span.finish();
     }

@@ -46,7 +46,7 @@ public final class AsyncHttpClientInstrumentation
         @Advice.Argument(0) final Request request,
         @Advice.Argument(value = 1, readOnly = false) AsyncHandler<?> handler) {
       AgentSpan parentSpan = activeSpan();
-      AgentSpan span = startSpan(HTTP_REQUEST);
+      AgentSpan span = startSpan("grizzly-http-async-client", HTTP_REQUEST);
       DECORATE.afterStart(span);
       DECORATE.onRequest(span, request);
       handler = new AsyncHandlerAdapter<>(span, parentSpan, handler);

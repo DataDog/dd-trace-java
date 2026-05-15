@@ -5,11 +5,9 @@ import datadog.trace.api.profiling.ProfilingScope;
 
 public class DatadogProfilingScope implements ProfilingScope {
   private final DatadogProfiler profiler;
-  private final int[] snapshot;
 
   public DatadogProfilingScope(DatadogProfiler profiler) {
     this.profiler = profiler;
-    this.snapshot = profiler.snapshot();
   }
 
   @Override
@@ -38,8 +36,7 @@ public class DatadogProfilingScope implements ProfilingScope {
 
   @Override
   public void close() {
-    for (int i = 0; i < snapshot.length; i++) {
-      profiler.setContextValue(i, snapshot[i]);
-    }
+    // ddprof 1.41.0 removed the int-encoding setter; snapshot/restore of tag
+    // context across nested scopes is no longer supported by the library.
   }
 }

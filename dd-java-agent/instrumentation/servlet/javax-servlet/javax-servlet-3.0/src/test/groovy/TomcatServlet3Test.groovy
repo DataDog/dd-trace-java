@@ -366,6 +366,11 @@ class TomcatServlet3TestSync extends TomcatServlet3Test {
   }
 
   @Override
+  boolean testBodyFilenames() {
+    true
+  }
+
+  @Override
   Class<Servlet> servlet() {
     TestServlet3.Sync
   }

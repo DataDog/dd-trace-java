@@ -2,11 +2,10 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.version-file'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-// We do not publish separate jar, but having version file is useful
-apply from: "$rootDir/gradle/version.gradle"
 
 minimumInstructionCoverage = 0.1
 minimumBranchCoverage = 0.6
@@ -32,7 +31,7 @@ excludedClassesCoverage += [
 
 dependencies {
   // main dependencies
-  compileOnly project(':dd-java-agent:agent-builder')
+  compileOnly project(':dd-java-agent:agent-installer')
   compileOnly project(':dd-java-agent:agent-tooling')
   compileOnly project(':dd-trace-core')
   implementation project(':communication')
@@ -62,7 +61,7 @@ dependencies {
 
   testImplementation project(':dd-java-agent:agent-debugger:debugger-test-scala')
   testImplementation project(':dd-trace-core')
-  testImplementation project(':dd-java-agent:agent-builder')
+  testImplementation project(':dd-java-agent:agent-installer')
   testImplementation project(':remote-config:remote-config-core')
   testImplementation project(':utils:test-utils')
 
