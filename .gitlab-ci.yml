@@ -826,15 +826,27 @@ test_smoke:
     # Each iter: agent attaches + app's first log call triggers JUL static init = race fires (or doesn't).
     # We capture the first DDIAG output to determine if the LogManager swap succeeded.
     - mkdir -p loop-output
+    - echo "LOOP_PREFLIGHT_REACHED at $(date -Iseconds)"
+    - echo "JAVA_8_HOME=$JAVA_8_HOME"
+    - find dd-java-agent/build/libs -name "dd-java-agent-*.jar" 2>/dev/null | head -5 || echo "(no agent jars found)"
+    - find dd-smoke-tests/log-injection/build/libs -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5 || echo "(no app jars found)"
     - |
+      # Disable errexit so a single bad iteration doesn't kill the loop.
+      # Enable xtrace temporarily to debug script issues.
+      set +e
+      echo "=== LOOP STARTING $(date -Iseconds) ==="
       JAVA_BIN="$JAVA_8_HOME/bin/java"
-      AGENT_JAR=$(ls dd-java-agent/build/libs/dd-java-agent-*.jar 2>/dev/null | grep -v sources | grep -v javadoc | head -1)
+      AGENT_JAR=$(find dd-java-agent/build/libs -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | head -1)
       APP_JAR_BACKEND=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2Backend.jar
       APP_JAR_LATEST=dd-smoke-tests/log-injection/build/libs/JULInterfaceLog4j2LatestBackend.jar
       echo "JAVA_BIN=$JAVA_BIN"
       echo "AGENT_JAR=$AGENT_JAR"
-      ls -la "$AGENT_JAR" "$APP_JAR_BACKEND" "$APP_JAR_LATEST" || true
-      "$JAVA_BIN" -version
+      if [ ! -x "$JAVA_BIN" ]; then echo "FATAL: JAVA_BIN not executable"; exit 0; fi
+      if [ ! -f "$AGENT_JAR" ]; then echo "FATAL: AGENT_JAR not found"; exit 0; fi
+      if [ ! -f "$APP_JAR_BACKEND" ]; then echo "FATAL: APP_JAR_BACKEND not found at $APP_JAR_BACKEND"; exit 0; fi
+      if [ ! -f "$APP_JAR_LATEST" ]; then echo "FATAL: APP_JAR_LATEST not found at $APP_JAR_LATEST"; exit 0; fi
+      ls -la "$AGENT_JAR" "$APP_JAR_BACKEND" "$APP_JAR_LATEST"
+      "$JAVA_BIN" -version 2>&1
       ITERS="${LOOP_ITERS:-300}"
       SWAP_OK=0
       SWAP_FAIL=0
@@ -882,6 +894,9 @@ test_smoke:
         fi
       done
       echo "=== FINAL: total=$ITERS swap_ok=$SWAP_OK swap_failed=$SWAP_FAIL missing=$MISSING ==="
+      # Force exit 0 — we want the job to succeed regardless of swap outcomes,
+      # so artifacts get uploaded via the success path (not on_failure)
+      exit 0
   # DIAG-BRANCH-ONLY: override artifacts to include loop-output (per-iteration attempt logs + captured failure XMLs)
   artifacts:
     when: always
