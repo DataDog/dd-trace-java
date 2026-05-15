@@ -959,6 +959,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
   }
 
+  public boolean isKind(SpanKindFilter filter) {
+    return (filter.kindMask & (1 << context.getSpanKindOrdinal())) != 0;
+  }
+
   @Override
   public void copyPropagationAndBaggage(final AgentSpan source) {
     if (source instanceof DDSpan) {

@@ -2,8 +2,10 @@ package datadog.trace.common.metrics
 
 import datadog.trace.api.DDSpanId
 import datadog.trace.api.DDTraceId
+import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.MetadataConsumer
+import datadog.trace.core.SpanKindFilter
 
 class SimpleSpan implements CoreSpan<SimpleSpan> {
 
@@ -209,6 +211,12 @@ class SimpleSpan implements CoreSpan<SimpleSpan> {
   @Override
   boolean isForceKeep() {
     return false
+  }
+
+  @Override
+  boolean isKind(SpanKindFilter filter) {
+    def kind = tags.get(Tags.SPAN_KIND)
+    return filter.matches(kind == null ? null : kind.toString())
   }
 
   @Override

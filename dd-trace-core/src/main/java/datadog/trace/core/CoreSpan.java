@@ -80,6 +80,8 @@ public interface CoreSpan<T extends CoreSpan<T>> {
 
   boolean isForceKeep();
 
+  boolean isKind(SpanKindFilter filter);
+
   CharSequence getType();
 
   /**
