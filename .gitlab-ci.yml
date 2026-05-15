@@ -822,10 +822,27 @@ test_smoke:
     - ./gradlew --version
     # Build the agent shadowJar + test jars (need both for direct invocation)
     - ./gradlew :dd-java-agent:shadowJar :dd-smoke-tests:log-injection:JULInterfaceLog4j2Backend :dd-smoke-tests:log-injection:JULInterfaceLog4j2LatestBackend -PtestJvm=$testJvm $GRADLE_ARGS
-    # Discover where the agent jar landed (CI cache may put it elsewhere)
+    # Discover jar locations (broad search — workspace layout may vary)
     - echo "=== JAR LOCATIONS ==="
-    - find . -path ./node_modules -prune -o -name "dd-java-agent-*-SNAPSHOT.jar" -print 2>/dev/null | head -10
-    - find . -path ./node_modules -prune -o -name "JULInterfaceLog4j2*.jar" -print 2>/dev/null | head -10
+    - pwd
+    - AGENT_JARS=$(find / -name "dd-java-agent-*-SNAPSHOT.jar" 2>/dev/null | grep -v sources | grep -v javadoc | grep -v "/cache/" | head -5)
+    - APP_JARS=$(find / -name "JULInterfaceLog4j2*.jar" 2>/dev/null | head -5)
+    - echo "AGENT_JARS:"; echo "$AGENT_JARS"
+    - echo "APP_JARS:"; echo "$APP_JARS"
+    # Submit early-checkpoint Datadog event with the discovered paths (immune to logs sampling)
+    - |
+      DD_API_KEY_PROD_LOCAL=$(aws ssm get-parameter --region us-east-1 --name ci.dd-trace-java.DATADOG_API_KEY_PROD --with-decryption --query "Parameter.Value" --out text 2>/dev/null || echo "")
+      if [ -n "$DD_API_KEY_PROD_LOCAL" ]; then
+        AGENT_JARS_ESC=$(echo "$AGENT_JARS" | tr '\n' '|' | sed 's/"/\\"/g')
+        APP_JARS_ESC=$(echo "$APP_JARS" | tr '\n' '|' | sed 's/"/\\"/g')
+        curl -sS -X POST \
+          -H "Content-Type: application/json" \
+          -H "DD-API-KEY: $DD_API_KEY_PROD_LOCAL" \
+          "https://api.datadoghq.com/api/v1/events" \
+          -d "{\"title\":\"zulu8-diag CHECKPOINT-1 build-complete\",\"text\":\"AGENT_JARS: $AGENT_JARS_ESC\\nAPP_JARS: $APP_JARS_ESC\",\"tags\":[\"zulu8_loginjection_diag:true\",\"ci_job_id:$CI_JOB_ID\",\"checkpoint:build-complete\"]}" \
+          > /tmp/curl-checkpoint1.log 2>&1
+        cat /tmp/curl-checkpoint1.log
+      fi
     # In-job loop: direct JVM invocations (no gradle overhead per iter). 8-sec timeout per iter.
     # Each iter: agent attaches + app's first log call triggers JUL static init = race fires (or doesn't).
     # We capture the first DDIAG output to determine if the LogManager swap succeeded.
