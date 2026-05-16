@@ -86,6 +86,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("spotless-conventions") {
+      id = "dd-trace-java.spotless-conventions"
+      implementationClass = "datadog.gradle.plugin.spotless.SpotlessConventionsPlugin"
+    }
   }
 }
 
