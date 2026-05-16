@@ -182,7 +182,7 @@ public class LLMObsSpanMapper implements RemoteMapper {
         writable.writeString(sessionId, null);
       }
 
-      /* metrics, tags, meta */
+      /* 10 (metrics), 11 (tags), 12 meta — shift down 1 if session_id absent */
       span.processTagsAndBaggage(metaWriter.withWritable(writable, getErrorsMap(span)));
     }
 

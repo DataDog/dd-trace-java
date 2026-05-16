@@ -445,6 +445,27 @@ class DDLLMObsSpanTest  extends DDSpecification{
     parent.finish()
   }
 
+  def "grandchild LLMObs span transitively inherits session_id through intermediate span"() {
+    setup:
+    def expectedSessionId = "session-grandparent-xyz"
+    def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+
+    when:
+    // Grandchild created with null sessionId — should inherit transitively
+    // through parent's re-attached LLMObsContext (which itself inherited from grandparent).
+    def grandchild = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "grandchild-llm", null)
+
+    then:
+    def innerGrandchild = (AgentSpan) grandchild.span
+    expectedSessionId == innerGrandchild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    grandchild.finish()
+    parent.finish()
+    grandparent.finish()
+  }
+
   def "global dd_tags are included in LLMObs span tags"() {
     setup:
     injectSysConfig("trace.global.tags", "team:backend,owner:ml-platform")
