@@ -78,7 +78,15 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // Recording state. Mutated only on the aggregator thread. Not thread-safe.
   private final Histogram okLatencies;
-  private final Histogram errorLatencies;
+
+  /**
+   * Lazily allocated on the first recorded error. Most entries never see an error, so they keep
+   * this null forever; {@link #getErrorLatencies()} returns a shared empty histogram in that
+   * case. Once allocated, it survives {@link #clearAggregate()} (just cleared, not nulled) since
+   * an entry that errored once tends to error again.
+   */
+  private Histogram errorLatencies;
+
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
@@ -115,7 +123,6 @@ final class AggregateEntry extends Hashtable.Entry {
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
     this.okLatencies = Histogram.newHistogram();
-    this.errorLatencies = Histogram.newHistogram();
   }
 
   /**
@@ -318,8 +325,23 @@ final class AggregateEntry extends Hashtable.Entry {
     return okLatencies;
   }
 
+  /**
+   * Returns the entry's error latency histogram, or {@code null} if no error has been recorded
+   * yet. Callers should treat null as "serialize as an empty histogram" (see {@link
+   * SerializingMetricWriter}).
+   */
   Histogram getErrorLatencies() {
     return errorLatencies;
+  }
+
+  /** Lazy-allocates {@link #errorLatencies} on the first error. */
+  private Histogram errorLatenciesForWrite() {
+    Histogram h = errorLatencies;
+    if (h == null) {
+      h = Histogram.newHistogram();
+      errorLatencies = h;
+    }
+    return h;
   }
 
   /**
@@ -334,7 +356,7 @@ final class AggregateEntry extends Hashtable.Entry {
     }
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
-      errorLatencies.accept(tagAndDuration);
+      errorLatenciesForWrite().accept(tagAndDuration);
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
@@ -357,7 +379,7 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       if ((d & ERROR_TAG) == ERROR_TAG) {
         d ^= ERROR_TAG;
-        errorLatencies.accept(d);
+        errorLatenciesForWrite().accept(d);
         ++errorCount;
       } else {
         okLatencies.accept(d);
@@ -367,7 +389,11 @@ final class AggregateEntry extends Hashtable.Entry {
     return this;
   }
 
-  /** Clears the recording state. Histograms are reused. */
+  /**
+   * Clears the recording state. The OK histogram is reused; the error histogram (if allocated)
+   * is reused too, but entries that never saw an error keep their {@code errorLatencies} field
+   * null.
+   */
   @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   void clearAggregate() {
     this.errorCount = 0;
@@ -375,8 +401,16 @@ final class AggregateEntry extends Hashtable.Entry {
     this.topLevelCount = 0;
     this.duration = 0;
     this.okLatencies.clear();
-    this.errorLatencies.clear();
+    if (this.errorLatencies != null) {
+      this.errorLatencies.clear();
+    }
   }
+
+  /**
+   * Holder for the lazy-initialized shared empty error histogram. Class init runs only when
+   * {@link #getErrorLatencies()} is first called on an entry with no recorded errors, by which
+   * time the {@code AgentMeter} that {@link Histogram#newHistogram()} depends on is set up.
+   */
 
   /**
    * Equality on the 13 label fields (not on the recording counters). Used only by test mock
