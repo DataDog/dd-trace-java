@@ -48,19 +48,21 @@ final class AggregateEntry extends Hashtable.Entry {
   /** Shared empty array used by entries with no peer tags. */
   private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
 
-  // Per-field cardinality limits. Identical to the prior DDCache sizes.
-  static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(32);
-  static final PropertyCardinalityHandler SERVICE_HANDLER = new PropertyCardinalityHandler(32);
-  static final PropertyCardinalityHandler OPERATION_HANDLER = new PropertyCardinalityHandler(64);
+  // Per-field cardinality limits. Sized to cover typical real-world cardinality without hitting
+  // the blocked_by_tracer sentinel: route counts for RESOURCE/HTTP_ENDPOINT, integration counts for
+  // OPERATION, mesh peers for SERVICE, the known enum cardinality for the small-domain fields.
+  static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(512);
+  static final PropertyCardinalityHandler SERVICE_HANDLER = new PropertyCardinalityHandler(128);
+  static final PropertyCardinalityHandler OPERATION_HANDLER = new PropertyCardinalityHandler(128);
   static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
       new PropertyCardinalityHandler(16);
-  static final PropertyCardinalityHandler TYPE_HANDLER = new PropertyCardinalityHandler(8);
+  static final PropertyCardinalityHandler TYPE_HANDLER = new PropertyCardinalityHandler(32);
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER = new PropertyCardinalityHandler(16);
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER = new PropertyCardinalityHandler(8);
+  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER = new PropertyCardinalityHandler(16);
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(32);
+      new PropertyCardinalityHandler(256);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(32);
+      new PropertyCardinalityHandler(24);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
