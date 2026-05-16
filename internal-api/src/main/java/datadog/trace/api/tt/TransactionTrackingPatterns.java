@@ -1,6 +1,7 @@
 package datadog.trace.api.tt;
 
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
@@ -12,8 +13,17 @@ import org.slf4j.LoggerFactory;
  * remote-config under the {@code APM_TRACING} product (field {@code tt_extraction_patterns}).
  *
  * <p>The hot path on every server request only does a single volatile read followed by an {@link
- * List#isEmpty()} check when no patterns are configured, so this class is zero-allocation in the
- * disabled case.
+ * Snapshot#isEmpty()} check when no patterns are configured, so this class is zero-allocation in
+ * the disabled case.
+ *
+ * <p>Patterns are partitioned at update time:
+ *
+ * <ul>
+ *   <li>literal patterns (no {@code *}) go into a custom case-insensitive open-addressed hash set
+ *       so that {@link #matchesAny(String)} is O(1) and does not allocate;
+ *   <li>patterns containing at least one {@code *} go through {@link CompiledPattern#compile} and
+ *       are matched linearly only when the literal lookup misses.
+ * </ul>
  *
  * <p>Matching is case-insensitive on the candidate name and the supported wildcard alphabet is
  * limited to {@code *} (zero-or-more characters). The matcher is hand-rolled to avoid {@link
@@ -23,10 +33,7 @@ public final class TransactionTrackingPatterns {
 
   private static final Logger log = LoggerFactory.getLogger(TransactionTrackingPatterns.class);
 
-  /** Shared empty snapshot — referenced when no patterns are configured. */
-  private static final List<CompiledPattern> EMPTY = Collections.emptyList();
-
-  private static volatile List<CompiledPattern> snapshot = EMPTY;
+  private static volatile Snapshot snapshot = Snapshot.EMPTY;
 
   private TransactionTrackingPatterns() {}
 
@@ -37,10 +44,11 @@ public final class TransactionTrackingPatterns {
    */
   public static void update(List<String> rawPatterns) {
     if (rawPatterns == null || rawPatterns.isEmpty()) {
-      snapshot = EMPTY;
+      snapshot = Snapshot.EMPTY;
       return;
     }
-    List<CompiledPattern> compiled = new ArrayList<>(rawPatterns.size());
+    List<String> literalsLower = new ArrayList<>(rawPatterns.size());
+    List<CompiledPattern> wildcards = new ArrayList<>();
     for (String raw : rawPatterns) {
       if (raw == null) {
         log.debug("Ignoring null tt_extraction_pattern entry");
@@ -51,13 +59,23 @@ public final class TransactionTrackingPatterns {
         log.debug("Ignoring blank tt_extraction_pattern entry");
         continue;
       }
-      compiled.add(CompiledPattern.compile(trimmed));
+      if (trimmed.indexOf('*') < 0) {
+        literalsLower.add(trimmed.toLowerCase(Locale.ROOT));
+      } else {
+        wildcards.add(CompiledPattern.compile(trimmed));
+      }
     }
-    if (compiled.isEmpty()) {
-      snapshot = EMPTY;
-    } else {
-      snapshot = Collections.unmodifiableList(compiled);
+    if (literalsLower.isEmpty() && wildcards.isEmpty()) {
+      snapshot = Snapshot.EMPTY;
+      return;
     }
+    CaseInsensitiveStringSet literalSet =
+        literalsLower.isEmpty() ? null : new CaseInsensitiveStringSet(literalsLower);
+    List<CompiledPattern> wildcardList =
+        wildcards.isEmpty()
+            ? Collections.<CompiledPattern>emptyList()
+            : Collections.unmodifiableList(wildcards);
+    snapshot = new Snapshot(literalSet, wildcardList);
   }
 
   /** Fast no-allocation check used as the hot-path guard. */
@@ -65,9 +83,29 @@ public final class TransactionTrackingPatterns {
     return snapshot.isEmpty();
   }
 
-  /** Returns the current immutable snapshot. */
+  /**
+   * Returns a snapshot view of the currently configured patterns. The returned list concatenates
+   * the literal patterns (rebuilt as {@link CompiledPattern} instances) and the wildcard patterns.
+   * This is intended for diagnostics/tests only; production code uses {@link #matchesAny(String)}
+   * and {@link #isEmpty()}.
+   */
   public static List<CompiledPattern> currentSnapshot() {
-    return snapshot;
+    Snapshot local = snapshot;
+    if (local.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<CompiledPattern> view = new ArrayList<>();
+    if (local.literals != null) {
+      String[] table = local.literals.table;
+      for (int i = 0; i < table.length; i++) {
+        String entry = table[i];
+        if (entry != null) {
+          view.add(CompiledPattern.compile(entry));
+        }
+      }
+    }
+    view.addAll(local.wildcards);
+    return Collections.unmodifiableList(view);
   }
 
   /** True if {@code candidate} matches any compiled pattern in the current snapshot. */
@@ -75,14 +113,18 @@ public final class TransactionTrackingPatterns {
     if (candidate == null) {
       return false;
     }
-    List<CompiledPattern> local = snapshot;
-    if (local.isEmpty()) {
+    Snapshot local = snapshot;
+    if (local.literals != null && local.literals.contains(candidate)) {
+      return true;
+    }
+    List<CompiledPattern> wildcards = local.wildcards;
+    int n = wildcards.size();
+    if (n == 0) {
       return false;
     }
     String lowered = candidate.toLowerCase(Locale.ROOT);
-    // noinspection ForLoopReplaceableByForEach -- avoid iterator allocation on the hot path
-    for (int i = 0; i < local.size(); i++) {
-      if (local.get(i).matchesLowercased(lowered)) {
+    for (int i = 0; i < n; i++) {
+      if (wildcards.get(i).matchesLowercased(lowered)) {
         return true;
       }
     }
@@ -91,7 +133,116 @@ public final class TransactionTrackingPatterns {
 
   /** Test-only: replaces the snapshot atomically. */
   public static void resetForTest() {
-    snapshot = EMPTY;
+    snapshot = Snapshot.EMPTY;
+  }
+
+  /** Test-only: number of literal patterns in the current snapshot. */
+  static int literalCountForTest() {
+    Snapshot local = snapshot;
+    return local.literals == null ? 0 : local.literals.size;
+  }
+
+  /** Test-only: number of wildcard patterns in the current snapshot. */
+  static int wildcardCountForTest() {
+    return snapshot.wildcards.size();
+  }
+
+  /** Immutable holder for the partitioned pattern set. */
+  private static final class Snapshot {
+    static final Snapshot EMPTY = new Snapshot(null, Collections.<CompiledPattern>emptyList());
+
+    /** Null when there are no literal patterns; otherwise non-empty. */
+    final CaseInsensitiveStringSet literals;
+
+    /** Possibly-empty immutable list of wildcard-bearing patterns. */
+    final List<CompiledPattern> wildcards;
+
+    Snapshot(CaseInsensitiveStringSet literals, List<CompiledPattern> wildcards) {
+      this.literals = literals;
+      this.wildcards = wildcards;
+    }
+
+    boolean isEmpty() {
+      return (literals == null || literals.isEmpty()) && wildcards.isEmpty();
+    }
+  }
+
+  /**
+   * Open-addressed, power-of-two-sized, linearly probed case-insensitive string set.
+   *
+   * <p>Keys are stored lowercased once at construction; {@link #contains(String)} does NOT allocate
+   * and does NOT lowercase the candidate. The case-insensitive hash treats ASCII {@code A-Z} as
+   * their lowercase counterparts; non-ASCII characters are hashed verbatim and rely on {@link
+   * String#equalsIgnoreCase(String)} for correctness at the equality probe.
+   */
+  static final class CaseInsensitiveStringSet {
+    final String[] table;
+    final int mask;
+    final int size;
+
+    CaseInsensitiveStringSet(Collection<String> lowercasedKeys) {
+      int n = lowercasedKeys.size();
+      // capacity >= 8 and >= next-power-of-two of (2*n) to keep load factor <= 0.5
+      int cap = 8;
+      int target = Math.max(1, n) * 2;
+      while (cap < target) {
+        cap <<= 1;
+      }
+      String[] t = new String[cap];
+      int m = cap - 1;
+      int inserted = 0;
+      for (String k : lowercasedKeys) {
+        int slot = ciHash(k) & m;
+        boolean duplicate = false;
+        while (t[slot] != null) {
+          if (t[slot].equalsIgnoreCase(k)) {
+            duplicate = true;
+            break;
+          }
+          slot = (slot + 1) & m;
+        }
+        if (!duplicate) {
+          t[slot] = k;
+          inserted++;
+        }
+      }
+      this.table = t;
+      this.mask = m;
+      this.size = inserted;
+    }
+
+    boolean isEmpty() {
+      return size == 0;
+    }
+
+    boolean contains(String candidate) {
+      if (candidate == null || size == 0) {
+        return false;
+      }
+      int slot = ciHash(candidate) & mask;
+      while (true) {
+        String entry = table[slot];
+        if (entry == null) {
+          return false;
+        }
+        if (entry.equalsIgnoreCase(candidate)) {
+          return true;
+        }
+        slot = (slot + 1) & mask;
+      }
+    }
+
+    private static int ciHash(String s) {
+      int h = 0;
+      for (int i = 0; i < s.length(); i++) {
+        char c = s.charAt(i);
+        if (c >= 'A' && c <= 'Z') {
+          c = (char) (c + 32);
+        }
+        h = 31 * h + c;
+      }
+      return h;
+    }
   }
 
   /**
