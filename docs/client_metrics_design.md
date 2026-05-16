@@ -223,8 +223,8 @@ Two distinct cadences:
 
 ## Memory and lifetime
 
-- `AggregateMetric` is **not thread-safe**. It is mutated only by the
-  aggregator thread.
+- `AggregateEntry`'s per-bucket counters + histograms are **not thread-safe**;
+  they are mutated only by the aggregator thread.
 - `AggregateTable` is **not thread-safe**. All paths (producer-side `CLEAR`,
   schedule-driven `REPORT`, drainer-driven inserts) route through the inbox.
 - `Canonical` and the cardinality handlers are aggregator-thread-only.
@@ -257,6 +257,81 @@ The producer reports per-trace stats via `HealthMetrics`:
 | Aggregate table full, no stale entry | New snapshot dropped, `onStatsAggregateDropped` increments. Existing entries continue to accumulate. |
 | Cardinality budget exhausted | Overflow values canonicalize to a `blocked_by_tracer` sentinel and merge into one bucket. Total entry count stays bounded by `maxAggregates`. |
 | Producer throws mid-trace | Caught by the writer's normal error path; `onClientStatTraceComputed` is not called for that trace. |
+
+## Behavior under adversarial load
+
+A useful stress test (captured as `AdversarialMetricsBenchmark`): 8 producer
+threads call `publish` in a tight loop with **unique** `(service, operation,
+resource, peer.hostname)` per op, random durations across 30 orders of
+magnitude, and random `error` / `topLevel` flags. Every cardinality dimension
+saturates within milliseconds.
+
+### What "OOM the metrics subsystem" would look like
+
+A successful attack would either grow the aggregator's heap unboundedly, or
+back up the producer so a synchronous structure (cache, map) grew with each
+unique label combination. The current shape rules both out by construction:
+
+- **Inbox is a fixed-size MPSC queue.** Overflow returns `false` from
+  `offer` and the producer drops the snapshot via `onStatsInboxFull`.
+  The snapshot becomes garbage immediately; no queue growth.
+- **`AggregateTable` is a fixed-size bucket array.** Insertion when the
+  table is full triggers an evict-stale pass (one entry with
+  `hitCount == 0`); if that fails the snapshot is dropped via
+  `onStatsAggregateDropped`. The table never resizes.
+- **Cardinality handlers are flat open-addressed arrays.** Overflow values
+  canonicalize to the shared `blocked_by_tracer` sentinel — same hash,
+  same bucket, merged in. No node allocations, no rehash.
+- **Histograms use `CollapsingLowestDenseStore(1024)`.** Bucket array
+  caps at ~8 KB per histogram. Worst case at full table cap: 2048 entries
+  × 2 histograms × ~8 KB ≈ 32 MB. That's the headline upper bound.
+- **Empty error histograms aren't allocated until first error
+  recorded.** Entries that never error keep `errorLatencies = null`,
+  saving the wrapper allocation.
+
+### Measured behavior (1f × 1wi × 3i × 15s, 8 threads each side)
+
+| | master (`ConflatingMetricsAggregator`) | this design (`ClientStatsAggregator`) |
+|---|---:|---:|
+| Iteration 1 throughput | 1,506,007 ops/s | ~5,853,917 ops/s |
+| Iteration 2 throughput | 1,255,258 ops/s | ~5,800,000 ops/s |
+| Iteration 3 throughput | **410,097 ops/s** (-73%) | ~5,853,917 ops/s (stable) |
+| GC time / 15 s wall | iter 1: 8.7 s — iter 2: 9.8 s — iter 3: **18.6 s** (multi-thread GC saturation) | ~150 ms total |
+| Producer allocation | ~1,108 B/op | ~823 B/op |
+| Aggregator thread state at end | "Skipped metrics reporting because the queue is full" + thread idle waiting for inbox | Continuously draining; ~13M snapshots/sec consumed |
+| Inbox-full drops | (no counter on master) | ~139 M dropped over 45 s, all reported via `onStatsInboxFull` |
+| Aggregate-table drops | 0 | 0 |
+
+### Why master degrades
+
+On master, the producer does **everything** synchronously on the calling
+thread: `MetricKey` canonicalization, `DDCache` lookups for each label field,
+`LRUCache` insertion. There is no queue between producer and consumer
+— there *is* no consumer thread for the storage work, only for the
+periodic report. So a 1,108 B/op allocation rate × 8 threads × ~1.5 M ops/s
+generates ~13 GB/sec of garbage on the same thread that has to keep up with
+incoming spans. The young gen fills, then survivor, then old gen, then full
+GC. By iteration 3 the JVM is spending more than its wall-clock budget on
+GC (multiple concurrent GC threads, summed > 15 s during a 15 s window) and
+throughput collapses 73 %.
+
+### Why this design holds
+
+The producer/consumer split converts allocation pressure into **backpressure
+at the inbox boundary**. The producer's per-op work is just "allocate one
+`SpanSnapshot`, set a few `volatile` refs, `inbox.offer`, return." On
+overflow, `offer` returns `false` and the snapshot is dropped on the spot —
+no waiting, no allocation amplification. The aggregator thread runs at
+its natural rate (~13 M snapshots/sec on the test machine), and the gap
+between producer and consumer becomes the drop rate, not heap growth.
+`onStatsInboxFull` makes that gap observable so operators can size
+`tracerMetricsMaxPending` and `tracerMetricsMaxAggregates` for their
+workload.
+
+Net: under adversarial input the new design absorbs what it can compute
+meaningfully and drops what it can't, with both numbers exposed via health
+metrics. The bounded-design properties hold to the ~32 MB worst-case
+ceiling described above.
 
 ## Why the redesign (history)
 
@@ -292,8 +367,20 @@ showed the producer dominating CPU time. The major shifts:
 
 ### Benchmark summary
 
-`ClientStatsAggregatorDDSpanBenchmark` (64 client-kind DDSpans per op, single
-trace, real `CoreTracer` with a no-op writer):
+Four JMH benchmarks cover the producer pipeline at different angles:
+
+- `ClientStatsAggregatorBenchmark` — 64 SimpleSpans per op, identical labels
+  (consumer-side cache hit path).
+- `ClientStatsAggregatorDDSpanBenchmark` — same as above but real `DDSpan`
+  via `CoreTracer`; exercises the production `isKind` / cached span-kind
+  ordinal path.
+- `ClientStatsAggregatorMissPathBenchmark` — pool of 4096 single-span
+  traces with unique labels; exercises miss + insert + handler saturation.
+- `AdversarialMetricsBenchmark` — 8 threads, unique labels per op, random
+  durations + error flags; pushes every bound to its limit (see
+  [Behavior under adversarial load](#behavior-under-adversarial-load)).
+
+Optimization progression on the DDSpan benchmark:
 
 | Variant | µs/op |
 |---|---|
@@ -301,6 +388,11 @@ trace, real `CoreTracer` with a no-op writer):
 | with `SpanSnapshot` + background aggregation | 2.454 |
 | with peer-tag schema hoist | 2.410 |
 | with cached span-kind ordinal + isSynthetic fix | 1.995 |
+
+On the producer-bound miss-path benchmark (single-span trace, unique
+labels), `ClientStatsAggregatorMissPathBenchmark` measures **0.057 µs/op +
+96 B/op** vs master's **0.305 µs/op + 399 B/op** — 5.3× faster, 4.2× less
+producer-thread allocation per metrics-eligible span.
 
 The remaining producer-thread hotspots (from JFR sampling) are tag-map
 lookups for `peer.hostname` / other peer-tag values inside
