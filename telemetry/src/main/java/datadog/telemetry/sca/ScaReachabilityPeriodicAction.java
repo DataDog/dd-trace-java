@@ -23,25 +23,54 @@ import java.util.Map;
  * heartbeat:
  *
  * <ol>
- *   <li>{@link DependencyService} - newly detected JARs (same source as DependencyPeriodicAction).
- *       Emitted with {@code metadata:[]} if no CVE state exists yet, or with the full CVE metadata
- *       if a state is already pending.
- *   <li>{@link ScaReachabilityDependencyRegistry} - CVE state changes (registration and hits) for
- *       dependencies detected in previous heartbeats.
+ *   <li>{@link DependencyService} - newly detected JARs. Emitted with {@code metadata:[]} if no CVE
+ *       state exists yet, or merged with CVE metadata if a state is already pending. Each resolved
+ *       dependency is stored in {@link #knownDeps} for future lookups.
+ *   <li>{@link ScaReachabilityDependencyRegistry} - CVE state changes (registration and hits).
  * </ol>
  *
  * <p>This ensures one entry per {@code name:version} per heartbeat - no duplicates.
  *
  * <p>The key invariant: whenever any CVE's state changes, ALL CVEs for the same dependency are
  * re-reported together so the backend always has a complete picture.
+ *
+ * <h3>Timing invariant</h3>
+ *
+ * <p>{@link DependencyService} resolves JARs asynchronously. A CVE may be registered before the
+ * corresponding JAR has been resolved (e.g., a lazily-loaded class whose JAR is still in the
+ * resolution queue). In that case, {@link #knownDeps} may not yet have an entry for the dep, and
+ * emitting the CVE snapshot without source/hash would prevent the backend from correlating it with
+ * a known dependency. To handle this, unmatched snapshots are re-marked as pending in the registry
+ * and retried on the next heartbeat, when {@link DependencyService} is likely to have resolved the
+ * JAR.
  */
 public final class ScaReachabilityPeriodicAction
     implements TelemetryRunnable.TelemetryPeriodicAction {
 
   private final DependencyService dependencyService;
 
+  /**
+   * Persistent across heartbeats: accumulates every dep resolved by {@link DependencyService}.
+   * Keyed by {@link ScaReachabilityDependencyRegistry#depKey(String, String)}.
+   *
+   * <p>This cache allows Step 3 to enrich CVE snapshots with {@code source} and {@code hash} even
+   * when the dep was drained from {@link DependencyService} in an earlier heartbeat than the CVE
+   * hit.
+   */
+  private final Map<String, Dependency> knownDeps = new HashMap<>();
+
   public ScaReachabilityPeriodicAction(DependencyService dependencyService) {
     this.dependencyService = dependencyService;
+  }
+
+  /**
+   * Pre-populates {@link #knownDeps} with a dep entry. Used in tests to simulate a dep that was
+   * resolved by {@link DependencyService} in a prior heartbeat without running a full iteration.
+   */
+  void addKnownDepForTesting(String name, String version) {
+    knownDeps.put(
+        ScaReachabilityDependencyRegistry.depKey(name, version),
+        new Dependency(name, version, null, null));
   }
 
   @Override
@@ -63,10 +92,12 @@ public final class ScaReachabilityPeriodicAction
     }
 
     // Step 2: drain DependencyService (newly detected JARs this heartbeat).
-    // For each new dep: merge with CVE state if present, otherwise emit metadata:[].
+    // Store each dep in knownDeps regardless of whether it has a CVE match — future heartbeats
+    // with CVE hits will look it up in Step 3.
     if (dependencyService != null) {
       for (Dependency dep : dependencyService.drainDeterminedDependencies()) {
         String key = ScaReachabilityDependencyRegistry.depKey(dep.name, dep.version);
+        knownDeps.put(key, dep);
         DependencySnapshot snapshot = snapshotByKey.remove(key);
         if (snapshot != null) {
           // New dep AND has CVE state - emit the full picture in one entry.
@@ -80,10 +111,22 @@ public final class ScaReachabilityPeriodicAction
       }
     }
 
-    // Step 3: emit remaining snapshots (CVE state changes for deps detected in prior heartbeats).
+    // Step 3: handle CVE state changes for deps not in DependencyService this heartbeat.
+    // Look up knownDeps to enrich with source/hash; if the dep is not yet known (JAR still
+    // resolving), re-mark it as pending and retry next heartbeat instead of emitting without
+    // source/hash (which the backend cannot correlate with a known dependency).
     for (DependencySnapshot snapshot : snapshotByKey.values()) {
-      telService.addDependency(
-          new Dependency(snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
+      String key = ScaReachabilityDependencyRegistry.depKey(snapshot.artifact, snapshot.version);
+      Dependency known = knownDeps.get(key);
+      if (known != null) {
+        // Dep resolved in a prior heartbeat - emit with source/hash for backend correlation.
+        telService.addDependency(
+            new Dependency(
+                known.name, known.version, known.source, known.hash, buildMetadata(snapshot)));
+      } else {
+        // Dep not yet resolved by DependencyService - keep pending and retry next heartbeat.
+        ScaReachabilityDependencyRegistry.INSTANCE.markPending(snapshot.artifact, snapshot.version);
+      }
     }
   }
 

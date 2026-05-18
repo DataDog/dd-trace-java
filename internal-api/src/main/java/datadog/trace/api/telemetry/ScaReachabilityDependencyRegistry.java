@@ -53,6 +53,18 @@ public final class ScaReachabilityDependencyRegistry {
     dependencies.clear();
   }
 
+  /**
+   * Re-marks a dependency as pending without changing its CVE state. Used by {@code
+   * ScaReachabilityPeriodicAction} to retry emitting a CVE snapshot when {@code DependencyService}
+   * has not yet resolved the corresponding JAR in the current heartbeat.
+   */
+  public void markPending(String artifact, String version) {
+    DependencyState dep = dependencies.get(depKey(artifact, version));
+    if (dep != null) {
+      dep.pendingReport = true;
+    }
+  }
+
   private ScaReachabilityDependencyRegistry() {}
 
   /**
