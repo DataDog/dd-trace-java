@@ -26,8 +26,12 @@ public final class ScaReachabilityDependencyRegistry {
   public static final ScaReachabilityDependencyRegistry INSTANCE =
       new ScaReachabilityDependencyRegistry();
 
-  /** Keyed by "artifact@version". */
+  /** Keyed by {@link #depKey(String, String)}. */
   private final ConcurrentHashMap<String, DependencyState> dependencies = new ConcurrentHashMap<>();
+
+  public static String depKey(String artifact, String version) {
+    return artifact + "@" + version;
+  }
 
   /**
    * Optional periodic work hook for retransformation of pending method-level classes. Registered by
@@ -59,7 +63,7 @@ public final class ScaReachabilityDependencyRegistry {
    * bytecode injection (method-level symbols).
    */
   public void registerCve(String artifact, String version, String vulnId) {
-    String key = artifact + "@" + version;
+    String key = depKey(artifact, version);
     DependencyState dep =
         dependencies.computeIfAbsent(key, k -> new DependencyState(artifact, version));
     dep.registerCve(vulnId);
@@ -78,7 +82,7 @@ public final class ScaReachabilityDependencyRegistry {
       String callsiteClass,
       String callsiteSymbol,
       int callsiteLine) {
-    String key = artifact + "@" + version;
+    String key = depKey(artifact, version);
     if (!dependencies.containsKey(key)) {
       // CVE was not pre-registered - register it now so the dep state exists before recording hit
       registerCve(artifact, version, vulnId);
