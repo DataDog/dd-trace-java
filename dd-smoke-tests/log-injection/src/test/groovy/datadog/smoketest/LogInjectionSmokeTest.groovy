@@ -2,11 +2,9 @@ package datadog.smoketest
 
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
-import datadog.environment.JavaVirtualMachine
 import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import datadog.trace.api.config.GeneralConfig
-import datadog.trace.test.util.Flaky
 import java.nio.charset.StandardCharsets
 import java.util.zip.GZIPInputStream
 import spock.lang.AutoCleanup
