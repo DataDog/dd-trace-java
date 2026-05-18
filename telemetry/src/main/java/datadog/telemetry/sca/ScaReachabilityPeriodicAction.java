@@ -112,20 +112,26 @@ public final class ScaReachabilityPeriodicAction
     }
 
     // Step 3: handle CVE state changes for deps not in DependencyService this heartbeat.
-    // Look up knownDeps to enrich with source/hash; if the dep is not yet known (JAR still
-    // resolving), re-mark it as pending and retry next heartbeat instead of emitting without
-    // source/hash (which the backend cannot correlate with a known dependency).
+    // Always emit — never block CVE data. Use knownDeps for source/hash enrichment when the JAR
+    // was resolved in a prior heartbeat; otherwise emit without source/hash so the backend still
+    // receives the CVE state (it may correlate by name:version alone, and subsequent emissions
+    // for the same dep — triggered by method hits — will carry source/hash once knownDeps is
+    // populated).
     for (DependencySnapshot snapshot : snapshotByKey.values()) {
       String key = ScaReachabilityDependencyRegistry.depKey(snapshot.artifact, snapshot.version);
       Dependency known = knownDeps.get(key);
       if (known != null) {
-        // Dep resolved in a prior heartbeat - emit with source/hash for backend correlation.
+        // Dep was resolved in a prior heartbeat — emit enriched with source/hash.
         telService.addDependency(
             new Dependency(
                 known.name, known.version, known.source, known.hash, buildMetadata(snapshot)));
       } else {
-        // Dep not yet resolved by DependencyService - keep pending and retry next heartbeat.
-        ScaReachabilityDependencyRegistry.INSTANCE.markPending(snapshot.artifact, snapshot.version);
+        // Dep not yet resolved — emit without source/hash so CVE data is not delayed.
+        // When the dep is eventually resolved (stored in knownDeps via Step 2), subsequent
+        // CVE emissions (e.g., after a method hit) will include source/hash automatically.
+        telService.addDependency(
+            new Dependency(
+                snapshot.artifact, snapshot.version, null, null, buildMetadata(snapshot)));
       }
     }
   }
