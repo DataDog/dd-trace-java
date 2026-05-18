@@ -79,13 +79,14 @@ public final class ScaReachabilityDependencyRegistry {
       String callsiteSymbol,
       int callsiteLine) {
     String key = artifact + "@" + version;
-    DependencyState dep = dependencies.get(key);
-    if (dep == null) {
-      // CVE was not pre-registered — register it now and immediately add the hit
-      dep = dependencies.computeIfAbsent(key, k -> new DependencyState(artifact, version));
-      dep.registerCve(vulnId);
+    if (!dependencies.containsKey(key)) {
+      // CVE was not pre-registered - register it now so the dep state exists before recording hit
+      registerCve(artifact, version, vulnId);
     }
-    dep.recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
+    DependencyState dep = dependencies.get(key);
+    if (dep != null) {
+      dep.recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
+    }
   }
 
   /**
