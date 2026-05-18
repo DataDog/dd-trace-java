@@ -1,7 +1,7 @@
 package datadog.trace.instrumentation.springweb6;
 
-import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_CONTINUE_SUFFIX;
-import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.DD_HANDLER_SPAN_PREFIX_KEY;
+import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.handlerSpanContinueKey;
+import static datadog.trace.instrumentation.springweb6.SpringWebHttpServerDecorator.handlerSpanKey;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.AsyncResultExtensions;
@@ -24,11 +24,12 @@ public class WrapContinuableResultAdvice {
     }
 
     ServletWebRequest servletWebRequest = (ServletWebRequest) nativeWebRequest;
-    final String handlerSpanKey = DD_HANDLER_SPAN_PREFIX_KEY + self.getBean().getClass().getName();
+    final Class<?> handlerClass = self.getBean().getClass();
+    final String handlerSpanKey = handlerSpanKey(handlerClass);
 
     if (Boolean.TRUE.equals(
         servletWebRequest.getAttribute(
-            handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, ServletWebRequest.SCOPE_REQUEST))) {
+            handlerSpanContinueKey(handlerClass), ServletWebRequest.SCOPE_REQUEST))) {
       return;
     }
     Object span = servletWebRequest.getAttribute(handlerSpanKey, ServletWebRequest.SCOPE_REQUEST);
@@ -36,7 +37,7 @@ public class WrapContinuableResultAdvice {
       return;
     }
     servletWebRequest.setAttribute(
-        handlerSpanKey + DD_HANDLER_SPAN_CONTINUE_SUFFIX, true, ServletWebRequest.SCOPE_REQUEST);
+        handlerSpanContinueKey(handlerClass), true, ServletWebRequest.SCOPE_REQUEST);
     result =
         ((CompletionStage<?>) result)
             .whenComplete(AsyncResultExtensions.finishSpan((AgentSpan) span));
