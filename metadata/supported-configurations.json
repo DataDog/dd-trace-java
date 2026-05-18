@@ -1041,6 +1041,14 @@
         "aliases": []
       }
     ],
+    "DD_CUSTOM_PARENT_ID": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_CUSTOM_TRACE_ID": [
       {
         "version": "A",
