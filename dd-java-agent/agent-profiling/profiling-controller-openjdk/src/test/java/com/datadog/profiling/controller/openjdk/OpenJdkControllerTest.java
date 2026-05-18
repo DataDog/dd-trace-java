@@ -15,7 +15,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
 import com.datadog.profiling.controller.ControllerContext;
-import com.datadog.profiling.controller.jfr.JfpUtilsTest;
+import com.datadog.profiling.controller.jfr.JfpTestResources;
 import com.datadog.profiling.utils.ProfilingMode;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.profiling.RecordingData;
@@ -76,7 +76,7 @@ public class OpenJdkControllerTest {
   @Test
   public void testHeapProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
     Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OLD_OBJECT_SAMPLE);
+    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesOldObjectSample());
 
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
@@ -158,7 +158,7 @@ public class OpenJdkControllerTest {
   @Test
   public void testAllocationProfilerIsStillOverriddenOnUnsupportedVersion() throws Exception {
     Properties props = getConfigProperties();
-    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpUtilsTest.OVERRIDES_OBJECT_ALLOCATION);
+    props.put(PROFILING_TEMPLATE_OVERRIDE_FILE, JfpTestResources.overridesObjectAllocation());
     ConfigProvider configProvider = ConfigProvider.withPropertiesOverride(props);
 
     OpenJdkController controller = new OpenJdkController(configProvider);
