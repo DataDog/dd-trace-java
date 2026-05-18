@@ -5,6 +5,7 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import com.sun.management.UnixOperatingSystemMXBean;
 import datadog.trace.agent.jmxfetch.JvmOtlpRuntimeMetrics;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
 import datadog.trace.bootstrap.otel.metrics.OtelInstrumentDescriptor;
@@ -15,6 +16,7 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricsVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
+import java.lang.management.ManagementFactory;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.HashMap;
@@ -43,7 +45,7 @@ public class JvmOtlpRuntimeMetricsTest {
   @BeforeAll
   static void setUp() {
     System.setProperty("dd.metrics.otel.enabled", "true");
-    JvmOtlpRuntimeMetrics.start();
+    JvmOtlpRuntimeMetrics.start(true);
   }
 
   @Test
@@ -67,7 +69,9 @@ public class JvmOtlpRuntimeMetricsTest {
             "jvm.class.unloaded",
             "jvm.cpu.time",
             "jvm.cpu.count",
-            "jvm.cpu.recent_utilization");
+            "jvm.cpu.recent_utilization",
+            "jvm.system.cpu.utilization",
+            "jvm.system.cpu.load_1m");
 
     Set<String> names = collector.metricNames;
     for (String metric : expectedMetrics) {
@@ -76,7 +80,18 @@ public class JvmOtlpRuntimeMetricsTest {
           "Expected metric '" + metric + "' not found. Got: " + new TreeSet<>(names));
     }
 
-    assertEquals(15, names.size(), "Expected 15 metrics, got: " + new TreeSet<>(names));
+    int expectedSize = expectedMetrics.size();
+    if (ManagementFactory.getOperatingSystemMXBean() instanceof UnixOperatingSystemMXBean) {
+      assertTrue(
+          names.contains("jvm.file_descriptor.count"),
+          "Expected jvm.file_descriptor.count on Unix. Got: " + new TreeSet<>(names));
+      assertTrue(
+          names.contains("jvm.file_descriptor.limit"),
+          "Expected jvm.file_descriptor.limit on Unix. Got: " + new TreeSet<>(names));
+      expectedSize += 2;
+    }
+
+    assertEquals(expectedSize, names.size(), "Unexpected metric count: " + new TreeSet<>(names));
 
     // No DD-proprietary names should be present
     List<String> ddNames =
@@ -136,8 +151,8 @@ public class JvmOtlpRuntimeMetricsTest {
     OtelMetricRegistry.INSTANCE.collectMetrics(before);
     int countBefore = before.metricNames.size();
 
-    JvmOtlpRuntimeMetrics.start();
-    JvmOtlpRuntimeMetrics.start();
+    JvmOtlpRuntimeMetrics.start(true);
+    JvmOtlpRuntimeMetrics.start(true);
 
     MetricCollector after = new MetricCollector();
     OtelMetricRegistry.INSTANCE.collectMetrics(after);

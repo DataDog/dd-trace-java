@@ -118,6 +118,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
@@ -466,6 +467,7 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -970,6 +972,7 @@ public class Config {
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
+  private final boolean metricsOtelExperimentalEnabled;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -2053,6 +2056,10 @@ public class Config {
       otelTimeout = DEFAULT_METRICS_OTEL_TIMEOUT;
     }
     metricsOtelTimeout = otelTimeout;
+
+    metricsOtelExperimentalEnabled =
+        configProvider.getBoolean(
+            METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
 
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
@@ -5479,6 +5486,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
   }
 
+  public boolean isMetricsOtelExperimentalEnabled() {
+    return metricsOtelExperimentalEnabled;
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -6601,6 +6612,8 @@ public class Config {
         + metricsOtelTimeout
         + ", metricsOtelCardinalityLimit="
         + metricsOtelCardinalityLimit
+        + ", metricsOtelExperimentalEnabled="
+        + metricsOtelExperimentalEnabled
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="
