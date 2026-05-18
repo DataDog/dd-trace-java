@@ -105,6 +105,10 @@ abstract class GrizzlyAsyncHttpClientTest extends HttpClientTest {
 }
 
 class GrizzlyAsyncHttpClientV0Test extends GrizzlyAsyncHttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "grizzly-http-async-client.request"
+  }
 }
 
 class GrizzlyAsyncHttpClientV1ForkedTest extends GrizzlyAsyncHttpClientTest implements TestingGenericHttpNamingConventions.ClientV1 {

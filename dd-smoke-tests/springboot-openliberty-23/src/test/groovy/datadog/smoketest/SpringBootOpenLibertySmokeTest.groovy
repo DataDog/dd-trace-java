@@ -92,7 +92,7 @@ class SpringBootOpenLibertySmokeTest extends AbstractServerSmokeTest {
   @Override
   protected Set<String> expectedTraces() {
     return [
-      "[smoke-test:servlet.request[smoke-test:spring.handler[smoke-test:http.request]]]",
+      "[smoke-test:servlet.request[smoke-test:spring.handler[smoke-test:http-url-connection.request]]]",
       "[smoke-test:servlet.request[smoke-test:spring.handler]]"
     ].toSet()
   }

@@ -124,7 +124,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
         muleSpan(it, "http:request", "Http Request")
         span {
           childOfPrevious()
-          operationName "http.request"
+          operationName "grizzly-http-async-client.request"
           resourceName "GET /remote-client-request"
           spanType DDSpanTypes.HTTP_CLIENT
           tags {
@@ -194,7 +194,7 @@ class MuleForkedTest extends WithHttpServer<MuleTestContainer> {
         requestParents.each {parent ->
           traceAssert.span {
             childOf parent
-            operationName "http.request"
+            operationName "grizzly-http-async-client.request"
             resourceName "GET /remote-pfe-request"
             spanType DDSpanTypes.HTTP_CLIENT
             tags {

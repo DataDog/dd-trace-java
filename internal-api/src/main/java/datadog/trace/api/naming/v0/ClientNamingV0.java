@@ -29,7 +29,18 @@ public class ClientNamingV0 implements NamingSchema.ForClient {
     switch (component) {
       case "play-ws":
       case "okhttp":
+      case "apache-httpasyncclient":
+      case "commons-http-client":
+      case "google-http-client":
+      case "http-url-connection":
+      case "java-http-client":
+      case "grizzly-http-async-client":
+      case "spring-webflux-client":
+      case "jetty-client":
         return component + ".request";
+      case "apache-httpclient":
+      case "apache-httpclient5":
+        return "apache-httpclient.request";
       case "netty-client":
         return "netty.client.request";
       case "akka-http-client":

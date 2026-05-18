@@ -855,7 +855,7 @@ class TwilioClientV0Test extends TwilioClientTest {
 
   @Override
   String httpClientOperation() {
-    return new TestingGenericHttpNamingConventions.ClientV0(){}.operation()
+    return "apache-httpclient.request"
   }
 }
 

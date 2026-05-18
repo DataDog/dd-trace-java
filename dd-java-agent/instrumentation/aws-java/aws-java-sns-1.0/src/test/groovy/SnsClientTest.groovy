@@ -244,7 +244,7 @@ class SnsClientV0Test extends SnsClientTest {
     if ("SNS" == awsService) {
       return "aws.http"
     }
-    return "http.request"
+    return "apache-httpclient.request"
   }
 
   @Override
@@ -289,7 +289,7 @@ class SnsClientV0DataStreamsTest extends SnsClientTest {
     if ("SNS" == awsService) {
       return "aws.http"
     }
-    return "http.request"
+    return "apache-httpclient.request"
   }
 
   @Override

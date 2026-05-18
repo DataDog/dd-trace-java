@@ -101,6 +101,10 @@ abstract class JettyClientTest extends HttpClientTest {
 }
 
 class JettyClientV0Test extends JettyClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
+  @Override
+  String operation() {
+    "jetty-client.request"
+  }
 }
 
 class JettyClientV1ForkedTest extends JettyClientTest implements TestingGenericHttpNamingConventions.ClientV1 {
