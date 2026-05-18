@@ -58,14 +58,15 @@ public final class ScaReachabilityPeriodicAction
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
     Map<String, DependencySnapshot> snapshotByKey = new HashMap<>(pending.size() * 2);
     for (DependencySnapshot snapshot : pending) {
-      snapshotByKey.put(snapshot.artifact + "@" + snapshot.version, snapshot);
+      snapshotByKey.put(
+          ScaReachabilityDependencyRegistry.depKey(snapshot.artifact, snapshot.version), snapshot);
     }
 
     // Step 2: drain DependencyService (newly detected JARs this heartbeat).
     // For each new dep: merge with CVE state if present, otherwise emit metadata:[].
     if (dependencyService != null) {
       for (Dependency dep : dependencyService.drainDeterminedDependencies()) {
-        String key = dep.name + "@" + dep.version;
+        String key = ScaReachabilityDependencyRegistry.depKey(dep.name, dep.version);
         DependencySnapshot snapshot = snapshotByKey.remove(key);
         if (snapshot != null) {
           // New dep AND has CVE state - emit the full picture in one entry.
