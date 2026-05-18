@@ -1,6 +1,7 @@
 # This is a Gradle generated file for dependency locking.
 # Manual edits can break the build and are not advised.
 # This file is expected to be part of source control.
+at.yawk.lz4:lz4-java:1.11.0=sharedShadowInclude
 cafe.cryptography:curve25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 cafe.cryptography:ed25519-elisabeth:0.1.0=sharedShadowInclude,testRuntimeClasspath,traceShadowInclude
 ch.qos.logback:logback-classic:1.2.13=testCompileClasspath,testRuntimeClasspath
@@ -79,7 +80,6 @@ org.junit.platform:junit-platform-engine:1.14.1=testCompileClasspath,testRuntime
 org.junit.platform:junit-platform-launcher:1.14.1=testRuntimeClasspath
 org.junit:junit-bom:5.14.0=spotbugs
 org.junit:junit-bom:5.14.1=testCompileClasspath,testRuntimeClasspath
-org.lz4:lz4-java:1.7.1=sharedShadowInclude
 org.mockito:mockito-core:4.4.0=testRuntimeClasspath
 org.msgpack:msgpack-core:0.8.24=testRuntimeClasspath
 org.objenesis:objenesis:3.3=testCompileClasspath,testRuntimeClasspath
