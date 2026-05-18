@@ -5,10 +5,12 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.dependency.Dependency;
@@ -30,12 +32,15 @@ class ScaReachabilityPeriodicActionTest {
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     telService = mock(TelemetryService.class);
-    // Pass a DependencyService stub that returns no new deps by default.
-    // Tests that need new deps can override via the depService mock.
     DependencyService depService = mock(DependencyService.class);
-    org.mockito.Mockito.when(depService.drainDeterminedDependencies())
-        .thenReturn(Collections.emptyList());
+    when(depService.drainDeterminedDependencies()).thenReturn(Collections.emptyList());
     action = new ScaReachabilityPeriodicAction(depService);
+    // Pre-populate knownDeps with the common test dep so registry-only tests can emit via Step 3.
+    // This simulates the dep having been resolved by DependencyService in a prior heartbeat.
+    action.addKnownDepForTesting("com.example:lib", "1.0.0");
+    action.addKnownDepForTesting("com.example:lib-a", "1.0.0");
+    action.addKnownDepForTesting("com.example:lib-b", "2.0.0");
+    action.addKnownDepForTesting("com.other:lib", "2.0.0");
   }
 
   @Test
@@ -334,6 +339,8 @@ class ScaReachabilityPeriodicActionTest {
 
     Dependency incomingA = new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null);
     ScaReachabilityPeriodicAction merged = actionWithDeps(incomingA);
+    // Simulate com.other:lib having been resolved by DependencyService in a prior heartbeat
+    merged.addKnownDepForTesting("com.other:lib", "2.0.0");
 
     merged.doIteration(telService);
 
@@ -355,5 +362,102 @@ class ScaReachabilityPeriodicActionTest {
     assertTrue(depA.reachabilityMetadata.isEmpty(), "depA: no CVE state → metadata:[]");
     assertTrue(
         depB.reachabilityMetadata.get(0).contains("GHSA-other-5678"), "depB: must carry CVE state");
+  }
+
+  // ---------------------------------------------------------------------------
+  // knownDeps / timing invariant tests
+  // ---------------------------------------------------------------------------
+
+  /**
+   * Dep resolved by DependencyService in heartbeat N; CVE fires in heartbeat N+1. The dep is
+   * already in knownDeps, so Step 3 emits it with source/hash.
+   */
+  @Test
+  void cveFiresAfterDepResolved_usesKnownDepsForSourceHash() {
+    DependencyService svc = mock(DependencyService.class);
+    // Heartbeat 1: DependencyService returns the dep, no CVE yet
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(
+            Collections.singletonList(
+                new Dependency("com.example:lib", "1.0.0", "lib.jar", "ABCD")))
+        .thenReturn(Collections.emptyList()); // heartbeat 2: nothing new
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // Heartbeat 1: dep detected, no CVE → emits metadata:[]
+    merged.doIteration(telService);
+
+    // CVE fires between heartbeat 1 and 2
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-late");
+
+    // Heartbeat 2: DependencyService is empty, but CVE is pending
+    TelemetryService telService2 = mock(TelemetryService.class);
+    merged.doIteration(telService2);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService2, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("lib.jar", emitted.source, "source from knownDeps must be preserved");
+    assertEquals("ABCD", emitted.hash, "hash from knownDeps must be preserved");
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-late"));
+  }
+
+  /**
+   * CVE fires before DependencyService has resolved the dep (timing race). Step 3 must NOT emit
+   * without source/hash; instead re-marks as pending. On the next heartbeat, DependencyService
+   * resolves the dep and the merge succeeds.
+   */
+  @Test
+  void cveFiresBeforeDepResolved_retainsAsPendingUntilDepKnown() {
+    DependencyService svc = mock(DependencyService.class);
+    // Heartbeat 1: DependencyService is empty (dep not yet resolved)
+    // Heartbeat 2: DependencyService returns the dep
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.emptyList())
+        .thenReturn(
+            Collections.singletonList(
+                new Dependency("com.example:lib", "1.0.0", "lib.jar", "ABCD")));
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    // CVE fires before DependencyService resolves the dep
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-race");
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-race", "com.app.Ctrl", "handle", 10);
+
+    // Heartbeat 1: DependencyService empty → CVE re-marked pending, nothing emitted
+    merged.doIteration(telService);
+    verify(telService, never()).addDependency(any());
+
+    // Heartbeat 2: DependencyService now has the dep → merge succeeds with source/hash
+    TelemetryService telService2 = mock(TelemetryService.class);
+    merged.doIteration(telService2);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService2, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("lib.jar", emitted.source, "source/hash must come from DependencyService");
+    assertEquals("ABCD", emitted.hash);
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-race"));
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("\"path\""), "must include callsite");
+  }
+
+  /**
+   * Dep and CVE arrive simultaneously (same heartbeat) — existing Step 2 merge path. This existing
+   * behavior must still work after the knownDeps refactor.
+   */
+  @Test
+  void cveAndDepArriveSameHeartbeat_step2MergeStillWorks() {
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+        "com.example:lib", "1.0.0", "GHSA-simultaneous");
+
+    Dependency incoming = new Dependency("com.example:lib", "1.0.0", "lib.jar", "HASH");
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incoming);
+
+    merged.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("lib.jar", emitted.source, "Step 2 merge must preserve source");
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-simultaneous"));
   }
 }
