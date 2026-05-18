@@ -316,7 +316,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
 
     try {
-      instrumentation.retransformClasses(toRetransform.toArray(new Class[0]));
+      instrumentation.retransformClasses(toRetransform.toArray(new Class<?>[0]));
       log.debug(
           "SCA Reachability: retransformed {} class(es) for method-level detection",
           toRetransform.size());
