@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Stateful registry for SCA Reachability, implementing the RFC heartbeat model.
@@ -137,11 +138,13 @@ public final class ScaReachabilityDependencyRegistry {
 
     void recordHit(String vulnId, String callsiteClass, String callsiteSymbol, int callsiteLine) {
       CveState state = cves.computeIfAbsent(vulnId, k -> new CveState());
-      if (state.hit == null) {
-        // Only store the first hit (RFC: single occurrence sufficient)
-        state.hit =
-            new ScaReachabilityHit(
-                vulnId, artifact, version, callsiteClass, callsiteSymbol, callsiteLine);
+      // compareAndSet guarantees exactly one callsite is stored (first hit wins).
+      // A plain volatile check-then-assign would allow two threads racing on different
+      // methods of the same CVE to both see null and both write, violating the invariant.
+      ScaReachabilityHit newHit =
+          new ScaReachabilityHit(
+              vulnId, artifact, version, callsiteClass, callsiteSymbol, callsiteLine);
+      if (state.hitRef.compareAndSet(null, newHit)) {
         pendingReport = true;
       }
     }
@@ -157,7 +160,7 @@ public final class ScaReachabilityDependencyRegistry {
       pendingReport = false;
       List<CveSnapshot> cveSnapshots = new ArrayList<>(cves.size());
       for (java.util.Map.Entry<String, CveState> entry : cves.entrySet()) {
-        cveSnapshots.add(new CveSnapshot(entry.getKey(), entry.getValue().hit));
+        cveSnapshots.add(new CveSnapshot(entry.getKey(), entry.getValue().hitRef.get()));
       }
       return new DependencySnapshot(artifact, version, Collections.unmodifiableList(cveSnapshots));
     }
@@ -165,7 +168,11 @@ public final class ScaReachabilityDependencyRegistry {
 
   /** Mutable state for one CVE within a dependency. */
   static final class CveState {
-    volatile ScaReachabilityHit hit; // null = registered but not yet reached
+    /**
+     * First callsite hit, or {@code null} if not yet reached. AtomicReference ensures compareAndSet
+     * atomicity so exactly one thread wins the "first hit" race.
+     */
+    final AtomicReference<ScaReachabilityHit> hitRef = new AtomicReference<>(null);
   }
 
   /** Immutable snapshot of a dependency's CVE state at drain time. */
