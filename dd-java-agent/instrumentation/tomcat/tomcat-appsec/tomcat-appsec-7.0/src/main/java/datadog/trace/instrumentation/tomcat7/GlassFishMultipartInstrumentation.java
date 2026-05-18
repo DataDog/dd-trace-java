@@ -14,6 +14,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -73,7 +74,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") org.apache.catalina.connector.Request requestField) {
+        @Advice.FieldValue("request") Object requestField) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -98,13 +99,27 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
       // Extract servlet request/response for fallback blocking when no BlockResponseFunction is
       // registered (Payara: TomcatServerInstrumentation is muzzled out for Payara's response type).
-      // @Advice.FieldValue inlines direct field access into Multipart.getParts() - no reflection
-      // needed. Typed as connector.Request to also call getResponse() without reflection.
+      // @Advice.FieldValue inlines direct field access into Multipart.getParts(), avoiding the
+      // setAccessible() call that fails across module boundaries in Java 11+. The field is typed
+      // as Object because org.apache.catalina.connector.Request is not in glassfish-embedded-all's
+      // exported classpath, so a direct type reference would break the muzzle AssertPass check.
+      // getResponse() is still called via reflection for the same reason.
       HttpServletRequest fallbackReq = null;
       HttpServletResponse fallbackResp = null;
-      if (requestField != null) {
-        fallbackReq = requestField;
-        fallbackResp = requestField.getResponse();
+      if (requestField instanceof HttpServletRequest) {
+        fallbackReq = (HttpServletRequest) requestField;
+      }
+      try {
+        if (requestField != null) {
+          Method m = requestField.getClass().getMethod("getResponse");
+          Object catResp = m.invoke(requestField);
+          if (catResp instanceof HttpServletResponse) {
+            fallbackResp = (HttpServletResponse) catResp;
+          }
+        }
+      } catch (Exception ignored) {
+        // getResponse() unavailable or failed — fallbackResp stays null, blocking falls back to
+        // no-op
       }
 
       if (GlassFishBlockingHelper.processPartsAndBlock(
