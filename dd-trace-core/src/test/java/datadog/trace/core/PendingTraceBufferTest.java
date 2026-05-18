@@ -38,6 +38,8 @@ import datadog.trace.test.util.DDJavaSpecification;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
+import java.lang.management.ManagementFactory;
+import java.lang.management.ThreadInfo;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -55,7 +57,12 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.TestExecutionExceptionHandler;
+import org.mockito.junit.jupiter.MockitoExtension;
 
+@ExtendWith(ThreadDumpOnTimeoutExtension.class)
 @Timeout(5)
 public class PendingTraceBufferTest extends DDJavaSpecification {
 
@@ -604,5 +611,22 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
       }
     }
     return allSpans;
+  }
+}
+
+class ThreadDumpOnTimeoutExtension implements TestExecutionExceptionHandler {
+
+  @Override
+  public void handleTestExecutionException(ExtensionContext ctx, Throwable ex) throws Throwable {
+    if (ex instanceof org.opentest4j.AssertionFailedError
+        && ex.getMessage().contains("exceeded timeout")) {
+      System.err.println("=== TIMEOUT detected — Thread dump ===");
+      ThreadInfo[] infos = ManagementFactory.getThreadMXBean()
+          .dumpAllThreads(true, true);
+      for (ThreadInfo info : infos) {
+        System.err.println(info);
+      }
+    }
+    throw ex; // rethrow so the test still fails
   }
 }
