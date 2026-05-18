@@ -461,9 +461,9 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
         // Redirect output to a file to avoid pipe-buffer deadlock — a full thread dump can
         // exceed the OS pipe buffer (typically 64 KB) before waitFor returns.
         Process p = new ProcessBuilder(cmd, String.valueOf(pid))
-          .redirectErrorStream(true)
-          .redirectOutput(tmp)
-          .start()
+        .redirectErrorStream(true)
+        .redirectOutput(tmp)
+        .start()
         if (!p.waitFor(5, SECONDS)) {
           p.destroyForcibly()
           p.waitFor(2, SECONDS)
