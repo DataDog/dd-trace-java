@@ -1,7 +1,6 @@
 package datadog.trace.instrumentation.vertx_3_4.server;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
-import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,9 +10,9 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 
 @AutoService(InstrumenterModule.class)
-public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
+public class HttpServerResponseExceptionHandlerInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  public RouteHandlerInstrumentation() {
+  public HttpServerResponseExceptionHandlerInstrumentation() {
     super("vertx", "vertx-3.4");
   }
 
@@ -30,16 +29,16 @@ public class RouteHandlerInstrumentation extends InstrumenterModule.Tracing
 
   @Override
   public String instrumentedType() {
-    return "io.vertx.ext.web.impl.RouteImpl";
+    return "io.vertx.core.http.impl.HttpServerResponseImpl";
   }
 
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
-            .and(namedOneOf("handler", "blockingHandler"))
+            .and(named("exceptionHandler"))
             .and(isPublic())
             .and(takesArgument(0, named("io.vertx.core.Handler"))),
-        packageName + ".RouteHandlerWrapperAdvice");
+        packageName + ".ExceptionHandlerWrapperAdvice");
   }
 }

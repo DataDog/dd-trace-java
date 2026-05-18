@@ -47,17 +47,21 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
+        // Vert.x 3.x has no single hook that fires on every response outcome
+        // (RoutingContext.addEndHandler is 4.0+). We register three:
+        //   - response.endHandler: normal response-end path.
+        //   - response.bodyEndHandler (via RoutingContext.addBodyEndHandler):
+        //     covers sendFile() success and synthetic-transport cases where
+        //     HttpServerResponseImpl.end gates endHandler behind `!closed`
+        //     and the response is closed synchronously by responseComplete()
+        //     (e.g. quarkus-amazon-lambda-rest's in-memory Netty channel).
+        //   - response.exceptionHandler: covers I/O failures surfaced via
+        //     HttpServerResponseImpl.handleException (non-CLOSED_EXCEPTION),
+        //     where neither endHandler nor bodyEndHandler fires.
+        // finishHandlerSpan is idempotent; whichever hook fires first wins.
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
-        // Fallback finish path. The response.endHandler we register above can be
-        // silently skipped on Vert.x 3.x in two situations:
-        //   1. sendFile() — only bodyEndHandler is invoked on this path.
-        //   2. Synthetic transports (e.g. an in-memory Netty channel) on 3.9,
-        //      where HttpServerResponseImpl.end gates endHandler behind `!closed`
-        //      and the response is closed synchronously by responseComplete().
-        // RoutingContext.addBodyEndHandler is wired to response.bodyEndHandler,
-        // which HttpServerResponseImpl invokes on every response-end path across
-        // the 3.x range. RoutingContext.addEndHandler does not exist until 4.0.
         routingContext.addBodyEndHandler(v -> finishHandlerSpan(routingContext));
+        routingContext.response().exceptionHandler(new ExceptionHandlerWrapper(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
@@ -73,10 +77,10 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
     }
   }
 
-  // Idempotently finish the route-handler span. Both EndHandlerWrapper (the
-  // response.endHandler path) and the routingContext.addBodyEndHandler fallback
-  // may call this; the first one to win clears HANDLER_SPAN_CONTEXT_KEY so the
-  // second is a no-op.
+  // Idempotently finish the route-handler span. Any of the three registered
+  // hooks (EndHandlerWrapper, the addBodyEndHandler fallback, or
+  // ExceptionHandlerWrapper) may call this; the first one to win clears
+  // HANDLER_SPAN_CONTEXT_KEY so the others are no-ops.
   static void finishHandlerSpan(final RoutingContext routingContext) {
     final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
     if (span == null) {
