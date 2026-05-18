@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_clients;
 
+import static datadog.trace.api.telemetry.LogCollector.EXCLUDE_TELEMETRY;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCED_KEY;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
@@ -46,14 +47,41 @@ public class TextMapExtractAdapter implements ContextVisitor<Headers> {
     Header header = carrier.lastHeader(KAFKA_PRODUCED_KEY);
     if (null != header) {
       try {
-        ByteBuffer buf = ByteBuffer.allocate(8);
-        buf.put(base64 != null ? base64.decode(header.value()) : header.value());
-        buf.flip();
-        return buf.getLong();
+        byte[] value = header.value();
+        if (base64 != null) {
+          long ts = extractBase64Timestamp(value);
+          return ts != 0 ? ts : extractBinaryTimestamp(value);
+        } else {
+          return extractBinaryTimestamp(value);
+        }
       } catch (Exception e) {
         log.debug("Unable to get kafka produced time", e);
       }
     }
     return 0;
+  }
+
+  private long extractBase64Timestamp(byte[] value) {
+    try {
+      ByteBuffer buf = ByteBuffer.allocate(8);
+      buf.put(base64.decode(value));
+      buf.flip();
+      return buf.getLong();
+    } catch (Exception e) {
+      log.debug(EXCLUDE_TELEMETRY, "Unable to extract kafka produced time from base64 header", e);
+      return 0;
+    }
+  }
+
+  private static long extractBinaryTimestamp(byte[] value) {
+    try {
+      ByteBuffer buf = ByteBuffer.allocate(8);
+      buf.put(value);
+      buf.flip();
+      return buf.getLong();
+    } catch (Exception e) {
+      log.debug(EXCLUDE_TELEMETRY, "Unable to extract kafka produced time from binary header", e);
+      return 0;
+    }
   }
 }
