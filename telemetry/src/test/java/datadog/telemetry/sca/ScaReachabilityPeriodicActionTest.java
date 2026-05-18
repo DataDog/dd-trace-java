@@ -2,6 +2,7 @@ package datadog.telemetry.sca;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
 import static org.mockito.Mockito.mock;
@@ -11,8 +12,10 @@ import static org.mockito.Mockito.verify;
 
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.dependency.Dependency;
+import datadog.telemetry.dependency.DependencyService;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
+import java.util.Collections;
 import java.util.List;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -27,7 +30,12 @@ class ScaReachabilityPeriodicActionTest {
   void setUp() {
     ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
     telService = mock(TelemetryService.class);
-    action = new ScaReachabilityPeriodicAction();
+    // Pass a DependencyService stub that returns no new deps by default.
+    // Tests that need new deps can override via the depService mock.
+    DependencyService depService = mock(DependencyService.class);
+    org.mockito.Mockito.when(depService.drainDeterminedDependencies())
+        .thenReturn(Collections.emptyList());
+    action = new ScaReachabilityPeriodicAction(depService);
   }
 
   @Test
@@ -259,5 +267,93 @@ class ScaReachabilityPeriodicActionTest {
             + "\"symbol\":\"<clinit>\","
             + "\"line\":1}]}",
         value);
+  }
+
+  // ---------------------------------------------------------------------------
+  // Merge logic: DependencyService + ScaReachabilityDependencyRegistry
+  // ---------------------------------------------------------------------------
+
+  private static ScaReachabilityPeriodicAction actionWithDeps(Dependency... deps) {
+    DependencyService svc = mock(DependencyService.class);
+    org.mockito.Mockito.when(svc.drainDeterminedDependencies())
+        .thenReturn(java.util.Arrays.asList(deps));
+    return new ScaReachabilityPeriodicAction(svc);
+  }
+
+  @Test
+  void newDep_noCveState_emitsWithEmptyMetadata() {
+    // DependencyService returns a new dep; registry has nothing for it.
+    // Expected: one entry with metadata:[] (SCA-active signal, no CVE data yet).
+    Dependency incoming = new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null);
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incoming);
+
+    merged.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("com.example:lib", emitted.name);
+    assertEquals("1.0.0", emitted.version);
+    assertNotNull(emitted.reachabilityMetadata, "metadata must not be null when SCA active");
+    assertTrue(emitted.reachabilityMetadata.isEmpty(), "metadata must be [] when no CVE state");
+  }
+
+  @Test
+  void newDep_withCveState_emitsMergedSingleEntry() {
+    // DependencyService returns dep X; registry has a pending CVE state for the same dep.
+    // Expected: ONE entry with the CVE metadata merged in — no separate dep:[] entry.
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+        "com.example:lib", "1.0.0", "GHSA-test-1234");
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-test-1234", "com.myapp.Ctrl", "handle", 10);
+
+    Dependency incoming = new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", "ABCD");
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incoming);
+
+    merged.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("com.example:lib", emitted.name);
+    assertEquals("1.0.0", emitted.version);
+    assertEquals("ABCD", emitted.hash, "source/hash from DependencyService must be preserved");
+    assertEquals(1, emitted.reachabilityMetadata.size());
+    assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-test-1234"));
+    assertTrue(
+        emitted.reachabilityMetadata.get(0).contains("\"path\""),
+        "merged entry must include callsite");
+  }
+
+  @Test
+  void newDepAndUnrelatedCveState_emitsTwoIndependentEntries() {
+    // DependencyService returns depA; registry has pending state for depB (different dep).
+    // Expected: two separate entries — one for depA (metadata:[]), one for depB (CVE metadata).
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
+        "com.other:lib", "2.0.0", "GHSA-other-5678");
+
+    Dependency incomingA = new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", null);
+    ScaReachabilityPeriodicAction merged = actionWithDeps(incomingA);
+
+    merged.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(2)).addDependency(captor.capture());
+    java.util.List<Dependency> emitted = captor.getAllValues();
+
+    Dependency depA =
+        emitted.stream()
+            .filter(d -> "com.example:lib".equals(d.name))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("dep not found"));
+    Dependency depB =
+        emitted.stream()
+            .filter(d -> "com.other:lib".equals(d.name))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("dep not found"));
+
+    assertTrue(depA.reachabilityMetadata.isEmpty(), "depA: no CVE state → metadata:[]");
+    assertTrue(
+        depB.reachabilityMetadata.get(0).contains("GHSA-other-5678"), "depB: must carry CVE state");
   }
 }
