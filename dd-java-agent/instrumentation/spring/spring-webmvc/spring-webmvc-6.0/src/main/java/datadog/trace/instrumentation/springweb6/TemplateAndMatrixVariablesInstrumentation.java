@@ -64,7 +64,7 @@ public class TemplateAndMatrixVariablesInstrumentation extends InstrumenterModul
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PairList",
+      packageName + ".PairList", packageName + ".MergedMapView",
     };
   }
 

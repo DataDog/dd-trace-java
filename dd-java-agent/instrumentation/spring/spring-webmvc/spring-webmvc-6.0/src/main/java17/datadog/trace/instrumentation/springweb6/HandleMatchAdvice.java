@@ -16,7 +16,6 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import jakarta.servlet.http.HttpServletRequest;
-import java.util.HashMap;
 import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
@@ -66,23 +65,15 @@ public class HandleMatchAdvice {
 
         // merge the uri template and matrix variables
         Map<String, Object> map = null;
-        if (templateVars instanceof Map) {
+        if (templateVars instanceof Map && !((Map<?, ?>) templateVars).isEmpty()) {
           map = (Map<String, Object>) templateVars;
         }
-        if (matrixVars instanceof Map) {
+        if (matrixVars instanceof Map && !((Map<?, ?>) matrixVars).isEmpty()) {
+          Map<String, Object> matrixMap = (Map<String, Object>) matrixVars;
           if (map != null) {
-            map = new HashMap<>(map);
-            for (Map.Entry<String, Object> e : ((Map<String, Object>) matrixVars).entrySet()) {
-              String key = e.getKey();
-              Object curValue = map.get(key);
-              if (curValue != null) {
-                map.put(key, new PairList(curValue, e.getValue()));
-              } else {
-                map.put(key, e.getValue());
-              }
-            }
+            map = new MergedMapView(map, matrixMap);
           } else {
-            map = (Map<String, Object>) matrixVars;
+            map = matrixMap;
           }
         }
 
