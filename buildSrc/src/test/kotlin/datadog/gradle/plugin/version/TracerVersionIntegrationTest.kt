@@ -82,29 +82,6 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
   }
 
   @Test
-  fun `should increment minor from merged main version tag on feature branch`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
-      expectedVersion = "1.53.0-SNAPSHOT",
-      beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.50.0", "-m", "")
-        fixture.exec("git", "switch", "-c", "feature")
-        File(projectDir, "feature.txt").writeText("feature")
-        fixture.exec("git", "add", "feature.txt")
-        fixture.exec("git", "commit", "-m", "Feature commit")
-        fixture.exec("git", "switch", "main")
-        File(projectDir, "main.txt").writeText("main")
-        fixture.exec("git", "add", "main.txt")
-        fixture.exec("git", "commit", "-m", "Main commit")
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.exec("git", "switch", "feature")
-        fixture.exec("git", "merge", "main", "--no-edit")
-      },
-    )
-  }
-
-  @Test
   fun `should increment minor with snapshot and dirtiness with added commits after version tag and dirty`() {
     assertTracerVersion(
       expectedVersion = "1.53.0-SNAPSHOT-DIRTY",
@@ -115,29 +92,6 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
         writeSettings("// uncommitted change ", append = true)
         exec("git", "commit", "-am", "Another commit")
         writeSettings("// An uncommitted modification", append = true)
-      },
-    )
-  }
-
-  @Test
-  fun `should increment patch from first parent on release branch after main merge`(@TempDir projectDir: File) {
-    val fixture = VersionPluginsFixture(projectDir)
-    fixture.assertTracerVersion(
-      expectedVersion = "1.52.1-SNAPSHOT",
-      beforeGradle = {
-        fixture.initGitRepo()
-        fixture.exec("git", "tag", "v1.52.0", "-m", "")
-        fixture.exec("git", "switch", "-c", "release/v1.52.x")
-        File(projectDir, "release.txt").writeText("release")
-        fixture.exec("git", "add", "release.txt")
-        fixture.exec("git", "commit", "-m", "Release commit")
-        fixture.exec("git", "switch", "main")
-        File(projectDir, "main.txt").writeText("main")
-        fixture.exec("git", "add", "main.txt")
-        fixture.exec("git", "commit", "-m", "Main commit")
-        fixture.exec("git", "tag", "v1.53.0", "-m", "")
-        fixture.exec("git", "switch", "release/v1.52.x")
-        fixture.exec("git", "merge", "main", "--no-edit")
       },
     )
   }
@@ -186,6 +140,50 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
         // Write into workTreeDir, not projectDir, so the next commit has changes to pick up.
         File(workTreeDir, "settings.gradle.kts").appendText("\n// Committed change this file, ")
         exec(workTreeDir, "git", "commit", "-am", "Another commit")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment minor from merged main version tag on feature branch`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.50.0", "-m", "")
+        exec("git", "switch", "-c", "feature")
+        writeFile("feature.txt", "feature")
+        exec("git", "add", "feature.txt")
+        exec("git", "commit", "-m", "Feature commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "feature")
+        exec("git", "merge", "main", "--no-edit")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment patch from first parent on release branch after main merge`() {
+    assertTracerVersion(
+      expectedVersion = "1.52.1-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeFile("release.txt", "release")
+        exec("git", "add", "release.txt")
+        exec("git", "commit", "-m", "Release commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.53.0", "-m", "")
+        exec("git", "switch", "release/v1.52.x")
+        exec("git", "merge", "main", "--no-edit")
       },
     )
   }
