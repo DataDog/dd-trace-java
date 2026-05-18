@@ -1,13 +1,5 @@
 package datadog.trace.junit.utils.config;
 
-import static net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.Listener.ErrorEscalating.FAIL_FAST;
-import static net.bytebuddy.agent.builder.AgentBuilder.RedefinitionStrategy.RETRANSFORMATION;
-import static net.bytebuddy.description.modifier.FieldManifestation.VOLATILE;
-import static net.bytebuddy.description.modifier.Ownership.STATIC;
-import static net.bytebuddy.description.modifier.Visibility.PUBLIC;
-import static net.bytebuddy.matcher.ElementMatchers.named;
-import static net.bytebuddy.matcher.ElementMatchers.namedOneOf;
-import static net.bytebuddy.matcher.ElementMatchers.none;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -15,7 +7,6 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.NonNull;
-import java.lang.instrument.Instrumentation;
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
@@ -24,11 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import net.bytebuddy.agent.ByteBuddyAgent;
-import net.bytebuddy.agent.builder.AgentBuilder;
-import net.bytebuddy.dynamic.ClassFileLocator;
-import net.bytebuddy.dynamic.Transformer;
-import net.bytebuddy.utility.JavaModule;
 import org.junit.jupiter.api.extension.AfterAllCallback;
 import org.junit.jupiter.api.extension.AfterEachCallback;
 import org.junit.jupiter.api.extension.BeforeAllCallback;
@@ -80,7 +66,7 @@ public class WithConfigExtension
      */
     // Install config transformer error listener
     if (!configTransformerInstalled) {
-      installConfigTransformer();
+      ensureConfigInstrumentationHasBeenApplied();
       configTransformerInstalled = true;
     }
     // Make config instance modifiable
@@ -230,26 +216,25 @@ public class WithConfigExtension
 
   // region Config infrastructure setup
 
-  private static void installConfigTransformer() {
+  private static void ensureConfigInstrumentationHasBeenApplied() {
+    if (isWritableInstance(CONFIG) && isWritableInstance(INST_CONFIG)) {
+      return;
+    }
+    throw new IllegalStateException(
+        "Config/InstrumenterConfig INSTANCE fields are not modifiable. "
+            + "Need the '-javaagent:modifiable-config-agent.jar' on the test JVM "
+            + "(the dd-trace-java.configure-tests Gradle convention plugin wires this automatically).");
+  }
+
+  private static boolean isWritableInstance(String className) {
     try {
-      Instrumentation instrumentation = ByteBuddyAgent.install();
-      new AgentBuilder.Default()
-          .with(RETRANSFORMATION)
-          .with(FAIL_FAST)
-          .with(
-              new AgentBuilder.LocationStrategy.Simple(
-                  ClassFileLocator.ForClassLoader.ofSystemLoader()))
-          .ignore(none())
-          .type(namedOneOf(INST_CONFIG, CONFIG))
-          .transform(
-              (builder, typeDescription, classLoader, module, pd) ->
-                  builder
-                      .field(named("INSTANCE"))
-                      .transform(Transformer.ForField.withModifiers(PUBLIC, STATIC, VOLATILE)))
-          .with(new ConfigInstrumentationFailedListener())
-          .installOn(instrumentation);
-    } catch (IllegalStateException e) {
-      // Ignore. When we have -javaagent:dd-java-agent.jar, this is fine.
+      int m = Class.forName(className).getDeclaredField("INSTANCE").getModifiers();
+      return Modifier.isPublic(m)
+          && Modifier.isStatic(m)
+          && Modifier.isVolatile(m)
+          && !Modifier.isFinal(m);
+    } catch (ClassNotFoundException | NoSuchFieldException e) {
+      return false;
     }
   }
 
@@ -382,20 +367,6 @@ public class WithConfigExtension
       }
 
       return provider;
-    }
-  }
-
-  private static class ConfigInstrumentationFailedListener extends AgentBuilder.Listener.Adapter {
-    @Override
-    public void onError(
-        @NonNull String typeName,
-        ClassLoader classLoader,
-        JavaModule module,
-        boolean loaded,
-        @NonNull Throwable throwable) {
-      if (CONFIG.equals(typeName)) {
-        configModificationFailed = true;
-      }
     }
   }
 }
