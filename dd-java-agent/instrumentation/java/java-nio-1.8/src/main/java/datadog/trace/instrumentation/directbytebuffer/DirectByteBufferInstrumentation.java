@@ -1,7 +1,8 @@
 package datadog.trace.instrumentation.directbytebuffer;
 
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED;
-import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
@@ -23,11 +24,15 @@ public final class DirectByteBufferInstrumentation extends InstrumenterModule.Pr
 
   @Override
   public boolean isEnabled() {
+    ConfigProvider cp = ConfigProvider.getInstance();
     return JavaVirtualMachine.isJavaVersionAtLeast(11)
         && super.isEnabled()
-        && ConfigProvider.getInstance()
-            .getBoolean(
-                PROFILING_DIRECT_ALLOCATION_ENABLED, PROFILING_DIRECT_ALLOCATION_ENABLED_DEFAULT)
+        // PROFILING_DIRECT_MEMORY_ENABLED is the canonical gate; PROFILING_DIRECT_ALLOCATION_ENABLED
+        // is a backwards-compatibility fallback used only when the new key is unset.
+        && cp.getBoolean(
+            PROFILING_DIRECT_MEMORY_ENABLED,
+            PROFILING_DIRECT_MEMORY_ENABLED_DEFAULT,
+            PROFILING_DIRECT_ALLOCATION_ENABLED)
         && Platform.hasJfr();
   }
 
