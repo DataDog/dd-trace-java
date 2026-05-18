@@ -23,8 +23,8 @@ import org.junit.platform.commons.support.AnnotationSupport;
  *
  * <ul>
  *   <li>Verifying {@code Config} and {@code InstrumenterConfig} {@code INSTANCE} fields have been
- *       made modifiable by the load-time agent (see {@code dd-trace-java.modifiable-config.gradle.kts}
- *       and {@code buildSrc/modifiable-config-agent})
+ *       made modifiable by the load-time agent (see {@code
+ *       dd-trace-java.modifiable-config.gradle.kts} and {@code buildSrc/modifiable-config-agent})
  *   <li>Saving/restoring system properties between tests
  *   <li>Managing test environment variables
  *   <li>Applying {@link WithConfig} annotations (class and method level, including composed
