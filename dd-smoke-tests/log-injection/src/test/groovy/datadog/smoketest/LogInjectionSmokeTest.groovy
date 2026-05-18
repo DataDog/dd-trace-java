@@ -3,6 +3,7 @@ package datadog.smoketest
 import com.squareup.moshi.Moshi
 import com.squareup.moshi.Types
 import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.server.http.TestHttpServer.HandlerApi.RequestApi
 import datadog.trace.api.config.GeneralConfig
 import datadog.trace.test.util.Flaky
@@ -378,13 +379,99 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       // The default error ("Condition not satisfied after 30s") is useless — enrich with diagnostic state
       def alive = testedProcess?.isAlive()
       def lastLines = tailProcessLog(30)
+      def threadDump = alive ? dumpThreadStacks() : "(process not alive, skipping thread dump)"
       throw new AssertionError(
       "Timed out waiting for ${count} traces after ${defaultPoll.timeout}s. " +
       "traceCount=${traceCount.get()}, process.alive=${alive}, " +
       "RC polls received: ${rcClientMessages.size()}.\n" +
-      "Last process output:\n${lastLines}", e)
+      "Last process output:\n${lastLines}\n" +
+      "Thread dump:\n${threadDump}", e)
     }
     traceCount.get()
+  }
+
+  /**
+   * Capture a thread dump of the forked process via {@code jstack}. jstack's output is captured by
+   * the smoketest JVM directly, bypassing the tested-process output-capture thread that has been
+   * observed to be starved at timeout (which makes the SIGQUIT-via-stderr approach unreliable for
+   * exactly the failures we want to diagnose).
+   *
+   * <p>No raw {@code kill -3} fallback: PID reuse on shared CI hosts could cause us to signal an
+   * unrelated process if the child has exited since the surrounding liveness check.
+   */
+  private String dumpThreadStacks() {
+    if (testedProcess == null) {
+      return "(no tested process)"
+    }
+    if (OperatingSystem.isWindows()) {
+      return "(thread dump not supported on Windows)"
+    }
+    long pid = getTestedProcessPid()
+    if (pid <= 0) {
+      return "(could not determine pid)"
+    }
+    String jstackOut = runJstack(pid)
+    return jstackOut != null ? jstackOut : "(jstack not available or failed)"
+  }
+
+  private long getTestedProcessPid() {
+    try {
+      return (long) testedProcess.getClass().getMethod("pid").invoke(testedProcess)
+    } catch (Throwable ignored) {
+      try {
+        // UNIXProcess's private 'pid' field, for JDK 8 compatibility
+        def field = testedProcess.getClass().getDeclaredField("pid")
+        field.setAccessible(true)
+        return field.getInt(testedProcess) as long
+      } catch (Throwable ignored2) {
+        return -1L
+      }
+    }
+  }
+
+  private String runJstack(long pid) {
+    def candidates = []
+    // java.home is always set by the JVM and points to the active JDK/JRE; prefer it over the
+    // JAVA_HOME env var which is frequently absent in CI runners even when Java is present.
+    String javaHome = System.getProperty("java.home")
+    if (javaHome) {
+      candidates.add(javaHome + "/bin/jstack")
+    }
+    String javaHomeEnv = System.getenv("JAVA_HOME")
+    if (javaHomeEnv && javaHomeEnv != javaHome) {
+      candidates.add(javaHomeEnv + "/bin/jstack")
+    }
+    candidates.add("jstack")
+    for (String cmd : candidates) {
+      File tmp = null
+      try {
+        tmp = File.createTempFile("jstack", ".txt")
+        // Redirect output to a file to avoid pipe-buffer deadlock — a full thread dump can
+        // exceed the OS pipe buffer (typically 64 KB) before waitFor returns.
+        Process p = new ProcessBuilder(cmd, String.valueOf(pid))
+          .redirectErrorStream(true)
+          .redirectOutput(tmp)
+          .start()
+        if (!p.waitFor(5, SECONDS)) {
+          p.destroyForcibly()
+          p.waitFor(2, SECONDS)
+          continue
+        }
+        if (p.exitValue() == 0) {
+          String output = tmp.getText("UTF-8")
+          if (output) {
+            return output
+          }
+        }
+      } catch (Throwable ignored) {
+        // try next candidate
+      } finally {
+        if (tmp != null) {
+          tmp.delete()
+        }
+      }
+    }
+    return null
   }
 
   private String tailProcessLog(int lines) {
