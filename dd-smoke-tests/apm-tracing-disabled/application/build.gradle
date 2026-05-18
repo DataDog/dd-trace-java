@@ -1,0 +1,38 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+java {
+  sourceCompatibility = '1.8'
+}
+
+if (hasProperty('apiJar')) {
+  dependencies {
+    implementation files(property('apiJar'))
+  }
+} else {
+  dependencies {
+    implementation "com.datadoghq:dd-trace-api:+"
+  }
+}
+
+dependencies {
+  compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.8'
+  implementation 'org.springframework.boot:spring-boot-starter-web'
+  implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
+  implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
+}
