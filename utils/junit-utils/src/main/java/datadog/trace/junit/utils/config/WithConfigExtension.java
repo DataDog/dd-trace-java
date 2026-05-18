@@ -1,9 +1,5 @@
 package datadog.trace.junit.utils.config;
 
-import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-
 import datadog.environment.EnvironmentVariables;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.NonNull;
@@ -26,7 +22,9 @@ import org.junit.platform.commons.support.AnnotationSupport;
  * JUnit 5 extension that manages DD config injection for tests. Handles:
  *
  * <ul>
- *   <li>Making {@code Config} and {@code InstrumenterConfig} singletons modifiable via ByteBuddy
+ *   <li>Verifying {@code Config} and {@code InstrumenterConfig} {@code INSTANCE} fields have been
+ *       made modifiable by the load-time agent (see {@code dd-trace-java.modifiable-config.gradle.kts}
+ *       and {@code buildSrc/modifiable-config-agent})
  *   <li>Saving/restoring system properties between tests
  *   <li>Managing test environment variables
  *   <li>Applying {@link WithConfig} annotations (class and method level, including composed
@@ -44,14 +42,26 @@ public class WithConfigExtension
   static final String INST_CONFIG = "datadog.trace.api.InstrumenterConfig";
   static final String CONFIG = "datadog.trace.api.Config";
 
-  private static Field instConfigInstanceField;
-  private static Constructor<?> instConfigConstructor;
-  private static Field configInstanceField;
-  private static Constructor<?> configConstructor;
+  private static final Field instConfigInstanceField;
+  private static final Constructor<?> instConfigConstructor;
+  private static final Field configInstanceField;
+  private static final Constructor<?> configConstructor;
 
-  private static volatile boolean configTransformerInstalled = false;
-  private static volatile boolean isConfigInstanceModifiable = false;
-  private static volatile boolean configModificationFailed = false;
+  static {
+    ensureConfigInstrumentationHasBeenApplied();
+    try {
+      Class<?> instCfg = Class.forName(INST_CONFIG);
+      instConfigInstanceField = instCfg.getDeclaredField("INSTANCE");
+      instConfigConstructor = instCfg.getDeclaredConstructor();
+      instConfigConstructor.setAccessible(true);
+      Class<?> cfg = Class.forName(CONFIG);
+      configInstanceField = cfg.getDeclaredField("INSTANCE");
+      configConstructor = cfg.getDeclaredConstructor();
+      configConstructor.setAccessible(true);
+    } catch (ReflectiveOperationException e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
 
   static final TestEnvironmentVariables environmentVariables = TestEnvironmentVariables.setup();
 
@@ -61,32 +71,12 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
-    /*
-     * Patch config classes to make them modifiable.
-     */
-    // Install config transformer error listener
-    if (!configTransformerInstalled) {
-      ensureConfigInstrumentationHasBeenApplied();
-      configTransformerInstalled = true;
-    }
-    // Make config instance modifiable
-    makeConfigInstanceModifiable();
-    // Verify that config class transformation succeeded
-    assertFalse(configModificationFailed, "Config class modification failed");
-    if (isConfigInstanceModifiable) {
-      checkConfigTransformation();
-    }
-    /*
-     * Back up config and apply class-level config values.
-     */
     if (originalSystemProperties == null) {
       saveProperties();
     }
     // Apply class-level @WithConfig so config is available before @BeforeAll methods
     applyClassLevelConfig(context);
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
+    rebuildConfig();
   }
 
   @Override
@@ -94,26 +84,20 @@ public class WithConfigExtension
     restoreProperties();
     environmentVariables.clear();
     applyDeclaredConfig(context);
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
+    rebuildConfig();
   }
 
   @Override
   public void afterEach(ExtensionContext context) {
     environmentVariables.clear();
     restoreProperties();
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
+    rebuildConfig();
   }
 
   @Override
   public void afterAll(ExtensionContext context) {
     restoreProperties();
-    if (isConfigInstanceModifiable) {
-      rebuildConfig();
-    }
+    rebuildConfig();
   }
 
   private static void applyDeclaredConfig(ExtensionContext context) {
@@ -238,37 +222,6 @@ public class WithConfigExtension
     }
   }
 
-  static void makeConfigInstanceModifiable() {
-    if (isConfigInstanceModifiable || configModificationFailed) {
-      return;
-    }
-
-    try {
-      Class<?> instConfigClass = Class.forName(INST_CONFIG);
-      instConfigInstanceField = instConfigClass.getDeclaredField("INSTANCE");
-      instConfigConstructor = instConfigClass.getDeclaredConstructor();
-      instConfigConstructor.setAccessible(true);
-      Class<?> configClass = Class.forName(CONFIG);
-      configInstanceField = configClass.getDeclaredField("INSTANCE");
-      configConstructor = configClass.getDeclaredConstructor();
-      configConstructor.setAccessible(true);
-
-      isConfigInstanceModifiable = true;
-    } catch (ClassNotFoundException e) {
-      if (INST_CONFIG.equals(e.getMessage()) || CONFIG.equals(e.getMessage())) {
-        System.err.println("Config class not found in this classloader. Not transforming it");
-      } else {
-        configModificationFailed = true;
-        System.err.println("Config will not be modifiable");
-        e.printStackTrace();
-      }
-    } catch (ReflectiveOperationException e) {
-      configModificationFailed = true;
-      System.err.println("Config will not be modifiable");
-      e.printStackTrace();
-    }
-  }
-
   private static void rebuildConfig() {
     synchronized (WithConfigExtension.class) {
       try {
@@ -297,26 +250,6 @@ public class WithConfigExtension
       copy.putAll(originalSystemProperties);
       System.setProperties(copy);
     }
-  }
-
-  // endregion
-
-  // region Validation
-
-  private static void checkConfigTransformation() {
-    assertTrue(isConfigInstanceModifiable);
-    assertNotNull(instConfigConstructor);
-    checkWritable(instConfigInstanceField);
-    assertNotNull(configConstructor);
-    checkWritable(configInstanceField);
-  }
-
-  private static void checkWritable(Field field) {
-    assertNotNull(field);
-    assertTrue(Modifier.isPublic(field.getModifiers()));
-    assertTrue(Modifier.isStatic(field.getModifiers()));
-    assertTrue(Modifier.isVolatile(field.getModifiers()));
-    assertFalse(Modifier.isFinal(field.getModifiers()));
   }
 
   // endregion
