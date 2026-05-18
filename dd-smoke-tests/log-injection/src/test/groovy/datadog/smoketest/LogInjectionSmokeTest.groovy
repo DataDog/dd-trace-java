@@ -400,18 +400,30 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
    * unrelated process if the child has exited since the surrounding liveness check.
    */
   private String dumpThreadStacks() {
-    if (testedProcess == null) {
-      return "(no tested process)"
+    try {
+      if (testedProcess == null) {
+        return "(no tested process)"
+      }
+      if (OperatingSystem.isWindows()) {
+        return "(thread dump not supported on Windows)"
+      }
+      long pid = getTestedProcessPid()
+      if (pid <= 0) {
+        return "(could not determine pid)"
+      }
+      // Re-check liveness immediately before invoking jstack. The earlier check that gates this
+      // method runs ~1 statement away, but if the child has exited and been reaped since then,
+      // the OS may have reused the PID — jstack-ing the wrong process would attach misleading
+      // diagnostics to the test failure.
+      if (!testedProcess.isAlive()) {
+        return "(process exited between liveness check and dump; skipping to avoid PID reuse)"
+      }
+      String jstackOut = runJstack(pid)
+      return jstackOut != null ? jstackOut : "(jstack not available or failed)"
+    } catch (Throwable t) {
+      // Never let a diagnostic failure mask the original AssertionError.
+      return "(thread dump failed: ${t.getClass().simpleName}: ${t.message})"
     }
-    if (OperatingSystem.isWindows()) {
-      return "(thread dump not supported on Windows)"
-    }
-    long pid = getTestedProcessPid()
-    if (pid <= 0) {
-      return "(could not determine pid)"
-    }
-    String jstackOut = runJstack(pid)
-    return jstackOut != null ? jstackOut : "(jstack not available or failed)"
   }
 
   private long getTestedProcessPid() {
