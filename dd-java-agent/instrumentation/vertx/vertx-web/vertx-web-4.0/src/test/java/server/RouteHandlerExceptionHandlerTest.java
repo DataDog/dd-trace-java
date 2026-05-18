@@ -22,14 +22,15 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test for the vertx-web 4.x route-handler span lifecycle on the response.exceptionHandler path.
+ * Regression test for the vertx-web 4.x route-handler span lifecycle on the
+ * response.exceptionHandler path.
  *
- * Http1xServerResponse.handleException is invoked by Vert.x on non-CLOSED_EXCEPTION
- * I/O failures of the response. Without RoutingContext.addEndHandler(...) registered, only the
- * wrapped response.endHandler could finish the route-handler span — and that hook does not fire
- * on the exception path. With the addEndHandler fallback in RouteHandlerWrapper, the routing
- * context's internal exception handler fires our completion callback regardless of which response
- * hook surfaces the error. The route handler here fires handleException directly via
+ * <p>Http1xServerResponse.handleException is invoked by Vert.x on non-CLOSED_EXCEPTION I/O failures
+ * of the response. Without RoutingContext.addEndHandler(...) registered, only the wrapped
+ * response.endHandler could finish the route-handler span — and that hook does not fire on the
+ * exception path. With the addEndHandler fallback in RouteHandlerWrapper, the routing context's
+ * internal exception handler fires our completion callback regardless of which response hook
+ * surfaces the error. The route handler here fires handleException directly via
  * ResponseExceptionFiringHelper, then calls response.end() normally so the HTTP client gets a
  * response.
  */

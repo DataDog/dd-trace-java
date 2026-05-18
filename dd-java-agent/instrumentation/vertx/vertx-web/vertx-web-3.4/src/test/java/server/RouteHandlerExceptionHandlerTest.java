@@ -22,10 +22,11 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test for the vertx-web 3.x route-handler span lifecycle on the response.exceptionHandler path.
+ * Regression test for the vertx-web 3.x route-handler span lifecycle on the
+ * response.exceptionHandler path.
  *
- * HttpServerResponseImpl.handleException is invoked by Vert.x on non-CLOSED_EXCEPTION
- * I/O failures of the response. Neither endHandler nor bodyEndHandler fires on this path, so the
+ * <p>HttpServerResponseImpl.handleException is invoked by Vert.x on non-CLOSED_EXCEPTION I/O
+ * failures of the response. Neither endHandler nor bodyEndHandler fires on this path, so the
  * route-handler span would leak without an exception handler registered. The route handler here
  * fires handleException directly via ResponseExceptionFiringHelper (the package-private method
  * Vert.x itself uses internally), then calls response.end() normally so the HTTP client gets a

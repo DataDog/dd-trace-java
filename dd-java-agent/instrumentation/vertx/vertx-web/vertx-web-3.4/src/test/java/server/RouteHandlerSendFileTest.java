@@ -26,13 +26,14 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test for the vertx-web 3.x route-handler span lifecycle on the response.sendFile(...) path.
+ * Regression test for the vertx-web 3.x route-handler span lifecycle on the response.sendFile(...)
+ * path.
  *
- * HttpServerResponseImpl.doSendFile (vertx-core 3.x) only invokes bodyEndHandler
- * after the file is written; it never invokes endHandler. With only the endHandler registration
- * (pre-fix), the vertx.route-handler span never finishes on this path, the trace fails to flush,
- * and assertTraces times out. With the fallback addBodyEndHandler registration, the span finishes
- * on every response-end path.
+ * <p>HttpServerResponseImpl.doSendFile (vertx-core 3.x) only invokes bodyEndHandler after the file
+ * is written; it never invokes endHandler. With only the endHandler registration (pre-fix), the
+ * vertx.route-handler span never finishes on this path, the trace fails to flush, and assertTraces
+ * times out. With the fallback addBodyEndHandler registration, the span finishes on every
+ * response-end path.
  */
 class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
 
