@@ -3,11 +3,13 @@ package datadog.trace.instrumentation.springweb6;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
 
 import datadog.context.Context;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
+import datadog.trace.util.Strings;
 import jakarta.servlet.Servlet;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -23,6 +25,11 @@ public class SpringWebHttpServerDecorator
 
   private static final String DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED =
       "datadog.filter.spring.route.applied";
+  // source for limits: https://docs.datadoghq.com/tracing/troubleshooting
+  static final int VIEW_NAME_RESOURCE_LIMIT = 5_000;
+  static final int VIEW_NAME_TAG_LIMIT = 25_000;
+  private static final boolean VIEW_NAME_ENABLED =
+      ConfigProvider.getInstance().getBoolean("trace.spring-web.view-name.enabled", true);
 
   private static final CharSequence SPRING_HANDLER = UTF8BytesString.create("spring.handler");
   public static final CharSequence RESPONSE_RENDER = UTF8BytesString.create("response.render");
@@ -147,10 +154,12 @@ public class SpringWebHttpServerDecorator
   }
 
   public AgentSpan onRender(final AgentSpan span, final ModelAndView mv) {
-    final String viewName = mv.getViewName();
-    if (viewName != null) {
-      span.setTag("view.name", viewName);
-      span.setResourceName(viewName);
+    if (VIEW_NAME_ENABLED) {
+      final String viewName = mv.getViewName();
+      if (viewName != null) {
+        span.setTag("view.name", Strings.truncate(viewName, VIEW_NAME_TAG_LIMIT));
+        span.setResourceName(Strings.truncate(viewName, VIEW_NAME_RESOURCE_LIMIT));
+      }
     }
     if (mv.getView() != null) {
       span.setTag("view.type", className(mv.getView().getClass()));
