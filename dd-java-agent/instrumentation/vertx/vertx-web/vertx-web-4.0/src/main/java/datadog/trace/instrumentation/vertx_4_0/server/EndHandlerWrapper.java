@@ -1,6 +1,6 @@
 package datadog.trace.instrumentation.vertx_4_0.server;
 
-import static datadog.trace.instrumentation.vertx_4_0.server.RouteHandlerWrapper.HANDLER_SPAN_CONTEXT_KEY;
+import static datadog.trace.instrumentation.vertx_4_0.server.RouteUpdateHelper.HANDLER_SPAN_CONTEXT_KEY;
 import static datadog.trace.instrumentation.vertx_4_0.server.VertxDecorator.DECORATE;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;

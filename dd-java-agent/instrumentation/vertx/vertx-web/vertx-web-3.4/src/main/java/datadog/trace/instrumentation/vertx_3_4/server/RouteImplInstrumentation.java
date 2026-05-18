@@ -37,7 +37,8 @@ public class RouteImplInstrumentation extends InstrumenterModule
       postProcessorFactory = IastPostProcessorFactory.INSTANCE;
       return true;
     }
-    return enabledSystems.contains(TargetSystem.APPSEC);
+    return enabledSystems.contains(TargetSystem.TRACING)
+        || enabledSystems.contains(TargetSystem.APPSEC);
   }
 
   @Override
@@ -50,7 +51,7 @@ public class RouteImplInstrumentation extends InstrumenterModule
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".PathParameterPublishingHelper",
+      packageName + ".RouteUpdateHelper", packageName + ".PathParameterPublishingHelper",
     };
   }
 

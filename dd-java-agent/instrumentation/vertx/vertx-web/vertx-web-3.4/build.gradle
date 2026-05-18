@@ -42,7 +42,7 @@ dependencies {
   testImplementation group: 'io.vertx', name: 'vertx-web', version: '3.4.0'
   testImplementation group: 'io.vertx', name: 'vertx-web-client', version: '3.4.0'
 
-  testImplementation group: 'org.mockito', name: 'mockito-inline', version: '4.11.0'
+  testImplementation libs.bundles.mockito
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
