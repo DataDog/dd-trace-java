@@ -30,7 +30,8 @@ public abstract class HttpServletExtractAdapter<T> implements AgentPropagation.C
 
     @Override
     Enumeration<String> getHeaderNames(HttpServletRequest request) {
-      return request.getHeaderNames();
+      final Enumeration<String> ret = request.getHeaderNames();
+      return ret != null ? ret : emptyEnumeration();
     }
 
     @Override
