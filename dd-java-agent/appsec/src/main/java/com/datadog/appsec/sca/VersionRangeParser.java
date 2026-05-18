@@ -10,12 +10,12 @@ import java.util.regex.Pattern;
  * <p>Range string format (per sca-reachability-database enrichments):
  *
  * <ul>
- *   <li>{@code "< 2.6.7.3"} — strictly less than
- *   <li>{@code "<= 2.6.7.3"} — less than or equal
- *   <li>{@code "> 2.6.7.3"} — strictly greater than
- *   <li>{@code ">= 2.6.7.3"} — greater than or equal
- *   <li>{@code "= 2.6.7.3"} — exact match
- *   <li>{@code ">= 2.7.0, < 2.7.9.5"} — AND of two conditions (comma-separated)
+ *   <li>{@code "< 2.6.7.3"} - strictly less than
+ *   <li>{@code "<= 2.6.7.3"} - less than or equal
+ *   <li>{@code "> 2.6.7.3"} - strictly greater than
+ *   <li>{@code ">= 2.6.7.3"} - greater than or equal
+ *   <li>{@code "= 2.6.7.3"} - exact match
+ *   <li>{@code ">= 2.7.0, < 2.7.9.5"} - AND of two conditions (comma-separated)
  * </ul>
  *
  * <p>Multiple range strings in a list are evaluated as OR: a version is affected if it matches ANY

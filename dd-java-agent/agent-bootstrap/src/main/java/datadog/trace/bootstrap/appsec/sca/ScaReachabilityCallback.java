@@ -46,7 +46,7 @@ public final class ScaReachabilityCallback {
    * <p>The {@code dotClassName} and {@code methodName} parameters identify the VULNERABLE SYMBOL
    * (baked in at transform time) and are used for deduplication. The handler (registered by {@code
    * ScaReachabilitySystem}) is responsible for capturing the callsite from the current thread stack
-   * and reporting it to telemetry — keeping this class minimal as required for bootstrap.
+   * and reporting it to telemetry - keeping this class minimal as required for bootstrap.
    */
   public static void onMethodHit(
       String vulnId,

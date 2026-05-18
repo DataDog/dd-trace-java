@@ -304,7 +304,7 @@ public final class ObjectIntrospection {
           }
         }
         // This field is inaccessible (Strongly Encapsulated Internal class on Java 9+).
-        // Skip it and continue with the remaining fields — other accessible fields on the
+        // Skip it and continue with the remaining fields - other accessible fields on the
         // same object may still contain useful data for WAF inspection. Do NOT call
         // obj.toString() here: JDK internal toString() representations (e.g.
         // "class java.lang.Object") can match legitimate WAF phrase_match rules and

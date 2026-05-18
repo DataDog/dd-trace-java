@@ -23,14 +23,14 @@ import java.util.Map;
  * heartbeat:
  *
  * <ol>
- *   <li>{@link DependencyService} — newly detected JARs (same source as DependencyPeriodicAction).
+ *   <li>{@link DependencyService} - newly detected JARs (same source as DependencyPeriodicAction).
  *       Emitted with {@code metadata:[]} if no CVE state exists yet, or with the full CVE metadata
  *       if a state is already pending.
- *   <li>{@link ScaReachabilityDependencyRegistry} — CVE state changes (registration and hits) for
+ *   <li>{@link ScaReachabilityDependencyRegistry} - CVE state changes (registration and hits) for
  *       dependencies detected in previous heartbeats.
  * </ol>
  *
- * <p>This ensures one entry per {@code name:version} per heartbeat — no duplicates.
+ * <p>This ensures one entry per {@code name:version} per heartbeat - no duplicates.
  *
  * <p>The key invariant: whenever any CVE's state changes, ALL CVEs for the same dependency are
  * re-reported together so the backend always has a complete picture.
@@ -68,11 +68,11 @@ public final class ScaReachabilityPeriodicAction
         String key = dep.name + "@" + dep.version;
         DependencySnapshot snapshot = snapshotByKey.remove(key);
         if (snapshot != null) {
-          // New dep AND has CVE state — emit the full picture in one entry.
+          // New dep AND has CVE state - emit the full picture in one entry.
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, buildMetadata(snapshot)));
         } else {
-          // New dep, no CVE state yet — metadata:[] signals "SCA is monitoring this dep".
+          // New dep, no CVE state yet - metadata:[] signals "SCA is monitoring this dep".
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, Collections.emptyList()));
         }
@@ -106,10 +106,10 @@ public final class ScaReachabilityPeriodicAction
   static String buildMetadataValue(CveSnapshot cve) {
     ScaReachabilityHit hit = cve.hit;
     if (hit == null) {
-      // CVE known but no callsite yet — signals "monitoring, not reached"
+      // CVE known but no callsite yet - signals "monitoring, not reached"
       return "{\"id\":\"" + cve.vulnId + "\",\"reached\":[]}";
     }
-    // CVE has been reached — include the callsite
+    // CVE has been reached - include the callsite
     return "{\"id\":\""
         + hit.vulnId()
         + "\",\"reached\":[{\"path\":\""
