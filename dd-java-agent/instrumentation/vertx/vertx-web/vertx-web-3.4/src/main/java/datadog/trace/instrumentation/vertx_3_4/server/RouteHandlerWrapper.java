@@ -57,11 +57,19 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         //     (e.g. quarkus-amazon-lambda-rest's in-memory Netty channel).
         //   - response.exceptionHandler: covers I/O failures surfaced via
         //     HttpServerResponseImpl.handleException (non-CLOSED_EXCEPTION),
-        //     where neither endHandler nor bodyEndHandler fires.
+        //     where neither endHandler nor bodyEndHandler fires. Note that
+        //     response.exceptionHandler is a single-slot setter; if the user
+        //     installs their own exception handler later in the request, ours
+        //     is overwritten and the span will leak on this path again.
         // finishHandlerSpan is idempotent; whichever hook fires first wins.
+        //
+        // Known remaining gap: sendFile() failures on file-not-found or
+        // IOException-during-open log via HttpServerResponseImpl and return
+        // without firing any of the three hooks above (when the caller did
+        // not pass a resultHandler), so the span still leaks on that path.
         routingContext.response().endHandler(new EndHandlerWrapper(routingContext));
         routingContext.addBodyEndHandler(v -> finishHandlerSpan(routingContext));
-        routingContext.response().exceptionHandler(new ExceptionHandlerWrapper(routingContext));
+        routingContext.response().exceptionHandler(t -> finishHandlerSpan(routingContext));
         DECORATE.afterStart(span);
         span.setResourceName(DECORATE.className(actual.getClass()));
       }
@@ -78,9 +86,9 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
   }
 
   // Idempotently finish the route-handler span. Any of the three registered
-  // hooks (EndHandlerWrapper, the addBodyEndHandler fallback, or
-  // ExceptionHandlerWrapper) may call this; the first one to win clears
-  // HANDLER_SPAN_CONTEXT_KEY so the others are no-ops.
+  // hooks (EndHandlerWrapper, the addBodyEndHandler fallback, or the
+  // response.exceptionHandler lambda) may call this; the first one to win
+  // clears HANDLER_SPAN_CONTEXT_KEY so the others are no-ops.
   static void finishHandlerSpan(final RoutingContext routingContext) {
     final AgentSpan span = routingContext.get(HANDLER_SPAN_CONTEXT_KEY);
     if (span == null) {

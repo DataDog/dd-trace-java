@@ -45,6 +45,13 @@ dependencies {
 
   testImplementation project(':dd-java-agent:appsec:appsec-test-fixtures')
 
+  // Make JUnit Jupiter API explicit for the Java JUnit 5 tests in this module
+  // (RouteHandlerExceptionHandlerTest). The shared gradle/java_deps.gradle only
+  // declares JUnit 5 as testRuntimeOnly; otherwise we'd be relying on Spock 2.x's
+  // transitive junit-jupiter-api on testCompileClasspath, which is implicit and
+  // brittle.
+  testImplementation libs.junit.jupiter
+
   testRuntimeOnly project(':dd-java-agent:instrumentation:jackson-core:jackson-core-common')
   testRuntimeOnly project(':dd-java-agent:instrumentation:netty:netty-buffer-4.0')
 

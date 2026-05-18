@@ -1,8 +1,12 @@
 package server;
 
+import static datadog.trace.agent.test.assertions.SpanMatcher.span;
+import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
+import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
+import datadog.trace.api.DDSpanTypes;
 import io.vertx.core.Vertx;
 import io.vertx.core.http.HttpServer;
 import io.vertx.ext.web.Router;
@@ -16,6 +20,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
@@ -27,7 +32,7 @@ import org.junit.jupiter.api.Test;
  * <p>{@code HttpServerResponseImpl.doSendFile} (vertx-core 3.x) only invokes {@code bodyEndHandler}
  * after the file is written; it never invokes {@code endHandler}. With only the {@code endHandler}
  * registration (pre-fix), the {@code vertx.route-handler} span never finishes on this path, the
- * trace fails to flush, and {@code waitForTraces} times out. With the fallback {@code
+ * trace fails to flush, and {@code assertTraces} times out. With the fallback {@code
  * addBodyEndHandler} registration, the span finishes on every response-end path.
  */
 class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
@@ -103,7 +108,18 @@ class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
 
     // Strict-mode trace writes only publish a trace when every span in it has finished.
     // Pre-fix: the route-handler span never finishes on the sendFile path, so the trace
-    // is never published and this call throws TimeoutException.
-    writer.waitForTraces(1);
+    // is never published and assertTraces times out waiting for the trace to flush.
+    // Span operation names are stored as UTF8BytesString, whose equals() rejects String
+    // arguments, so match via a quoted Pattern instead of the String overload.
+    assertTraces(
+        trace(
+            SORT_BY_START_TIME,
+            span()
+                .operationName(Pattern.compile(Pattern.quote("netty.request")))
+                .type(DDSpanTypes.HTTP_SERVER),
+            span()
+                .childOfPrevious()
+                .operationName(Pattern.compile(Pattern.quote("vertx.route-handler")))
+                .type(DDSpanTypes.HTTP_SERVER)));
   }
 }

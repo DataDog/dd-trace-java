@@ -20,7 +20,6 @@ public class HttpServerResponseEndHandlerInstrumentation extends InstrumenterMod
   public String[] helperClassNames() {
     return new String[] {
       packageName + ".EndHandlerWrapper",
-      packageName + ".ExceptionHandlerWrapper",
       packageName + ".RouteHandlerWrapper",
       packageName + ".VertxDecorator",
       packageName + ".VertxDecorator$VertxURIDataAdapter",
