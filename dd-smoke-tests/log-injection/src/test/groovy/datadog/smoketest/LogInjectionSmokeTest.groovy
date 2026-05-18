@@ -355,6 +355,14 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
    */
   int waitForTraceCountAlive(int count) {
     try {
+      // DIAG-BRANCH-ONLY: force the timeout diagnostic path to fire to validate jstack works in CI.
+      // Sleep 5s so the forked JVM is fully up (post-premain) before we ask jstack to attach.
+      // Throw an AssertionError so the catch block below fires the diagnostic enrichment.
+      // DO NOT MERGE. Revert before merging the PR.
+      if (count == 2) {
+        Thread.sleep(5_000)
+        throw new AssertionError("DIAG-BRANCH-ONLY forced timeout for jstack validation")
+      }
       defaultPoll.eventually {
         if (traceDecodingFailure != null) {
           throw traceDecodingFailure
@@ -515,7 +523,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     return unmangled.split(" ")[1..2]
   }
 
-  @Flaky(condition = () -> JavaVirtualMachine.isIbm8() || JavaVirtualMachine.isOracleJDK8() || JavaVirtualMachine.isZulu8())
+  // DIAG-BRANCH-ONLY: @Flaky removed so the test runs on every matrix cell. DO NOT MERGE.
   def "check raw file injection"() {
     when:
     def count = waitForTraceCountAlive(2)
