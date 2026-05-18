@@ -55,15 +55,19 @@ public final class ScaReachabilityCallback {
       String dotClassName,
       String methodName,
       int line) {
-    Handler h = handler;
-    if (h == null) {
-      return;
-    }
-    // Include dotClassName so that two different classes in the same artifact that share
-    // a method name (e.g. ClassA.parse and ClassB.parse) produce independent hits.
-    String key = vulnId + "|" + artifact + "|" + dotClassName + "|" + methodName;
-    if (reported.add(key)) {
-      h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
+    try {
+      Handler h = handler;
+      if (h == null) {
+        return;
+      }
+      // Include dotClassName so that two different classes in the same artifact that share
+      // a method name (e.g. ClassA.parse and ClassB.parse) produce independent hits.
+      String key = vulnId + "|" + artifact + "|" + dotClassName + "|" + methodName;
+      if (reported.add(key)) {
+        h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
+      }
+    } catch (Throwable t) {
+      // Never propagate to application code — SCA detection is observation-only
     }
   }
 

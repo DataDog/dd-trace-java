@@ -2,6 +2,7 @@ package datadog.trace.api.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
@@ -91,9 +92,7 @@ class ScaReachabilityDependencyRegistryTest {
         break;
       }
     }
-    assertEquals(
-        true,
-        isValidCallsite,
-        "recorded callsite must be one of the " + threadCount + " valid options");
+    assertTrue(
+        isValidCallsite, "recorded callsite must be one of the " + threadCount + " valid options");
   }
 }
