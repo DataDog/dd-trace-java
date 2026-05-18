@@ -135,16 +135,16 @@ public final class JvmOtlpRuntimeMetrics {
         UP_DOWN_COUNTER,
         storage -> {
           long heapMax = memoryBean.getHeapMemoryUsage().getMax();
-          if (heapMax > 0) {
+          if (heapMax != -1) {
             storage.recordLong(heapMax, HEAP_ATTRS);
           }
           long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
-          if (nonHeapMax > 0) {
+          if (nonHeapMax != -1) {
             storage.recordLong(nonHeapMax, NON_HEAP_ATTRS);
           }
           for (MemoryPoolMXBean pool : pools) {
             long max = pool.getUsage().getMax();
-            if (max > 0) {
+            if (max != -1) {
               storage.recordLong(max, poolAttributes(pool));
             }
           }
@@ -175,11 +175,11 @@ public final class JvmOtlpRuntimeMetrics {
         UP_DOWN_COUNTER,
         storage -> {
           long heapInit = memoryBean.getHeapMemoryUsage().getInit();
-          if (heapInit > 0) {
+          if (heapInit != -1) {
             storage.recordLong(heapInit, HEAP_ATTRS);
           }
           long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
-          if (nonHeapInit > 0) {
+          if (nonHeapInit != -1) {
             storage.recordLong(nonHeapInit, NON_HEAP_ATTRS);
           }
         });
