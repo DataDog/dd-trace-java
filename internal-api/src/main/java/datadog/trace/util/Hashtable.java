@@ -7,31 +7,31 @@ import java.util.Objects;
 import java.util.function.Consumer;
 
 /**
- * Light weight simple Hashtable system that can be useful when HashMap would 
- * be unnecessarily heavy.
- * 
- * <ul>Use cases include...
- * <li>primitive keys
- * <li>primitive values
- * <li>multi-part keys
+ * Light weight simple Hashtable system that can be useful when HashMap would be unnecessarily
+ * heavy.
+ *
+ * <ul>
+ *   Use cases include...
+ *   <li>primitive keys
+ *   <li>primitive values
+ *   <li>multi-part keys
  * </ul>
- * 
+ *
  * Convenience classes are provided for lower key dimensions.
- * 
- * For higher key dimensions, client code must implement its own class, 
- * but can still use the support class to ease the implementation complexity.
+ *
+ * <p>For higher key dimensions, client code must implement its own class, but can still use the
+ * support class to ease the implementation complexity.
  */
 public abstract class Hashtable {
   /**
-   * Internal base class for entries. Stores the precomputed 64-bit keyHash and
-   * the chain-next pointer used to link colliding entries within a single bucket.
+   * Internal base class for entries. Stores the precomputed 64-bit keyHash and the chain-next
+   * pointer used to link colliding entries within a single bucket.
    *
-   * <p>Subclasses add the actual key field(s) and a {@code matches(...)} method
-   * tailored to their key arity. See {@link D1.Entry} and {@link D2.Entry}; for
-   * higher arities, client code can subclass this directly and use {@link Support}
-   * to drive the table mechanics.
+   * <p>Subclasses add the actual key field(s) and a {@code matches(...)} method tailored to their
+   * key arity. See {@link D1.Entry} and {@link D2.Entry}; for higher arities, client code can
+   * subclass this directly and use {@link Support} to drive the table mechanics.
    */
-  public static abstract class Entry {
+  public abstract static class Entry {
     public final long keyHash;
     Entry next = null;
 
@@ -44,169 +44,172 @@ public abstract class Hashtable {
     }
 
     @SuppressWarnings("unchecked")
-	public final <TEntry extends Entry> TEntry next() {
-      return (TEntry)this.next;
+    public final <TEntry extends Entry> TEntry next() {
+      return (TEntry) this.next;
     }
   }
-  
+
   /**
    * Single-key open hash table with chaining.
    *
-   * <p>The user supplies an {@link D1.Entry} subclass that carries the key and
-   * whatever value fields they want to mutate in place, then instantiates this
-   * class over that entry type. The main advantage over {@code HashMap<K, V>}
-   * is that mutating an existing entry's value fields requires no allocation:
-   * call {@link #get} once and write directly to the returned entry's fields.
-   * For counter-style workloads this can be several times faster than
-   * {@code HashMap<K, Long>} and produces effectively zero GC pressure.
+   * <p>The user supplies an {@link D1.Entry} subclass that carries the key and whatever value
+   * fields they want to mutate in place, then instantiates this class over that entry type. The
+   * main advantage over {@code HashMap<K, V>} is that mutating an existing entry's value fields
+   * requires no allocation: call {@link #get} once and write directly to the returned entry's
+   * fields. For counter-style workloads this can be several times faster than {@code HashMap<K,
+   * Long>} and produces effectively zero GC pressure.
    *
-   * <p>Capacity is fixed at construction. The table does not resize, so the
-   * caller is responsible for choosing a capacity appropriate to the working
-   * set. Actual bucket-array length is rounded up to the next power of two.
+   * <p>Capacity is fixed at construction. The table does not resize, so the caller is responsible
+   * for choosing a capacity appropriate to the working set. Actual bucket-array length is rounded
+   * up to the next power of two.
    *
-   * <p>Null keys are permitted; they collapse to a single bucket via the
-   * sentinel hash {@link Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
+   * <p>Null keys are permitted; they collapse to a single bucket via the sentinel hash {@link
+   * Long#MIN_VALUE} defined in {@link D1.Entry#hash}.
    *
-   * <p><b>Not thread-safe.</b> Concurrent access (including mixing reads with
-   * writes) requires external synchronization.
+   * <p><b>Not thread-safe.</b> Concurrent access (including mixing reads with writes) requires
+   * external synchronization.
    *
    * @param <K> the key type
    * @param <TEntry> the user's {@link D1.Entry D1.Entry&lt;K&gt;} subclass
    */
   public static final class D1<K, TEntry extends D1.Entry<K>> {
-	/**
-	 * Abstract base for {@link D1} entries. Subclass to add value fields you
-	 * wish to mutate in place after retrieving the entry via {@link D1#get}.
-	 *
-	 * <p>The key is captured at construction and stored alongside its
-	 * precomputed 64-bit hash. {@link #matches(Object)} uses
-	 * {@link Objects#equals} by default; override if a different equality
-	 * semantics is needed (e.g. reference equality for interned keys).
-	 *
-	 * @param <K> the key type
-	 */
-	public static abstract class Entry<K> extends Hashtable.Entry {
-	  final K key;
-	  
-	  protected Entry(K key) {
-		super(hash(key));
-		this.key = key;
-	  }
-	  
-	  public boolean matches(Object key) {
-		return Objects.equals(this.key, key);
-	  }
-	  
-	  public static long hash(Object key) {
-		return (key == null ) ? Long.MIN_VALUE : key.hashCode();
-	  }
-	}
-	
-	private final Hashtable.Entry[] buckets;
-	private int size;
+    /**
+     * Abstract base for {@link D1} entries. Subclass to add value fields you wish to mutate in
+     * place after retrieving the entry via {@link D1#get}.
+     *
+     * <p>The key is captured at construction and stored alongside its precomputed 64-bit hash.
+     * {@link #matches(Object)} uses {@link Objects#equals} by default; override if a different
+     * equality semantics is needed (e.g. reference equality for interned keys).
+     *
+     * @param <K> the key type
+     */
+    public abstract static class Entry<K> extends Hashtable.Entry {
+      final K key;
 
-	public D1(int capacity) {
-	  this.buckets = Support.create(capacity);
-	  this.size = 0;
-	}
-	
-	public int size() {
-	  return this.size;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public TEntry get(K key) {
-	  long keyHash = D1.Entry.hash(key);
-	  Hashtable.Entry[] thisBuckets = this.buckets;
-	  for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)]; e != null; e = e.next) {
-		if (e.keyHash == keyHash) {
-		  TEntry te = (TEntry) e;
-		  if (te.matches(key)) return te;
-		}
-	  }
-	  return null;
-	}
-	
-	public TEntry remove(K key) {
-	  long keyHash = D1.Entry.hash(key);
+      protected Entry(K key) {
+        super(hash(key));
+        this.key = key;
+      }
 
-	  for (MutatingBucketIterator<TEntry> iter = Support.mutatingBucketIterator(this.buckets, keyHash); iter.hasNext(); ) {
-		TEntry curEntry = iter.next();
+      public boolean matches(Object key) {
+        return Objects.equals(this.key, key);
+      }
 
-		if (curEntry.matches(key)) {
-		  iter.remove();
-		  this.size -= 1;
-		  return curEntry;
-		}
-	  }
+      public static long hash(Object key) {
+        return (key == null) ? Long.MIN_VALUE : key.hashCode();
+      }
+    }
 
-	  return null;
-	}
-	
-	public void insert(TEntry newEntry) {
+    private final Hashtable.Entry[] buckets;
+    private int size;
+
+    public D1(int capacity) {
+      this.buckets = Support.create(capacity);
+      this.size = 0;
+    }
+
+    public int size() {
+      return this.size;
+    }
+
+    @SuppressWarnings("unchecked")
+    public TEntry get(K key) {
+      long keyHash = D1.Entry.hash(key);
       Hashtable.Entry[] thisBuckets = this.buckets;
-	  int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
+      for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)];
+          e != null;
+          e = e.next) {
+        if (e.keyHash == keyHash) {
+          TEntry te = (TEntry) e;
+          if (te.matches(key)) return te;
+        }
+      }
+      return null;
+    }
+
+    public TEntry remove(K key) {
+      long keyHash = D1.Entry.hash(key);
+
+      for (MutatingBucketIterator<TEntry> iter =
+              Support.mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+
+        if (curEntry.matches(key)) {
+          iter.remove();
+          this.size -= 1;
+          return curEntry;
+        }
+      }
+
+      return null;
+    }
+
+    public void insert(TEntry newEntry) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
 
       Hashtable.Entry curHead = thisBuckets[bucketIndex];
       newEntry.setNext(curHead);
       thisBuckets[bucketIndex] = newEntry;
 
       this.size += 1;
-	}
+    }
 
-	public TEntry insertOrReplace(TEntry newEntry) {
-	  Hashtable.Entry[] thisBuckets = this.buckets;
+    public TEntry insertOrReplace(TEntry newEntry) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
 
-	  for (MutatingBucketIterator<TEntry> iter = Support.mutatingBucketIterator(this.buckets, newEntry.keyHash); iter.hasNext(); ) {
-		TEntry curEntry = iter.next();
+      for (MutatingBucketIterator<TEntry> iter =
+              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
 
-		if (curEntry.matches(newEntry.key)) {
-		  iter.replace(newEntry);
-		  return curEntry;
-		}
-	  }
+        if (curEntry.matches(newEntry.key)) {
+          iter.replace(newEntry);
+          return curEntry;
+        }
+      }
 
-	  int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
+      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
 
-	  Hashtable.Entry curHead = thisBuckets[bucketIndex];
-	  newEntry.setNext(curHead);
-	  thisBuckets[bucketIndex] = newEntry;
-	  this.size += 1;
-	  return null;
-	}
+      Hashtable.Entry curHead = thisBuckets[bucketIndex];
+      newEntry.setNext(curHead);
+      thisBuckets[bucketIndex] = newEntry;
+      this.size += 1;
+      return null;
+    }
 
-	public void clear() {
-	  Support.clear(this.buckets);
-	  this.size = 0;
-	}
+    public void clear() {
+      Support.clear(this.buckets);
+      this.size = 0;
+    }
 
-	@SuppressWarnings("unchecked")
-	public void forEach(Consumer<? super TEntry> consumer) {
-	  Hashtable.Entry[] thisBuckets = this.buckets;
-	  for (int i = 0; i < thisBuckets.length; i++) {
-		for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-		  consumer.accept((TEntry) e);
-		}
-	  }
-	}
+    @SuppressWarnings("unchecked")
+    public void forEach(Consumer<? super TEntry> consumer) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      for (int i = 0; i < thisBuckets.length; i++) {
+        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
+          consumer.accept((TEntry) e);
+        }
+      }
+    }
   }
 
   /**
    * Two-key (composite-key) hash table with chaining.
    *
-   * <p>The user supplies a {@link D2.Entry} subclass carrying both key parts
-   * and any value fields. Compared to {@code HashMap<Pair, V>} this avoids the
-   * per-lookup {@code Pair} (or record) allocation: both key parts are passed
-   * directly through {@link #get}, {@link #remove}, {@link #insert}, and
-   * {@link #insertOrReplace}. Combined with in-place value mutation, this
-   * makes {@code D2} substantially less GC-intensive than the equivalent
-   * {@code HashMap<Pair, Long>} for counter-style workloads.
+   * <p>The user supplies a {@link D2.Entry} subclass carrying both key parts and any value fields.
+   * Compared to {@code HashMap<Pair, V>} this avoids the per-lookup {@code Pair} (or record)
+   * allocation: both key parts are passed directly through {@link #get}, {@link #remove}, {@link
+   * #insert}, and {@link #insertOrReplace}. Combined with in-place value mutation, this makes
+   * {@code D2} substantially less GC-intensive than the equivalent {@code HashMap<Pair, Long>} for
+   * counter-style workloads.
    *
-   * <p>Capacity is fixed at construction; the table does not resize. Actual
-   * bucket-array length is rounded up to the next power of two.
+   * <p>Capacity is fixed at construction; the table does not resize. Actual bucket-array length is
+   * rounded up to the next power of two.
    *
-   * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils};
-   * see {@link D2.Entry#hash(Object, Object)}.
+   * <p>Key parts are combined into a 64-bit hash via {@link LongHashingUtils}; see {@link
+   * D2.Entry#hash(Object, Object)}.
    *
    * <p><b>Not thread-safe.</b>
    *
@@ -215,339 +218,340 @@ public abstract class Hashtable {
    * @param <TEntry> the user's {@link D2.Entry D2.Entry&lt;K1, K2&gt;} subclass
    */
   public static final class D2<K1, K2, TEntry extends D2.Entry<K1, K2>> {
-	/**
-	 * Abstract base for {@link D2} entries. Subclass to add value fields you
-	 * wish to mutate in place.
-	 *
-	 * <p>Both key parts are captured at construction and stored alongside their
-	 * combined 64-bit hash. {@link #matches(Object, Object)} uses
-	 * {@link Objects#equals} pairwise on the two parts.
-	 *
-	 * @param <K1> first key type
-	 * @param <K2> second key type
-	 */
-	public static abstract class Entry<K1, K2> extends Hashtable.Entry {
-	  final K1 key1;
-	  final K2 key2;
-	  
-	  protected Entry(K1 key1, K2 key2) {
-		super(hash(key1, key2));
-		this.key1 = key1;
-		this.key2 = key2;
-	  }
-	  
-	  public boolean matches(K1 key1, K2 key2) {
-		return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
-	  }
-		
-	  public static long hash(Object key1, Object key2) {
-		return LongHashingUtils.hash(key1, key2);
-	  }
-	}
-	
-	private final Hashtable.Entry[] buckets;
-	private int size;
+    /**
+     * Abstract base for {@link D2} entries. Subclass to add value fields you wish to mutate in
+     * place.
+     *
+     * <p>Both key parts are captured at construction and stored alongside their combined 64-bit
+     * hash. {@link #matches(Object, Object)} uses {@link Objects#equals} pairwise on the two parts.
+     *
+     * @param <K1> first key type
+     * @param <K2> second key type
+     */
+    public abstract static class Entry<K1, K2> extends Hashtable.Entry {
+      final K1 key1;
+      final K2 key2;
 
-	public D2(int capacity) {
-	  this.buckets = Support.create(capacity);
-	  this.size = 0;
-	}
-	
-	public int size() {
-	  return this.size;
-	}
-	
-	@SuppressWarnings("unchecked")
-	public TEntry get(K1 key1, K2 key2) {
-	  long keyHash = D2.Entry.hash(key1, key2);
-	  Hashtable.Entry[] thisBuckets = this.buckets;
-	  for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)]; e != null; e = e.next) {
-		if (e.keyHash == keyHash) {
-		  TEntry te = (TEntry) e;
-		  if (te.matches(key1, key2)) return te;
-		}
-	  }
-	  return null;
-	}
-	
-	public TEntry remove(K1 key1, K2 key2) {
-	  long keyHash = D2.Entry.hash(key1, key2);
+      protected Entry(K1 key1, K2 key2) {
+        super(hash(key1, key2));
+        this.key1 = key1;
+        this.key2 = key2;
+      }
 
-	  for (MutatingBucketIterator<TEntry> iter = Support.mutatingBucketIterator(this.buckets, keyHash); iter.hasNext(); ) {
-		TEntry curEntry = iter.next();
+      public boolean matches(K1 key1, K2 key2) {
+        return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
+      }
 
-		if (curEntry.matches(key1, key2)) {
-		  iter.remove();
-		  this.size -= 1;
-		  return curEntry;
-		}
-	  }
+      public static long hash(Object key1, Object key2) {
+        return LongHashingUtils.hash(key1, key2);
+      }
+    }
 
-	  return null;
-	}
-	
-	public void insert(TEntry newEntry) {
+    private final Hashtable.Entry[] buckets;
+    private int size;
+
+    public D2(int capacity) {
+      this.buckets = Support.create(capacity);
+      this.size = 0;
+    }
+
+    public int size() {
+      return this.size;
+    }
+
+    @SuppressWarnings("unchecked")
+    public TEntry get(K1 key1, K2 key2) {
+      long keyHash = D2.Entry.hash(key1, key2);
       Hashtable.Entry[] thisBuckets = this.buckets;
-	  int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
+      for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)];
+          e != null;
+          e = e.next) {
+        if (e.keyHash == keyHash) {
+          TEntry te = (TEntry) e;
+          if (te.matches(key1, key2)) return te;
+        }
+      }
+      return null;
+    }
+
+    public TEntry remove(K1 key1, K2 key2) {
+      long keyHash = D2.Entry.hash(key1, key2);
+
+      for (MutatingBucketIterator<TEntry> iter =
+              Support.mutatingBucketIterator(this.buckets, keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
+
+        if (curEntry.matches(key1, key2)) {
+          iter.remove();
+          this.size -= 1;
+          return curEntry;
+        }
+      }
+
+      return null;
+    }
+
+    public void insert(TEntry newEntry) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
 
       Hashtable.Entry curHead = thisBuckets[bucketIndex];
       newEntry.setNext(curHead);
       thisBuckets[bucketIndex] = newEntry;
 
       this.size += 1;
-	}
+    }
 
-	public TEntry insertOrReplace(TEntry newEntry) {
-	  Hashtable.Entry[] thisBuckets = this.buckets;
+    public TEntry insertOrReplace(TEntry newEntry) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
 
-	  for (MutatingBucketIterator<TEntry> iter = Support.mutatingBucketIterator(this.buckets, newEntry.keyHash); iter.hasNext(); ) {
-		TEntry curEntry = iter.next();
+      for (MutatingBucketIterator<TEntry> iter =
+              Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
+          iter.hasNext(); ) {
+        TEntry curEntry = iter.next();
 
-		if (curEntry.matches(newEntry.key1, newEntry.key2)) {
-		  iter.replace(newEntry);
-		  return curEntry;
-		}
-	  }
+        if (curEntry.matches(newEntry.key1, newEntry.key2)) {
+          iter.replace(newEntry);
+          return curEntry;
+        }
+      }
 
-	  int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
+      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
 
-	  Hashtable.Entry curHead = thisBuckets[bucketIndex];
-	  newEntry.setNext(curHead);
-	  thisBuckets[bucketIndex] = newEntry;
-	  this.size += 1;
-	  return null;
-	}
-	
-	public void clear() {
-	  Support.clear(this.buckets);
-	  this.size = 0;
-	}
+      Hashtable.Entry curHead = thisBuckets[bucketIndex];
+      newEntry.setNext(curHead);
+      thisBuckets[bucketIndex] = newEntry;
+      this.size += 1;
+      return null;
+    }
 
-	@SuppressWarnings("unchecked")
-	public void forEach(Consumer<? super TEntry> consumer) {
-	  Hashtable.Entry[] thisBuckets = this.buckets;
-	  for (int i = 0; i < thisBuckets.length; i++) {
-		for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-		  consumer.accept((TEntry) e);
-		}
-	  }
-	}
+    public void clear() {
+      Support.clear(this.buckets);
+      this.size = 0;
+    }
+
+    @SuppressWarnings("unchecked")
+    public void forEach(Consumer<? super TEntry> consumer) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      for (int i = 0; i < thisBuckets.length; i++) {
+        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
+          consumer.accept((TEntry) e);
+        }
+      }
+    }
   }
 
   /**
    * Internal building blocks for hash-table operations.
    *
-   * <p>Used by {@link D1} and {@link D2}, and available to package code that
-   * wants to assemble its own higher-arity table (3+ key parts) without
-   * re-implementing the bucket-array mechanics. The typical recipe:
+   * <p>Used by {@link D1} and {@link D2}, and available to package code that wants to assemble its
+   * own higher-arity table (3+ key parts) without re-implementing the bucket-array mechanics. The
+   * typical recipe:
    *
    * <ul>
-   *   <li>Subclass {@link Hashtable.Entry} directly, adding the key fields and
-   *     a {@code matches(...)} method of your chosen arity.
+   *   <li>Subclass {@link Hashtable.Entry} directly, adding the key fields and a {@code
+   *       matches(...)} method of your chosen arity.
    *   <li>Allocate a backing array with {@link #create(int)}.
-   *   <li>Use {@link #bucketIndex(Object[], long)} for the bucket lookup,
-   *     {@link #bucketIterator(Hashtable.Entry[], long)} for read-only chain
-   *     walks, and {@link #mutatingBucketIterator(Hashtable.Entry[], long)}
-   *     when you also need {@code remove} / {@code replace}.
+   *   <li>Use {@link #bucketIndex(Object[], long)} for the bucket lookup, {@link
+   *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
+   *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
+   *       {@code replace}.
    *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
    * </ul>
    *
-   * <p>All bucket arrays produced by {@link #create(int)} have a power-of-two
-   * length, so {@link #bucketIndex(Object[], long)} can use a bit mask.
+   * <p>All bucket arrays produced by {@link #create(int)} have a power-of-two length, so {@link
+   * #bucketIndex(Object[], long)} can use a bit mask.
    *
-   * <p>Methods on this class are package-private; the class itself is public
-   * only so that its nested {@link BucketIterator} can be referenced by
-   * callers in other packages.
+   * <p>Methods on this class are package-private; the class itself is public only so that its
+   * nested {@link BucketIterator} can be referenced by callers in other packages.
    */
   public static final class Support {
-	public static final Hashtable.Entry[] create(int capacity) {
-	  return new Entry[sizeFor(capacity)];
-	}
+    public static final Hashtable.Entry[] create(int capacity) {
+      return new Entry[sizeFor(capacity)];
+    }
 
-	static final int sizeFor(int requestedCapacity) {
-	  int pow;
-	  for ( pow = 1; pow < requestedCapacity; pow *= 2 );
-	  return pow;
-	}
+    static final int sizeFor(int requestedCapacity) {
+      int pow;
+      for (pow = 1; pow < requestedCapacity; pow *= 2)
+        ;
+      return pow;
+    }
 
-	public static final void clear(Hashtable.Entry[] buckets) {
-	  Arrays.fill(buckets, null);
-	}
+    public static final void clear(Hashtable.Entry[] buckets) {
+      Arrays.fill(buckets, null);
+    }
 
-	public static final <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(Hashtable.Entry[] buckets, long keyHash) {
-	  return new BucketIterator<TEntry>(buckets, keyHash);
-	}
+    public static final <TEntry extends Hashtable.Entry> BucketIterator<TEntry> bucketIterator(
+        Hashtable.Entry[] buckets, long keyHash) {
+      return new BucketIterator<TEntry>(buckets, keyHash);
+    }
 
-	public static final <TEntry extends Hashtable.Entry> MutatingBucketIterator<TEntry> mutatingBucketIterator(Hashtable.Entry[] buckets, long keyHash) {
-	  return new MutatingBucketIterator<TEntry>(buckets, keyHash);
-	}
+    public static final <TEntry extends Hashtable.Entry>
+        MutatingBucketIterator<TEntry> mutatingBucketIterator(
+            Hashtable.Entry[] buckets, long keyHash) {
+      return new MutatingBucketIterator<TEntry>(buckets, keyHash);
+    }
 
-	public static final int bucketIndex(Object[] buckets, long keyHash) {
-      return (int)(keyHash & buckets.length - 1);
-	}
+    public static final int bucketIndex(Object[] buckets, long keyHash) {
+      return (int) (keyHash & buckets.length - 1);
+    }
   }
-  
+
   /**
-   * Read-only iterator over entries in a single bucket whose {@code keyHash}
-   * matches a specific search hash. Cheaper than {@link MutatingBucketIterator}
-   * because it does not track the previous-node pointers required for
-   * splicing — use it when you only need to walk the chain.
+   * Read-only iterator over entries in a single bucket whose {@code keyHash} matches a specific
+   * search hash. Cheaper than {@link MutatingBucketIterator} because it does not track the
+   * previous-node pointers required for splicing — use it when you only need to walk the chain.
    *
-   * <p>For {@code remove} or {@code replace} operations, use
-   * {@link MutatingBucketIterator} instead.
+   * <p>For {@code remove} or {@code replace} operations, use {@link MutatingBucketIterator}
+   * instead.
    */
   public static final class BucketIterator<TEntry extends Entry> implements Iterator<TEntry> {
-	private final long keyHash;
-	private Hashtable.Entry nextEntry;
+    private final long keyHash;
+    private Hashtable.Entry nextEntry;
 
-	BucketIterator(Hashtable.Entry[] buckets, long keyHash) {
-	  this.keyHash = keyHash;
-	  Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
-	  while (cur != null && cur.keyHash != keyHash) cur = cur.next;
-	  this.nextEntry = cur;
-	}
+    BucketIterator(Hashtable.Entry[] buckets, long keyHash) {
+      this.keyHash = keyHash;
+      Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
+      while (cur != null && cur.keyHash != keyHash) cur = cur.next;
+      this.nextEntry = cur;
+    }
 
-	@Override
-	public boolean hasNext() {
-	  return this.nextEntry != null;
-	}
+    @Override
+    public boolean hasNext() {
+      return this.nextEntry != null;
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TEntry next() {
-	  Hashtable.Entry cur = this.nextEntry;
-	  if (cur == null) throw new NoSuchElementException("no next!");
+    @Override
+    @SuppressWarnings("unchecked")
+    public TEntry next() {
+      Hashtable.Entry cur = this.nextEntry;
+      if (cur == null) throw new NoSuchElementException("no next!");
 
-	  Hashtable.Entry advance = cur.next;
-	  while (advance != null && advance.keyHash != keyHash) advance = advance.next;
-	  this.nextEntry = advance;
+      Hashtable.Entry advance = cur.next;
+      while (advance != null && advance.keyHash != keyHash) advance = advance.next;
+      this.nextEntry = advance;
 
-	  return (TEntry) cur;
-	}
+      return (TEntry) cur;
+    }
   }
 
   /**
-   * Mutating iterator over entries in a single bucket whose {@code keyHash}
-   * matches a specific search hash. Supports {@link #remove()} and
-   * {@link #replace(Entry)} to splice the chain in place.
+   * Mutating iterator over entries in a single bucket whose {@code keyHash} matches a specific
+   * search hash. Supports {@link #remove()} and {@link #replace(Entry)} to splice the chain in
+   * place.
    *
-   * <p>Carries previous-node pointers for the current entry and the next-match
-   * entry so that {@code remove} and {@code replace} can fix up the chain in
-   * O(1) without re-walking from the bucket head. After {@code remove} or
-   * {@code replace}, iteration may continue with another {@link #next()}.
+   * <p>Carries previous-node pointers for the current entry and the next-match entry so that {@code
+   * remove} and {@code replace} can fix up the chain in O(1) without re-walking from the bucket
+   * head. After {@code remove} or {@code replace}, iteration may continue with another {@link
+   * #next()}.
    */
-  public static final class MutatingBucketIterator<TEntry extends Entry> implements Iterator<TEntry> {
-	private final long keyHash;
+  public static final class MutatingBucketIterator<TEntry extends Entry>
+      implements Iterator<TEntry> {
+    private final long keyHash;
 
-	private final Hashtable.Entry[] buckets;
+    private final Hashtable.Entry[] buckets;
 
-	/**
-	 * The entry prior to the last entry returned by next
-	 * Used for mutating operations
-	 */
-	private Hashtable.Entry curPrevEntry;
+    /** The entry prior to the last entry returned by next Used for mutating operations */
+    private Hashtable.Entry curPrevEntry;
 
-	/**
-	 * The entry that was last returned by next
-	 */
-	private Hashtable.Entry curEntry;
+    /** The entry that was last returned by next */
+    private Hashtable.Entry curEntry;
 
-	/**
-	 * The entry prior to the next entry
-	 */
-	private Hashtable.Entry nextPrevEntry;
+    /** The entry prior to the next entry */
+    private Hashtable.Entry nextPrevEntry;
 
-	/**
-	 * The next entry to be returned by next
-	 */
-	private Hashtable.Entry nextEntry;
+    /** The next entry to be returned by next */
+    private Hashtable.Entry nextEntry;
 
-	MutatingBucketIterator(Hashtable.Entry[] buckets, long keyHash) {
-	  this.buckets = buckets;
-	  this.keyHash = keyHash;
+    MutatingBucketIterator(Hashtable.Entry[] buckets, long keyHash) {
+      this.buckets = buckets;
+      this.keyHash = keyHash;
 
-	  int bucketIndex = Support.bucketIndex(buckets, keyHash);
-	  Hashtable.Entry headEntry = this.buckets[bucketIndex];
-	  if ( headEntry == null ) {
-		this.nextEntry = null;
-		this.nextPrevEntry = null;
+      int bucketIndex = Support.bucketIndex(buckets, keyHash);
+      Hashtable.Entry headEntry = this.buckets[bucketIndex];
+      if (headEntry == null) {
+        this.nextEntry = null;
+        this.nextPrevEntry = null;
 
-		this.curEntry = null;
-		this.curPrevEntry = null;
-	  } else {
-		Hashtable.Entry prev, cur;
-		for ( prev = null, cur = headEntry; cur != null; prev = cur, cur = cur.next() ) {
-		  if ( cur.keyHash == keyHash ) break;
-		}
-		this.nextPrevEntry = prev;
-		this.nextEntry = cur;
+        this.curEntry = null;
+        this.curPrevEntry = null;
+      } else {
+        Hashtable.Entry prev, cur;
+        for (prev = null, cur = headEntry; cur != null; prev = cur, cur = cur.next()) {
+          if (cur.keyHash == keyHash) break;
+        }
+        this.nextPrevEntry = prev;
+        this.nextEntry = cur;
 
-		this.curEntry = null;
-		this.curPrevEntry = null;
-	  }
-	}
+        this.curEntry = null;
+        this.curPrevEntry = null;
+      }
+    }
 
-	@Override
-	public boolean hasNext() {
-	  return (this.nextEntry != null);
-	}
+    @Override
+    public boolean hasNext() {
+      return (this.nextEntry != null);
+    }
 
-	@Override
-	@SuppressWarnings("unchecked")
-	public TEntry next() {
-	  Hashtable.Entry curEntry = this.nextEntry;
-	  if ( curEntry == null ) throw new NoSuchElementException("no next!");
+    @Override
+    @SuppressWarnings("unchecked")
+    public TEntry next() {
+      Hashtable.Entry curEntry = this.nextEntry;
+      if (curEntry == null) throw new NoSuchElementException("no next!");
 
-	  this.curEntry = curEntry;
-	  this.curPrevEntry = this.nextPrevEntry;
+      this.curEntry = curEntry;
+      this.curPrevEntry = this.nextPrevEntry;
 
-	  Hashtable.Entry prev, cur;
-	  for ( prev = this.nextEntry, cur = this.nextEntry.next(); cur != null; prev = cur, cur = prev.next() ) {
-	    if ( cur.keyHash == keyHash ) break;
-	  }
-	  this.nextPrevEntry = prev;
-	  this.nextEntry = cur;
+      Hashtable.Entry prev, cur;
+      for (prev = this.nextEntry, cur = this.nextEntry.next();
+          cur != null;
+          prev = cur, cur = prev.next()) {
+        if (cur.keyHash == keyHash) break;
+      }
+      this.nextPrevEntry = prev;
+      this.nextEntry = cur;
 
-	  return (TEntry) curEntry;
-	}
+      return (TEntry) curEntry;
+    }
 
-	@Override
-	public void remove() {
-	  Hashtable.Entry oldCurEntry = this.curEntry;
-	  if ( oldCurEntry == null ) throw new IllegalStateException();
+    @Override
+    public void remove() {
+      Hashtable.Entry oldCurEntry = this.curEntry;
+      if (oldCurEntry == null) throw new IllegalStateException();
 
       this.setPrevNext(oldCurEntry.next());
 
       // If the next match was directly after oldCurEntry, its predecessor is now
       // curPrevEntry (oldCurEntry was just unlinked from the chain).
-      if ( this.nextPrevEntry == oldCurEntry ) {
+      if (this.nextPrevEntry == oldCurEntry) {
         this.nextPrevEntry = this.curPrevEntry;
       }
       this.curEntry = null;
-	}
+    }
 
-	public void replace(TEntry replacementEntry) {
-	  Hashtable.Entry oldCurEntry = this.curEntry;
-	  if ( oldCurEntry == null ) throw new IllegalStateException();
+    public void replace(TEntry replacementEntry) {
+      Hashtable.Entry oldCurEntry = this.curEntry;
+      if (oldCurEntry == null) throw new IllegalStateException();
 
-	  replacementEntry.setNext(oldCurEntry.next());
-	  this.setPrevNext(replacementEntry);
+      replacementEntry.setNext(oldCurEntry.next());
+      this.setPrevNext(replacementEntry);
 
-	  // If the next match was directly after oldCurEntry, its predecessor is now
-	  // the replacement entry (which took oldCurEntry's chain slot).
-	  if ( this.nextPrevEntry == oldCurEntry ) {
-	    this.nextPrevEntry = replacementEntry;
-	  }
-	  this.curEntry = replacementEntry;
-	}
+      // If the next match was directly after oldCurEntry, its predecessor is now
+      // the replacement entry (which took oldCurEntry's chain slot).
+      if (this.nextPrevEntry == oldCurEntry) {
+        this.nextPrevEntry = replacementEntry;
+      }
+      this.curEntry = replacementEntry;
+    }
 
-	void setPrevNext(Hashtable.Entry nextEntry) {
-	  if ( this.curPrevEntry == null ) {
-		Hashtable.Entry[] buckets = this.buckets;
-	    buckets[Support.bucketIndex(buckets, this.keyHash)] = nextEntry;
-	  } else {
-		this.curPrevEntry.setNext(nextEntry);
-	  }
-	}
+    void setPrevNext(Hashtable.Entry nextEntry) {
+      if (this.curPrevEntry == null) {
+        Hashtable.Entry[] buckets = this.buckets;
+        buckets[Support.bucketIndex(buckets, this.keyHash)] = nextEntry;
+      } else {
+        this.curPrevEntry.setNext(nextEntry);
+      }
+    }
   }
 }

@@ -294,8 +294,7 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(k2, 2));
       table.insert(new CollidingKeyEntry(k3, 3));
       // All three share the same hash (17), so a bucket iterator over hash=17 yields all three.
-      BucketIterator<CollidingKeyEntry> it =
-          Support.bucketIterator(extractBuckets(table), 17L);
+      BucketIterator<CollidingKeyEntry> it = Support.bucketIterator(extractBuckets(table), 17L);
       int count = 0;
       while (it.hasNext()) {
         assertNotNull(it.next());
@@ -380,8 +379,7 @@ class HashtableTest {
       Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(4);
       table.insert(new StringIntEntry("a", 1));
       MutatingBucketIterator<StringIntEntry> it =
-          Support.mutatingBucketIterator(
-              extractBuckets(table), Hashtable.D1.Entry.hash("a"));
+          Support.mutatingBucketIterator(extractBuckets(table), Hashtable.D1.Entry.hash("a"));
       assertThrows(IllegalStateException.class, it::remove);
     }
   }
@@ -401,8 +399,7 @@ class HashtableTest {
 
   /** Sort comparator used by tests that want deterministic visit order. */
   @SuppressWarnings("unused")
-  private static final Comparator<StringIntEntry> BY_KEY =
-      Comparator.comparing(e -> e.key);
+  private static final Comparator<StringIntEntry> BY_KEY = Comparator.comparing(e -> e.key);
 
   private static final class StringIntEntry extends Hashtable.D1.Entry<String> {
     int value;
@@ -459,7 +456,8 @@ class HashtableTest {
     }
   }
 
-  // Imports kept narrow but List is referenced in test helpers below; this keeps the import warning quiet.
+  // Imports kept narrow but List is referenced in test helpers below; this keeps the import warning
+  // quiet.
   @SuppressWarnings("unused")
   private static final List<Object> UNUSED = new ArrayList<>();
 }

@@ -53,7 +53,7 @@ public final class LongHashingUtils {
   }
 
   private static final int intHash(Object obj) {
-	return obj == null ? 0 : obj.hashCode();
+    return obj == null ? 0 : obj.hashCode();
   }
 
   public static final long hash(Object obj0, Object obj1, Object obj2) {
@@ -86,7 +86,11 @@ public final class LongHashingUtils {
     // DQH - Micro-optimizing, 31L * 31L will constant fold
     // Since there are multiple execution ports for load & store,
     // this will make good use of the core.
-    return 31L * 31L * 31L * 31L * hash0 + 31L * 31L * 31L * hash1 + 31L * 31L * hash2 + 31L * hash3 + hash4;
+    return 31L * 31L * 31L * 31L * hash0
+        + 31L * 31L * 31L * hash1
+        + 31L * 31L * hash2
+        + 31L * hash3
+        + hash4;
   }
 
   @Deprecated
