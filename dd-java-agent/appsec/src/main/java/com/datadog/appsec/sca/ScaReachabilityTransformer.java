@@ -90,6 +90,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // package-private for testing
   final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
+  /** Class names (internal format) queued for deferred retransformation by name lookup. */
+  private final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
     this.instrumentation = instrumentation;
@@ -221,9 +224,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
     return injectMethodCallbacks(classfileBuffer, methodCallbacks);
   }
-
-  /** Stores a class name (internal format) for deferred retransformation. */
-  private final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   private void scheduleRetransformByName(String internalClassName) {
     pendingRetransformNames.add(internalClassName);

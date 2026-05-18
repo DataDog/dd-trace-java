@@ -102,22 +102,34 @@ public final class ScaReachabilityPeriodicAction
    *   <li>Reached: {@code
    *       {"id":"GHSA-xxx","reached":[{"path":"com.foo.Bar","symbol":"...","line":N}]}}
    * </ul>
+   *
+   * <p>Values are JSON-escaped via {@link #jsonEscape} even though GHSA IDs, JVM class names, and
+   * method names are structurally guaranteed not to contain {@code "} or {@code \} by the JVM spec.
+   * The escaping is a safety net against future changes to the value sources.
    */
   static String buildMetadataValue(CveSnapshot cve) {
     ScaReachabilityHit hit = cve.hit;
     if (hit == null) {
       // CVE known but no callsite yet - signals "monitoring, not reached"
-      return "{\"id\":\"" + cve.vulnId + "\",\"reached\":[]}";
+      return "{\"id\":\"" + jsonEscape(cve.vulnId) + "\",\"reached\":[]}";
     }
     // CVE has been reached - include the callsite
     return "{\"id\":\""
-        + hit.vulnId()
+        + jsonEscape(hit.vulnId())
         + "\",\"reached\":[{\"path\":\""
-        + hit.className()
+        + jsonEscape(hit.className())
         + "\",\"symbol\":\""
-        + hit.symbolName()
+        + jsonEscape(hit.symbolName())
         + "\",\"line\":"
         + hit.line()
         + "}]}";
+  }
+
+  /** Escapes a string for embedding in a JSON string literal. */
+  private static String jsonEscape(String value) {
+    if (value.indexOf('"') == -1 && value.indexOf('\\') == -1) {
+      return value; // fast path: no escaping needed (the common case)
+    }
+    return value.replace("\\", "\\\\").replace("\"", "\\\"");
   }
 }
