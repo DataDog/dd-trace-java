@@ -48,6 +48,9 @@ final class AggregateEntry extends Hashtable.Entry {
   /** Shared empty array used by entries with no peer tags. */
   private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
 
+  /** Shared empty array for entries with no additional-tags schema configured. */
+  private static final UTF8BytesString[] EMPTY_ADDITIONAL_TAGS = new UTF8BytesString[0];
+
   // Per-field cardinality limits. Sized to cover typical real-world cardinality without hitting
   // the blocked_by_tracer sentinel: route counts for RESOURCE/HTTP_ENDPOINT, integration counts for
   // OPERATION, mesh peers for SERVICE, the known enum cardinality for the small-domain fields.
@@ -77,6 +80,15 @@ final class AggregateEntry extends Hashtable.Entry {
   final boolean synthetic;
   final boolean traceRoot;
   final UTF8BytesString[] peerTags;
+
+  /**
+   * Per-configured-key additional metric tag values, in {@code AdditionalTagsSchema} order. {@code
+   * null} slot = the span didn't set that tag; non-null slots hold the canonical {@code
+   * "key:value"} UTF8BytesString (or the schema's blocked sentinel if the value was length-capped
+   * or cardinality-capped). Array length matches the configured schema; empty array for the no-
+   * additional-tags case.
+   */
+  final UTF8BytesString[] additionalTags;
 
   // Recording state. Mutated only on the aggregator thread. Not thread-safe.
   private final Histogram okLatencies;
@@ -109,7 +121,8 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      UTF8BytesString[] peerTags) {
+      UTF8BytesString[] peerTags,
+      UTF8BytesString[] additionalTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -124,6 +137,7 @@ final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
+    this.additionalTags = additionalTags;
     this.okLatencies = Histogram.newHistogram();
   }
 
@@ -175,7 +189,8 @@ final class AggregateEntry extends Hashtable.Entry {
             synthetic,
             traceRoot,
             peerTagsArray,
-            peerTagsArray.length);
+            peerTagsArray.length,
+            EMPTY_ADDITIONAL_TAGS);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -190,7 +205,8 @@ final class AggregateEntry extends Hashtable.Entry {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsArray);
+        peerTagsArray,
+        EMPTY_ADDITIONAL_TAGS);
   }
 
   /**
@@ -232,7 +248,8 @@ final class AggregateEntry extends Hashtable.Entry {
       boolean synthetic,
       boolean traceRoot,
       UTF8BytesString[] peerTags,
-      int peerTagsLen) {
+      int peerTagsLen,
+      UTF8BytesString[] additionalTags) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -245,6 +262,11 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, spanKind);
     for (int i = 0; i < peerTagsLen; i++) {
       h = LongHashingUtils.addToHash(h, peerTags[i]);
+    }
+    // Additional tags hash in schema order (which is alphabetical by key, per the schema's
+    // construction). null slots are mixed in too so absent-vs-present yields different hashes.
+    for (int i = 0; i < additionalTags.length; i++) {
+      h = LongHashingUtils.addToHash(h, additionalTags[i]);
     }
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
@@ -303,6 +325,16 @@ final class AggregateEntry extends Hashtable.Entry {
 
   UTF8BytesString[] getPeerTags() {
     return peerTags;
+  }
+
+  /**
+   * Returns the configured-additional-tag values in schema (alphabetical-by-key) order. Each slot
+   * is either {@code null} (span didn't set that tag) or the canonical {@code "key:value"}
+   * UTF8BytesString. The array's length matches the schema; empty array when no additional tags
+   * are configured.
+   */
+  UTF8BytesString[] getAdditionalTags() {
+    return additionalTags;
   }
 
   // ----- recording state accessors -----
@@ -434,6 +466,7 @@ final class AggregateEntry extends Hashtable.Entry {
         && Objects.equals(type, that.type)
         && Objects.equals(spanKind, that.spanKind)
         && Arrays.equals(peerTags, that.peerTags)
+        && Arrays.equals(additionalTags, that.additionalTags)
         && Objects.equals(httpMethod, that.httpMethod)
         && Objects.equals(httpEndpoint, that.httpEndpoint)
         && Objects.equals(grpcStatusCode, that.grpcStatusCode);
@@ -476,7 +509,33 @@ final class AggregateEntry extends Hashtable.Entry {
 
     int peerTagsCount;
 
+    /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
+    final AdditionalTagsSchema additionalTagsSchema;
+
+    /**
+     * Length-cap policy + warn-log throttling. Length-blocked values are substituted by callers
+     * with {@link AdditionalTagsSchema#blockedSentinel(int)}.
+     */
+    final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
+
+    /**
+     * Reusable buffer of canonicalized additional-tag values, sized exactly to the schema. Slot
+     * {@code i} = the canonical {@code "key:value"} UTF8BytesString for {@code schema.name(i)},
+     * or {@code null} when the span didn't set that tag. Cleared on each {@link #populate}. {@link
+     * #toEntry} copies it into the new entry; {@link #rebuildAdditionalTagsWithBlockedSentinels}
+     * replaces all present slots with the schema's blocked sentinels.
+     */
+    final UTF8BytesString[] additionalTagsBuffer;
+
     long keyHash;
+
+    Canonical(
+        AdditionalTagsSchema additionalTagsSchema,
+        AdditionalTagsCardinalityLimiter additionalTagsLimiter) {
+      this.additionalTagsSchema = additionalTagsSchema;
+      this.additionalTagsLimiter = additionalTagsLimiter;
+      this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
+    }
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
     void populate(SpanSnapshot s) {
@@ -496,22 +555,32 @@ final class AggregateEntry extends Hashtable.Entry {
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
       populatePeerTags(s.peerTagSchema, s.peerTagValues);
-      this.keyHash =
-          hashOf(
-              resource,
-              service,
-              operationName,
-              serviceSource,
-              type,
-              spanKind,
-              httpMethod,
-              httpEndpoint,
-              grpcStatusCode,
-              httpStatusCode,
-              synthetic,
-              traceRoot,
-              peerTagsBuffer,
-              peerTagsCount);
+      populateAdditionalTags(s.additionalTagValues);
+      this.keyHash = computeKeyHash();
+    }
+
+    /** Recompute the key hash from the current buffer state (used after a blocked-rebuild). */
+    void recomputeKeyHash() {
+      this.keyHash = computeKeyHash();
+    }
+
+    private long computeKeyHash() {
+      return hashOf(
+          resource,
+          service,
+          operationName,
+          serviceSource,
+          type,
+          spanKind,
+          httpMethod,
+          httpEndpoint,
+          grpcStatusCode,
+          httpStatusCode,
+          synthetic,
+          traceRoot,
+          peerTagsBuffer,
+          peerTagsCount,
+          additionalTagsBuffer);
     }
 
     /**
@@ -537,6 +606,70 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     /**
+     * Fills {@link #additionalTagsBuffer} with canonical {@code "key:value"} UTF8BytesStrings for
+     * each non-null slot in {@code values}, applying the per-value length cap. Length-capped
+     * slots are replaced by the schema's pre-built {@code "<key>:blocked_by_tracer"} sentinel.
+     * Absent slots become {@code null}.
+     */
+    private void populateAdditionalTags(String[] values) {
+      int n = additionalTagsBuffer.length;
+      if (n == 0 || values == null) {
+        // Schema empty or span had no additional tags at all -- clear the buffer's slots so a
+        // previous iteration's state doesn't leak through.
+        Arrays.fill(additionalTagsBuffer, null);
+        return;
+      }
+      for (int i = 0; i < n; i++) {
+        String v = values[i];
+        if (v == null) {
+          additionalTagsBuffer[i] = null;
+          continue;
+        }
+        String tagKey = additionalTagsSchema.name(i);
+        String capped = additionalTagsLimiter.applyLengthCap(tagKey, v);
+        if (capped == null) {
+          additionalTagsBuffer[i] = additionalTagsSchema.blockedSentinel(i);
+        } else {
+          // Fresh UTF8BytesString per insert -- bounded by maxAggregates * configured_tags per
+          // bucket. On a hit nothing here gets referenced past this populate() call; on a miss
+          // it's copied into the new entry.
+          additionalTagsBuffer[i] = UTF8BytesString.create(tagKey + ":" + capped);
+        }
+      }
+    }
+
+    /**
+     * Replace every non-null slot in {@link #additionalTagsBuffer} with the schema's blocked
+     * sentinel and re-compute the hash. Called by {@link AggregateTable#findOrInsert} when a
+     * brand-new entry would push the bucket past the cardinality cap. Returns the number of
+     * positions that were masked (so callers can fire the per-key health metric appropriately).
+     */
+    int rebuildAdditionalTagsWithBlockedSentinels() {
+      int masked = 0;
+      for (int i = 0; i < additionalTagsBuffer.length; i++) {
+        UTF8BytesString slot = additionalTagsBuffer[i];
+        if (slot != null && slot != additionalTagsSchema.blockedSentinel(i)) {
+          additionalTagsBuffer[i] = additionalTagsSchema.blockedSentinel(i);
+          masked++;
+        }
+      }
+      if (masked > 0) {
+        recomputeKeyHash();
+      }
+      return masked;
+    }
+
+    /** Whether this canonicalized snapshot has any non-null additional-tag values present. */
+    boolean hasAdditionalTags() {
+      for (UTF8BytesString slot : additionalTagsBuffer) {
+        if (slot != null) {
+          return true;
+        }
+      }
+      return false;
+    }
+
+    /**
      * Whether this canonicalized snapshot matches the given entry. Compares UTF8 fields via
      * content-equality (so an entry surviving a handler reset still matches a freshly-canonicalized
      * snapshot of the same content).
@@ -552,6 +685,7 @@ final class AggregateEntry extends Hashtable.Entry {
           && Objects.equals(type, e.type)
           && Objects.equals(spanKind, e.spanKind)
           && peerTagsEqual(peerTagsBuffer, peerTagsCount, e.peerTags)
+          && Arrays.equals(additionalTagsBuffer, e.additionalTags)
           && Objects.equals(httpMethod, e.httpMethod)
           && Objects.equals(httpEndpoint, e.httpEndpoint)
           && Objects.equals(grpcStatusCode, e.grpcStatusCode);
@@ -586,6 +720,12 @@ final class AggregateEntry extends Hashtable.Entry {
         snapshottedPeerTags = new UTF8BytesString[peerTagsCount];
         System.arraycopy(peerTagsBuffer, 0, snapshottedPeerTags, 0, peerTagsCount);
       }
+      UTF8BytesString[] snapshottedAdditionalTags;
+      if (additionalTagsBuffer.length == 0) {
+        snapshottedAdditionalTags = EMPTY_ADDITIONAL_TAGS;
+      } else {
+        snapshottedAdditionalTags = additionalTagsBuffer.clone();
+      }
       return new AggregateEntry(
           keyHash,
           resource,
@@ -600,7 +740,8 @@ final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          snapshottedPeerTags);
+          snapshottedPeerTags,
+          snapshottedAdditionalTags);
     }
   }
 

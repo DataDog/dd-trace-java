@@ -70,6 +70,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -81,6 +82,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        AdditionalTagsSchema.from(config.getTraceStatsAdditionalTags()),
+        config.getTraceStatsAdditionalTagsCardinalityLimit(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -107,6 +110,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         wellKnownTags,
         ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        100,
         features,
         healthMetric,
         sink,
@@ -120,6 +125,61 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      boolean includeEndpointInMetrics) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        additionalTagsSchema,
+        additionalTagsCardinalityLimit,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS,
+        includeEndpointInMetrics);
+  }
+
+  /** Test-only: defaults to no additional tags schema. */
+  ClientStatsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        100,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ClientStatsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -130,6 +190,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
+        additionalTagsSchema,
+        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -141,6 +203,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         includeEndpointInMetrics);
   }
 
+  /** Test-only: defaults to no additional tags schema. */
   ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -152,7 +215,36 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       long reportingInterval,
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
+    this(
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        100,
+        features,
+        healthMetric,
+        sink,
+        metricWriter,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ClientStatsAggregator(
+      Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      MetricWriter metricWriter,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalTagsSchema = additionalTagsSchema;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.features = features;
@@ -160,7 +252,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this.sink = sink;
     this.aggregator =
         new Aggregator(
-            metricWriter, inbox, maxAggregates, reportingInterval, timeUnit, healthMetric);
+            metricWriter,
+            inbox,
+            maxAggregates,
+            reportingInterval,
+            timeUnit,
+            healthMetric,
+            additionalTagsSchema,
+            additionalTagsCardinalityLimit);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -312,6 +411,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       peerTagSchema = null;
     }
 
+    String[] additionalTagValues = captureAdditionalTagValues(span);
+
     SpanSnapshot snapshot =
         new SpanSnapshot(
             span.getResourceName(),
@@ -328,12 +429,38 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
+            additionalTagValues,
             tagAndDuration);
     if (!inbox.offer(snapshot)) {
       healthMetrics.onStatsInboxFull();
     }
     // force keep keys if there are errors
     return error;
+  }
+
+  /**
+   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to {@code
+   * additionalTagsSchema.names}. Returns {@code null} when no additional tags are configured or
+   * none of the configured keys are set on the span. Raw values only -- length cap and
+   * canonicalization run on the aggregator thread.
+   */
+  private String[] captureAdditionalTagValues(CoreSpan<?> span) {
+    String[] names = additionalTagsSchema.names;
+    int n = names.length;
+    if (n == 0) {
+      return null;
+    }
+    String[] values = null;
+    for (int i = 0; i < n; i++) {
+      Object v = span.unsafeGetTag(names[i]);
+      if (v != null) {
+        if (values == null) {
+          values = new String[n];
+        }
+        values[i] = v.toString();
+      }
+    }
+    return values;
   }
 
   /**

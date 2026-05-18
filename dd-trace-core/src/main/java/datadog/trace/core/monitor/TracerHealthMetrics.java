@@ -99,6 +99,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private final LongAdder statsAggregateDropped = new LongAdder();
   private final LongAdder statsInboxFull = new LongAdder();
+  private final LongAdder statsAdditionalTagBlocked = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -364,6 +365,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {
+    statsAdditionalTagBlocked.increment();
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -382,7 +388,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
     private static final String[] REASON_INBOX_FULL_TAG = new String[] {"reason:inbox_full"};
 
-    private final long[] previousCounts = new long[52];
+    private final long[] previousCounts = new long[53];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -516,6 +522,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             "stats.dropped_aggregates",
             target.statsInboxFull,
             REASON_INBOX_FULL_TAG);
+        reportIfChanged(
+            target.statsd,
+            "stats.additional_tag.cardinality_blocked",
+            target.statsAdditionalTagBlocked,
+            NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
