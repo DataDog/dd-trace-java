@@ -3,9 +3,9 @@ package datadog.telemetry.sca;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
-import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
@@ -402,20 +402,17 @@ class ScaReachabilityPeriodicActionTest {
   }
 
   /**
-   * CVE fires before DependencyService has resolved the dep (timing race). Step 3 must NOT emit
-   * without source/hash; instead re-marks as pending. On the next heartbeat, DependencyService
-   * resolves the dep and the merge succeeds.
+   * CVE fires before DependencyService has resolved the dep (timing race).
+   *
+   * <p>Step 3 emits immediately without source/hash so CVE data is never delayed (system tests need
+   * data within seconds). When the dep is later resolved and stored in knownDeps, subsequent CVE
+   * emissions (e.g., after a method hit) carry source/hash automatically.
    */
   @Test
-  void cveFiresBeforeDepResolved_retainsAsPendingUntilDepKnown() {
+  void cveFiresBeforeDepResolved_emitsImmediatelyWithoutSourceHash() {
     DependencyService svc = mock(DependencyService.class);
     // Heartbeat 1: DependencyService is empty (dep not yet resolved)
-    // Heartbeat 2: DependencyService returns the dep
-    when(svc.drainDeterminedDependencies())
-        .thenReturn(Collections.emptyList())
-        .thenReturn(
-            Collections.singletonList(
-                new Dependency("com.example:lib", "1.0.0", "lib.jar", "ABCD")));
+    when(svc.drainDeterminedDependencies()).thenReturn(Collections.emptyList());
     ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
 
     // CVE fires before DependencyService resolves the dep
@@ -423,19 +420,14 @@ class ScaReachabilityPeriodicActionTest {
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
         "com.example:lib", "1.0.0", "GHSA-race", "com.app.Ctrl", "handle", 10);
 
-    // Heartbeat 1: DependencyService empty → CVE re-marked pending, nothing emitted
+    // Heartbeat 1: emits immediately without source/hash — CVE data is not delayed
     merged.doIteration(telService);
-    verify(telService, never()).addDependency(any());
-
-    // Heartbeat 2: DependencyService now has the dep → merge succeeds with source/hash
-    TelemetryService telService2 = mock(TelemetryService.class);
-    merged.doIteration(telService2);
 
     ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
-    verify(telService2, times(1)).addDependency(captor.capture());
+    verify(telService, times(1)).addDependency(captor.capture());
     Dependency emitted = captor.getValue();
-    assertEquals("lib.jar", emitted.source, "source/hash must come from DependencyService");
-    assertEquals("ABCD", emitted.hash);
+    assertNull(emitted.source, "source is null when dep not yet in knownDeps");
+    assertNull(emitted.hash, "hash is null when dep not yet in knownDeps");
     assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-race"));
     assertTrue(emitted.reachabilityMetadata.get(0).contains("\"path\""), "must include callsite");
   }
