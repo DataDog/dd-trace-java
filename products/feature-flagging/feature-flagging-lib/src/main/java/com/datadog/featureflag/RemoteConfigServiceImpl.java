@@ -26,6 +26,8 @@ public class RemoteConfigServiceImpl
     implements RemoteConfigService, ConfigurationChangesTypedListener<ServerConfiguration> {
 
   private final ConfigurationPoller configurationPoller;
+  private final ConfigurationPoller.NonRetryableErrorListener nonRetryableErrorListener =
+      FeatureFlaggingGateway::dispatchFatalError;
 
   public RemoteConfigServiceImpl(final SharedCommunicationObjects sco, final Config config) {
     configurationPoller = sco.configurationPoller(config);
@@ -36,6 +38,7 @@ public class RemoteConfigServiceImpl
     configurationPoller.addCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     configurationPoller.addListener(
         Product.FFE_FLAGS, UniversalFlagConfigDeserializer.INSTANCE, this);
+    configurationPoller.addNonRetryableErrorListener(nonRetryableErrorListener);
     configurationPoller.start();
   }
 
@@ -43,6 +46,7 @@ public class RemoteConfigServiceImpl
   public void close() {
     configurationPoller.removeCapabilities(Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES);
     configurationPoller.removeListeners(Product.FFE_FLAGS);
+    configurationPoller.removeNonRetryableErrorListener(nonRetryableErrorListener);
     configurationPoller.stop();
   }
 
