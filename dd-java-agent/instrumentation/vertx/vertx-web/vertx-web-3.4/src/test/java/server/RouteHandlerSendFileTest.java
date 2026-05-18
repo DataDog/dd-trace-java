@@ -26,14 +26,13 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test for the vertx-web 3.x route-handler span lifecycle on the {@code
- * response.sendFile(...)} path.
+ * Regression test for the vertx-web 3.x route-handler span lifecycle on the response.sendFile(...) path.
  *
- * <p>{@code HttpServerResponseImpl.doSendFile} (vertx-core 3.x) only invokes {@code bodyEndHandler}
- * after the file is written; it never invokes {@code endHandler}. With only the {@code endHandler}
- * registration (pre-fix), the {@code vertx.route-handler} span never finishes on this path, the
- * trace fails to flush, and {@code assertTraces} times out. With the fallback {@code
- * addBodyEndHandler} registration, the span finishes on every response-end path.
+ * HttpServerResponseImpl.doSendFile (vertx-core 3.x) only invokes bodyEndHandler
+ * after the file is written; it never invokes endHandler. With only the endHandler registration
+ * (pre-fix), the vertx.route-handler span never finishes on this path, the trace fails to flush,
+ * and assertTraces times out. With the fallback addBodyEndHandler registration, the span finishes
+ * on every response-end path.
  */
 class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
 
@@ -106,11 +105,8 @@ class RouteHandlerSendFileTest extends AbstractInstrumentationTest {
       assertEquals("vertx sendFile payload", reader.readLine());
     }
 
-    // Strict-mode trace writes only publish a trace when every span in it has finished.
     // Pre-fix: the route-handler span never finishes on the sendFile path, so the trace
     // is never published and assertTraces times out waiting for the trace to flush.
-    // Span operation names are stored as UTF8BytesString, whose equals() rejects String
-    // arguments, so match via a quoted Pattern instead of the String overload.
     assertTraces(
         trace(
             SORT_BY_START_TIME,

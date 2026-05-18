@@ -22,17 +22,16 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 /**
- * Regression test for the vertx-web 4.x route-handler span lifecycle on the {@code
- * response.exceptionHandler} path.
+ * Regression test for the vertx-web 4.x route-handler span lifecycle on the response.exceptionHandler path.
  *
- * <p>{@code Http1xServerResponse.handleException} is invoked by Vert.x on non-{@code
- * CLOSED_EXCEPTION} I/O failures of the response. Without {@code RoutingContext.addEndHandler(...)}
- * registered, only the wrapped {@code response.endHandler} could finish the route-handler span —
- * and that hook does not fire on the exception path. With the {@code addEndHandler} fallback in
- * {@code RouteHandlerWrapper}, the routing context's internal exception handler fires our
- * completion callback regardless of which response hook surfaces the error. The route handler here
- * fires {@code handleException} directly via {@link ResponseExceptionFiringHelper}, then calls
- * {@code response.end()} normally so the HTTP client gets a response.
+ * Http1xServerResponse.handleException is invoked by Vert.x on non-CLOSED_EXCEPTION
+ * I/O failures of the response. Without RoutingContext.addEndHandler(...) registered, only the
+ * wrapped response.endHandler could finish the route-handler span — and that hook does not fire
+ * on the exception path. With the addEndHandler fallback in RouteHandlerWrapper, the routing
+ * context's internal exception handler fires our completion callback regardless of which response
+ * hook surfaces the error. The route handler here fires handleException directly via
+ * ResponseExceptionFiringHelper, then calls response.end() normally so the HTTP client gets a
+ * response.
  */
 class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
 
@@ -110,11 +109,8 @@ class RouteHandlerExceptionHandlerTest extends AbstractInstrumentationTest {
       conn.disconnect();
     }
 
-    // Strict-mode trace writes only publish when every span in the trace has finished.
     // If addEndHandler did not finish the route-handler span, assertTraces would time out
     // waiting for the trace to flush.
-    // Span operation names are stored as UTF8BytesString, whose equals() rejects String
-    // arguments, so match via a quoted Pattern instead of the String overload.
     // The netty.request span is marked as errored because the route handler ends with
     // HTTP 500; the route-handler span is finished by our addEndHandler callback before
     // setStatusCode(500), so it sees status=200 (default) and is not errored.

@@ -47,20 +47,7 @@ public class RouteHandlerWrapper implements Handler<RoutingContext> {
         span = startSpan("vertx", INSTRUMENTATION_NAME);
         routingContext.put(HANDLER_SPAN_CONTEXT_KEY, span);
 
-        // Vert.x 3.x has no single hook that fires on every response outcome
-        // (RoutingContext.addEndHandler is 4.0+). We register three:
-        //   - response.endHandler: normal response-end path.
-        //   - response.bodyEndHandler (via RoutingContext.addBodyEndHandler):
-        //     covers sendFile() success and synthetic-transport cases where
-        //     HttpServerResponseImpl.end gates endHandler behind `!closed`
-        //     and the response is closed synchronously by responseComplete()
-        //     (e.g. quarkus-amazon-lambda-rest's in-memory Netty channel).
-        //   - response.exceptionHandler: covers I/O failures surfaced via
-        //     HttpServerResponseImpl.handleException (non-CLOSED_EXCEPTION),
-        //     where neither endHandler nor bodyEndHandler fires. Note that
-        //     response.exceptionHandler is a single-slot setter; if the user
-        //     installs their own exception handler later in the request, ours
-        //     is overwritten and the span will leak on this path again.
+        // Register three hooks that fire on response outcome:
         // finishHandlerSpan is idempotent; whichever hook fires first wins.
         //
         // Known remaining gap: sendFile() failures on file-not-found or
