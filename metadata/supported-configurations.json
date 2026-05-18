@@ -10721,6 +10721,22 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS": [
+      {
+        "version": "A",
+        "type": "list",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "100",
+        "aliases": []
+      }
+    ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
       {
         "version": "A",

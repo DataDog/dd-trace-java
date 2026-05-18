@@ -36,10 +36,10 @@ import org.slf4j.LoggerFactory;
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> the aggregator thread is the only thread that mutates this schema,
- * including its {@link TagCardinalityHandler}s and {@link #state}. Producer threads may read {@link
- * #names} and {@link #handlers} because they are final and published through the volatile {@code
- * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
+ * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
+ * and {@link #state}) is exercised only on the aggregator thread. {@link #names} and {@link
+ * #handlers} are final and safe to read from any thread; producer threads access them through the
+ * volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 

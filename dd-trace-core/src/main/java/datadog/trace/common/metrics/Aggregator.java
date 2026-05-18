@@ -42,6 +42,8 @@ final class Aggregator implements Runnable {
       justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
+  private final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
+
   Aggregator(
       MetricWriter writer,
       MessagePassingQueue<InboxItem> inbox,
@@ -58,7 +60,54 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
-        onReportCycle);
+        onReportCycle,
+        AdditionalTagsSchema.EMPTY,
+        100);
+  }
+
+  Aggregator(
+      MetricWriter writer,
+      MessagePassingQueue<InboxItem> inbox,
+      int maxAggregates,
+      long reportingInterval,
+      TimeUnit reportingIntervalTimeUnit,
+      HealthMetrics healthMetrics,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit) {
+    this(
+        writer,
+        inbox,
+        maxAggregates,
+        reportingInterval,
+        reportingIntervalTimeUnit,
+        DEFAULT_SLEEP_MILLIS,
+        healthMetrics,
+        null,
+        additionalTagsSchema,
+        additionalTagsCardinalityLimit);
+  }
+
+  Aggregator(
+      MetricWriter writer,
+      MessagePassingQueue<InboxItem> inbox,
+      int maxAggregates,
+      long reportingInterval,
+      TimeUnit reportingIntervalTimeUnit,
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit) {
+    this(
+        writer,
+        inbox,
+        maxAggregates,
+        reportingInterval,
+        reportingIntervalTimeUnit,
+        DEFAULT_SLEEP_MILLIS,
+        healthMetrics,
+        onReportCycle,
+        additionalTagsSchema,
+        additionalTagsCardinalityLimit);
   }
 
   Aggregator(
@@ -69,10 +118,16 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
-      Runnable onReportCycle) {
+      Runnable onReportCycle,
+      AdditionalTagsSchema additionalTagsSchema,
+      int additionalTagsCardinalityLimit) {
     this.writer = writer;
     this.inbox = inbox;
-    this.aggregates = new AggregateTable(maxAggregates);
+    this.additionalTagsLimiter =
+        new AdditionalTagsCardinalityLimiter(additionalTagsCardinalityLimit, healthMetrics);
+    this.aggregates =
+        new AggregateTable(
+            maxAggregates, additionalTagsSchema, additionalTagsLimiter, healthMetrics);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
@@ -174,7 +229,7 @@ final class Aggregator implements Runnable {
               writer,
               (w, entry) -> {
                 w.add(entry);
-                entry.clear();
+                entry.clearAggregate();
               });
           // note that this may do IO and block
           writer.finishBucket();
@@ -185,6 +240,10 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
+    // Reset cardinality handlers each report cycle so the per-field budgets refresh.
+    // Safe to call on this (aggregator) thread; handlers are HashMap-based and not thread-safe.
+    AggregateEntry.resetCardinalityHandlers();
+    additionalTagsLimiter.resetBucket();
     signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");
