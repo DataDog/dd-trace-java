@@ -419,11 +419,116 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
         return "(process exited between liveness check and dump; skipping to avoid PID reuse)"
       }
       String jstackOut = runJstack(pid)
-      return jstackOut != null ? jstackOut : "(jstack not available or failed)"
+      if (jstackOut == null) {
+        return "(jstack not available or failed)"
+      }
+      // Print the full dump to stdout so it lands in the gradle test report's STANDARD_OUT
+      // section (and the GitLab build log) — Datadog CI Visibility truncates error.message at
+      // ~5000 chars, which would otherwise lose most of the dump.
+      println "=== Full thread dump for pid ${pid} ==="
+      println jstackOut
+      println "=== End thread dump ==="
+      return filterThreadDump(jstackOut)
     } catch (Throwable t) {
       // Never let a diagnostic failure mask the original AssertionError.
       return "(thread dump failed: ${t.getClass().simpleName}: ${t.message})"
     }
+  }
+
+  // Approximate budget for the inline dump in error.message. Leaves room for the
+  // surrounding "Timed out waiting..." prefix to stay under CI Visibility's 5000-char cap.
+  private static final int INLINE_DUMP_CAP = 4200
+
+  /**
+   * Reduce a jstack thread dump to the threads most likely to explain a hang: the main thread,
+   * dd-trace agent threads (dd-*, datadog-*), OkHttp threads, and anything BLOCKED. Drops known
+   * JVM boilerplate (compiler/GC/reference handler/etc). Truncates to {@link #INLINE_DUMP_CAP}
+   * with an elision marker. The full dump is always available on stdout.
+   */
+  private String filterThreadDump(String fullDump) {
+    int firstBlockIdx = fullDump.indexOf('\n"')
+    if (firstBlockIdx < 0) {
+      // No recognizable thread blocks — return the original, truncated if needed
+      return fullDump.length() > INLINE_DUMP_CAP
+      ? fullDump.substring(0, INLINE_DUMP_CAP) + "\n(truncated; full dump on stdout)"
+      : fullDump
+    }
+    String header = fullDump.substring(0, firstBlockIdx + 1)
+    String rest = fullDump.substring(firstBlockIdx + 1)
+
+    List<String> blocks = []
+    int i = 0
+    while (i < rest.length()) {
+      int next = rest.indexOf('\n"', i)
+      if (next < 0) {
+        blocks.add(rest.substring(i))
+        break
+      }
+      blocks.add(rest.substring(i, next + 1))
+      i = next + 1
+    }
+
+    List<String> highPriority = []
+    List<String> lowPriority = []
+    int boilerplateDropped = 0
+    for (String block : blocks) {
+      def m = block =~ /^"([^"]+)"/
+      String name = m.find() ? m.group(1) : ''
+      if (isBoilerplateThread(name)) {
+        boilerplateDropped++
+      } else if (isHighPriorityThread(name, block)) {
+        highPriority.add(block)
+      } else {
+        lowPriority.add(block)
+      }
+    }
+
+    StringBuilder out = new StringBuilder(header)
+    int elided = 0
+    for (String block : highPriority + lowPriority) {
+      if (out.length() + block.length() + 120 > INLINE_DUMP_CAP) {
+        elided++
+        continue
+      }
+      out.append(block)
+    }
+    if (boilerplateDropped > 0 || elided > 0) {
+      out.append("\n(elided ${boilerplateDropped} JVM-boilerplate thread(s)")
+      if (elided > 0) {
+        out.append(", elided ${elided} other thread(s) for size")
+      }
+      out.append("; full dump on stdout)")
+    }
+    return out.toString()
+  }
+
+  private static boolean isBoilerplateThread(String name) {
+    if (name in [
+      "Reference Handler", "Finalizer", "Signal Dispatcher", "Common-Cleaner",
+      "Service Thread", "Monitor Deflation Thread", "Notification Thread",
+      "Attach Listener", "process reaper", "Sweeper thread", "VM Thread", "VM Periodic Task Thread"
+    ]) {
+      return true
+    }
+    return name.startsWith("C1 CompilerThread") ||
+    name.startsWith("C2 CompilerThread") ||
+    name.startsWith("GC Thread") ||
+    name.startsWith("G1 ") ||
+    name.startsWith("ParGC ") ||
+    name.startsWith("CMS ")
+  }
+
+  private static boolean isHighPriorityThread(String name, String block) {
+    if (name == "main") {
+      return true
+    }
+    if (name.startsWith("dd-") || name.startsWith("datadog-")) {
+      return true
+    }
+    if (name.startsWith("OkHttp") || name.contains("okhttp")) {
+      return true
+    }
+    return block.contains("java.lang.Thread.State: BLOCKED")
   }
 
   private long getTestedProcessPid() {
