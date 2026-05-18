@@ -1,17 +1,10 @@
 package datadog.gradle.plugin.spotless
 
-import com.diffplug.gradle.spotless.FormatExtension
-import com.diffplug.gradle.spotless.GroovyExtension
-import com.diffplug.gradle.spotless.GroovyGradleExtension
-import com.diffplug.gradle.spotless.JavaExtension
-import com.diffplug.gradle.spotless.KotlinExtension
-import com.diffplug.gradle.spotless.KotlinGradleExtension
-import com.diffplug.gradle.spotless.ScalaExtension
 import com.diffplug.gradle.spotless.SpotlessExtension
 import com.diffplug.gradle.spotless.SpotlessExtensionPredeclare
-import org.gradle.api.Action
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.configure
 
 class SpotlessConventionsPlugin : Plugin<Project> {
   private companion object {
@@ -45,218 +38,161 @@ class SpotlessConventionsPlugin : Plugin<Project> {
   }
 
   private fun configurePredeclaredDependencies(project: Project) {
-    project.extensions.configure(
-      SpotlessExtensionPredeclare::class.java,
-      object : Action<SpotlessExtensionPredeclare> {
-        override fun execute(spotlessPredeclare: SpotlessExtensionPredeclare) {
-          spotlessPredeclare.java(object : Action<JavaExtension> {
-            override fun execute(java: JavaExtension) {
-              java.tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
-              java.googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
-            }
-          })
-
-          spotlessPredeclare.groovyGradle(object : Action<GroovyGradleExtension> {
-            override fun execute(groovyGradle: GroovyGradleExtension) {
-              groovyGradle.greclipse()
-            }
-          })
-
-          spotlessPredeclare.groovy(object : Action<GroovyExtension> {
-            override fun execute(groovy: GroovyExtension) {
-              groovy.greclipse()
-            }
-          })
-
-          spotlessPredeclare.kotlinGradle(object : Action<KotlinGradleExtension> {
-            override fun execute(kotlinGradle: KotlinGradleExtension) {
-              kotlinGradle.ktlint(KTLINT_VERSION)
-            }
-          })
-
-          spotlessPredeclare.kotlin(object : Action<KotlinExtension> {
-            override fun execute(kotlin: KotlinExtension) {
-              kotlin.ktlint(KTLINT_VERSION)
-            }
-          })
-
-          spotlessPredeclare.scala(object : Action<ScalaExtension> {
-            override fun execute(scala: ScalaExtension) {
-              scala.scalafmt(SCALAFMT_VERSION)
-            }
-          })
-        }
+    project.extensions.configure<SpotlessExtensionPredeclare> {
+      java {
+        tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
+        googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
       }
-    )
+
+      groovyGradle {
+        greclipse()
+      }
+
+      groovy {
+        greclipse()
+      }
+
+      kotlinGradle {
+        ktlint(KTLINT_VERSION)
+      }
+
+      kotlin {
+        ktlint(KTLINT_VERSION)
+      }
+
+      scala {
+        scalafmt(SCALAFMT_VERSION)
+      }
+    }
   }
 
   private fun configureRootFormatting(project: Project) {
-    project.extensions.configure(
-      SpotlessExtension::class.java,
-      object : Action<SpotlessExtension> {
-        override fun execute(spotless: SpotlessExtension) {
-          configureSkipSpotless(project, spotless)
+    project.extensions.configure<SpotlessExtension> {
+      configureSkipSpotless(project, this)
 
-          val rootExcludes = listOf(
-            "build/**",
-            "buildSrc/build/**",
-            "buildSrc/**/build/**",
-            "test-published-dependencies/**/build/**"
-          )
+      val rootExcludes = listOf(
+        "build/**",
+        "buildSrc/build/**",
+        "buildSrc/**/build/**",
+        "test-published-dependencies/**/build/**"
+      )
 
-          spotless.kotlinGradle(object : Action<KotlinGradleExtension> {
-            override fun execute(kotlinGradle: KotlinGradleExtension) {
-              kotlinGradle.toggleOffOn()
-              kotlinGradle.target(
-                "*.gradle.kts",
-                "buildSrc/**/*.gradle.kts",
-                "gradle/**/*.gradle.kts",
-                "test-published-dependencies/**/*.gradle.kts"
-              )
-              kotlinGradle.targetExclude(rootExcludes)
-              kotlinGradle.ktlint(KTLINT_VERSION)
-                .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
-            }
-          })
-
-          spotless.groovyGradle(object : Action<GroovyGradleExtension> {
-            override fun execute(groovyGradle: GroovyGradleExtension) {
-              groovyGradle.toggleOffOn()
-              groovyGradle.target(
-                "*.gradle",
-                "buildSrc/**/*.gradle",
-                "gradle/**/*.gradle",
-                "test-published-dependencies/**/*.gradle"
-              )
-              groovyGradle.targetExclude(rootExcludes)
-              groovyGradle.greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
-            }
-          })
-
-          spotless.kotlin(object : Action<KotlinExtension> {
-            override fun execute(kotlin: KotlinExtension) {
-              kotlin.toggleOffOn()
-              kotlin.target("buildSrc/**/*.kt")
-              kotlin.targetExclude(rootExcludes)
-              kotlin.ktlint(KTLINT_VERSION)
-                .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
-            }
-          })
-
-          spotless.java(object : Action<JavaExtension> {
-            override fun execute(java: JavaExtension) {
-              java.toggleOffOn()
-              java.target("buildSrc/**/*.java", "test-published-dependencies/**/src/**/*.java")
-              java.targetExclude(rootExcludes)
-              java.tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
-              java.googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
-            }
-          })
-
-          spotless.format(
-            "markdown",
-            object : Action<FormatExtension> {
-              override fun execute(markdown: FormatExtension) {
-                markdown.toggleOffOn()
-                markdown.target("*.md", ".github/**/*.md", "src/**/*.md", "app*/**/*.md")
-                markdown.leadingTabsToSpaces()
-                markdown.endWithNewline()
-              }
-            }
-          )
-
-          spotless.format(
-            "misc",
-            object : Action<FormatExtension> {
-              override fun execute(misc: FormatExtension) {
-                misc.toggleOffOn()
-                misc.target(".gitignore", "*.sh", "tooling/*.sh", ".gitlab/*.sh")
-                misc.leadingTabsToSpaces()
-                misc.trimTrailingWhitespace()
-                misc.endWithNewline()
-              }
-            }
-          )
-        }
+      kotlinGradle {
+        toggleOffOn()
+        target(
+          "*.gradle.kts",
+          "buildSrc/**/*.gradle.kts",
+          "gradle/**/*.gradle.kts",
+          "test-published-dependencies/**/*.gradle.kts"
+        )
+        targetExclude(rootExcludes)
+        ktlint(KTLINT_VERSION)
+          .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
       }
-    )
+
+      groovyGradle {
+        toggleOffOn()
+        target(
+          "*.gradle",
+          "buildSrc/**/*.gradle",
+          "gradle/**/*.gradle",
+          "test-published-dependencies/**/*.gradle"
+        )
+        targetExclude(rootExcludes)
+        greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
+      }
+
+      kotlin {
+        toggleOffOn()
+        target("buildSrc/**/*.kt")
+        targetExclude(rootExcludes)
+        ktlint(KTLINT_VERSION)
+          .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
+      }
+
+      java {
+        toggleOffOn()
+        target("buildSrc/**/*.java", "test-published-dependencies/**/src/**/*.java")
+        targetExclude(rootExcludes)
+        tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
+        googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
+      }
+
+      format("markdown") {
+        toggleOffOn()
+        target("*.md", ".github/**/*.md", "src/**/*.md", "app*/**/*.md")
+        leadingTabsToSpaces()
+        endWithNewline()
+      }
+
+      format("misc") {
+        toggleOffOn()
+        target(".gitignore", "*.sh", "tooling/*.sh", ".gitlab/*.sh")
+        leadingTabsToSpaces()
+        trimTrailingWhitespace()
+        endWithNewline()
+      }
+    }
   }
 
   private fun configureProjectFormatting(project: Project) {
-    project.extensions.configure(
-      SpotlessExtension::class.java,
-      object : Action<SpotlessExtension> {
-        override fun execute(spotless: SpotlessExtension) {
-          configureSkipSpotless(project, spotless)
+    project.extensions.configure<SpotlessExtension> {
+      configureSkipSpotless(project, this)
 
-          val commonExcludes = listOf("build/**", "src/test/resources/**")
+      val commonExcludes = listOf("build/**", "src/test/resources/**")
 
-          spotless.kotlinGradle(object : Action<KotlinGradleExtension> {
-            override fun execute(kotlinGradle: KotlinGradleExtension) {
-              kotlinGradle.toggleOffOn()
-              kotlinGradle.target("*.gradle.kts")
-              kotlinGradle.ktlint(KTLINT_VERSION)
-                .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
-            }
-          })
+      kotlinGradle {
+        toggleOffOn()
+        target("*.gradle.kts")
+        ktlint(KTLINT_VERSION)
+          .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
+      }
 
-          spotless.groovyGradle(object : Action<GroovyGradleExtension> {
-            override fun execute(groovyGradle: GroovyGradleExtension) {
-              groovyGradle.toggleOffOn()
-              groovyGradle.target("*.gradle")
-              groovyGradle.greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
-            }
-          })
+      groovyGradle {
+        toggleOffOn()
+        target("*.gradle")
+        greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
+      }
 
-          project.pluginManager.withPlugin("java") {
-            spotless.java(object : Action<JavaExtension> {
-              override fun execute(java: JavaExtension) {
-                java.toggleOffOn()
-                java.target("src/**/*.java", "app*/**/*.java")
-                java.targetExclude(commonExcludes)
-                java.tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
-                java.googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
-              }
-            })
-          }
-
-          project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
-            spotless.kotlin(object : Action<KotlinExtension> {
-              override fun execute(kotlin: KotlinExtension) {
-                kotlin.toggleOffOn()
-                kotlin.target("src/**/*.kt", "app*/**/*.kt")
-                kotlin.targetExclude(commonExcludes)
-                kotlin.ktlint(KTLINT_VERSION)
-                  .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
-              }
-            })
-          }
-
-          project.pluginManager.withPlugin("scala") {
-            spotless.scala(object : Action<ScalaExtension> {
-              override fun execute(scala: ScalaExtension) {
-                scala.toggleOffOn()
-                scala.target("src/**/*.scala", "app*/**/*.scala")
-                scala.targetExclude(commonExcludes)
-                scala.scalafmt(SCALAFMT_VERSION)
-                  .configFile("${project.rootDir}/gradle/enforcement/spotless-scalafmt.conf")
-              }
-            })
-          }
-
-          project.pluginManager.withPlugin("groovy") {
-            spotless.groovy(object : Action<GroovyExtension> {
-              override fun execute(groovy: GroovyExtension) {
-                groovy.toggleOffOn()
-                groovy.target("src/**/*.groovy", "app*/**/*.groovy")
-                groovy.targetExclude(commonExcludes)
-                groovy.greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
-              }
-            })
-          }
+      project.pluginManager.withPlugin("java") {
+        java {
+          toggleOffOn()
+          target("src/**/*.java", "app*/**/*.java")
+          targetExclude(commonExcludes)
+          tableTestFormatter(TABLE_TEST_FORMATTER_VERSION)
+          googleJavaFormat(GOOGLE_JAVA_FORMAT_VERSION)
         }
       }
-    )
+
+      project.pluginManager.withPlugin("org.jetbrains.kotlin.jvm") {
+        kotlin {
+          toggleOffOn()
+          target("src/**/*.kt", "app*/**/*.kt")
+          targetExclude(commonExcludes)
+          ktlint(KTLINT_VERSION)
+            .editorConfigOverride(KTLINT_EDITOR_CONFIG_OVERRIDE)
+        }
+      }
+
+      project.pluginManager.withPlugin("scala") {
+        scala {
+          toggleOffOn()
+          target("src/**/*.scala", "app*/**/*.scala")
+          targetExclude(commonExcludes)
+          scalafmt(SCALAFMT_VERSION)
+            .configFile("${project.rootDir}/gradle/enforcement/spotless-scalafmt.conf")
+        }
+      }
+
+      project.pluginManager.withPlugin("groovy") {
+        groovy {
+          toggleOffOn()
+          target("src/**/*.groovy", "app*/**/*.groovy")
+          targetExclude(commonExcludes)
+          greclipse().configFile("${project.rootDir}/gradle/enforcement/spotless-groovy.properties")
+        }
+      }
+    }
   }
 
   private fun configureSkipSpotless(project: Project, spotless: SpotlessExtension) {
