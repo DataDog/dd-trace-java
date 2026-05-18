@@ -41,6 +41,33 @@ import org.openjdk.jmh.infra.Blackhole;
  *
  * <p>The D2 variants additionally pay for a composite-key wrapper allocation in the HashMap path
  * (Java has no built-in tuple-as-key) — D2 sidesteps it by taking both key parts directly.
+ *
+ * <p><b>Update</b> is where Hashtable dominates: D1 is ~14x faster, D2 is ~26x faster, because the
+ * HashMap path allocates per call (a {@code Long}, plus a {@code Key2} for D2) and the resulting GC
+ * pressure throttles throughput under multiple threads. <b>Add</b> is roughly comparable for D1
+ * (both allocate one entry per insert) and ~3x faster for D2 (Hashtable sidesteps the {@code Key2}
+ * allocation). <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
+ * MacBook M1 8 threads (Java 8)
+ *
+ * Benchmark                                 Mode  Cnt     Score     Error   Units
+ * HashtableBenchmark.d1_add_hashMap        thrpt    6   187.883 ± 189.858  ops/us
+ * HashtableBenchmark.d1_add_hashtable      thrpt    6   198.710 ± 273.035  ops/us
+ *
+ * HashtableBenchmark.d1_update_hashMap     thrpt    6   127.392 ±  87.482  ops/us
+ * HashtableBenchmark.d1_update_hashtable   thrpt    6  1810.244 ±  44.645  ops/us
+ *
+ * HashtableBenchmark.d1_iterate_hashMap    thrpt    6    20.043 ±   0.752  ops/us
+ * HashtableBenchmark.d1_iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
+ *
+ * HashtableBenchmark.d2_add_hashMap        thrpt    6    77.082 ±  72.278  ops/us
+ * HashtableBenchmark.d2_add_hashtable      thrpt    6   216.813 ± 413.236  ops/us
+ *
+ * HashtableBenchmark.d2_update_hashMap     thrpt    6    56.077 ±  23.716  ops/us
+ * HashtableBenchmark.d2_update_hashtable   thrpt    6  1445.868 ± 157.705  ops/us
+ *
+ * HashtableBenchmark.d2_iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
+ * HashtableBenchmark.d2_iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
+ * </code>
  */
 @Fork(2)
 @Warmup(iterations = 2)
