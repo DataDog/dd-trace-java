@@ -23,5 +23,20 @@ val agentJar = rootProject.layout.projectDirectory
 
 tasks.withType<Test>().configureEach {
   inputs.file(agentJar).withPathSensitivity(org.gradle.api.tasks.PathSensitivity.NONE)
-  jvmArgs("-javaagent:${agentJar.absolutePath}")
+  // Attach lazily so we can skip when the Test JVM already has another -javaagent.
+  // doFirst prepends, so this runs after any -javaagent registered later via doFirst.
+  doFirst {
+    val foreignAgent = allJvmArgs.firstOrNull {
+      it.startsWith("-javaagent:") && !it.contains("modifiable-config-agent")
+    }
+    if (foreignAgent != null) {
+      logger.info(
+        "[modifiable-config] skipping attach for {} — another -javaagent already present: {}",
+        path,
+        foreignAgent,
+      )
+    } else {
+      jvmArgs("-javaagent:${agentJar.absolutePath}")
+    }
+  }
 }
