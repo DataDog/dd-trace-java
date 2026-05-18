@@ -144,8 +144,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
 
   @Override
   Closure decodedEvpProxyMessageCallback() {
-    return {
-      String path, RequestApi request ->
+    return { String path, RequestApi request ->
       try {
         boolean isCompressed = request.getHeader("Content-Encoding").contains("gzip")
         byte[] body = request.body
