@@ -35,10 +35,11 @@ import org.slf4j.LoggerFactory;
  * registry.
  */
 public final class JvmOtlpRuntimeMetrics {
-
   private static final Logger log = LoggerFactory.getLogger(JvmOtlpRuntimeMetrics.class);
+
   private static final OtelInstrumentationScope JVM_SCOPE =
       new OtelInstrumentationScope("datadog.jvm.runtime", null, null);
+
   private static final AttributeKey<String> MEMORY_TYPE = AttributeKey.stringKey("jvm.memory.type");
   private static final AttributeKey<String> MEMORY_POOL =
       AttributeKey.stringKey("jvm.memory.pool.name");
@@ -64,7 +65,7 @@ public final class JvmOtlpRuntimeMetrics {
           (attributes, visitor) ->
               ((Attributes) attributes)
                   .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
-      
+
       registerMemoryMetrics();
       registerBufferMetrics();
       registerThreadMetrics();
@@ -89,7 +90,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Measure of memory used.",
         "By",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           storage.recordLong(memoryBean.getHeapMemoryUsage().getUsed(), HEAP_ATTRS);
           storage.recordLong(memoryBean.getNonHeapMemoryUsage().getUsed(), NON_HEAP_ATTRS);
@@ -103,7 +103,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Measure of memory committed.",
         "By",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           storage.recordLong(memoryBean.getHeapMemoryUsage().getCommitted(), HEAP_ATTRS);
           storage.recordLong(memoryBean.getNonHeapMemoryUsage().getCommitted(), NON_HEAP_ATTRS);
@@ -117,7 +116,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Measure of max obtainable memory.",
         "By",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           long heapMax = memoryBean.getHeapMemoryUsage().getMax();
           if (heapMax > 0) {
@@ -140,7 +138,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Measure of initial memory requested.",
         "By",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           long heapInit = memoryBean.getHeapMemoryUsage().getInit();
           if (heapInit > 0) {
@@ -157,7 +154,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Measure of memory used after the most recent garbage collection event.",
         "By",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           for (MemoryPoolMXBean pool : pools) {
             MemoryUsage collectionUsage = pool.getCollectionUsage();
@@ -200,7 +196,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of executing platform threads.",
         "{thread}",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> storage.recordLong(threadBean.getThreadCount(), Attributes.empty()));
   }
 
@@ -215,7 +210,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of classes loaded since JVM start.",
         "{class}",
         COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage ->
             storage.recordLong(classLoadingBean.getTotalLoadedClassCount(), Attributes.empty()));
 
@@ -224,7 +218,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of classes currently loaded.",
         "{class}",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> storage.recordLong(classLoadingBean.getLoadedClassCount(), Attributes.empty()));
 
     registerLongObservable(
@@ -232,7 +225,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of classes unloaded since JVM start.",
         "{class}",
         COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage ->
             storage.recordLong(classLoadingBean.getUnloadedClassCount(), Attributes.empty()));
   }
@@ -253,7 +245,6 @@ public final class JvmOtlpRuntimeMetrics {
           "CPU time used by the process as reported by the JVM.",
           "s",
           COUNTER,
-          OtelMetricStorage::newDoubleDeltaStorage,
           storage -> {
             long nanos = osBean.getProcessCpuTime();
             if (nanos >= 0) {
@@ -266,7 +257,6 @@ public final class JvmOtlpRuntimeMetrics {
           "Recent CPU utilization for the process as reported by the JVM.",
           "1",
           GAUGE,
-          OtelMetricStorage::newDoubleValueStorage,
           storage -> {
             double cpuLoad = osBean.getProcessCpuLoad();
             if (cpuLoad >= 0) {
@@ -280,7 +270,6 @@ public final class JvmOtlpRuntimeMetrics {
         "Number of processors available to the JVM.",
         "{cpu}",
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage ->
             storage.recordLong(Runtime.getRuntime().availableProcessors(), Attributes.empty()));
   }
@@ -300,7 +289,6 @@ public final class JvmOtlpRuntimeMetrics {
         description,
         unit,
         UP_DOWN_COUNTER,
-        OtelMetricStorage::newLongDeltaStorage,
         storage -> {
           for (BufferPoolMXBean pool : bufferPools) {
             long value = getter.applyAsLong(pool);
@@ -317,10 +305,8 @@ public final class JvmOtlpRuntimeMetrics {
       String description,
       String unit,
       OtelInstrumentType type,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory,
       Consumer<OtelMetricStorage> callback) {
-    registerObservable(
-        OtelInstrumentBuilder.ofLongs(name, type), description, unit, storageFactory, callback);
+    registerObservable(OtelInstrumentBuilder.ofLongs(name, type), description, unit, callback);
   }
 
   /** Registers a double observable instrument and its callback against the bootstrap registry. */
@@ -329,25 +315,46 @@ public final class JvmOtlpRuntimeMetrics {
       String description,
       String unit,
       OtelInstrumentType type,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory,
       Consumer<OtelMetricStorage> callback) {
-    registerObservable(
-        OtelInstrumentBuilder.ofDoubles(name, type), description, unit, storageFactory, callback);
+    registerObservable(OtelInstrumentBuilder.ofDoubles(name, type), description, unit, callback);
   }
 
+  /** Registers an observable instrument and its callback against the bootstrap registry. */
   private static void registerObservable(
       OtelInstrumentBuilder builder,
       String description,
       String unit,
-      Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory,
       Consumer<OtelMetricStorage> callback) {
     builder.setDescription(description);
     builder.setUnit(unit);
-    OtelMetricStorage storage =
-        OtelMetricRegistry.INSTANCE.registerStorage(
-            JVM_SCOPE, builder.observableDescriptor(), storageFactory);
+    OtelMetricStorage storage = registerStorage(builder.observableDescriptor());
     OtelMetricRegistry.INSTANCE.registerObservable(
         JVM_SCOPE, new OtelRunnableObservable(() -> callback.accept(storage)));
+  }
+
+  /** Registers metric storage for the instrument against the bootstrap registry. */
+  private static OtelMetricStorage registerStorage(OtelInstrumentDescriptor descriptor) {
+    Function<OtelInstrumentDescriptor, OtelMetricStorage> storageFactory;
+    switch (descriptor.getType()) {
+      case OBSERVABLE_GAUGE:
+        // observable gauges always use last-value
+        storageFactory =
+            descriptor.hasLongValues()
+                ? OtelMetricStorage::newLongValueStorage
+                : OtelMetricStorage::newDoubleValueStorage;
+        break;
+      case OBSERVABLE_COUNTER:
+      case OBSERVABLE_UP_DOWN_COUNTER:
+        // observable counters use delta value since last reset
+        storageFactory =
+            descriptor.hasLongValues()
+                ? OtelMetricStorage::newLongDeltaStorage
+                : OtelMetricStorage::newDoubleDeltaStorage;
+        break;
+      default:
+        throw new IllegalStateException("Unexpected value: " + descriptor.getType());
+    }
+    return OtelMetricRegistry.INSTANCE.registerStorage(JVM_SCOPE, descriptor, storageFactory);
   }
 
   /** Returns Attributes carrying jvm.memory.type and jvm.memory.pool.name for the given pool. */
