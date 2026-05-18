@@ -43,16 +43,16 @@ public final class ScaCveDatabase {
     InputStream stream = ScaCveDatabase.class.getResourceAsStream(RESOURCE_PATH);
     if (stream == null) {
       log.info(
-          "SCA Reachability: {} not found on classpath — no vulnerabilities will be tracked",
+          "SCA Reachability: {} not found on classpath - no vulnerabilities will be tracked",
           RESOURCE_PATH);
       return new ScaCveDatabase(Collections.emptyMap());
     }
-    // "UTF-8" string literal — java.nio.* is forbidden during premain
+    // "UTF-8" string literal - java.nio.* is forbidden during premain
     try (InputStreamReader reader = new InputStreamReader(stream, "UTF-8")) {
       return parse(reader);
     } catch (Exception e) {
       log.error(
-          "SCA Reachability: failed to parse {} — no vulnerabilities will be tracked",
+          "SCA Reachability: failed to parse {} - no vulnerabilities will be tracked",
           RESOURCE_PATH,
           e);
       return new ScaCveDatabase(Collections.emptyMap());
@@ -125,7 +125,7 @@ public final class ScaCveDatabase {
   }
 
   // ---------------------------------------------------------------------------
-  // JSON DTOs — only used during parsing, never exposed outside this class
+  // JSON DTOs - only used during parsing, never exposed outside this class
   // ---------------------------------------------------------------------------
 
   static final class DatabaseJson {

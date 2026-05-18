@@ -29,13 +29,13 @@ public final class ScaReachabilitySystem {
   /**
    * Starts the SCA Reachability subsystem.
    *
-   * <p>Called by reflection from {@code Agent.maybeStartScaReachability()} — the method signature
+   * <p>Called by reflection from {@code Agent.maybeStartScaReachability()} - the method signature
    * must remain {@code public static void start(Instrumentation)}.
    */
   public static void start(Instrumentation instrumentation) {
     ScaCveDatabase database = ScaCveDatabase.load();
     if (database.isEmpty()) {
-      log.info("SCA Reachability: no vulnerability data found — subsystem inactive");
+      log.info("SCA Reachability: no vulnerability data found - subsystem inactive");
       return;
     }
     log.info("SCA Reachability: loaded {} vulnerable class symbols", database.size());
@@ -60,7 +60,7 @@ public final class ScaReachabilitySystem {
                 callsite.getMethodName(),
                 callsite.getLineNumber());
           } else {
-            // Fallback: no application frame found — report the vulnerable symbol so the
+            // Fallback: no application frame found - report the vulnerable symbol so the
             // backend at least knows the method was reached.
             ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
                 artifact, version, vulnId, dotClassName, methodName, line);
@@ -72,7 +72,7 @@ public final class ScaReachabilitySystem {
 
     // canRetransform=true is required so that future method-level symbols (when added to the
     // database) can trigger retransformation of already-loaded classes via retransformClasses().
-    // For current class-level symbols, retransformation is not used — see
+    // For current class-level symbols, retransformation is not used - see
     // checkAlreadyLoadedClasses.
     instrumentation.addTransformer(transformer, true);
 
@@ -93,9 +93,9 @@ public final class ScaReachabilitySystem {
    * <p>The stack at call time is:
    *
    * <pre>
-   *   ScaReachabilitySystem handler lambda  (skip — agent)
-   *   ScaReachabilityCallback.onMethodHit   (skip — agent)
-   *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip — the instrumented library class)
+   *   ScaReachabilitySystem handler lambda  (skip - agent)
+   *   ScaReachabilityCallback.onMethodHit   (skip - agent)
+   *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip - the instrumented library class)
    *   &lt;application callsite&gt;               ← return this
    * </pre>
    *

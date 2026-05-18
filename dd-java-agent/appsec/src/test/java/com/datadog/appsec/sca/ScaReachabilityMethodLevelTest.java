@@ -14,6 +14,7 @@ import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import java.io.StringReader;
 import java.lang.reflect.Method;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -255,7 +256,7 @@ class ScaReachabilityMethodLevelTest {
    * CVEs that have an actual hit (callsite recorded), not empty-reached CVEs.
    */
   private static List<ScaReachabilityHit> drainHits() {
-    List<ScaReachabilityHit> result = new java.util.ArrayList<>();
+    List<ScaReachabilityHit> result = new ArrayList<>();
     for (DependencySnapshot dep :
         ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies()) {
       for (ScaReachabilityDependencyRegistry.CveSnapshot cve : dep.cves) {

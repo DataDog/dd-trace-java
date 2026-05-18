@@ -40,13 +40,13 @@ import org.slf4j.LoggerFactory;
  * <p>Design principles (see APPSEC-62260 and .claude-invariants.md):
  *
  * <ul>
- *   <li>Always returns {@code null} — never modifies bytecode for class-level symbols.
- *   <li>Never throws — any error in {@link #transform} is caught silently to avoid breaking class
+ *   <li>Always returns {@code null} - never modifies bytecode for class-level symbols.
+ *   <li>Never throws - any error in {@link #transform} is caught silently to avoid breaking class
  *       loading.
- *   <li>All shared state uses concurrent collections — {@link #transform} is called from multiple
+ *   <li>All shared state uses concurrent collections - {@link #transform} is called from multiple
  *       class-loading threads simultaneously.
- *   <li>Version resolution is cached per JAR URL — each JAR is read at most once.
- *   <li>Each (vulnId, artifact, symbolName) tuple is reported at most once — RFC requires a single
+ *   <li>Version resolution is cached per JAR URL - each JAR is read at most once.
+ *   <li>Each (vulnId, artifact, symbolName) tuple is reported at most once - RFC requires a single
  *       occurrence. Class-level dedup lives in {@link #reportedHits}; method-level dedup lives in
  *       {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across retransforms).
  * </ul>
@@ -112,7 +112,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         return null;
       }
 
-      // JDK/bootstrap classes (protectionDomain == null) are skipped — they are loaded regardless
+      // JDK/bootstrap classes (protectionDomain == null) are skipped - they are loaded regardless
       // of which library is present and are not reliable reachability indicators.
       if (protectionDomain == null) {
         return null;
@@ -134,7 +134,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
       return processClass(className, location, entries, classfileBuffer);
     } catch (Throwable t) {
-      // Never propagate from transform() — it would break the class being loaded.
+      // Never propagate from transform() - it would break the class being loaded.
       log.debug("SCA Reachability: error processing class {}", className, t);
     }
     return null;
@@ -168,7 +168,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       // spring-boot-starter-web watches @Controller, but @Controller is in spring-context.jar).
       String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
       if (version == null) {
-        // Version not yet resolvable — check lazily (only here) whether this entry has
+        // Version not yet resolvable - check lazily (only here) whether this entry has
         // method-level symbols, to decide if a periodic retry should be scheduled.
         // Doing this check only when version==null avoids the stream allocation on the
         // common path where the version resolves successfully.
@@ -254,14 +254,14 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       ProtectionDomain pd = clazz.getProtectionDomain();
       URL location = locationOf(pd);
       if (location == null) {
-        // JDK/bootstrap class (no code source): skip — false positive, see class Javadoc.
+        // JDK/bootstrap class (no code source): skip - false positive, see class Javadoc.
         continue;
       }
       try {
         processClass(internalName, location, entries);
         // If any entry for this class has method-level symbols, the class needs retransformation
         // so the bytecode callback can be injected. We can't modify bytecode here (we're just
-        // scanning) — retransformation is deferred to performPendingRetransforms().
+        // scanning) - retransformation is deferred to performPendingRetransforms().
         boolean needsMethodLevelInstrumentation =
             entries.stream()
                 .flatMap(e -> e.symbols().stream())
@@ -270,7 +270,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
           pendingRetransform.add(clazz);
         }
       } catch (Exception e) {
-        // Never abort the scan — a failure on one class must not skip the remaining ones.
+        // Never abort the scan - a failure on one class must not skip the remaining ones.
         log.debug("SCA Reachability: error scanning already-loaded class {}", internalName, e);
       }
     }
@@ -283,7 +283,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *   <li>Classes already loaded before the transformer was registered (populated in {@link
    *       #checkAlreadyLoadedClasses}).
    *   <li>Classes whose JAR version could not be resolved at load time (populated in {@link
-   *       #processClass} when {@code DependencyResolver} returns an empty list — the version may be
+   *       #processClass} when {@code DependencyResolver} returns an empty list - the version may be
    *       available by the time this periodic callback fires).
    * </ol>
    *
@@ -477,7 +477,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     private void ensureInjected() {
       if (!injected) {
         injected = true;
-        injectCallbacks(1); // no debug info — use line 1 as placeholder
+        injectCallbacks(1); // no debug info - use line 1 as placeholder
       }
     }
 
@@ -591,7 +591,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         dotClassName,
         symbolName);
     // Register with callsite in the stateful registry. For class-level, dotClassName and
-    // symbolName ("<clinit>") are used as the callsite — there is no separate "caller" frame.
+    // symbolName ("<clinit>") are used as the callsite - there is no separate "caller" frame.
     ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
         entry.artifact(), version, entry.vulnId(), dotClassName, symbolName, line);
   }

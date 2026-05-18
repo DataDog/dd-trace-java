@@ -1403,7 +1403,7 @@ public class GatewayBridge {
     Flow.Action.RequestBlockingAction rba = (Flow.Action.RequestBlockingAction) action;
     BlockingContentType bct = rba.getBlockingContentType();
     if (bct == BlockingContentType.NONE) {
-      return; // redirect — no response body
+      return; // redirect - no response body
     }
     List<String> acceptValues = ctx.getRequestHeaders().get("accept");
     String acceptHeader =
