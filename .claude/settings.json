@@ -1,0 +1,6 @@
+{
+  "enabledMcpjsonServers": [
+    "datadog"
+  ],
+  "enableAllProjectMcpServers": true
+}
