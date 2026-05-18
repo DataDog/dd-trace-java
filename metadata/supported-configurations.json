@@ -780,7 +780,7 @@
     "DD_CIVISIBILITY_PROPAGATED_TAGS": [
       {
         "version": "A",
-        "type": "string",
+        "type": "array",
         "default": null,
         "aliases": []
       }
