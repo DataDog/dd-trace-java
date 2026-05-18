@@ -1,9 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.version-file")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/version.gradle")
 
 description = "Feature flagging remote common module (bootstrap classloader)"
 

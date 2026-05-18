@@ -42,6 +42,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
   // openai token - will use real openai backend and record request/responses to use later in the mock mode
   // empty or null - will use mockOpenAiBackend and read recorded request/responses
   static final String OPENAI_TOKEN = ""
+  static final String MOCK_OPENAI_TOKEN = "mock-openai-token"
 
   private static final Path RECORDS_DIR = Paths.get("src/test/resources/http-records")
   private static final String API_VERSION = "v1"
@@ -94,7 +95,7 @@ abstract class OpenAiTest extends InstrumentationSpecification {
       OpenAIOkHttpClient.Builder b = OpenAIOkHttpClient.builder()
       openAiBaseApi = "${mockOpenAiBackend.address.toURL()}/$API_VERSION"
       b.baseUrl(openAiBaseApi)
-      b.credential(BearerTokenCredential.create(""))
+      b.credential(BearerTokenCredential.create(MOCK_OPENAI_TOKEN))
       openAiClient = b.build()
     } else {
       // real openai backend, with custom httpClient to capture and save request/response records
