@@ -37,7 +37,7 @@ import org.slf4j.LoggerFactory;
  * Observation-only {@link ClassFileTransformer} that detects when classes from vulnerable libraries
  * are loaded and reports reachability hits via {@link ScaReachabilityDependencyRegistry}.
  *
- * <p>Design principles (see APPSEC-62260 and .claude-invariants.md):
+ * <p>Design principles (see APPSEC-62260):
  *
  * <ul>
  *   <li>Always returns {@code null} - never modifies bytecode for class-level symbols.
