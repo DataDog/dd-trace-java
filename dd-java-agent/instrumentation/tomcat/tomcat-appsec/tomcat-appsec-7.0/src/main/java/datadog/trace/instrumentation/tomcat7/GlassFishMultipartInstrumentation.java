@@ -14,7 +14,6 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
@@ -24,7 +23,7 @@ import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 
 /**
- * GlassFish/Payara does not have {@code Request.parseParts()} — instead {@code Request.getParts()}
+ * GlassFish/Payara does not have {@code Request.parseParts()} - instead {@code Request.getParts()}
  * delegates to {@code org.apache.catalina.fileupload.Multipart.getParts()}. This instrumentation
  * hooks that GlassFish-specific class to report uploaded file names and contents to the AppSec WAF
  * via the {@code requestFilesFilenames} and {@code requestFilesContent} IG events.
@@ -74,7 +73,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") Object requestField) {
+        @Advice.FieldValue("request") org.apache.catalina.connector.Request requestField) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -99,25 +98,13 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
 
       // Extract servlet request/response for fallback blocking when no BlockResponseFunction is
       // registered (Payara: TomcatServerInstrumentation is muzzled out for Payara's response type).
-      // @Advice.FieldValue inlines direct field access into Multipart.getParts(), avoiding
-      // reflection for the field itself. getResponse() still requires reflection because the
-      // return type (PECoyoteResponse) is a Payara-internal class not visible at compile time.
+      // @Advice.FieldValue inlines direct field access into Multipart.getParts() - no reflection
+      // needed. Typed as connector.Request to also call getResponse() without reflection.
       HttpServletRequest fallbackReq = null;
       HttpServletResponse fallbackResp = null;
-      if (requestField instanceof HttpServletRequest) {
-        fallbackReq = (HttpServletRequest) requestField;
-      }
-      try {
-        if (requestField != null) {
-          Method m = requestField.getClass().getMethod("getResponse");
-          Object catResp = m.invoke(requestField);
-          if (catResp instanceof HttpServletResponse) {
-            fallbackResp = (HttpServletResponse) catResp;
-          }
-        }
-      } catch (Exception ignored) {
-        // getResponse() unavailable or failed — fallbackResp stays null, blocking falls back to
-        // no-op
+      if (requestField != null) {
+        fallbackReq = requestField;
+        fallbackResp = requestField.getResponse();
       }
 
       if (GlassFishBlockingHelper.processPartsAndBlock(
