@@ -57,8 +57,7 @@ class LongHashingUtilsTest {
     Object b = 42;
     Object c = true;
     Object d = 3.14;
-    assertEquals(
-        addToHash(addToHash(addToHash(addToHash(0L, a), b), c), d), hash(a, b, c, d));
+    assertEquals(addToHash(addToHash(addToHash(addToHash(0L, a), b), c), d), hash(a, b, c, d));
   }
 
   @Test
@@ -76,7 +75,8 @@ class LongHashingUtilsTest {
   @Test
   void multiArgHashHandlesNullsConsistentlyWithChainedAddToHash() {
     assertEquals(addToHash(addToHash(0L, (Object) null), "x"), hash(null, "x"));
-    assertEquals(addToHash(addToHash(addToHash(0L, "x"), (Object) null), "y"), hash("x", null, "y"));
+    assertEquals(
+        addToHash(addToHash(addToHash(0L, "x"), (Object) null), "y"), hash("x", null, "y"));
   }
 
   @Test
