@@ -15,7 +15,7 @@ class RangeQueryTest {
     // compile group: 'org.codehaus.groovy', name: 'groovy-all', version: '2.5.0', ext: 'pom'
     val directiveArtifact: Artifact = DefaultArtifact("org.codehaus.groovy", "groovy-all", "jar", "[2.5.0,2.5.8)")
     val rangeRequest = VersionRangeRequest().apply {
-      repositories = MuzzleMavenRepoUtils.MUZZLE_REPOS
+      repositories = MuzzleMavenRepoUtils.defaultMuzzleRepos()
       artifact = directiveArtifact
     }
 
