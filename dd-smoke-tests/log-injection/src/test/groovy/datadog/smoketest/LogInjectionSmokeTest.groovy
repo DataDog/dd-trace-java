@@ -422,12 +422,6 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       if (jstackOut == null) {
         return "(jstack not available or failed)"
       }
-      // Print the full dump to stdout so it lands in the gradle test report's STANDARD_OUT
-      // section (and the GitLab build log) — Datadog CI Visibility truncates error.message at
-      // ~5000 chars, which would otherwise lose most of the dump.
-      println "=== Full thread dump for pid ${pid} ==="
-      println jstackOut
-      println "=== End thread dump ==="
       return filterThreadDump(jstackOut)
     } catch (Throwable t) {
       // Never let a diagnostic failure mask the original AssertionError.
@@ -435,22 +429,23 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
     }
   }
 
-  // Approximate budget for the inline dump in error.message. Leaves room for the
-  // surrounding "Timed out waiting..." prefix to stay under CI Visibility's 5000-char cap.
-  private static final int INLINE_DUMP_CAP = 4200
+  // Approximate budget for the inline dump in error.message. Datadog CI Visibility caps
+  // error.message at ~5000 chars; this leaves a few hundred for the "Timed out waiting..."
+  // prefix and the elision marker.
+  private static final int INLINE_DUMP_CAP = 4700
 
   /**
    * Reduce a jstack thread dump to the threads most likely to explain a hang: the main thread,
    * dd-trace agent threads (dd-*, datadog-*), OkHttp threads, and anything BLOCKED. Drops known
    * JVM boilerplate (compiler/GC/reference handler/etc). Truncates to {@link #INLINE_DUMP_CAP}
-   * with an elision marker. The full dump is always available on stdout.
+   * with an elision marker.
    */
   private String filterThreadDump(String fullDump) {
     int firstBlockIdx = fullDump.indexOf('\n"')
     if (firstBlockIdx < 0) {
       // No recognizable thread blocks — return the original, truncated if needed
       return fullDump.length() > INLINE_DUMP_CAP
-      ? fullDump.substring(0, INLINE_DUMP_CAP) + "\n(truncated; full dump on stdout)"
+      ? fullDump.substring(0, INLINE_DUMP_CAP) + "\n(truncated)"
       : fullDump
     }
     String header = fullDump.substring(0, firstBlockIdx + 1)
@@ -497,7 +492,7 @@ abstract class LogInjectionSmokeTest extends AbstractSmokeTest {
       if (elided > 0) {
         out.append(", elided ${elided} other thread(s) for size")
       }
-      out.append("; full dump on stdout)")
+      out.append(")")
     }
     return out.toString()
   }
