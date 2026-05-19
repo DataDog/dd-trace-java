@@ -373,18 +373,29 @@ public abstract class Hashtable {
       return new Entry[sizeFor(capacity)];
     }
 
+    /**
+     * Variant of {@link #create(int)} that scales the requested working-set size before sizing the
+     * bucket array. Pair with {@link #MAX_RATIO} (or similar) to leave headroom over the working
+     * set for a desired load factor.
+     *
+     * <p>The scaled size is truncated to {@code int} before going through {@link #sizeFor(int)}.
+     * Truncation rather than {@code ceil} is intentional: {@code sizeFor} rounds up to the next
+     * power of two anyway, so the fractional part would only matter when float fuzz pushes the
+     * result across a power-of-two boundary -- {@code ceil} would then double the array size for no
+     * reason (e.g. {@code 12 * 4/3 = 16.0...0005f -> ceil 17 -> sizeFor 32}).
+     */
+    public static final Hashtable.Entry[] create(int requestedSize, float scale) {
+      return new Entry[sizeFor((int) (requestedSize * scale))];
+    }
+
     static final int MAX_CAPACITY = 1 << 30;
 
     /**
-     * Numerator/denominator pair for the inverse of a 75% load factor. Callers that size their
-     * bucket array from a target working-set size {@code n} should pass {@code n *
-     * MAX_RATIO_NUMERATOR / MAX_RATIO_DENOMINATOR} to {@link #create(int)} (or {@link
-     * #sizeFor(int)}) to leave ~25% headroom in the array. Kept as separate ints so callers can use
-     * integer arithmetic.
+     * Inverse of a 75% load factor. Callers that size their bucket array from a target working-set
+     * size {@code n} should pass {@code create(n, MAX_RATIO)} (or {@code sizeFor((int) Math.ceil(n
+     * * MAX_RATIO))}) to leave ~25% headroom in the array.
      */
-    public static final int MAX_RATIO_NUMERATOR = 4;
-
-    public static final int MAX_RATIO_DENOMINATOR = 3;
+    public static final float MAX_RATIO = 4.0f / 3.0f;
 
     static final int sizeFor(int requestedCapacity) {
       if (requestedCapacity < 0) {

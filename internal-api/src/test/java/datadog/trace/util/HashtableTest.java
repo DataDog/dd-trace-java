@@ -87,14 +87,19 @@ class HashtableTest {
     }
 
     @Test
-    void maxRatioConstantsExpandTargetSize() {
-      // 75% load factor => bucket array sized at requestedSize * 4 / 3, rounded up to power of 2.
-      assertEquals(4, Support.MAX_RATIO_NUMERATOR);
-      assertEquals(3, Support.MAX_RATIO_DENOMINATOR);
-      int target = 12;
-      int sized = target * Support.MAX_RATIO_NUMERATOR / Support.MAX_RATIO_DENOMINATOR;
-      assertEquals(16, sized);
-      assertEquals(16, Support.sizeFor(sized));
+    void maxRatioScalesTargetForLoadFactor() {
+      // 75% load factor => bucket array sized at requestedSize * 4/3, rounded up to power of 2.
+      // 12 * (4/3) = 16 entries, rounded up to power-of-2 length = 16.
+      assertEquals(4.0f / 3.0f, Support.MAX_RATIO);
+      Hashtable.Entry[] buckets = Support.create(12, Support.MAX_RATIO);
+      assertEquals(16, buckets.length);
+    }
+
+    @Test
+    void createWithScaleRoundsUpToPowerOfTwo() {
+      // 7 * 1.5 = 10.5 -> (int) 10 -> sizeFor rounds up to next power-of-two = 16
+      Hashtable.Entry[] buckets = Support.create(7, 1.5f);
+      assertEquals(16, buckets.length);
     }
 
     @Test
