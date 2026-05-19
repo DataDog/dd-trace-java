@@ -240,7 +240,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       } else {
         dbInfo = DBInfo.DEFAULT;
       }
-    } catch (final SQLException se) {
+    } catch (final Throwable se) {
       log.debug("Could not get metadata from DB", se);
       dbInfo = DBInfo.DEFAULT;
     }
