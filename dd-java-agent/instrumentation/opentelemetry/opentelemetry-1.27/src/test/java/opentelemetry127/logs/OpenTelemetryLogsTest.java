@@ -35,7 +35,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
   @BeforeEach
   void drainQueue() {
     // drain any stale log records from the shared processor queue before each test
-    OtelLogRecordProcessor.INSTANCE.collectLogs(LogsDrainer.INSTANCE);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(LogsDrainer.INSTANCE, 0);
   }
 
   @ParameterizedTest
@@ -48,7 +48,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
 
     logger.logRecordBuilder().setBody("test message").setSeverity(severity).emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
@@ -68,7 +68,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
         .setSeverityText("custom-level")
         .emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
@@ -89,7 +89,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
         .setAttribute(doubleKey("double.key"), 1.5)
         .emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
@@ -110,7 +110,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     loggerB.logRecordBuilder().setBody("b-1").setSeverity(Severity.WARN).emit();
     loggerA.logRecordBuilder().setBody("a-2").setSeverity(Severity.DEBUG).emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     // logs are sorted by scope name, so all scope-a logs come before scope-b logs
     assertEquals(3, logsReader.logs.size());

@@ -22,7 +22,6 @@ import static datadog.trace.core.otlp.common.OtlpCommonProto.I32_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.I64_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.VARINT_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.sizeVarInt;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeI32;
@@ -46,6 +45,7 @@ import datadog.trace.core.DDSpan;
 import datadog.trace.core.Metadata;
 import datadog.trace.core.MetadataConsumer;
 import datadog.trace.core.PendingTrace;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import datadog.trace.core.propagation.PropagationTags;
 
 /** Provides optimized writers for OpenTelemetry's "trace.proto" wire protocol. */
@@ -62,12 +62,12 @@ public final class OtlpTraceProto {
 
   private OtlpTraceProto() {}
 
-  /**
-   * Records the first part of a scoped spans message where we know its nested span messages will
-   * follow in one or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordScopedSpansMessage(
-      GrowableBuffer buf, OtelInstrumentationScope scope, int remainingBytes) {
+  /** Records a scoped spans message after its nested span messages have been recorded. */
+  public static int recordScopedSpansMessage(
+      GrowableBuffer buf,
+      OtelInstrumentationScope scope,
+      int nestedSpanBytes,
+      OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeInstrumentationScope(buf, scope);
@@ -76,15 +76,16 @@ public final class OtlpTraceProto {
       writeString(buf, scope.getSchemaUrl().getUtf8Bytes());
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedSpanBytes);
   }
 
-  /**
-   * Records the first part of a span message where we know its nested span-links will follow in one
-   * or more byte-arrays that add up to the given number of remaining bytes.
-   */
-  public static byte[] recordSpanMessage(
-      GrowableBuffer buf, DDSpan span, MetaWriter metaWriter, int remainingBytes) {
+  /** Records a span message after its nested span-link messages have been recorded. */
+  public static int recordSpanMessage(
+      GrowableBuffer buf,
+      DDSpan span,
+      MetaWriter metaWriter,
+      int nestedSpanLinkBytes,
+      OtlpProtoBuffer protobuf) {
     PropagationTags propagationTags = span.context().getPropagationTags();
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
@@ -162,11 +163,12 @@ public final class OtlpTraceProto {
       writeVarInt(buf, 2);
     }
 
-    return recordMessage(buf, 2, remainingBytes);
+    return protobuf.recordMessage(buf, 2, nestedSpanLinkBytes);
   }
 
-  /** Completes recording of a span-link message and packs it into its own byte-array. */
-  public static byte[] recordSpanLinkMessage(GrowableBuffer buf, AgentSpanLink spanLink) {
+  /** Records a span-link message. */
+  public static int recordSpanLinkMessage(
+      GrowableBuffer buf, AgentSpanLink spanLink, OtlpProtoBuffer protobuf) {
 
     writeTag(buf, 1, LEN_WIRE_TYPE);
     writeTraceId(buf, spanLink.traceId());
@@ -189,7 +191,7 @@ public final class OtlpTraceProto {
     writeTag(buf, 6, I32_WIRE_TYPE);
     writeI32(buf, spanLink.traceFlags());
 
-    return recordMessage(buf, 13);
+    return protobuf.recordMessage(buf, 13);
   }
 
   public static void writeTraceId(StreamingBuffer buf, DDTraceId traceId) {

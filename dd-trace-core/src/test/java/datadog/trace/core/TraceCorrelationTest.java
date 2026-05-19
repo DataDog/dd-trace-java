@@ -24,7 +24,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
         TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("test").start();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
     AgentScope scope = tracer.activateSpan(span);
     scope.close();
 
@@ -43,7 +43,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
         TRACE_128_BIT_TRACEID_LOGGING_ENABLED, String.valueOf(log128bTraceId));
 
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("test").start();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
     AgentScope scope = tracer.activateSpan(span);
 
     DDTraceId traceId = ((DDSpan) scope.span()).getTraceId();
@@ -58,7 +58,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
   @Test
   void getSpanIdWithoutSpan() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("test").start();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
     AgentScope scope = tracer.activateSpan(span);
     scope.close();
 
@@ -71,7 +71,7 @@ public class TraceCorrelationTest extends DDCoreJavaSpecification {
   @Test
   void getSpanIdWithTrace() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
-    AgentSpan span = tracer.buildSpan("test").start();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
     AgentScope scope = tracer.activateSpan(span);
 
     assertEquals(Long.toString(((DDSpan) scope.span()).getSpanId()), tracer.getSpanId());
