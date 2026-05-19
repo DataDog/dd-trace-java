@@ -7,7 +7,6 @@ import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
-import java.util.function.BiConsumer;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -15,13 +14,6 @@ import org.slf4j.LoggerFactory;
 final class Aggregator implements Runnable {
 
   private static final long DEFAULT_SLEEP_MILLIS = 10;
-
-  /** Non-capturing -- the writer arrives via the forEach context arg. */
-  private static final BiConsumer<MetricWriter, AggregateEntry> WRITE_AND_CLEAR =
-      (writer, entry) -> {
-        writer.add(entry);
-        entry.clear();
-      };
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
@@ -105,6 +97,10 @@ final class Aggregator implements Runnable {
     @Override
     public void accept(InboxItem item) {
       if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
         if (!stopped) {
           aggregates.clear();
           inbox.clear();
@@ -143,7 +139,12 @@ final class Aggregator implements Runnable {
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          aggregates.forEach(writer, WRITE_AND_CLEAR);
+          aggregates.forEach(
+              writer,
+              (w, entry) -> {
+                w.add(entry);
+                entry.clear();
+              });
           // note that this may do IO and block
           writer.finishBucket();
         }

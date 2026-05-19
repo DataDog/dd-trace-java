@@ -28,8 +28,7 @@ final class AggregateTable {
   AggregateTable(int maxAggregates) {
     // ~25% headroom in the bucket array over the working-set target -- avoids the long-chain
     // pathology at full capacity.
-    this.buckets =
-        Support.create(maxAggregates * Support.MAX_RATIO_NUMERATOR / Support.MAX_RATIO_DENOMINATOR);
+    this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
   }
 
@@ -51,7 +50,7 @@ final class AggregateTable {
     for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
-      if (candidate.keyHash == keyHash && candidate.matches(snapshot)) {
+      if (candidate.matches(keyHash, snapshot)) {
         return candidate;
       }
     }
@@ -66,11 +65,11 @@ final class AggregateTable {
 
   /** Unlink the first entry whose {@code getHitCount() == 0}. */
   private boolean evictOneStale() {
-    for (MutatingTableIterator<AggregateEntry> it = Support.mutatingTableIterator(buckets);
-        it.hasNext(); ) {
-      AggregateEntry e = it.next();
+    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+        iter.hasNext(); ) {
+      AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
-        it.remove();
+        iter.remove();
         size--;
         return true;
       }
@@ -93,11 +92,11 @@ final class AggregateTable {
 
   /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (MutatingTableIterator<AggregateEntry> it = Support.mutatingTableIterator(buckets);
-        it.hasNext(); ) {
-      AggregateEntry e = it.next();
+    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+        iter.hasNext(); ) {
+      AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
-        it.remove();
+        iter.remove();
         size--;
       }
     }

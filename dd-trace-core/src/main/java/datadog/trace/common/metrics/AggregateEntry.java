@@ -266,6 +266,15 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
+   * Pre-checks {@link #keyHash} against {@code keyHash} before delegating to {@link
+   * #matches(SpanSnapshot)}. The hash check is cheap and rules out most mismatches without touching
+   * the field-by-field comparison.
+   */
+  boolean matches(long keyHash, SpanSnapshot s) {
+    return this.keyHash == keyHash && matches(s);
+  }
+
+  /**
    * Computes the 64-bit lookup hash for a {@link SpanSnapshot}. Chained per-field calls -- no
    * varargs / Object[] allocation, no autoboxing on primitive overloads. The constructor's
    * super({@code hashOf(s)}) call uses the same function so an entry built from a snapshot hashes
