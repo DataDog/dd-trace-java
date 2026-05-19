@@ -216,17 +216,13 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       // pendingRetransform. Instead we queue the internal class name; performPendingRetransforms()
       // will resolve it back to a Class<?> via instrumentation.getAllLoadedClasses() and
       // retransform.
-      scheduleRetransformByName(className);
+      pendingRetransformNames.add(className);
     }
 
     if (methodCallbacks.isEmpty()) {
       return null;
     }
     return injectMethodCallbacks(classfileBuffer, methodCallbacks);
-  }
-
-  private void scheduleRetransformByName(String internalClassName) {
-    pendingRetransformNames.add(internalClassName);
   }
 
   // ---------------------------------------------------------------------------

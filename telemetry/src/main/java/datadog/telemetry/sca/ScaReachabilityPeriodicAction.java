@@ -37,12 +37,10 @@ import java.util.Map;
  * <h3>Timing invariant</h3>
  *
  * <p>{@link DependencyService} resolves JARs asynchronously. A CVE may be registered before the
- * corresponding JAR has been resolved (e.g., a lazily-loaded class whose JAR is still in the
- * resolution queue). In that case, {@link #knownDeps} may not yet have an entry for the dep, and
- * emitting the CVE snapshot without source/hash would prevent the backend from correlating it with
- * a known dependency. To handle this, unmatched snapshots are re-marked as pending in the registry
- * and retried on the next heartbeat, when {@link DependencyService} is likely to have resolved the
- * JAR.
+ * corresponding JAR has been resolved. In that case, {@link #knownDeps} may not yet have an entry
+ * for the dep. Unmatched snapshots are emitted immediately without source/hash so CVE data is never
+ * delayed; when the dep is eventually resolved and stored in {@link #knownDeps}, subsequent CVE
+ * emissions (e.g., after a method hit) will include source/hash automatically.
  */
 public final class ScaReachabilityPeriodicAction
     implements TelemetryRunnable.TelemetryPeriodicAction {
