@@ -20,6 +20,9 @@ final class JUnitReport {
   private static final String FINAL_STATUS_PROPERTY = "dd_tags[test.final_status]";
   private static final Pattern HASH_CODE = Pattern.compile("@[0-9a-f]{5,}");
   private static final Pattern LOCALHOST_PORT = Pattern.compile("localhost:[0-9]{2,5}");
+  private static final DocumentBuilderFactory DOCUMENT_BUILDER_FACTORY =
+      newDocumentBuilderFactory();
+  private static final TransformerFactory TRANSFORMER_FACTORY = newTransformerFactory();
 
   private final Document document;
 
@@ -28,14 +31,8 @@ final class JUnitReport {
   }
 
   static JUnitReport parse(Path xmlFile) throws Exception {
-    var dbf = DocumentBuilderFactory.newInstance();
-    dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
-    dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
-    dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
-    dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
-    dbf.setXIncludeAware(false);
-    dbf.setExpandEntityReferences(false);
-    return new JUnitReport(dbf.newDocumentBuilder().parse(xmlFile.toFile()));
+    var document = DOCUMENT_BUILDER_FACTORY.newDocumentBuilder().parse(xmlFile.toFile());
+    return new JUnitReport(document);
   }
 
   boolean addFileAttribute(String sourceFile) {
@@ -104,10 +101,7 @@ final class JUnitReport {
     Files.createDirectories(xmlFile.getParent());
     var tmpFile = Files.createTempFile(xmlFile.getParent(), "collect-results-", ".xml");
     try (OutputStream output = Files.newOutputStream(tmpFile)) {
-      var transformerFactory = TransformerFactory.newInstance();
-      transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
-      transformerFactory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
-      var transformer = transformerFactory.newTransformer();
+      var transformer = TRANSFORMER_FACTORY.newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
       transformer.transform(new DOMSource(document), new StreamResult(output));
     } catch (Exception e) {
@@ -115,6 +109,28 @@ final class JUnitReport {
       throw e;
     }
     Files.move(tmpFile, xmlFile, StandardCopyOption.REPLACE_EXISTING);
+  }
+
+  private static DocumentBuilderFactory newDocumentBuilderFactory() {
+    try {
+      var factory = DocumentBuilderFactory.newInstance();
+      factory.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
+      factory.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
+      factory.setFeature("http://xml.org/sax/features/external-general-entities", false);
+      factory.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
+      factory.setXIncludeAware(false);
+      factory.setExpandEntityReferences(false);
+      return factory;
+    } catch (Exception e) {
+      throw new ExceptionInInitializerError(e);
+    }
+  }
+
+  private static TransformerFactory newTransformerFactory() {
+    var factory = TransformerFactory.newInstance();
+    factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_DTD, "");
+    factory.setAttribute(XMLConstants.ACCESS_EXTERNAL_STYLESHEET, "");
+    return factory;
   }
 
   private List<Element> testcases() {
