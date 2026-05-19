@@ -100,7 +100,7 @@ public abstract class Hashtable {
       }
     }
 
-    private final Hashtable.Entry[] buckets;
+    final Hashtable.Entry[] buckets;
     private int size;
 
     public D1(int capacity) {
