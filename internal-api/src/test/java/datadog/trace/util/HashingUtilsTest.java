@@ -99,7 +99,7 @@ public class HashingUtilsTest {
     String str3 = "foobar";
     String str4 = "hello";
 
-    assertNotEquals(0, HashingUtils.hash(str0, str1, str2, str3));
+    assertNotEquals(0, HashingUtils.hash(str0, str1, str2, str3, str4));
 
     String clone0 = clone(str0);
     String clone1 = clone(str1);
@@ -110,6 +110,11 @@ public class HashingUtilsTest {
     assertEquals(
         HashingUtils.hash(str0, str1, str2, str3, str4),
         HashingUtils.hash(clone0, clone1, clone2, clone3, clone4));
+
+    // The 5th argument must actually affect the hash (regression for a missing-arg bug).
+    assertNotEquals(
+        HashingUtils.hash(str0, str1, str2, str3, str4),
+        HashingUtils.hash(str0, str1, str2, str3, "different"));
   }
 
   @Test

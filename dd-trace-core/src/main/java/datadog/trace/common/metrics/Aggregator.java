@@ -105,6 +105,10 @@ final class Aggregator implements Runnable {
     @Override
     public void accept(InboxItem item) {
       if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
         if (!stopped) {
           aggregates.clear();
           inbox.clear();
@@ -144,8 +148,9 @@ final class Aggregator implements Runnable {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
           aggregates.forEach(
-              entry -> {
-                writer.add(entry);
+              writer,
+              (w, entry) -> {
+                w.add(entry);
                 entry.aggregate.clear();
               });
           // note that this may do IO and block

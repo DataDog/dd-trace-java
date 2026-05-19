@@ -1,6 +1,9 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.util.Hashtable;
+import datadog.trace.util.Hashtable.MutatingTableIterator;
+import datadog.trace.util.Hashtable.Support;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -24,7 +27,9 @@ final class AggregateTable {
   private int size;
 
   AggregateTable(int maxAggregates) {
-    this.buckets = Hashtable.Support.create(maxAggregates * 4 / 3);
+    // ~25% headroom in the bucket array over the working-set target -- avoids the long-chain
+    // pathology at full capacity.
+    this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
   }
 
@@ -44,92 +49,63 @@ final class AggregateTable {
   AggregateMetric findOrInsert(SpanSnapshot snapshot) {
     canonical.populate(snapshot);
     long keyHash = canonical.keyHash;
-    int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
-    for (Hashtable.Entry e = buckets[bucketIndex]; e != null; e = e.next()) {
-      if (e.keyHash == keyHash) {
-        AggregateEntry candidate = (AggregateEntry) e;
-        if (canonical.matches(candidate)) {
-          return candidate.aggregate;
-        }
+    for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
+        candidate != null;
+        candidate = candidate.next()) {
+      if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
+        return candidate.aggregate;
       }
     }
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
     AggregateEntry entry = canonical.toEntry(new AggregateMetric());
-    entry.setNext(buckets[bucketIndex]);
-    buckets[bucketIndex] = entry;
+    Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry.aggregate;
   }
 
   /** Unlink the first entry whose {@code AggregateMetric.getHitCount() == 0}. */
   private boolean evictOneStale() {
-    for (int i = 0; i < buckets.length; i++) {
-      Hashtable.Entry head = buckets[i];
-      if (head == null) {
-        continue;
-      }
-      if (((AggregateEntry) head).aggregate.getHitCount() == 0) {
-        buckets[i] = head.next();
+    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+        iter.hasNext(); ) {
+      AggregateEntry e = iter.next();
+      if (e.aggregate.getHitCount() == 0) {
+        iter.remove();
         size--;
         return true;
-      }
-      Hashtable.Entry prev = head;
-      Hashtable.Entry cur = head.next();
-      while (cur != null) {
-        if (((AggregateEntry) cur).aggregate.getHitCount() == 0) {
-          prev.setNext(cur.next());
-          size--;
-          return true;
-        }
-        prev = cur;
-        cur = cur.next();
       }
     }
     return false;
   }
 
   void forEach(Consumer<AggregateEntry> consumer) {
-    for (int i = 0; i < buckets.length; i++) {
-      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-        consumer.accept((AggregateEntry) e);
-      }
-    }
+    Support.forEach(buckets, consumer);
+  }
+
+  /**
+   * Context-passing forEach. Useful for callers that want to avoid a capturing-lambda allocation on
+   * each invocation -- pass a non-capturing {@link BiConsumer} (typically a {@code static final})
+   * plus whatever side-band state it needs as {@code context}.
+   */
+  <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
+    Support.forEach(buckets, context, consumer);
   }
 
   /** Removes entries whose {@code AggregateMetric.getHitCount() == 0}. */
   void expungeStaleAggregates() {
-    for (int i = 0; i < buckets.length; i++) {
-      // unlink leading stale entries
-      Hashtable.Entry head = buckets[i];
-      while (head != null && ((AggregateEntry) head).aggregate.getHitCount() == 0) {
-        head = head.next();
+    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
+        iter.hasNext(); ) {
+      AggregateEntry e = iter.next();
+      if (e.aggregate.getHitCount() == 0) {
+        iter.remove();
         size--;
-      }
-      buckets[i] = head;
-      if (head == null) {
-        continue;
-      }
-      // unlink stale entries in the chain
-      Hashtable.Entry prev = head;
-      Hashtable.Entry cur = head.next();
-      while (cur != null) {
-        if (((AggregateEntry) cur).aggregate.getHitCount() == 0) {
-          Hashtable.Entry skipped = cur.next();
-          prev.setNext(skipped);
-          size--;
-          cur = skipped;
-        } else {
-          prev = cur;
-          cur = cur.next();
-        }
       }
     }
   }
 
   void clear() {
-    Hashtable.Support.clear(buckets);
+    Support.clear(buckets);
     size = 0;
   }
 }
