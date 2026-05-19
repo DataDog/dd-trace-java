@@ -3,21 +3,24 @@ package datadog.trace.common.metrics;
 import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
+import datadog.metrics.api.Histogram;
 import datadog.trace.api.Pair;
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.function.Function;
 
 /**
- * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
- * {@link SerializingMetricWriter} writes to the wire) plus the mutable {@link AggregateMetric}.
+ * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields that {@link
+ * SerializingMetricWriter} writes to the wire plus the mutable counter/histogram state for the key.
  *
  * <p>{@link #matches(SpanSnapshot)} compares the entry's stored UTF8 forms against the snapshot's
  * raw {@code CharSequence}/{@code String}/{@code String[]} fields via content-equality, so {@code
@@ -26,8 +29,18 @@ import java.util.function.Function;
  *
  * <p>The static UTF8 caches that used to live on {@code MetricKey} and {@code
  * ConflatingMetricsAggregator} are consolidated here.
+ *
+ * <p><b>Not thread-safe.</b> Counter and histogram updates are performed by the single aggregator
+ * thread; producer threads tag durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and
+ * hand them off through the snapshot inbox.
  */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 final class AggregateEntry extends Hashtable.Entry {
+
+  public static final long ERROR_TAG = 0x8000000000000000L;
+  public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   // UTF8 caches consolidated from the previous MetricKey + ConflatingMetricsAggregator split.
   private static final DDCache<String, UTF8BytesString> RESOURCE_CACHE =
@@ -82,10 +95,16 @@ final class AggregateEntry extends Hashtable.Entry {
   private final String[] peerTagPairsRaw;
   private final List<UTF8BytesString> peerTags;
 
-  final AggregateMetric aggregate;
+  // Mutable aggregate state -- single-thread (consumer/aggregator) writer.
+  private final Histogram okLatencies = Histogram.newHistogram();
+  private final Histogram errorLatencies = Histogram.newHistogram();
+  private int errorCount;
+  private int hitCount;
+  private int topLevelCount;
+  private long duration;
 
   /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
-  private AggregateEntry(SpanSnapshot s, long keyHash, AggregateMetric aggregate) {
+  private AggregateEntry(SpanSnapshot s, long keyHash) {
     super(keyHash);
     this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
     this.service = SERVICE_CACHE.computeIfAbsent(s.serviceName, UTF8_ENCODE);
@@ -113,7 +132,6 @@ final class AggregateEntry extends Hashtable.Entry {
     this.traceRoot = s.traceRoot;
     this.peerTagPairsRaw = s.peerTagPairs;
     this.peerTags = materializePeerTags(s.peerTagPairs);
-    this.aggregate = aggregate;
   }
 
   /** Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. */
@@ -148,13 +166,87 @@ final class AggregateEntry extends Hashtable.Entry {
             httpEndpoint == null ? null : httpEndpoint.toString(),
             grpcStatusCode == null ? null : grpcStatusCode.toString(),
             0L);
-    return new AggregateEntry(
-        synthetic_snapshot, hashOf(synthetic_snapshot), new AggregateMetric());
+    return new AggregateEntry(synthetic_snapshot, hashOf(synthetic_snapshot));
   }
 
   /** Construct from a snapshot at consumer-thread miss time. */
-  static AggregateEntry forSnapshot(SpanSnapshot s, AggregateMetric aggregate) {
-    return new AggregateEntry(s, hashOf(s), aggregate);
+  static AggregateEntry forSnapshot(SpanSnapshot s) {
+    return new AggregateEntry(s, hashOf(s));
+  }
+
+  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
+    this.hitCount += count;
+    for (int i = 0; i < count && i < durations.length(); ++i) {
+      long duration = durations.getAndSet(i, 0);
+      if ((duration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+        duration ^= TOP_LEVEL_TAG;
+        ++topLevelCount;
+      }
+      if ((duration & ERROR_TAG) == ERROR_TAG) {
+        duration ^= ERROR_TAG;
+        errorLatencies.accept(duration);
+        ++errorCount;
+      } else {
+        okLatencies.accept(duration);
+      }
+      this.duration += duration;
+    }
+    return this;
+  }
+
+  /**
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   */
+  AggregateEntry recordOneDuration(long tagAndDuration) {
+    ++hitCount;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      ++topLevelCount;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatencies.accept(tagAndDuration);
+      ++errorCount;
+    } else {
+      okLatencies.accept(tagAndDuration);
+    }
+    duration += tagAndDuration;
+    return this;
+  }
+
+  int getErrorCount() {
+    return errorCount;
+  }
+
+  int getHitCount() {
+    return hitCount;
+  }
+
+  int getTopLevelCount() {
+    return topLevelCount;
+  }
+
+  long getDuration() {
+    return duration;
+  }
+
+  Histogram getOkLatencies() {
+    return okLatencies;
+  }
+
+  Histogram getErrorLatencies() {
+    return errorLatencies;
+  }
+
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
+  void clear() {
+    this.errorCount = 0;
+    this.hitCount = 0;
+    this.topLevelCount = 0;
+    this.duration = 0;
+    this.okLatencies.clear();
+    this.errorLatencies.clear();
   }
 
   boolean matches(SpanSnapshot s) {

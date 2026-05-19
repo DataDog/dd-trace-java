@@ -134,7 +134,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -180,7 +180,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -232,7 +232,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       httpEndpoint,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 0 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
 
@@ -294,7 +294,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 0 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -312,7 +312,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 0 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -359,7 +359,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 0 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -411,7 +411,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == topLevelCount && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == topLevelCount && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -470,7 +470,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == count && e.aggregate.getDuration() == count * duration
+        e.getHitCount() == count && e.getDuration() == count * duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource2",
@@ -487,7 +487,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == count && e.aggregate.getDuration() == count * duration * 2
+        e.getHitCount() == count && e.getDuration() == count * duration * 2
       }
 
     cleanup:
@@ -541,7 +541,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == count && e.aggregate.getDuration() == count * duration
+        e.getHitCount() == count && e.getDuration() == count * duration
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -582,7 +582,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+        e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -599,7 +599,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/orders/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 2
+        e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -616,7 +616,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 3
+        e.getHitCount() == 1 && e.getDuration() == duration * 3
       }
     1 * writer.finishBucket() >> { latch2.countDown() }
 
@@ -680,7 +680,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+        e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -697,7 +697,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 2
+        e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -714,7 +714,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 3
+        e.getHitCount() == 1 && e.getDuration() == duration * 3
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -731,7 +731,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/orders/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 4
+        e.getHitCount() == 1 && e.getDuration() == duration * 4
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -784,7 +784,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+        e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -801,7 +801,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration * 2
+        e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -852,7 +852,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 2 && e.aggregate.getDuration() == 2 * duration
+        e.getHitCount() == 2 && e.getDuration() == 2 * duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -869,7 +869,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+        e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -923,7 +923,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+          e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     0 * writer.add(AggregateEntry.of(
@@ -1070,7 +1070,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+          e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1105,7 +1105,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+          e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     0 * writer.add(AggregateEntry.of(
@@ -1172,7 +1172,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+          e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1231,7 +1231,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.aggregate.getHitCount() == 1 && e.aggregate.getDuration() == duration
+          e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1398,7 +1398,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1453,7 +1453,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 3 && e.aggregate.getTopLevelCount() == 3 && e.aggregate.getDuration() == 450
+        e.getHitCount() == 3 && e.getTopLevelCount() == 3 && e.getDuration() == 450
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1508,7 +1508,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 100
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -1526,7 +1526,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       "/api/orders",
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 200
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 200
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -1544,7 +1544,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.aggregate.getHitCount() == 1 && e.aggregate.getTopLevelCount() == 1 && e.aggregate.getDuration() == 150
+        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 150
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
