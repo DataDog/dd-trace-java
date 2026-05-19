@@ -76,10 +76,14 @@ public class TelemetrySystem {
       }
     }
     if (null != dependencyService) {
-      actions.add(new DependencyPeriodicAction(dependencyService));
-    }
-    if (Config.get().isAppSecScaEnabled()) {
-      actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+      if (Config.get().isAppSecScaEnabled()) {
+        // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
+        // it merges DependencyService drains with CVE registry state into one entry per dep.
+        // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
+        actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+      } else {
+        actions.add(new DependencyPeriodicAction(dependencyService));
+      }
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());
