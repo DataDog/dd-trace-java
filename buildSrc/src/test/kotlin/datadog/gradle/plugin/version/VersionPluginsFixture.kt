@@ -4,8 +4,7 @@ import datadog.gradle.plugin.GradleFixture
 import java.io.File
 import java.io.IOException
 
-internal class VersionPluginsFixture(projectDir: File) : GradleFixture(projectDir) {
-
+open class VersionPluginsFixture : GradleFixture() {
   fun exec(workingDirectory: File, vararg args: String) {
     val exitCode = ProcessBuilder()
       .command(*args)
@@ -28,13 +27,7 @@ internal class VersionPluginsFixture(projectDir: File) : GradleFixture(projectDi
     exec(workingDirectory, "git", "commit", "-m", "A commit")
   }
 
-  val projectBuildFile = file("build.gradle.kts")
+  val generatedVersionFile: File get() = file("build/generated/version/my-lib.version")
 
-  val gradlePropertiesFile = file("gradle.properties")
-
-  val settingsFile = file("settings.gradle.kts")
-
-  val generatedVersionFile = file("build/generated/version/my-lib.version", false)
-
-  val builtResourceVersionFile = file("build/resources/main/my-lib.version", false)
+  val builtResourceVersionFile: File get() = file("build/resources/main/my-lib.version")
 }

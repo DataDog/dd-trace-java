@@ -63,7 +63,7 @@ public class PublisherInstrumentation
       final Context current =
           InstrumentationContext.get(Subscriber.class, Context.class)
               .putIfAbsent(s, context != null ? context : activeContext);
-      if (current != null) {
+      if (current != null && activeContext != current) {
         return current.attach();
       }
 
