@@ -14,6 +14,9 @@ import org.gradle.api.tasks.testing.Test
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.kotlin.dsl.newInstance
+import org.gradle.kotlin.dsl.register
+import org.gradle.kotlin.dsl.withType
 import org.gradle.process.CommandLineArgumentProvider
 import java.util.Locale
 import javax.inject.Inject
@@ -73,7 +76,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
    * register [NestedGradleBuild] manually can leave [application] uncalled.
    */
   fun application(action: Action<ApplicationSpec>) {
-    val spec = project.objects.newInstance(ApplicationSpec::class.java)
+    val spec = project.objects.newInstance<ApplicationSpec>()
     action.execute(spec)
     val taskName = requireNotNull(spec.taskName.orNull) {
       "smokeTestApp.application { taskName = ... } is required"
@@ -86,29 +89,22 @@ abstract class SmokeTestAppExtension @Inject constructor(
     }
     val nestedTasks = spec.nestedTasks.orNull?.takeIf { it.isNotEmpty() } ?: listOf(taskName)
 
-    val capturedJars = projectJars
-    val capturedAppDir = applicationDir
-    val capturedAppBuildDir = applicationBuildDir
-    val capturedGradleVersion = gradleVersion
-    val capturedJavaLauncher = javaLauncher
-    val capturedBuildArguments = spec.buildArguments
-
     val taskProvider: TaskProvider<NestedGradleBuild> =
-      project.tasks.register(taskName, NestedGradleBuild::class.java) {
-        applicationDir.set(capturedAppDir)
-        applicationBuildDir.set(capturedAppBuildDir)
-        gradleVersion.set(capturedGradleVersion)
-        javaLauncher.set(capturedJavaLauncher)
+      project.tasks.register<NestedGradleBuild>(taskName) {
+        applicationDir.set(this@SmokeTestAppExtension.applicationDir)
+        applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
+        gradleVersion.set(this@SmokeTestAppExtension.gradleVersion)
+        javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
-        buildArguments.set(capturedBuildArguments)
-        projectJars.set(capturedJars)
+        buildArguments.set(spec.buildArguments)
+        projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
     val artifactProvider: Provider<RegularFile> = applicationBuildDir.file(artifactPath)
     val extras = spec.additionalSystemProperties.get().mapValues { (_, relativePath) ->
       applicationBuildDir.file(relativePath)
     }
-    project.tasks.withType(Test::class.java).configureEach {
+    project.tasks.withType<Test>().configureEach {
       dependsOn(taskProvider)
       jvmArgumentProviders.add(SmokeTestArgProvider(sysProperty, artifactProvider, extras))
     }
@@ -138,23 +134,28 @@ abstract class SmokeTestAppExtension @Inject constructor(
    * file. The caller is responsible for the upstream task dependency.
    */
   fun projectJar(propertyName: String, file: Provider<RegularFile>) {
-    val entry = project.objects.newInstance(NestedBuildProjectJar::class.java)
-    entry.propertyName.set(propertyName)
-    entry.file.set(file)
-    projectJars.add(entry)
+    projectJars.add(
+      project.objects.newInstance<NestedBuildProjectJar>().apply {
+        this.propertyName.set(propertyName)
+        this.file.set(file)
+      },
+    )
   }
 
   private fun addProjectJarFromConfiguration(propertyName: String, cfg: Configuration) {
-    val entry = project.objects.newInstance(NestedBuildProjectJar::class.java)
-    entry.propertyName.set(propertyName)
-    // Configuration.elements yields a Provider that carries the producing task dependency, so
-    // wiring it into the task's @InputFile both tracks file contents and arranges build order.
-    entry.file.set(
-      cfg.elements.map { files ->
-        project.objects.fileProperty().fileValue(files.single().asFile).get()
-      }
+    projectJars.add(
+      project.objects.newInstance<NestedBuildProjectJar>().apply {
+        this.propertyName.set(propertyName)
+        // Configuration.elements yields a Provider that carries the producing task dependency,
+        // so wiring it into the task's @InputFile both tracks file contents and arranges build
+        // order.
+        this.file.set(
+          cfg.elements.map { files ->
+            project.objects.fileProperty().fileValue(files.single().asFile).get()
+          },
+        )
+      },
     )
-    projectJars.add(entry)
   }
 }
 

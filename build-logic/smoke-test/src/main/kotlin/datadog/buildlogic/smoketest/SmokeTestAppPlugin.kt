@@ -2,6 +2,7 @@ package datadog.buildlogic.smoketest
 
 import org.gradle.api.Plugin
 import org.gradle.api.Project
+import org.gradle.kotlin.dsl.create
 
 /**
  * Exposes the [NestedGradleBuild] task type plus a `smokeTestApp` extension that wires the
@@ -15,6 +16,6 @@ import org.gradle.api.Project
  */
 class SmokeTestAppPlugin : Plugin<Project> {
   override fun apply(project: Project) {
-    project.extensions.create("smokeTestApp", SmokeTestAppExtension::class.java)
+    project.extensions.create<SmokeTestAppExtension>("smokeTestApp")
   }
 }

@@ -21,6 +21,7 @@ import org.gradle.api.tasks.TaskAction
 import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
 import org.gradle.jvm.toolchain.JavaToolchainService
+import org.gradle.kotlin.dsl.newInstance
 import org.gradle.tooling.GradleConnector
 import javax.inject.Inject
 
@@ -81,17 +82,19 @@ abstract class NestedGradleBuild @Inject constructor(
 
   /** Forward a root-build jar as `-P<name>=<absolute path>` into the nested build. */
   fun projectJar(name: String, file: Provider<RegularFile>) {
-    val entry = objects.newInstance(NestedBuildProjectJar::class.java)
-    entry.propertyName.set(name)
-    entry.file.set(file)
-    projectJars.add(entry)
+    projectJars.add(
+      objects.newInstance<NestedBuildProjectJar>().apply {
+        propertyName.set(name)
+        this.file.set(file)
+      },
+    )
   }
 
   /** Configure additional aspects of the nested build via a typed action. */
   fun projectJar(action: Action<NestedBuildProjectJar>) {
-    val entry = objects.newInstance(NestedBuildProjectJar::class.java)
-    action.execute(entry)
-    projectJars.add(entry)
+    projectJars.add(
+      objects.newInstance<NestedBuildProjectJar>().also(action::execute),
+    )
   }
 
   @TaskAction
