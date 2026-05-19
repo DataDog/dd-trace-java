@@ -45,7 +45,7 @@ class SerializingMetricWriterTest extends DDSpecification {
       resource, service, operationName, serviceSource, type,
       httpStatusCode, synthetic, traceRoot, spanKind, peerTags,
       httpMethod, httpEndpoint, grpcStatusCode)
-    e.aggregate.recordDurations(hitCount, new AtomicLongArray(1L))
+    e.recordDurations(hitCount, new AtomicLongArray(1L))
     return e
   }
 
@@ -284,7 +284,7 @@ class SerializingMetricWriterTest extends DDSpecification {
       int statCount = unpacker.unpackArrayHeader()
       assert statCount == content.size()
       for (AggregateEntry entry : content) {
-        AggregateMetric value = entry.aggregate
+        // counters now live on AggregateEntry
         int metricMapSize = unpacker.unpackMapHeader()
         // Calculate expected map size based on optional fields
         boolean hasHttpMethod = entry.getHttpMethod() != null
@@ -349,16 +349,16 @@ class SerializingMetricWriterTest extends DDSpecification {
           ++elementCount
         }
         assert unpacker.unpackString() == "Hits"
-        assert unpacker.unpackInt() == value.getHitCount()
+        assert unpacker.unpackInt() == entry.getHitCount()
         ++elementCount
         assert unpacker.unpackString() == "Errors"
-        assert unpacker.unpackInt() == value.getErrorCount()
+        assert unpacker.unpackInt() == entry.getErrorCount()
         ++elementCount
         assert unpacker.unpackString() == "TopLevelHits"
-        assert unpacker.unpackInt() == value.getTopLevelCount()
+        assert unpacker.unpackInt() == entry.getTopLevelCount()
         ++elementCount
         assert unpacker.unpackString() == "Duration"
-        assert unpacker.unpackLong() == value.getDuration()
+        assert unpacker.unpackLong() == entry.getDuration()
         ++elementCount
         assert unpacker.unpackString() == "OkSummary"
         validateSketch(unpacker)

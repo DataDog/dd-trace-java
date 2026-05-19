@@ -7,7 +7,7 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
- * Consumer-side {@link AggregateMetric} store, keyed on the canonical UTF8-encoded labels of a
+ * Consumer-side {@link AggregateEntry} store, keyed on the canonical UTF8-encoded labels of a
  * {@link SpanSnapshot}.
  *
  * <p>{@link #findOrInsert} canonicalizes the snapshot's fields through the cardinality handlers (so
@@ -42,35 +42,35 @@ final class AggregateTable {
   }
 
   /**
-   * Returns the {@link AggregateMetric} to update for {@code snapshot}, lazily creating an entry on
-   * miss. Returns {@code null} when the table is at capacity and no stale entry can be evicted --
-   * the caller should drop the data point in that case.
+   * Returns the {@link AggregateEntry} to update for {@code snapshot}, lazily creating one on miss.
+   * Returns {@code null} when the table is at capacity and no stale entry can be evicted -- the
+   * caller should drop the data point in that case.
    */
-  AggregateMetric findOrInsert(SpanSnapshot snapshot) {
+  AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     canonical.populate(snapshot);
     long keyHash = canonical.keyHash;
     for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
       if (candidate.keyHash == keyHash && canonical.matches(candidate)) {
-        return candidate.aggregate;
+        return candidate;
       }
     }
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = canonical.toEntry(new AggregateMetric());
+    AggregateEntry entry = canonical.toEntry();
     Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
-    return entry.aggregate;
+    return entry;
   }
 
-  /** Unlink the first entry whose {@code AggregateMetric.getHitCount() == 0}. */
+  /** Unlink the first entry whose {@code getHitCount() == 0}. */
   private boolean evictOneStale() {
     for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
         iter.hasNext(); ) {
       AggregateEntry e = iter.next();
-      if (e.aggregate.getHitCount() == 0) {
+      if (e.getHitCount() == 0) {
         iter.remove();
         size--;
         return true;
@@ -92,12 +92,12 @@ final class AggregateTable {
     Support.forEach(buckets, context, consumer);
   }
 
-  /** Removes entries whose {@code AggregateMetric.getHitCount() == 0}. */
+  /** Removes entries whose {@code getHitCount() == 0}. */
   void expungeStaleAggregates() {
     for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
         iter.hasNext(); ) {
       AggregateEntry e = iter.next();
-      if (e.aggregate.getHitCount() == 0) {
+      if (e.getHitCount() == 0) {
         iter.remove();
         size--;
       }

@@ -1,16 +1,20 @@
 package datadog.trace.common.metrics;
 
+import datadog.metrics.api.Histogram;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
+import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
- * {@link SerializingMetricWriter} writes to the wire) plus the mutable {@link AggregateMetric}.
+ * {@link SerializingMetricWriter} writes to the wire) plus the mutable counter / histogram state
+ * for the key.
  *
  * <p>UTF8 canonicalization runs through per-field {@link PropertyCardinalityHandler}s (and {@link
  * TagCardinalityHandler}s for peer tags), so cardinality is capped per reporting interval. The
@@ -26,11 +30,19 @@ import java.util.Objects;
  * <p>The handlers are reset on the aggregator thread every reporting cycle via {@link
  * #resetCardinalityHandlers()}.
  *
- * <p><b>Thread-safety:</b> the cardinality handlers and {@link Canonical} are not thread-safe. Only
- * the aggregator thread may call {@link Canonical#populate} or {@link #resetCardinalityHandlers}.
- * Test code uses {@link #of} which constructs entries without touching the handlers.
+ * <p><b>Thread-safety:</b> not thread-safe. Counter and histogram updates, cardinality-handler
+ * registration, and {@link Canonical} use all run on the aggregator thread. Producer threads tag
+ * durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and hand them off through the
+ * snapshot inbox. Test code uses {@link #of} which constructs entries without touching the
+ * cardinality handlers.
  */
+@SuppressFBWarnings(
+    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
+    justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 final class AggregateEntry extends Hashtable.Entry {
+
+  public static final long ERROR_TAG = 0x8000000000000000L;
+  public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   // Per-field cardinality limits. Identical to the prior DDCache sizes.
   static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(32);
@@ -59,7 +71,14 @@ final class AggregateEntry extends Hashtable.Entry {
   final boolean synthetic;
   final boolean traceRoot;
   final List<UTF8BytesString> peerTags;
-  final AggregateMetric aggregate;
+
+  // Mutable aggregate state -- single-thread (aggregator) writer.
+  private final Histogram okLatencies = Histogram.newHistogram();
+  private final Histogram errorLatencies = Histogram.newHistogram();
+  private int errorCount;
+  private int hitCount;
+  private int topLevelCount;
+  private long duration;
 
   /** Field-bearing constructor used by both the hot path and the test factory. */
   private AggregateEntry(
@@ -76,8 +95,7 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags,
-      AggregateMetric aggregate) {
+      List<UTF8BytesString> peerTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -92,7 +110,81 @@ final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
-    this.aggregate = aggregate;
+  }
+
+  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
+    this.hitCount += count;
+    for (int i = 0; i < count && i < durations.length(); ++i) {
+      long duration = durations.getAndSet(i, 0);
+      if ((duration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+        duration ^= TOP_LEVEL_TAG;
+        ++topLevelCount;
+      }
+      if ((duration & ERROR_TAG) == ERROR_TAG) {
+        duration ^= ERROR_TAG;
+        errorLatencies.accept(duration);
+        ++errorCount;
+      } else {
+        okLatencies.accept(duration);
+      }
+      this.duration += duration;
+    }
+    return this;
+  }
+
+  /**
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   */
+  AggregateEntry recordOneDuration(long tagAndDuration) {
+    ++hitCount;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      ++topLevelCount;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatencies.accept(tagAndDuration);
+      ++errorCount;
+    } else {
+      okLatencies.accept(tagAndDuration);
+    }
+    duration += tagAndDuration;
+    return this;
+  }
+
+  int getErrorCount() {
+    return errorCount;
+  }
+
+  int getHitCount() {
+    return hitCount;
+  }
+
+  int getTopLevelCount() {
+    return topLevelCount;
+  }
+
+  long getDuration() {
+    return duration;
+  }
+
+  Histogram getOkLatencies() {
+    return okLatencies;
+  }
+
+  Histogram getErrorLatencies() {
+    return errorLatencies;
+  }
+
+  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
+  void clear() {
+    this.errorCount = 0;
+    this.hitCount = 0;
+    this.topLevelCount = 0;
+    this.duration = 0;
+    this.okLatencies.clear();
+    this.errorLatencies.clear();
   }
 
   /**
@@ -154,8 +246,7 @@ final class AggregateEntry extends Hashtable.Entry {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList,
-        new AggregateMetric());
+        peerTagsList);
   }
 
   /**
@@ -426,7 +517,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * copied into an immutable list so the entry's reference stays stable across subsequent {@link
      * #populate} calls.
      */
-    AggregateEntry toEntry(AggregateMetric aggregate) {
+    AggregateEntry toEntry() {
       List<UTF8BytesString> snapshottedPeerTags;
       int n = peerTagsBuffer.size();
       if (n == 0) {
@@ -450,8 +541,7 @@ final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          snapshottedPeerTags,
-          aggregate);
+          snapshottedPeerTags);
     }
   }
 

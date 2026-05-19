@@ -143,7 +143,6 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    final AggregateMetric aggregate = entry.aggregate;
     // Calculate dynamic map size based on optional fields
     final boolean hasHttpMethod = entry.getHttpMethod() != null;
     final boolean hasHttpEndpoint = entry.getHttpEndpoint() != null;
@@ -213,22 +212,22 @@ public final class SerializingMetricWriter implements MetricWriter {
     }
 
     writer.writeUTF8(HITS);
-    writer.writeInt(aggregate.getHitCount());
+    writer.writeInt(entry.getHitCount());
 
     writer.writeUTF8(ERRORS);
-    writer.writeInt(aggregate.getErrorCount());
+    writer.writeInt(entry.getErrorCount());
 
     writer.writeUTF8(TOP_LEVEL_HITS);
-    writer.writeInt(aggregate.getTopLevelCount());
+    writer.writeInt(entry.getTopLevelCount());
 
     writer.writeUTF8(DURATION);
-    writer.writeLong(aggregate.getDuration());
+    writer.writeLong(entry.getDuration());
 
     writer.writeUTF8(OK_SUMMARY);
-    writer.writeBinary(aggregate.getOkLatencies().serialize());
+    writer.writeBinary(entry.getOkLatencies().serialize());
 
     writer.writeUTF8(ERROR_SUMMARY);
-    writer.writeBinary(aggregate.getErrorLatencies().serialize());
+    writer.writeBinary(entry.getErrorLatencies().serialize());
   }
 
   @Override

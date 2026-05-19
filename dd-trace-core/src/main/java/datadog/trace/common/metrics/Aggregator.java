@@ -127,9 +127,9 @@ final class Aggregator implements Runnable {
         }
       } else if (item instanceof SpanSnapshot && !stopped) {
         SpanSnapshot snapshot = (SpanSnapshot) item;
-        AggregateMetric aggregate = aggregates.findOrInsert(snapshot);
-        if (aggregate != null) {
-          aggregate.recordOneDuration(snapshot.tagAndDuration);
+        AggregateEntry entry = aggregates.findOrInsert(snapshot);
+        if (entry != null) {
+          entry.recordOneDuration(snapshot.tagAndDuration);
           dirty = true;
         } else {
           // table at cap with no stale entry available to evict
@@ -151,7 +151,7 @@ final class Aggregator implements Runnable {
               writer,
               (w, entry) -> {
                 w.add(entry);
-                entry.aggregate.clear();
+                entry.clear();
               });
           // note that this may do IO and block
           writer.finishBucket();
