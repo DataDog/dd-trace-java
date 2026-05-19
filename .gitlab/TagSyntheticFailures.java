@@ -5,6 +5,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import javax.xml.XMLConstants;
+import javax.xml.parsers.DocumentBuilder;
 import javax.xml.parsers.DocumentBuilderFactory;
 import javax.xml.transform.OutputKeys;
 import javax.xml.transform.TransformerFactory;
@@ -27,6 +28,7 @@ import org.w3c.dom.Element;
 /// **`executionError`** and **`test exception`** — Framework-level synthetic failures that do not
 /// represent real test results. Tagged skip unconditionally so Test Optimization treats them as
 // non-failures.
+
 ///
 /// Before (two retries of the same class — first is intermediate, second is the final outcome):
 ///
@@ -46,51 +48,70 @@ import org.w3c.dom.Element;
 /// <testcase name="initializationError" classname="com.example.MyTest" />
 /// ```
 ///
-/// Usage (Java 25): `java TagSyntheticFailures.java junit-report.xml`
+/// Usage (Java 25): `java TagSyntheticFailures.java batch.list`
+///
+/// The argument is a list file with one XML path per line.
+///  Each referenced XML is processed in turn.
 
 class TagSyntheticFailures {
   public static void main(String[] args) throws Exception {
-    if (args.length == 0) {
-      System.err.println("Usage: java TagSyntheticFailures.java <xml-file>");
-      System.exit(1);
-    }
-    var xmlFile = new File(args[0]);
-    if (!xmlFile.exists()) {
-      System.err.println("File not found: " + xmlFile);
-      System.exit(1);
-    }
     var dbf = DocumentBuilderFactory.newInstance();
     dbf.setFeature(XMLConstants.FEATURE_SECURE_PROCESSING, true);
     dbf.setFeature("http://apache.org/xml/features/disallow-doctype-decl", true);
     dbf.setFeature("http://xml.org/sax/features/external-general-entities", false);
     dbf.setFeature("http://xml.org/sax/features/external-parameter-entities", false);
     dbf.setExpandEntityReferences(false);
-    var doc = dbf.newDocumentBuilder().parse(xmlFile);
-    var testcases = doc.getElementsByTagName("testcase");
+    var docBuilder = dbf.newDocumentBuilder();
+    var transformerFactory = TransformerFactory.newInstance();
+
+    var listFile = new File(args[0]);
+    for (String line : Files.readAllLines(listFile.toPath())) {
+      processFile(new File(line), docBuilder, transformerFactory);
+    }
+  }
+
+  static void processFile(File xmlFile, DocumentBuilder docBuilder, TransformerFactory transformerFactory) throws Exception {
+    if (!xmlFile.exists()) {
+      System.err.println("xml file not found, skipping: " + xmlFile);
+      return;
+    }
+
+    var doc = docBuilder.parse(xmlFile);
+    var testCases = doc.getElementsByTagName("testcase");
     Map<String, List<Element>> byClassname = new LinkedHashMap<>();
     boolean modified = false;
-    for (int i = 0; i < testcases.getLength(); i++) {
-      var e = (Element) testcases.item(i);
+    for (int i = 0; i < testCases.getLength(); i++) {
+      var e = (Element) testCases.item(i);
       var name = e.getAttribute("name");
       if ("initializationError".equals(name)) {
         byClassname.computeIfAbsent(e.getAttribute("classname"), k -> new ArrayList<>()).add(e);
       } else if ("executionError".equals(name) || "test exception".equals(name)) {
-        if (tagSkip(doc, e)) modified = true;
+        if (tagFinalStatus(doc, e, "skip")) modified = true;
       }
     }
+
     for (var group : byClassname.values()) {
       for (int i = 0; i < group.size() - 1; i++) {
-        if (tagSkip(doc, group.get(i))) {
+        if (tagFinalStatus(doc, group.get(i), "skip")) {
           modified = true;
         }
       }
     }
+
+    // Tag remaining testcases with their pass/skip/fail status (folds add_final_status.xsl).
+    // tagFinalStatus is idempotent — already-tagged synthetics from the passes above are skipped.
+    for (int i = 0; i < testCases.getLength(); i++) {
+      var e = (Element) testCases.item(i);
+      if (tagFinalStatus(doc, e, computeStatus(e))) modified = true;
+    }
+
     if (!modified) {
       return;
     }
+
     var tmpFile = File.createTempFile("TagSyntheticFailures", ".xml", xmlFile.getParentFile());
     try {
-      var transformer = TransformerFactory.newInstance().newTransformer();
+      var transformer = transformerFactory.newTransformer();
       transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
       transformer.transform(new DOMSource(doc), new StreamResult(tmpFile));
       Files.move(
@@ -112,7 +133,7 @@ class TagSyntheticFailures {
     return null;
   }
 
-  static boolean tagSkip(Document doc, Element testcase) {
+  static boolean tagFinalStatus(Document doc, Element testcase, String status) {
     var props = firstChildElement(testcase, "properties");
     if (props != null) {
       var children = props.getChildNodes();
@@ -123,18 +144,33 @@ class TagSyntheticFailures {
           return false;
         }
       }
-      var property = doc.createElement("property");
-      property.setAttribute("name", "dd_tags[test.final_status]");
-      property.setAttribute("value", "skip");
-      props.appendChild(property);
+      props.appendChild(newStatusProperty(doc, status));
     } else {
       var properties = doc.createElement("properties");
-      var property = doc.createElement("property");
-      property.setAttribute("name", "dd_tags[test.final_status]");
-      property.setAttribute("value", "skip");
-      properties.appendChild(property);
+      properties.appendChild(newStatusProperty(doc, status));
       testcase.appendChild(properties);
     }
     return true;
+  }
+
+  static Element newStatusProperty(Document doc, String status) {
+    var p = doc.createElement("property");
+    p.setAttribute("name", "dd_tags[test.final_status]");
+    p.setAttribute("value", status);
+    return p;
+  }
+
+  /// Mirrors {@code add_final_status.xsl}: failure/error -> fail, skipped -> skip, else pass.
+  static String computeStatus(Element testcase) {
+    var children = testcase.getChildNodes();
+    boolean hasSkipped = false;
+    for (int i = 0; i < children.getLength(); i++) {
+      if (children.item(i) instanceof Element e) {
+        var tag = e.getTagName();
+        if ("failure".equals(tag) || "error".equals(tag)) return "fail";
+        if ("skipped".equals(tag)) hasSkipped = true;
+      }
+    }
+    return hasSkipped ? "skip" : "pass";
   }
 }

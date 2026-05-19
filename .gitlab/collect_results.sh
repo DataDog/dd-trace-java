@@ -60,6 +60,12 @@ function get_source_file () {
 }
 
 echo "Saving test results:"
+
+# Collect normalized XML paths so the Java tagger can run once for the whole batch
+# instead of paying JVM startup per file.
+BATCH_FILE="./synthetic-tag-batch.list"
+: > "$BATCH_FILE"
+
 while IFS= read -r -d '' RESULT_XML_FILE
 do
   echo -n "- $RESULT_XML_FILE"
@@ -90,13 +96,14 @@ do
     echo " (non-stable test names detected)"
   fi
 
-  echo "Add dd_tags[test.final_status] property on retried synthetics testcase initializationErrors, and all executionError and test exception synthetic testcases"
-  $JAVA_25_HOME/bin/java "$(dirname "$0")/TagSyntheticFailures.java" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-
-  echo "Add dd_tags[test.final_status] property to each testcase on $TARGET_DIR/$AGGREGATED_FILE_NAME"
-  xsl_file="$(dirname "$0")/add_final_status.xsl"
-  tmp_file="$(mktemp)"
-  xsltproc --huge --output "$tmp_file" "$xsl_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-  mv "$tmp_file" "$TARGET_DIR/$AGGREGATED_FILE_NAME"
-
+  echo "$TARGET_DIR/$AGGREGATED_FILE_NAME" >> "$BATCH_FILE"
 done <   <(find "${TEST_RESULT_DIRS[@]}" -name \*.xml -print0)
+
+# Tag every testcase with dd_tags[test.final_status]:
+#  - synthetic testcases (intermediate initializationError, executionError, test exception) -> skip
+#  - everything else -> pass/skip/fail derived from <failure>/<error>/<skipped> children
+if [ -s "$BATCH_FILE" ]; then
+  echo "Add dd_tags[test.final_status] property to every testcase (batched, $(wc -l < "$BATCH_FILE") files)"
+  $JAVA_25_HOME/bin/java "$(dirname "$0")/TagSyntheticFailures.java" "$BATCH_FILE"
+fi
+rm -f "$BATCH_FILE"
