@@ -17,6 +17,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.function.Function;
+import javax.annotation.Nullable;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields that {@link
@@ -80,12 +81,12 @@ final class AggregateEntry extends Hashtable.Entry {
   private final UTF8BytesString resource;
   private final UTF8BytesString service;
   private final UTF8BytesString operationName;
-  private final UTF8BytesString serviceSource; // nullable
+  @Nullable private final UTF8BytesString serviceSource;
   private final UTF8BytesString type;
   private final UTF8BytesString spanKind;
-  private final UTF8BytesString httpMethod; // nullable
-  private final UTF8BytesString httpEndpoint; // nullable
-  private final UTF8BytesString grpcStatusCode; // nullable
+  @Nullable private final UTF8BytesString httpMethod;
+  @Nullable private final UTF8BytesString httpEndpoint;
+  @Nullable private final UTF8BytesString grpcStatusCode;
   private final short httpStatusCode;
   private final boolean synthetic;
   private final boolean traceRoot;
@@ -139,16 +140,16 @@ final class AggregateEntry extends Hashtable.Entry {
       CharSequence resource,
       CharSequence service,
       CharSequence operationName,
-      CharSequence serviceSource,
+      @Nullable CharSequence serviceSource,
       CharSequence type,
       int httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
       CharSequence spanKind,
-      List<UTF8BytesString> peerTags,
-      CharSequence httpMethod,
-      CharSequence httpEndpoint,
-      CharSequence grpcStatusCode) {
+      @Nullable List<UTF8BytesString> peerTags,
+      @Nullable CharSequence httpMethod,
+      @Nullable CharSequence httpEndpoint,
+      @Nullable CharSequence grpcStatusCode) {
     String[] rawPairs = peerTagsToRawPairs(peerTags);
     SpanSnapshot synthetic_snapshot =
         new SpanSnapshot(
@@ -318,6 +319,7 @@ final class AggregateEntry extends Hashtable.Entry {
     return operationName;
   }
 
+  @Nullable
   UTF8BytesString getServiceSource() {
     return serviceSource;
   }
@@ -330,14 +332,17 @@ final class AggregateEntry extends Hashtable.Entry {
     return spanKind;
   }
 
+  @Nullable
   UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
+  @Nullable
   UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
+  @Nullable
   UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
