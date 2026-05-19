@@ -120,6 +120,28 @@ class HashtableD1Test {
   }
 
   @Test
+  void forEachWithContextPassesContextToConsumer() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    table.insert(new StringIntEntry("a", 10));
+    table.insert(new StringIntEntry("b", 20));
+    table.insert(new StringIntEntry("c", 30));
+    Map<String, Integer> seen = new HashMap<>();
+    table.forEach(seen, (ctx, e) -> ctx.put(e.key, e.value));
+    assertEquals(3, seen.size());
+    assertEquals(10, seen.get("a"));
+    assertEquals(20, seen.get("b"));
+    assertEquals(30, seen.get("c"));
+  }
+
+  @Test
+  void forEachWithContextOnEmptyTableDoesNothing() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    Map<String, Integer> seen = new HashMap<>();
+    table.forEach(seen, (ctx, e) -> ctx.put(e.key, e.value));
+    assertEquals(0, seen.size());
+  }
+
+  @Test
   void nullKeyIsPermittedAndDistinctFromAbsent() {
     Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
     assertNull(table.get(null));
