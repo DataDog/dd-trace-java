@@ -18,7 +18,9 @@ import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
 import org.gradle.api.tasks.TaskAction
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.tooling.GradleConnector
 import javax.inject.Inject
 
@@ -34,8 +36,19 @@ import javax.inject.Inject
  * `-P<propertyName>=<absolute-path>` and tracked as a task input so the nested build re-runs
  * when the upstream jar changes.
  */
-abstract class NestedGradleBuild @Inject constructor(private val objects: ObjectFactory) :
-  DefaultTask() {
+abstract class NestedGradleBuild @Inject constructor(
+  private val objects: ObjectFactory,
+  javaToolchains: JavaToolchainService,
+) : DefaultTask() {
+
+  init {
+    gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    javaLauncher.convention(
+      javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
+      },
+    )
+  }
 
   @get:Internal
   abstract val applicationDir: DirectoryProperty

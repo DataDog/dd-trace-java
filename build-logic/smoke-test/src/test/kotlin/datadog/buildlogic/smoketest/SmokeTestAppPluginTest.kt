@@ -1,6 +1,8 @@
 package datadog.buildlogic.smoketest
 
 import org.assertj.core.api.Assertions.assertThat
+import org.gradle.api.plugins.JavaPlugin
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.testfixtures.ProjectBuilder
 import org.junit.jupiter.api.Test
 
@@ -54,12 +56,26 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
-  fun `extension defaults gradleVersion to the host build's version`() {
+  fun `extension defaults gradleVersion to the smoke-test pinned version`() {
     val project = ProjectBuilder.builder().build()
     project.plugins.apply("dd-trace-java.smoke-test-app")
 
     val extension = project.extensions.getByType(SmokeTestAppExtension::class.java)
 
-    assertThat(extension.gradleVersion.get()).isEqualTo(project.gradle.gradleVersion)
+    assertThat(extension.gradleVersion.get()).isEqualTo(DEFAULT_NESTED_GRADLE_VERSION)
+  }
+
+  @Test
+  fun `extension defaults javaLauncher to a JDK 21 toolchain`() {
+    // JavaToolchainService is contributed by the `java-base` plugin; apply something that
+    // pulls it in so ProjectBuilder can resolve the convention.
+    val project = ProjectBuilder.builder().build()
+    project.plugins.apply(JavaPlugin::class.java)
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType(SmokeTestAppExtension::class.java)
+
+    assertThat(extension.javaLauncher.get().metadata.languageVersion)
+      .isEqualTo(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
   }
 }

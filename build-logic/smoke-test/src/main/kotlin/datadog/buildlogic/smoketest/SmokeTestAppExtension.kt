@@ -11,7 +11,9 @@ import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.TaskProvider
 import org.gradle.api.tasks.testing.Test
+import org.gradle.jvm.toolchain.JavaLanguageVersion
 import org.gradle.jvm.toolchain.JavaLauncher
+import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.process.CommandLineArgumentProvider
 import java.util.Locale
 import javax.inject.Inject
@@ -23,12 +25,24 @@ import javax.inject.Inject
  * stays unconfigured, the plugin is a no-op and consumers can register [NestedGradleBuild]
  * directly.
  */
-abstract class SmokeTestAppExtension @Inject constructor(private val project: Project) {
+abstract class SmokeTestAppExtension @Inject constructor(
+  private val project: Project,
+  javaToolchains: JavaToolchainService,
+) {
 
-  /** Gradle version used by the nested daemon. Defaults to the root build's version. */
+  /**
+   * Gradle version used by the nested daemon. Defaults to [DEFAULT_NESTED_GRADLE_VERSION] —
+   * the version pinned for smoke-test applications whose Spring Boot plugin is incompatible
+   * with Gradle 9.
+   */
   abstract val gradleVersion: Property<String>
 
-  /** JDK used by the nested daemon. Required when calling [application]. */
+  /**
+   * JDK used by the nested daemon. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
+   * override to pin a different JDK if the nested application's plugin chain requires it.
+   * The inner build script is responsible for pinning the produced bytecode level (e.g.
+   * `java { sourceCompatibility = JavaVersion.VERSION_1_8 }`).
+   */
   abstract val javaLauncher: Property<JavaLauncher>
 
   /** Directory containing the nested project's `settings.gradle` + sources. */
@@ -45,7 +59,12 @@ abstract class SmokeTestAppExtension @Inject constructor(private val project: Pr
   init {
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
-    gradleVersion.convention(project.gradle.gradleVersion)
+    gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    javaLauncher.convention(
+      javaToolchains.launcherFor {
+        languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
+      },
+    )
   }
 
   /**
@@ -54,9 +73,6 @@ abstract class SmokeTestAppExtension @Inject constructor(private val project: Pr
    * register [NestedGradleBuild] manually can leave [application] uncalled.
    */
   fun application(action: Action<ApplicationSpec>) {
-    require(javaLauncher.isPresent) {
-      "smokeTestApp.javaLauncher must be set before configuring application { ... }"
-    }
     val spec = project.objects.newInstance(ApplicationSpec::class.java)
     action.execute(spec)
     val taskName = requireNotNull(spec.taskName.orNull) {
@@ -166,6 +182,21 @@ abstract class ApplicationSpec @Inject constructor() {
    */
   abstract val additionalSystemProperties: MapProperty<String, String>
 }
+
+/**
+ * Default Gradle distribution version for the nested daemon. Pinned to a Gradle 8 release
+ * because the Spring Boot Gradle plugin pre-3.5.0 calls `Configuration.getUploadTaskName()`,
+ * removed in Gradle 9.
+ */
+const val DEFAULT_NESTED_GRADLE_VERSION = "8.14.5"
+
+/**
+ * Default JDK language version for the nested daemon. JDK 21 is the version the root build
+ * requires for Gradle 9; standardising the nested daemon on the same JDK avoids pulling a
+ * second toolchain onto dev machines and CI runners. Inner build scripts cross-compile down
+ * to their actual bytecode target via `java { sourceCompatibility = ... }`.
+ */
+const val DEFAULT_NESTED_JAVA_VERSION = 21
 
 private class SmokeTestArgProvider(
   private val sysProperty: String,
