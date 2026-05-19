@@ -1,6 +1,7 @@
 package datadog.trace.util;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -75,6 +76,46 @@ class HashtableD2Test {
     assertEquals(2, seen.size());
     assertTrue(seen.contains("a:1"));
     assertTrue(seen.contains("b:2"));
+  }
+
+  @Test
+  void getOrCreateOnMissBuildsEntryViaCreator() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    int[] createCount = {0};
+    PairEntry created =
+        table.getOrCreate(
+            "a",
+            1,
+            (k1, k2) -> {
+              createCount[0]++;
+              return new PairEntry(k1, k2, 100);
+            });
+    assertNotNull(created);
+    assertEquals("a", created.key1);
+    assertEquals(Integer.valueOf(1), created.key2);
+    assertEquals(100, created.value);
+    assertEquals(1, table.size());
+    assertEquals(1, createCount[0]);
+    assertSame(created, table.get("a", 1));
+  }
+
+  @Test
+  void getOrCreateOnHitSkipsCreator() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    PairEntry seeded = new PairEntry("a", 1, 100);
+    table.insert(seeded);
+    int[] createCount = {0};
+    PairEntry got =
+        table.getOrCreate(
+            "a",
+            1,
+            (k1, k2) -> {
+              createCount[0]++;
+              return new PairEntry(k1, k2, 999);
+            });
+    assertSame(seeded, got);
+    assertEquals(1, table.size());
+    assertEquals(0, createCount[0]);
   }
 
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
