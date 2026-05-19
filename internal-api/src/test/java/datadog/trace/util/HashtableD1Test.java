@@ -184,4 +184,52 @@ class HashtableD1Test {
     assertNull(table.get(k2));
     assertNotNull(table.get(k3));
   }
+
+  @Test
+  void getOrCreateOnMissBuildsEntryViaCreator() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    int[] createCount = {0};
+    StringIntEntry created =
+        table.getOrCreate(
+            "foo",
+            k -> {
+              createCount[0]++;
+              return new StringIntEntry(k, 42);
+            });
+    assertNotNull(created);
+    assertEquals("foo", created.key);
+    assertEquals(42, created.value);
+    assertEquals(1, table.size());
+    assertEquals(1, createCount[0]);
+    assertSame(created, table.get("foo"));
+  }
+
+  @Test
+  void getOrCreateOnHitSkipsCreator() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    StringIntEntry seeded = new StringIntEntry("foo", 1);
+    table.insert(seeded);
+    int[] createCount = {0};
+    StringIntEntry got =
+        table.getOrCreate(
+            "foo",
+            k -> {
+              createCount[0]++;
+              return new StringIntEntry(k, 999);
+            });
+    assertSame(seeded, got);
+    assertEquals(1, table.size());
+    assertEquals(0, createCount[0]);
+  }
+
+  @Test
+  void getOrCreateNullKeyIsPermitted() {
+    Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+    StringIntEntry created = table.getOrCreate(null, k -> new StringIntEntry(k, 7));
+    assertNotNull(created);
+    assertNull(created.key);
+    assertEquals(7, created.value);
+    assertSame(created, table.getOrCreate(null, k -> new StringIntEntry(k, 999)));
+    assertEquals(1, table.size());
+  }
 }
