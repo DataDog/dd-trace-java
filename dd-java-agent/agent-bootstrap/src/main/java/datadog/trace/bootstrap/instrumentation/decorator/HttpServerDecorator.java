@@ -188,9 +188,20 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     if (flow.getAction() instanceof RequestBlockingAction) {
       span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
     }
+    // Tag Datadog scan/test markers unconditionally so the API endpoint reducer
+    // can distinguish scan/test traffic from real user traffic.
+    tagSecurityTestingHeaders(span, carrier);
     // DSM Checkpoint
     tracer().getDataStreamsMonitoring().setCheckpoint(span, forHttpServer());
     return parentContext.with(span);
+  }
+
+  private void tagSecurityTestingHeaders(AgentSpan span, REQUEST_CARRIER carrier) {
+    AgentPropagation.ContextVisitor<REQUEST_CARRIER> getter = getter();
+    if (carrier == null || getter == null) {
+      return;
+    }
+    getter.forEachKey(carrier, new SecurityTestingHeaderTagClassifier(span));
   }
 
   protected AgentSpanContext startInferredProxySpan(Context context, AgentSpanContext extracted) {
@@ -739,6 +750,36 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         return doneCallback.apply(requestContext);
       }
       return Flow.ResultFlow.empty();
+    }
+  }
+
+  private static final class SecurityTestingHeaderTagClassifier
+      implements AgentPropagation.KeyClassifier {
+    private static final String HEADER_ENDPOINT_SCAN = "x-datadog-endpoint-scan";
+    private static final String HEADER_SECURITY_TEST = "x-datadog-security-test";
+
+    private final AgentSpan span;
+    private boolean endpointScanSeen;
+    private boolean securityTestSeen;
+
+    SecurityTestingHeaderTagClassifier(AgentSpan span) {
+      this.span = span;
+    }
+
+    @Override
+    public boolean accept(String key, String value) {
+      if (key == null || value == null) {
+        return true;
+      }
+      if (!endpointScanSeen && HEADER_ENDPOINT_SCAN.equalsIgnoreCase(key)) {
+        span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, value);
+        endpointScanSeen = true;
+      } else if (!securityTestSeen && HEADER_SECURITY_TEST.equalsIgnoreCase(key)) {
+        span.setTag(Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, value);
+        securityTestSeen = true;
+      }
+      // Stop iteration once both markers found, capping work on pathological header counts.
+      return !(endpointScanSeen && securityTestSeen);
     }
   }
 
