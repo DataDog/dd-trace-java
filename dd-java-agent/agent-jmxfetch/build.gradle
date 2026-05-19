@@ -12,8 +12,12 @@ plugins {
 }
 apply from: "$rootDir/gradle/java.gradle"
 
+repositories {
+  flatDir { dirs 'libs' }
+}
+
 dependencies {
-  api('com.datadoghq:jmxfetch:0.52.0') {
+  api('com.datadoghq:jmxfetch:0.52.1-SNAPSHOT') {
     exclude group: 'org.slf4j', module: 'slf4j-api'
     exclude group: 'org.slf4j', module: 'slf4j-jdk14'
     exclude group: 'com.beust', module: 'jcommander'
@@ -22,6 +26,8 @@ dependencies {
     // we use snakeyaml-engine instead of legacy library
     exclude group: 'org.yaml', module: 'snakeyaml'
   }
+  // flatDir repos don't resolve transitive deps from POM; declare explicitly
+  api 'com.datadoghq:java-dogstatsd-client:2.10.5'
   api libs.slf4j
   api project(':internal-api')
   api project(':dd-java-agent:agent-bootstrap')
