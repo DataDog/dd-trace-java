@@ -5,7 +5,9 @@ import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
 import java.util.function.BiConsumer;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 /**
  * Light weight simple Hashtable system that can be useful when HashMap would be unnecessarily
@@ -39,7 +41,7 @@ public final class Hashtable {
    */
   public abstract static class Entry {
     public final long keyHash;
-    Entry next = null;
+    private Entry next = null;
 
     protected Entry(long keyHash) {
       this.keyHash = keyHash;
@@ -176,6 +178,29 @@ public final class Hashtable {
       Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
+    }
+
+    /**
+     * Returns the entry for {@code key}, building one via {@code creator} if absent. Computes the
+     * hash once and reuses it for both the lookup and (on miss) the insert -- avoids the
+     * double-hash that "{@code get}; if null then {@code insert}" would incur.
+     *
+     * <p>The {@code creator} is expected to build an entry whose {@code keyHash} equals {@link
+     * Entry#hash(Object) D1.Entry.hash(key)} -- typically by passing {@code key} to a constructor
+     * that calls {@code super(key)}. A mismatched hash will leave the new entry inserted at a
+     * bucket that future {@link #get} calls won't probe.
+     */
+    public TEntry getOrCreate(K key, Function<? super K, ? extends TEntry> creator) {
+      long keyHash = D1.Entry.hash(key);
+      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
+        if (te.keyHash == keyHash && te.matches(key)) {
+          return te;
+        }
+      }
+      TEntry newEntry = creator.apply(key);
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      this.size += 1;
+      return newEntry;
     }
 
     public void clear() {
@@ -317,6 +342,25 @@ public final class Hashtable {
       Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
+    }
+
+    /**
+     * Two-key analogue of {@link D1#getOrCreate}. Computes the combined hash once and reuses it for
+     * both lookup and (on miss) insert. The {@code creator} is expected to build an entry whose
+     * {@code keyHash} equals {@link Entry#hash(Object, Object) D2.Entry.hash(key1, key2)}.
+     */
+    public TEntry getOrCreate(
+        K1 key1, K2 key2, BiFunction<? super K1, ? super K2, ? extends TEntry> creator) {
+      long keyHash = D2.Entry.hash(key1, key2);
+      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
+        if (te.keyHash == keyHash && te.matches(key1, key2)) {
+          return te;
+        }
+      }
+      TEntry newEntry = creator.apply(key1, key2);
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
+      this.size += 1;
+      return newEntry;
     }
 
     public void clear() {
@@ -515,6 +559,9 @@ public final class Hashtable {
    *
    * <p>For {@code remove} or {@code replace} operations, use {@link MutatingBucketIterator}
    * instead.
+   *
+   * <p>The chain-walk work to find the next-match entry happens in {@link #next()} (and in the
+   * constructor for the first match); {@link #hasNext()} is an O(1) field read.
    */
   public static final class BucketIterator<TEntry extends Entry> implements Iterator<TEntry> {
     private final long keyHash;
@@ -524,7 +571,7 @@ public final class Hashtable {
       this.keyHash = keyHash;
       Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
       while (cur != null && cur.keyHash != keyHash) {
-        cur = cur.next;
+        cur = cur.next();
       }
       this.nextEntry = cur;
     }
@@ -540,9 +587,9 @@ public final class Hashtable {
       Hashtable.Entry cur = this.nextEntry;
       if (cur == null) throw new NoSuchElementException("no next!");
 
-      Hashtable.Entry advance = cur.next;
+      Hashtable.Entry advance = cur.next();
       while (advance != null && advance.keyHash != keyHash) {
-        advance = advance.next;
+        advance = advance.next();
       }
       this.nextEntry = advance;
 
@@ -559,6 +606,9 @@ public final class Hashtable {
    * remove} and {@code replace} can fix up the chain in O(1) without re-walking from the bucket
    * head. After {@code remove} or {@code replace}, iteration may continue with another {@link
    * #next()}.
+   *
+   * <p>The chain-walk work to find the next-match entry happens in {@link #next()} (and in the
+   * constructor for the first match); {@link #hasNext()} is an O(1) field read.
    */
   public static final class MutatingBucketIterator<TEntry extends Entry>
       implements Iterator<TEntry> {
