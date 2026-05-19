@@ -3,6 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.version-file'
+  id 'java-test-fixtures'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -46,6 +47,14 @@ dependencies {
   implementation libs.moshi
   implementation libs.okhttp
   implementation libs.slf4j
+
+  // Dependencies needed to compile the test-fixture helpers (LogProbeTestHelper,
+  // MoshiSnapshotTestHelper); they reference siblings + Moshi + internal-api.
+  testFixturesImplementation project(':dd-java-agent:agent-debugger:debugger-bootstrap')
+  testFixturesImplementation project(':dd-java-agent:agent-debugger:debugger-el')
+  testFixturesImplementation project(':internal-api')
+  testFixturesImplementation libs.moshi
+  testFixturesImplementation libs.junit.jupiter
 
   testImplementation libs.asm.util
   testImplementation libs.bundles.junit5
