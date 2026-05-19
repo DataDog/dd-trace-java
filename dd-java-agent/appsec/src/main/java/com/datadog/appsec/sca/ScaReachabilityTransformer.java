@@ -163,6 +163,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
     boolean hasUnresolvedMethodLevelSymbols = false;
+    String dotClassName = className.replace('/', '.');
 
     for (ScaEntry entry : entries) {
       // Resolve version: first check the class's own JAR, then fall back to a full classpath
@@ -202,11 +203,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
             .add(
                 new MethodCallbackSpec(
-                    entry.vulnId(),
-                    entry.artifact(),
-                    version,
-                    className.replace('/', '.'),
-                    symbol.method()));
+                    entry.vulnId(), entry.artifact(), version, dotClassName, symbol.method()));
       }
     }
 
