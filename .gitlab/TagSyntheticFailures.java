@@ -98,7 +98,7 @@ class TagSyntheticFailures {
       }
     }
 
-    // Tag remaining testcases with their pass/skip/fail status (folds add_final_status.xsl).
+    // Tag remaining testcases with their pass/skip/fail status.
     // tagFinalStatus is idempotent — already-tagged synthetics from the passes above are skipped.
     for (int i = 0; i < testCases.getLength(); i++) {
       var e = (Element) testCases.item(i);
@@ -109,17 +109,9 @@ class TagSyntheticFailures {
       return;
     }
 
-    var tmpFile = File.createTempFile("TagSyntheticFailures", ".xml", xmlFile.getParentFile());
-    try {
-      var transformer = transformerFactory.newTransformer();
-      transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
-      transformer.transform(new DOMSource(doc), new StreamResult(tmpFile));
-      Files.move(
-          tmpFile.toPath(), xmlFile.toPath(), java.nio.file.StandardCopyOption.REPLACE_EXISTING);
-    } catch (Exception e) {
-      tmpFile.delete();
-      throw e;
-    }
+    var transformer = transformerFactory.newTransformer();
+    transformer.setOutputProperty(OutputKeys.ENCODING, "UTF-8");
+    transformer.transform(new DOMSource(doc), new StreamResult(xmlFile));
   }
 
   static Element firstChildElement(Element parent, String tagName) {
@@ -160,7 +152,7 @@ class TagSyntheticFailures {
     return p;
   }
 
-  /// Mirrors {@code add_final_status.xsl}: failure/error -> fail, skipped -> skip, else pass.
+  /// Derives a testcase status: failure/error -> fail, skipped -> skip, else pass.
   static String computeStatus(Element testcase) {
     var children = testcase.getChildNodes();
     boolean hasSkipped = false;
