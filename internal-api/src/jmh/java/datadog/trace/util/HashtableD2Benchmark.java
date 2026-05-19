@@ -22,8 +22,8 @@ import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
 /**
- * Compares {@link Hashtable.D1} and {@link Hashtable.D2} against equivalent {@link HashMap} usage
- * for add, update, and iterate operations.
+ * Compares {@link Hashtable.D2} against equivalent {@link HashMap} usage for add, update, and
+ * iterate operations.
  *
  * <p>Each benchmark thread owns its own map ({@link Scope#Thread}), but a non-trivial thread count
  * is used so allocation/GC pressure surfaces in the throughput numbers — that pressure is the main
@@ -42,31 +42,21 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>The D2 variants additionally pay for a composite-key wrapper allocation in the HashMap path
  * (Java has no built-in tuple-as-key) — D2 sidesteps it by taking both key parts directly.
  *
- * <p><b>Update</b> is where Hashtable dominates: D1 is ~14x faster, D2 is ~26x faster, because the
- * HashMap path allocates per call (a {@code Long}, plus a {@code Key2} for D2) and the resulting GC
- * pressure throttles throughput under multiple threads. <b>Add</b> is roughly comparable for D1
- * (both allocate one entry per insert) and ~3x faster for D2 (Hashtable sidesteps the {@code Key2}
- * allocation). <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
+ * <p><b>Update</b> is where Hashtable dominates: D2 is ~26x faster, because the HashMap path
+ * allocates per call (a {@code Long}, plus a {@code Key2}) and the resulting GC pressure throttles
+ * throughput under multiple threads. <b>Add</b> is ~3x faster for D2 (Hashtable sidesteps the
+ * {@code Key2} allocation). <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
  * MacBook M1 8 threads (Java 8)
  *
- * Benchmark                                 Mode  Cnt     Score     Error   Units
- * HashtableBenchmark.d1_add_hashMap        thrpt    6   187.883 ± 189.858  ops/us
- * HashtableBenchmark.d1_add_hashtable      thrpt    6   198.710 ± 273.035  ops/us
+ * Benchmark                                   Mode  Cnt     Score     Error   Units
+ * HashtableD2Benchmark.d2_add_hashMap        thrpt    6    77.082 ±  72.278  ops/us
+ * HashtableD2Benchmark.d2_add_hashtable      thrpt    6   216.813 ± 413.236  ops/us
  *
- * HashtableBenchmark.d1_update_hashMap     thrpt    6   127.392 ±  87.482  ops/us
- * HashtableBenchmark.d1_update_hashtable   thrpt    6  1810.244 ±  44.645  ops/us
+ * HashtableD2Benchmark.d2_update_hashMap     thrpt    6    56.077 ±  23.716  ops/us
+ * HashtableD2Benchmark.d2_update_hashtable   thrpt    6  1445.868 ± 157.705  ops/us
  *
- * HashtableBenchmark.d1_iterate_hashMap    thrpt    6    20.043 ±   0.752  ops/us
- * HashtableBenchmark.d1_iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
- *
- * HashtableBenchmark.d2_add_hashMap        thrpt    6    77.082 ±  72.278  ops/us
- * HashtableBenchmark.d2_add_hashtable      thrpt    6   216.813 ± 413.236  ops/us
- *
- * HashtableBenchmark.d2_update_hashMap     thrpt    6    56.077 ±  23.716  ops/us
- * HashtableBenchmark.d2_update_hashtable   thrpt    6  1445.868 ± 157.705  ops/us
- *
- * HashtableBenchmark.d2_iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
- * HashtableBenchmark.d2_iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
+ * HashtableD2Benchmark.d2_iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
+ * HashtableD2Benchmark.d2_iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
  */
 @Fork(2)
@@ -75,7 +65,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @BenchmarkMode(Mode.Throughput)
 @OutputTimeUnit(MICROSECONDS)
 @Threads(8)
-public class HashtableBenchmark {
+public class HashtableD2Benchmark {
 
   static final int N_KEYS = 64;
   static final int CAPACITY = 128;
@@ -87,14 +77,6 @@ public class HashtableBenchmark {
     for (int i = 0; i < N_KEYS; ++i) {
       SOURCE_K1[i] = "key-" + i;
       SOURCE_K2[i] = i * 31 + 17;
-    }
-  }
-
-  static final class D1Counter extends Hashtable.D1.Entry<String> {
-    long count;
-
-    D1Counter(String key) {
-      super(key);
     }
   }
 
@@ -120,7 +102,9 @@ public class HashtableBenchmark {
 
     @Override
     public boolean equals(Object o) {
-      if (!(o instanceof Key2)) return false;
+      if (!(o instanceof Key2)) {
+        return false;
+      }
       Key2 other = (Key2) o;
       return Objects.equals(k1, other.k1) && Objects.equals(k2, other.k2);
     }
@@ -132,16 +116,6 @@ public class HashtableBenchmark {
   }
 
   /** Reusable iteration consumer — avoids per-call lambda capture allocation. */
-  static final class BhD1Consumer implements Consumer<D1Counter> {
-    Blackhole bh;
-
-    @Override
-    public void accept(D1Counter e) {
-      bh.consume(e.key);
-      bh.consume(e.count);
-    }
-  }
-
   static final class BhD2Consumer implements Consumer<D2Counter> {
     Blackhole bh;
 
@@ -150,33 +124,6 @@ public class HashtableBenchmark {
       bh.consume(e.key1);
       bh.consume(e.key2);
       bh.consume(e.count);
-    }
-  }
-
-  @State(Scope.Thread)
-  public static class D1State {
-    Hashtable.D1<String, D1Counter> table;
-    HashMap<String, Long> hashMap;
-    String[] keys;
-    int cursor;
-    final BhD1Consumer consumer = new BhD1Consumer();
-
-    @Setup(Level.Iteration)
-    public void setUp() {
-      table = new Hashtable.D1<>(CAPACITY);
-      hashMap = new HashMap<>(CAPACITY);
-      keys = SOURCE_K1;
-      for (int i = 0; i < N_KEYS; ++i) {
-        table.insert(new D1Counter(keys[i]));
-        hashMap.put(keys[i], 0L);
-      }
-      cursor = 0;
-    }
-
-    String nextKey() {
-      int i = cursor;
-      cursor = (i + 1) & (N_KEYS - 1);
-      return keys[i];
     }
   }
 
@@ -208,61 +155,6 @@ public class HashtableBenchmark {
       return i;
     }
   }
-
-  // ============================================================
-  // D1 — single-key
-  // ============================================================
-
-  @Benchmark
-  @OperationsPerInvocation(N_KEYS)
-  public void d1_add_hashtable(D1State s) {
-    Hashtable.D1<String, D1Counter> t = s.table;
-    String[] keys = s.keys;
-    t.clear();
-    for (int i = 0; i < N_KEYS; ++i) {
-      t.insert(new D1Counter(keys[i]));
-    }
-  }
-
-  @Benchmark
-  @OperationsPerInvocation(N_KEYS)
-  public void d1_add_hashMap(D1State s) {
-    HashMap<String, Long> m = s.hashMap;
-    String[] keys = s.keys;
-    m.clear();
-    for (int i = 0; i < N_KEYS; ++i) {
-      m.put(keys[i], (long) i);
-    }
-  }
-
-  @Benchmark
-  public long d1_update_hashtable(D1State s) {
-    D1Counter e = s.table.get(s.nextKey());
-    return ++e.count;
-  }
-
-  @Benchmark
-  public Long d1_update_hashMap(D1State s) {
-    return s.hashMap.merge(s.nextKey(), 1L, Long::sum);
-  }
-
-  @Benchmark
-  public void d1_iterate_hashtable(D1State s, Blackhole bh) {
-    s.consumer.bh = bh;
-    s.table.forEach(s.consumer);
-  }
-
-  @Benchmark
-  public void d1_iterate_hashMap(D1State s, Blackhole bh) {
-    for (Map.Entry<String, Long> entry : s.hashMap.entrySet()) {
-      bh.consume(entry.getKey());
-      bh.consume(entry.getValue());
-    }
-  }
-
-  // ============================================================
-  // D2 — two-key (composite)
-  // ============================================================
 
   @Benchmark
   @OperationsPerInvocation(N_KEYS)

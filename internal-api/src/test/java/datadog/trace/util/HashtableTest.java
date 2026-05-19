@@ -256,6 +256,33 @@ class HashtableTest {
     }
 
     @Test
+    void sizeForReturnsAtLeastOne() {
+      assertEquals(1, Support.sizeFor(0));
+      assertEquals(1, Support.sizeFor(1));
+    }
+
+    @Test
+    void sizeForRoundsUpToPowerOfTwo() {
+      assertEquals(2, Support.sizeFor(2));
+      assertEquals(4, Support.sizeFor(3));
+      assertEquals(4, Support.sizeFor(4));
+      assertEquals(8, Support.sizeFor(5));
+      assertEquals(1 << 30, Support.sizeFor(1 << 30));
+    }
+
+    @Test
+    void sizeForRejectsCapacityAboveMax() {
+      assertThrows(IllegalArgumentException.class, () -> Support.sizeFor((1 << 30) + 1));
+      assertThrows(IllegalArgumentException.class, () -> Support.sizeFor(Integer.MAX_VALUE));
+    }
+
+    @Test
+    void sizeForRejectsNegativeCapacity() {
+      assertThrows(IllegalArgumentException.class, () -> Support.sizeFor(-1));
+      assertThrows(IllegalArgumentException.class, () -> Support.sizeFor(Integer.MIN_VALUE));
+    }
+
+    @Test
     void bucketIndexIsBoundedByArrayLength() {
       Hashtable.Entry[] buckets = Support.create(16);
       for (long h : new long[] {0L, 1L, -1L, Long.MIN_VALUE, Long.MAX_VALUE, 12345L}) {
