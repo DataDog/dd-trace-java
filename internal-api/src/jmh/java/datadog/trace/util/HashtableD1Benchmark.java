@@ -44,15 +44,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
  * MacBook M1 8 threads (Java 8)
  *
- * Benchmark                                   Mode  Cnt     Score     Error   Units
- * HashtableD1Benchmark.d1_add_hashMap        thrpt    6   187.883 ± 189.858  ops/us
- * HashtableD1Benchmark.d1_add_hashtable      thrpt    6   198.710 ± 273.035  ops/us
+ * Benchmark                                Mode  Cnt     Score     Error   Units
+ * HashtableD1Benchmark.add_hashMap        thrpt    6   187.883 ± 189.858  ops/us
+ * HashtableD1Benchmark.add_hashtable      thrpt    6   198.710 ± 273.035  ops/us
  *
- * HashtableD1Benchmark.d1_update_hashMap     thrpt    6   127.392 ±  87.482  ops/us
- * HashtableD1Benchmark.d1_update_hashtable   thrpt    6  1810.244 ±  44.645  ops/us
+ * HashtableD1Benchmark.update_hashMap     thrpt    6   127.392 ±  87.482  ops/us
+ * HashtableD1Benchmark.update_hashtable   thrpt    6  1810.244 ±  44.645  ops/us
  *
- * HashtableD1Benchmark.d1_iterate_hashMap    thrpt    6    20.043 ±   0.752  ops/us
- * HashtableD1Benchmark.d1_iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
+ * HashtableD1Benchmark.iterate_hashMap    thrpt    6    20.043 ±   0.752  ops/us
+ * HashtableD1Benchmark.iterate_hashtable  thrpt    6    22.208 ±   0.956  ops/us
  * </code>
  */
 @Fork(2)
@@ -122,7 +122,7 @@ public class HashtableD1Benchmark {
 
   @Benchmark
   @OperationsPerInvocation(N_KEYS)
-  public void d1_add_hashtable(D1State s) {
+  public void add_hashtable(D1State s) {
     Hashtable.D1<String, D1Counter> t = s.table;
     String[] keys = s.keys;
     t.clear();
@@ -133,7 +133,7 @@ public class HashtableD1Benchmark {
 
   @Benchmark
   @OperationsPerInvocation(N_KEYS)
-  public void d1_add_hashMap(D1State s) {
+  public void add_hashMap(D1State s) {
     HashMap<String, Long> m = s.hashMap;
     String[] keys = s.keys;
     m.clear();
@@ -143,24 +143,24 @@ public class HashtableD1Benchmark {
   }
 
   @Benchmark
-  public long d1_update_hashtable(D1State s) {
+  public long update_hashtable(D1State s) {
     D1Counter e = s.table.get(s.nextKey());
     return ++e.count;
   }
 
   @Benchmark
-  public Long d1_update_hashMap(D1State s) {
+  public Long update_hashMap(D1State s) {
     return s.hashMap.merge(s.nextKey(), 1L, Long::sum);
   }
 
   @Benchmark
-  public void d1_iterate_hashtable(D1State s, Blackhole bh) {
+  public void iterate_hashtable(D1State s, Blackhole bh) {
     s.consumer.bh = bh;
     s.table.forEach(s.consumer);
   }
 
   @Benchmark
-  public void d1_iterate_hashMap(D1State s, Blackhole bh) {
+  public void iterate_hashMap(D1State s, Blackhole bh) {
     for (Map.Entry<String, Long> entry : s.hashMap.entrySet()) {
       bh.consume(entry.getKey());
       bh.consume(entry.getValue());

@@ -48,15 +48,15 @@ import org.openjdk.jmh.infra.Blackhole;
  * {@code Key2} allocation). <b>Iterate</b> is essentially a wash — both are bucket walks. <code>
  * MacBook M1 8 threads (Java 8)
  *
- * Benchmark                                   Mode  Cnt     Score     Error   Units
- * HashtableD2Benchmark.d2_add_hashMap        thrpt    6    77.082 ±  72.278  ops/us
- * HashtableD2Benchmark.d2_add_hashtable      thrpt    6   216.813 ± 413.236  ops/us
+ * Benchmark                                Mode  Cnt     Score     Error   Units
+ * HashtableD2Benchmark.add_hashMap        thrpt    6    77.082 ±  72.278  ops/us
+ * HashtableD2Benchmark.add_hashtable      thrpt    6   216.813 ± 413.236  ops/us
  *
- * HashtableD2Benchmark.d2_update_hashMap     thrpt    6    56.077 ±  23.716  ops/us
- * HashtableD2Benchmark.d2_update_hashtable   thrpt    6  1445.868 ± 157.705  ops/us
+ * HashtableD2Benchmark.update_hashMap     thrpt    6    56.077 ±  23.716  ops/us
+ * HashtableD2Benchmark.update_hashtable   thrpt    6  1445.868 ± 157.705  ops/us
  *
- * HashtableD2Benchmark.d2_iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
- * HashtableD2Benchmark.d2_iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
+ * HashtableD2Benchmark.iterate_hashMap    thrpt    6    19.508 ±   0.760  ops/us
+ * HashtableD2Benchmark.iterate_hashtable  thrpt    6    16.968 ±   0.371  ops/us
  * </code>
  */
 @Fork(2)
@@ -158,7 +158,7 @@ public class HashtableD2Benchmark {
 
   @Benchmark
   @OperationsPerInvocation(N_KEYS)
-  public void d2_add_hashtable(D2State s) {
+  public void add_hashtable(D2State s) {
     Hashtable.D2<String, Integer, D2Counter> t = s.table;
     String[] k1s = s.k1s;
     Integer[] k2s = s.k2s;
@@ -170,7 +170,7 @@ public class HashtableD2Benchmark {
 
   @Benchmark
   @OperationsPerInvocation(N_KEYS)
-  public void d2_add_hashMap(D2State s) {
+  public void add_hashMap(D2State s) {
     HashMap<Key2, Long> m = s.hashMap;
     String[] k1s = s.k1s;
     Integer[] k2s = s.k2s;
@@ -181,26 +181,26 @@ public class HashtableD2Benchmark {
   }
 
   @Benchmark
-  public long d2_update_hashtable(D2State s) {
+  public long update_hashtable(D2State s) {
     int i = s.nextIndex();
     D2Counter e = s.table.get(s.k1s[i], s.k2s[i]);
     return ++e.count;
   }
 
   @Benchmark
-  public Long d2_update_hashMap(D2State s) {
+  public Long update_hashMap(D2State s) {
     int i = s.nextIndex();
     return s.hashMap.merge(new Key2(s.k1s[i], s.k2s[i]), 1L, Long::sum);
   }
 
   @Benchmark
-  public void d2_iterate_hashtable(D2State s, Blackhole bh) {
+  public void iterate_hashtable(D2State s, Blackhole bh) {
     s.consumer.bh = bh;
     s.table.forEach(s.consumer);
   }
 
   @Benchmark
-  public void d2_iterate_hashMap(D2State s, Blackhole bh) {
+  public void iterate_hashMap(D2State s, Blackhole bh) {
     for (Map.Entry<Key2, Long> entry : s.hashMap.entrySet()) {
       bh.consume(entry.getKey());
       bh.consume(entry.getValue());
