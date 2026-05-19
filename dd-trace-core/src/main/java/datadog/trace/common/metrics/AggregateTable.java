@@ -90,11 +90,7 @@ final class AggregateTable {
   }
 
   void forEach(Consumer<AggregateEntry> consumer) {
-    for (int i = 0; i < buckets.length; i++) {
-      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-        consumer.accept((AggregateEntry) e);
-      }
-    }
+    Hashtable.Support.forEach(buckets, consumer);
   }
 
   /**
@@ -103,11 +99,7 @@ final class AggregateTable {
    * plus whatever side-band state it needs as {@code context}.
    */
   <T> void forEach(T context, BiConsumer<T, AggregateEntry> consumer) {
-    for (int i = 0; i < buckets.length; i++) {
-      for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
-        consumer.accept(context, (AggregateEntry) e);
-      }
-    }
+    Hashtable.Support.forEach(buckets, context, consumer);
   }
 
   /** Removes entries whose {@code getHitCount() == 0}. */
