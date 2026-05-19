@@ -2,7 +2,7 @@
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://static.datadoghq.com/static/images/logos/_datadog_reversed_small.svg">
     <source media="(prefers-color-scheme: light)" srcset="https://static.datadoghq.com/static/images/logos/_datadog_small.svg">
-    <img alt="Datadog logo" src="https://static.datadoghq.com/static/images/logos/_datadog_small.svg">
+    <img alt="Datadog logo" src="https://static.datadoghq.com/static/images/logos/_datadog_small.svg" width="240">
   </picture>
 </p>
 
