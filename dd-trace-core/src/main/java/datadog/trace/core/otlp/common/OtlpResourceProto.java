@@ -3,7 +3,6 @@ package datadog.trace.core.otlp.common;
 import static datadog.communication.ddagent.TracerVersion.TRACER_VERSION;
 import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.LEN_WIRE_TYPE;
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeAttribute;
 import static datadog.trace.core.otlp.common.OtlpCommonProto.writeTag;
 
@@ -62,7 +61,12 @@ public final class OtlpResourceProto {
               }
             });
 
-    return recordMessage(buf, 1);
+    OtlpProtoBuffer protobuf = new OtlpProtoBuffer(buf.capacity());
+    int numBytes = protobuf.recordMessage(buf, 1);
+    byte[] resourceMessage = new byte[numBytes];
+    protobuf.flip().get(resourceMessage);
+
+    return resourceMessage;
   }
 
   private static void writeResourceAttribute(StreamingBuffer buf, String key, String value) {

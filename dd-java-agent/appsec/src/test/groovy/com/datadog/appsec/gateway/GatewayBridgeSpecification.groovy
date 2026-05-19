@@ -28,6 +28,7 @@ import datadog.trace.api.gateway.RequestContextSlot
 import datadog.trace.api.gateway.SubscriptionService
 import datadog.trace.api.http.StoredBodySupplier
 import datadog.trace.api.internal.TraceSegment
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData
 import datadog.trace.api.telemetry.LoginEvent
 import datadog.trace.api.telemetry.RuleType
 import datadog.trace.api.telemetry.WafMetricCollector
@@ -76,6 +77,14 @@ class GatewayBridgeSpecification extends DDSpecification {
 
     @Override
     def getOrCreateMetaStructTop(String key, Function defaultValue) {
+      return null
+    }
+
+    @Override
+    void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+    @Override
+    ClientIpAddressData getClientIpAddressData() {
       return null
     }
 
@@ -1250,6 +1259,14 @@ class GatewayBridgeSpecification extends DDSpecification {
 
       @Override
       def <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+        return null
+      }
+
+      @Override
+      void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+      @Override
+      ClientIpAddressData getClientIpAddressData() {
         return null
       }
 

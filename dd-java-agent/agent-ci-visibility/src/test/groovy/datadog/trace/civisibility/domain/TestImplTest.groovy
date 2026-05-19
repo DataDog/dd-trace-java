@@ -129,6 +129,7 @@ class TestImplTest extends SpanWriterTest {
       "testName",
       "testParameters",
       null,
+      false,
       null,
       null,
       null,

@@ -126,7 +126,7 @@ class TracerConnectionReliabilityTest extends DDSpecification {
 
   def createSpans(int count, int delay) {
     for (def index: 1..count) {
-      def span = tracer.buildSpan("operation-${index}").start()
+      def span = tracer.buildSpan("datadog", "operation-${index}").start()
       Thread.sleep(delay)
       span.finish()
     }

@@ -13,6 +13,8 @@ import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.GRPC
 import static datadog.trace.instrumentation.grpc.server.GrpcServerDecorator.SERVER_PATHWAY_EDGE_TAGS;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.gateway.CallbackProvider;
@@ -44,6 +46,10 @@ import java.util.function.Supplier;
 import javax.annotation.Nonnull;
 
 public class TracingServerInterceptor implements ServerInterceptor {
+  private static final Function<String, Metadata.Key<String>> KEY_MAKER =
+      key -> Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+  private static final DDCache<String, Metadata.Key<String>> KEY_CACHE =
+      DDCaches.newFixedSizeCache(64);
 
   public static final TracingServerInterceptor INSTANCE = new TracingServerInterceptor();
   private static final Set<String> IGNORED_METHODS = Config.get().getGrpcIgnoredInboundMethods();
@@ -295,7 +301,7 @@ public class TracingServerInterceptor implements ServerInterceptor {
     }
     for (String key : metadata.keys()) {
       if (!key.endsWith(Metadata.BINARY_HEADER_SUFFIX)) {
-        Metadata.Key<String> mdKey = Metadata.Key.of(key, Metadata.ASCII_STRING_MARSHALLER);
+        Metadata.Key<String> mdKey = KEY_CACHE.computeIfAbsent(key, KEY_MAKER);
         for (String value : metadata.getAll(mdKey)) {
           headerCb.accept(reqCtx, key, value);
         }

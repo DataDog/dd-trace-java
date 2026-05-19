@@ -209,7 +209,10 @@ public class BaggagePropagator implements Propagator {
     }
 
     @Override
-    public void accept(String key, String value) {
+    public void accept(String key, @Nullable String value) {
+      if (value == null) {
+        return;
+      }
       // Only process tags that are relevant to baggage
       if (BAGGAGE_KEY.equalsIgnoreCase(key)) {
         Baggage parsed = parseBaggageHeaders(value);

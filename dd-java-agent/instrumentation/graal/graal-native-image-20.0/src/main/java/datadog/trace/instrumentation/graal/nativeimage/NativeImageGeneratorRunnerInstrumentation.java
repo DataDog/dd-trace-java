@@ -108,6 +108,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.telemetry.ConfigInversionMetricCollectorImpl$ConfigInversionMetric:build_time,"
               + "datadog.trace.api.telemetry.NoOpConfigInversionMetricCollector:build_time,"
               + "datadog.trace.api.telemetry.OtelEnvMetricCollectorImpl:build_time,"
+              + "datadog.trace.api.telemetry.OtelSpiCollector:build_time,"
               + "datadog.trace.api.profiling.ProfilingEnablement:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter:build_time,"
               + "datadog.trace.bootstrap.config.provider.ConfigConverter$ValueOfLookup:build_time,"
