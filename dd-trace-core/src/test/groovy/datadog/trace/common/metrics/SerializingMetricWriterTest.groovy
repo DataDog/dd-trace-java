@@ -74,7 +74,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         null,
         null,
         null
-        ),
+        , null),
         new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
         ),
         Pair.of(
@@ -96,7 +96,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         null,
         null,
         null
-        ),
+        , null),
         new AggregateMetric().recordDurations(9, new AtomicLongArray(1L))
         ),
         Pair.of(
@@ -114,7 +114,7 @@ class SerializingMetricWriterTest extends DDSpecification {
         "GET",
         "/api/users/:id",
         null
-        ),
+        , null),
         new AggregateMetric().recordDurations(5, new AtomicLongArray(1L))
         )
       ],
@@ -134,7 +134,7 @@ class SerializingMetricWriterTest extends DDSpecification {
           null,
           null,
           null
-          ),
+          , null),
           new AggregateMetric().recordDurations(10, new AtomicLongArray(1L))
           )
       })
@@ -149,8 +149,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null)
-    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null, null)
+    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null, null)
+    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null, null, null)
 
     def content = [
       Pair.of(keyWithNoSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
@@ -178,10 +178,10 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null)
-    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null,null)
-    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders",null)
-    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null, null)
+    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null, null)
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null,null, null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders",null, null)
+    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null, null, null)
 
     def content = [
       Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
@@ -217,7 +217,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def key = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null)
+    def key = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null, null)
 
     def content = [Pair.of(key, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),]
 
@@ -307,7 +307,13 @@ class SerializingMetricWriterTest extends DDSpecification {
         boolean hasHttpEndpoint = key.getHttpEndpoint() != null
         boolean hasServiceSource = key.getServiceSource() != null
         boolean hasGrpcStatusCode = key.getGrpcStatusCode() != null
-        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
+        boolean hasAdditionalTags = false
+        for (String v : key.getAdditionalTagValues()) {
+          if (v != null) {
+            hasAdditionalTags = true; break
+          }
+        }
+        int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0) + (hasAdditionalTags ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0
         assert unpacker.unpackString() == "Name"
@@ -342,6 +348,16 @@ class SerializingMetricWriterTest extends DDSpecification {
           assert unpackedPeerTag == key.getPeerTags()[i].toString()
         }
         ++elementCount
+        if (hasAdditionalTags) {
+          assert unpacker.unpackString() == "AdditionalMetricTags"
+          int additionalTagsLength = unpacker.unpackArrayHeader()
+          // The Groovy specs don't currently populate additional tags; detailed value
+          // assertions for the populated case live in SerializingMetricWriterAdditionalTagsTest.
+          for (int i = 0; i < additionalTagsLength; i++) {
+            unpacker.unpackString()
+          }
+          ++elementCount
+        }
         // Service source is only present when the service name has been overridden by the tracer
         if (hasServiceSource) {
           assert unpacker.unpackString() == "srv_src"
@@ -405,8 +421,8 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null)
-    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null, null)
+    def keyWithNoSource = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null, null)
+    def keyWithSource = new MetricKey("resource", "service", "operation", "source", "type", 200, false, false, "server", [], "POST", null, null, null)
 
     def content = [
       Pair.of(keyWithNoSource, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
@@ -433,9 +449,9 @@ class SerializingMetricWriterTest extends DDSpecification {
     long duration = SECONDS.toNanos(10)
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
-    def keyWithGrpc = new MetricKey("grpc.service/Method", "grpc-service", "grpc.server", null, "rpc", 0, false, false, "server", [], null, null, "OK")
-    def keyWithGrpcError = new MetricKey("grpc.service/Method", "grpc-service", "grpc.server", null, "rpc", 0, false, false, "client", [], null, null, "NOT_FOUND")
-    def keyWithoutGrpc = new MetricKey("resource", "service", "operation", null, "web", 200, false, false, "server", [], null, null, null)
+    def keyWithGrpc = new MetricKey("grpc.service/Method", "grpc-service", "grpc.server", null, "rpc", 0, false, false, "server", [], null, null, "OK", null)
+    def keyWithGrpcError = new MetricKey("grpc.service/Method", "grpc-service", "grpc.server", null, "rpc", 0, false, false, "client", [], null, null, "NOT_FOUND", null)
+    def keyWithoutGrpc = new MetricKey("resource", "service", "operation", null, "web", 200, false, false, "server", [], null, null, null, null)
 
     def content = [
       Pair.of(keyWithGrpc, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),
@@ -464,10 +480,10 @@ class SerializingMetricWriterTest extends DDSpecification {
     WellKnownTags wellKnownTags = new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language")
 
     // Create keys with different combinations of HTTP fields
-    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null)
-    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null, null)
-    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders", null)
-    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null, null)
+    def keyWithBoth = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "GET", "/api/users", null, null)
+    def keyWithMethodOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], "POST", null, null, null)
+    def keyWithEndpointOnly = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "server", [], null, "/api/orders", null, null)
+    def keyWithNeither = new MetricKey("resource", "service", "operation", null, "type", 200, false, false, "client", [], null, null, null, null)
 
     def content = [
       Pair.of(keyWithBoth, new AggregateMetric().recordDurations(1, new AtomicLongArray(1L))),

@@ -98,6 +98,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   private final LongAdder clientStatsDowngrades = new LongAdder();
 
   private final LongAdder statsAggregateDropped = new LongAdder();
+  private final LongAdder additionalTagValueCardinalityBlocked = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -353,6 +354,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {
+    additionalTagValueCardinalityBlocked.increment();
+  }
+
+  @Override
   public void onStatsAggregateDropped() {
     statsAggregateDropped.increment();
   }
@@ -375,7 +381,7 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
     private static final String[] SINGLE_SPAN_SAMPLER = new String[] {"sampler:single-span"};
     private static final String[] REASON_LRU_EVICTION_TAG = new String[] {"reason:lru_eviction"};
 
-    private final long[] previousCounts = new long[51];
+    private final long[] previousCounts = new long[52];
 
     @SuppressFBWarnings("AT_STALE_THREAD_WRITE_OF_PRIMITIVE")
     private int countIndex;
@@ -504,6 +510,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             "stats.dropped_aggregates",
             target.statsAggregateDropped,
             REASON_LRU_EVICTION_TAG);
+        reportIfChanged(
+            target.statsd,
+            "stats.additional_tag.cardinality_blocked",
+            target.additionalTagValueCardinalityBlocked,
+            NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(
@@ -637,6 +648,8 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
         + "\nclientStatsProcessedTraces="
         + clientStatsProcessedTraces.sum()
         + "\nstatsAggregateDropped="
-        + statsAggregateDropped.sum();
+        + statsAggregateDropped.sum()
+        + "\nadditionalTagValueCardinalityBlocked="
+        + additionalTagValueCardinalityBlocked.sum();
   }
 }

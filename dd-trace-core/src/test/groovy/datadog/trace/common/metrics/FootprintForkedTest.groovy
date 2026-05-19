@@ -40,6 +40,8 @@ class FootprintForkedTest extends DDSpecification {
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(
       new WellKnownTags("runtimeid","hostname", "env", "service", "version","language"),
       [].toSet() as Set<String>,
+      [] as Set<String>,
+      100,
       features,
       HealthMetrics.NO_OP,
       sink,

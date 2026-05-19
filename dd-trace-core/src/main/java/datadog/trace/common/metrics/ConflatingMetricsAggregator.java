@@ -92,7 +92,21 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       unmodifiableSet(
           new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
 
+  // Cap on configured additional metric tag keys. By default only 4 primary tag dimensions are
+  // supported.
+  // We sometimes increase this limit for users so a value of 10 allows us to protect against
+  // extreme misconfiguration
+  // while still allowing some additional tags to be used.
+  static final int MAX_ADDITIONAL_TAG_KEYS = 10;
+
+  // Maximum length of an additional metric tag *value*. Caps cache footprint and wire payload
+  // size from stack-trace / JSON / SQL stuffed into a tag by misconfigured app code. Values
+  // exceeding this are emitted as `<tagKey>:blocked_by_tracer`.
+  static final int MAX_ADDITIONAL_TAG_VALUE_LENGTH = 250;
+
   private final Set<String> ignoredResources;
+  private final List<String> additionalTagKeys;
+  private final AdditionalTagsCardinalityLimiter cardinalityLimiter;
   private final MessagePassingQueue<Batch> batchPool;
   private final ConcurrentHashMap<MetricKey, Batch> pending;
   private final ConcurrentHashMap<MetricKey, MetricKey> keys;
@@ -115,6 +129,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        config.getTraceStatsAdditionalTags(),
+        config.getTraceStatsAdditionalTagsCardinalityLimit(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -132,6 +148,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -141,6 +159,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this(
         wellKnownTags,
         ignoredResources,
+        additionalTagKeys,
+        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -154,6 +174,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   ConflatingMetricsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -164,10 +186,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
+        additionalTagKeys,
+        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
-        new SerializingMetricWriter(wellKnownTags, sink),
+        new SerializingMetricWriter(
+            wellKnownTags,
+            encodeAdditionalTagKeyBytes(normalizeAdditionalTagKeys(additionalTagKeys)),
+            sink),
         maxAggregates,
         queueSize,
         reportingInterval,
@@ -177,6 +204,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   ConflatingMetricsAggregator(
       Set<String> ignoredResources,
+      Set<String> additionalTagKeys,
+      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -187,6 +216,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalTagKeys = normalizeAdditionalTagKeys(additionalTagKeys);
+    this.cardinalityLimiter =
+        new AdditionalTagsCardinalityLimiter(additionalTagsCardinalityLimit, healthMetric);
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.batchPool = Queues.spmcArrayQueue(maxAggregates);
@@ -244,6 +276,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!published) {
       log.debug("Skipped metrics reporting because the queue is full");
     }
+    cardinalityLimiter.resetBucket();
     return published;
   }
 
@@ -335,6 +368,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
+    String[] additionalTagValues = getAdditionalTagValuesLengthCapped(span);
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -350,7 +384,28 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             getPeerTags(span, spanKind.toString()),
             httpMethod,
             httpEndpoint,
-            grpcStatusCode);
+            grpcStatusCode,
+            additionalTagValues);
+
+    // If this span's full MetricKey is already in the current bucket, just admit it as-is.
+    // We already paid the cardinality cost for these tag values earlier in this bucket, so the
+    // existing entry should keep receiving merges.
+    //
+    // Otherwise, if the bucket is at the global cap, replace every present tag's value with
+    // `blocked_by_tracer` so the dimension keys are preserved on the wire even though the
+    // values aren't (blocked spans collapse into one bucket per tag-presence shape rather than
+    // into the no-additional-tags base bucket). If it's a new entry under the cap, admit with
+    // the full tag set and remember to bump the counter below.
+    boolean newEntryUsedFullTags = false;
+    if (additionalTagValues.length > 0 && pending.get(newKey) == null) {
+      if (cardinalityLimiter.isAtCap()) {
+        cardinalityLimiter.recordCardinalityBlock();
+        newKey = rebuildKeyWithBlockedValues(newKey);
+      } else {
+        newEntryUsedFullTags = true;
+      }
+    }
+
     MetricKey key = keys.putIfAbsent(newKey, newKey);
     if (null == key) {
       key = newKey;
@@ -358,6 +413,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     long tag = (span.getError() > 0 ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
     long durationNanos = span.getDurationNano();
     Batch batch = pending.get(key);
+    boolean isNewBucketEntry = (batch == null);
     if (null != batch) {
       // there is a pending batch, try to win the race to add to it
       // returning false means that either the batch can't take any
@@ -378,8 +434,45 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     pending.put(key, batch);
     // must offer to the queue after adding to pending
     inbox.offer(batch);
+    // If we just added a brand-new MetricKey to this bucket and kept its additional tags, charge
+    // it against the global stat-entry budget.
+    if (isNewBucketEntry && newEntryUsedFullTags) {
+      cardinalityLimiter.onNewStatEntryAdmitted();
+    }
     // force keep keys if there are errors
     return span.getError() > 0;
+  }
+
+  /**
+   * Builds a copy of {@code fullKey} with each present additional tag's value replaced by {@link
+   * AdditionalTagsCardinalityLimiter#BLOCKED_VALUE}. The set of configured tag keys present on the
+   * span is preserved (we keep the same positions populated in the values array); only the values
+   * are masked. Fires the per-tag health metric for each masked tag.
+   */
+  private MetricKey rebuildKeyWithBlockedValues(MetricKey fullKey) {
+    String[] originalValues = fullKey.getAdditionalTagValues();
+    String[] blocked = new String[originalValues.length];
+    for (int i = 0; i < originalValues.length; i++) {
+      if (originalValues[i] != null) {
+        blocked[i] = AdditionalTagsCardinalityLimiter.BLOCKED_VALUE;
+        healthMetrics.onAdditionalTagValueCardinalityBlocked(additionalTagKeys.get(i));
+      }
+    }
+    return new MetricKey(
+        fullKey.getResource(),
+        fullKey.getService(),
+        fullKey.getOperationName(),
+        fullKey.getServiceSource(),
+        fullKey.getType(),
+        fullKey.getHttpStatusCode(),
+        fullKey.isSynthetics(),
+        fullKey.isTraceRoot(),
+        fullKey.getSpanKind(),
+        fullKey.getPeerTags(),
+        fullKey.getHttpMethod(),
+        fullKey.getHttpEndpoint(),
+        fullKey.getGrpcStatusCode(),
+        blocked);
   }
 
   private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
@@ -411,6 +504,64 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
     return Collections.emptyList();
+  }
+
+  static List<String> normalizeAdditionalTagKeys(Set<String> configured) {
+    if (configured == null || configured.isEmpty()) {
+      return Collections.emptyList();
+    }
+    List<String> sorted = new ArrayList<>(configured);
+    Collections.sort(sorted);
+    if (sorted.size() > MAX_ADDITIONAL_TAG_KEYS) {
+      log.warn(
+          "Configured additional metric tag keys ({}) exceeds the supported limit of {}; "
+              + "dropping extra keys: {}",
+          sorted.size(),
+          MAX_ADDITIONAL_TAG_KEYS,
+          sorted.subList(MAX_ADDITIONAL_TAG_KEYS, sorted.size()));
+      sorted = sorted.subList(0, MAX_ADDITIONAL_TAG_KEYS);
+    }
+    return Collections.unmodifiableList(new ArrayList<>(sorted));
+  }
+
+  /**
+   * Builds the raw-value array for this span's additional tags. Element {@code i} holds the span's
+   * value for {@code additionalTagKeys.get(i)} (or {@code null} if not set). Values exceeding the
+   * per-value length cap are substituted with {@link
+   * AdditionalTagsCardinalityLimiter#BLOCKED_VALUE}.
+   *
+   * <p>Returns an empty array when no additional tags are configured or none are set on the span —
+   * keeps the no-additional-tags path zero-allocation.
+   */
+  private String[] getAdditionalTagValuesLengthCapped(CoreSpan<?> span) {
+    if (additionalTagKeys.isEmpty()) {
+      return EMPTY_ADDITIONAL_TAG_VALUES;
+    }
+    String[] result = null;
+    for (int i = 0; i < additionalTagKeys.size(); i++) {
+      String tagKey = additionalTagKeys.get(i);
+      Object value = span.unsafeGetTag(tagKey);
+      if (value == null) {
+        continue;
+      }
+      String admittedValue = cardinalityLimiter.applyLengthCap(tagKey, value.toString());
+      if (result == null) {
+        result = new String[additionalTagKeys.size()];
+      }
+      result[i] = admittedValue;
+    }
+    return result == null ? EMPTY_ADDITIONAL_TAG_VALUES : result;
+  }
+
+  private static final String[] EMPTY_ADDITIONAL_TAG_VALUES = new String[0];
+
+  /** UTF-8 encodes each configured tag key once; the bytes flow into the serializer. */
+  private static byte[][] encodeAdditionalTagKeyBytes(List<String> tagKeys) {
+    byte[][] encoded = new byte[tagKeys.size()][];
+    for (int i = 0; i < tagKeys.size(); i++) {
+      encoded[i] = tagKeys.get(i).getBytes(java.nio.charset.StandardCharsets.UTF_8);
+    }
+    return encoded;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

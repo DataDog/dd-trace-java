@@ -201,6 +201,20 @@ public class MsgPackWriter implements WritableFormatter {
     buffer.put(string.getUtf8Bytes());
   }
 
+  /**
+   * Writes a single msgpack string composed of three byte ranges concatenated in order: {@code
+   * prefix}, the single byte {@code separator}, and {@code suffix}. Avoids allocating an
+   * intermediate {@code byte[]} or formatted String when callers want to emit e.g. {@code
+   * "key:value"} on the wire from separate sources.
+   */
+  public void writeUTF8(byte[] prefix, byte separator, byte[] suffix) {
+    int totalLength = prefix.length + 1 + suffix.length;
+    writeStringHeader(totalLength);
+    buffer.put(prefix);
+    buffer.put(separator);
+    buffer.put(suffix);
+  }
+
   @Override
   public void writeBinary(byte[] binary) {
     writeBinaryHeader(binary.length);
