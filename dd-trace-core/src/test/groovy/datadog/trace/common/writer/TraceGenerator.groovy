@@ -16,7 +16,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-import datadog.trace.core.SpanKindFilter
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
@@ -321,12 +320,6 @@ class TraceGenerator {
     @Override
     boolean isForceKeep() {
       return false
-    }
-
-    @Override
-    boolean isKind(SpanKindFilter filter) {
-      def kind = metadata.getTags().get(Tags.SPAN_KIND)
-      return filter.matches(kind == null ? null : kind.toString())
     }
 
     @Override

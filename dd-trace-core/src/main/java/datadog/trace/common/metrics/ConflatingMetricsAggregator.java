@@ -14,6 +14,9 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.Queues;
@@ -34,7 +37,6 @@ import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -52,7 +54,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
 
   private static final Map<String, String> DEFAULT_HEADERS =
-      Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+      singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
@@ -393,20 +395,20 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
         }
       }
-      return peerTags == null ? Collections.emptyList() : peerTags;
+      return peerTags == null ? emptyList() : peerTags;
     } else if (span.isKind(INTERNAL_KIND)) {
       // in this case only the base service should be aggregated if present
       final Object baseService = span.unsafeGetTag(BASE_SERVICE);
       if (baseService != null) {
         final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
             cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
-        return Collections.singletonList(
+        return singletonList(
             cacheAndCreator
                 .getLeft()
                 .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
       }
     }
-    return Collections.emptyList();
+    return emptyList();
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
