@@ -14,13 +14,10 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
-import java.lang.reflect.Method;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.function.BiFunction;
-import javax.servlet.http.HttpServletRequest;
-import javax.servlet.http.HttpServletResponse;
 import net.bytebuddy.asm.Advice;
 
 /**
@@ -31,10 +28,6 @@ import net.bytebuddy.asm.Advice;
  *
  * <p>Because {@code org.apache.catalina.fileupload.Multipart} does not exist in standard Tomcat,
  * this instrumentation is automatically skipped by ByteBuddy on non-GlassFish containers.
- *
- * <p>This advice casts each {@code Part} through the {@code javax.servlet.http.Part} interface
- * (which {@code org.apache.catalina.fileupload.PartItem} implements) to avoid Java module-system
- * access restrictions that prevent reflective invocation of methods on GlassFish-internal classes.
  */
 @AutoService(InstrumenterModule.class)
 public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
@@ -74,7 +67,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") Object requestField) {
+        @Advice.FieldValue("request") org.apache.catalina.connector.Request catRequest) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
@@ -97,33 +90,8 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
         return;
       }
 
-      // Extract servlet request/response for fallback blocking when no BlockResponseFunction is
-      // registered (Payara: TomcatServerInstrumentation is muzzled out for Payara's response type).
-      // @Advice.FieldValue inlines direct field access into Multipart.getParts(), avoiding the
-      // setAccessible() call that fails across module boundaries in Java 11+. The field is typed
-      // as Object because org.apache.catalina.connector.Request is not in glassfish-embedded-all's
-      // exported classpath, so a direct type reference would break the muzzle AssertPass check.
-      // getResponse() is still called via reflection for the same reason.
-      HttpServletRequest fallbackReq = null;
-      HttpServletResponse fallbackResp = null;
-      if (requestField instanceof HttpServletRequest) {
-        fallbackReq = (HttpServletRequest) requestField;
-      }
-      try {
-        if (requestField != null) {
-          Method m = requestField.getClass().getMethod("getResponse");
-          Object catResp = m.invoke(requestField);
-          if (catResp instanceof HttpServletResponse) {
-            fallbackResp = (HttpServletResponse) catResp;
-          }
-        }
-      } catch (Exception ignored) {
-        // getResponse() unavailable or failed — fallbackResp stays null, blocking falls back to
-        // no-op
-      }
-
       if (GlassFishBlockingHelper.processPartsAndBlock(
-          parts, reqCtx, fallbackReq, fallbackResp, filenamesCb, contentCb)) {
+          parts, reqCtx, catRequest, filenamesCb, contentCb)) {
         parts = Collections.emptyList();
       }
     }

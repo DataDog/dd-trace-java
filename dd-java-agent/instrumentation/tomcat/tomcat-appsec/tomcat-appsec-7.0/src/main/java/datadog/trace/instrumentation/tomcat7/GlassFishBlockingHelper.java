@@ -16,6 +16,7 @@ import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
+import org.apache.catalina.connector.Request;
 
 public final class GlassFishBlockingHelper {
 
@@ -52,6 +53,7 @@ public final class GlassFishBlockingHelper {
     try {
       reqCtx.getTraceSegment().effectivelyBlocked();
     } catch (Exception ignored) {
+      // span already finished — response was sent, blocking succeeded
     }
     return true;
   }
@@ -66,10 +68,27 @@ public final class GlassFishBlockingHelper {
   public static boolean processPartsAndBlock(
       Collection<?> parts,
       RequestContext reqCtx,
-      HttpServletRequest fallbackReq,
-      HttpServletResponse fallbackResp,
+      Request catRequest,
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb,
       BiFunction<RequestContext, List<String>, Flow<Void>> contentCb) {
+    // connector.Request implements HttpServletRequest in both Tomcat and GlassFish/Payara.
+    HttpServletRequest fallbackReq = catRequest;
+    // In GlassFish/Payara, connector.Request also implements org.apache.catalina.Request (via
+    // HttpRequest), whose getResponse() returns org.apache.catalina.Response with a stable method
+    // descriptor shared between Tomcat and GlassFish. This lets us reach HttpServletResponse
+    // without reflection. TomcatServerInstrumentation is muzzled out in Payara (its
+    // CoyoteAdapter.postParseRequest arg types differ), so BlockResponseFunction is never
+    // registered there and this fallback is required to commit the blocking response.
+    HttpServletResponse fallbackResp = null;
+    if (catRequest instanceof org.apache.catalina.Request) {
+      org.apache.catalina.Response cr = ((org.apache.catalina.Request) catRequest).getResponse();
+      if (cr != null) {
+        javax.servlet.ServletResponse sr = cr.getResponse();
+        if (sr instanceof HttpServletResponse) {
+          fallbackResp = (HttpServletResponse) sr;
+        }
+      }
+    }
     List<String> filenames = null;
     List<String> contents = null;
     for (Object partObj : parts) {

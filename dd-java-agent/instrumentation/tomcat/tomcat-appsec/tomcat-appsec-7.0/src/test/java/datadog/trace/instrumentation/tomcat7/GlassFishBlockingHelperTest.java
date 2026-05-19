@@ -185,7 +185,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(formField), reqCtx, null, null, filenamesCb, null));
+            Collections.singletonList(formField), reqCtx, null, filenamesCb, null));
     verify(formField).getSubmittedFileName();
     verify(formField, never()).getInputStream();
   }
@@ -200,7 +200,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, filenamesCb, contentCb));
+            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
 
     verify(filePart).getInputStream();
     verify(filenamesCb, never()).apply(any(), any());
@@ -215,7 +215,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, filenamesCb, null));
+            Collections.singletonList(filePart), reqCtx, null, filenamesCb, null));
 
     verify(filenamesCb).apply(eq(reqCtx), eq(Collections.singletonList("file.txt")));
   }
@@ -228,7 +228,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, null, contentCb));
+            Collections.singletonList(filePart), reqCtx, null, null, contentCb));
 
     verify(contentCb).apply(eq(reqCtx), any());
   }
@@ -245,7 +245,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Arrays.asList(tooMany), reqCtx, null, null, null, contentCb));
+            Arrays.asList(tooMany), reqCtx, null, null, contentCb));
 
     verify(contentCb).apply(eq(reqCtx), any(List.class));
     verify(tooMany[limit], never()).getInputStream();
@@ -262,7 +262,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, null, null, contentCb));
+            Collections.singletonList(filePart), reqCtx, null, null, contentCb));
 
     verify(contentCb).apply(eq(reqCtx), eq(Collections.singletonList("")));
   }
@@ -271,17 +271,14 @@ class GlassFishBlockingHelperTest {
   void processPartsAndBlock_filenamesCbBlocks_contentCbNotFired() throws Exception {
     Part filePart = mockPart("evil.exe", "application/octet-stream", "content".getBytes());
     TraceSegment segment = mock(TraceSegment.class);
-    RequestContext reqCtx = mockReqCtx(null, segment);
-    TestServletOutputStream out = new TestServletOutputStream();
-    HttpServletResponse resp = mock(HttpServletResponse.class);
-    when(resp.isCommitted()).thenReturn(false);
-    when(resp.getOutputStream()).thenReturn(out);
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    RequestContext reqCtx = mockReqCtx(brf, segment);
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockBlockingCb(403);
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockPassThroughCb();
 
     assertTrue(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, resp, filenamesCb, contentCb));
+            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
 
     verify(contentCb, never()).apply(any(), any());
   }
@@ -290,17 +287,14 @@ class GlassFishBlockingHelperTest {
   void processPartsAndBlock_contentCbBlocks_returnsTrue() throws Exception {
     Part filePart = mockPart("upload.bin", "application/octet-stream", "payload".getBytes());
     TraceSegment segment = mock(TraceSegment.class);
-    RequestContext reqCtx = mockReqCtx(null, segment);
-    TestServletOutputStream out = new TestServletOutputStream();
-    HttpServletResponse resp = mock(HttpServletResponse.class);
-    when(resp.isCommitted()).thenReturn(false);
-    when(resp.getOutputStream()).thenReturn(out);
+    BlockResponseFunction brf = mock(BlockResponseFunction.class);
+    RequestContext reqCtx = mockReqCtx(brf, segment);
     BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb = mockPassThroughCb();
     BiFunction<RequestContext, List<String>, Flow<Void>> contentCb = mockBlockingCb(403);
 
     assertTrue(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList(filePart), reqCtx, null, resp, filenamesCb, contentCb));
+            Collections.singletonList(filePart), reqCtx, null, filenamesCb, contentCb));
   }
 
   @Test
@@ -310,7 +304,7 @@ class GlassFishBlockingHelperTest {
 
     assertFalse(
         GlassFishBlockingHelper.processPartsAndBlock(
-            Collections.singletonList("not-a-part"), reqCtx, null, null, filenamesCb, null));
+            Collections.singletonList("not-a-part"), reqCtx, null, filenamesCb, null));
 
     verify(filenamesCb, never()).apply(any(), any());
   }
