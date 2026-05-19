@@ -401,6 +401,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       // Route the clear through the inbox so the aggregator thread is the only writer.
       // AggregateTable is not thread-safe; calling clearAggregates() directly from this thread
       // would race with Drainer.accept on the aggregator thread.
+      //
+      // Best-effort single offer rather than the retry-loop pattern in report(). If the inbox is
+      // full at downgrade time the clear is dropped, but the system self-heals: features.discover()
+      // already flipped supportsMetrics() false, so producer publish() calls now skip the inbox;
+      // the aggregator drains existing snapshots and ships them on the next report cycle; the
+      // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
+      // now-empty inbox. Worst case: one extra reporting cycle of stale data.
       inbox.offer(CLEAR);
     }
   }
