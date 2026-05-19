@@ -450,6 +450,26 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     span.finish();
   }
 
+  @Test
+  void builderLedgerRemovalOfSpanKindClearsCachedOrdinal() {
+    // Setting then nulling span.kind on the same builder routes through
+    // setAllTags(TagMap.Ledger) at construction time. The removal path must
+    // keep the cached ordinal in sync with unsafeTags, otherwise eligibility
+    // checks that read the cached byte see a stale kind.
+    AgentSpan span =
+        tracer
+            .buildSpan("datadog", "test")
+            .withTag(SPAN_KIND, Tags.SPAN_KIND_CLIENT)
+            .withTag(SPAN_KIND, (Object) null)
+            .start();
+    DDSpanContext context = (DDSpanContext) span.context();
+
+    assertNull(context.getTag(SPAN_KIND));
+    assertEquals(DDSpanContext.SPAN_KIND_UNSET, context.getSpanKindOrdinal());
+
+    span.finish();
+  }
+
   @TypeConverter
   public static int toInt(String value) {
     if (value == null) {
