@@ -231,14 +231,15 @@ class AggregateTableTest {
     }
 
     SnapshotBuilder peerTags(String... namesAndValues) {
-      // Build a schema from the (name, value, name, value, ...) input. Synced through the
-      // production singleton so canonicalization actually goes through the same handlers the
-      // aggregator would use in production -- which is the surface the test wants to exercise.
+      // Build a schema directly from the (name, value, name, value, ...) input. In production the
+      // cached schema is owned by ClientStatsAggregator; these tests exercise AggregateTable and
+      // can use a fresh per-snapshot schema -- canonicalization is content-based so cardinality
+      // collapse still works across snapshots even with different handler instances.
       java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
       for (int i = 0; i < namesAndValues.length; i += 2) {
         names.add(namesAndValues[i]);
       }
-      this.peerTagSchema = PeerTagSchema.currentSyncedTo(names);
+      this.peerTagSchema = PeerTagSchema.of(names);
       this.peerTagValues = new String[peerTagSchema.size()];
       for (int i = 0; i < namesAndValues.length; i += 2) {
         for (int j = 0; j < peerTagSchema.size(); j++) {

@@ -174,7 +174,7 @@ final class AggregateEntry extends Hashtable.Entry {
     HTTP_METHOD_HANDLER.reset();
     HTTP_ENDPOINT_HANDLER.reset();
     GRPC_STATUS_CODE_HANDLER.reset();
-    PeerTagSchema.resetAll();
+    PeerTagSchema.INTERNAL.resetCardinalityHandlers();
   }
 
   /**
