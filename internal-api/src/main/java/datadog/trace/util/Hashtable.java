@@ -114,6 +114,8 @@ public final class Hashtable {
       }
     }
 
+    // Package-private so iterator tests in the same package can drive Support.bucketIterator and
+    // friends directly against the table's bucket array.
     final Hashtable.Entry[] buckets;
     private int size;
 
@@ -155,19 +157,11 @@ public final class Hashtable {
     }
 
     public void insert(TEntry newEntry) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
-
-      Hashtable.Entry curHead = thisBuckets[bucketIndex];
-      newEntry.setNext(curHead);
-      thisBuckets[bucketIndex] = newEntry;
-
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
     public TEntry insertOrReplace(TEntry newEntry) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-
       for (MutatingBucketIterator<TEntry> iter =
               Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
@@ -179,11 +173,7 @@ public final class Hashtable {
         }
       }
 
-      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
-
-      Hashtable.Entry curHead = thisBuckets[bucketIndex];
-      newEntry.setNext(curHead);
-      thisBuckets[bucketIndex] = newEntry;
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -266,7 +256,8 @@ public final class Hashtable {
       }
     }
 
-    private final Hashtable.Entry[] buckets;
+    // Package-private to match D1.buckets -- available for iterator tests in the same package.
+    final Hashtable.Entry[] buckets;
     private int size;
 
     public D2(int capacity) {
@@ -307,19 +298,11 @@ public final class Hashtable {
     }
 
     public void insert(TEntry newEntry) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
-
-      Hashtable.Entry curHead = thisBuckets[bucketIndex];
-      newEntry.setNext(curHead);
-      thisBuckets[bucketIndex] = newEntry;
-
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
     }
 
     public TEntry insertOrReplace(TEntry newEntry) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-
       for (MutatingBucketIterator<TEntry> iter =
               Support.mutatingBucketIterator(this.buckets, newEntry.keyHash);
           iter.hasNext(); ) {
@@ -331,11 +314,7 @@ public final class Hashtable {
         }
       }
 
-      int bucketIndex = Support.bucketIndex(thisBuckets, newEntry.keyHash);
-
-      Hashtable.Entry curHead = thisBuckets[bucketIndex];
-      newEntry.setNext(curHead);
-      thisBuckets[bucketIndex] = newEntry;
+      Support.insertHeadEntry(this.buckets, newEntry.keyHash, newEntry);
       this.size += 1;
       return null;
     }
@@ -474,6 +453,17 @@ public final class Hashtable {
         Hashtable.Entry[] buckets, int bucketIndex, Hashtable.Entry entry) {
       entry.setNext(buckets[bucketIndex]);
       buckets[bucketIndex] = entry;
+    }
+
+    /**
+     * Convenience overload of {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)}
+     * that derives the bucket index from {@code keyHash}. Use this when the caller has the hash but
+     * not the index; if the index has already been computed for another reason, prefer the
+     * int-taking overload to avoid the redundant mask.
+     */
+    public static final void insertHeadEntry(
+        Hashtable.Entry[] buckets, long keyHash, Hashtable.Entry entry) {
+      insertHeadEntry(buckets, bucketIndex(buckets, keyHash), entry);
     }
 
     /**
