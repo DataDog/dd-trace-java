@@ -9,7 +9,6 @@ import datadog.trace.api.DDTags
 import datadog.trace.api.DDTraceId
 import datadog.trace.api.IdGenerationStrategy
 import datadog.trace.api.TagMap
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
