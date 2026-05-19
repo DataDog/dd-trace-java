@@ -1,22 +1,21 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.api.ProtocolVersion.V0_4;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static java.util.concurrent.TimeUnit.MICROSECONDS;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.metrics.api.Monitoring;
 import datadog.trace.api.WellKnownTags;
+import datadog.trace.common.writer.Writer;
 import datadog.trace.core.CoreSpan;
+import datadog.trace.core.CoreTracer;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Strings;
-import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
-import java.util.Set;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -28,15 +27,36 @@ import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.Warmup;
 import org.openjdk.jmh.infra.Blackhole;
 
+/**
+ * Parallels {@link ConflatingMetricsAggregatorBenchmark} but uses real {@link DDSpan} instances
+ * instead of the lightweight {@code SimpleSpan} mock, so the JIT exercises the production {@link
+ * CoreSpan#isKind} path (cached span.kind ordinal + bit-test) rather than the groovy mock's
+ * dispatch.
+ *
+ * <p>SpanKindFilter rollout result vs. the pre-bitmask code on master: ~1.3% faster on the
+ * production path, with tighter fork-to-fork variance. The CIs overlap so the headline number sits
+ * inside noise, but the centers move the right way and the new path is structurally cheaper (byte
+ * read + bit-test vs tag-map read + HashSet.contains). <code>
+ * MacBook M1 (Java 21), 2 forks x 5 iterations x 15s, AverageTime
+ *
+ * Branch       Score (avg)   CI (99.9%)
+ * master       6.428 ± 0.189 µs/op  [6.239, 6.617]
+ * this branch  6.343 ± 0.115 µs/op  [6.228, 6.458]
+ * </code>
+ */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 30, timeUnit = SECONDS)
 @Measurement(iterations = 3, time = 30, timeUnit = SECONDS)
 @BenchmarkMode(Mode.AverageTime)
 @OutputTimeUnit(MICROSECONDS)
 @Fork(value = 1)
-public class ConflatingMetricsAggregatorBenchmark {
+public class ConflatingMetricsAggregatorDDSpanBenchmark {
+
+  private static final CoreTracer TRACER =
+      CoreTracer.builder().writer(new NoopWriter()).strictTraceWrites(false).build();
+
   private final DDAgentFeaturesDiscovery featuresDiscovery =
-      new FixedAgentFeaturesDiscovery(
+      new ConflatingMetricsAggregatorBenchmark.FixedAgentFeaturesDiscovery(
           Collections.singleton("peer.hostname"), Collections.emptySet());
   private final ConflatingMetricsAggregator aggregator =
       new ConflatingMetricsAggregator(
@@ -44,7 +64,7 @@ public class ConflatingMetricsAggregatorBenchmark {
           Collections.emptySet(),
           featuresDiscovery,
           HealthMetrics.NO_OP,
-          new NullSink(),
+          new ConflatingMetricsAggregatorBenchmark.NullSink(),
           2048,
           2048,
           false);
@@ -53,48 +73,33 @@ public class ConflatingMetricsAggregatorBenchmark {
   static List<CoreSpan<?>> generateTrace(int len) {
     final List<CoreSpan<?>> trace = new ArrayList<>();
     for (int i = 0; i < len; i++) {
-      SimpleSpan span = new SimpleSpan("", "", "", "", true, true, false, 0, 10, -1);
+      DDSpan span = (DDSpan) TRACER.startSpan("benchmark", "op");
       span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
       span.setTag("peer.hostname", Strings.random(10));
+      // Fix duration; bypasses the wall clock and avoids per-fork drift.
+      span.finishWithDuration(10);
       trace.add(span);
     }
     return trace;
   }
 
-  static class NullSink implements Sink {
+  static class NoopWriter implements Writer {
+    @Override
+    public void write(List<DDSpan> trace) {}
 
     @Override
-    public void register(EventListener listener) {}
+    public void start() {}
 
     @Override
-    public void accept(int messageCount, ByteBuffer buffer) {}
-  }
-
-  static class FixedAgentFeaturesDiscovery extends DDAgentFeaturesDiscovery {
-    private final Set<String> peerTags;
-    private final Set<String> spanKinds;
-
-    public FixedAgentFeaturesDiscovery(Set<String> peerTags, Set<String> spanKinds) {
-      // create a fixed discovery with metrics enabled
-      super(null, Monitoring.DISABLED, null, V0_4, true, false);
-      this.peerTags = peerTags;
-      this.spanKinds = spanKinds;
-    }
-
-    @Override
-    public void discover() {
-      // do nothing
-    }
-
-    @Override
-    public boolean supportsMetrics() {
+    public boolean flush() {
       return true;
     }
 
     @Override
-    public Set<String> peerTags() {
-      return peerTags;
-    }
+    public void close() {}
+
+    @Override
+    public void incrementDropCounts(int spanCount) {}
   }
 
   @Benchmark

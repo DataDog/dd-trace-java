@@ -22,6 +22,8 @@ dependencies {
 
   muzzleBootstrap project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
   testImplementation project(path: ':dd-java-agent:agent-otel:otel-bootstrap', configuration: 'shadow')
+  // JvmOtlpRuntimeMetrics lives in agent-jmxfetch; the test exercises it directly.
+  testImplementation project(':dd-java-agent:agent-jmxfetch')
 
   testImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: openTelemetryVersion
   latestDepTestImplementation group: 'io.opentelemetry', name: 'opentelemetry-api', version: '1+'
