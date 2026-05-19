@@ -290,6 +290,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
+    // Error decision drives force-keep sampling regardless of whether the snapshot gets queued.
+    boolean error = span.getError() > 0;
+
+    // Fast-path the inbox-full case before any tag extraction or snapshot allocation. size() is
+    // approximate on jctools' MPSC queue but that's fine: if we under-estimate, we fall through
+    // and let inbox.offer be the source of truth (existing behavior); if we over-estimate, we
+    // drop a snapshot that would have fit -- acceptable, onStatsInboxFull was going to fire
+    // imminently anyway.
+    if (inbox.size() >= inbox.capacity()) {
+      healthMetrics.onStatsInboxFull();
+      return error;
+    }
+
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -310,7 +323,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     // tag values don't trigger a ClassCastException on the String assignment.
     final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
 
-    boolean error = span.getError() > 0;
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
