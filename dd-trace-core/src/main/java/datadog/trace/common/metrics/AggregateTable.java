@@ -58,7 +58,7 @@ final class AggregateTable {
       return null;
     }
     AggregateEntry entry = AggregateEntry.forSnapshot(snapshot);
-    Support.insertHeadEntry(buckets, Support.bucketIndex(buckets, keyHash), entry);
+    Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;
   }
