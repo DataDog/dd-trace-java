@@ -22,8 +22,13 @@ import java.util.function.Consumer;
  *
  * <p>For higher key dimensions, client code must implement its own class, but can still use the
  * support class to ease the implementation complexity.
+ *
+ * <p>This outer class is a pure namespace -- it can't be instantiated. The actual table types are
+ * {@link D1}, {@link D2}, and (for higher-arity callers) {@link Support}-driven custom tables.
  */
-public abstract class Hashtable {
+public final class Hashtable {
+  private Hashtable() {}
+
   /**
    * Internal base class for entries. Stores the precomputed 64-bit keyHash and the chain-next
    * pointer used to link colliding entries within a single bucket.
@@ -96,6 +101,14 @@ public abstract class Hashtable {
         return Objects.equals(this.key, key);
       }
 
+      /**
+       * Returns the 64-bit lookup hash for {@code key}. Null keys map to {@link Long#MIN_VALUE} so
+       * that they don't collide with a real key that hashes to 0 (e.g. {@code
+       * Integer.hashCode(0)}). The {@code Long.MIN_VALUE} sentinel is safe against any {@code
+       * int}-valued {@code hashCode()} since those widen to a long in the range {@code
+       * [Integer.MIN_VALUE, Integer.MAX_VALUE]}; real-key collisions in chains are resolved by
+       * {@link #matches(Object)}.
+       */
       public static long hash(Object key) {
         return (key == null) ? Long.MIN_VALUE : key.hashCode();
       }
@@ -241,6 +254,13 @@ public abstract class Hashtable {
         return Objects.equals(this.key1, key1) && Objects.equals(this.key2, key2);
       }
 
+      /**
+       * Returns the 64-bit lookup hash combining both key parts via {@link
+       * LongHashingUtils#hash(Object, Object)}. Null parts contribute {@code 0} (not a sentinel,
+       * unlike {@link D1.Entry#hash(Object)}): the combined hash can collide with real-key
+       * combinations whose chained hash equals {@code hash(0, 0) = 0} or similar values. {@link
+       * #matches(Object, Object)} resolves any such collision.
+       */
       public static long hash(Object key1, Object key2) {
         return LongHashingUtils.hash(key1, key2);
       }
@@ -340,16 +360,17 @@ public abstract class Hashtable {
   }
 
   /**
-   * Internal building blocks for hash-table operations.
+   * Building blocks for hash-table operations.
    *
-   * <p>Used by {@link D1} and {@link D2}, and available to package code that wants to assemble its
-   * own higher-arity table (3+ key parts) without re-implementing the bucket-array mechanics. The
+   * <p>Used by {@link D1} and {@link D2}, and available to callers that want to assemble their own
+   * higher-arity table (3+ key parts) without re-implementing the bucket-array mechanics. The
    * typical recipe:
    *
    * <ul>
    *   <li>Subclass {@link Hashtable.Entry} directly, adding the key fields and a {@code
    *       matches(...)} method of your chosen arity.
-   *   <li>Allocate a backing array with {@link #create(int)}.
+   *   <li>Allocate a backing array with {@link #create(int)} or {@link #create(int, float)} (the
+   *       latter scales for a target load factor; see {@link #MAX_RATIO}).
    *   <li>Use {@link #bucketIndex(Object[], long)} for the bucket lookup, {@link
    *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
    *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
@@ -362,21 +383,22 @@ public abstract class Hashtable {
    *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
    * </ul>
    *
-   * <p>All bucket arrays produced by {@link #create(int)} have a power-of-two length, so {@link
+   * <p>All bucket arrays produced by {@code create} have a power-of-two length, so {@link
    * #bucketIndex(Object[], long)} can use a bit mask.
-   *
-   * <p>Methods on this class are package-private; the class itself is public only so that its
-   * nested {@link BucketIterator} can be referenced by callers in other packages.
    */
   public static final class Support {
-    public static final Hashtable.Entry[] create(int capacity) {
-      return new Entry[sizeFor(capacity)];
+    /**
+     * Allocates a bucket array sized to hold {@code requestedSize} entries. Returned length is
+     * {@code requestedSize} rounded up to the next power of two (capped at {@link #MAX_BUCKETS}).
+     */
+    public static final Hashtable.Entry[] create(int requestedSize) {
+      return new Entry[sizeFor(requestedSize)];
     }
 
     /**
      * Variant of {@link #create(int)} that scales the requested working-set size before sizing the
-     * bucket array. Pair with {@link #MAX_RATIO} (or similar) to leave headroom over the working
-     * set for a desired load factor.
+     * bucket array. Pair with {@link #MAX_RATIO} to leave headroom over the working set for a
+     * desired load factor; the canonical call is {@code create(n, MAX_RATIO)}.
      *
      * <p>The scaled size is truncated to {@code int} before going through {@link #sizeFor(int)}.
      * Truncation rather than {@code ceil} is intentional: {@code sizeFor} rounds up to the next
@@ -388,27 +410,32 @@ public abstract class Hashtable {
       return new Entry[sizeFor((int) (requestedSize * scale))];
     }
 
-    static final int MAX_CAPACITY = 1 << 30;
+    /** Upper bound on the bucket array length returned by {@link #sizeFor(int)}. */
+    static final int MAX_BUCKETS = 1 << 30;
 
     /**
      * Inverse of a 75% load factor. Callers that size their bucket array from a target working-set
-     * size {@code n} should pass {@code create(n, MAX_RATIO)} (or {@code sizeFor((int) Math.ceil(n
-     * * MAX_RATIO))}) to leave ~25% headroom in the array.
+     * size {@code n} should pass {@code create(n, MAX_RATIO)} to leave ~25% headroom in the array.
      */
     public static final float MAX_RATIO = 4.0f / 3.0f;
 
-    static final int sizeFor(int requestedCapacity) {
-      if (requestedCapacity < 0) {
-        throw new IllegalArgumentException("capacity must be non-negative: " + requestedCapacity);
+    /**
+     * Rounds {@code requestedSize} up to the next power of two, capped at {@link #MAX_BUCKETS}.
+     * Throws {@link IllegalArgumentException} for negative inputs or inputs above the cap. Returns
+     * the bucket-array length to allocate.
+     */
+    static final int sizeFor(int requestedSize) {
+      if (requestedSize < 0) {
+        throw new IllegalArgumentException("requestedSize must be non-negative: " + requestedSize);
       }
-      if (requestedCapacity > MAX_CAPACITY) {
+      if (requestedSize > MAX_BUCKETS) {
         throw new IllegalArgumentException(
-            "capacity exceeds maximum (" + MAX_CAPACITY + "): " + requestedCapacity);
+            "requestedSize exceeds maximum bucket count (" + MAX_BUCKETS + "): " + requestedSize);
       }
-      if (requestedCapacity <= 1) {
+      if (requestedSize <= 1) {
         return 1;
       }
-      return Integer.highestOneBit(requestedCapacity - 1) << 1;
+      return Integer.highestOneBit(requestedSize - 1) << 1;
     }
 
     public static final void clear(Hashtable.Entry[] buckets) {
