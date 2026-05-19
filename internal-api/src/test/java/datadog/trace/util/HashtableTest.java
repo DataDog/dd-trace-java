@@ -101,7 +101,7 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(k2, 2));
       table.insert(new CollidingKeyEntry(k3, 3));
       // All three share the same hash (17), so a bucket iterator over hash=17 yields all three.
-      BucketIterator<CollidingKeyEntry> it = Support.bucketIterator(extractBuckets(table), 17L);
+      BucketIterator<CollidingKeyEntry> it = Support.bucketIterator(table.buckets, 17L);
       int count = 0;
       while (it.hasNext()) {
         assertNotNull(it.next());
@@ -115,7 +115,7 @@ class HashtableTest {
       Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(4);
       table.insert(new StringIntEntry("only", 1));
       long h = Hashtable.D1.Entry.hash("only");
-      BucketIterator<StringIntEntry> it = Support.bucketIterator(extractBuckets(table), h);
+      BucketIterator<StringIntEntry> it = Support.bucketIterator(table.buckets, h);
       it.next();
       assertFalse(it.hasNext());
       assertThrows(NoSuchElementException.class, it::next);
@@ -139,7 +139,7 @@ class HashtableTest {
       table.insert(new CollidingKeyEntry(k3, 3));
 
       MutatingBucketIterator<CollidingKeyEntry> it =
-          Support.mutatingBucketIterator(extractBuckets(table), 17L);
+          Support.mutatingBucketIterator(table.buckets, 17L);
       it.next(); // first match (head of chain in insertion-reverse order)
       it.remove();
       // Two should remain
@@ -172,7 +172,7 @@ class HashtableTest {
       table.insert(e2);
 
       MutatingBucketIterator<CollidingKeyEntry> it =
-          Support.mutatingBucketIterator(extractBuckets(table), 17L);
+          Support.mutatingBucketIterator(table.buckets, 17L);
       CollidingKeyEntry first = it.next();
       CollidingKeyEntry replacement = new CollidingKeyEntry(first.key, 999);
       it.replace(replacement);
@@ -188,19 +188,8 @@ class HashtableTest {
       Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(4);
       table.insert(new StringIntEntry("a", 1));
       MutatingBucketIterator<StringIntEntry> it =
-          Support.mutatingBucketIterator(extractBuckets(table), Hashtable.D1.Entry.hash("a"));
+          Support.mutatingBucketIterator(table.buckets, Hashtable.D1.Entry.hash("a"));
       assertThrows(IllegalStateException.class, it::remove);
-    }
-  }
-
-  /** Reach into a D1 table's bucket array via reflection -- only needed by iterator tests. */
-  private static Hashtable.Entry[] extractBuckets(Hashtable.D1<?, ?> table) {
-    try {
-      java.lang.reflect.Field f = Hashtable.D1.class.getDeclaredField("buckets");
-      f.setAccessible(true);
-      return (Hashtable.Entry[]) f.get(table);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
     }
   }
 }
