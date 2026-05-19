@@ -354,8 +354,11 @@ public abstract class Hashtable {
    *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
    *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
    *       {@code replace}.
+   *   <li>Use {@link #insertHeadEntry(Hashtable.Entry[], int, Hashtable.Entry)} to splice a new
+   *       entry as the head of a bucket chain.
    *   <li>Iterate every entry with {@link #forEach(Hashtable.Entry[], Consumer)} or its
-   *       context-passing sibling.
+   *       context-passing sibling. For full-table sweeps with {@code remove}, use {@link
+   *       #mutatingTableIterator(Hashtable.Entry[])}.
    *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
    * </ul>
    *
@@ -371,6 +374,17 @@ public abstract class Hashtable {
     }
 
     static final int MAX_CAPACITY = 1 << 30;
+
+    /**
+     * Numerator/denominator pair for the inverse of a 75% load factor. Callers that size their
+     * bucket array from a target working-set size {@code n} should pass {@code n *
+     * MAX_RATIO_NUMERATOR / MAX_RATIO_DENOMINATOR} to {@link #create(int)} (or {@link
+     * #sizeFor(int)}) to leave ~25% headroom in the array. Kept as separate ints so callers can use
+     * integer arithmetic.
+     */
+    public static final int MAX_RATIO_NUMERATOR = 4;
+
+    public static final int MAX_RATIO_DENOMINATOR = 3;
 
     static final int sizeFor(int requestedCapacity) {
       if (requestedCapacity < 0) {
@@ -401,8 +415,27 @@ public abstract class Hashtable {
       return new MutatingBucketIterator<TEntry>(buckets, keyHash);
     }
 
+    /**
+     * Returns a {@link MutatingTableIterator} over every entry in {@code buckets}. Useful for
+     * sweeps -- eviction, expunge -- that aren't keyed to a specific hash.
+     */
+    public static final <TEntry extends Hashtable.Entry>
+        MutatingTableIterator<TEntry> mutatingTableIterator(Hashtable.Entry[] buckets) {
+      return new MutatingTableIterator<TEntry>(buckets);
+    }
+
     public static final int bucketIndex(Object[] buckets, long keyHash) {
       return (int) (keyHash & buckets.length - 1);
+    }
+
+    /**
+     * Splices {@code entry} in as the new head of the chain at {@code bucketIndex}. Caller is
+     * responsible for size accounting -- this method only touches the chain pointers.
+     */
+    public static final void insertHeadEntry(
+        Hashtable.Entry[] buckets, int bucketIndex, Hashtable.Entry entry) {
+      entry.setNext(buckets[bucketIndex]);
+      buckets[bucketIndex] = entry;
     }
 
     /**
@@ -605,6 +638,119 @@ public abstract class Hashtable {
       } else {
         this.curPrevEntry.setNext(nextEntry);
       }
+    }
+  }
+
+  /**
+   * Mutating iterator over every entry in a bucket array, regardless of hash. Supports {@link
+   * #remove()} to unlink the entry last returned by {@link #next()}.
+   *
+   * <p>Walks buckets in array order; within a bucket, walks the chain head-to-tail. After {@code
+   * remove}, iteration may continue with another {@link #next()}.
+   *
+   * <p>Use this for sweeps -- eviction, expunge, full-table cleanup -- that aren't keyed to a
+   * specific hash. For per-bucket walks keyed to a search hash, use {@link MutatingBucketIterator}.
+   */
+  public static final class MutatingTableIterator<TEntry extends Entry>
+      implements Iterator<TEntry> {
+    private final Hashtable.Entry[] buckets;
+
+    /**
+     * Index of the bucket holding {@link #nextEntry} (or holding {@link #curEntry} after remove).
+     */
+    private int nextBucketIndex;
+
+    /**
+     * Predecessor of {@link #nextEntry}, or {@code null} when {@code nextEntry} is the bucket head.
+     */
+    private Hashtable.Entry nextPrevEntry;
+
+    /** Next entry to be returned by {@link #next()}, or {@code null} if iteration is exhausted. */
+    private Hashtable.Entry nextEntry;
+
+    /**
+     * Bucket index that held the entry last returned by {@code next}; {@code -1} after {@code
+     * remove}.
+     */
+    private int curBucketIndex = -1;
+
+    /**
+     * Predecessor of the entry last returned by {@code next}, or {@code null} if it was the bucket
+     * head.
+     */
+    private Hashtable.Entry curPrevEntry;
+
+    /**
+     * Entry last returned by {@code next}; {@code null} before any call and after {@code remove}.
+     */
+    private Hashtable.Entry curEntry;
+
+    MutatingTableIterator(Hashtable.Entry[] buckets) {
+      this.buckets = buckets;
+      seekFromBucket(0);
+    }
+
+    @Override
+    public boolean hasNext() {
+      return this.nextEntry != null;
+    }
+
+    @Override
+    @SuppressWarnings("unchecked")
+    public TEntry next() {
+      Hashtable.Entry e = this.nextEntry;
+      if (e == null) throw new NoSuchElementException("no next!");
+
+      this.curEntry = e;
+      this.curPrevEntry = this.nextPrevEntry;
+      this.curBucketIndex = this.nextBucketIndex;
+
+      Hashtable.Entry n = e.next();
+      if (n != null) {
+        this.nextPrevEntry = e;
+        this.nextEntry = n;
+      } else {
+        // walked off the end of this bucket; pick up at the next non-empty bucket
+        seekFromBucket(this.nextBucketIndex + 1);
+      }
+      return (TEntry) e;
+    }
+
+    @Override
+    public void remove() {
+      Hashtable.Entry oldCurEntry = this.curEntry;
+      if (oldCurEntry == null) throw new IllegalStateException();
+
+      if (this.curPrevEntry == null) {
+        this.buckets[this.curBucketIndex] = oldCurEntry.next();
+      } else {
+        this.curPrevEntry.setNext(oldCurEntry.next());
+      }
+      // If the next entry was the immediate chain successor of oldCurEntry, its predecessor is
+      // now what came before oldCurEntry (oldCurEntry was just unlinked).
+      if (this.nextPrevEntry == oldCurEntry) {
+        this.nextPrevEntry = this.curPrevEntry;
+      }
+      this.curEntry = null;
+    }
+
+    /**
+     * Advance {@code nextBucketIndex} / {@code nextEntry} to the first non-empty bucket >= {@code
+     * from}.
+     */
+    private void seekFromBucket(int from) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      for (int i = from; i < thisBuckets.length; i++) {
+        Hashtable.Entry head = thisBuckets[i];
+        if (head != null) {
+          this.nextBucketIndex = i;
+          this.nextPrevEntry = null;
+          this.nextEntry = head;
+          return;
+        }
+      }
+      this.nextEntry = null;
+      this.nextPrevEntry = null;
     }
   }
 }

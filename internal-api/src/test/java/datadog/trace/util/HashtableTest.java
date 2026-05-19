@@ -7,13 +7,17 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.util.Hashtable.BucketIterator;
 import datadog.trace.util.Hashtable.MutatingBucketIterator;
+import datadog.trace.util.Hashtable.MutatingTableIterator;
 import datadog.trace.util.Hashtable.Support;
+import java.util.HashSet;
 import java.util.NoSuchElementException;
+import java.util.Set;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
@@ -80,6 +84,32 @@ class HashtableTest {
       for (Hashtable.Entry b : buckets) {
         assertNull(b);
       }
+    }
+
+    @Test
+    void maxRatioConstantsExpandTargetSize() {
+      // 75% load factor => bucket array sized at requestedSize * 4 / 3, rounded up to power of 2.
+      assertEquals(4, Support.MAX_RATIO_NUMERATOR);
+      assertEquals(3, Support.MAX_RATIO_DENOMINATOR);
+      int target = 12;
+      int sized = target * Support.MAX_RATIO_NUMERATOR / Support.MAX_RATIO_DENOMINATOR;
+      assertEquals(16, sized);
+      assertEquals(16, Support.sizeFor(sized));
+    }
+
+    @Test
+    void insertHeadEntrySplicesAsNewHead() {
+      Hashtable.Entry[] buckets = Support.create(4);
+      StringIntEntry a = new StringIntEntry("a", 1);
+      StringIntEntry b = new StringIntEntry("b", 2);
+      Support.insertHeadEntry(buckets, 0, a);
+      assertSame(a, buckets[0]);
+      assertNull(a.next());
+
+      Support.insertHeadEntry(buckets, 0, b);
+      assertSame(b, buckets[0]);
+      assertSame(a, b.next());
+      assertNull(a.next());
     }
   }
 
@@ -189,6 +219,129 @@ class HashtableTest {
       table.insert(new StringIntEntry("a", 1));
       MutatingBucketIterator<StringIntEntry> it =
           Support.mutatingBucketIterator(table.buckets, Hashtable.D1.Entry.hash("a"));
+      assertThrows(IllegalStateException.class, it::remove);
+    }
+  }
+
+  // ============ MutatingTableIterator ============
+
+  @Nested
+  class MutatingTableIteratorTests {
+
+    @Test
+    void walksEveryEntryAcrossBuckets() {
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(16);
+      table.insert(new StringIntEntry("a", 1));
+      table.insert(new StringIntEntry("b", 2));
+      table.insert(new StringIntEntry("c", 3));
+
+      Set<String> seen = new HashSet<>();
+      for (MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+          it.hasNext(); ) {
+        seen.add(it.next().key);
+      }
+      assertEquals(3, seen.size());
+      assertTrue(seen.contains("a"));
+      assertTrue(seen.contains("b"));
+      assertTrue(seen.contains("c"));
+    }
+
+    @Test
+    void emptyTableIteratorIsExhausted() {
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+      MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+      assertFalse(it.hasNext());
+      assertThrows(NoSuchElementException.class, it::next);
+    }
+
+    @Test
+    void removeUnlinksBucketHead() {
+      Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(4);
+      CollidingKey k1 = new CollidingKey("first", 17);
+      CollidingKey k2 = new CollidingKey("second", 17);
+      table.insert(new CollidingKeyEntry(k1, 1));
+      table.insert(new CollidingKeyEntry(k2, 2));
+
+      // The head of the chain is whichever was inserted last (insert prepends).
+      MutatingTableIterator<CollidingKeyEntry> it = Support.mutatingTableIterator(table.buckets);
+      CollidingKeyEntry head = it.next();
+      it.remove();
+
+      // Survivor still reachable via the table; removed one is not.
+      CollidingKey survivorKey = head.key.equals(k1) ? k2 : k1;
+      assertNotNull(table.get(survivorKey));
+      assertNull(table.get(head.key));
+    }
+
+    @Test
+    void removeUnlinksMidChainEntry() {
+      Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(4);
+      CollidingKey k1 = new CollidingKey("first", 17);
+      CollidingKey k2 = new CollidingKey("second", 17);
+      CollidingKey k3 = new CollidingKey("third", 17);
+      table.insert(new CollidingKeyEntry(k1, 1));
+      table.insert(new CollidingKeyEntry(k2, 2));
+      table.insert(new CollidingKeyEntry(k3, 3));
+
+      // Walk to the second entry, remove it.
+      MutatingTableIterator<CollidingKeyEntry> it = Support.mutatingTableIterator(table.buckets);
+      it.next();
+      CollidingKeyEntry victim = it.next();
+      it.remove();
+
+      assertNull(table.get(victim.key));
+      // The remaining two keys still resolve.
+      int remaining = 0;
+      for (CollidingKey k : new CollidingKey[] {k1, k2, k3}) {
+        if (table.get(k) != null) {
+          remaining++;
+        }
+      }
+      assertEquals(2, remaining);
+
+      // Iteration can continue past a remove and yield the third entry.
+      assertTrue(it.hasNext());
+      assertNotNull(it.next());
+      assertFalse(it.hasNext());
+    }
+
+    @Test
+    void removeSkipsOverEmptyBuckets() {
+      // Three distinct keys that land in different buckets (low entry count vs large bucket array
+      // makes empty buckets between them very likely). Verify the iterator skips empties cleanly
+      // after a remove.
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(64);
+      table.insert(new StringIntEntry("alpha", 1));
+      table.insert(new StringIntEntry("beta", 2));
+      table.insert(new StringIntEntry("gamma", 3));
+
+      MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+      it.next();
+      it.remove();
+      int remaining = 0;
+      while (it.hasNext()) {
+        it.next();
+        remaining++;
+      }
+      assertEquals(2, remaining);
+    }
+
+    @Test
+    void removeWithoutNextThrows() {
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(4);
+      table.insert(new StringIntEntry("a", 1));
+      MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+      assertThrows(IllegalStateException.class, it::remove);
+    }
+
+    @Test
+    void removeTwiceWithoutInterveningNextThrows() {
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(4);
+      table.insert(new StringIntEntry("a", 1));
+      table.insert(new StringIntEntry("b", 2));
+      MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets);
+      it.next();
+      it.remove();
       assertThrows(IllegalStateException.class, it::remove);
     }
   }
