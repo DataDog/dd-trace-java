@@ -20,13 +20,16 @@ import java.nio.file.Files
 
 internal object MuzzleMavenRepoUtils {
   /**
-   * Remote repositories used to query version ranges and fetch dependencies
+   * Remote repositories used to query version ranges and fetch dependencies.
+   *
+   * This intentionally reads the environment on each access: Gradle daemons can
+   * be reused across builds with different MAVEN_REPOSITORY_PROXY values.
    */
   @JvmStatic
-  val MUZZLE_REPOS: List<RemoteRepository> by lazy {
+  fun defaultMuzzleRepos(): List<RemoteRepository> {
     val central = RemoteRepository.Builder("central", "default", "https://repo1.maven.org/maven2/").build()
     val mavenProxyUrl = System.getenv("MAVEN_REPOSITORY_PROXY")
-    if (mavenProxyUrl == null) {
+    return if (mavenProxyUrl == null) {
       listOf(central)
     } else {
       val proxy = RemoteRepository.Builder("central-proxy", "default", mavenProxyUrl).build()
@@ -70,7 +73,7 @@ internal object MuzzleMavenRepoUtils {
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
     session: RepositorySystemSession,
-    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos()
   ): Set<MuzzleDirective> {
     val allVersionsArtifact = DefaultArtifact(
       muzzleDirective.group,
@@ -124,7 +127,7 @@ internal object MuzzleMavenRepoUtils {
     muzzleDirective: MuzzleDirective,
     system: RepositorySystem,
     session: RepositorySystemSession,
-    defaultRepos: List<RemoteRepository> = MUZZLE_REPOS
+    defaultRepos: List<RemoteRepository> = defaultMuzzleRepos()
   ): VersionRangeResult {
     val directiveArtifact: Artifact = DefaultArtifact(
       muzzleDirective.group,
