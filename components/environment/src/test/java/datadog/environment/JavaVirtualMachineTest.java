@@ -138,6 +138,16 @@ class JavaVirtualMachineTest {
     assertTrue(JavaVirtualMachine.isOracleJDK8());
   }
 
+  @Test
+  @EnabledIfSystemProperty(named = "java.vm.vendor", matches = ".*Azul.*")
+  @EnabledOnJre(JAVA_8)
+  void onlyOnZulu8() {
+    assertFalse(JavaVirtualMachine.isGraalVM());
+    assertFalse(JavaVirtualMachine.isIbm8());
+    assertFalse(JavaVirtualMachine.isOracleJDK8());
+    assertTrue(JavaVirtualMachine.isZulu8());
+  }
+
   @ParameterizedTest
   @CsvSource(
       value = {

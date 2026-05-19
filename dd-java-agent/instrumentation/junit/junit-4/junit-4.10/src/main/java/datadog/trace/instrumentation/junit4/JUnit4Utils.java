@@ -41,15 +41,6 @@ public abstract class JUnit4Utils {
 
   private static final String SYNCHRONIZED_LISTENER =
       "org.junit.runner.notification.SynchronizedRunListener";
-
-  /**
-   * Bazel's test launcher wraps the {@link RunNotifier} that our instrumentation advice receives.
-   * {@link RunNotifier#addListener} on the wrapper forwards to its inner delegate, but {@link
-   * org.junit.runner.notification.RunNotifier#listeners} on the wrapper is a separate (empty)
-   * field. Without unwrapping, our idempotency check fails to see a listener installed via a prior
-   * advice call on the inner notifier, and we end up adding a second tracing listener that the
-   * wrapper also forwards to the delegate.
-   */
   private static final String BAZEL_RUN_NOTIFIER_WRAPPER =
       "com.google.testing.junit.junit4.runner.RunNotifierWrapper";
 
@@ -117,13 +108,14 @@ public abstract class JUnit4Utils {
   }
 
   /**
-   * Walks through {@link RunNotifier} wrappers (e.g. Bazel's {@code RunNotifierWrapper}) so the
-   * effective {@code listeners} field is read, not the wrapper's own (forwarded) one.
+   * Walks through {@link RunNotifier} wrappers (e.g. Bazel's {@code RunNotifierWrapper}) and
+   * returns the inner notifier whose {@code listeners} field actually receives {@code addListener}
+   * calls. Returns the input untouched when it is not a known wrapper.
    */
-  private static RunNotifier unwrapRunNotifier(RunNotifier notifier) {
+  public static RunNotifier unwrapRunNotifier(RunNotifier notifier) {
     RunNotifier current = notifier;
     for (int i = 0; i < 8 && current != null; i++) {
-      if (!isBazelRunNotifierWrapper(current.getClass())) {
+      if (!isBazelRunNotifierWrapper(current)) {
         return current;
       }
       RunNotifier delegate = METHOD_HANDLES.invoke(BAZEL_RUN_NOTIFIER_WRAPPER_DELEGATE, current);
@@ -135,7 +127,8 @@ public abstract class JUnit4Utils {
     return current;
   }
 
-  private static boolean isBazelRunNotifierWrapper(Class<?> cls) {
+  private static boolean isBazelRunNotifierWrapper(RunNotifier notifier) {
+    Class<?> cls = notifier.getClass();
     while (cls != null && cls != Object.class) {
       if (BAZEL_RUN_NOTIFIER_WRAPPER.equals(cls.getName())) {
         return true;

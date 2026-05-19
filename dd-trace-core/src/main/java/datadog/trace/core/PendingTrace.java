@@ -139,7 +139,8 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   private static final AtomicLongFieldUpdater<PendingTrace> LAST_REFERENCED =
       AtomicLongFieldUpdater.newUpdater(PendingTrace.class, "lastReferenced");
 
-  private PendingTrace(
+  // @VisibleForTesting
+  PendingTrace(
       @Nonnull CoreTracer tracer,
       @Nonnull DDTraceId traceId,
       @Nonnull PendingTraceBuffer pendingTraceBuffer,
@@ -231,6 +232,31 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
   // @VisibleForTesting
   void setLongRunningTrackedState(int state) {
     LONG_RUNNING_STATE.set(this, state);
+  }
+
+  // @VisibleForTesting
+  int getPendingReferenceCount() {
+    return pendingReferenceCount;
+  }
+
+  // @VisibleForTesting
+  PendingTraceBuffer getPendingTraceBuffer() {
+    return pendingTraceBuffer;
+  }
+
+  // @VisibleForTesting
+  DDTraceId getTraceId() {
+    return traceId;
+  }
+
+  // @VisibleForTesting
+  boolean isRootSpanWritten() {
+    return rootSpanWritten;
+  }
+
+  // @VisibleForTesting
+  int getIsEnqueued() {
+    return isEnqueued;
   }
 
   boolean empty() {

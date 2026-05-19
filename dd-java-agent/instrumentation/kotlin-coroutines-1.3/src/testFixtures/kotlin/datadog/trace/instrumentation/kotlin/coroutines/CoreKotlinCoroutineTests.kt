@@ -364,7 +364,7 @@ abstract class CoreKotlinCoroutineTests(private val dispatcher: CoroutineDispatc
     activeSpan().setSpanName(opName)
   }
 
-  protected fun childSpan(opName: String): AgentSpan = get().buildSpan(opName)
+  protected fun childSpan(opName: String): AgentSpan = get().buildSpan("kotlin_coroutine", opName)
     .withResourceName("coroutines-test-span")
     .start()
 

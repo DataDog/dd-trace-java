@@ -30,6 +30,8 @@ When converting Groovy code to Java code, make sure that:
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
+- Keep inline comments
+- Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 
 TableTest usage
   Import: `import org.tabletest.junit.TableTest;`
