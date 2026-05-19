@@ -43,19 +43,18 @@ final class AggregateTable {
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
     long keyHash = AggregateEntry.hashOf(snapshot);
-    int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
-    for (Hashtable.Entry e = buckets[bucketIndex]; e != null; e = e.next()) {
-      if (e.keyHash == keyHash) {
-        AggregateEntry candidate = (AggregateEntry) e;
-        if (candidate.matches(snapshot)) {
-          return candidate;
-        }
+    for (AggregateEntry candidate = Hashtable.Support.bucket(buckets, keyHash);
+        candidate != null;
+        candidate = candidate.next()) {
+      if (candidate.keyHash == keyHash && candidate.matches(snapshot)) {
+        return candidate;
       }
     }
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
     AggregateEntry entry = AggregateEntry.forSnapshot(snapshot);
+    int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
     entry.setNext(buckets[bucketIndex]);
     buckets[bucketIndex] = entry;
     size++;
@@ -65,19 +64,19 @@ final class AggregateTable {
   /** Unlink the first entry whose {@code getHitCount() == 0}. */
   private boolean evictOneStale() {
     for (int i = 0; i < buckets.length; i++) {
-      Hashtable.Entry head = buckets[i];
+      AggregateEntry head = (AggregateEntry) buckets[i];
       if (head == null) {
         continue;
       }
-      if (((AggregateEntry) head).getHitCount() == 0) {
+      if (head.getHitCount() == 0) {
         buckets[i] = head.next();
         size--;
         return true;
       }
-      Hashtable.Entry prev = head;
-      Hashtable.Entry cur = head.next();
+      AggregateEntry prev = head;
+      AggregateEntry cur = head.next();
       while (cur != null) {
-        if (((AggregateEntry) cur).getHitCount() == 0) {
+        if (cur.getHitCount() == 0) {
           prev.setNext(cur.next());
           size--;
           return true;
@@ -106,8 +105,8 @@ final class AggregateTable {
   void expungeStaleAggregates() {
     for (int i = 0; i < buckets.length; i++) {
       // unlink leading stale entries
-      Hashtable.Entry head = buckets[i];
-      while (head != null && ((AggregateEntry) head).getHitCount() == 0) {
+      AggregateEntry head = (AggregateEntry) buckets[i];
+      while (head != null && head.getHitCount() == 0) {
         head = head.next();
         size--;
       }
@@ -116,11 +115,11 @@ final class AggregateTable {
         continue;
       }
       // unlink stale entries in the chain
-      Hashtable.Entry prev = head;
-      Hashtable.Entry cur = head.next();
+      AggregateEntry prev = head;
+      AggregateEntry cur = head.next();
       while (cur != null) {
-        if (((AggregateEntry) cur).getHitCount() == 0) {
-          Hashtable.Entry skipped = cur.next();
+        if (cur.getHitCount() == 0) {
+          AggregateEntry skipped = cur.next();
           prev.setNext(skipped);
           size--;
           cur = skipped;
