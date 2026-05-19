@@ -65,6 +65,18 @@ class HashtableD2Test {
     assertTrue(seen.contains("b:2"));
   }
 
+  @Test
+  void forEachWithContextPassesContextToConsumer() {
+    Hashtable.D2<String, Integer, PairEntry> table = new Hashtable.D2<>(8);
+    table.insert(new PairEntry("a", 1, 100));
+    table.insert(new PairEntry("b", 2, 200));
+    Set<String> seen = new HashSet<>();
+    table.forEach(seen, (ctx, e) -> ctx.add(e.key1 + ":" + e.key2));
+    assertEquals(2, seen.size());
+    assertTrue(seen.contains("a:1"));
+    assertTrue(seen.contains("b:2"));
+  }
+
   private static final class PairEntry extends Hashtable.D2.Entry<String, Integer> {
     int value;
 

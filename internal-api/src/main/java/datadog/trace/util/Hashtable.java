@@ -4,6 +4,7 @@ import java.util.Arrays;
 import java.util.Iterator;
 import java.util.NoSuchElementException;
 import java.util.Objects;
+import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 
 /**
@@ -193,6 +194,21 @@ public abstract class Hashtable {
         }
       }
     }
+
+    /**
+     * Context-passing forEach. Useful for callers that want to avoid a capturing-lambda allocation
+     * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
+     * side-band state it needs as {@code context}.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      for (int i = 0; i < thisBuckets.length; i++) {
+        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
+          consumer.accept(context, (TEntry) e);
+        }
+      }
+    }
   }
 
   /**
@@ -337,6 +353,21 @@ public abstract class Hashtable {
       for (int i = 0; i < thisBuckets.length; i++) {
         for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
           consumer.accept((TEntry) e);
+        }
+      }
+    }
+
+    /**
+     * Context-passing forEach. Useful for callers that want to avoid a capturing-lambda allocation
+     * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
+     * side-band state it needs as {@code context}.
+     */
+    @SuppressWarnings("unchecked")
+    public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
+      Hashtable.Entry[] thisBuckets = this.buckets;
+      for (int i = 0; i < thisBuckets.length; i++) {
+        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
+          consumer.accept(context, (TEntry) e);
         }
       }
     }
