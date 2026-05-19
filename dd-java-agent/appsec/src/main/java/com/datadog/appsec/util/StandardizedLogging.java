@@ -158,10 +158,10 @@ public class StandardizedLogging {
    *
    * Seems to be a catch-all for errors not covered by other entries.
    * The AppSec module is entered through the following points:
-   *   - initialization - covered by other messages
-   *   - IG - the instrumentation gateway already catches exceptions that
+   *   - initialization — covered by other messages
+   *   - IG — the instrumentation gateway already catches exceptions that
    *     propagate from its callbacks, which shouldn't happen anyway.
-   *   - Attack reporting thread - covered by other messages.
+   *   - Attack reporting thread — covered by other messages.
    *   - Fleet management thread (currently unused)
    *
    * Not currently used. It could be used for internal callback errors:
