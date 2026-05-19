@@ -113,16 +113,11 @@ public abstract class Hashtable {
       return this.size;
     }
 
-    @SuppressWarnings("unchecked")
     public TEntry get(K key) {
       long keyHash = D1.Entry.hash(key);
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)];
-          e != null;
-          e = e.next) {
-        if (e.keyHash == keyHash) {
-          TEntry te = (TEntry) e;
-          if (te.matches(key)) return te;
+      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
+        if (te.keyHash == keyHash && te.matches(key)) {
+          return te;
         }
       }
       return null;
@@ -263,16 +258,11 @@ public abstract class Hashtable {
       return this.size;
     }
 
-    @SuppressWarnings("unchecked")
     public TEntry get(K1 key1, K2 key2) {
       long keyHash = D2.Entry.hash(key1, key2);
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (Hashtable.Entry e = thisBuckets[Support.bucketIndex(thisBuckets, keyHash)];
-          e != null;
-          e = e.next) {
-        if (e.keyHash == keyHash) {
-          TEntry te = (TEntry) e;
-          if (te.matches(key1, key2)) return te;
+      for (TEntry te = Support.bucket(this.buckets, keyHash); te != null; te = te.next()) {
+        if (te.keyHash == keyHash && te.matches(key1, key2)) {
+          return te;
         }
       }
       return null;
@@ -413,6 +403,17 @@ public abstract class Hashtable {
 
     public static final int bucketIndex(Object[] buckets, long keyHash) {
       return (int) (keyHash & buckets.length - 1);
+    }
+
+    /**
+     * Returns the head entry of the bucket that {@code keyHash} maps to, cast to the caller's
+     * concrete entry type. The unchecked cast lives here so the chain-walk loop at the call site
+     * doesn't need to thread a raw {@link Entry} variable through.
+     */
+    @SuppressWarnings("unchecked")
+    public static final <TEntry extends Hashtable.Entry> TEntry bucket(
+        Hashtable.Entry[] buckets, long keyHash) {
+      return (TEntry) buckets[bucketIndex(buckets, keyHash)];
     }
 
     /**
