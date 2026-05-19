@@ -393,7 +393,9 @@ public class WithConfigExtension
         JavaModule module,
         boolean loaded,
         @NonNull Throwable throwable) {
-      if (CONFIG.equals(typeName)) {
+      System.err.println("onError: " + typeName + " " + classLoader + " " + module + " " + throwable);
+      throwable.printStackTrace();
+      if (CONFIG.equals(typeName) || INST_CONFIG.equals(typeName)) {
         configModificationFailed = true;
       }
     }
