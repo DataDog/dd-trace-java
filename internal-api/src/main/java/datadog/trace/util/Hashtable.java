@@ -371,11 +371,20 @@ public abstract class Hashtable {
       return new Entry[sizeFor(capacity)];
     }
 
+    static final int MAX_CAPACITY = 1 << 30;
+
     static final int sizeFor(int requestedCapacity) {
-      int pow;
-      for (pow = 1; pow < requestedCapacity; pow *= 2)
-        ;
-      return pow;
+      if (requestedCapacity < 0) {
+        throw new IllegalArgumentException("capacity must be non-negative: " + requestedCapacity);
+      }
+      if (requestedCapacity > MAX_CAPACITY) {
+        throw new IllegalArgumentException(
+            "capacity exceeds maximum (" + MAX_CAPACITY + "): " + requestedCapacity);
+      }
+      if (requestedCapacity <= 1) {
+        return 1;
+      }
+      return Integer.highestOneBit(requestedCapacity - 1) << 1;
     }
 
     public static final void clear(Hashtable.Entry[] buckets) {
@@ -413,7 +422,9 @@ public abstract class Hashtable {
     BucketIterator(Hashtable.Entry[] buckets, long keyHash) {
       this.keyHash = keyHash;
       Hashtable.Entry cur = buckets[Support.bucketIndex(buckets, keyHash)];
-      while (cur != null && cur.keyHash != keyHash) cur = cur.next;
+      while (cur != null && cur.keyHash != keyHash) {
+        cur = cur.next;
+      }
       this.nextEntry = cur;
     }
 
@@ -429,7 +440,9 @@ public abstract class Hashtable {
       if (cur == null) throw new NoSuchElementException("no next!");
 
       Hashtable.Entry advance = cur.next;
-      while (advance != null && advance.keyHash != keyHash) advance = advance.next;
+      while (advance != null && advance.keyHash != keyHash) {
+        advance = advance.next;
+      }
       this.nextEntry = advance;
 
       return (TEntry) cur;
