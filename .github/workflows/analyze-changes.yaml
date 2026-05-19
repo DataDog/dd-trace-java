@@ -110,7 +110,7 @@ jobs:
       - name: Install datadog-ci
         uses: DataDog/install-datadog-ci-github-action@6d7f0c7c5402a4b1912055b76970ca76bef71fe5 # v1.0.4
         with:
-          version: v5.16.1
+          version: v5.17.0
       - name: Upload results to Datadog CI Static Analysis
         run: datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
         env:
