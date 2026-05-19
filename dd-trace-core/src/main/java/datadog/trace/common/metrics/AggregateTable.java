@@ -26,8 +26,6 @@ final class AggregateTable {
   private int size;
 
   AggregateTable(int maxAggregates) {
-    // ~25% headroom in the bucket array over the working-set target -- avoids the long-chain
-    // pathology at full capacity.
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
   }
