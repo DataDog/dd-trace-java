@@ -185,14 +185,8 @@ public abstract class Hashtable {
       this.size = 0;
     }
 
-    @SuppressWarnings("unchecked")
     public void forEach(Consumer<? super TEntry> consumer) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (int i = 0; i < thisBuckets.length; i++) {
-        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-          consumer.accept((TEntry) e);
-        }
-      }
+      Support.forEach(this.buckets, consumer);
     }
 
     /**
@@ -200,14 +194,8 @@ public abstract class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    @SuppressWarnings("unchecked")
     public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (int i = 0; i < thisBuckets.length; i++) {
-        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-          consumer.accept(context, (TEntry) e);
-        }
-      }
+      Support.forEach(this.buckets, context, consumer);
     }
   }
 
@@ -347,14 +335,8 @@ public abstract class Hashtable {
       this.size = 0;
     }
 
-    @SuppressWarnings("unchecked")
     public void forEach(Consumer<? super TEntry> consumer) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (int i = 0; i < thisBuckets.length; i++) {
-        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-          consumer.accept((TEntry) e);
-        }
-      }
+      Support.forEach(this.buckets, consumer);
     }
 
     /**
@@ -362,14 +344,8 @@ public abstract class Hashtable {
      * -- pass a non-capturing {@link BiConsumer} (typically a {@code static final}) plus whatever
      * side-band state it needs as {@code context}.
      */
-    @SuppressWarnings("unchecked")
     public <T> void forEach(T context, BiConsumer<? super T, ? super TEntry> consumer) {
-      Hashtable.Entry[] thisBuckets = this.buckets;
-      for (int i = 0; i < thisBuckets.length; i++) {
-        for (Hashtable.Entry e = thisBuckets[i]; e != null; e = e.next()) {
-          consumer.accept(context, (TEntry) e);
-        }
-      }
+      Support.forEach(this.buckets, context, consumer);
     }
   }
 
@@ -388,6 +364,8 @@ public abstract class Hashtable {
    *       #bucketIterator(Hashtable.Entry[], long)} for read-only chain walks, and {@link
    *       #mutatingBucketIterator(Hashtable.Entry[], long)} when you also need {@code remove} /
    *       {@code replace}.
+   *   <li>Iterate every entry with {@link #forEach(Hashtable.Entry[], Consumer)} or its
+   *       context-passing sibling.
    *   <li>Clear with {@link #clear(Hashtable.Entry[])}.
    * </ul>
    *
@@ -435,6 +413,36 @@ public abstract class Hashtable {
 
     public static final int bucketIndex(Object[] buckets, long keyHash) {
       return (int) (keyHash & buckets.length - 1);
+    }
+
+    /**
+     * Walks every entry in {@code buckets} and invokes {@code consumer} on it. The unchecked cast
+     * to {@code TEntry} lives here (mirroring {@link Entry#next()}) so callers don't have to
+     * sprinkle it across their own forEach loops.
+     */
+    @SuppressWarnings("unchecked")
+    public static final <TEntry extends Hashtable.Entry> void forEach(
+        Hashtable.Entry[] buckets, Consumer<? super TEntry> consumer) {
+      for (int i = 0; i < buckets.length; i++) {
+        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+          consumer.accept((TEntry) e);
+        }
+      }
+    }
+
+    /**
+     * Context-passing variant of {@link #forEach(Hashtable.Entry[], Consumer)}. Pair a
+     * non-capturing {@link BiConsumer} (typically a {@code static final}) with side-band state
+     * passed as {@code context} to avoid a fresh-Consumer allocation each call.
+     */
+    @SuppressWarnings("unchecked")
+    public static final <T, TEntry extends Hashtable.Entry> void forEach(
+        Hashtable.Entry[] buckets, T context, BiConsumer<? super T, ? super TEntry> consumer) {
+      for (int i = 0; i < buckets.length; i++) {
+        for (Hashtable.Entry e = buckets[i]; e != null; e = e.next()) {
+          consumer.accept(context, (TEntry) e);
+        }
+      }
     }
   }
 
