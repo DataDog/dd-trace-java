@@ -15,6 +15,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
 import java.util.function.Function;
 import javax.annotation.Nullable;
@@ -376,16 +377,16 @@ final class AggregateEntry extends Hashtable.Entry {
     return httpStatusCode == that.httpStatusCode
         && synthetic == that.synthetic
         && traceRoot == that.traceRoot
-        && java.util.Objects.equals(resource, that.resource)
-        && java.util.Objects.equals(service, that.service)
-        && java.util.Objects.equals(operationName, that.operationName)
-        && java.util.Objects.equals(serviceSource, that.serviceSource)
-        && java.util.Objects.equals(type, that.type)
-        && java.util.Objects.equals(spanKind, that.spanKind)
+        && Objects.equals(resource, that.resource)
+        && Objects.equals(service, that.service)
+        && Objects.equals(operationName, that.operationName)
+        && Objects.equals(serviceSource, that.serviceSource)
+        && Objects.equals(type, that.type)
+        && Objects.equals(spanKind, that.spanKind)
         && peerTags.equals(that.peerTags)
-        && java.util.Objects.equals(httpMethod, that.httpMethod)
-        && java.util.Objects.equals(httpEndpoint, that.httpEndpoint)
-        && java.util.Objects.equals(grpcStatusCode, that.grpcStatusCode);
+        && Objects.equals(httpMethod, that.httpMethod)
+        && Objects.equals(httpEndpoint, that.httpEndpoint)
+        && Objects.equals(grpcStatusCode, that.grpcStatusCode);
   }
 
   @Override
