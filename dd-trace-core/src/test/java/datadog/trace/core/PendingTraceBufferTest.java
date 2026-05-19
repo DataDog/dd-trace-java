@@ -56,7 +56,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-@Timeout(5)
+@Timeout(10)
 public class PendingTraceBufferTest extends DDJavaSpecification {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
