@@ -19,7 +19,7 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
-import datadog.trace.api.tt.TransactionTrackingPatterns;
+import datadog.trace.api.tt.TransactionTrackingCandidateSources;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -221,7 +221,7 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
   }
 
   @Test
-  void ttExtractionPatternsArePropagatedAndPublished() throws Exception {
+  void ttCandidateSourcePatternsArePropagatedAndPublished() throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config");
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     SharedCommunicationObjects sco = createScoWithPoller(poller);
@@ -240,11 +240,11 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     unclosedTracers.add(tracer);
 
     try {
-      TransactionTrackingPatterns.resetForTest();
+      TransactionTrackingCandidateSources.resetForTest();
       assertEquals(
           Collections.emptyList(),
-          tracer.captureTraceConfig().getTransactionTrackingExtractionPatterns());
-      assertTrue(TransactionTrackingPatterns.isEmpty());
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
 
       ProductListener updater = capturedUpdater[0];
       updater.accept(
@@ -252,7 +252,7 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
           ("{\n"
                   + "  \"service_target\": {\"service\": \"*\", \"env\": \"*\"},\n"
                   + "  \"lib_config\": {\n"
-                  + "    \"tt_extraction_patterns\": [\"x-trace-*\", \"*-tenant\"]\n"
+                  + "    \"tt_candidate_source_patterns\": [\"x-trace-*\", \"*-tenant\"]\n"
                   + "  }\n"
                   + "}")
               .getBytes(StandardCharsets.UTF_8),
@@ -261,27 +261,27 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
 
       assertEquals(
           Arrays.asList("x-trace-*", "*-tenant"),
-          tracer.captureTraceConfig().getTransactionTrackingExtractionPatterns());
-      assertFalse(TransactionTrackingPatterns.isEmpty());
-      assertTrue(TransactionTrackingPatterns.matchesAny("X-Trace-Id"));
-      assertTrue(TransactionTrackingPatterns.matchesAny("customer-tenant"));
-      assertFalse(TransactionTrackingPatterns.matchesAny("unrelated"));
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertFalse(TransactionTrackingCandidateSources.isEmpty());
+      assertTrue(TransactionTrackingCandidateSources.matchesAny("X-Trace-Id"));
+      assertTrue(TransactionTrackingCandidateSources.matchesAny("customer-tenant"));
+      assertFalse(TransactionTrackingCandidateSources.matchesAny("unrelated"));
 
       // Removing the config should clear the static snapshot back to empty.
       updater.remove(key, null);
       updater.commit(null);
       assertEquals(
           Collections.emptyList(),
-          tracer.captureTraceConfig().getTransactionTrackingExtractionPatterns());
-      assertTrue(TransactionTrackingPatterns.isEmpty());
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
     } finally {
-      TransactionTrackingPatterns.resetForTest();
+      TransactionTrackingCandidateSources.resetForTest();
       tracer.close();
     }
   }
 
   @Test
-  void absentTtExtractionPatternsFieldKeepsSnapshotEmpty() throws Exception {
+  void absentTtCandidateSourcePatternsFieldKeepsSnapshotEmpty() throws Exception {
     ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config");
     ConfigurationPoller poller = mock(ConfigurationPoller.class);
     SharedCommunicationObjects sco = createScoWithPoller(poller);
@@ -300,7 +300,7 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
     unclosedTracers.add(tracer);
 
     try {
-      TransactionTrackingPatterns.resetForTest();
+      TransactionTrackingCandidateSources.resetForTest();
       ProductListener updater = capturedUpdater[0];
       updater.accept(
           key,
@@ -314,10 +314,10 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
 
       assertEquals(
           Collections.emptyList(),
-          tracer.captureTraceConfig().getTransactionTrackingExtractionPatterns());
-      assertTrue(TransactionTrackingPatterns.isEmpty());
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
     } finally {
-      TransactionTrackingPatterns.resetForTest();
+      TransactionTrackingCandidateSources.resetForTest();
       tracer.close();
     }
   }

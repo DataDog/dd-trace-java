@@ -60,5 +60,5 @@ public interface TraceConfig {
    * Glob patterns used by Transaction Tracking to flag inbound HTTP header / query-string parameter
    * names. An empty list disables the feature.
    */
-  List<String> getTransactionTrackingExtractionPatterns();
+  List<String> getTransactionTrackingCandidateSourcePatterns();
 }

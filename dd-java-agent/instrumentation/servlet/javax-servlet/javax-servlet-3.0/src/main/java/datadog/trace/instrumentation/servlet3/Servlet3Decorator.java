@@ -100,7 +100,7 @@ public class Servlet3Decorator
       }
     } catch (Throwable ignored) {
       // some containers throw if headers are accessed at the wrong lifecycle stage;
-      // silently skip — the tt extraction-sources tag is best-effort.
+      // silently skip — the tt candidate-sources tag is best-effort.
     }
   }
 

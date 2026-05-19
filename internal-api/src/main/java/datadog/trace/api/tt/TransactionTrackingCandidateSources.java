@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Snapshot of compiled "transaction tracking" extraction glob patterns delivered through
- * remote-config under the {@code APM_TRACING} product (field {@code tt_extraction_patterns}).
+ * Snapshot of compiled "transaction tracking" candidate-source glob patterns delivered through
+ * remote-config under the {@code APM_TRACING} product (field {@code tt_candidate_source_patterns}).
  *
  * <p>The hot path on every server request only does a single volatile read followed by an {@link
  * Snapshot#isEmpty()} check when no patterns are configured, so this class is zero-allocation in
@@ -29,13 +29,14 @@ import org.slf4j.LoggerFactory;
  * limited to {@code *} (zero-or-more characters). The matcher is hand-rolled to avoid {@link
  * java.util.regex.Pattern} compilation on the request hot path.
  */
-public final class TransactionTrackingPatterns {
+public final class TransactionTrackingCandidateSources {
 
-  private static final Logger log = LoggerFactory.getLogger(TransactionTrackingPatterns.class);
+  private static final Logger log =
+      LoggerFactory.getLogger(TransactionTrackingCandidateSources.class);
 
   private static volatile Snapshot snapshot = Snapshot.EMPTY;
 
-  private TransactionTrackingPatterns() {}
+  private TransactionTrackingCandidateSources() {}
 
   /**
    * Re-compile the raw pattern list and atomically publish a new snapshot. A {@code null} or empty
@@ -51,12 +52,12 @@ public final class TransactionTrackingPatterns {
     List<CompiledPattern> wildcards = new ArrayList<>();
     for (String raw : rawPatterns) {
       if (raw == null) {
-        log.debug("Ignoring null tt_extraction_pattern entry");
+        log.debug("Ignoring null tt_candidate_source_pattern entry");
         continue;
       }
       String trimmed = raw.trim();
       if (trimmed.isEmpty()) {
-        log.debug("Ignoring blank tt_extraction_pattern entry");
+        log.debug("Ignoring blank tt_candidate_source_pattern entry");
         continue;
       }
       if (trimmed.indexOf('*') < 0) {

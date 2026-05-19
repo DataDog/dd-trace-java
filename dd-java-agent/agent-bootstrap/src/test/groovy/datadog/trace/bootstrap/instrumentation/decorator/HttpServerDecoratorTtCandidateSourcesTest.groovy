@@ -1,6 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.decorator
 
-import datadog.trace.api.tt.TransactionTrackingPatterns
+import datadog.trace.api.tt.TransactionTrackingCandidateSources
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer
@@ -14,7 +14,7 @@ import datadog.trace.test.util.DDSpecification
 
 import java.util.function.Consumer
 
-class HttpServerDecoratorTtExtractionTest extends DDSpecification {
+class HttpServerDecoratorTtCandidateSourcesTest extends DDSpecification {
 
   def setupSpec() {
     ConfigHelper.get().setConfigInversionStrict(ConfigHelper.StrictnessPolicy.TEST)
@@ -24,13 +24,13 @@ class HttpServerDecoratorTtExtractionTest extends DDSpecification {
   Map<String, Object> setTags = [:]
 
   void setup() {
-    TransactionTrackingPatterns.resetForTest()
+    TransactionTrackingCandidateSources.resetForTest()
     span.setTag(_, _) >> { String k, Object v -> setTags[k] = v; null }
     span.getTag(_) >> { String k -> setTags[k] }
   }
 
   void cleanup() {
-    TransactionTrackingPatterns.resetForTest()
+    TransactionTrackingCandidateSources.resetForTest()
   }
 
   def "no tag when pattern list is empty regardless of headers / qs"() {
@@ -42,12 +42,12 @@ class HttpServerDecoratorTtExtractionTest extends DDSpecification {
 
     then:
     // Fast path: no allocation, no tag.
-    setTags[InstrumentationTags.TT_EXTRACTION_SOURCES] == null
+    setTags[InstrumentationTags.TT_CANDIDATE_SOURCES] == null
   }
 
   def "tags matching headers and qs with deterministic order and lowercasing"() {
     setup:
-    TransactionTrackingPatterns.update(["x-trace-*", "tenant", "*-id"])
+    TransactionTrackingCandidateSources.update(["x-trace-*", "tenant", "*-id"])
     def decorator = newDecorator(
       ["X-Trace-Id", "X-Trace-Source", "Authorization", "USER-ID"],
       URI.create("http://h/p?tenant=42&debug=1&request-id=abc"))
@@ -56,7 +56,7 @@ class HttpServerDecoratorTtExtractionTest extends DDSpecification {
     decorator.onRequest(span, null, [marker: "anything"], datadog.context.Context.root())
 
     then:
-    def csv = setTags[InstrumentationTags.TT_EXTRACTION_SOURCES]
+    def csv = setTags[InstrumentationTags.TT_CANDIDATE_SOURCES]
     csv != null
     // headers first (sorted), then qs (sorted), all lowercased + deduped per bucket
     csv == "header:user-id,header:x-trace-id,header:x-trace-source,qs:request-id,qs:tenant"
@@ -64,50 +64,50 @@ class HttpServerDecoratorTtExtractionTest extends DDSpecification {
 
   def "headers only (no query string)"() {
     setup:
-    TransactionTrackingPatterns.update(["x-foo"])
+    TransactionTrackingCandidateSources.update(["x-foo"])
     def decorator = newDecorator(["X-FOO", "X-Bar"], URI.create("http://h/p"))
 
     when:
     decorator.onRequest(span, null, [:], datadog.context.Context.root())
 
     then:
-    setTags[InstrumentationTags.TT_EXTRACTION_SOURCES] == "header:x-foo"
+    setTags[InstrumentationTags.TT_CANDIDATE_SOURCES] == "header:x-foo"
   }
 
   def "qs only (no header overrides)"() {
     setup:
-    TransactionTrackingPatterns.update(["tenant*"])
+    TransactionTrackingCandidateSources.update(["tenant*"])
     def decorator = newDecorator([], URI.create("http://h/p?tenantId=7&other=x"))
 
     when:
     decorator.onRequest(span, null, [:], datadog.context.Context.root())
 
     then:
-    setTags[InstrumentationTags.TT_EXTRACTION_SOURCES] == "qs:tenantid"
+    setTags[InstrumentationTags.TT_CANDIDATE_SOURCES] == "qs:tenantid"
   }
 
   def "no match means no tag even with non-empty patterns"() {
     setup:
-    TransactionTrackingPatterns.update(["nope-*"])
+    TransactionTrackingCandidateSources.update(["nope-*"])
     def decorator = newDecorator(["X-Foo"], URI.create("http://h/p?a=1"))
 
     when:
     decorator.onRequest(span, null, [:], datadog.context.Context.root())
 
     then:
-    setTags[InstrumentationTags.TT_EXTRACTION_SOURCES] == null
+    setTags[InstrumentationTags.TT_CANDIDATE_SOURCES] == null
   }
 
   def "duplicates within a bucket collapse to one entry"() {
     setup:
-    TransactionTrackingPatterns.update(["x-trace-*"])
+    TransactionTrackingCandidateSources.update(["x-trace-*"])
     def decorator = newDecorator(["X-Trace-Id", "x-trace-id", "X-TRACE-ID"], URI.create("http://h/p"))
 
     when:
     decorator.onRequest(span, null, [:], datadog.context.Context.root())
 
     then:
-    setTags[InstrumentationTags.TT_EXTRACTION_SOURCES] == "header:x-trace-id"
+    setTags[InstrumentationTags.TT_CANDIDATE_SOURCES] == "header:x-trace-id"
   }
 
   def newDecorator(List<String> headerNames, URI uri) {

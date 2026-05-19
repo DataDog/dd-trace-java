@@ -2,7 +2,7 @@ package test.tt
 
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.DDSpanTypes
-import datadog.trace.api.tt.TransactionTrackingPatterns
+import datadog.trace.api.tt.TransactionTrackingCandidateSources
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc
@@ -17,10 +17,10 @@ import org.springframework.web.servlet.config.annotation.EnableWebMvc
 
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get
 
-@SpringBootTest(classes = TtExtractionSpringBootTest.TtController)
+@SpringBootTest(classes = TtCandidateSourcesSpringBootTest.TtController)
 @EnableWebMvc
 @AutoConfigureMockMvc
-class TtExtractionSpringBootTest extends InstrumentationSpecification {
+class TtCandidateSourcesSpringBootTest extends InstrumentationSpecification {
 
   @Controller
   static class TtController {
@@ -34,12 +34,12 @@ class TtExtractionSpringBootTest extends InstrumentationSpecification {
   private MockMvc mvc
 
   def cleanup() {
-    TransactionTrackingPatterns.resetForTest()
+    TransactionTrackingCandidateSources.resetForTest()
   }
 
-  def 'sets _dd.tt.extraction_sources for mixed header and qs matches'() {
+  def 'sets _dd.tt.candidate_sources for mixed header and qs matches'() {
     setup:
-    TransactionTrackingPatterns.update(["x-trace-*", "tenant", "*-id"])
+    TransactionTrackingCandidateSources.update(["x-trace-*", "tenant", "*-id"])
 
     when:
     mvc.perform(
@@ -54,14 +54,14 @@ class TtExtractionSpringBootTest extends InstrumentationSpecification {
 
     then:
     serverSpan != null
-    serverSpan.getTag(InstrumentationTags.TT_EXTRACTION_SOURCES) ==
+    serverSpan.getTag(InstrumentationTags.TT_CANDIDATE_SOURCES) ==
       "header:x-trace-id,header:x-trace-source,qs:request-id,qs:tenant"
   }
 
   def 'does not set the tag when the pattern list is empty'() {
     setup:
-    TransactionTrackingPatterns.resetForTest()
-    assert TransactionTrackingPatterns.isEmpty()
+    TransactionTrackingCandidateSources.resetForTest()
+    assert TransactionTrackingCandidateSources.isEmpty()
 
     when:
     mvc.perform(
@@ -74,6 +74,6 @@ class TtExtractionSpringBootTest extends InstrumentationSpecification {
 
     then:
     serverSpan != null
-    serverSpan.getTag(InstrumentationTags.TT_EXTRACTION_SOURCES) == null
+    serverSpan.getTag(InstrumentationTags.TT_CANDIDATE_SOURCES) == null
   }
 }

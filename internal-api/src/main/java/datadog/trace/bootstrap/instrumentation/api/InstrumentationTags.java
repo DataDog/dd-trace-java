@@ -8,9 +8,9 @@ public class InstrumentationTags {
   // start looking at generating constants based on the
   // enabled instrumentations.
 
-  // Transaction tracking — extraction sources tag (set by HttpServerDecorator when a configured
+  // Transaction tracking — candidate sources tag (set by HttpServerDecorator when a configured
   // glob pattern matches an inbound HTTP header name or query-string parameter name).
-  public static final String TT_EXTRACTION_SOURCES = "_dd.tt.extraction_sources";
+  public static final String TT_CANDIDATE_SOURCES = "_dd.tt.candidate_sources";
 
   public static final String PARTITION = "partition";
   public static final String OFFSET = "offset";

@@ -262,7 +262,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
 
     @Override
-    List<String> getTransactionTrackingExtractionPatterns() {
+    List<String> getTransactionTrackingCandidateSourcePatterns() {
       return Collections.emptyList()
     }
   }

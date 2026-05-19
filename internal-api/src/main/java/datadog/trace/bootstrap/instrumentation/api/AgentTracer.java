@@ -737,7 +737,7 @@ public class AgentTracer {
     }
 
     @Override
-    public List<String> getTransactionTrackingExtractionPatterns() {
+    public List<String> getTransactionTrackingCandidateSourcePatterns() {
       return Collections.emptyList();
     }
   }

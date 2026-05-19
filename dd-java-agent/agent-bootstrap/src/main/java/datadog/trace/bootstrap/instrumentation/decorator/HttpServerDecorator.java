@@ -26,7 +26,7 @@ import datadog.trace.api.gateway.InferredProxySpan;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
-import datadog.trace.api.tt.TransactionTrackingPatterns;
+import datadog.trace.api.tt.TransactionTrackingCandidateSources;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -126,8 +126,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   /**
    * Iterates the names of every inbound HTTP request header, invoking {@code consumer} once per
    * name. Default no-op implementation: subclasses with cheap access to the underlying request's
-   * header enumeration should override this so the Transaction Tracking extraction-sources tag
-   * works for that stack. Used only when {@link TransactionTrackingPatterns#isEmpty()} returns
+   * header enumeration should override this so the Transaction Tracking candidate-sources tag works
+   * for that stack. Used only when {@link TransactionTrackingCandidateSources#isEmpty()} returns
    * false.
    */
   protected void forEachRequestHeaderName(REQUEST request, Consumer<String> consumer) {
@@ -361,11 +361,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       // Transaction Tracking: tag span with matching header / query-param names when the
       // remote-config snapshot is non-empty. Fast path is a single volatile read + isEmpty().
-      if (!TransactionTrackingPatterns.isEmpty()) {
+      if (!TransactionTrackingCandidateSources.isEmpty()) {
         try {
-          tagTransactionTrackingExtractionSources(span, request);
+          tagCandidateSources(span, request);
         } catch (Exception e) {
-          log.debug("Error tagging tt extraction sources", e);
+          log.debug("Error tagging tt candidate sources", e);
         }
       }
     }
@@ -445,15 +445,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   /**
-   * Adds the {@code _dd.tt.extraction_sources} tag based on the currently active {@link
-   * TransactionTrackingPatterns} snapshot. Caller must have already verified that the snapshot is
-   * non-empty.
+   * Adds the {@code _dd.tt.candidate_sources} tag based on the currently active {@link
+   * TransactionTrackingCandidateSources} snapshot. Caller must have already verified that the
+   * snapshot is non-empty.
    *
    * <p>The tag value is a CSV with deterministic ordering: {@code header:} entries (sorted), then
    * {@code qs:} entries (sorted). Names are lowercased and de-duplicated within each bucket. The
    * tag is only set if at least one match is found.
    */
-  private void tagTransactionTrackingExtractionSources(AgentSpan span, REQUEST request) {
+  private void tagCandidateSources(AgentSpan span, REQUEST request) {
     if (request == null) {
       return;
     }
@@ -476,7 +476,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         qsHits = collectQueryParameterMatches(rawQuery);
       }
     } catch (Exception e) {
-      log.debug("Error resolving URL for tt extraction sources", e);
+      log.debug("Error resolving URL for tt candidate sources", e);
     }
 
     if (headerHits == null && qsHits == null) {
@@ -500,7 +500,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
     }
     if (sb.length() > 0) {
-      span.setTag(InstrumentationTags.TT_EXTRACTION_SOURCES, sb.toString());
+      span.setTag(InstrumentationTags.TT_CANDIDATE_SOURCES, sb.toString());
     }
   }
 
@@ -516,7 +516,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         int nameEnd = (eq < 0 || eq > end) ? end : eq;
         if (nameEnd > start) {
           String name = rawQuery.substring(start, nameEnd);
-          if (TransactionTrackingPatterns.matchesAny(name)) {
+          if (TransactionTrackingCandidateSources.matchesAny(name)) {
             if (hits == null) {
               hits = new TreeSet<>();
             }
@@ -540,7 +540,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (name == null) {
         return;
       }
-      if (TransactionTrackingPatterns.matchesAny(name)) {
+      if (TransactionTrackingCandidateSources.matchesAny(name)) {
         if (matches == null) {
           matches = new TreeSet<>();
         }

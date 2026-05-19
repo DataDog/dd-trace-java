@@ -12,7 +12,7 @@ import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_MULTICONF
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RATE;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_SAMPLE_RULES;
 import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TRACING_ENABLED;
-import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TT_EXTRACTION_PATTERNS;
+import static datadog.remoteconfig.Capabilities.CAPABILITY_APM_TRACING_TT_CANDIDATE_SOURCE_PATTERNS;
 import static datadog.trace.api.sampling.SamplingRule.normalizeGlob;
 
 import com.squareup.moshi.FromJson;
@@ -81,7 +81,7 @@ final class TracingConfigPoller {
               | CAPABILITY_APM_TRACING_ENABLE_CODE_ORIGIN
               | CAPABILITY_APM_TRACING_ENABLE_LIVE_DEBUGGING
               | CAPABILITY_APM_TRACING_MULTICONFIG
-              | CAPABILITY_APM_TRACING_TT_EXTRACTION_PATTERNS);
+              | CAPABILITY_APM_TRACING_TT_CANDIDATE_SOURCE_PATTERNS);
     }
     stopPolling = new Updater().register(config, configPoller);
   }
@@ -259,7 +259,8 @@ final class TracingConfigPoller {
 
     maybeOverride(builder::setTracingTags, parseTagListToMap(libConfig.tracingTags));
     maybeOverride(
-        builder::setTransactionTrackingExtractionPatterns, libConfig.ttExtractionPatterns);
+        builder::setTransactionTrackingCandidateSourcePatterns,
+        libConfig.ttCandidateSourcePatterns);
     DebuggerConfigBridge.updateConfig(
         new DebuggerConfigUpdate(
             libConfig.dynamicInstrumentationEnabled,
@@ -423,8 +424,8 @@ final class TracingConfigPoller {
     @Json(name = "data_streams_transaction_extractors")
     public DataStreamsTransactionExtractors dataStreamsTransactionExtractors;
 
-    @Json(name = "tt_extraction_patterns")
-    public List<String> ttExtractionPatterns;
+    @Json(name = "tt_candidate_source_patterns")
+    public List<String> ttCandidateSourcePatterns;
 
     /**
      * Merges a list of LibConfig objects by taking the first non-null value for each field.
@@ -489,8 +490,8 @@ final class TracingConfigPoller {
         if (merged.liveDebuggingEnabled == null) {
           merged.liveDebuggingEnabled = config.liveDebuggingEnabled;
         }
-        if (merged.ttExtractionPatterns == null) {
-          merged.ttExtractionPatterns = config.ttExtractionPatterns;
+        if (merged.ttCandidateSourcePatterns == null) {
+          merged.ttCandidateSourcePatterns = config.ttCandidateSourcePatterns;
         }
       }
 

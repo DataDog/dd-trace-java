@@ -4873,11 +4873,11 @@ public class Config {
   }
 
   /**
-   * Static fallback for Transaction Tracking extraction patterns. Always returns an empty list;
-   * non-empty values are only delivered through {@code APM_TRACING} remote-config (field {@code
-   * tt_extraction_patterns}).
+   * Static fallback for Transaction Tracking candidate-source patterns. Always returns an empty
+   * list; non-empty values are only delivered through {@code APM_TRACING} remote-config (field
+   * {@code tt_candidate_source_patterns}).
    */
-  public java.util.List<String> getTransactionTrackingExtractionPatterns() {
+  public java.util.List<String> getTransactionTrackingCandidateSourcePatterns() {
     return java.util.Collections.emptyList();
   }
 
