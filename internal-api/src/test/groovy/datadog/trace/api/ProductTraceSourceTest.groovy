@@ -30,6 +30,21 @@ class ProductTraceSourceTest extends DDSpecification {
     ProductTraceSource.DSM | ProductTraceSource.ASM | false
   }
 
+  void 'test isAnyStandaloneProductMarked'(){
+    when:
+    final result = ProductTraceSource.isAnyStandaloneProductMarked(value)
+
+    then:
+    result == expected
+
+    where:
+    value                     | expected
+    ProductTraceSource.UNSET  | false
+    ProductTraceSource.APM    | false
+    ProductTraceSource.ASM    | true
+    ProductTraceSource.LLMOBS | true
+  }
+
   void 'test getBitfieldHex'(){
     when:
     final result = ProductTraceSource.getBitfieldHex(value)

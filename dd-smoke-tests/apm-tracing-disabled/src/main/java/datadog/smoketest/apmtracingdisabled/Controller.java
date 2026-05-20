@@ -1,5 +1,7 @@
 package datadog.smoketest.apmtracingdisabled;
 
+import datadog.trace.api.llmobs.LLMObs;
+import datadog.trace.api.llmobs.LLMObsSpan;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import io.opentracing.Span;
 import io.opentracing.util.GlobalTracer;
@@ -71,6 +73,35 @@ public class Controller {
       RestTemplate restTemplate = new RestTemplate();
       restTemplate.getForObject(url, String.class);
     }
+  }
+
+  @GetMapping("/llmobs/test")
+  public String llmobsTest() {
+    // Create LLMObs span using public API
+    LLMObsSpan llmSpan =
+        LLMObs.startLLMSpan("llmobs-test-operation", "gpt-4", "openai", null, null);
+    llmSpan.annotateIO("test input", "test output");
+    llmSpan.finish();
+
+    return "LLMObs test completed";
+  }
+
+  @GetMapping("/llmobs/standalone")
+  public String llmobsStandalone() throws InterruptedException {
+    // Run LLMObs work on a fresh thread so no APM AgentScope is active
+    // when the LLMObs span is started — the standalone-usage path.
+    Thread t =
+        new Thread(
+            () -> {
+              LLMObsSpan llmSpan =
+                  LLMObs.startLLMSpan(
+                      "llmobs-standalone-operation", "gpt-4-standalone", "openai", null, null);
+              llmSpan.annotateIO("standalone input", "standalone output");
+              llmSpan.finish();
+            });
+    t.start();
+    t.join();
+    return "LLMObs standalone test completed";
   }
 
   private String forceKeepSpan() {
