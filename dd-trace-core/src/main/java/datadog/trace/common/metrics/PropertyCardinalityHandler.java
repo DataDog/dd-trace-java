@@ -1,43 +1,81 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.HashMap;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
+import java.util.Map;
 
 /**
  * Cardinality-capped UTF8 canonicalizer for one property field.
  *
- * <p>The type parameter {@code T} pins the input type per handler so the {@link HashMap} cache key
- * is a class with well-defined {@code equals}/{@code hashCode} (e.g. {@code String}) rather than
- * the abstract {@code CharSequence} interface, where {@code "foo".equals(UTF8BytesString
- * .create("foo"))} is {@code false}. Each call site uses the type its {@code SpanSnapshot} field
- * carries; the compiler then enforces type consistency across calls to a given handler.
+ * <p>The type parameter {@code T} pins the input type per handler so the cache key is a class with
+ * well-defined {@code equals}/{@code hashCode} (e.g. {@code String}) rather than the abstract
+ * {@code CharSequence} interface, where {@code "foo".equals(UTF8BytesString.create("foo"))} is
+ * {@code false}. Each call site uses the type its {@code SpanSnapshot} field carries; the compiler
+ * then enforces type consistency across calls to a given handler.
+ *
+ * <p>Two tiers of state:
+ *
+ * <ul>
+ *   <li>{@link #seenThisCycle} -- values that have consumed a slot of the cardinality budget this
+ *       reporting cycle. Cleared on {@link #reset()}.
+ *   <li>{@link #utf8Cache} -- LRU-bounded reuse cache of previously-built {@link UTF8BytesString}
+ *       instances. Survives {@code reset()}, so a value seen across multiple cycles canonicalizes
+ *       to the same instance and avoids re-allocation. Bounded at {@code 2 * cardinalityLimit};
+ *       once full, the eldest entry is evicted by {@link LinkedHashMap}'s access-order tracking.
+ * </ul>
+ *
+ * <p>Reusing UTF8BytesString instances across cycles also benefits downstream identity-based
+ * comparisons: equality short-circuits to {@code ==} when both sides came from the cache.
  */
 public final class PropertyCardinalityHandler<T extends CharSequence> {
+  /** Long-lived UTF8 cache holds this multiple of the per-cycle cardinality limit. */
+  private static final int CACHE_MULTIPLIER = 2;
+
   private final int cardinalityLimit;
 
-  private final HashMap<T, UTF8BytesString> curUtf8s;
+  /** Values that have consumed a slot of the cardinality budget this cycle. Cleared on reset. */
+  private final HashSet<T> seenThisCycle;
+
+  /**
+   * LRU UTF8 cache; survives reset. Eviction handled by {@link LinkedHashMap#removeEldestEntry}.
+   */
+  private final LinkedHashMap<T, UTF8BytesString> utf8Cache;
 
   private UTF8BytesString cacheBlocked = null;
 
   public PropertyCardinalityHandler(int cardinalityLimit) {
     this.cardinalityLimit = cardinalityLimit;
 
+    final int cacheLimit = cardinalityLimit * CACHE_MULTIPLIER;
     // pre-sizing properly to avoid rehashing
-    this.curUtf8s = new HashMap<>((int) Math.ceil(cardinalityLimit / 0.75) + 1);
+    this.seenThisCycle = new HashSet<>((int) Math.ceil(cardinalityLimit / 0.75) + 1);
+    this.utf8Cache =
+        new LinkedHashMap<T, UTF8BytesString>(
+            (int) Math.ceil(cacheLimit / 0.75) + 1, 0.75f, true /* access-order */) {
+          @Override
+          protected boolean removeEldestEntry(Map.Entry<T, UTF8BytesString> eldest) {
+            return size() > cacheLimit;
+          }
+        };
   }
 
   public UTF8BytesString register(T value) {
-    if (this.curUtf8s.size() >= this.cardinalityLimit) {
-      return this.blockedByTracer();
+    // Cardinality budget: first-time-this-cycle values consume a slot; overflow returns sentinel.
+    if (!this.seenThisCycle.contains(value)) {
+      if (this.seenThisCycle.size() >= this.cardinalityLimit) {
+        return this.blockedByTracer();
+      }
+      this.seenThisCycle.add(value);
     }
 
-    UTF8BytesString existingUtf8 = this.curUtf8s.get(value);
-    if (existingUtf8 != null) return existingUtf8;
+    // UTF8 lookup: long-lived cache reuses across cycles.
+    UTF8BytesString cached = this.utf8Cache.get(value);
+    if (cached != null) return cached;
 
-    // TODO: maybe use a fallback cache to reduce allocations across reset cycles
-    UTF8BytesString newUtf8 = UTF8BytesString.create(value);
-    this.curUtf8s.put(value, newUtf8);
-    return newUtf8;
+    UTF8BytesString fresh = UTF8BytesString.create(value);
+    this.utf8Cache.put(value, fresh);
+    return fresh;
   }
 
   private UTF8BytesString blockedByTracer() {
@@ -49,6 +87,7 @@ public final class PropertyCardinalityHandler<T extends CharSequence> {
   }
 
   public void reset() {
-    this.curUtf8s.clear();
+    this.seenThisCycle.clear();
+    // utf8Cache deliberately not cleared -- cross-cycle reuse is the point.
   }
 }
