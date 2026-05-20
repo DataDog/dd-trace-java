@@ -234,7 +234,7 @@ class DependencyAgeScriptTest(unittest.TestCase):
         """
         Run validate-lockfiles with in-memory lockfile content.
         baseline/current map relative paths to file text.
-        Any uncovered coordinate hits the (unreachable) search URL and is
+        Any uncovered coordinate hits the (unreachable) repo URL and is
         treated as a violation (fail-closed), causing the lockfile to be reverted.
         """
         tmp = Path(tempfile.mkdtemp())
@@ -260,7 +260,7 @@ class DependencyAgeScriptTest(unittest.TestCase):
             "--baseline-dir", str(baseline_dir),
             "--current-dir", str(current_dir),
             "--metadata-file", str(metadata_file),
-            "--search-url", (tmp / "no-network").as_uri(),
+            "--repo-url", (tmp / "no-network-repo").as_uri(),
             "--now", now,
         )
         return result, current_dir
