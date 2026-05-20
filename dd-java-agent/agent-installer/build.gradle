@@ -1,6 +1,10 @@
 apply from: "$rootDir/gradle/java.gradle"
 apply plugin: "idea"
 
+repositories {
+  flatDir { dirs "${project(':dd-java-agent:agent-jmxfetch').projectDir}/libs" }
+}
+
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']
 
