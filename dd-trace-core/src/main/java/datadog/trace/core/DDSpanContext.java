@@ -774,7 +774,7 @@ public class DDSpanContext
     spanKindOrdinal = spanKindOrdinalOf(kind);
   }
 
-  public static byte spanKindOrdinalOf(String kind) {
+  static byte spanKindOrdinalOf(String kind) {
     if (kind == null) {
       return SPAN_KIND_UNSET;
     } else if (tagEquals(kind, Tags.SPAN_KIND_SERVER)) {
@@ -1052,12 +1052,16 @@ public class DDSpanContext
 
     synchronized (unsafeTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
+        String tag = entryChange.tag();
         if (entryChange.isRemoval()) {
-          unsafeTags.remove(entryChange.tag());
+          if (tagEquals(tag, Tags.SPAN_KIND)) {
+            // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
+            spanKindOrdinal = SPAN_KIND_UNSET;
+          }
+          unsafeTags.remove(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          String tag = entry.tag();
           Object value = entry.objectValue();
 
           if (!tagInterceptor.interceptTag(this, tag, value)) {
