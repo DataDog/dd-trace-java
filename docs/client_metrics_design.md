@@ -8,6 +8,83 @@ does not have to sample every span to know request rates and latencies.
 
 Code lives in package `datadog.trace.common.metrics`.
 
+## Overview
+
+Tracers emit thousands of spans per second. Reporting every one to the Datadog
+Agent — let alone storing them — would be expensive and mostly redundant. The
+question "what's my p95 latency for `GET /users/:id` on `web-frontend` over the
+last 10s" doesn't need every individual span; it needs an aggregate.
+
+The client-stats pipeline computes those aggregates on the tracer itself and
+ships rolled-up **buckets** to the agent on a fixed cadence. Each bucket is a
+tuple of label values (resource, service, operation, span kind, peer tags, http
+method/endpoint/status, grpc status, ...) plus a small accumulator: hit count,
+error count, top-level count, duration sum, ok-latency histogram, error-latency
+histogram. A bucket spans one reporting cycle (default 10 seconds); at the end
+of the cycle the buckets are serialized to the agent's `/v0.6/stats` endpoint
+and the in-memory accumulators are cleared.
+
+### Goals
+
+- **Bounded memory.** The aggregator's footprint must not grow without limit no
+  matter how many distinct label combinations the workload produces, or how
+  high the span throughput is.
+- **No producer-thread contention.** Application threads that complete a span
+  shouldn't block on a lock or do meaningful work beyond cheap field
+  extraction. The tracer is a guest in the application's process; it must not
+  show up as overhead.
+- **Correctness under reset.** Cardinality budgets and histograms are dropped
+  every reporting cycle. Mid-cycle drops and agent-downgrade clears can't
+  corrupt the aggregate table or fragment a single logical bucket.
+- **Stable wire format.** The bucket payload matches the existing `/v0.6/stats`
+  schema. This is a re-implementation of an existing protocol, not a protocol
+  change.
+
+### Architecture in one paragraph
+
+A single **aggregator thread** owns every piece of mutable state — the bucket
+table, the per-field cardinality budgets, the histograms. Application threads
+build a small immutable **span snapshot** per metrics-eligible span and post it
+to a bounded MPSC inbox. The aggregator drains the inbox, **canonicalizes**
+each snapshot's label values through cardinality-capped UTF8 interners, hashes
+the canonical form, and finds-or-inserts a bucket. A scheduled signal flushes
+buckets to the agent every reporting interval; the cardinality budgets are
+reset in lockstep with the flush.
+
+### Three rules
+
+1. **Producer threads never touch shared state.** They build a snapshot and
+   hand it off through the inbox. The aggregator does all the heavy work
+   (canonicalization, hashing, lookup, accumulator updates).
+2. **Cardinality is capped per field, per cycle.** Each label field has its
+   own budget; overflow values collapse to a single `blocked_by_tracer`
+   sentinel so the bucket table can never grow past
+   `maxAggregates × (sum of per-field budgets)` distinct combinations.
+3. **Aggregation happens on canonical UTF8 forms.** Two snapshots that disagree
+   only on representation (same content delivered once as a `String`, once as
+   a `UTF8BytesString`) collapse to the same bucket because hashing and
+   matching happen *after* canonicalization.
+
+### Trade-offs
+
+- **One snapshot allocation per metrics-eligible span.** ~100 bytes per
+  snapshot; cheap individually but a meaningful share of producer allocation
+  at high span throughput. Snapshots could be pooled or replaced with a
+  struct-of-arrays inbox; neither is currently worth the complexity.
+- **Cap-overrun drops the new key, not LRU.** When the bucket table is at
+  capacity and no entry is stale enough to evict, an incoming snapshot for a
+  new label combination is dropped (and reported via
+  `onStatsAggregateDropped`). This protects the steady-state workload from a
+  burst of new keys that would otherwise displace established buckets.
+- **One aggregator thread.** The whole consumer side is single-threaded by
+  design — locks, races, and visibility footguns are confined to the producer
+  → inbox handoff. If the producer rate is sustainedly higher than the
+  aggregator can drain, the inbox fills and snapshots are dropped
+  (`onStatsInboxFull`).
+- **Fixed bucket table.** The hashtable's bucket array is sized once at
+  startup from `maxAggregates`. No dynamic resizing; entries beyond the cap
+  trigger the drop-new-key path above.
+
 ## High-level shape
 
 ```
