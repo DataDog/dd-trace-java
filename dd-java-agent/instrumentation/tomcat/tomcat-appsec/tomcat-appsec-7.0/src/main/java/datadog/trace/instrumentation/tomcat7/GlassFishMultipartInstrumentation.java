@@ -67,7 +67,7 @@ public class GlassFishMultipartInstrumentation extends InstrumenterModule.AppSec
     static void after(
         @Advice.Return(readOnly = false) Collection<?> parts,
         @Advice.Thrown Throwable t,
-        @Advice.FieldValue("request") org.apache.catalina.connector.Request catRequest) {
+        @Advice.FieldValue("request") org.apache.catalina.Request catRequest) {
       if (t != null || parts == null || parts.isEmpty()) {
         return;
       }

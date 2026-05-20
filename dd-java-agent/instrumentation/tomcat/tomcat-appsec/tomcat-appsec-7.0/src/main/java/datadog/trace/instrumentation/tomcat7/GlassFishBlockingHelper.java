@@ -16,7 +16,6 @@ import java.util.function.BiFunction;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import javax.servlet.http.Part;
-import org.apache.catalina.connector.Request;
 
 public final class GlassFishBlockingHelper {
 
@@ -68,24 +67,23 @@ public final class GlassFishBlockingHelper {
   public static boolean processPartsAndBlock(
       Collection<?> parts,
       RequestContext reqCtx,
-      Request catRequest,
+      org.apache.catalina.Request catRequest,
       BiFunction<RequestContext, List<String>, Flow<Void>> filenamesCb,
       BiFunction<RequestContext, List<String>, Flow<Void>> contentCb) {
-    // connector.Request implements HttpServletRequest in both Tomcat and GlassFish/Payara.
-    HttpServletRequest fallbackReq = catRequest;
-    // In GlassFish/Payara, connector.Request also implements org.apache.catalina.Request (via
-    // HttpRequest), whose getResponse() returns org.apache.catalina.Response with a stable method
-    // descriptor shared between Tomcat and GlassFish. This lets us reach HttpServletResponse
-    // without reflection. TomcatServerInstrumentation is muzzled out in Payara (its
-    // CoyoteAdapter.postParseRequest arg types differ), so BlockResponseFunction is never
-    // registered there and this fallback is required to commit the blocking response.
+    // org.apache.catalina.Request.getRequest() returns the underlying ServletRequest.
+    // TomcatServerInstrumentation is muzzled out in Payara (CoyoteAdapter.postParseRequest arg
+    // types differ from standard Tomcat), so BlockResponseFunction is never registered there —
+    // this Servlet API fallback is required to commit the blocking response in Payara.
+    javax.servlet.ServletRequest sr = catRequest != null ? catRequest.getRequest() : null;
+    HttpServletRequest fallbackReq =
+        sr instanceof HttpServletRequest ? (HttpServletRequest) sr : null;
     HttpServletResponse fallbackResp = null;
-    if (catRequest instanceof org.apache.catalina.Request) {
-      org.apache.catalina.Response cr = ((org.apache.catalina.Request) catRequest).getResponse();
+    if (catRequest != null) {
+      org.apache.catalina.Response cr = catRequest.getResponse();
       if (cr != null) {
-        javax.servlet.ServletResponse sr = cr.getResponse();
-        if (sr instanceof HttpServletResponse) {
-          fallbackResp = (HttpServletResponse) sr;
+        javax.servlet.ServletResponse svr = cr.getResponse();
+        if (svr instanceof HttpServletResponse) {
+          fallbackResp = (HttpServletResponse) svr;
         }
       }
     }
