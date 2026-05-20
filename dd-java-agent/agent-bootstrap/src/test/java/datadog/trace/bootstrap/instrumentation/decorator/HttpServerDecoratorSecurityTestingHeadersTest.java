@@ -44,17 +44,9 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
     span = mock(AgentSpan.class);
     when(span.setTag(anyString(), anyString())).thenAnswer(this::recordTag);
     when(span.getRequestContext()).thenReturn(mock(RequestContext.class));
-
-    TracerAPI tracer = mock(TracerAPI.class);
-    when(tracer.startSpan(any(), any(), any())).thenReturn(span);
     when(span.setMeasured(true)).thenReturn(span);
-    when(tracer.getDataStreamsMonitoring()).thenReturn(mock(DataStreamsMonitoring.class));
-    when(tracer.getUniversalCallbackProvider())
-        .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
-    when(tracer.getCallbackProvider(any()))
-        .thenReturn(AgentTracer.NOOP_TRACER.getUniversalCallbackProvider());
 
-    decorator = newDecorator(tracer);
+    decorator = newDecorator(ContextVisitors.stringValuesMap());
   }
 
   private Object recordTag(InvocationOnMock invocation) {
@@ -144,7 +136,7 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
             }
           }
         };
-    decorator = newDecoratorWithGetter(trackingVisitor);
+    decorator = newDecorator(trackingVisitor);
 
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put("x-datadog-endpoint-scan", "scan-uuid");
@@ -175,7 +167,7 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
             }
           }
         };
-    decorator = newDecoratorWithGetter(visitorWithNullValue);
+    decorator = newDecorator(visitorWithNullValue);
 
     decorator.startSpan(headers, root());
 
@@ -199,7 +191,7 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
             }
           }
         };
-    decorator = newDecoratorWithGetter(visitorWithNullKey);
+    decorator = newDecorator(visitorWithNullKey);
 
     decorator.startSpan(headers, root());
 
@@ -207,8 +199,8 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
     assertEquals("test-uuid", tags.get(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST));
   }
 
-  private HttpServerDecorator<Map<String, String>, ?, ?, Map<String, String>>
-      newDecoratorWithGetter(AgentPropagation.ContextVisitor<Map<String, String>> visitor) {
+  private HttpServerDecorator<Map<String, String>, ?, ?, Map<String, String>> newDecorator(
+      AgentPropagation.ContextVisitor<Map<String, String>> visitor) {
     TracerAPI tracer = mock(TracerAPI.class);
     when(tracer.startSpan(any(), any(), any())).thenReturn(span);
     when(tracer.getDataStreamsMonitoring()).thenReturn(mock(DataStreamsMonitoring.class));
@@ -240,66 +232,6 @@ class HttpServerDecoratorSecurityTestingHeadersTest {
       @Override
       protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
         return visitor;
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Object> responseGetter() {
-        return null;
-      }
-
-      @Override
-      protected String method(Map<String, String> request) {
-        return null;
-      }
-
-      @Override
-      protected URIDataAdapter url(Map<String, String> request) {
-        return null;
-      }
-
-      @Override
-      protected String peerHostIP(Object connection) {
-        return null;
-      }
-
-      @Override
-      protected int peerPort(Object connection) {
-        return 0;
-      }
-
-      @Override
-      protected int status(Object response) {
-        return 0;
-      }
-    };
-  }
-
-  private static HttpServerDecorator<Map<String, String>, ?, ?, Map<String, String>> newDecorator(
-      TracerAPI tracer) {
-    return new HttpServerDecorator<Map<String, String>, Object, Object, Map<String, String>>() {
-      @Override
-      protected TracerAPI tracer() {
-        return tracer;
-      }
-
-      @Override
-      protected String[] instrumentationNames() {
-        return new String[] {"test"};
-      }
-
-      @Override
-      protected CharSequence component() {
-        return "test-component";
-      }
-
-      @Override
-      public CharSequence spanName() {
-        return "http-test-span";
-      }
-
-      @Override
-      protected AgentPropagation.ContextVisitor<Map<String, String>> getter() {
-        return ContextVisitors.stringValuesMap();
       }
 
       @Override
