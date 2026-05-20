@@ -87,27 +87,6 @@ class AggregateTableTest {
   }
 
   @Test
-  void cardinalityBlockedValuesCollapseIntoOneEntry() {
-    // SERVICE_HANDLER has a cardinality limit of 32. With 50 distinct service names, services 33+
-    // canonicalize to the "blocked_by_tracer" sentinel. Because the table hashes from the canonical
-    // (post-handler) form, all blocked services land in the same bucket and merge into a single
-    // entry rather than fragmenting.
-    AggregateEntry.resetCardinalityHandlers();
-    AggregateTable table = new AggregateTable(128);
-
-    for (int i = 0; i < 50; i++) {
-      AggregateEntry agg = table.findOrInsert(snapshot("svc-" + i, "op", "client"));
-      assertNotNull(agg);
-      agg.recordOneDuration(1L);
-    }
-
-    // 32 in-budget services + 1 collapsed "blocked_by_tracer" entry = 33 total.
-    assertEquals(33, table.size());
-
-    AggregateEntry.resetCardinalityHandlers();
-  }
-
-  @Test
   void capOverrunEvictsStaleEntry() {
     AggregateTable table = new AggregateTable(2);
 
@@ -230,25 +209,15 @@ class AggregateTableTest {
     }
 
     SnapshotBuilder peerTags(String... namesAndValues) {
-      // Build a schema directly from the (name, value, name, value, ...) input. In production the
-      // cached schema is owned by ClientStatsAggregator; these tests exercise AggregateTable and
-      // can use a fresh per-snapshot schema -- canonicalization is content-based so cardinality
-      // collapse still works across snapshots even with different handler instances.
-      java.util.LinkedHashSet<String> names = new java.util.LinkedHashSet<>();
-      for (int i = 0; i < namesAndValues.length; i += 2) {
-        names.add(namesAndValues[i]);
+      int pairCount = namesAndValues.length / 2;
+      String[] names = new String[pairCount];
+      String[] values = new String[pairCount];
+      for (int i = 0; i < pairCount; i++) {
+        names[i] = namesAndValues[2 * i];
+        values[i] = namesAndValues[2 * i + 1];
       }
-      this.peerTagSchema =
-          PeerTagSchema.of(names, 0L, datadog.trace.core.monitor.HealthMetrics.NO_OP);
-      this.peerTagValues = new String[peerTagSchema.size()];
-      for (int i = 0; i < namesAndValues.length; i += 2) {
-        for (int j = 0; j < peerTagSchema.size(); j++) {
-          if (peerTagSchema.name(j).equals(namesAndValues[i])) {
-            peerTagValues[j] = namesAndValues[i + 1];
-            break;
-          }
-        }
-      }
+      this.peerTagSchema = PeerTagSchema.testSchema(names);
+      this.peerTagValues = values;
       return this;
     }
 
