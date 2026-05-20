@@ -26,12 +26,14 @@ import datadog.trace.api.gateway.InferredProxySpan;
 import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.api.naming.SpanNaming;
+import datadog.trace.api.tt.TransactionTrackingCandidateSources;
 import datadog.trace.bootstrap.instrumentation.api.AgentPropagation;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
+import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
@@ -44,8 +46,10 @@ import java.net.InetAddress;
 import java.util.BitSet;
 import java.util.Locale;
 import java.util.Map;
+import java.util.TreeSet;
 import java.util.concurrent.ExecutionException;
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 import javax.annotation.Nonnull;
@@ -117,6 +121,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
     // Instead, only ones required (by DSM specifically) have it implemented.
     // This can change in the future.
     return null;
+  }
+
+  /**
+   * Iterates the names of every inbound HTTP request header, invoking {@code consumer} once per
+   * name. Default no-op implementation: subclasses with cheap access to the underlying request's
+   * header enumeration should override this so the Transaction Tracking candidate-sources tag works
+   * for that stack. Used only when {@link TransactionTrackingCandidateSources#isEmpty()} returns
+   * false.
+   */
+  protected void forEachRequestHeaderName(REQUEST request, Consumer<String> consumer) {
+    // no-op: stacks without cheap header enumeration silently produce no tag.
   }
 
   protected String requestedSessionId(REQUEST request) {
@@ -344,6 +359,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       } catch (final Exception e) {
         log.debug("Error tagging url", e);
       }
+      // Transaction Tracking: tag span with matching header / query-param names when the
+      // remote-config snapshot is non-empty. Fast path is a single volatile read + isEmpty().
+      if (!TransactionTrackingCandidateSources.isEmpty()) {
+        try {
+          tagCandidateSources(span, request);
+        } catch (Exception e) {
+          log.debug("Error tagging tt candidate sources", e);
+        }
+      }
     }
 
     String peerIp = null;
@@ -418,6 +442,111 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             request,
             DSM_TRANSACTION_SOURCE_READER);
     return span;
+  }
+
+  /**
+   * Adds the {@code _dd.tt.candidate_sources} tag based on the currently active {@link
+   * TransactionTrackingCandidateSources} snapshot. Caller must have already verified that the
+   * snapshot is non-empty.
+   *
+   * <p>The tag value is a CSV with deterministic ordering: {@code header:} entries (sorted), then
+   * {@code qs:} entries (sorted). Names are lowercased and de-duplicated within each bucket. The
+   * tag is only set if at least one match is found.
+   */
+  private void tagCandidateSources(AgentSpan span, REQUEST request) {
+    if (request == null) {
+      return;
+    }
+    TreeSet<String> headerHits = null;
+    TreeSet<String> qsHits = null;
+
+    // 1. Header names.
+    HeaderNameCollector<REQUEST> collector = new HeaderNameCollector<>();
+    forEachRequestHeaderName(request, collector);
+    if (collector.matches != null) {
+      headerHits = collector.matches;
+    }
+
+    // 2. Query-string parameter names. Re-resolve the URL adapter so this code path does not
+    // depend on whether the URL block above succeeded.
+    try {
+      URIDataAdapter url = url(request);
+      String rawQuery = url == null ? null : url.rawQuery();
+      if (rawQuery != null && !rawQuery.isEmpty()) {
+        qsHits = collectQueryParameterMatches(rawQuery);
+      }
+    } catch (Exception e) {
+      log.debug("Error resolving URL for tt candidate sources", e);
+    }
+
+    if (headerHits == null && qsHits == null) {
+      return;
+    }
+    StringBuilder sb = new StringBuilder();
+    if (headerHits != null) {
+      for (String name : headerHits) {
+        if (sb.length() > 0) {
+          sb.append(',');
+        }
+        sb.append("header:").append(name);
+      }
+    }
+    if (qsHits != null) {
+      for (String name : qsHits) {
+        if (sb.length() > 0) {
+          sb.append(',');
+        }
+        sb.append("qs:").append(name);
+      }
+    }
+    if (sb.length() > 0) {
+      span.setTag(InstrumentationTags.TT_CANDIDATE_SOURCES, sb.toString());
+    }
+  }
+
+  private static TreeSet<String> collectQueryParameterMatches(String rawQuery) {
+    TreeSet<String> hits = null;
+    int len = rawQuery.length();
+    int start = 0;
+    while (start <= len) {
+      int amp = rawQuery.indexOf('&', start);
+      int end = amp < 0 ? len : amp;
+      if (end > start) {
+        int eq = rawQuery.indexOf('=', start);
+        int nameEnd = (eq < 0 || eq > end) ? end : eq;
+        if (nameEnd > start) {
+          String name = rawQuery.substring(start, nameEnd);
+          if (TransactionTrackingCandidateSources.matchesAny(name)) {
+            if (hits == null) {
+              hits = new TreeSet<>();
+            }
+            hits.add(name.toLowerCase(Locale.ROOT));
+          }
+        }
+      }
+      if (amp < 0) {
+        break;
+      }
+      start = amp + 1;
+    }
+    return hits;
+  }
+
+  private static final class HeaderNameCollector<R> implements Consumer<String> {
+    TreeSet<String> matches;
+
+    @Override
+    public void accept(String name) {
+      if (name == null) {
+        return;
+      }
+      if (TransactionTrackingCandidateSources.matchesAny(name)) {
+        if (matches == null) {
+          matches = new TreeSet<>();
+        }
+        matches.add(name.toLowerCase(Locale.ROOT));
+      }
+    }
   }
 
   protected static AgentSpanContext.Extracted getExtractedSpanContext(Context parentContext) {

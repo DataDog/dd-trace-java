@@ -17,6 +17,7 @@ import static datadog.trace.util.ConfigStrings.trim;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.sampling.SamplingRule.SpanSamplingRule;
 import datadog.trace.api.sampling.SamplingRule.TraceSamplingRule;
+import datadog.trace.api.tt.TransactionTrackingCandidateSources;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
@@ -87,6 +88,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
   public void resetTraceConfig() {
     currentSnapshot = initialSnapshot;
     reportConfigChange(initialSnapshot);
+    TransactionTrackingCandidateSources.update(initialSnapshot.ttCandidateSourcePatterns);
   }
 
   @Override
@@ -113,6 +115,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     Pair<String, CharSequence> preferredServiceNameAndSource;
     List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
+    List<String> ttCandidateSourcePatterns;
 
     Builder() {}
 
@@ -137,6 +140,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.preferredServiceNameAndSource = snapshot.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = snapshot.dataStreamsTransactionExtractors;
+      this.ttCandidateSourcePatterns = snapshot.ttCandidateSourcePatterns;
     }
 
     public Builder setRuntimeMetricsEnabled(boolean runtimeMetricsEnabled) {
@@ -232,6 +236,15 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
       return this;
     }
 
+    /**
+     * Sets the list of {@code *}-glob patterns used by Transaction Tracking to flag inbound HTTP
+     * header / query-string parameter names. A {@code null} or empty list disables the feature.
+     */
+    public Builder setTransactionTrackingCandidateSourcePatterns(List<String> patterns) {
+      this.ttCandidateSourcePatterns = patterns;
+      return this;
+    }
+
     /** Overwrites the current configuration with a new snapshot. */
     public DynamicConfig<S> apply() {
       S oldSnapshot = currentSnapshot;
@@ -243,6 +256,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
         currentSnapshot = newSnapshot;
         reportConfigChange(newSnapshot);
       }
+      // Publish the compiled snapshot to the static holder used on the request hot path.
+      TransactionTrackingCandidateSources.update(newSnapshot.ttCandidateSourcePatterns);
       return DynamicConfig.this;
     }
   }
@@ -335,6 +350,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
     final Pair<String, CharSequence> preferredServiceNameAndSource;
     final List<DataStreamsTransactionExtractor> dataStreamsTransactionExtractors;
+    final List<String> ttCandidateSourcePatterns;
 
     protected Snapshot(DynamicConfig<?>.Builder builder, Snapshot oldSnapshot) {
 
@@ -357,6 +373,7 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
 
       this.preferredServiceNameAndSource = builder.preferredServiceNameAndSource;
       this.dataStreamsTransactionExtractors = builder.dataStreamsTransactionExtractors;
+      this.ttCandidateSourcePatterns = nullToEmpty(builder.ttCandidateSourcePatterns);
     }
 
     private static <K, V> Map<K, V> nullToEmpty(Map<K, V> mapping) {
@@ -433,6 +450,11 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
     }
 
     @Override
+    public List<String> getTransactionTrackingCandidateSourcePatterns() {
+      return ttCandidateSourcePatterns;
+    }
+
+    @Override
     public Map<String, String> getTracingTags() {
       return tracingTags;
     }
@@ -466,6 +488,8 @@ public final class DynamicConfig<S extends DynamicConfig.Snapshot> {
           + tracingTags
           + ", preferredServiceNameAndSource="
           + preferredServiceNameAndSource
+          + ", ttCandidateSourcePatterns="
+          + ttCandidateSourcePatterns
           + '}';
     }
   }
