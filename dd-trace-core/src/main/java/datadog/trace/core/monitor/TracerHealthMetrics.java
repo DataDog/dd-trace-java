@@ -364,6 +364,11 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
+  public void onTagCardinalityBlocked(String tag, long count) {
+    statsd.count("stats.tag_cardinality_blocked", count, new String[] {"tag:" + tag});
+  }
+
+  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
