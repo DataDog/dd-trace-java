@@ -1,0 +1,38 @@
+muzzle {
+  fail {
+    group = "redis.clients"
+    module = "jedis"
+    versions = "[,3.0.0)"
+    skipVersions += "jedis-3.6.2" // bad release version ("jedis-" prefix)
+  }
+
+  pass {
+    group = "redis.clients"
+    module = "jedis"
+    versions = "[3.0.0,4.0.0)"
+  }
+
+  // Upper bound (jedis 4.0+) is enforced by jedis-4.0 module's instrumentation;
+  // its own fail{ versions = "[,4.0.0)" } guards against this module loading on 4.0+.
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.withType(Test).configureEach {
+  environment "DD_TRACE_ENABLED", "true"
+}
+
+dependencies {
+  compileOnly group: 'redis.clients', name: 'jedis', version: '3.0.0'
+  testImplementation group: 'redis.clients', name: 'jedis', version: '3.0.0'
+
+  testImplementation (group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3') {
+    // Excluding redis client to avoid conflicts in instrumentation code.
+    exclude group: 'redis.clients', module: 'jedis'
+  }
+
+  // Jedis 4.0 has API changes that prevent this instrumentation from applying
+  latestDepTestImplementation group: 'redis.clients', name: 'jedis', version: '3.+'
+}
