@@ -6,6 +6,17 @@ import java.util.Arrays;
 /**
  * Cardinality-capped UTF8 canonicalizer for one property field.
  *
+ * <p><b>Dual role -- limiter and cache.</b> Prior versions ran a per-field {@code DDCache} for UTF8
+ * reuse with a separate global cardinality cap on top. Under high load that wasn't enough to stave
+ * off long GC cycles: every miss still concatenated / UTF8-encoded the value before the cache could
+ * store it. A cardinality limiter and a recent-value cache are both <em>sets of recently used
+ * values</em>, so this class collapses them into one structure. Cardinality limiting happens first,
+ * which lets the blocked path skip the concatenation and encoding entirely.
+ *
+ * <p>A pure limiter would fully reset each reporting cycle and destroy the cache. To preserve UTF8
+ * reuse across resets, the handler keeps the previous cycle's entries verbatim in a parallel table
+ * and reuses any matching {@link UTF8BytesString} when a value first appears in the new cycle.
+ *
  * <p>Accepts any {@link CharSequence} input -- mixed {@code String}/{@code UTF8BytesString} of the
  * same content collapse to one slot because {@link UTF8BytesString#hashCode()} delegates to the
  * underlying String's hash and probe equality is the content-based {@code
