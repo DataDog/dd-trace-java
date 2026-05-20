@@ -467,8 +467,9 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying {@code schema.handler(i)}
-     * to each non-null value at the same index. No allocation when the schema/values are absent or
-     * all values are null (buffer is just cleared).
+     * to each value at the same index. Handler returns {@code EMPTY} for null inputs; we elide
+     * those from the buffer so the wire-format list-of-pairs only contains present peer tags. No
+     * allocation when the schema/values are absent or all values are null (buffer is just cleared).
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
       peerTagsBuffer.clear();
@@ -477,9 +478,9 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       int n = schema.size();
       for (int i = 0; i < n; i++) {
-        String v = values[i];
-        if (v != null) {
-          peerTagsBuffer.add(schema.handler(i).register(v));
+        UTF8BytesString utf8 = schema.handler(i).register(values[i]);
+        if (utf8 != UTF8BytesString.EMPTY) {
+          peerTagsBuffer.add(utf8);
         }
       }
     }

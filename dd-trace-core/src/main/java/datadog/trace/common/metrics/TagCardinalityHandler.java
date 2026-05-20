@@ -42,7 +42,14 @@ public final class TagCardinalityHandler {
     this.priorValues = new UTF8BytesString[capacity];
   }
 
+  /**
+   * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
+   * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   */
   public UTF8BytesString register(String value) {
+    if (value == null) {
+      return UTF8BytesString.EMPTY;
+    }
     final int slot = probe(this.curKeys, value);
     if (this.curKeys[slot] != null) {
       return this.curValues[slot];
