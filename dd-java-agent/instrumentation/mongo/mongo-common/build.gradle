@@ -15,6 +15,5 @@ dependencies {
   testFixturesImplementation(project(':dd-java-agent:instrumentation-testing'))
   testFixturesImplementation group: 'org.testcontainers', name: 'mongodb', version: libs.versions.testcontainers.get()
 
-  //testImplementation project(':dd-java-agent:instrumentation:mongo').sourceSets.test.output
   testImplementation group: 'org.mongodb', name: 'mongo-java-driver', version: '3.1.0'
 }

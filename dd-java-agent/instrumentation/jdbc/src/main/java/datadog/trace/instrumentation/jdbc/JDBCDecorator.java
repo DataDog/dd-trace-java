@@ -234,7 +234,7 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
           clientInfo = connection.getClientInfo();
         } catch (final Throwable ex) {
           // getClientInfo is likely not allowed, we can still extract info from the url alone
-          log.debug("Could not get client info from DB", ex);
+          log.debug(LogCollector.EXCLUDE_TELEMETRY, "Could not get client info from DB", ex);
         }
         dbInfo = JDBCConnectionUrlParser.extractDBInfo(url, clientInfo);
       } else {

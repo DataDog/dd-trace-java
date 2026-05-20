@@ -1,5 +1,15 @@
 package datadog.trace.core;
 
+/**
+ * Bitmask-based eligibility test over the six recognized {@code span.kind} values (server, client,
+ * producer, consumer, internal, broker). A filter is built once via {@link #builder()} and then
+ * applied per span by either matching a cached kind ordinal (fast path on {@link DDSpan}) or
+ * looking up the {@code span.kind} tag (default path on {@link CoreSpan#isKind}).
+ *
+ * <p>Arbitrary {@code span.kind} strings outside the six recognized values collapse to {@link
+ * DDSpanContext#SPAN_KIND_CUSTOM} and never match — by design. Callers that need custom-string
+ * matching should read the tag directly via {@link CoreSpan#unsafeGetTag} instead.
+ */
 public final class SpanKindFilter {
   public static final class Builder {
     private int kindMask;
