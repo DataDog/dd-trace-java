@@ -53,10 +53,8 @@ variables:
   GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
-  ARM64_BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build"
-  ARM64_BUILDER_IMAGE_TAG: "alexeyk_arm64-test-arm64-base"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
-  BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
+  BUILDER_IMAGE_VERSION_PREFIX: "163_merge-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
@@ -197,13 +195,8 @@ default:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
   variables:
+    <<: *tier_m_variables
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 6
-    GRADLE_MEMORY_MIN: 1G
-    GRADLE_MEMORY_MAX: 4G
-    KUBERNETES_CPU_REQUEST: 10
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -635,6 +628,7 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
+    <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -703,14 +697,14 @@ muzzle-dep-report:
       - data_integrity_failure
 
 .test_job_arm64:
-  image: ${ARM64_BUILDER_IMAGE_REPO}:${ARM64_BUILDER_IMAGE_TAG}
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   tags: [ "docker-in-docker:arm64" ]
   stage: tests-arm64
   needs: []
   variables:
     <<: *tier_m_variables
-    # arm64 docker image installs only these JVMs; override the global default regex.
-    DEFAULT_TEST_JVMS: /^(8|11|17|21|25)$/
+    # arm64 does not include JDK 7 or ibm8 (upstream images not published for arm64).
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
     GRADLE_PARAMS: "-PskipFlakyTests"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
     TESTCONTAINERS_RYUK_DISABLED: "true"
@@ -869,6 +863,7 @@ test_base_arm64:
 test_inst:
   extends: .test_job_with_test_agent
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
@@ -886,6 +881,7 @@ test_inst_arm64:
 test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationLatestDepTest"
     CACHE_TYPE: "latestdep"
   parallel:
@@ -978,6 +974,7 @@ test_debugger_arm64:
 test_smoke:
   extends: .test_job
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
@@ -1004,6 +1001,7 @@ test_ssi_smoke:
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
       when: on_success
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
     DD_INJECT_FORCE: "true"
@@ -1026,6 +1024,7 @@ test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
@@ -1036,14 +1035,16 @@ test_smoke_graalvm:
 
 test_smoke_graalvm_arm64:
   extends: .test_job_arm64
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
+    NON_DEFAULT_JVMS: "true"
   parallel:
     matrix:
-      - testJvm: ["graalvm21"]
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
 
 test_smoke_semeru8_debugger:
   extends: .test_job
