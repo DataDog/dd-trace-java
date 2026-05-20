@@ -292,6 +292,7 @@ class AggregateTableTest {
         null,
         null,
         null,
+        null,
         0L);
   }
 
@@ -307,6 +308,7 @@ class AggregateTableTest {
         false,
         true,
         "client",
+        null,
         null,
         null,
         null,

@@ -47,7 +47,7 @@ class AggregateEntryTest {
     entry.recordOneDuration(5L);
     entry.recordOneDuration(ERROR_TAG | 6L);
     entry.recordOneDuration(TOP_LEVEL_TAG | 7L);
-    entry.clear();
+    entry.clearAggregate();
     assertEquals(0, entry.getDuration());
     assertEquals(0, entry.getErrorCount());
     assertEquals(0, entry.getTopLevelCount());
