@@ -101,6 +101,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     String version;
     String telemetryProxyEndpoint;
     Set<String> peerTags = emptySet();
+    long peerTagsRevision;
     long lastTimeDiscovered;
   }
 
@@ -138,11 +139,14 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private synchronized void discoverIfOutdated(final long maxElapsedMs) {
     final long now = System.currentTimeMillis();
-    final long elapsed = now - discoveryState.lastTimeDiscovered;
+    final State previous = discoveryState;
+    final long elapsed = now - previous.lastTimeDiscovered;
     if (elapsed > maxElapsedMs) {
       final State newState = new State();
       doDiscovery(newState);
       newState.lastTimeDiscovered = now;
+      newState.peerTagsRevision =
+          previous.peerTagsRevision + (newState.peerTags.equals(previous.peerTags) ? 0L : 1L);
       // swap atomically states
       discoveryState = newState;
     }
@@ -401,6 +405,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public Set<String> peerTags() {
     return discoveryState.peerTags;
+  }
+
+  /**
+   * Monotonically increasing counter bumped each time {@link #peerTags()} produces a Set that is
+   * not equal to the previous one. Callers can compare this against a cached snapshot to detect
+   * peer-tag config changes without re-comparing the Sets themselves -- e.g. the client-stats
+   * aggregator uses it to decide when to rebuild its {@code PeerTagSchema}.
+   */
+  public long peerTagsRevision() {
+    return discoveryState.peerTagsRevision;
   }
 
   public String getMetricsEndpoint() {

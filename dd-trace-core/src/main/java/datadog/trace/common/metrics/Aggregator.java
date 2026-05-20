@@ -28,32 +28,18 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
+  /**
+   * Per-cycle hook run on the aggregator thread right after a report. Used by {@link
+   * ClientStatsAggregator} to reset every cardinality handler in lockstep (static property
+   * handlers, cached peer-agg schema, additional-tags schema). May be {@code null}.
+   */
+  private final Runnable onResetCardinality;
+
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
-  private final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
-
-  Aggregator(
-      MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
-      int maxAggregates,
-      long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit,
-      HealthMetrics healthMetrics) {
-    this(
-        writer,
-        inbox,
-        maxAggregates,
-        reportingInterval,
-        reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS,
-        healthMetrics,
-        AdditionalTagsSchema.EMPTY,
-        100);
-  }
-
   Aggregator(
       MetricWriter writer,
       MessagePassingQueue<InboxItem> inbox,
@@ -61,8 +47,8 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
-      AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit) {
+      Runnable onResetCardinality,
+      AdditionalTagsSchema additionalTagsSchema) {
     this(
         writer,
         inbox,
@@ -71,28 +57,8 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
-        additionalTagsSchema,
-        additionalTagsCardinalityLimit);
-  }
-
-  Aggregator(
-      MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
-      int maxAggregates,
-      long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit,
-      long sleepMillis,
-      HealthMetrics healthMetrics) {
-    this(
-        writer,
-        inbox,
-        maxAggregates,
-        reportingInterval,
-        reportingIntervalTimeUnit,
-        sleepMillis,
-        healthMetrics,
-        AdditionalTagsSchema.EMPTY,
-        100);
+        onResetCardinality,
+        additionalTagsSchema);
   }
 
   Aggregator(
@@ -103,17 +69,15 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
-      AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit) {
+      Runnable onResetCardinality,
+      AdditionalTagsSchema additionalTagsSchema) {
     this.writer = writer;
     this.inbox = inbox;
-    this.additionalTagsLimiter =
-        new AdditionalTagsCardinalityLimiter(additionalTagsCardinalityLimit, healthMetrics);
-    this.aggregates =
-        new AggregateTable(maxAggregates, additionalTagsSchema, additionalTagsLimiter, healthMetrics);
+    this.aggregates = new AggregateTable(maxAggregates, additionalTagsSchema);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
+    this.onResetCardinality = onResetCardinality;
   }
 
   @Override
@@ -143,6 +107,10 @@ final class Aggregator implements Runnable {
     @Override
     public void accept(InboxItem item) {
       if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
         if (!stopped) {
           aggregates.clear();
           inbox.clear();
@@ -182,9 +150,10 @@ final class Aggregator implements Runnable {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
           aggregates.forEach(
-              entry -> {
-                writer.add(entry);
-                entry.clearAggregate();
+              writer,
+              (w, entry) -> {
+                w.add(entry);
+                entry.clear();
               });
           // note that this may do IO and block
           writer.finishBucket();
@@ -195,10 +164,13 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
-    // Reset cardinality handlers each report cycle so the per-field budgets refresh.
-    // Safe to call on this (aggregator) thread; handlers are HashMap-based and not thread-safe.
-    AggregateEntry.resetCardinalityHandlers();
-    additionalTagsLimiter.resetBucket();
+    // Reset cardinality handlers each report cycle so the per-field budgets refresh. Single hook
+    // owned by ClientStatsAggregator -- it covers the static property handlers on AggregateEntry,
+    // the cached peer-agg schema, and the additional-tags schema. Safe on this (aggregator)
+    // thread; handlers are flat-array-based and not thread-safe.
+    if (onResetCardinality != null) {
+      onResetCardinality.run();
+    }
     signal.complete();
     if (skipped) {
       log.debug("skipped metrics reporting because no points have changed");

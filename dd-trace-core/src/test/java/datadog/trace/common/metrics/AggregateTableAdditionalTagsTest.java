@@ -27,7 +27,7 @@ class AggregateTableAdditionalTagsTest {
 
   @Test
   void distinctAdditionalTagValuesYieldDistinctEntries() {
-    AdditionalTagsSchema schema = schemaFor("region");
+    AdditionalTagsSchema schema = schemaFor(100, "region");
     AggregateTable table = newTable(schema, 100);
 
     AggregateEntry usEast = table.findOrInsert(snapshot(schema, "us-east-1"));
@@ -41,7 +41,7 @@ class AggregateTableAdditionalTagsTest {
 
   @Test
   void sameAdditionalTagValuesShareEntry() {
-    AdditionalTagsSchema schema = schemaFor("region");
+    AdditionalTagsSchema schema = schemaFor(100, "region");
     AggregateTable table = newTable(schema, 100);
 
     AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
@@ -53,7 +53,7 @@ class AggregateTableAdditionalTagsTest {
 
   @Test
   void overlongValuesShareTheBlockedSentinelEntry() {
-    AdditionalTagsSchema schema = schemaFor("region");
+    AdditionalTagsSchema schema = schemaFor(100, "region");
     AggregateTable table = newTable(schema, 100);
 
     String overlong = repeat('a', AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1);
@@ -72,8 +72,8 @@ class AggregateTableAdditionalTagsTest {
 
   @Test
   void cardinalityCapCollapsesNewEntriesToBlockedSentinel() {
-    AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, /*cardinalityLimit*/ 2);
+    AdditionalTagsSchema schema = schemaFor(/*cardinalityLimit*/ 2, "region");
+    AggregateTable table = newTable(schema, 2);
 
     // Two distinct values admitted before the cap closes.
     AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
@@ -93,8 +93,8 @@ class AggregateTableAdditionalTagsTest {
 
   @Test
   void cardinalityCapDoesNotBlockExistingEntries() {
-    AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, /*cardinalityLimit*/ 1);
+    AdditionalTagsSchema schema = schemaFor(/*cardinalityLimit*/ 1, "region");
+    AggregateTable table = newTable(schema, 1);
 
     AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
     // Now at cap. A repeat of the same value should still hit the existing entry.
@@ -110,14 +110,15 @@ class AggregateTableAdditionalTagsTest {
 
   // ---------- helpers ----------
 
-  private static AdditionalTagsSchema schemaFor(String... names) {
-    return AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList(names)));
+  private static AdditionalTagsSchema schemaFor(int cardinalityLimit, String... names) {
+    return AdditionalTagsSchema.from(
+        new LinkedHashSet<>(Arrays.asList(names)), cardinalityLimit, HealthMetrics.NO_OP);
   }
 
-  private static AggregateTable newTable(AdditionalTagsSchema schema, int cardinalityLimit) {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(cardinalityLimit, HealthMetrics.NO_OP);
-    return new AggregateTable(256, schema, limiter, HealthMetrics.NO_OP);
+  private static AggregateTable newTable(AdditionalTagsSchema schema, int ignoredAdditionalLimit) {
+    // The per-key cardinality cap is baked into the schema's handlers; the table itself just
+    // bounds total aggregates.
+    return new AggregateTable(256, schema);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String regionValue) {

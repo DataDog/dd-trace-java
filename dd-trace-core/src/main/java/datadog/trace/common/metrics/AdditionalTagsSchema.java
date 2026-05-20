@@ -1,31 +1,34 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Immutable schema describing the configured span-derived primary tag keys. Built once from {@code
- * Config.getTraceStatsAdditionalTags()} at aggregator construction; not replaced at runtime.
+ * Schema describing the configured span-derived primary tag keys. Built once from {@code
+ * Config.getTraceStatsAdditionalTags()} at aggregator construction; the name + handler list isn't
+ * replaced at runtime, but per-cycle warn-once state lives here too.
  *
  * <p>Parallels {@link PeerTagSchema} for shape -- a sorted, deduped, capped {@code String[]} of
- * names plus per-name pre-computed artifacts -- but lives in {@code SpanSnapshot} and {@link
- * AggregateEntry} alongside, not in place of, the peer-tag schema.
+ * names plus per-name {@link TagCardinalityHandler} -- but lives in {@code SpanSnapshot} and
+ * {@link AggregateEntry} alongside, not in place of, the peer-tag schema.
  *
- * <p>What's pre-built:
- *
- * <ul>
- *   <li>{@link #names} -- the alphabetically sorted, deduped, capped list of tag keys to extract.
- *   <li>{@link #blockedSentinels} -- one shared {@code UTF8BytesString("<key>:blocked_by_tracer")}
- *       per configured key, used whenever a value is replaced by the length cap or the
- *       global-bucket cardinality cap.
- * </ul>
+ * <p>Each handler enforces a per-key cardinality cap; this class adds a per-value length cap on
+ * top, substituting the handler's {@code "<key>:blocked_by_tracer"} sentinel when either limit is
+ * hit. Length-blocks and cardinality-blocks each emit a one-shot warn log per reporting cycle per
+ * key and fire {@link HealthMetrics#onTagCardinalityBlocked(String)} per blocked value. The
+ * aggregate table's {@code maxAggregates} bound prevents total-entry explosion above and beyond
+ * what the per-key caps allow.
  */
 final class AdditionalTagsSchema {
+
+  private static final Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
 
   /**
    * Backend stats pipeline supports a small number of primary tag dimensions (4 by default, up to
@@ -36,23 +39,28 @@ final class AdditionalTagsSchema {
 
   /**
    * Maximum length of an additional metric tag value. Caps entry footprint + wire payload from
-   * stack-trace / JSON / SQL stuffed into a tag by misconfigured app code. Values exceeding this
-   * are replaced with the per-key {@code "<key>:blocked_by_tracer"} sentinel.
+   * stack-trace / JSON / SQL stuffed into a tag by misconfigured app code.
    */
   static final int MAX_ADDITIONAL_TAG_VALUE_LENGTH = 250;
 
-  static final String BLOCKED_VALUE = "blocked_by_tracer";
-
   /** Singleton empty schema returned when no additional tags are configured. */
   static final AdditionalTagsSchema EMPTY =
-      new AdditionalTagsSchema(new String[0], new UTF8BytesString[0]);
+      new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0], HealthMetrics.NO_OP);
 
-  final String[] names;
-  final UTF8BytesString[] blockedSentinels;
+  private final String[] names;
+  private final TagCardinalityHandler[] handlers;
+  private final HealthMetrics healthMetrics;
 
-  private AdditionalTagsSchema(String[] names, UTF8BytesString[] blockedSentinels) {
+  // Per-cycle warn-once gating. Set.add(name) returns true exactly the first time per cycle, which
+  // is the only time we want to emit the warn log. Cleared in resetCardinalityHandlers.
+  private final Set<String> warnedCardinality = new HashSet<>();
+  private final Set<String> warnedLength = new HashSet<>();
+
+  private AdditionalTagsSchema(
+      String[] names, TagCardinalityHandler[] handlers, HealthMetrics healthMetrics) {
     this.names = names;
-    this.blockedSentinels = blockedSentinels;
+    this.handlers = handlers;
+    this.healthMetrics = healthMetrics;
   }
 
   /**
@@ -60,14 +68,14 @@ final class AdditionalTagsSchema {
    * the spec's requirement), dedupes, and caps at {@link #MAX_ADDITIONAL_TAG_KEYS}. Returns the
    * shared empty schema when {@code configured} is null or empty.
    */
-  static AdditionalTagsSchema from(Set<String> configured) {
+  static AdditionalTagsSchema from(
+      Set<String> configured, int cardinalityLimit, HealthMetrics healthMetrics) {
     if (configured == null || configured.isEmpty()) {
       return EMPTY;
     }
     List<String> sorted = new ArrayList<>(configured);
     Collections.sort(sorted);
     if (sorted.size() > MAX_ADDITIONAL_TAG_KEYS) {
-      Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
       log.warn(
           "Configured additional metric tag keys ({}) exceeds the supported limit of {}; "
               + "dropping extra keys: {}",
@@ -77,11 +85,11 @@ final class AdditionalTagsSchema {
       sorted = sorted.subList(0, MAX_ADDITIONAL_TAG_KEYS);
     }
     String[] namesArr = sorted.toArray(new String[0]);
-    UTF8BytesString[] sentinels = new UTF8BytesString[namesArr.length];
+    TagCardinalityHandler[] handlers = new TagCardinalityHandler[namesArr.length];
     for (int i = 0; i < namesArr.length; i++) {
-      sentinels[i] = UTF8BytesString.create(namesArr[i] + ":" + BLOCKED_VALUE);
+      handlers[i] = new TagCardinalityHandler(namesArr[i], cardinalityLimit);
     }
-    return new AdditionalTagsSchema(namesArr, sentinels);
+    return new AdditionalTagsSchema(namesArr, handlers, healthMetrics);
   }
 
   int size() {
@@ -92,7 +100,47 @@ final class AdditionalTagsSchema {
     return names[i];
   }
 
-  UTF8BytesString blockedSentinel(int i) {
-    return blockedSentinels[i];
+  /**
+   * Canonicalizes the additional-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY}
+   * for null inputs and the handler's {@code "<key>:blocked_by_tracer"} sentinel when the value
+   * exceeds the length cap or pushes the per-key cardinality budget. Fires {@link
+   * HealthMetrics#onTagCardinalityBlocked(String)} on each block; emits a one-shot warn log per
+   * cycle per key on each kind of block.
+   */
+  UTF8BytesString register(int i, String value) {
+    TagCardinalityHandler handler = handlers[i];
+    String name = names[i];
+    if (value != null && value.length() > MAX_ADDITIONAL_TAG_VALUE_LENGTH) {
+      healthMetrics.onTagCardinalityBlocked(name);
+      if (warnedLength.add(name)) {
+        log.warn(
+            "Value length of {} exceeded the cap of {} for additional metric tag '{}'; the value"
+                + " is reported as 'blocked_by_tracer' until the next reporting cycle",
+            value.length(),
+            MAX_ADDITIONAL_TAG_VALUE_LENGTH,
+            name);
+      }
+      return handler.blockedSentinel();
+    }
+    UTF8BytesString result = handler.register(value);
+    if (handler.isBlockedResult(result)) {
+      healthMetrics.onTagCardinalityBlocked(name);
+      if (warnedCardinality.add(name)) {
+        log.warn(
+            "Cardinality limit reached for additional metric tag '{}'; further values are reported"
+                + " as 'blocked_by_tracer' until the next reporting cycle",
+            name);
+      }
+    }
+    return result;
+  }
+
+  /** Resets every per-key handler's working set and clears the per-cycle warn-once tracking. */
+  void resetCardinalityHandlers() {
+    for (TagCardinalityHandler handler : handlers) {
+      handler.reset();
+    }
+    warnedCardinality.clear();
+    warnedLength.clear();
   }
 }

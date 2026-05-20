@@ -73,6 +73,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
 
+  /**
+   * Cached peer-aggregation schema. The schema carries its own {@link
+   * PeerTagSchema#peerTagsRevision} (the {@link DDAgentFeaturesDiscovery#peerTagsRevision()} value
+   * it was built from); {@link #publish(List)} compares that against the current revision and only
+   * rebuilds when they differ. An empty schema (size 0) represents the "peer tags unconfigured"
+   * state; {@code null} only on the bootstrap window before the first publish.
+   *
+   * <p>{@code volatile} because {@code publish} is called on arbitrary producer threads. The reset
+   * hook ({@link #resetCardinalityHandlers()}) runs on the aggregator thread and only mutates the
+   * schema's internal handler state (not this field).
+   */
+  private volatile PeerTagSchema cachedPeerAggSchema;
+
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
   public ClientStatsAggregator(
@@ -82,8 +95,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
-        AdditionalTagsSchema.from(config.getTraceStatsAdditionalTags()),
-        config.getTraceStatsAdditionalTagsCardinalityLimit(),
+        AdditionalTagsSchema.from(
+            config.getTraceStatsAdditionalTags(),
+            config.getTraceStatsAdditionalTagsCardinalityLimit(),
+            healthMetrics),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -111,7 +126,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -126,7 +140,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -137,7 +150,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         additionalTagsSchema,
-        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -164,7 +176,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -179,7 +190,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -191,7 +201,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         ignoredResources,
         additionalTagsSchema,
-        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -218,7 +227,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -233,7 +241,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -258,8 +265,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             reportingInterval,
             timeUnit,
             healthMetric,
-            additionalTagsSchema,
-            additionalTagsCardinalityLimit);
+            this::resetCardinalityHandlers,
+            additionalTagsSchema);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -341,14 +348,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     boolean forceKeep = false;
     int counted = 0;
     if (features.supportsMetrics()) {
-      // Sync the peer-aggregation schema once per trace; peer-tag configuration is stable for
-      // the duration of a single trace publish in production (DDAgentFeaturesDiscovery returns
-      // the same Set instance until remote-config reconfiguration).
-      Set<String> eligiblePeerTags = features.peerTags();
-      PeerTagSchema peerAggSchema =
-          (eligiblePeerTags == null || eligiblePeerTags.isEmpty())
-              ? null
-              : PeerTagSchema.currentSyncedTo(eligiblePeerTags);
+      // Sync the peer-aggregation schema once per trace. The cache is keyed on
+      // features.peerTagsRevision(), which only bumps when the agent's peer-tag set actually
+      // changes -- so the steady-state cost is a volatile read and a long compare.
+      PeerTagSchema peerAggSchema = peerAggSchema(features.peerTagsRevision());
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
@@ -439,20 +442,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to {@code
-   * additionalTagsSchema.names}. Returns {@code null} when no additional tags are configured or
-   * none of the configured keys are set on the span. Raw values only -- length cap and
-   * canonicalization run on the aggregator thread.
+   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to the
+   * schema's name order. Returns {@code null} when no additional tags are configured or none of
+   * the configured keys are set on the span. Raw values only -- length cap and canonicalization
+   * run on the aggregator thread.
    */
   private String[] captureAdditionalTagValues(CoreSpan<?> span) {
-    String[] names = additionalTagsSchema.names;
-    int n = names.length;
+    int n = additionalTagsSchema.size();
     if (n == 0) {
       return null;
     }
     String[] values = null;
     for (int i = 0; i < n; i++) {
-      Object v = span.unsafeGetTag(names[i]);
+      Object v = span.unsafeGetTag(additionalTagsSchema.name(i));
       if (v != null) {
         if (values == null) {
           values = new String[n];
@@ -464,13 +466,58 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
+   * Returns the peer-aggregation schema synced to the given revision, rebuilding it if the cached
+   * one is stale. Fast path: one volatile read + a long compare against the schema's own embedded
+   * revision. Rebuild is rare (peer-tag config changes), so the synchronization is only on the slow
+   * path. Always returns non-null -- an empty schema (size 0) represents the "peer tags
+   * unconfigured" state so subsequent calls still short-circuit on the fast path.
+   */
+  private PeerTagSchema peerAggSchema(long revision) {
+    PeerTagSchema cached = cachedPeerAggSchema;
+    if (cached != null && cached.peerTagsRevision == revision) {
+      return cached;
+    }
+    return refreshPeerAggSchema(revision);
+  }
+
+  private synchronized PeerTagSchema refreshPeerAggSchema(long revision) {
+    // Double-checked: another producer may have rebuilt while we were waiting on the monitor.
+    PeerTagSchema cached = cachedPeerAggSchema;
+    if (cached != null && cached.peerTagsRevision == revision) {
+      return cached;
+    }
+    Set<String> names = features.peerTags();
+    PeerTagSchema schema =
+        PeerTagSchema.of(
+            names == null ? Collections.emptySet() : names, revision, healthMetrics);
+    cachedPeerAggSchema = schema;
+    return schema;
+  }
+
+  /**
+   * Single reset hook invoked on the aggregator thread at the end of each report cycle. Resets all
+   * cardinality state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL}
+   * (via {@link AggregateEntry#resetCardinalityHandlers()}), the cached peer-aggregation schema,
+   * and the additional-tags schema. New handlers added anywhere in this pipeline should be reset
+   * from here.
+   */
+  private void resetCardinalityHandlers() {
+    AggregateEntry.resetCardinalityHandlers();
+    PeerTagSchema schema = cachedPeerAggSchema;
+    if (schema != null) {
+      schema.resetCardinalityHandlers();
+    }
+    additionalTagsSchema.resetCardinalityHandlers();
+  }
+
+  /**
    * Picks the peer-tag schema for a span. The {@code peerAggSchema} argument is the per-trace
-   * cached schema (synced from {@code features.peerTags()} once in {@link #publish(List)}); it's
-   * {@code null} when no peer tags are configured. For internal-kind spans the static {@link
-   * PeerTagSchema#INTERNAL} schema is used regardless.
+   * cached schema (synced from {@code features.peerTagsRevision()} once in {@link #publish(List)})
+   * -- always non-null but possibly empty when peer tags are unconfigured. For internal-kind spans
+   * the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
    */
   private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerAggSchema) {
-    if (peerAggSchema != null && span.isKind(PEER_AGGREGATION_KINDS)) {
+    if (peerAggSchema.size() > 0 && span.isKind(PEER_AGGREGATION_KINDS)) {
       return peerAggSchema;
     }
     if (span.isKind(INTERNAL_KIND)) {

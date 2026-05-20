@@ -48,19 +48,19 @@ public final class LongHashingUtils {
     return hash(intHash(obj0), intHash(obj1));
   }
 
-  public static final long hash(int hash0, int hash1) {
+  static final long hash(int hash0, int hash1) {
     return 31L * hash0 + hash1;
   }
 
   private static final int intHash(Object obj) {
-	return obj == null ? 0 : obj.hashCode();
+    return obj == null ? 0 : obj.hashCode();
   }
 
   public static final long hash(Object obj0, Object obj1, Object obj2) {
     return hash(intHash(obj0), intHash(obj1), intHash(obj2));
   }
 
-  public static final long hash(long hash0, long hash1, long hash2) {
+  static final long hash(int hash0, int hash1, int hash2) {
     // DQH - Micro-optimizing, 31L * 31L will constant fold
     // Since there are multiple execution ports for load & store,
     // this will make good use of the core.
@@ -71,7 +71,7 @@ public final class LongHashingUtils {
     return hash(intHash(obj0), intHash(obj1), intHash(obj2), intHash(obj3));
   }
 
-  public static final long hash(int hash0, int hash1, int hash2, int hash3) {
+  static final long hash(int hash0, int hash1, int hash2, int hash3) {
     // DQH - Micro-optimizing, 31L * 31L will constant fold
     // Since there are multiple execution ports for load & store,
     // this will make good use of the core.
@@ -82,11 +82,15 @@ public final class LongHashingUtils {
     return hash(intHash(obj0), intHash(obj1), intHash(obj2), intHash(obj3), intHash(obj4));
   }
 
-  public static final long hash(int hash0, int hash1, int hash2, int hash3, int hash4) {
+  static final long hash(int hash0, int hash1, int hash2, int hash3, int hash4) {
     // DQH - Micro-optimizing, 31L * 31L will constant fold
     // Since there are multiple execution ports for load & store,
     // this will make good use of the core.
-    return 31L * 31L * 31L * 31L * hash0 + 31L * 31L * 31L * hash1 + 31L * 31L * hash2 + 31L * hash3 + hash4;
+    return 31L * 31L * 31L * 31L * hash0
+        + 31L * 31L * 31L * hash1
+        + 31L * 31L * hash2
+        + 31L * hash3
+        + hash4;
   }
 
   @Deprecated

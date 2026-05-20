@@ -5,7 +5,7 @@ public interface MetricWriter {
 
   /**
    * Serialize one aggregate. The {@link AggregateEntry} carries both the label fields (resource,
-   * service, span.kind, peer tags, etc.) and the recording counters/histograms.
+   * service, span.kind, peer tags, etc.) and the counters being reported.
    */
   void add(AggregateEntry entry);
 

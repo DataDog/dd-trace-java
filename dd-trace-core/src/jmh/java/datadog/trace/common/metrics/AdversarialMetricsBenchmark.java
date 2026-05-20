@@ -36,24 +36,24 @@ import org.openjdk.jmh.infra.Blackhole;
  *   <li>Each cardinality handler caps distinct values per reporting cycle; overflow collapses to
  *       {@code blocked_by_tracer}.
  *   <li>The producer/consumer inbox is a fixed-size MPSC queue ({@code tracerMetricsMaxPending},
- *       default 2048); when full, producer {@code offer} returns false and the snapshot is
- *       dropped via {@link HealthMetrics#onStatsInboxFull()}.
+ *       default 2048); when full, producer {@code offer} returns false and the snapshot is dropped
+ *       via {@link HealthMetrics#onStatsInboxFull()}.
  *   <li>Histograms use {@code CollapsingLowestDenseStore(1024)} -- bounded per-histogram memory.
- *   <li>Cardinality handlers are flat open-addressed tables of fixed capacity -- no allocation
- *       on the producer thread; allocation only on the consumer (handler reset clears, doesn't
+ *   <li>Cardinality handlers are flat open-addressed tables of fixed capacity -- no allocation on
+ *       the producer thread; allocation only on the consumer (handler reset clears, doesn't
  *       reallocate).
  * </ul>
  *
  * <p>This benchmark hammers all of those bounds simultaneously with 8 producer threads, unique
- * labels per op (so handlers cap and the table fills+evicts repeatedly), random durations across
- * a wide range (so histograms accept many distinct bins), and random {@code error}/{@code
- * topLevel} flags (so both histograms are exercised). After the run, prints the drop counters so
- * you can verify the subsystem stayed bounded under attack.
+ * labels per op (so handlers cap and the table fills+evicts repeatedly), random durations across a
+ * wide range (so histograms accept many distinct bins), and random {@code error}/{@code topLevel}
+ * flags (so both histograms are exercised). After the run, prints the drop counters so you can
+ * verify the subsystem stayed bounded under attack.
  *
  * <p>What "OOM the metrics subsystem" looks like if the bounds break: producer-thread allocation
- * would grow unbounded (snapshots faster than inbox can drain produces dropped snapshots, not
- * heap growth); aggregator-thread heap would grow if entries weren't capped, if handlers grew
- * past their cap, or if histograms grew past their dense-store limit.
+ * would grow unbounded (snapshots faster than inbox can drain produces dropped snapshots, not heap
+ * growth); aggregator-thread heap would grow if entries weren't capped, if handlers grew past their
+ * cap, or if histograms grew past their dense-store limit.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 2, time = 15, timeUnit = SECONDS)
@@ -128,7 +128,8 @@ public class AdversarialMetricsBenchmark {
     long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL); // 1 ns .. ~1.07 s
 
     SimpleSpan span =
-        new SimpleSpan(service, operation, resource, "web", true, topLevel, error, 0, durationNanos, 200);
+        new SimpleSpan(
+            service, operation, resource, "web", true, topLevel, error, 0, durationNanos, 200);
     span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
     span.setTag("peer.hostname", hostname);
 
@@ -163,5 +164,4 @@ public class AdversarialMetricsBenchmark {
       totalSpansCounted += counted;
     }
   }
-
 }

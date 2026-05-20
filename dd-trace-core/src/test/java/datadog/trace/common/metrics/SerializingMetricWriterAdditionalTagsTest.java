@@ -40,7 +40,8 @@ class SerializingMetricWriterAdditionalTagsTest {
   @Test
   void additionalMetricTagsEmittedWhenSet() throws Exception {
     AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region", "tenant_id")));
+        AdditionalTagsSchema.from(
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 100, HealthMetrics.NO_OP);
     AggregateTable table = newTable(schema);
 
     AggregateEntry entry =
@@ -58,7 +59,8 @@ class SerializingMetricWriterAdditionalTagsTest {
   void additionalMetricTagsFieldOmittedWhenNoneSet() throws Exception {
     // Schema configured, but the span doesn't set any of the configured tags.
     AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region")));
+        AdditionalTagsSchema.from(
+            new LinkedHashSet<>(Arrays.asList("region")), 100, HealthMetrics.NO_OP);
     AggregateTable table = newTable(schema);
 
     AggregateEntry entry =
@@ -73,7 +75,8 @@ class SerializingMetricWriterAdditionalTagsTest {
   @Test
   void additionalMetricTagsSkipsNullSlots() throws Exception {
     AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region", "tenant_id")));
+        AdditionalTagsSchema.from(
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 100, HealthMetrics.NO_OP);
     AggregateTable table = newTable(schema);
 
     // Set only tenant_id; leave region null.
@@ -90,9 +93,7 @@ class SerializingMetricWriterAdditionalTagsTest {
   // ---------- helpers ----------
 
   private static AggregateTable newTable(AdditionalTagsSchema schema) {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP);
-    return new AggregateTable(64, schema, limiter, HealthMetrics.NO_OP);
+    return new AggregateTable(64, schema);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String... values) {

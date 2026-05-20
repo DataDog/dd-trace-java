@@ -27,12 +27,12 @@ import org.openjdk.jmh.infra.Blackhole;
  * Miss-path variant of {@link ClientStatsAggregatorBenchmark}. Each op publishes a single-span
  * trace from a pre-built pool where every span has a unique (service, operation, resource) tuple.
  * After cardinality budgets fill, fields canonicalize to the {@code blocked_by_tracer} sentinel,
- * but the producer still allocates a {@link SpanSnapshot} per op and enqueues it for the
- * aggregator -- so the steady state exercises the per-op publish allocations + the consumer's
+ * but the producer still allocates a {@link SpanSnapshot} per op and enqueues it for the aggregator
+ * -- so the steady state exercises the per-op publish allocations + the consumer's
  * canonicalize/match work, not the hit-path-only pattern of the other benchmarks.
  *
- * <p>Run with {@code -prof gc} to compare allocation rates against master's
- * {@code ConflatingMetricsAggregator}.
+ * <p>Run with {@code -prof gc} to compare allocation rates against master's {@code
+ * ConflatingMetricsAggregator}.
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 15, timeUnit = SECONDS)
