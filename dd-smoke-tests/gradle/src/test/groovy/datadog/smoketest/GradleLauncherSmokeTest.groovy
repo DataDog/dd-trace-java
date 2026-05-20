@@ -68,7 +68,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
         Thread.sleep(2000) // small delay for rapid retries on network issues
       }
     }
-    throw new AssertionError((Object) "Tried $GRADLE_WRAPPER_RETRIES times to execute gradle wrapper command and failed")
+    throw new AssertionError((Object) "Tried $GRADLE_WRAPPER_RETRIES times to execute gradle wrapper command and failed.")
   }
 
   private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams) {
