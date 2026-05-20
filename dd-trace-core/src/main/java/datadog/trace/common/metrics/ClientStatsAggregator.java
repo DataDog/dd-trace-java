@@ -415,6 +415,11 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
 
     String[] additionalTagValues = captureAdditionalTagValues(span);
+    // Capture the schema reference too so producer and consumer agree on indexing -- mirrors the
+    // peer-tag schema handoff. Drop the schema reference when no values fired so the consumer can
+    // short-circuit on schema == null.
+    AdditionalTagsSchema snapshotAdditionalTagsSchema =
+        additionalTagValues == null ? null : additionalTagsSchema;
 
     SpanSnapshot snapshot =
         new SpanSnapshot(
@@ -432,6 +437,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
+            snapshotAdditionalTagsSchema,
             additionalTagValues,
             tagAndDuration);
     if (!inbox.offer(snapshot)) {

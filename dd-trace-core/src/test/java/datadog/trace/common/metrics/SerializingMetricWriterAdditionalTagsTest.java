@@ -116,6 +116,7 @@ class SerializingMetricWriterAdditionalTagsTest {
         null,
         null,
         null,
+        schema,
         padded,
         0L);
   }

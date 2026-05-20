@@ -542,7 +542,7 @@ final class AggregateEntry extends Hashtable.Entry {
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
       populatePeerTags(s.peerTagSchema, s.peerTagValues);
-      populateAdditionalTags(s.additionalTagValues);
+      populateAdditionalTags(s.additionalTagsSchema, s.additionalTagValues);
       this.keyHash = computeKeyHash();
     }
 
@@ -594,10 +594,16 @@ final class AggregateEntry extends Hashtable.Entry {
      * enforces the length cap and the cardinality cap and returns its {@code
      * "<key>:blocked_by_tracer"} sentinel for either kind of overflow. Absent slots stay {@code
      * null} so the wire format skips them.
+     *
+     * <p>The {@code schema} comes from the snapshot rather than the canonical's own reference so
+     * producer and consumer agree on indexing -- mirrors the peer-tag handoff. Today the schema is
+     * built once at startup and never swapped, so these two references are always the same
+     * instance, but the snapshot-time capture keeps that contract local rather than a global
+     * invariant.
      */
-    private void populateAdditionalTags(String[] values) {
+    private void populateAdditionalTags(AdditionalTagsSchema schema, String[] values) {
       int n = additionalTagsBuffer.length;
-      if (n == 0 || values == null) {
+      if (n == 0 || schema == null || values == null) {
         // Schema empty or span had no additional tags at all -- clear the buffer's slots so a
         // previous iteration's state doesn't leak through.
         Arrays.fill(additionalTagsBuffer, null);
@@ -605,7 +611,7 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       for (int i = 0; i < n; i++) {
         String v = values[i];
-        additionalTagsBuffer[i] = v == null ? null : additionalTagsSchema.register(i, v);
+        additionalTagsBuffer[i] = v == null ? null : schema.register(i, v);
       }
     }
 

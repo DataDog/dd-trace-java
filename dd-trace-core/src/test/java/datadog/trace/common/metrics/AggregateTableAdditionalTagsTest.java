@@ -139,6 +139,7 @@ class AggregateTableAdditionalTagsTest {
         null,
         null,
         null,
+        schema,
         values,
         0L);
   }
