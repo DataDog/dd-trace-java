@@ -162,9 +162,10 @@ final class Aggregator implements Runnable {
       }
       dirty = false;
     }
-    // Reset cardinality handlers each report cycle so the per-field budgets refresh.
-    // Safe to call on this (aggregator) thread; handlers are HashMap-based and not thread-safe.
-    AggregateEntry.resetCardinalityHandlers();
+    // Reset cardinality handlers each report cycle so the per-field budgets refresh. Single hook
+    // owned by ClientStatsAggregator -- it covers both the static property handlers on
+    // AggregateEntry and the cached peer-agg schema. Safe on this (aggregator) thread; handlers
+    // are HashMap-based and not thread-safe.
     if (onResetCardinality != null) {
       onResetCardinality.run();
     }

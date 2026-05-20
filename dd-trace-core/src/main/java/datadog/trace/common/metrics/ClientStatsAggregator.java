@@ -80,7 +80,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * state; {@code null} only on the bootstrap window before the first publish.
    *
    * <p>{@code volatile} because {@code publish} is called on arbitrary producer threads. The reset
-   * hook ({@link #resetCachedPeerAggSchema()}) runs on the aggregator thread and only mutates the
+   * hook ({@link #resetCardinalityHandlers()}) runs on the aggregator thread and only mutates the
    * schema's internal handler state (not this field).
    */
   private volatile PeerTagSchema cachedPeerAggSchema;
@@ -179,7 +179,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             reportingInterval,
             timeUnit,
             healthMetric,
-            this::resetCachedPeerAggSchema);
+            this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -380,11 +380,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Reset hook invoked on the aggregator thread at the end of each report cycle. Resets the cached
-   * peer-aggregation schema's cardinality handlers so per-field budgets refresh in lockstep with
-   * {@link AggregateEntry#resetCardinalityHandlers()}.
+   * Single reset hook invoked on the aggregator thread at the end of each report cycle. Resets all
+   * cardinality state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL}
+   * (via {@link AggregateEntry#resetCardinalityHandlers()}) and the cached peer-aggregation schema.
+   * New handlers added anywhere in this pipeline should be reset from here.
    */
-  private void resetCachedPeerAggSchema() {
+  private void resetCardinalityHandlers() {
+    AggregateEntry.resetCardinalityHandlers();
     PeerTagSchema schema = cachedPeerAggSchema;
     if (schema != null) {
       schema.resetCardinalityHandlers();
