@@ -35,7 +35,6 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.core.scopemanager.ContinuableScopeManager;
 import datadog.trace.test.util.DDJavaSpecification;
-import datadog.trace.test.util.Flaky;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -57,7 +56,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Timeout;
 
-@Timeout(5)
+@Timeout(10)
 public class PendingTraceBufferTest extends DDJavaSpecification {
 
   private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
@@ -196,7 +195,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertTrue(metadataChecker.hasSamplingPriority);
   }
 
-  @Flaky("Flaky on ibm8, semeru8, and semeru17 JVMs after migration from Groovy to JUnit")
   @Test
   void bufferFullYieldsImmediateWrite() {
     int capacity = delayingBuffer.getQueue().capacity();
@@ -221,7 +219,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(0, pendingTrace.getIsEnqueued());
   }
 
-  @Flaky("Flaky on ibm8, semeru8, and semeru17 JVMs after migration from Groovy to JUnit")
   @Test
   void longRunningTraceBufferFullDoesNotTriggerWrite() {
     int capacity = delayingBuffer.getQueue().capacity();
@@ -381,7 +378,6 @@ public class PendingTraceBufferTest extends DDJavaSpecification {
     assertEquals(3, counter.get());
   }
 
-  @Flaky("Flaky on semeru17 JVM after migration from Groovy to JUnit")
   @Test
   void samePendingTraceIsNotEnqueuedMultipleTimes() {
     when(tracer.getPartialFlushMinSpans()).thenReturn(10000);
