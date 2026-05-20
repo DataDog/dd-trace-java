@@ -2,7 +2,6 @@ package datadog.trace.util;
 
 import static datadog.trace.util.LongHashingUtils.addToHash;
 import static datadog.trace.util.LongHashingUtils.hash;
-import static datadog.trace.util.LongHashingUtils.hashCodeX;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 
@@ -15,10 +14,10 @@ class LongHashingUtilsTest {
   // ----- single-value overloads -----
 
   @Test
-  void hashCodeXReturnsObjectHashCodeOrSentinelForNull() {
+  void hashOfObjectReturnsHashCodeOrSentinelForNull() {
     Object o = new Object();
-    assertEquals(o.hashCode(), hashCodeX(o));
-    assertEquals(Long.MIN_VALUE, hashCodeX(null));
+    assertEquals(o.hashCode(), hash(o));
+    assertEquals(Long.MIN_VALUE, hash((Object) null));
   }
 
   @Test
