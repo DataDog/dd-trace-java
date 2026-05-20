@@ -374,7 +374,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     }
     Set<String> names = features.peerTags();
     PeerTagSchema schema =
-        PeerTagSchema.of(names == null ? Collections.emptySet() : names, revision);
+        PeerTagSchema.of(
+            names == null ? Collections.emptySet() : names, revision, healthMetrics);
     cachedPeerAggSchema = schema;
     return schema;
   }

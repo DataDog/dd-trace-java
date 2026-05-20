@@ -99,6 +99,12 @@ public abstract class HealthMetrics implements AutoCloseable {
   public void onStatsInboxFull() {}
 
   /**
+   * Reports a single tag value collapsed into the {@code blocked_by_tracer} sentinel because the
+   * per-tag cardinality budget for the current reporting cycle was exhausted.
+   */
+  public void onTagCardinalityBlocked(String tag) {}
+
+  /**
    * @return Human-readable summary of the current health metrics.
    */
   public String summary() {
