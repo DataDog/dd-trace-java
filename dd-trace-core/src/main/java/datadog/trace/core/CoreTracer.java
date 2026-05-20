@@ -1391,6 +1391,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return "0";
   }
 
+  // @VisibleForTesting
+  TraceInterceptors getInterceptors() {
+    return interceptors;
+  }
+
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
     TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
