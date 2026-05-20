@@ -8,6 +8,8 @@ import datadog.trace.api.config.GeneralConfig
 import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.core.DDSpan
 import datadog.trace.instrumentation.aws.ExpectedQueryParams
+import listener.ErrorHandlerConfig
+import listener.ErrorHandlerObservation
 import io.awspring.cloud.sqs.operations.SqsTemplate
 import listener.Config
 import listener.TestListener
@@ -198,6 +200,90 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
     context.close()
   }
 
+  def "blocking error handler keeps spring.consume span active"() {
+    setup:
+    def context = new AnnotationConfigApplicationContext(ErrorHandlerConfig)
+    def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
+    def observation = context.getBean(ErrorHandlerObservation)
+    def template = SqsTemplate.newTemplate(context.getBean(SqsAsyncClient))
+    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace("parent") {
+      template.sendAsync("SpringListenerSQSError", "boom").get()
+    }
+    observation.awaitBlockingErrorHandler()
+
+    then:
+    assert observation.blockingError != null
+    assertErrorHandlerTrace(
+      address,
+      "SpringListenerSQSError",
+      "ErrorHandlerListener.observeFailure",
+      "ObservingErrorHandler.handle",
+      "listener failurea")
+
+    cleanup:
+    context?.close()
+  }
+
+  def "async error handler keeps spring.consume span active"() {
+    setup:
+    def context = new AnnotationConfigApplicationContext(ErrorHandlerConfig)
+    def address = context.getBean(SQSRestServer).waitUntilStarted().localAddress()
+    def observation = context.getBean(ErrorHandlerObservation)
+    def template = SqsTemplate.newTemplate(context.getBean(SqsAsyncClient))
+    TEST_WRITER.waitForTraces(2)
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace("parent") {
+      template.sendAsync("SpringListenerSQSAsyncError", "boom").get()
+    }
+    observation.awaitAsyncErrorHandler()
+
+    then:
+    assert observation.asyncError != null
+    assertErrorHandlerTrace(
+      address,
+      "SpringListenerSQSAsyncError",
+      "ErrorHandlerListener.observeAsyncFailure",
+      "ObservingAsyncErrorHandler.handle",
+      "async listener failure")
+
+    cleanup:
+    context?.close()
+  }
+
+  private void assertErrorHandlerTrace(
+    InetSocketAddress address,
+    String queueName,
+    String listenerResourceName,
+    String errorHandlerResourceName,
+    String errorMessage) {
+    def sendingSpan
+    assertTraces(4, SORT_TRACES_BY_START) {
+      sortSpansByStart()
+      trace(3) {
+        basicSpan(it, "parent")
+        getQueueUrl(it, address, span(0), queueName)
+        sendMessage(it, address, span(0), queueName)
+        sendingSpan = span(2)
+      }
+      trace(1) {
+        receiveMessage(it, address, sendingSpan, queueName)
+      }
+      trace(2) {
+        springErrorSqsListener(it, sendingSpan, listenerResourceName, errorMessage)
+        tracedErrorHandler(it, span(0), errorHandlerResourceName)
+      }
+      trace(1) {
+        deleteMessageBatch(it, address, queueName)
+      }
+    }
+  }
+
   static sendMessage(TraceAssert traceAssert, InetSocketAddress address, DDSpan parentSpan, String queueName = "SpringListenerSQS") {
     traceAssert.span {
       serviceName "sqs"
@@ -292,6 +378,36 @@ class SpringListenerSQSTest extends InstrumentationSpecification {
         "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
         defaultTags(true)
       }
+    }
+  }
+
+  static springErrorSqsListener(
+    TraceAssert traceAssert, DDSpan parentSpan, String expectedResourceName, String errorMessage) {
+    traceAssert.span {
+      serviceName "my-service"
+      operationName "spring.consume"
+      resourceName expectedResourceName
+      spanType DDSpanTypes.MESSAGE_CONSUMER
+      errored true
+      measured true
+      childOf(parentSpan)
+      tags {
+        "$Tags.COMPONENT" "spring-messaging"
+        "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+        errorTags(RuntimeException, errorMessage)
+        defaultTags(true)
+      }
+    }
+  }
+
+  static tracedErrorHandler(
+    TraceAssert traceAssert, DDSpan parentSpan, String expectedResourceName) {
+    traceAssert.span {
+      serviceName "my-service"
+      operationName "error.handler"
+      resourceName expectedResourceName
+      childOf(parentSpan)
+      errored false
     }
   }
 
