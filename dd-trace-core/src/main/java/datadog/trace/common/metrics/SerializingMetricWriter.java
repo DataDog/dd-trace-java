@@ -142,11 +142,14 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    // Calculate dynamic map size based on optional fields
-    final boolean hasHttpMethod = entry.getHttpMethod() != null;
-    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != null;
-    final boolean hasServiceSource = entry.getServiceSource() != null;
-    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null;
+    // Calculate dynamic map size based on optional fields. AggregateEntry uses
+    // UTF8BytesString.EMPTY
+    // as the "absent" sentinel for these optional fields (see AggregateEntry); identity comparison
+    // against the singleton.
+    final boolean hasHttpMethod = entry.getHttpMethod() != EMPTY;
+    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != EMPTY;
+    final boolean hasServiceSource = entry.getServiceSource() != EMPTY;
+    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != EMPTY;
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
@@ -183,8 +186,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(PEER_TAGS);
     final UTF8BytesString[] peerTags = entry.getPeerTags();
     writer.startArray(peerTags.length);
-    for (int i = 0; i < peerTags.length; i++) {
-      writer.writeUTF8(peerTags[i]);
+
+    for (UTF8BytesString peerTag : peerTags) {
+      writer.writeUTF8(peerTag);
     }
 
     if (hasServiceSource) {
@@ -230,7 +234,7 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeBinary(errorLatencies.serialize());
     } else {
       // Entry never saw an error; emit a cached empty-histogram payload so the wire format is
-      // unchanged without allocating a histogram per entry.
+      // unchanged without allocating a histogram per error-free entry.
       writer.writeBinary(emptyErrorHistogramBytes());
     }
   }
@@ -238,9 +242,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   private byte[] emptyHistogramBytesCache;
 
   /**
-   * Returns the cached serialized form of an empty histogram. Computed lazily on first call so the
-   * {@link datadog.metrics.api.Histograms} factory has been registered by the consumer thread (or
-   * test setup) before we sample its output.
+   * Returns the cached serialized form of an empty histogram. Lazily computed so the {@link
+   * datadog.metrics.api.Histograms} factory has been registered by the time we sample it.
    */
   private byte[] emptyErrorHistogramBytes() {
     byte[] cached = emptyHistogramBytesCache;

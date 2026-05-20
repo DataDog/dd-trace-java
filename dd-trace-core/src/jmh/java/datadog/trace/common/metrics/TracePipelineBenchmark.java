@@ -39,8 +39,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * synchronously on the producing thread.
  *
  * <p>Runs multi-threaded ({@link Threads} = 8 by default; override with {@code -t N}) so the
- * allocation rate {@code -prof gc} reports reflects multiple producers hitting the shared
- * metrics aggregator + writer pipeline, and so we can compare total throughput between revisions.
+ * allocation rate {@code -prof gc} reports reflects multiple producers hitting the shared metrics
+ * aggregator + writer pipeline, and so we can compare total throughput between revisions.
  *
  * <p>Reflection is used to swap the tracer's default no-op {@code metricsAggregator} for a real
  * {@link ClientStatsAggregator} so the metrics pipeline actually runs.

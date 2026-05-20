@@ -85,4 +85,33 @@ class CardinalityHandlerTest {
     // Both are the same sentinel instance (cacheBlocked is not cleared on reset).
     assertSame(blockedBefore, blockedAfter);
   }
+
+  @Test
+  void propertyRegisterOfNullReturnsEmpty() {
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    // Null input short-circuits to UTF8BytesString.EMPTY -- the universal "absent" sentinel that
+    // AggregateEntry's optional UTF8 fields use in place of null.
+    assertSame(UTF8BytesString.EMPTY, h.register(null));
+  }
+
+  @Test
+  void propertyRegisterOfNullDoesNotConsumeBudget() {
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
+    h.register(null);
+    h.register(null);
+    h.register(null);
+    // Three null registrations didn't consume the budget; two real values still fit.
+    assertEquals("a", h.register("a").toString());
+    assertEquals("b", h.register("b").toString());
+    // Third real value spills to the blocked sentinel (limit = 2).
+    assertEquals("blocked_by_tracer", h.register("c").toString());
+  }
+
+  @Test
+  void tagRegisterOfNullReturnsEmpty() {
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 4);
+    // Null returns EMPTY (no "tag:" prefix applied -- the sentinel is the same EMPTY singleton
+    // every handler returns for null input).
+    assertSame(UTF8BytesString.EMPTY, h.register(null));
+  }
 }

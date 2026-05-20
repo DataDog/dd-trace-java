@@ -14,84 +14,61 @@ import java.util.Set;
  * <p>Two schemas exist:
  *
  * <ul>
- *   <li>{@link #INTERNAL} — a singleton with one entry for {@code base.service}, used for
+ *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
- *   <li>{@link #current()} — the schema for {@code client}/{@code producer}/{@code consumer} spans,
- *       refreshed lazily when {@code DDAgentFeaturesDiscovery.peerTags()} changes via {@link
- *       #currentSyncedTo(Set)}.
+ *   <li>A peer-aggregation schema built via {@link #of(Set, long)} for {@code client}/{@code
+ *       producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the most recently
+ *       built schema and compares its {@link #peerTagsRevision} against {@code
+ *       DDAgentFeaturesDiscovery.peerTagsRevision()} to decide when to rebuild.
  * </ul>
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> {@link #currentSyncedTo} may be called from producer threads;
- * replacement of the volatile {@code CURRENT} reference is guarded by a lock. The {@link
- * TagCardinalityHandler}s themselves are not thread-safe and must only be exercised on the
- * aggregator thread (this is where the snapshot's schema is consumed).
+ * <p><b>Thread-safety:</b> {@link TagCardinalityHandler}s are not thread-safe and must only be
+ * exercised on the aggregator thread. {@link #names} and {@link #peerTagsRevision} are final and
+ * safe to read from any thread.
  */
 final class PeerTagSchema {
 
-  private static final int VALUE_LIMIT_PER_TAG = 512;
+  /** Sentinel revision for {@link #INTERNAL} -- it never changes. */
+  static final long INTERNAL_REVISION = -1L;
 
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
-  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE});
-
-  /** Current schema for peer-aggregation kinds; replaced atomically when peer tag names change. */
-  private static volatile PeerTagSchema CURRENT = new PeerTagSchema(new String[0]);
-
-  /**
-   * Identity cache of the most recently observed {@code features.peerTags()} {@link Set} instance.
-   * The producer hot path checks this first and skips the {@code names}-vs-set comparison when the
-   * caller's set instance hasn't changed. In production this is the common case -- {@code
-   * DDAgentFeaturesDiscovery} returns the same Set instance until reconfiguration.
-   */
-  private static volatile Set<String> LAST_SYNCED_INPUT;
+  static final PeerTagSchema INTERNAL =
+      new PeerTagSchema(new String[] {BASE_SERVICE}, INTERNAL_REVISION);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
 
-  private PeerTagSchema(String[] names) {
+  /**
+   * The {@code DDAgentFeaturesDiscovery.peerTagsRevision()} value this schema was built from. Cache
+   * callers ({@link ClientStatsAggregator}) compare this against the current revision to decide
+   * whether to rebuild -- one final long carries the cache key on the schema itself.
+   */
+  final long peerTagsRevision;
+
+  /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
+  static PeerTagSchema of(Set<String> names, long peerTagsRevision) {
+    return new PeerTagSchema(names.toArray(new String[0]), peerTagsRevision);
+  }
+
+  private PeerTagSchema(String[] names, long peerTagsRevision) {
     this.names = names;
+    this.peerTagsRevision = peerTagsRevision;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
-      this.handlers[i] = new TagCardinalityHandler(names[i], VALUE_LIMIT_PER_TAG);
+      this.handlers[i] =
+          new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
     }
   }
 
   /**
-   * Returns the current peer-aggregation schema, lazily refreshing it if the supplied {@code
-   * peerTagNames} differ from the cached set. Designed to be called from the producer hot path: the
-   * common case is a single volatile read and an array-length / set-contains comparison.
+   * Resets every {@link TagCardinalityHandler}'s working set. Must be called on the aggregator
+   * thread; handlers are not thread-safe.
    */
-  static PeerTagSchema currentSyncedTo(Set<String> peerTagNames) {
-    // Fast path: same Set instance as the last sync -> the cached schema is still valid, no
-    // matches() loop needed. In production this is the steady-state case.
-    if (peerTagNames == LAST_SYNCED_INPUT) {
-      return CURRENT;
-    }
-    PeerTagSchema cur = CURRENT;
-    if (matches(cur.names, peerTagNames)) {
-      LAST_SYNCED_INPUT = peerTagNames;
-      return cur;
-    }
-    synchronized (PeerTagSchema.class) {
-      cur = CURRENT;
-      if (!matches(cur.names, peerTagNames)) {
-        cur = new PeerTagSchema(peerTagNames.toArray(new String[0]));
-        CURRENT = cur;
-      }
-      LAST_SYNCED_INPUT = peerTagNames;
-      return cur;
-    }
-  }
-
-  /** Resets the working sets of {@link #INTERNAL} and {@link #current()}. */
-  static void resetAll() {
-    PeerTagSchema cur = CURRENT;
-    for (TagCardinalityHandler h : cur.handlers) {
-      h.reset();
-    }
-    for (TagCardinalityHandler h : INTERNAL.handlers) {
+  void resetCardinalityHandlers() {
+    for (TagCardinalityHandler h : handlers) {
       h.reset();
     }
   }
@@ -106,17 +83,5 @@ final class PeerTagSchema {
 
   TagCardinalityHandler handler(int i) {
     return handlers[i];
-  }
-
-  private static boolean matches(String[] cur, Set<String> set) {
-    if (cur.length != set.size()) {
-      return false;
-    }
-    for (String n : cur) {
-      if (!set.contains(n)) {
-        return false;
-      }
-    }
-    return true;
   }
 }

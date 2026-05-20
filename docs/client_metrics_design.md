@@ -66,17 +66,16 @@ The producer holds **no shared state**. Per trace it:
 1. Snapshots the current peer-aggregation schema **once per trace** (not per
    span):
    ```java
-   Set<String> eligiblePeerTags = features.peerTags();
-   PeerTagSchema peerAggSchema =
-       (eligiblePeerTags == null || eligiblePeerTags.isEmpty())
-           ? null
-           : PeerTagSchema.currentSyncedTo(eligiblePeerTags);
+   PeerTagSchema peerAggSchema = peerAggSchema(features.peerTagsRevision());
    ```
-   `currentSyncedTo` has a fast path: identity-equal to the previously-synced
-   `Set` instance → return the cached schema (the common case, since
-   `DDAgentFeaturesDiscovery` returns the same `Set` until remote-config
-   reconfiguration). The cached schema is `volatile`; replacement is guarded by
-   a `synchronized` block.
+   `peerAggSchema(...)` reads a `volatile long` revision held on the
+   aggregator and compares it to the value the cached `PeerTagSchema` was
+   built from. Match → return the cached schema (the common case, since
+   `peerTagsRevision()` only bumps when `DDAgentFeaturesDiscovery` observes a
+   peer-tag set that doesn't equal the previous one). Mismatch → take a
+   monitor on the aggregator, rebuild via `PeerTagSchema.of(names)`, and
+   publish the new schema + revision. The steady-state cost is one volatile
+   read + one long compare.
 
 2. Iterates the trace; for each metrics-eligible span:
 
@@ -217,9 +216,12 @@ Two distinct cadences:
   handlers. The handlers reset *every reporting cycle*, so the per-field
   budgets refresh.
 
-- **Schema sync**: `PeerTagSchema.currentSyncedTo` runs on the producer thread
-  per trace, with an identity-check fast path. The schema reference is
-  replaced atomically when remote-config reconfigures the peer-tag set.
+- **Schema sync**: `ClientStatsAggregator.peerAggSchema(long)` runs on the
+  producer thread per trace, keyed on `DDAgentFeaturesDiscovery.peerTagsRevision()`.
+  The cached schema is replaced when remote-config reconfigures the peer-tag
+  set (i.e., when the revision bumps). The schema's
+  `TagCardinalityHandler`s are reset on the aggregator thread each report
+  cycle via a hook passed into `Aggregator`.
 
 ## Memory and lifetime
 
@@ -228,9 +230,11 @@ Two distinct cadences:
 - `AggregateTable` is **not thread-safe**. All paths (producer-side `CLEAR`,
   schedule-driven `REPORT`, drainer-driven inserts) route through the inbox.
 - `Canonical` and the cardinality handlers are aggregator-thread-only.
-- `PeerTagSchema.CURRENT` is `volatile` with `synchronized` replacement; the
-  schema's `TagCardinalityHandler`s themselves are aggregator-thread-only and
-  are reset alongside the property handlers each cycle.
+- The cached `PeerTagSchema` lives on `ClientStatsAggregator` as a `volatile`
+  field paired with the `peerTagsRevision` it was built from; rebuild is
+  guarded by a monitor on the aggregator instance. The schema's
+  `TagCardinalityHandler`s themselves are aggregator-thread-only and are
+  reset alongside the property handlers each cycle.
 - Entries retain their `UTF8BytesString` references across handler resets;
   matches via content-equality so post-reset snapshots still resolve.
 - Cap: `tracerMetricsMaxAggregates` bounds table size. Cap-overrun policy:
@@ -360,8 +364,11 @@ showed the producer dominating CPU time. The major shifts:
    `PeerTagSchema`; the producer carries values in a parallel `String[]`. The
    aggregator does the `tag:value` interning via `TagCardinalityHandler` on
    its own thread.
-6. **Sync peer-tag schema once per trace.** `currentSyncedTo` has an
-   identity-check fast path; the steady-state cost is one volatile read.
+6. **Sync peer-tag schema once per trace.** The producer reads
+   `features.peerTagsRevision()` and compares it to the revision the cached
+   `PeerTagSchema` was built from; the steady-state cost is one volatile read
+   and one long compare. The cache lives on `ClientStatsAggregator`, not as
+   static state on `PeerTagSchema`.
 7. **Single owner of all shared state.** `disable()` routes through `CLEAR`
    rather than mutating the aggregate table directly.
 
