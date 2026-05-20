@@ -1,5 +1,6 @@
 package datadog.smoketest;
 
+import datadog.environment.OperatingSystem;
 import java.io.File;
 import java.nio.file.Path;
 import java.util.ArrayList;
@@ -43,16 +44,22 @@ class ProcessBuilderHelper {
             + System.nanoTime();
 
     List<String> baseCommand =
-        Arrays.asList(
-            javaPath(),
-            // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
-            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-            "-javaagent:" + agentShadowJar(),
-            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-            "-Ddd.env=smoketest",
-            "-Ddd.version=99",
-            "-Djava.util.prefs.userRoot=" + prefsDir);
+        new ArrayList<>(
+            Arrays.asList(
+                javaPath(),
+                // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
+                "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
+                "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
+                "-javaagent:" + agentShadowJar(),
+                "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+                "-Ddd.env=smoketest",
+                "-Ddd.version=99",
+                "-Djava.util.prefs.userRoot=" + prefsDir));
+
+    if (OperatingSystem.isLinux() && OperatingSystem.isArm64()) {
+      // Temurin on the arm64 Linux can crash during CDS shared-class restore;
+      baseCommand.add(1, "-Xshare:off");
+    }
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);

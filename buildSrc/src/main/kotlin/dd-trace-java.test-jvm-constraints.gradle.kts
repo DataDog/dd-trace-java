@@ -1,3 +1,4 @@
+import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.testJvmConstraints.ProvideJvmArgsOnJvmLauncherVersion
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension.Companion.TEST_JVM_CONSTRAINTS
@@ -79,6 +80,16 @@ private fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
     ),
     extension.allowReflectiveAccessToJdk
   )
+
+  // Fix for arm64 Linux ByteBuddy error:
+  // "Could not self-attach to current VM using external process"
+  // Why it is needed on arm64: probably arm64 GitLab runners has stricter rules applied.
+  if (HostPlatform.isLinuxArm64()) {
+    conditionalJvmArgs(
+      JavaVersion.VERSION_1_9,
+      listOf("-Djdk.attach.allowAttachSelf=true")
+    )
+  }
 }
 
 // Jacoco plugin is not applied on every project

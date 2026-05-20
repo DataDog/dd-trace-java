@@ -1,6 +1,7 @@
 package datadog.smoketest
 
 
+import datadog.environment.OperatingSystem
 import java.time.Duration
 import java.util.concurrent.ArrayBlockingQueue
 import java.util.concurrent.BlockingQueue
@@ -11,6 +12,7 @@ import org.testcontainers.containers.GenericContainer
 import org.testcontainers.containers.output.Slf4jLogConsumer
 import org.testcontainers.containers.wait.strategy.Wait
 import org.testcontainers.utility.MountableFile
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 
 /**
@@ -22,6 +24,11 @@ import spock.lang.Shared
  *
  * Note that the websphere related metrics will only arrive if our instrumentation is applied.
  */
+// IBM does not publish an arm64 build of icr.io/appcafe/websphere-traditional, and the
+// arm64 CI runner has no amd64 emulation configured, so the container fails to start.
+@IgnoreIf({
+  OperatingSystem.isArm64() && OperatingSystem.isLinux()
+})
 class WebSphereJmxSmokeTest extends AbstractSmokeTest {
 
   private static final Logger LOG = LoggerFactory.getLogger(WebSphereJmxSmokeTest)

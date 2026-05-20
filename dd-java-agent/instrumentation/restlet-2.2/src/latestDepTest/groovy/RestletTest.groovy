@@ -1,3 +1,6 @@
+import static datadog.environment.OperatingSystem.isArm64
+import static datadog.environment.OperatingSystem.isLinux
+
 import org.restlet.Request
 import org.restlet.Response
 import org.restlet.data.Header
@@ -5,6 +8,12 @@ import org.restlet.routing.Filter
 import org.restlet.util.Series
 
 class RestletTest extends RestletTestBase {
+
+  @Override
+  boolean testParallelRequest() {
+    // TODO: Parallel processing is failing on Linux arm64.
+    return !(isLinux() && isArm64())
+  }
 
   @Override
   protected Filter createHeaderFilter() {

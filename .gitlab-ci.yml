@@ -36,6 +36,7 @@ stages:
   - shared-pipeline
   - benchmarks
   - tests
+  - tests-arm64
   - test-summary
   - exploration-tests
   - ci-visibility-tests
@@ -53,7 +54,7 @@ variables:
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
-  BUILDER_IMAGE_VERSION_PREFIX: "ci-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
+  BUILDER_IMAGE_VERSION_PREFIX: "163_merge-" # use either an empty string (e.g. "") for latest images or a version followed by a hyphen (e.g. "ci-" or "123_merge-")
   REPO_NOTIFICATION_CHANNEL: "#apm-java-escalations"
   DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/ # the latest "tip" version is 26
   PROFILE_TESTS:
@@ -163,6 +164,24 @@ default:
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
+.tier_m:
+  variables: &tier_m_variables
+    GRADLE_WORKERS: 4
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 5G
+    KUBERNETES_CPU_REQUEST: 6
+    KUBERNETES_MEMORY_REQUEST: 16Gi
+    KUBERNETES_MEMORY_LIMIT: 16Gi
+
+.tier_l:
+  variables: &tier_l_variables
+    GRADLE_WORKERS: 6
+    GRADLE_MEMORY_MIN: 1G
+    GRADLE_MEMORY_MAX: 6G
+    KUBERNETES_CPU_REQUEST: 10
+    KUBERNETES_MEMORY_REQUEST: 20Gi
+    KUBERNETES_MEMORY_LIMIT: 20Gi
+
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
     export GIT_BASE_REF=$(.gitlab/find-gh-base-ref.sh)
@@ -176,13 +195,8 @@ default:
   image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
   stage: build
   variables:
+    <<: *tier_m_variables
     MAVEN_OPTS: "-Xms256M -Xmx1024M"
-    GRADLE_WORKERS: 6
-    GRADLE_MEMORY_MIN: 1G
-    GRADLE_MEMORY_MAX: 4G
-    KUBERNETES_CPU_REQUEST: 10
-    KUBERNETES_MEMORY_REQUEST: 20Gi
-    KUBERNETES_MEMORY_LIMIT: 20Gi
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
@@ -614,6 +628,7 @@ muzzle-dep-report:
   needs: [ build_tests ]
   stage: tests
   variables:
+    <<: *tier_m_variables
     GRADLE_PARAMS: "-PskipFlakyTests"
     CONTINUE_ON_FAILURE: "false"
     TESTCONTAINERS_CHECKS_DISABLE: "true"
@@ -681,6 +696,118 @@ muzzle-dep-report:
       - scheduler_failure
       - data_integrity_failure
 
+.test_job_arm64:
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  tags: [ "docker-in-docker:arm64" ]
+  stage: tests-arm64
+  needs: []
+  variables:
+    <<: *tier_m_variables
+    # arm64 does not include JDK 7 or ibm8 (upstream images not published for arm64).
+    DEFAULT_TEST_JVMS: /^(8|11|17|21|25|tip)$/
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    TESTCONTAINERS_CHECKS_DISABLE: "true"
+    TESTCONTAINERS_RYUK_DISABLED: "true"
+    TESTCONTAINERS_HUB_IMAGE_NAME_PREFIX: "registry.ddbuild.io/images/mirror/"
+    JETTY_AVAILABLE_PROCESSORS: 4
+    GIT_SUBMODULE_STRATEGY: normal
+    GIT_SUBMODULE_DEPTH: 1
+  rules:
+    - if: $testJvm =~ $DEFAULT_TEST_JVMS
+      when: manual
+      allow_failure: true
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: manual
+      allow_failure: true
+  cache:
+    - key: dependency-$CACHE_TYPE
+      paths:
+        - .gradle/wrapper
+        - .gradle/caches
+        - .gradle/notifications
+        - .mvn/caches
+      policy: pull
+      fallback_keys:
+        - dependency-base
+        - dependency-lib
+      unprotect: true
+  before_script:
+    - git config --global --add safe.directory "$CI_PROJECT_DIR"
+    - export ORG_GRADLE_PROJECT_mavenRepositoryProxy=$MAVEN_REPOSITORY_PROXY
+    - export ORG_GRADLE_PROJECT_gradlePluginProxy=$GRADLE_PLUGIN_PROXY
+    - |
+      JAVA_HOMES=$(env | grep -E '^JAVA_[A-Z0-9_]+_HOME=' | sed 's/=.*//' | paste -sd,)
+      cat >> gradle.properties <<EOF
+      org.gradle.java.installations.auto-detect=false
+      org.gradle.java.installations.auto-download=false
+      org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      EOF
+    - mkdir -p .gradle .mvn/caches
+    # The `dependency-$CACHE_TYPE` cache is populated by amd64's `populate_dep_cache`
+    # (running as root). arm64 runs as `non-root-user`, so when Gradle does `chmod 700`
+    # on the restored .gradle directory it fails with EPERM. Rewrite the tree under
+    # the runner user's ownership before invoking Gradle. Mirrors the dance in
+    # `.gradle_build` (.gitlab-ci.yml:239-247).
+    - cp -r .gradle .gradle-copy
+    - rm -rf .gradle
+    - mv .gradle-copy .gradle
+    - export GRADLE_USER_HOME=$(pwd)/.gradle
+    - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    - *normalize_node_index
+    - *prepare_test_env
+    - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xshare:off -Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp -Djava.util.prefs.userRoot=/tmp/.java/.userPrefs-${CI_JOB_ID}' -Ddatadog.forkedMinHeapSize=128M -Ddatadog.forkedMaxHeapSize=1024M"
+    - export GRADLE_ARGS="--build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    # Disable CDS (Class Data Sharing) for the Gradle daemon.
+    # Temurin 11 on the arm64 microvm runner SIGSEGVs in ClassLoaderData::add_handle
+    # while restoring archived class mirrors from classes.jsa during JVM startup;
+    # -Xshare:off bypasses the crashing path.
+    - ./gradlew --version
+  script:
+    - ./gradlew $GRADLE_TARGET $GRADLE_PARAMS -PtestJvm=$testJvm -Pslot=$CI_NODE_INDEX/$CI_NODE_TOTAL $GRADLE_ARGS --continue
+  after_script:
+    - *cgroup_info
+    - gitlab_section_start "collect-reports" "Collecting reports"
+    - .gitlab/collect_reports.sh
+    - gitlab_section_end "collect-reports"
+  artifacts:
+    when: always
+    paths:
+      - ./reports.tar
+      - ./profiles.tar
+      - ./results
+      - './test_counts_*.json'
+      - '.gradle/daemon/*/*.out.log'
+    reports:
+      junit: results/*.xml
+  retry:
+    max: 2
+    when:
+      - unknown_failure
+      - stuck_or_timeout_failure
+      - runner_system_failure
+      - unmet_prerequisites
+      - scheduler_failure
+      - data_integrity_failure
+
+.test_job_arm64_with_test_agent:
+  extends: .test_job_arm64
+  variables:
+    CI_USE_TEST_AGENT: "true"
+    CI_AGENT_HOST: local-agent
+  services:
+    - name: registry.ddbuild.io/images/mirror/dd-apm-test-agent/ddapm-test-agent:v1.44.0
+      alias: local-agent
+      variables:
+        LOG_LEVEL: "DEBUG"
+        TRACE_LANGUAGE: "java"
+        DD_SUPPRESS_TRACE_PARSE_ERRORS: "true"
+        DD_POOL_TRACE_CHECK_FAILURES: "true"
+        DD_DISABLE_ERROR_RESPONSES: "true"
+        ENABLED_CHECKS: "trace_content_length,trace_stall,meta_tracer_version_header,trace_count_header,trace_peer_service,trace_dd_service"
+  script:
+    - !reference [.test_job_arm64, script]
+    - .gitlab/check_test_agent_results.sh
+
 .test_job_with_test_agent:
   extends: .test_job
   variables:
@@ -728,9 +855,27 @@ test_base:
     - if [ "$testJvm" == "8" ]; then export GRADLE_PARAMS="-PskipFlakyTests -PcheckCoverage"; fi
     - !reference [.test_job, script]
 
+test_base_arm64:
+  extends: .test_job_arm64
+  variables:
+    GRADLE_TARGET: ":baseTest"
+    CACHE_TYPE: "base"
+  parallel:
+    matrix: *test_matrix_4
+
 test_inst:
   extends: .test_job_with_test_agent
   variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: ":instrumentationTest"
+    CACHE_TYPE: "inst"
+  parallel:
+    matrix: *test_matrix_8
+
+test_inst_arm64:
+  extends: .test_job_arm64_with_test_agent
+  variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
   parallel:
@@ -739,6 +884,20 @@ test_inst:
 test_inst_latest:
   extends: .test_job_with_test_agent
   variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: ":instrumentationLatestDepTest"
+    CACHE_TYPE: "latestdep"
+  parallel:
+    matrix:
+      - testJvm: ["8", "17", "21", "25"] # the latest "tip" version is LTS v25
+        # Gitlab doesn't support "parallel" and "parallel:matrix" at the same time
+        # This emulates "parallel" by including it in the matrix
+        CI_SPLIT: [ "1/6", "2/6", "3/6", "4/6", "5/6", "6/6"]
+
+test_inst_latest_arm64:
+  extends: .test_job_arm64_with_test_agent
+  variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationLatestDepTest"
     CACHE_TYPE: "latestdep"
   parallel:
@@ -788,6 +947,14 @@ test_profiling:
   parallel:
     matrix: *test_matrix
 
+test_profiling_arm64:
+  extends: .test_job_arm64
+  variables:
+    GRADLE_TARGET: ":profilingTest"
+    CACHE_TYPE: "profiling"
+  parallel:
+    matrix: *test_matrix
+
 # specific jvms list for debugger project because J9-based JVMs have issues with local vars
 # so need to test at least against one J9-based JVM
 test_debugger:
@@ -799,9 +966,28 @@ test_debugger:
   parallel:
     matrix: *test_matrix
 
+test_debugger_arm64:
+  extends: .test_job_arm64
+  variables:
+    GRADLE_TARGET: ":debuggerTest"
+    CACHE_TYPE: "base"
+  parallel:
+    matrix: *test_matrix
+
 test_smoke:
   extends: .test_job
   variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    GRADLE_PARAMS: "-PskipFlakyTests"
+    CACHE_TYPE: "smoke"
+  parallel:
+    matrix: *test_matrix_8
+
+test_smoke_arm64:
+  extends: .test_job_arm64
+  variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
     CACHE_TYPE: "smoke"
@@ -818,6 +1004,18 @@ test_ssi_smoke:
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
       when: on_success
   variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: "stageMainDist :smokeTest"
+    CACHE_TYPE: "smoke"
+    DD_INJECT_FORCE: "true"
+    DD_INJECTION_ENABLED: "tracer"
+  parallel:
+    matrix: *test_matrix_8
+
+test_ssi_smoke_arm64:
+  extends: .test_job_arm64
+  variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
     CACHE_TYPE: "smoke"
     DD_INJECT_FORCE: "true"
@@ -829,6 +1027,20 @@ test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
   variables:
+    <<: *tier_l_variables
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    CACHE_TYPE: "smoke"
+    CI_NO_SPLIT: "true"
+    NON_DEFAULT_JVMS: "true"
+  parallel:
+    matrix:
+      - testJvm: ["graalvm17", "graalvm21", "graalvm25"]
+
+test_smoke_graalvm_arm64:
+  extends: .test_job_arm64
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
+  variables:
+    <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
