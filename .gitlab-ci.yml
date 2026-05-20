@@ -716,6 +716,9 @@ muzzle-dep-report:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: manual
       allow_failure: true
+    - if: '$NON_DEFAULT_JVMS == "true"'
+      when: manual
+      allow_failure: true
   cache:
     - key: dependency-$CACHE_TYPE
       paths:
