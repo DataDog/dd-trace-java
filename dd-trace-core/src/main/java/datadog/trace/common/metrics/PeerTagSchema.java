@@ -31,8 +31,6 @@ import java.util.Set;
  */
 final class PeerTagSchema {
 
-  private static final int VALUE_LIMIT_PER_TAG = 512;
-
   /** Sentinel revision for {@link #INTERNAL} -- it never changes. */
   static final long INTERNAL_REVISION = -1L;
 
@@ -60,7 +58,8 @@ final class PeerTagSchema {
     this.peerTagsRevision = peerTagsRevision;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
-      this.handlers[i] = new TagCardinalityHandler(names[i], VALUE_LIMIT_PER_TAG);
+      this.handlers[i] =
+          new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
     }
   }
 

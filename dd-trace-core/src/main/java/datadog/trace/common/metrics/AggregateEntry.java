@@ -45,27 +45,27 @@ final class AggregateEntry extends Hashtable.Entry {
   public static final long ERROR_TAG = 0x8000000000000000L;
   public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  // Per-field cardinality limits. Identical to the prior DDCache sizes. Each handler's type
-  // parameter matches the corresponding SpanSnapshot field type so the cache map's key class has
-  // well-defined equals/hashCode.
+  // Per-field cardinality handlers. Each handler's type parameter matches the corresponding
+  // SpanSnapshot field type so the cache key class has well-defined equals/hashCode. Limits live
+  // on MetricCardinalityLimits -- see that class for per-field rationale.
   static final PropertyCardinalityHandler<CharSequence> RESOURCE_HANDLER =
-      new PropertyCardinalityHandler<>(32);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.RESOURCE);
   static final PropertyCardinalityHandler<String> SERVICE_HANDLER =
-      new PropertyCardinalityHandler<>(32);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.SERVICE);
   static final PropertyCardinalityHandler<CharSequence> OPERATION_HANDLER =
-      new PropertyCardinalityHandler<>(64);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.OPERATION);
   static final PropertyCardinalityHandler<CharSequence> SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler<>(16);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.SERVICE_SOURCE);
   static final PropertyCardinalityHandler<CharSequence> TYPE_HANDLER =
-      new PropertyCardinalityHandler<>(8);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.TYPE);
   static final PropertyCardinalityHandler<String> SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler<>(16);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.SPAN_KIND);
   static final PropertyCardinalityHandler<String> HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler<>(8);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.HTTP_METHOD);
   static final PropertyCardinalityHandler<String> HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler<>(32);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.HTTP_ENDPOINT);
   static final PropertyCardinalityHandler<String> GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler<>(32);
+      new PropertyCardinalityHandler<>(MetricCardinalityLimits.GRPC_STATUS_CODE);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
