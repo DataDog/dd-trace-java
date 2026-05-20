@@ -4,6 +4,7 @@
 # Build
 develocity = "4.4.1"
 forbiddenapis = "3.10"
+gradle-tooling-api = "8.14.5"
 spotbugs_annotations = "4.9.8"
 
 # DataDog libs and forks
@@ -78,6 +79,7 @@ testcontainers = "1.21.4"
 # Build
 develocity = { module = "com.gradle:develocity-gradle-plugin", version.ref = "develocity" }
 forbiddenapis = { module = "de.thetaphi:forbiddenapis", version.ref = "forbiddenapis" }
+gradle-tooling-api = { module = "org.gradle:gradle-tooling-api", version.ref = "gradle-tooling-api" }
 spotbugs-annotations = { module = "com.github.spotbugs:spotbugs-annotations", version.ref = "spotbugs_annotations" }
 
 # DataDog libs and forks
