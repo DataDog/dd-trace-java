@@ -101,6 +101,7 @@ dependencies {
 
 tasks.compileKotlin {
   dependsOn(":call-site-instrumentation-plugin:build")
+  dependsOn(":modifiable-config-agent:build")
 }
 
 testing {

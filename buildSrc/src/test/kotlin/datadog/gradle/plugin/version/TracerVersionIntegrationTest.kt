@@ -144,6 +144,50 @@ class TracerVersionIntegrationTest : VersionPluginsFixture() {
     )
   }
 
+  @Test
+  fun `should increment minor from merged main version tag on feature branch`() {
+    assertTracerVersion(
+      expectedVersion = "1.53.0-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.50.0", "-m", "")
+        exec("git", "switch", "-c", "feature")
+        writeFile("feature.txt", "feature")
+        exec("git", "add", "feature.txt")
+        exec("git", "commit", "-m", "Feature commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "feature")
+        exec("git", "merge", "main", "--no-edit")
+      },
+    )
+  }
+
+  @Test
+  fun `should increment patch from first parent on release branch after main merge`() {
+    assertTracerVersion(
+      expectedVersion = "1.52.1-SNAPSHOT",
+      beforeGradle = {
+        initGitRepo()
+        exec("git", "tag", "v1.52.0", "-m", "")
+        exec("git", "switch", "-c", "release/v1.52.x")
+        writeFile("release.txt", "release")
+        exec("git", "add", "release.txt")
+        exec("git", "commit", "-m", "Release commit")
+        exec("git", "switch", "main")
+        writeFile("main.txt", "main")
+        exec("git", "add", "main.txt")
+        exec("git", "commit", "-m", "Main commit")
+        exec("git", "tag", "v1.53.0", "-m", "")
+        exec("git", "switch", "release/v1.52.x")
+        exec("git", "merge", "main", "--no-edit")
+      },
+    )
+  }
+
   private fun assertTracerVersion(
     expectedVersion: String,
     workingDirectory: File = projectDir,

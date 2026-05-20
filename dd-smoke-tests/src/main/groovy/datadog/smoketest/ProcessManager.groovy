@@ -19,7 +19,10 @@ abstract class ProcessManager extends Specification {
   public static final String SERVICE_NAME = "smoke-test-java-app"
   public static final String ENV = "smoketest"
   public static final String VERSION = "99"
-  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of('CI_COMMIT_MESSAGE', 'CI_COMMIT_DESCRIPTION')
+  public static final Set<String> NOISY_ENVIRONMENT_VARIABLES = ImmutableSet.of(
+  'CI_COMMIT_TITLE',
+  'CI_COMMIT_MESSAGE',
+  'CI_COMMIT_DESCRIPTION')
   private static final DateTimeFormatter LOG_FILE_TIMESTAMP_FORMATTER =
   DateTimeFormatter.ofPattern("yyyy-MM-dd-HHmmss.SSS", Locale.ROOT).withZone(ZoneOffset.UTC)
 
