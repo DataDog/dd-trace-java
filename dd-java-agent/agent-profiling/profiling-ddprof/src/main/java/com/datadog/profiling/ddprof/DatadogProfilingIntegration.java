@@ -72,8 +72,50 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public int encode(CharSequence constant) {
+    return DDPROF.encode(constant);
+  }
+
+  @Override
+  public int encodeOperationName(CharSequence constant) {
+    if (SPAN_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
+  public int encodeResourceName(CharSequence constant) {
+    if (RESOURCE_NAME_INDEX >= 0) {
+      return DDPROF.encode(constant);
+    }
+    return 0;
+  }
+
+  @Override
   public String name() {
     return "ddprof";
+  }
+
+  @Override
+  public long getCurrentTicks() {
+    return DDPROF.getCurrentTicks();
+  }
+
+  @Override
+  public void recordTaskBlock(
+      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
+    DDPROF.recordTaskBlockEvent(startTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+  }
+
+  @Override
+  public void parkEnter(long spanId, long rootSpanId) {
+    DDPROF.parkEnter(spanId, rootSpanId);
+  }
+
+  @Override
+  public void parkExit(long blocker, long unblockingSpanId) {
+    DDPROF.parkExit(blocker, unblockingSpanId);
   }
 
   public void clearContext() {

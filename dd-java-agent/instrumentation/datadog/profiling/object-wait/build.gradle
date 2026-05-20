@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_21
+}
+
+muzzle {
+  pass {
+    coreJdk('21')
+  }
+}
+
+dependencies {
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}

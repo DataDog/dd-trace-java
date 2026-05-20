@@ -22,6 +22,11 @@ jobs:
   build:
     runs-on:
       group: APM Larger Runners
+    # Keep in sync with the JAVA_PROFILER_REF default in .gitlab-ci.yml. When non-empty,
+    # we clone DataDog/java-profiler at this ref, build :ddprof-lib:assembleReleaseJar
+    # and inject it via -Pddprof.jar=<path> instead of the published Maven artifact.
+    env:
+      JAVA_PROFILER_REF: paul.fournillon/wallclock_precheck
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
@@ -39,17 +44,51 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-gradle-
 
+      # Mirrors the `build_java_profiler_ddprof` GitLab job: clone java-profiler at
+      # JAVA_PROFILER_REF, build :ddprof-lib:assembleReleaseJar with JDK 21 (Gradle 9.x),
+      # and stage the resulting jar under custom-ddprof/ddprof.jar.
+      # assembleRelease is the native link/assemble task only; the packaged jar is assembleReleaseJar.
+      - name: Build custom ddprof.jar from java-profiler
+        if: ${{ env.JAVA_PROFILER_REF != '' }}
+        run: |
+          set -euo pipefail
+          mkdir -p custom-ddprof
+          SRCDIR="${RUNNER_TEMP}/java-profiler-src"
+          rm -rf "$SRCDIR"
+          git clone --depth 1 --branch "$JAVA_PROFILER_REF" https://github.com/DataDog/java-profiler.git "$SRCDIR"
+          (
+            cd "$SRCDIR"
+            chmod +x ./gradlew
+            JAVA_HOME="$JAVA_HOME_21_X64" PATH="$JAVA_HOME_21_X64/bin:$PATH" ./gradlew --version
+            JAVA_HOME="$JAVA_HOME_21_X64" PATH="$JAVA_HOME_21_X64/bin:$PATH" \
+              ./gradlew :ddprof-lib:assembleReleaseJar -Pskip-tests -Pskip-gtest --no-daemon
+          )
+          JAR=$(find "$SRCDIR/ddprof-lib/build/libs" -maxdepth 1 -type f -name 'ddprof-*.jar' ! -name '*-sources*' ! -name '*-javadoc*' | head -1)
+          if [ -z "$JAR" ] || [ ! -f "$JAR" ]; then
+            echo "No ddprof jar found under $SRCDIR/ddprof-lib/build/libs" >&2
+            ls -laR "$SRCDIR/ddprof-lib/build" 2>/dev/null || true
+            exit 1
+          fi
+          cp "$JAR" "$GITHUB_WORKSPACE/custom-ddprof/ddprof.jar"
+          echo "DDPROF_JAR=$GITHUB_WORKSPACE/custom-ddprof/ddprof.jar" >> "$GITHUB_ENV"
+          ls -la "$GITHUB_WORKSPACE/custom-ddprof/"
+
       - name: Build dd-trace-java
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
+          DDPROF_ARG=""
+          if [ -n "${DDPROF_JAR:-}" ] && [ -f "$DDPROF_JAR" ]; then
+            echo "Injecting custom ddprof.jar: $DDPROF_JAR"
+            DDPROF_ARG="-Pddprof.jar=$DDPROF_JAR"
+          fi
           GRADLE_OPTS="-Xms2g -Xmx4g -XX:+HeapDumpOnOutOfMemoryError -XX:+UseParallelGC" \
           JAVA_HOME=$JAVA_HOME_8_X64 \
           JAVA_8_HOME=$JAVA_HOME_8_X64 \
           JAVA_11_HOME=$JAVA_HOME_11_X64 \
           JAVA_17_HOME=$JAVA_HOME_17_X64 \
           JAVA_21_HOME=$JAVA_HOME_21_X64 \
-          ./gradlew clean :dd-java-agent:shadowJar \
+          ./gradlew clean :dd-java-agent:shadowJar $DDPROF_ARG \
             --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Upload artifact

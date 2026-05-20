@@ -1,0 +1,12 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    coreJdk()
+  }
+}
+
+dependencies {
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+}
