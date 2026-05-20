@@ -570,8 +570,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
 
   private void reportHit(
       ScaEntry entry, String version, String internalClassName, String symbolName, int line) {
-    // Dedup key prevents registering the same (vulnId, artifact, symbol) twice.
-    String dedupKey = entry.vulnId() + "|" + entry.artifact() + "|" + symbolName;
+    // Include version: two artifact versions loaded in separate classloaders must produce
+    // independent class-level hits.
+    String dedupKey = entry.vulnId() + "|" + entry.artifact() + "|" + version + "|" + symbolName;
     if (!reportedHits.add(dedupKey)) {
       return;
     }
