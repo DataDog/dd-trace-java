@@ -12,6 +12,8 @@ import datadog.trace.api.civisibility.telemetry.tag.CoverageErrorType;
 import datadog.trace.civisibility.coverage.ConcurrentCoverageStore;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.source.Utils;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.BitSet;
@@ -25,6 +27,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 import org.jacoco.core.analysis.Analyzer;
+import org.jacoco.core.data.ExecutionData;
 import org.jacoco.core.data.ExecutionDataStore;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,14 +42,17 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
   private final CiVisibilityMetricCollector metrics;
   private final SourcePathResolver sourcePathResolver;
+  private final ConcurrentHashMap<Long, BitSet[]> probeLineMappingCache;
 
   private LineCoverageStore(
       Function<Boolean, LineProbes> probesFactory,
       CiVisibilityMetricCollector metrics,
-      SourcePathResolver sourcePathResolver) {
+      SourcePathResolver sourcePathResolver,
+      ConcurrentHashMap<Long, BitSet[]> probeLineMappingCache) {
     super(probesFactory);
     this.metrics = metrics;
     this.sourcePathResolver = sourcePathResolver;
+    this.probeLineMappingCache = probeLineMappingCache;
   }
 
   @Nullable
@@ -62,6 +68,10 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       }
       combinedNonCodeResources.addAll(probe.getNonCodeResources());
     }
+
+    // Copy per-test probe data back into JaCoCo's shared $jacocoData arrays so that
+    // JaCoCo's aggregate coverage reports remain accurate.
+    copyProbeDataToJacoco(combinedExecutionData);
 
     if (combinedExecutionData.isEmpty() && combinedNonCodeResources.isEmpty()) {
       return null;
@@ -83,16 +93,33 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
       }
       String sourcePath = sourcePaths.iterator().next();
 
-      try (InputStream is = Utils.getClassStream(clazz)) {
+      try {
+        long classId = executionDataAdapter.getClassId();
+        boolean[] probeActivations = executionDataAdapter.getProbeActivations();
+
+        BitSet[] probeToLines =
+            probeLineMappingCache.computeIfAbsent(
+                classId,
+                id -> {
+                  try (InputStream is = Utils.getClassStream(clazz)) {
+                    if (is == null) {
+                      return new BitSet[0];
+                    }
+                    byte[] classBytes = readAllBytes(is);
+                    return buildProbeLineMapping(
+                        id, className, probeActivations.length, classBytes);
+                  } catch (Exception ex) {
+                    return new BitSet[0];
+                  }
+                });
+
         BitSet coveredLines =
             coveredLinesBySourcePath.computeIfAbsent(sourcePath, key -> new BitSet());
-        ExecutionDataStore store = new ExecutionDataStore();
-        store.put(executionDataAdapter.toExecutionData());
-
-        // TODO optimize this part to avoid parsing
-        //  the same class multiple times for different test cases
-        Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(coveredLines));
-        analyzer.analyzeClass(is, null);
+        for (int i = 0; i < probeActivations.length && i < probeToLines.length; i++) {
+          if (probeActivations[i]) {
+            coveredLines.or(probeToLines[i]);
+          }
+        }
 
       } catch (Exception exception) {
         log.debug(
@@ -132,9 +159,53 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
     return report;
   }
 
+  private static byte[] readAllBytes(InputStream is) throws IOException {
+    ByteArrayOutputStream buffer = new ByteArrayOutputStream();
+    byte[] data = new byte[4096];
+    int len;
+    while ((len = is.read(data, 0, data.length)) != -1) {
+      buffer.write(data, 0, len);
+    }
+    return buffer.toByteArray();
+  }
+
+  private static BitSet[] buildProbeLineMapping(
+      long classId, String className, int probeCount, byte[] classBytes) {
+    BitSet[] mapping = new BitSet[probeCount];
+    for (int i = 0; i < probeCount; i++) {
+      boolean[] singleProbe = new boolean[probeCount];
+      singleProbe[i] = true;
+      ExecutionDataStore store = new ExecutionDataStore();
+      store.put(new ExecutionData(classId, className, singleProbe));
+      BitSet lines = new BitSet();
+      Analyzer analyzer = new Analyzer(store, new SourceAnalyzer(lines));
+      try {
+        analyzer.analyzeClass(classBytes, null);
+      } catch (Exception e) {
+        // Analysis failure — empty BitSet is safe
+      }
+      mapping[i] = lines;
+    }
+    return mapping;
+  }
+
+  private static void copyProbeDataToJacoco(Map<Class<?>, ExecutionDataAdapter> executionData) {
+    for (ExecutionDataAdapter adapter : executionData.values()) {
+      boolean[] probeActivations = adapter.getProbeActivations();
+      boolean[] jacocoData = adapter.getJacocoArray();
+      if (jacocoData != null) {
+        for (int i = 0; i < probeActivations.length && i < jacocoData.length; i++) {
+          jacocoData[i] |= probeActivations[i];
+        }
+      }
+    }
+  }
+
   public static final class Factory implements CoverageStore.Factory {
 
     private final Map<String, Integer> probeCounts = new ConcurrentHashMap<>();
+    private final ConcurrentHashMap<Long, BitSet[]> probeLineMappingCache =
+        new ConcurrentHashMap<>();
 
     private final CiVisibilityMetricCollector metrics;
     private final SourcePathResolver sourcePathResolver;
@@ -146,7 +217,8 @@ public class LineCoverageStore extends ConcurrentCoverageStore<LineProbes> {
 
     @Override
     public CoverageStore create(@Nullable TestIdentifier testIdentifier) {
-      return new LineCoverageStore(this::createProbes, metrics, sourcePathResolver);
+      return new LineCoverageStore(
+          this::createProbes, metrics, sourcePathResolver, probeLineMappingCache);
     }
 
     private LineProbes createProbes(boolean isTestThread) {
