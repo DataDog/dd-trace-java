@@ -17,8 +17,6 @@ import java.util.Map;
 import java.util.function.BiConsumer;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 class BaggagePropagatorTest extends DDJavaSpecification {
@@ -137,17 +135,16 @@ class BaggagePropagatorTest extends DDJavaSpecification {
     assertEquals("key1=vall%C3%A9e,cl%C3%A92=value", carrier.get(BAGGAGE_KEY));
   }
 
-  @ParameterizedTest
-  @ValueSource(
-      strings = {
-        "no-equal-sign,foo=gets-dropped-because-previous-pair-is-malformed",
-        "foo=gets-dropped-because-subsequent-pair-is-malformed,=",
-        "=no-key",
-        "no-value=",
-        "",
-        ",,",
-        "="
-      })
+  @TableTest({
+    "scenario                    | baggageHeader                                                      ",
+    "no equal sign in first pair | 'no-equal-sign,foo=gets-dropped-because-previous-pair-is-malformed'",
+    "trailing equals only        | 'foo=gets-dropped-because-subsequent-pair-is-malformed,='          ",
+    "empty key                   | '=no-key'                                                          ",
+    "empty value                 | 'no-value='                                                        ",
+    "empty header                | ''                                                                 ",
+    "only delimiters             | ',,'                                                               ",
+    "single equal sign           | '='                                                                "
+  })
   void extractInvalidBaggageHeaders(String baggageHeader) {
     Map<String, String> headers = singletonMap(BAGGAGE_KEY, baggageHeader);
 
