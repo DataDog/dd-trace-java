@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY
 import static java.util.concurrent.TimeUnit.MILLISECONDS
 import static java.util.concurrent.TimeUnit.SECONDS
 
@@ -287,10 +288,10 @@ class SerializingMetricWriterTest extends DDSpecification {
         // counters now live on AggregateEntry
         int metricMapSize = unpacker.unpackMapHeader()
         // Calculate expected map size based on optional fields
-        boolean hasHttpMethod = entry.getHttpMethod() != null
-        boolean hasHttpEndpoint = entry.getHttpEndpoint() != null
-        boolean hasServiceSource = entry.getServiceSource() != null
-        boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != null
+        boolean hasHttpMethod = entry.getHttpMethod() != EMPTY
+        boolean hasHttpEndpoint = entry.getHttpEndpoint() != EMPTY
+        boolean hasServiceSource = entry.getServiceSource() != EMPTY
+        boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != EMPTY
         int expectedMapSize = 15 + (hasServiceSource ? 1 : 0) + (hasHttpMethod ? 1 : 0) + (hasHttpEndpoint ? 1 : 0) + (hasGrpcStatusCode ? 1 : 0)
         assert metricMapSize == expectedMapSize
         int elementCount = 0

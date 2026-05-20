@@ -10,7 +10,6 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
-import javax.annotation.Nullable;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -69,12 +68,15 @@ final class AggregateEntry extends Hashtable.Entry {
   final UTF8BytesString resource;
   final UTF8BytesString service;
   final UTF8BytesString operationName;
-  @Nullable final UTF8BytesString serviceSource;
+  // Optional fields use UTF8BytesString.EMPTY as the "absent" sentinel rather than null. The
+  // cardinality handlers map null inputs to EMPTY, and createUtf8 does the same for the of(...)
+  // factory, so callers don't need to special-case absence.
+  final UTF8BytesString serviceSource;
   final UTF8BytesString type;
   final UTF8BytesString spanKind;
-  @Nullable final UTF8BytesString httpMethod;
-  @Nullable final UTF8BytesString httpEndpoint;
-  @Nullable final UTF8BytesString grpcStatusCode;
+  final UTF8BytesString httpMethod;
+  final UTF8BytesString httpEndpoint;
+  final UTF8BytesString grpcStatusCode;
   final short httpStatusCode;
   final boolean synthetic;
   final boolean traceRoot;
@@ -205,25 +207,25 @@ final class AggregateEntry extends Hashtable.Entry {
       CharSequence resource,
       CharSequence service,
       CharSequence operationName,
-      @Nullable CharSequence serviceSource,
+      CharSequence serviceSource,
       CharSequence type,
       int httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
       CharSequence spanKind,
-      @Nullable List<UTF8BytesString> peerTags,
-      @Nullable CharSequence httpMethod,
-      @Nullable CharSequence httpEndpoint,
-      @Nullable CharSequence grpcStatusCode) {
+      List<UTF8BytesString> peerTags,
+      CharSequence httpMethod,
+      CharSequence httpEndpoint,
+      CharSequence grpcStatusCode) {
     UTF8BytesString resourceUtf = createUtf8(resource);
     UTF8BytesString serviceUtf = createUtf8(service);
     UTF8BytesString operationNameUtf = createUtf8(operationName);
-    UTF8BytesString serviceSourceUtf = serviceSource == null ? null : createUtf8(serviceSource);
+    UTF8BytesString serviceSourceUtf = createUtf8(serviceSource);
     UTF8BytesString typeUtf = createUtf8(type);
     UTF8BytesString spanKindUtf = createUtf8(spanKind);
-    UTF8BytesString httpMethodUtf = httpMethod == null ? null : createUtf8(httpMethod);
-    UTF8BytesString httpEndpointUtf = httpEndpoint == null ? null : createUtf8(httpEndpoint);
-    UTF8BytesString grpcUtf = grpcStatusCode == null ? null : createUtf8(grpcStatusCode);
+    UTF8BytesString httpMethodUtf = createUtf8(httpMethod);
+    UTF8BytesString httpEndpointUtf = createUtf8(httpEndpoint);
+    UTF8BytesString grpcUtf = createUtf8(grpcStatusCode);
     List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
     long keyHash =
         hashOf(
@@ -330,7 +332,6 @@ final class AggregateEntry extends Hashtable.Entry {
     return operationName;
   }
 
-  @Nullable
   UTF8BytesString getServiceSource() {
     return serviceSource;
   }
@@ -343,17 +344,14 @@ final class AggregateEntry extends Hashtable.Entry {
     return spanKind;
   }
 
-  @Nullable
   UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
-  @Nullable
   UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
-  @Nullable
   UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
@@ -416,12 +414,12 @@ final class AggregateEntry extends Hashtable.Entry {
     UTF8BytesString resource;
     UTF8BytesString service;
     UTF8BytesString operationName;
-    @Nullable UTF8BytesString serviceSource;
+    UTF8BytesString serviceSource;
     UTF8BytesString type;
     UTF8BytesString spanKind;
-    @Nullable UTF8BytesString httpMethod;
-    @Nullable UTF8BytesString httpEndpoint;
-    @Nullable UTF8BytesString grpcStatusCode;
+    UTF8BytesString httpMethod;
+    UTF8BytesString httpEndpoint;
+    UTF8BytesString grpcStatusCode;
     short httpStatusCode;
     boolean synthetic;
     boolean traceRoot;
@@ -437,18 +435,15 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
     void populate(SpanSnapshot s) {
-      this.resource = registerOrEmpty(RESOURCE_HANDLER, s.resourceName);
-      this.service = registerOrEmpty(SERVICE_HANDLER, s.serviceName);
-      this.operationName = registerOrEmpty(OPERATION_HANDLER, s.operationName);
-      this.serviceSource =
-          s.serviceNameSource == null ? null : SERVICE_SOURCE_HANDLER.register(s.serviceNameSource);
-      this.type = registerOrEmpty(TYPE_HANDLER, s.spanType);
-      this.spanKind = registerOrEmpty(SPAN_KIND_HANDLER, s.spanKind);
-      this.httpMethod = s.httpMethod == null ? null : HTTP_METHOD_HANDLER.register(s.httpMethod);
-      this.httpEndpoint =
-          s.httpEndpoint == null ? null : HTTP_ENDPOINT_HANDLER.register(s.httpEndpoint);
-      this.grpcStatusCode =
-          s.grpcStatusCode == null ? null : GRPC_STATUS_CODE_HANDLER.register(s.grpcStatusCode);
+      this.resource = RESOURCE_HANDLER.register(s.resourceName);
+      this.service = SERVICE_HANDLER.register(s.serviceName);
+      this.operationName = OPERATION_HANDLER.register(s.operationName);
+      this.serviceSource = SERVICE_SOURCE_HANDLER.register(s.serviceNameSource);
+      this.type = TYPE_HANDLER.register(s.spanType);
+      this.spanKind = SPAN_KIND_HANDLER.register(s.spanKind);
+      this.httpMethod = HTTP_METHOD_HANDLER.register(s.httpMethod);
+      this.httpEndpoint = HTTP_ENDPOINT_HANDLER.register(s.httpEndpoint);
+      this.grpcStatusCode = GRPC_STATUS_CODE_HANDLER.register(s.grpcStatusCode);
       this.httpStatusCode = s.httpStatusCode;
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
@@ -558,11 +553,6 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   // ----- helpers -----
-
-  private static UTF8BytesString registerOrEmpty(
-      PropertyCardinalityHandler handler, CharSequence value) {
-    return value == null ? UTF8BytesString.EMPTY : handler.register(value);
-  }
 
   /** Direct {@link UTF8BytesString} creation that bypasses the cardinality handlers. */
   private static UTF8BytesString createUtf8(CharSequence cs) {

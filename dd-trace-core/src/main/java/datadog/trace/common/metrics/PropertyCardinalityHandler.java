@@ -62,7 +62,14 @@ public final class PropertyCardinalityHandler {
     this.priorValues = new UTF8BytesString[capacity];
   }
 
+  /**
+   * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
+   * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   */
   public UTF8BytesString register(CharSequence value) {
+    if (value == null) {
+      return UTF8BytesString.EMPTY;
+    }
     final int slot = probe(this.curValues, value);
     final UTF8BytesString existing = this.curValues[slot];
     if (existing != null) {
