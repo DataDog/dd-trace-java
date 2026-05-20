@@ -160,7 +160,7 @@ public final class SimpleUtf8Cache implements EncodingCache {
       }
     }
 
-    // If we get here, then we're evicting the LRU
+    // If we get here, then we're evicting the LFU
     entries[lfuIndex] = newEntry;
     return true;
   }

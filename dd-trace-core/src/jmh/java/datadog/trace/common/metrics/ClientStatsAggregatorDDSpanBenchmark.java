@@ -32,6 +32,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * of the lightweight {@code SimpleSpan} mock, so the JIT exercises the production {@link
  * CoreSpan#isKind} path (cached span.kind ordinal + bit-test) rather than the groovy mock's
  * dispatch.
+ *
+ * <p>SpanKindFilter rollout result vs. the pre-bitmask code on master: ~1.3% faster on the
+ * production path, with tighter fork-to-fork variance. The CIs overlap so the headline number sits
+ * inside noise, but the centers move the right way and the new path is structurally cheaper (byte
+ * read + bit-test vs tag-map read + HashSet.contains). <code>
+ * MacBook M1 (Java 21), 2 forks x 5 iterations x 15s, AverageTime
+ *
+ * Branch       Score (avg)   CI (99.9%)
+ * master       6.428 ± 0.189 µs/op  [6.239, 6.617]
+ * this branch  6.343 ± 0.115 µs/op  [6.228, 6.458]
+ * </code>
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 1, time = 30, timeUnit = SECONDS)

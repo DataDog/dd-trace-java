@@ -27,8 +27,6 @@ final class AggregateTable {
   private int size;
 
   AggregateTable(int maxAggregates) {
-    // ~25% headroom in the bucket array over the working-set target -- avoids the long-chain
-    // pathology at full capacity.
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
     this.canonical = new AggregateEntry.Canonical();
@@ -66,7 +64,17 @@ final class AggregateTable {
     return entry;
   }
 
-  /** Unlink the first entry whose {@code getHitCount() == 0}. */
+  /**
+   * Unlinks the first entry whose {@code getHitCount() == 0}.
+   *
+   * <p>O(N) per call -- scans buckets in array order from the start every time. That's a regression
+   * from the prior {@code LRUCache}'s O(1) LRU eviction, but the semantic change is deliberate: at
+   * cap with all entries live, we drop the new key (and report it via {@code
+   * onStatsAggregateDropped}) rather than evicting an established key. The expectation is that the
+   * cap is sized to the steady-state working set, so eviction is rare; if a future workload runs
+   * persistently at cap, this is the place to consider caching a cursor across calls so the scan
+   * resumes where it left off.
+   */
   private boolean evictOneStale() {
     for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
         iter.hasNext(); ) {

@@ -8,7 +8,7 @@ package datadog.trace.util;
 public final class LongHashingUtils {
   private LongHashingUtils() {}
 
-  public static final long hashCodeX(Object obj) {
+  public static final long hash(Object obj) {
     return obj == null ? Long.MIN_VALUE : obj.hashCode();
   }
 
