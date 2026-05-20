@@ -10,7 +10,7 @@ import java.util.Arrays;
  * <p>Same open-addressed flat-array + prior-cycle reuse design as {@link
  * PropertyCardinalityHandler} -- see that class for full description.
  */
-public final class TagCardinalityHandler {
+final class TagCardinalityHandler {
   private final String tag;
   private final int cardinalityLimit;
   private final int capacityMask;
@@ -23,7 +23,7 @@ public final class TagCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
-  public TagCardinalityHandler(String tag, int cardinalityLimit) {
+  TagCardinalityHandler(String tag, int cardinalityLimit) {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -46,7 +46,7 @@ public final class TagCardinalityHandler {
    * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
    * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
    */
-  public UTF8BytesString register(String value) {
+  UTF8BytesString register(String value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
@@ -86,7 +86,7 @@ public final class TagCardinalityHandler {
     return cacheBlocked;
   }
 
-  public void reset() {
+  void reset() {
     final String[] tmpKeys = this.priorKeys;
     final UTF8BytesString[] tmpValues = this.priorValues;
     this.priorKeys = this.curKeys;

@@ -31,7 +31,7 @@ import java.util.Arrays;
  * cycles pay zero UTF8 allocations after the first cycle, and the reused instances also
  * short-circuit downstream equality to identity comparisons.
  */
-public final class PropertyCardinalityHandler {
+final class PropertyCardinalityHandler {
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -43,7 +43,7 @@ public final class PropertyCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
-  public PropertyCardinalityHandler(int cardinalityLimit) {
+  PropertyCardinalityHandler(int cardinalityLimit) {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -66,7 +66,7 @@ public final class PropertyCardinalityHandler {
    * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
    * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
    */
-  public UTF8BytesString register(CharSequence value) {
+  UTF8BytesString register(CharSequence value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
@@ -115,7 +115,7 @@ public final class PropertyCardinalityHandler {
     return cacheBlocked;
   }
 
-  public void reset() {
+  void reset() {
     // Flip pointers: the just-completed cycle becomes prior; what was prior (2 cycles ago) is
     // recycled into the new (empty) current.
     final UTF8BytesString[] tmp = this.priorValues;
