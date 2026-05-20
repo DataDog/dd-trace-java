@@ -1,20 +1,19 @@
 import datadog.trace.agent.test.base.HttpClientTest
 import datadog.trace.agent.test.naming.TestingGenericHttpNamingConventions
 import datadog.trace.instrumentation.apachehttpclient5.ApacheHttpClientDecorator
+import java.util.concurrent.TimeUnit
 import org.apache.hc.client5.http.config.RequestConfig
 import org.apache.hc.client5.http.impl.classic.CloseableHttpResponse
 import org.apache.hc.client5.http.impl.classic.HttpClients
 import org.apache.hc.client5.http.impl.io.BasicHttpClientConnectionManager
+import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.HttpHost
 import org.apache.hc.core5.http.HttpRequest
-import org.apache.hc.core5.http.ClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicClassicHttpRequest
 import org.apache.hc.core5.http.message.BasicHeader
 import org.apache.hc.core5.http.protocol.BasicHttpContext
 import spock.lang.Shared
 import spock.lang.Timeout
-
-import java.util.concurrent.TimeUnit
 
 abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTest implements TestingGenericHttpNamingConventions.ClientV0 {
 
@@ -44,13 +43,39 @@ abstract class ApacheHttpClientTest<T extends HttpRequest> extends HttpClientTes
       return response.code
     }
     finally {
-      response?.close()
+      response?.entity?.content?.close() // Make sure the connection is closed.
     }
   }
 
   abstract T createRequest(String method, URI uri)
 
   abstract CloseableHttpResponse executeRequest(T request, URI uri)
+
+  def "same request instance reused across execute calls is instrumented each time"() {
+    setup:
+    def uri = server.address.resolve("/success")
+    def request = createRequest("GET", uri)
+    // prevent server-side spans from being created
+    request.addHeader(new BasicHeader("is-dd-server", "false"))
+
+    when:
+    def first = executeRequest(request, uri)
+    first?.entity?.content?.close()
+    def second = executeRequest(request, uri)
+    second?.entity?.content?.close()
+
+    then:
+    first != null
+    second != null
+    assertTraces(2) {
+      trace(size(1)) {
+        clientSpan(it, null, "GET", false, false, uri)
+      }
+      trace(size(1)) {
+        clientSpan(it, null, "GET", false, false, uri)
+      }
+    }
+  }
 
   static String fullPathFromURI(URI uri) {
     StringBuilder builder = new StringBuilder()
@@ -213,5 +238,75 @@ class ApacheClientResponseHandlerAllV0Test extends ApacheClientResponseHandlerAl
 
 @Timeout(5)
 class ApacheClientResponseHandlerAllV1ForkedTest extends ApacheClientResponseHandlerAll implements TestingGenericHttpNamingConventions.ClientV1 {
+}
+
+/**
+ * Tests that HTTP calls made from within an ExecChainHandler (exec interceptor) are instrumented.
+ * Reproduces the scenario from https://github.com/DataDog/dd-trace-java/issues/10383: an
+ * interceptor fetches a token via a separate HttpClient, adds it as a header, then proceeds.
+ */
+@Timeout(5)
+class ApacheClientNestedExecuteTest extends ApacheHttpClientTest<ClassicHttpRequest> {
+
+  @Override
+  ClassicHttpRequest createRequest(String method, URI uri) {
+    return new BasicClassicHttpRequest(method, uri)
+  }
+
+  @Override
+  CloseableHttpResponse executeRequest(ClassicHttpRequest request, URI uri) {
+    return client.execute(request)
+  }
+
+  def "HTTP call from ExecChainHandler (e.g. token fetch) is instrumented"() {
+    when:
+    def tokenUri = server.address.resolve("/success")
+    def mainUri = server.address.resolve("/success")
+    def requestConfig = RequestConfig.custom()
+      .setConnectTimeout(CONNECT_TIMEOUT_MS, TimeUnit.MILLISECONDS)
+      .build()
+    def tokenClient = HttpClients.custom()
+      .setConnectionManager(new BasicHttpClientConnectionManager())
+      .setDefaultRequestConfig(requestConfig)
+      .build()
+    def tokenUriFinal = tokenUri
+    def clientWithInterceptor = HttpClients.custom()
+      .setConnectionManager(new BasicHttpClientConnectionManager())
+      .setDefaultRequestConfig(requestConfig)
+      .addExecInterceptorLast("token", { request, scope, chain ->
+        String token = tokenClient.execute(
+          new BasicClassicHttpRequest("GET", tokenUriFinal), { resp ->
+            String.valueOf(resp.code)
+          }
+          )
+        request.addHeader(new BasicHeader("x-token", token))
+        return chain.proceed(request, scope)
+      })
+      .build()
+    def response = clientWithInterceptor.execute(
+      new BasicClassicHttpRequest("GET", mainUri), { r ->
+        r
+      }
+      )
+
+    then:
+    response != null
+    assertTraces(3) {
+      sortSpansByStart()
+      trace(size(2)) {
+        sortSpansByStart()
+        // Token request runs first (inside interceptor), then main request
+        // but the main span starts first because the token request is sent in an interceptor
+        clientSpan(it, null, "GET", false, false, mainUri)
+        clientSpan(it, span(0), "GET", false, false, tokenUri)
+      }
+      server.distributedRequestTrace(it, trace(0)[1])
+      server.distributedRequestTrace(it, trace(0)[0])
+    }
+
+    cleanup:
+    tokenClient?.close()
+    clientWithInterceptor?.close()
+  }
 }
 
