@@ -258,6 +258,8 @@ class AggregateTableTest {
           null,
           null,
           null,
+          null,
+          null,
           tagAndDuration);
     }
   }

@@ -29,10 +29,9 @@ final class Aggregator implements Runnable {
   private final long sleepMillis;
 
   /**
-   * Per-cycle hook run on the aggregator thread right after {@link
-   * AggregateEntry#resetCardinalityHandlers()}. Used by {@link ClientStatsAggregator} to reset the
-   * peer-aggregation schema's handlers, which live outside {@link AggregateEntry}'s static set. May
-   * be {@code null}.
+   * Per-cycle hook run on the aggregator thread right after a report. Used by {@link
+   * ClientStatsAggregator} to reset every cardinality handler in lockstep (static property
+   * handlers, cached peer-agg schema, additional-tags schema). May be {@code null}.
    */
   private final Runnable onResetCardinality;
 
@@ -163,9 +162,9 @@ final class Aggregator implements Runnable {
       dirty = false;
     }
     // Reset cardinality handlers each report cycle so the per-field budgets refresh. Single hook
-    // owned by ClientStatsAggregator -- it covers both the static property handlers on
-    // AggregateEntry and the cached peer-agg schema. Safe on this (aggregator) thread; handlers
-    // are HashMap-based and not thread-safe.
+    // owned by ClientStatsAggregator -- it covers the static property handlers on AggregateEntry,
+    // the cached peer-agg schema, and the additional-tags schema. Safe on this (aggregator)
+    // thread; handlers are flat-array-based and not thread-safe.
     if (onResetCardinality != null) {
       onResetCardinality.run();
     }

@@ -93,6 +93,16 @@ final class TagCardinalityHandler {
     return this.curSize >= this.cardinalityLimit && result == blockedByTracer();
   }
 
+  /**
+   * The shared {@code "<tag>:blocked_by_tracer"} UTF8BytesString. Lazily allocated on first call,
+   * retained across resets. Intended for cold-path use by callers that want to substitute a
+   * blocked-by-tracer result without funneling a (potentially expensive) value through {@link
+   * #register} -- for example, an external length-cap check.
+   */
+  UTF8BytesString blockedSentinel() {
+    return blockedByTracer();
+  }
+
   private UTF8BytesString blockedByTracer() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;

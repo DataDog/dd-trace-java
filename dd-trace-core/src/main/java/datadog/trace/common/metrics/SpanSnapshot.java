@@ -40,6 +40,21 @@ final class SpanSnapshot implements InboxItem {
   final String httpEndpoint;
   final String grpcStatusCode;
 
+  /**
+   * Schema for {@link #additionalTagValues}, captured at producer time so producer and consumer
+   * agree on indexing even if the additional-tags configuration were ever swapped between capture
+   * and consumption. {@code null} when no additional tags are configured for the span.
+   */
+  final AdditionalTagsSchema additionalTagsSchema;
+
+  /**
+   * Additional metric tag values captured from the span, parallel to {@code
+   * additionalTagsSchema.names}. A {@code null} entry means the span didn't have that tag set.
+   * {@code null} (the whole array) when no additional tags are configured or none were set on the
+   * span. Length cap is applied on the aggregator thread; the producer carries raw values only.
+   */
+  final String[] additionalTagValues;
+
   /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
   final long tagAndDuration;
 
@@ -58,6 +73,8 @@ final class SpanSnapshot implements InboxItem {
       String httpMethod,
       String httpEndpoint,
       String grpcStatusCode,
+      AdditionalTagsSchema additionalTagsSchema,
+      String[] additionalTagValues,
       long tagAndDuration) {
     this.resourceName = resourceName;
     this.serviceName = serviceName;
@@ -73,6 +90,8 @@ final class SpanSnapshot implements InboxItem {
     this.httpMethod = httpMethod;
     this.httpEndpoint = httpEndpoint;
     this.grpcStatusCode = grpcStatusCode;
+    this.additionalTagsSchema = additionalTagsSchema;
+    this.additionalTagValues = additionalTagValues;
     this.tagAndDuration = tagAndDuration;
   }
 }

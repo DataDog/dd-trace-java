@@ -23,12 +23,13 @@ final class AggregateTable {
 
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
-  private final AggregateEntry.Canonical canonical = new AggregateEntry.Canonical();
+  private final AggregateEntry.Canonical canonical;
   private int size;
 
   AggregateTable(int maxAggregates) {
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
+    this.canonical = new AggregateEntry.Canonical();
   }
 
   int size() {

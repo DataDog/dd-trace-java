@@ -40,6 +40,8 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
+  private static final byte[] ADDITIONAL_METRIC_TAGS =
+      "AdditionalMetricTags".getBytes(ISO_8859_1);
   private static final byte[] HTTP_METHOD = "HTTPMethod".getBytes(ISO_8859_1);
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
@@ -142,20 +144,23 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    // Calculate dynamic map size based on optional fields. AggregateEntry uses
-    // UTF8BytesString.EMPTY
-    // as the "absent" sentinel for these optional fields (see AggregateEntry); identity comparison
-    // against the singleton.
+    // Calculate dynamic map size based on optional fields. AggregateEntry uses UTF8BytesString.EMPTY
+    // as the "absent" sentinel for the optional UTF8 fields (see AggregateEntry); identity
+    // comparison against the singleton.
     final boolean hasHttpMethod = entry.getHttpMethod() != EMPTY;
     final boolean hasHttpEndpoint = entry.getHttpEndpoint() != EMPTY;
     final boolean hasServiceSource = entry.getServiceSource() != EMPTY;
     final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != EMPTY;
+    final UTF8BytesString[] additionalTags = entry.getAdditionalTags();
+    final int additionalTagCount = countNonNull(additionalTags);
+    final boolean hasAdditionalTags = additionalTagCount > 0;
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
             + (hasHttpMethod ? 1 : 0)
             + (hasHttpEndpoint ? 1 : 0)
-            + (hasGrpcStatusCode ? 1 : 0);
+            + (hasGrpcStatusCode ? 1 : 0)
+            + (hasAdditionalTags ? 1 : 0);
 
     writer.startMap(mapSize);
 
@@ -189,6 +194,21 @@ public final class SerializingMetricWriter implements MetricWriter {
 
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
+    }
+
+    // Emit AdditionalMetricTags as repeated string of pre-built "key:value" UTF8BytesStrings, in
+    // schema (alphabetical-by-key) order. Skip null slots (tags the span didn't set). The whole
+    // field is omitted when no non-null slots exist so customers who don't configure additional
+    // metric tags pay zero payload overhead.
+    if (hasAdditionalTags) {
+      writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
+      writer.startArray(additionalTagCount);
+      for (int i = 0; i < additionalTags.length; i++) {
+        UTF8BytesString slot = additionalTags[i];
+        if (slot != null) {
+          writer.writeUTF8(slot);
+        }
+      }
     }
 
     if (hasServiceSource) {
@@ -266,5 +286,13 @@ public final class SerializingMetricWriter implements MetricWriter {
   @Override
   public void reset() {
     buffer.reset();
+  }
+
+  private static int countNonNull(UTF8BytesString[] values) {
+    int count = 0;
+    for (UTF8BytesString value : values) {
+      if (value != null) count++;
+    }
+    return count;
   }
 }

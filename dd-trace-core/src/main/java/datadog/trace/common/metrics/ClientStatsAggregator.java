@@ -70,6 +70,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final TimeUnit reportingIntervalTimeUnit;
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
+  private final AdditionalTagsSchema additionalTagsSchema;
   private final boolean includeEndpointInMetrics;
 
   /**
@@ -99,6 +100,10 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
+        AdditionalTagsSchema.from(
+            config.getTraceStatsAdditionalTags(),
+            config.getTraceStatsAdditionalTagsCardinalityLimit(),
+            healthMetrics),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -125,6 +130,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         wellKnownTags,
         ignoredResources,
+        AdditionalTagsSchema.EMPTY,
         features,
         healthMetric,
         sink,
@@ -138,6 +144,57 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      boolean includeEndpointInMetrics) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        additionalTagsSchema,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        10,
+        SECONDS,
+        includeEndpointInMetrics);
+  }
+
+  /** Test-only: defaults to no additional tags schema. */
+  ClientStatsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
+    this(
+        wellKnownTags,
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        features,
+        healthMetric,
+        sink,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ClientStatsAggregator(
+      WellKnownTags wellKnownTags,
+      Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -148,6 +205,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       boolean includeEndpointInMetrics) {
     this(
         ignoredResources,
+        additionalTagsSchema,
         features,
         healthMetric,
         sink,
@@ -159,6 +217,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         includeEndpointInMetrics);
   }
 
+  /** Test-only: defaults to no additional tags schema. */
   ClientStatsAggregator(
       Set<String> ignoredResources,
       DDAgentFeaturesDiscovery features,
@@ -170,7 +229,34 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       long reportingInterval,
       TimeUnit timeUnit,
       boolean includeEndpointInMetrics) {
+    this(
+        ignoredResources,
+        AdditionalTagsSchema.EMPTY,
+        features,
+        healthMetric,
+        sink,
+        metricWriter,
+        maxAggregates,
+        queueSize,
+        reportingInterval,
+        timeUnit,
+        includeEndpointInMetrics);
+  }
+
+  ClientStatsAggregator(
+      Set<String> ignoredResources,
+      AdditionalTagsSchema additionalTagsSchema,
+      DDAgentFeaturesDiscovery features,
+      HealthMetrics healthMetric,
+      Sink sink,
+      MetricWriter metricWriter,
+      int maxAggregates,
+      int queueSize,
+      long reportingInterval,
+      TimeUnit timeUnit,
+      boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
+    this.additionalTagsSchema = additionalTagsSchema;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
     this.inbox = Queues.mpscArrayQueue(queueSize);
     this.features = features;
@@ -336,6 +422,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       spanPeerTagSchema = null;
     }
 
+    String[] additionalTagValues = captureAdditionalTagValues(span);
+    // Capture the schema reference too so producer and consumer agree on indexing -- mirrors the
+    // peer-tag schema handoff. Drop the schema reference when no values fired so the consumer can
+    // short-circuit on schema == null.
+    AdditionalTagsSchema snapshotAdditionalTagsSchema =
+        additionalTagValues == null ? null : additionalTagsSchema;
+
     SpanSnapshot snapshot =
         new SpanSnapshot(
             span.getResourceName(),
@@ -352,12 +445,38 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
+            snapshotAdditionalTagsSchema,
+            additionalTagValues,
             tagAndDuration);
     if (!inbox.offer(snapshot)) {
       healthMetrics.onStatsInboxFull();
     }
     // force keep keys if there are errors
     return error;
+  }
+
+  /**
+   * Captures the span's additional-metric-tag values into a {@code String[]} parallel to the
+   * schema's name order. Returns {@code null} when no additional tags are configured or none of
+   * the configured keys are set on the span. Raw values only -- length cap and canonicalization
+   * run on the aggregator thread.
+   */
+  private String[] captureAdditionalTagValues(CoreSpan<?> span) {
+    int n = additionalTagsSchema.size();
+    if (n == 0) {
+      return null;
+    }
+    String[] values = null;
+    for (int i = 0; i < n; i++) {
+      Object v = span.unsafeGetTag(additionalTagsSchema.name(i));
+      if (v != null) {
+        if (values == null) {
+          values = new String[n];
+        }
+        values[i] = v.toString();
+      }
+    }
+    return values;
   }
 
   /**
@@ -389,9 +508,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
    * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
    * state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL} (via {@link
-   * AggregateEntry#resetCardinalityHandlers()}) and the cached peer-tag schema (with whatever
-   * reconciliation just produced). New handlers added anywhere in this pipeline should be reset
-   * from here.
+   * AggregateEntry#resetCardinalityHandlers()}), the cached peer-tag schema (with whatever
+   * reconciliation just produced), and the additional-tags schema. New handlers added anywhere in
+   * this pipeline should be reset from here.
    */
   private void resetCardinalityHandlers() {
     reconcilePeerTagSchema();
@@ -400,6 +519,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (schema != null) {
       schema.resetCardinalityHandlers();
     }
+    additionalTagsSchema.resetCardinalityHandlers();
   }
 
   /**

@@ -126,7 +126,8 @@ Three rules govern the design:
 |---|---|---|
 | `ClientStatsAggregator` | `ClientStatsAggregator.java` | Producer facade. Decides which spans are eligible, builds `SpanSnapshot`s, offers them to the inbox. Also owns the agent-feature check, the scheduled report timer, and the agent-downgrade handler. |
 | `SpanSnapshot` | `SpanSnapshot.java` | Immutable, allocation-pooled-by-GC value posted from producer → aggregator. Carries raw label fields plus a duration word with `TOP_LEVEL` / `ERROR` bits OR-ed in. |
-| `PeerTagSchema` | `PeerTagSchema.java` | Parallel `String[] names` + `TagCardinalityHandler[] handlers` describing the peer-aggregation tags in effect. One singleton for internal-kind spans; one volatile "current" schema for client/producer/consumer spans, refreshed from `DDAgentFeaturesDiscovery.peerTags()`. |
+| `PeerTagSchema` | `PeerTagSchema.java` | Parallel `String[] names` + `TagCardinalityHandler[] handlers` describing the peer-aggregation tags in effect. One singleton for internal-kind spans; one volatile "current" schema for client/producer/consumer spans, refreshed from `DDAgentFeaturesDiscovery.peerTags()`. Owns the per-cycle warn-once `Set` and the per-tag `long[] blockedCounts` flushed at reset. |
+| `AdditionalTagsSchema` | `AdditionalTagsSchema.java` | Parallel `String[] names` + `TagCardinalityHandler[] handlers` for the configured span-derived primary tags (CSS v1.3.0). Built once at startup from `Config.getTraceStatsAdditionalTags()`; not replaced at runtime. Adds a per-value length cap on top of the per-key cardinality cap; owns its own warn-once `Set`s + `blockedCounts`. |
 | `Aggregator` | `Aggregator.java` | Consumer thread `Runnable`. Drains the inbox; dispatches `SpanSnapshot`s into `AggregateTable`; processes signals (`REPORT`, `CLEAR`, `STOP`); calls the writer on report. |
 | `AggregateTable` | `AggregateTable.java` | Hashtable-backed store keyed on the canonicalized labels. Owns a single reusable `Canonical` scratch buffer. Handles cap-overflow by evicting one stale entry or rejecting new ones. |
 | `AggregateEntry` | `AggregateEntry.java` | `Hashtable.Entry` holding the 13 UTF8 label fields + the mutable `AggregateMetric`. Owns the static `PropertyCardinalityHandler`s for the fixed label fields, and `Canonical` for hot-path canonicalization. |
@@ -300,6 +301,47 @@ Two distinct cadences:
   `TagCardinalityHandler`s are reset on the aggregator thread each report
   cycle via a hook passed into `Aggregator`.
 
+## Span-derived primary tags (additional tags)
+
+CSS v1.3.0 adds configurable per-key tag dimensions on top of peer tags. The
+keys are listed in `trace.stats.additional.tags` (a comma-separated list, capped
+at 10 distinct keys) and the per-key value cardinality limit comes from
+`trace.stats.additional.tags.cardinality.limit` (default 100).
+
+The pipeline parallels peer tags:
+
+- **Producer** (`ClientStatsAggregator.captureAdditionalTagValues`) walks
+  `additionalTagsSchema.name(i)` and pulls each value via `unsafeGetTag(name)`.
+  Returns `null` when no key fires, in which case the schema reference is also
+  dropped from the snapshot. Otherwise a tight `String[schema.size()]` is built
+  and the schema reference is carried on the snapshot so producer and consumer
+  agree on indexing — same handoff pattern as `peerTagSchema`.
+
+- **Aggregator** (`Canonical.populateAdditionalTags`) calls
+  `schema.register(i, value)` per non-null slot. The schema:
+  1. Length-checks against `MAX_ADDITIONAL_TAG_VALUE_LENGTH` (250). On overflow
+     → returns `handler.blockedSentinel()` directly, bypassing the handler's
+     budget; emits one warn log per cycle per key; increments per-tag block
+     counter.
+  2. Otherwise calls `handler.register(value)` and tests
+     `handler.isBlockedResult(result)` (cardinality cap). On overflow →
+     handler-owned sentinel, warn log, block counter increment.
+
+- **Wire**: serialized as a flat `AdditionalMetricTags` array of pre-built
+  `"key:value"` UTF8 strings (null slots skipped). The field is omitted entirely
+  when nothing fires — zero overhead for customers who don't configure
+  additional tags.
+
+- **Cycle reset** (`AdditionalTagsSchema.resetCardinalityHandlers`): resets
+  every per-key handler, flushes per-tag `blockedCounts` to
+  `HealthMetrics.onTagCardinalityBlocked(name, count)` (one statsd call per
+  affected key per cycle — bounded regardless of how many values get blocked),
+  clears the warn-once sets.
+
+The schema is built once at startup and never swapped, so the snapshot-time
+schema capture is defensive against a future where remote-config could
+hot-replace the additional-tags configuration the same way it does peer tags.
+
 ## Memory and lifetime
 
 - `AggregateEntry`'s per-bucket counters + histograms are **not thread-safe**;
@@ -327,6 +369,10 @@ The producer reports per-trace stats via `HealthMetrics`:
   `onClientStatErrorReceived()` — on agent-side outcomes.
 - `onStatsAggregateDropped()` — when the aggregator thread can't fit a new
   entry.
+- `onTagCardinalityBlocked(tag, count)` — flushed at cycle reset by both
+  `PeerTagSchema` and `AdditionalTagsSchema`. Wire: statsd counter
+  `stats.tag_cardinality_blocked` with `tag:<name>`, one call per affected tag
+  per reporting cycle regardless of overflow volume.
 
 ## Failure modes
 
