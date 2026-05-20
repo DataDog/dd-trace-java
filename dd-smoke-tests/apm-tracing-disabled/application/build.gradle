@@ -1,3 +1,6 @@
+// Spring Boot 2.7.x is the last line that still supports Java 8, which this smoke test
+// exercises (see the `sourceCompatibility = '1.8'` below). Do not bump to 3.x without
+// also moving the smoke test off Java 8.
 plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.15'
@@ -33,6 +36,9 @@ if (hasProperty('apiJar')) {
 dependencies {
   compileOnly 'com.github.spotbugs:spotbugs-annotations:4.9.8'
   implementation 'org.springframework.boot:spring-boot-starter-web'
+  // OpenTracing 0.32.0 is the last release and is intentionally pinned: this smoke test
+  // exercises the legacy OpenTracing bridge in dd-trace-ot. Do not "upgrade" — there is
+  // no newer version.
   implementation group: 'io.opentracing', name: 'opentracing-api', version: '0.32.0'
   implementation group: 'io.opentracing', name: 'opentracing-util', version: '0.32.0'
 }

@@ -16,6 +16,9 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
+// Java 11 (not Java 8 like the other Spring Boot 2.x smoke tests): the OpenFeature SDK
+// requires Java 11+. This matches what the outer (pre-nested) build was doing before
+// the application was extracted into this nested build.
 java {
   sourceCompatibility = 11
   targetCompatibility = 11

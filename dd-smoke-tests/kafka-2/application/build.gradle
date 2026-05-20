@@ -1,3 +1,6 @@
+// Spring Boot 2.7.x is the last line that still supports Java 8, which this smoke test
+// exercises (see the Java 8 `sourceCompatibility` below). Do not bump to 3.x without
+// also moving the smoke test off Java 8.
 plugins {
   id 'java'
   id 'org.springframework.boot' version '2.7.15'
@@ -22,6 +25,10 @@ java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
 
+// `iastUtilJar` is wired up by the outer `smokeTestApp { projectJar('iastUtilJar', ...) }`
+// block in ../build.gradle: it passes the path of the built `:dd-smoke-tests:iast-util`
+// jar into this nested build as a Gradle property. We add it as a flat-file dependency
+// because the outer build's projects are not addressable from inside the nested build.
 if (hasProperty('iastUtilJar')) {
   dependencies {
     implementation files(property('iastUtilJar'))
