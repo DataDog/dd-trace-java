@@ -64,7 +64,7 @@ public abstract class AbstractTestModule {
     }
 
     span = spanBuilder.start();
-    tagsPropagator = new SpanTagsPropagator(span);
+    tagsPropagator = new SpanTagsPropagator(span, config.getCiVisibilityPropagatedTagKeys());
 
     span.setSpanType(InternalSpanTypes.TEST_MODULE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_MODULE);

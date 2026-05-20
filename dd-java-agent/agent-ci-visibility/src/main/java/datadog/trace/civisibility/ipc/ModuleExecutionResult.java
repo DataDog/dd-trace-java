@@ -4,6 +4,8 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.civisibility.ipc.serialization.Serializer;
 import java.nio.ByteBuffer;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 import java.util.Objects;
 
 public class ModuleExecutionResult extends ModuleSignal {
@@ -23,6 +25,7 @@ public class ModuleExecutionResult extends ModuleSignal {
   private final boolean hasFailedTestReplayTests;
   private final long testsSkippedTotal;
   private final Collection<TestFramework> testFrameworks;
+  private final Map<String, Object> propagatedTags;
 
   public ModuleExecutionResult(
       DDTraceId sessionId,
@@ -34,7 +37,8 @@ public class ModuleExecutionResult extends ModuleSignal {
       boolean testManagementEnabled,
       boolean hasFailedTestReplayTests,
       long testsSkippedTotal,
-      Collection<TestFramework> testFrameworks) {
+      Collection<TestFramework> testFrameworks,
+      Map<String, Object> propagatedTags) {
     super(sessionId, moduleId);
     this.coverageEnabled = coverageEnabled;
     this.testSkippingEnabled = testSkippingEnabled;
@@ -44,6 +48,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     this.hasFailedTestReplayTests = hasFailedTestReplayTests;
     this.testsSkippedTotal = testsSkippedTotal;
     this.testFrameworks = testFrameworks;
+    this.propagatedTags = propagatedTags != null ? propagatedTags : Collections.emptyMap();
   }
 
   public boolean isCoverageEnabled() {
@@ -78,6 +83,10 @@ public class ModuleExecutionResult extends ModuleSignal {
     return testFrameworks;
   }
 
+  public Map<String, Object> getPropagatedTags() {
+    return propagatedTags;
+  }
+
   @Override
   public boolean equals(Object o) {
     if (this == o) {
@@ -94,7 +103,8 @@ public class ModuleExecutionResult extends ModuleSignal {
         && testSkippingEnabled == that.testSkippingEnabled
         && hasFailedTestReplayTests == that.hasFailedTestReplayTests
         && testsSkippedTotal == that.testsSkippedTotal
-        && Objects.equals(testFrameworks, that.testFrameworks);
+        && Objects.equals(testFrameworks, that.testFrameworks)
+        && Objects.equals(propagatedTags, that.propagatedTags);
   }
 
   @Override
@@ -106,7 +116,8 @@ public class ModuleExecutionResult extends ModuleSignal {
         testSkippingEnabled,
         hasFailedTestReplayTests,
         testsSkippedTotal,
-        testFrameworks);
+        testFrameworks,
+        propagatedTags);
   }
 
   @Override
@@ -161,6 +172,7 @@ public class ModuleExecutionResult extends ModuleSignal {
 
     s.write(testsSkippedTotal);
     s.write(testFrameworks, TestFramework::serialize);
+    s.writeObjectMap(propagatedTags);
 
     return s.flush();
   }
@@ -180,6 +192,7 @@ public class ModuleExecutionResult extends ModuleSignal {
     long testsSkippedTotal = Serializer.readLong(buffer);
     Collection<TestFramework> testFrameworks =
         Serializer.readList(buffer, TestFramework::deserialize);
+    Map<String, Object> propagatedTags = Serializer.readObjectMap(buffer);
 
     return new ModuleExecutionResult(
         sessionId,
@@ -191,6 +204,7 @@ public class ModuleExecutionResult extends ModuleSignal {
         testManagementEnabled,
         hasFailedTestReplayTests,
         testsSkippedTotal,
-        testFrameworks);
+        testFrameworks,
+        propagatedTags);
   }
 }

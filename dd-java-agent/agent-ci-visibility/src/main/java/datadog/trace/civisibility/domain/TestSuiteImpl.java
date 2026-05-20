@@ -112,7 +112,7 @@ public class TestSuiteImpl implements DDTestSuite {
     }
 
     span = spanBuilder.start();
-    tagsPropagator = new SpanTagsPropagator(span);
+    tagsPropagator = new SpanTagsPropagator(span, config.getCiVisibilityPropagatedTagKeys());
 
     span.setSpanType(InternalSpanTypes.TEST_SUITE_END);
     span.setTag(Tags.SPAN_KIND, Tags.SPAN_KIND_TEST_SUITE);
@@ -275,6 +275,11 @@ public class TestSuiteImpl implements DDTestSuite {
         executionResults,
         configurationErrors,
         capabilities,
-        tagsPropagator::propagateStatus);
+        this::propagateTags);
+  }
+
+  private void propagateTags(AgentSpan childSpan) {
+    tagsPropagator.propagateStatus(childSpan);
+    tagsPropagator.propagateCustomTags(childSpan);
   }
 }

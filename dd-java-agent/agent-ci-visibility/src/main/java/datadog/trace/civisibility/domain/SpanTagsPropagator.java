@@ -18,15 +18,23 @@ public class SpanTagsPropagator {
   public static final Consumer<AgentSpan> NOOP_PROPAGATOR = span -> {};
 
   private final AgentSpan parentSpan;
+  private final Collection<String> propagatedTagKeys;
   private final Object tagPropagationLock = new Object();
 
   public SpanTagsPropagator(AgentSpan parentSpan) {
+    this(parentSpan, Collections.emptyList());
+  }
+
+  public SpanTagsPropagator(AgentSpan parentSpan, Collection<String> propagatedTagKeys) {
     this.parentSpan = parentSpan;
+    this.propagatedTagKeys =
+        propagatedTagKeys != null ? propagatedTagKeys : Collections.emptyList();
   }
 
   public void propagateCiVisibilityTags(AgentSpan childSpan) {
     mergeTestFrameworks(getFrameworks(childSpan));
     propagateStatus(childSpan);
+    propagateCustomTags(childSpan);
   }
 
   public void propagateStatus(AgentSpan childSpan) {
@@ -45,6 +53,34 @@ public class SpanTagsPropagator {
     synchronized (tagPropagationLock) {
       for (TagMergeSpec<?> spec : specs) {
         unsafePropagateTag(childSpan, spec);
+      }
+    }
+  }
+
+  public void propagateCustomTags(AgentSpan childSpan) {
+    if (propagatedTagKeys.isEmpty()) {
+      return;
+    }
+    synchronized (tagPropagationLock) {
+      for (String key : propagatedTagKeys) {
+        Object value = childSpan.getTag(key);
+        if (value != null) {
+          parentSpan.setTag(key, value);
+        }
+      }
+    }
+  }
+
+  public void propagateCustomTags(Map<String, Object> tags) {
+    if (propagatedTagKeys.isEmpty() || tags == null || tags.isEmpty()) {
+      return;
+    }
+    synchronized (tagPropagationLock) {
+      for (String key : propagatedTagKeys) {
+        Object value = tags.get(key);
+        if (value != null) {
+          parentSpan.setTag(key, value);
+        }
       }
     }
   }

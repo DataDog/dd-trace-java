@@ -290,6 +290,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
     testsSkipped.add(result.getTestsSkippedTotal());
 
     tagsPropagator.mergeTestFrameworks(result.getTestFrameworks());
+    tagsPropagator.propagateCustomTags(result.getPropagatedTags());
 
     return AckResponse.INSTANCE;
   }

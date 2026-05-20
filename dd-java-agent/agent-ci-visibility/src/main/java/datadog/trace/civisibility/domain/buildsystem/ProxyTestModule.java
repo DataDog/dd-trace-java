@@ -31,6 +31,8 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
+import java.util.Map;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
@@ -61,6 +63,8 @@ public class ProxyTestModule implements TestFrameworkModule {
   private final LinesResolver linesResolver;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<TestFramework> testFrameworks = ConcurrentHashMap.newKeySet();
+  private final Map<String, Object> propagatedTags = new ConcurrentHashMap<>();
+  private final Set<String> propagatedTagKeys;
   private final Collection<LibraryCapability> capabilities;
 
   public ProxyTestModule(
@@ -91,6 +95,7 @@ public class ProxyTestModule implements TestFrameworkModule {
     this.linesResolver = linesResolver;
     this.coverageStoreFactory = coverageStoreFactory;
     this.capabilities = capabilities;
+    this.propagatedTagKeys = config.getCiVisibilityPropagatedTagKeys();
   }
 
   @Override
@@ -180,7 +185,8 @@ public class ProxyTestModule implements TestFrameworkModule {
               testManagementEnabled,
               hasFailedTestReplayTests,
               testsSkippedTotal,
-              new TreeSet<>(testFrameworks)));
+              new TreeSet<>(testFrameworks),
+              propagatedTags));
 
     } catch (Exception e) {
       log.error("Error while reporting module execution result", e);
@@ -215,13 +221,24 @@ public class ProxyTestModule implements TestFrameworkModule {
         executionResults,
         executionStrategy.getExecutionSettings().getConfigurationErrors(),
         capabilities,
-        this::propagateTestFrameworkData);
+        this::propagateData);
   }
 
-  private void propagateTestFrameworkData(AgentSpan childSpan) {
+  private void propagateData(AgentSpan childSpan) {
     testFrameworks.add(
         new TestFramework(
             (String) childSpan.getTag(Tags.TEST_FRAMEWORK),
             (String) childSpan.getTag(Tags.TEST_FRAMEWORK_VERSION)));
+
+    if (propagatedTagKeys.isEmpty()) {
+      return;
+    }
+
+    for (String key : propagatedTagKeys) {
+      Object value = childSpan.getTag(key);
+      if (value != null) {
+        propagatedTags.put(key, value);
+      }
+    }
   }
 }
