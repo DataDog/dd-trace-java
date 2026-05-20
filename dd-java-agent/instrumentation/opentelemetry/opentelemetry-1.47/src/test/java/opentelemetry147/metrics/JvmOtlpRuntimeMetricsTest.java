@@ -71,7 +71,8 @@ public class JvmOtlpRuntimeMetricsTest {
             "jvm.cpu.count",
             "jvm.cpu.recent_utilization",
             "jvm.system.cpu.utilization",
-            "jvm.system.cpu.load_1m");
+            "jvm.system.cpu.load_1m",
+            "jvm.gc.duration");
 
     Set<String> names = collector.metricNames;
     for (String metric : expectedMetrics) {
@@ -143,6 +144,35 @@ public class JvmOtlpRuntimeMetricsTest {
     assertTrue(
         threadPoints.get(0).value.longValue() > 0,
         "jvm.thread.count value should be positive, got " + threadPoints.get(0).value);
+  }
+
+  @Test
+  void jvmGcDurationRecordsDataPointsAfterGc() throws InterruptedException {
+    // Force a GC; the JMX NotificationListener should observe the event and record a data
+    // point onto the jvm.gc.duration histogram.
+    System.gc();
+
+    // JMX delivers the notification on the JVM's internal notification thread, so we have
+    // to poll briefly. Two seconds is generous — delivery is typically sub-50ms.
+    List<DataPointEntry> points = null;
+    long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(2);
+    while (System.nanoTime() < deadlineNanos) {
+      MetricCollector collector = new MetricCollector();
+      OtelMetricRegistry.INSTANCE.collectMetrics(collector);
+      points = collector.points.get("jvm.gc.duration");
+      if (points != null && !points.isEmpty()) {
+        break;
+      }
+      Thread.sleep(50);
+    }
+
+    assertNotNull(points, "jvm.gc.duration should have data points after System.gc()");
+    assertFalse(points.isEmpty(), "jvm.gc.duration should have at least one data point");
+    assertTrue(
+        points.stream()
+            .allMatch(
+                p -> p.attrs.containsKey("jvm.gc.name") && p.attrs.containsKey("jvm.gc.action")),
+        "Every jvm.gc.duration data point should carry jvm.gc.name and jvm.gc.action attributes");
   }
 
   @Test
