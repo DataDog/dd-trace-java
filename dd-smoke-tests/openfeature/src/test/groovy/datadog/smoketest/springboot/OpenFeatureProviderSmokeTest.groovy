@@ -98,7 +98,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  @Unroll("test open feature evaluation - #testCase.fileName[#testCase.index] - flag=#testCase.flag")
+  @Unroll("test open feature evaluation [#jvmName] - #testCase.fileName[#testCase.index] - flag=#testCase.flag")
   void 'test open feature evaluation'() {
     setup:
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
@@ -120,6 +120,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
     where:
     testCase << parseTestCases()
+    jvmName = "${System.getProperty('java.vm.vendor', 'unknown')}-${System.getProperty('java.version', 'unknown')}"
   }
 
   private static URL fetchResource(final String name) {
