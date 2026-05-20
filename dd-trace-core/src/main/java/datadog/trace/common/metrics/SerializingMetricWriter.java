@@ -13,7 +13,6 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import java.util.List;
 import java.util.function.Function;
 
 public final class SerializingMetricWriter implements MetricWriter {
@@ -185,8 +184,8 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeUTF8(entry.getSpanKind());
 
     writer.writeUTF8(PEER_TAGS);
-    final List<UTF8BytesString> peerTags = entry.getPeerTags();
-    writer.startArray(peerTags.size());
+    final UTF8BytesString[] peerTags = entry.getPeerTags();
+    writer.startArray(peerTags.length);
 
     for (UTF8BytesString peerTag : peerTags) {
       writer.writeUTF8(peerTag);
@@ -230,7 +229,31 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBinary(entry.getOkLatencies().serialize());
 
     writer.writeUTF8(ERROR_SUMMARY);
-    writer.writeBinary(entry.getErrorLatencies().serialize());
+    final datadog.metrics.api.Histogram errorLatencies = entry.getErrorLatencies();
+    if (errorLatencies != null) {
+      writer.writeBinary(errorLatencies.serialize());
+    } else {
+      // Entry never saw an error; emit a cached empty-histogram payload so the wire format is
+      // unchanged without allocating a histogram per error-free entry.
+      writer.writeBinary(emptyErrorHistogramBytes());
+    }
+  }
+
+  private byte[] emptyHistogramBytesCache;
+
+  /**
+   * Returns the cached serialized form of an empty histogram. Lazily computed so the {@link
+   * datadog.metrics.api.Histograms} factory has been registered by the time we sample it.
+   */
+  private byte[] emptyErrorHistogramBytes() {
+    byte[] cached = emptyHistogramBytesCache;
+    if (cached == null) {
+      java.nio.ByteBuffer buf = datadog.metrics.api.Histogram.newHistogram().serialize();
+      cached = new byte[buf.remaining()];
+      buf.get(cached);
+      emptyHistogramBytesCache = cached;
+    }
+    return cached;
   }
 
   @Override

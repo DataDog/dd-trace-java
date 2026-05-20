@@ -5,8 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.ArrayList;
-import java.util.Collections;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
@@ -30,6 +29,12 @@ import java.util.concurrent.atomic.AtomicLongArray;
  * <p>The handlers are reset on the aggregator thread every reporting cycle via {@link
  * #resetCardinalityHandlers()}.
  *
+ * <p><b>EMPTY-as-absent contract:</b> all UTF8 fields are non-null. The optional fields ({@code
+ * serviceSource}, {@code httpMethod}, {@code httpEndpoint}, {@code grpcStatusCode}) carry {@link
+ * UTF8BytesString#EMPTY} when the snapshot had no value; {@link SerializingMetricWriter} tests
+ * against {@code EMPTY} (identity comparison on the singleton) to decide whether to emit each field
+ * on the wire.
+ *
  * <p><b>Thread-safety:</b> not thread-safe. Counter and histogram updates, cardinality-handler
  * registration, and {@link Canonical} use all run on the aggregator thread. Producer threads tag
  * durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and hand them off through the
@@ -43,6 +48,9 @@ final class AggregateEntry extends Hashtable.Entry {
 
   public static final long ERROR_TAG = 0x8000000000000000L;
   public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
+
+  /** Shared empty array used by entries with no peer tags. */
+  private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
 
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.
@@ -80,11 +88,19 @@ final class AggregateEntry extends Hashtable.Entry {
   final short httpStatusCode;
   final boolean synthetic;
   final boolean traceRoot;
-  final List<UTF8BytesString> peerTags;
+  final UTF8BytesString[] peerTags;
 
   // Mutable aggregate state -- single-thread (aggregator) writer.
   private final Histogram okLatencies = Histogram.newHistogram();
-  private final Histogram errorLatencies = Histogram.newHistogram();
+
+  /**
+   * Lazily allocated on the first recorded error. Most entries never see an error and keep this
+   * field {@code null} forever; {@link #getErrorLatencies()} returns a shared empty histogram in
+   * that case. Once allocated, {@link #clear()} just clears it (does not null) since an entry that
+   * errored once tends to error again.
+   */
+  private Histogram errorLatencies;
+
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
@@ -105,7 +121,7 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags) {
+      UTF8BytesString[] peerTags) {
     super(keyHash);
     this.resource = resource;
     this.service = service;
@@ -132,7 +148,7 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       if ((duration & ERROR_TAG) == ERROR_TAG) {
         duration ^= ERROR_TAG;
-        errorLatencies.accept(duration);
+        errorLatenciesForWrite().accept(duration);
         ++errorCount;
       } else {
         okLatencies.accept(duration);
@@ -154,13 +170,23 @@ final class AggregateEntry extends Hashtable.Entry {
     }
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
-      errorLatencies.accept(tagAndDuration);
+      errorLatenciesForWrite().accept(tagAndDuration);
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
     }
     duration += tagAndDuration;
     return this;
+  }
+
+  /** Lazy-initializes {@link #errorLatencies} on the first error write. */
+  private Histogram errorLatenciesForWrite() {
+    Histogram h = this.errorLatencies;
+    if (h == null) {
+      h = Histogram.newHistogram();
+      this.errorLatencies = h;
+    }
+    return h;
   }
 
   int getErrorCount() {
@@ -183,6 +209,11 @@ final class AggregateEntry extends Hashtable.Entry {
     return okLatencies;
   }
 
+  /**
+   * Returns the error histogram if any error was recorded, or {@code null} otherwise. Callers (only
+   * {@link SerializingMetricWriter}) treat null as "no errors this cycle" -- it serializes an empty
+   * histogram in that case.
+   */
   Histogram getErrorLatencies() {
     return errorLatencies;
   }
@@ -194,7 +225,9 @@ final class AggregateEntry extends Hashtable.Entry {
     this.topLevelCount = 0;
     this.duration = 0;
     this.okLatencies.clear();
-    this.errorLatencies.clear();
+    if (this.errorLatencies != null) {
+      this.errorLatencies.clear();
+    }
   }
 
   /**
@@ -226,7 +259,10 @@ final class AggregateEntry extends Hashtable.Entry {
     UTF8BytesString httpMethodUtf = createUtf8(httpMethod);
     UTF8BytesString httpEndpointUtf = createUtf8(httpEndpoint);
     UTF8BytesString grpcUtf = createUtf8(grpcStatusCode);
-    List<UTF8BytesString> peerTagsList = peerTags == null ? Collections.emptyList() : peerTags;
+    UTF8BytesString[] peerTagsArray =
+        peerTags == null || peerTags.isEmpty()
+            ? EMPTY_PEER_TAGS
+            : peerTags.toArray(new UTF8BytesString[0]);
     long keyHash =
         hashOf(
             resourceUtf,
@@ -241,7 +277,8 @@ final class AggregateEntry extends Hashtable.Entry {
             (short) httpStatusCode,
             synthetic,
             traceRoot,
-            peerTagsList);
+            peerTagsArray,
+            peerTagsArray.length);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -256,7 +293,7 @@ final class AggregateEntry extends Hashtable.Entry {
         (short) httpStatusCode,
         synthetic,
         traceRoot,
-        peerTagsList);
+        peerTagsArray);
   }
 
   /**
@@ -283,6 +320,10 @@ final class AggregateEntry extends Hashtable.Entry {
    * all canonicalize to the same sentinel {@link UTF8BytesString}) collide in the same bucket.
    * {@link UTF8BytesString#hashCode()} returns the underlying String hash, so entries built via
    * {@link #of} produce the same hash as entries built from a snapshot with matching content.
+   *
+   * <p>{@code peerTags} is taken as a {@code (array, length)} pair so the same routine works for
+   * the {@link Canonical} scratch buffer (where {@code length < array.length}) and the entry's
+   * fixed-size array.
    */
   static long hashOf(
       UTF8BytesString resource,
@@ -297,7 +338,8 @@ final class AggregateEntry extends Hashtable.Entry {
       short httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
-      List<UTF8BytesString> peerTags) {
+      UTF8BytesString[] peerTags,
+      int peerTagsLen) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -308,10 +350,8 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, synthetic);
     h = LongHashingUtils.addToHash(h, traceRoot);
     h = LongHashingUtils.addToHash(h, spanKind);
-    // indexed iteration -- avoids the iterator allocation a for-each over a List would do
-    int peerTagCount = peerTags.size();
-    for (int i = 0; i < peerTagCount; i++) {
-      h = LongHashingUtils.addToHash(h, peerTags.get(i));
+    for (int i = 0; i < peerTagsLen; i++) {
+      h = LongHashingUtils.addToHash(h, peerTags[i]);
     }
     h = LongHashingUtils.addToHash(h, httpMethod);
     h = LongHashingUtils.addToHash(h, httpEndpoint);
@@ -368,7 +408,7 @@ final class AggregateEntry extends Hashtable.Entry {
     return traceRoot;
   }
 
-  List<UTF8BytesString> getPeerTags() {
+  UTF8BytesString[] getPeerTags() {
     return peerTags;
   }
 
@@ -391,7 +431,7 @@ final class AggregateEntry extends Hashtable.Entry {
         && Objects.equals(serviceSource, that.serviceSource)
         && Objects.equals(type, that.type)
         && Objects.equals(spanKind, that.spanKind)
-        && peerTags.equals(that.peerTags)
+        && Arrays.equals(peerTags, that.peerTags)
         && Objects.equals(httpMethod, that.httpMethod)
         && Objects.equals(httpEndpoint, that.httpEndpoint)
         && Objects.equals(grpcStatusCode, that.grpcStatusCode);
@@ -425,11 +465,15 @@ final class AggregateEntry extends Hashtable.Entry {
     boolean traceRoot;
 
     /**
-     * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
-     * #populate}; on miss, {@link #toEntry} copies it into an immutable list for the entry to own.
-     * Zero allocation on the hit path.
+     * Reusable buffer of canonicalized peer-tag UTF8 forms. Slots {@code [0..peerTagsCount)} are
+     * the live entries; the rest is dead space. The buffer doubles when it runs out of room (rare,
+     * since typical peer-tag schemas have very few tags). On miss, {@link #toEntry} snapshots into
+     * a tight {@link UTF8BytesString}{@code []} for the entry to own. Zero allocation on the hit
+     * path.
      */
-    final ArrayList<UTF8BytesString> peerTagsBuffer = new ArrayList<>(4);
+    UTF8BytesString[] peerTagsBuffer = new UTF8BytesString[4];
+
+    int peerTagsCount;
 
     long keyHash;
 
@@ -462,18 +506,18 @@ final class AggregateEntry extends Hashtable.Entry {
               httpStatusCode,
               synthetic,
               traceRoot,
-              peerTagsBuffer);
+              peerTagsBuffer,
+              peerTagsCount);
     }
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying the schema's per-tag
      * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs;
      * we elide those from the buffer so the wire-format list-of-pairs only contains present peer
-     * tags. No allocation when the schema/values are absent or all values are null (buffer is just
-     * cleared).
+     * tags.
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
-      peerTagsBuffer.clear();
+      peerTagsCount = 0;
       if (schema == null || values == null) {
         return;
       }
@@ -481,7 +525,10 @@ final class AggregateEntry extends Hashtable.Entry {
       for (int i = 0; i < n; i++) {
         UTF8BytesString utf8 = schema.register(i, values[i]);
         if (utf8 != UTF8BytesString.EMPTY) {
-          peerTagsBuffer.add(utf8);
+          if (peerTagsCount == peerTagsBuffer.length) {
+            peerTagsBuffer = Arrays.copyOf(peerTagsBuffer, peerTagsBuffer.length * 2);
+          }
+          peerTagsBuffer[peerTagsCount++] = utf8;
         }
       }
     }
@@ -501,20 +548,21 @@ final class AggregateEntry extends Hashtable.Entry {
           && Objects.equals(serviceSource, e.serviceSource)
           && Objects.equals(type, e.type)
           && Objects.equals(spanKind, e.spanKind)
-          && peerTagsEqual(peerTagsBuffer, e.peerTags)
+          && peerTagsEqual(peerTagsBuffer, peerTagsCount, e.peerTags)
           && Objects.equals(httpMethod, e.httpMethod)
           && Objects.equals(httpEndpoint, e.httpEndpoint)
           && Objects.equals(grpcStatusCode, e.grpcStatusCode);
     }
 
-    /** Indexed list comparison -- avoids the iterator a {@code List.equals} would allocate. */
-    private static boolean peerTagsEqual(List<UTF8BytesString> a, List<UTF8BytesString> b) {
-      int n = a.size();
-      if (n != b.size()) {
+    /**
+     * Length-aware indexed comparison so the scratch buffer can be compared against a tight array.
+     */
+    private static boolean peerTagsEqual(UTF8BytesString[] a, int aLen, UTF8BytesString[] b) {
+      if (aLen != b.length) {
         return false;
       }
-      for (int i = 0; i < n; i++) {
-        if (!a.get(i).equals(b.get(i))) {
+      for (int i = 0; i < aLen; i++) {
+        if (!a[i].equals(b[i])) {
           return false;
         }
       }
@@ -523,18 +571,16 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Build a new entry from the currently-populated canonical fields. The peer-tag buffer is
-     * copied into an immutable list so the entry's reference stays stable across subsequent {@link
-     * #populate} calls.
+     * snapshotted into a tight {@link UTF8BytesString}{@code []} so the entry's reference stays
+     * stable across subsequent {@link #populate} calls.
      */
     AggregateEntry toEntry() {
-      List<UTF8BytesString> snapshottedPeerTags;
-      int n = peerTagsBuffer.size();
-      if (n == 0) {
-        snapshottedPeerTags = Collections.emptyList();
-      } else if (n == 1) {
-        snapshottedPeerTags = Collections.singletonList(peerTagsBuffer.get(0));
+      UTF8BytesString[] snapshottedPeerTags;
+      if (peerTagsCount == 0) {
+        snapshottedPeerTags = EMPTY_PEER_TAGS;
       } else {
-        snapshottedPeerTags = new ArrayList<>(peerTagsBuffer);
+        snapshottedPeerTags = new UTF8BytesString[peerTagsCount];
+        System.arraycopy(peerTagsBuffer, 0, snapshottedPeerTags, 0, peerTagsCount);
       }
       return new AggregateEntry(
           keyHash,
