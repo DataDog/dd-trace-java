@@ -11,7 +11,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyReturnsSameInstanceForRepeatedValueUntilLimit() {
-    PropertyCardinalityHandler<String> h = new PropertyCardinalityHandler<>(3);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(3);
     UTF8BytesString a1 = h.register("a");
     UTF8BytesString a2 = h.register("a");
     assertSame(a1, a2);
@@ -20,7 +20,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyOverLimitReturnsBlockedSentinel() {
-    PropertyCardinalityHandler<String> h = new PropertyCardinalityHandler<>(2);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
     UTF8BytesString a = h.register("a");
     UTF8BytesString b = h.register("b");
     UTF8BytesString blocked1 = h.register("c");
@@ -34,7 +34,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyResetRefreshesBudget() {
-    PropertyCardinalityHandler<String> h = new PropertyCardinalityHandler<>(2);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
     h.register("a");
     h.register("b");
     UTF8BytesString blocked = h.register("c");

@@ -6,19 +6,16 @@ import java.util.Arrays;
 /**
  * Cardinality-capped UTF8 canonicalizer for one property field.
  *
- * <p>The type parameter {@code T} pins the input type per handler so the input class has
- * well-defined, content-stable {@code hashCode}/{@code equals} (e.g. {@code String}) consistent
- * with {@link UTF8BytesString#hashCode()} (which delegates to the underlying String). Each call
- * site uses the type its {@code SpanSnapshot} field carries; the compiler then enforces type
- * consistency across calls to a given handler.
+ * <p>Accepts any {@link CharSequence} input -- mixed {@code String}/{@code UTF8BytesString} of the
+ * same content collapse to one slot because {@link UTF8BytesString#hashCode()} delegates to the
+ * underlying String's hash and probe equality is the content-based {@code
+ * stored.toString().contentEquals(value)} (which fast-paths to {@code String.equals} when the input
+ * is a String).
  *
  * <p><b>Storage:</b> open-addressed flat arrays with linear probing. Two parallel {@code
  * UTF8BytesString[]} tables -- "current cycle" and "prior cycle". Capacity is the next power of two
- * {@code >= 2 * cardinalityLimit} so probes stay short even at the full budget.
- *
- * <p>The stored UTF8BytesString carries the slot's identity directly: probe equality is {@code
- * stored.toString().contentEquals(value)}, which is the JDK's content-equality routine and
- * fast-paths to {@code String.equals} when the input is a String. No parallel keys array needed.
+ * {@code >= 2 * cardinalityLimit} so probes stay short even at the full budget. The stored
+ * UTF8BytesString carries the slot's identity directly; no parallel keys array needed.
  *
  * <ul>
  *   <li>The current table tracks which values have consumed a slot of the cardinality budget this
@@ -34,7 +31,7 @@ import java.util.Arrays;
  * cycles pay zero UTF8 allocations after the first cycle, and the reused instances also
  * short-circuit downstream equality to identity comparisons.
  */
-public final class PropertyCardinalityHandler<T extends CharSequence> {
+public final class PropertyCardinalityHandler {
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -59,7 +56,7 @@ public final class PropertyCardinalityHandler<T extends CharSequence> {
     this.priorValues = new UTF8BytesString[capacity];
   }
 
-  public UTF8BytesString register(T value) {
+  public UTF8BytesString register(CharSequence value) {
     final int slot = probe(this.curValues, value);
     final UTF8BytesString existing = this.curValues[slot];
     if (existing != null) {
@@ -89,7 +86,7 @@ public final class PropertyCardinalityHandler<T extends CharSequence> {
    * is content-stable with the underlying String, so the same content hashes to the same slot
    * regardless of whether the input is a String or UTF8BytesString.
    */
-  private int probe(UTF8BytesString[] values, T value) {
+  private int probe(UTF8BytesString[] values, CharSequence value) {
     int idx = value.hashCode() & this.capacityMask;
     while (values[idx] != null && !values[idx].toString().contentEquals(value)) {
       idx = (idx + 1) & this.capacityMask;
