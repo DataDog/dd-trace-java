@@ -10,6 +10,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
+import javax.annotation.Nullable;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -61,12 +62,12 @@ final class AggregateEntry extends Hashtable.Entry {
   final UTF8BytesString resource;
   final UTF8BytesString service;
   final UTF8BytesString operationName;
-  final UTF8BytesString serviceSource; // nullable
+  @Nullable final UTF8BytesString serviceSource;
   final UTF8BytesString type;
   final UTF8BytesString spanKind;
-  final UTF8BytesString httpMethod; // nullable
-  final UTF8BytesString httpEndpoint; // nullable
-  final UTF8BytesString grpcStatusCode; // nullable
+  @Nullable final UTF8BytesString httpMethod;
+  @Nullable final UTF8BytesString httpEndpoint;
+  @Nullable final UTF8BytesString grpcStatusCode;
   final short httpStatusCode;
   final boolean synthetic;
   final boolean traceRoot;
@@ -197,16 +198,16 @@ final class AggregateEntry extends Hashtable.Entry {
       CharSequence resource,
       CharSequence service,
       CharSequence operationName,
-      CharSequence serviceSource,
+      @Nullable CharSequence serviceSource,
       CharSequence type,
       int httpStatusCode,
       boolean synthetic,
       boolean traceRoot,
       CharSequence spanKind,
-      List<UTF8BytesString> peerTags,
-      CharSequence httpMethod,
-      CharSequence httpEndpoint,
-      CharSequence grpcStatusCode) {
+      @Nullable List<UTF8BytesString> peerTags,
+      @Nullable CharSequence httpMethod,
+      @Nullable CharSequence httpEndpoint,
+      @Nullable CharSequence grpcStatusCode) {
     UTF8BytesString resourceUtf = createUtf8(resource);
     UTF8BytesString serviceUtf = createUtf8(service);
     UTF8BytesString operationNameUtf = createUtf8(operationName);
@@ -322,6 +323,7 @@ final class AggregateEntry extends Hashtable.Entry {
     return operationName;
   }
 
+  @Nullable
   UTF8BytesString getServiceSource() {
     return serviceSource;
   }
@@ -334,14 +336,17 @@ final class AggregateEntry extends Hashtable.Entry {
     return spanKind;
   }
 
+  @Nullable
   UTF8BytesString getHttpMethod() {
     return httpMethod;
   }
 
+  @Nullable
   UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
+  @Nullable
   UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
   }
@@ -404,12 +409,12 @@ final class AggregateEntry extends Hashtable.Entry {
     UTF8BytesString resource;
     UTF8BytesString service;
     UTF8BytesString operationName;
-    UTF8BytesString serviceSource; // nullable
+    @Nullable UTF8BytesString serviceSource;
     UTF8BytesString type;
     UTF8BytesString spanKind;
-    UTF8BytesString httpMethod; // nullable
-    UTF8BytesString httpEndpoint; // nullable
-    UTF8BytesString grpcStatusCode; // nullable
+    @Nullable UTF8BytesString httpMethod;
+    @Nullable UTF8BytesString httpEndpoint;
+    @Nullable UTF8BytesString grpcStatusCode;
     short httpStatusCode;
     boolean synthetic;
     boolean traceRoot;

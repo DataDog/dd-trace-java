@@ -16,35 +16,48 @@ import java.util.Set;
  * <ul>
  *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
- *   <li>A peer-aggregation schema built via {@link #of(Set)} for {@code client}/{@code
- *       producer}/{@code consumer} spans. Its lifecycle (including caching and rebuild on peer-tag
- *       config change) is owned by {@link ClientStatsAggregator}; this class is just the data
- *       holder.
+ *   <li>A peer-aggregation schema built via {@link #of(Set, long)} for {@code client}/{@code
+ *       producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the most recently
+ *       built schema and compares its {@link #peerTagsRevision} against {@code
+ *       DDAgentFeaturesDiscovery.peerTagsRevision()} to decide when to rebuild.
  * </ul>
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
  * <p><b>Thread-safety:</b> {@link TagCardinalityHandler}s are not thread-safe and must only be
- * exercised on the aggregator thread. {@link #names} is final and safe to read from any thread.
+ * exercised on the aggregator thread. {@link #names} and {@link #peerTagsRevision} are final and
+ * safe to read from any thread.
  */
 final class PeerTagSchema {
 
   private static final int VALUE_LIMIT_PER_TAG = 512;
 
+  /** Sentinel revision for {@link #INTERNAL} -- it never changes. */
+  static final long INTERNAL_REVISION = -1L;
+
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
-  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE});
+  static final PeerTagSchema INTERNAL =
+      new PeerTagSchema(new String[] {BASE_SERVICE}, INTERNAL_REVISION);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
 
+  /**
+   * The {@code DDAgentFeaturesDiscovery.peerTagsRevision()} value this schema was built from. Cache
+   * callers ({@link ClientStatsAggregator}) compare this against the current revision to decide
+   * whether to rebuild -- one final long carries the cache key on the schema itself.
+   */
+  final long peerTagsRevision;
+
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> names) {
-    return new PeerTagSchema(names.toArray(new String[0]));
+  static PeerTagSchema of(Set<String> names, long peerTagsRevision) {
+    return new PeerTagSchema(names.toArray(new String[0]), peerTagsRevision);
   }
 
-  private PeerTagSchema(String[] names) {
+  private PeerTagSchema(String[] names, long peerTagsRevision) {
     this.names = names;
+    this.peerTagsRevision = peerTagsRevision;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] = new TagCardinalityHandler(names[i], VALUE_LIMIT_PER_TAG);

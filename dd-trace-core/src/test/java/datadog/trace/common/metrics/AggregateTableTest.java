@@ -238,7 +238,7 @@ class AggregateTableTest {
       for (int i = 0; i < namesAndValues.length; i += 2) {
         names.add(namesAndValues[i]);
       }
-      this.peerTagSchema = PeerTagSchema.of(names);
+      this.peerTagSchema = PeerTagSchema.of(names, 0L);
       this.peerTagValues = new String[peerTagSchema.size()];
       for (int i = 0; i < namesAndValues.length; i += 2) {
         for (int j = 0; j < peerTagSchema.size(); j++) {

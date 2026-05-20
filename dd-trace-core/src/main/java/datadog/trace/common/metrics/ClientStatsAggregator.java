@@ -73,16 +73,16 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-aggregation schema and the {@link DDAgentFeaturesDiscovery#peerTagsRevision()}
-   * value it was built from. The producer-side hot path in {@link #publish(List)} checks the
-   * current revision against {@code cachedPeerTagsRevision} and only rebuilds when they differ.
+   * Cached peer-aggregation schema. The schema carries its own {@link
+   * PeerTagSchema#peerTagsRevision} (the {@link DDAgentFeaturesDiscovery#peerTagsRevision()} value
+   * it was built from); {@link #publish(List)} compares that against the current revision and only
+   * rebuilds when they differ. An empty schema (size 0) represents the "peer tags unconfigured"
+   * state; {@code null} only on the bootstrap window before the first publish.
    *
-   * <p>Both fields are {@code volatile} because {@code publish} is called on arbitrary producer
-   * threads. The reset hook ({@link #resetCachedPeerAggSchema()}) runs on the aggregator thread and
-   * only mutates the schema's internal handler state (not these fields).
+   * <p>{@code volatile} because {@code publish} is called on arbitrary producer threads. The reset
+   * hook ({@link #resetCachedPeerAggSchema()}) runs on the aggregator thread and only mutates the
+   * schema's internal handler state (not this field).
    */
-  private volatile long cachedPeerTagsRevision = -1L;
-
   private volatile PeerTagSchema cachedPeerAggSchema;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -353,25 +353,29 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   /**
    * Returns the peer-aggregation schema synced to the given revision, rebuilding it if the cached
-   * one is stale. Fast path: one volatile-read pair + a long compare. Rebuild is rare (peer-tag
-   * config changes), so the synchronization is only on the slow path.
+   * one is stale. Fast path: one volatile read + a long compare against the schema's own embedded
+   * revision. Rebuild is rare (peer-tag config changes), so the synchronization is only on the slow
+   * path. Always returns non-null -- an empty schema (size 0) represents the "peer tags
+   * unconfigured" state so subsequent calls still short-circuit on the fast path.
    */
   private PeerTagSchema peerAggSchema(long revision) {
-    if (revision == cachedPeerTagsRevision) {
-      return cachedPeerAggSchema;
+    PeerTagSchema cached = cachedPeerAggSchema;
+    if (cached != null && cached.peerTagsRevision == revision) {
+      return cached;
     }
     return refreshPeerAggSchema(revision);
   }
 
   private synchronized PeerTagSchema refreshPeerAggSchema(long revision) {
     // Double-checked: another producer may have rebuilt while we were waiting on the monitor.
-    if (revision == cachedPeerTagsRevision) {
-      return cachedPeerAggSchema;
+    PeerTagSchema cached = cachedPeerAggSchema;
+    if (cached != null && cached.peerTagsRevision == revision) {
+      return cached;
     }
     Set<String> names = features.peerTags();
-    PeerTagSchema schema = (names == null || names.isEmpty()) ? null : PeerTagSchema.of(names);
+    PeerTagSchema schema =
+        PeerTagSchema.of(names == null ? Collections.emptySet() : names, revision);
     cachedPeerAggSchema = schema;
-    cachedPeerTagsRevision = revision;
     return schema;
   }
 
@@ -389,12 +393,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   /**
    * Picks the peer-tag schema for a span. The {@code peerAggSchema} argument is the per-trace
-   * cached schema (synced from {@code features.peerTagsRevision()} once in {@link #publish(List)});
-   * it's {@code null} when no peer tags are configured. For internal-kind spans the static {@link
-   * PeerTagSchema#INTERNAL} schema is used regardless.
+   * cached schema (synced from {@code features.peerTagsRevision()} once in {@link #publish(List)})
+   * -- always non-null but possibly empty when peer tags are unconfigured. For internal-kind spans
+   * the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
    */
   private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerAggSchema) {
-    if (peerAggSchema != null && span.isKind(PEER_AGGREGATION_KINDS)) {
+    if (peerAggSchema.size() > 0 && span.isKind(PEER_AGGREGATION_KINDS)) {
       return peerAggSchema;
     }
     if (span.isKind(INTERNAL_KIND)) {
