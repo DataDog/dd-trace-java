@@ -28,6 +28,14 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
+  /**
+   * Per-cycle hook run on the aggregator thread right after {@link
+   * AggregateEntry#resetCardinalityHandlers()}. Used by {@link ClientStatsAggregator} to reset the
+   * peer-aggregation schema's handlers, which live outside {@link AggregateEntry}'s static set. May
+   * be {@code null}.
+   */
+  private final Runnable onResetCardinality;
+
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
@@ -39,7 +47,8 @@ final class Aggregator implements Runnable {
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      Runnable onResetCardinality) {
     this(
         writer,
         inbox,
@@ -47,7 +56,8 @@ final class Aggregator implements Runnable {
         reportingInterval,
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
-        healthMetrics);
+        healthMetrics,
+        onResetCardinality);
   }
 
   Aggregator(
@@ -57,17 +67,15 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      Runnable onResetCardinality) {
     this.writer = writer;
     this.inbox = inbox;
     this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
-  }
-
-  public void clearAggregates() {
-    this.aggregates.clear();
+    this.onResetCardinality = onResetCardinality;
   }
 
   @Override
@@ -153,6 +161,13 @@ final class Aggregator implements Runnable {
         log.debug("Error publishing metrics. Dropping payload", error);
       }
       dirty = false;
+    }
+    // Reset cardinality handlers each report cycle so the per-field budgets refresh. Single hook
+    // owned by ClientStatsAggregator -- it covers both the static property handlers on
+    // AggregateEntry and the cached peer-agg schema. Safe on this (aggregator) thread; handlers
+    // are HashMap-based and not thread-safe.
+    if (onResetCardinality != null) {
+      onResetCardinality.run();
     }
     signal.complete();
     if (skipped) {

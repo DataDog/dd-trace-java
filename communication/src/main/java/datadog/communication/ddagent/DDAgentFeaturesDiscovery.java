@@ -138,7 +138,8 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private synchronized void discoverIfOutdated(final long maxElapsedMs) {
     final long now = System.currentTimeMillis();
-    final long elapsed = now - discoveryState.lastTimeDiscovered;
+    final State previous = discoveryState;
+    final long elapsed = now - previous.lastTimeDiscovered;
     if (elapsed > maxElapsedMs) {
       final State newState = new State();
       doDiscovery(newState);
@@ -401,6 +402,16 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   public Set<String> peerTags() {
     return discoveryState.peerTags;
+  }
+
+  /**
+   * Wall-clock timestamp ({@link System#currentTimeMillis()}) of the most recent successful
+   * feature discovery, or {@code 0L} if discovery has never run. Callers (e.g. the client-stats
+   * aggregator) snapshot this alongside {@link #peerTags()} to detect when discovery has refreshed
+   * and a cached view of feature state may be stale.
+   */
+  public long getLastTimeDiscovered() {
+    return discoveryState.lastTimeDiscovered;
   }
 
   public String getMetricsEndpoint() {

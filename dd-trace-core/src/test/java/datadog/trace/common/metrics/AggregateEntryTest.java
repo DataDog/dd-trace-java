@@ -1,8 +1,11 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotSame;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.metrics.agent.AgentMeter;
@@ -86,24 +89,47 @@ class AggregateEntryTest {
     assertTrue(entry.getOkLatencies().getMaxValue() <= 5);
   }
 
-  private static AggregateEntry newEntry() {
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
+  @Test
+  void absentOptionalFieldsResolveToEmptySentinel() {
+    // serviceSource / httpMethod / httpEndpoint / grpcStatusCode = null on input -> EMPTY on the
+    // entry. EMPTY is the universal "absent" sentinel; SerializingMetricWriter and equality use
+    // identity comparison against it.
+    AggregateEntry entry = newEntry();
+    assertSame(EMPTY, entry.getServiceSource());
+    assertSame(EMPTY, entry.getHttpMethod());
+    assertSame(EMPTY, entry.getHttpEndpoint());
+    assertSame(EMPTY, entry.getGrpcStatusCode());
+  }
+
+  @Test
+  void presentOptionalFieldsCarryTheirValue() {
+    AggregateEntry entry =
+        AggregateEntry.of(
             "resource",
             "svc",
             "op",
-            null,
+            "src",
             "type",
-            (short) 200,
+            200,
             false,
             true,
             "client",
             null,
-            null,
-            null,
-            null,
-            null,
-            0L);
-    return AggregateEntry.forSnapshot(snapshot);
+            "GET",
+            "/api/v1/foo",
+            "0");
+    assertNotSame(EMPTY, entry.getServiceSource());
+    assertNotSame(EMPTY, entry.getHttpMethod());
+    assertNotSame(EMPTY, entry.getHttpEndpoint());
+    assertNotSame(EMPTY, entry.getGrpcStatusCode());
+    assertEquals("src", entry.getServiceSource().toString());
+    assertEquals("GET", entry.getHttpMethod().toString());
+    assertEquals("/api/v1/foo", entry.getHttpEndpoint().toString());
+    assertEquals("0", entry.getGrpcStatusCode().toString());
+  }
+
+  private static AggregateEntry newEntry() {
+    return AggregateEntry.of(
+        "resource", "svc", "op", null, "type", 200, false, true, "client", null, null, null, null);
   }
 }
