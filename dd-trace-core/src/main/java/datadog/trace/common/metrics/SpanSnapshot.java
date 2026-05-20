@@ -1,5 +1,7 @@
 package datadog.trace.common.metrics;
 
+import javax.annotation.Nullable;
+
 /**
  * Immutable per-span value posted from the producer to the aggregator thread. Carries the raw
  * inputs the aggregator needs to look up or build an {@link AggregateEntry} and update its
@@ -25,14 +27,14 @@ final class SpanSnapshot implements InboxItem {
    * carries the names + {@link TagCardinalityHandler}s in parallel array form; {@code
    * peerTagValues} holds the per-span tag values at the same indices.
    */
-  final PeerTagSchema peerTagSchema;
+  @Nullable final PeerTagSchema peerTagSchema;
 
   /**
    * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
    * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
    * #peerTagSchema} is {@code null}.
    */
-  final String[] peerTagValues;
+  @Nullable final String[] peerTagValues;
 
   final String httpMethod;
   final String httpEndpoint;
@@ -66,8 +68,8 @@ final class SpanSnapshot implements InboxItem {
       boolean synthetic,
       boolean traceRoot,
       String spanKind,
-      PeerTagSchema peerTagSchema,
-      String[] peerTagValues,
+      @Nullable PeerTagSchema peerTagSchema,
+      @Nullable String[] peerTagValues,
       String httpMethod,
       String httpEndpoint,
       String grpcStatusCode,

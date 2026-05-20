@@ -7,8 +7,14 @@ import java.util.Arrays;
  * Cardinality-capped UTF8 canonicalizer for one peer-tag name. Output is the pre-encoded {@code
  * "tag:value"} form the serializer writes.
  *
- * <p>Same open-addressed flat-array + prior-cycle reuse design as {@link
- * PropertyCardinalityHandler} -- see that class for full description.
+ * <p>Like {@link PropertyCardinalityHandler}, this serves a dual role -- cardinality limiter and
+ * UTF8 cache fused into one set of recently used values, with the prior cycle's entries retained so
+ * UTF8 reuse survives the per-cycle reset. See {@link PropertyCardinalityHandler} for the full
+ * rationale and storage layout.
+ *
+ * <p>The structural difference here is that the cached {@link UTF8BytesString} holds the {@code
+ * "tag:value"} concatenation rather than the bare value, so a parallel {@code String[]} keys table
+ * is needed to probe by the raw value.
  */
 final class TagCardinalityHandler {
   private final String tag;
@@ -79,9 +85,9 @@ final class TagCardinalityHandler {
   }
 
   /**
-   * Whether {@code result} (returned from a prior {@link #register} call) is this handler's
-   * blocked sentinel. The size check short-circuits the hot path so the sentinel is never
-   * materialized before any value has actually been blocked this cycle.
+   * Whether {@code result} (returned from a prior {@link #register} call) is this handler's blocked
+   * sentinel. The size check short-circuits the hot path so the sentinel is never materialized
+   * before any value has actually been blocked this cycle.
    */
   boolean isBlockedResult(UTF8BytesString result) {
     return this.curSize >= this.cardinalityLimit && result == blockedByTracer();

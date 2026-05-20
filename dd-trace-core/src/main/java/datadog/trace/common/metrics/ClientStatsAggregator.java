@@ -74,17 +74,22 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-aggregation schema. The schema carries its own {@link
-   * PeerTagSchema#peerTagsRevision} (the {@link DDAgentFeaturesDiscovery#peerTagsRevision()} value
-   * it was built from); {@link #publish(List)} compares that against the current revision and only
-   * rebuilds when they differ. An empty schema (size 0) represents the "peer tags unconfigured"
-   * state; {@code null} only on the bootstrap window before the first publish.
+   * Cached peer-tag schema. Producers read this reference once per trace and pass it through to the
+   * consumer in {@link SpanSnapshot}; they never inspect the schema's timestamp or rebuild it.
+   * Reconciliation is the aggregator thread's job: {@link #resetCardinalityHandlers()} compares the
+   * schema's {@link PeerTagSchema#lastTimeDiscovered} against {@link
+   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} once per reporting cycle and either updates
+   * the timestamp in place (when the tag set is unchanged, preserving the schema's warm cardinality
+   * handlers) or swaps in a freshly-built schema.
    *
-   * <p>{@code volatile} because {@code publish} is called on arbitrary producer threads. The reset
-   * hook ({@link #resetCardinalityHandlers()}) runs on the aggregator thread and only mutates the
-   * schema's internal handler state (not this field).
+   * <p>An empty schema (size 0) represents the "peer tags unconfigured" state; {@code null} only on
+   * the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on the first publish.
+   *
+   * <p>{@code volatile} so the consumer's reconcile-time replacement is visible to producer
+   * threads; the schema's own internal mutable state (handlers, block counters, timestamp) is
+   * exercised only on the aggregator thread.
    */
-  private volatile PeerTagSchema cachedPeerAggSchema;
+  private volatile PeerTagSchema cachedPeerTagSchema;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -347,10 +352,14 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     boolean forceKeep = false;
     int counted = 0;
     if (features.supportsMetrics()) {
-      // Sync the peer-aggregation schema once per trace. The cache is keyed on
-      // features.peerTagsRevision(), which only bumps when the agent's peer-tag set actually
-      // changes -- so the steady-state cost is a volatile read and a long compare.
-      PeerTagSchema peerAggSchema = peerAggSchema(features.peerTagsRevision());
+      // Producer-side fast path: one volatile read and use whatever schema is currently cached.
+      // The aggregator thread keeps this schema in sync with feature discovery in
+      // resetCardinalityHandlers(). The only producer-side rebuild is the one-time bootstrap on
+      // the first publish.
+      PeerTagSchema peerTagSchema = cachedPeerTagSchema;
+      if (peerTagSchema == null) {
+        peerTagSchema = bootstrapPeerTagSchema();
+      }
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
@@ -361,7 +370,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, peerAggSchema);
+          forceKeep |= publish(span, isTopLevel, peerTagSchema);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -376,7 +385,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         && span.getDurationNano() > 0;
   }
 
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerAggSchema) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -404,13 +413,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
-    PeerTagSchema peerTagSchema = peerTagSchemaFor(span, peerAggSchema);
+    PeerTagSchema spanPeerTagSchema = peerTagSchemaFor(span, peerTagSchema);
     String[] peerTagValues =
-        peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
+        spanPeerTagSchema == null ? null : capturePeerTagValues(span, spanPeerTagSchema);
     if (peerTagValues == null) {
       // capture returned no non-null values -- drop the schema reference so the consumer doesn't
       // bother iterating an all-null array.
-      peerTagSchema = null;
+      spanPeerTagSchema = null;
     }
 
     String[] additionalTagValues = captureAdditionalTagValues(span);
@@ -431,7 +440,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             isSynthetic(span),
             span.getParentId() == 0,
             spanKind,
-            peerTagSchema,
+            spanPeerTagSchema,
             peerTagValues,
             httpMethod,
             httpEndpoint,
@@ -471,44 +480,42 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Returns the peer-aggregation schema synced to the given revision, rebuilding it if the cached
-   * one is stale. Fast path: one volatile read + a long compare against the schema's own embedded
-   * revision. Rebuild is rare (peer-tag config changes), so the synchronization is only on the slow
-   * path. Always returns non-null -- an empty schema (size 0) represents the "peer tags
-   * unconfigured" state so subsequent calls still short-circuit on the fast path.
+   * One-time producer-side bootstrap of {@link #cachedPeerTagSchema}. Synchronized double-check
+   * guards against two producers racing on the very first publish; after this returns, {@code
+   * cachedPeerTagSchema} is non-null forever and the aggregator thread is the sole subsequent
+   * mutator (see {@link #reconcilePeerTagSchema()}).
    */
-  private PeerTagSchema peerAggSchema(long revision) {
-    PeerTagSchema cached = cachedPeerAggSchema;
-    if (cached != null && cached.peerTagsRevision == revision) {
+  private synchronized PeerTagSchema bootstrapPeerTagSchema() {
+    PeerTagSchema cached = cachedPeerTagSchema;
+    if (cached != null) {
       return cached;
     }
-    return refreshPeerAggSchema(revision);
-  }
-
-  private synchronized PeerTagSchema refreshPeerAggSchema(long revision) {
-    // Double-checked: another producer may have rebuilt while we were waiting on the monitor.
-    PeerTagSchema cached = cachedPeerAggSchema;
-    if (cached != null && cached.peerTagsRevision == revision) {
-      return cached;
-    }
-    Set<String> names = features.peerTags();
-    PeerTagSchema schema =
-        PeerTagSchema.of(
-            names == null ? Collections.emptySet() : names, revision, healthMetrics);
-    cachedPeerAggSchema = schema;
+    PeerTagSchema schema = buildPeerTagSchema();
+    cachedPeerTagSchema = schema;
     return schema;
   }
 
+  /** Builds a fresh {@link PeerTagSchema} from the current state of feature discovery. */
+  private PeerTagSchema buildPeerTagSchema() {
+    Set<String> names = features.peerTags();
+    return PeerTagSchema.of(
+        names == null ? Collections.emptySet() : names,
+        features.getLastTimeDiscovered(),
+        healthMetrics);
+  }
+
   /**
-   * Single reset hook invoked on the aggregator thread at the end of each report cycle. Resets all
-   * cardinality state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL}
-   * (via {@link AggregateEntry#resetCardinalityHandlers()}), the cached peer-aggregation schema,
-   * and the additional-tags schema. New handlers added anywhere in this pipeline should be reset
-   * from here.
+   * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
+   * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
+   * state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL} (via {@link
+   * AggregateEntry#resetCardinalityHandlers()}), the cached peer-tag schema (with whatever
+   * reconciliation just produced), and the additional-tags schema. New handlers added anywhere in
+   * this pipeline should be reset from here.
    */
   private void resetCardinalityHandlers() {
+    reconcilePeerTagSchema();
     AggregateEntry.resetCardinalityHandlers();
-    PeerTagSchema schema = cachedPeerAggSchema;
+    PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
       schema.resetCardinalityHandlers();
     }
@@ -516,14 +523,42 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   /**
-   * Picks the peer-tag schema for a span. The {@code peerAggSchema} argument is the per-trace
-   * cached schema (synced from {@code features.peerTagsRevision()} once in {@link #publish(List)})
-   * -- always non-null but possibly empty when peer tags are unconfigured. For internal-kind spans
-   * the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
+   * Reconciles {@link #cachedPeerTagSchema} with the latest feature discovery. Runs on the
+   * aggregator thread once per reporting cycle. Cheap fast path: a long compare against the cached
+   * schema's embedded timestamp short-circuits when discovery hasn't refreshed since the schema was
+   * built. On mismatch, a set compare distinguishes "discovery refreshed but tags unchanged" (just
+   * bump the timestamp in place to preserve the warm cardinality handlers) from "tags actually
+   * changed" (build a new schema and swap the volatile reference).
    */
-  private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerAggSchema) {
-    if (peerAggSchema.size() > 0 && span.isKind(PEER_AGGREGATION_KINDS)) {
-      return peerAggSchema;
+  private void reconcilePeerTagSchema() {
+    PeerTagSchema cached = cachedPeerTagSchema;
+    if (cached == null) {
+      // First reset before the first publish -- producer-side bootstrap hasn't run yet.
+      return;
+    }
+    long latestDiscoveredAt = features.getLastTimeDiscovered();
+    if (cached.lastTimeDiscovered == latestDiscoveredAt) {
+      return;
+    }
+    Set<String> latestNames = features.peerTags();
+    Set<String> normalized = latestNames == null ? Collections.emptySet() : latestNames;
+    if (cached.hasSameTagsAs(normalized)) {
+      cached.lastTimeDiscovered = latestDiscoveredAt;
+    } else {
+      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestDiscoveredAt, healthMetrics);
+    }
+  }
+
+  /**
+   * Picks the peer-tag schema for a span. The {@code peerTagSchema} argument is the per-trace
+   * cached schema (read once in {@link #publish(List)} via the volatile {@link
+   * #cachedPeerTagSchema}, with {@link #bootstrapPeerTagSchema()} taking care of the first-publish
+   * window) -- always non-null but possibly empty when peer tags are unconfigured. For
+   * internal-kind spans the static {@link PeerTagSchema#INTERNAL} schema is used regardless.
+   */
+  private static PeerTagSchema peerTagSchemaFor(CoreSpan<?> span, PeerTagSchema peerTagSchema) {
+    if (peerTagSchema.size() > 0 && span.isKind(PEER_AGGREGATION_KINDS)) {
+      return peerTagSchema;
     }
     if (span.isKind(INTERNAL_KIND)) {
       return PeerTagSchema.INTERNAL;

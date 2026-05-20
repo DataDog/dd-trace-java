@@ -14,8 +14,8 @@ import org.slf4j.LoggerFactory;
  *
  * <p>Replaces the previous {@code Map<String, TagCardinalityHandler>} lookup with positional array
  * access: the producer captures span tag values into a {@code String[]} parallel to {@link #names},
- * and the consumer calls {@link #register(int, String)} at the same index to canonicalize the
- * value through the per-tag cardinality handler.
+ * and the consumer calls {@link #register(int, String)} at the same index to canonicalize the value
+ * through the per-tag cardinality handler.
  *
  * <p>Two schemas exist:
  *
@@ -24,8 +24,9 @@ import org.slf4j.LoggerFactory;
  *       internal-kind spans where only the base service is aggregated.
  *   <li>A peer-aggregation schema built via {@link #of(Set, long, HealthMetrics)} for {@code
  *       client}/{@code producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the
- *       most recently built schema and compares its {@link #peerTagsRevision} against {@code
- *       DDAgentFeaturesDiscovery.peerTagsRevision()} to decide when to rebuild.
+ *       most recently built schema and reconciles it on the aggregator thread once per reporting
+ *       cycle by comparing {@link #lastTimeDiscovered} against {@code
+ *       DDAgentFeaturesDiscovery.getLastTimeDiscovered()}.
  * </ul>
  *
  * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
@@ -36,37 +37,39 @@ import org.slf4j.LoggerFactory;
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> {@link TagCardinalityHandler}s and the warn-once set are not
- * thread-safe and must only be exercised on the aggregator thread. {@link #names} and {@link
- * #peerTagsRevision} are final and safe to read from any thread.
+ * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
+ * {@link #blockedCounts}, and {@link #lastTimeDiscovered}) is exercised only on the aggregator
+ * thread. {@link #names} and {@link #handlers} are final and safe to read from any thread; producer
+ * threads access them through the volatile {@code cachedPeerTagSchema} reference in {@link
+ * ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
   private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
-  /** Sentinel revision for {@link #INTERNAL} -- it never changes. */
-  static final long INTERNAL_REVISION = -1L;
-
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL =
-      new PeerTagSchema(new String[] {BASE_SERVICE}, INTERNAL_REVISION, HealthMetrics.NO_OP);
+      // -1L sentinel; INTERNAL is never reconciled, so the value just has to be distinct from any
+      // real System.currentTimeMillis() that the aggregator might observe.
+      new PeerTagSchema(new String[] {BASE_SERVICE}, -1L, HealthMetrics.NO_OP);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
 
   /**
-   * The {@code DDAgentFeaturesDiscovery.peerTagsRevision()} value this schema was built from. Cache
-   * callers ({@link ClientStatsAggregator}) compare this against the current revision to decide
-   * whether to rebuild -- one final long carries the cache key on the schema itself.
+   * The {@code DDAgentFeaturesDiscovery.getLastTimeDiscovered()} value this schema was built from.
+   * The aggregator thread reads and updates this once per reporting cycle when reconciling against
+   * the latest discovery; producer threads never touch it. Plain (non-volatile, non-final) because
+   * the aggregator is the sole reader/writer.
    */
-  final long peerTagsRevision;
+  long lastTimeDiscovered;
 
   private final HealthMetrics healthMetrics;
 
   /**
    * Per-cycle warn-once gating. {@code Set.add(name)} returns true exactly the first time a tag
-   * gets blocked this cycle, which is the only time we want to emit the warn log. Cleared by
-   * {@link #resetCardinalityHandlers()}.
+   * gets blocked this cycle, which is the only time we want to emit the warn log. Cleared by {@link
+   * #resetCardinalityHandlers()}.
    */
   private final Set<String> warnedCardinality = new HashSet<>();
 
@@ -79,13 +82,13 @@ final class PeerTagSchema {
   private final long[] blockedCounts;
 
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> names, long peerTagsRevision, HealthMetrics healthMetrics) {
-    return new PeerTagSchema(names.toArray(new String[0]), peerTagsRevision, healthMetrics);
+  static PeerTagSchema of(Set<String> names, long lastTimeDiscovered, HealthMetrics healthMetrics) {
+    return new PeerTagSchema(names.toArray(new String[0]), lastTimeDiscovered, healthMetrics);
   }
 
-  private PeerTagSchema(String[] names, long peerTagsRevision, HealthMetrics healthMetrics) {
+  private PeerTagSchema(String[] names, long lastTimeDiscovered, HealthMetrics healthMetrics) {
     this.names = names;
-    this.peerTagsRevision = peerTagsRevision;
+    this.lastTimeDiscovered = lastTimeDiscovered;
     this.healthMetrics = healthMetrics;
     this.handlers = new TagCardinalityHandler[names.length];
     this.blockedCounts = new long[names.length];
@@ -93,6 +96,25 @@ final class PeerTagSchema {
       this.handlers[i] =
           new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
     }
+  }
+
+  /**
+   * Whether this schema's tag names exactly match {@code other}. Used by the aggregator's reconcile
+   * path: when a feature discovery refresh bumps {@link
+   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} but the resulting set is unchanged, the
+   * aggregator can keep this schema (and its warm cardinality handlers) and just bump {@link
+   * #lastTimeDiscovered} instead of rebuilding.
+   */
+  boolean hasSameTagsAs(Set<String> other) {
+    if (this.names.length != other.size()) {
+      return false;
+    }
+    for (String name : this.names) {
+      if (!other.contains(name)) {
+        return false;
+      }
+    }
+    return true;
   }
 
   /**
@@ -120,8 +142,8 @@ final class PeerTagSchema {
 
   /**
    * Resets every {@link TagCardinalityHandler}'s working set, flushes accumulated per-tag block
-   * counts to {@link HealthMetrics}, and clears the per-cycle warn-once tracking. Must be called
-   * on the aggregator thread; handlers are not thread-safe.
+   * counts to {@link HealthMetrics}, and clears the per-cycle warn-once tracking. Must be called on
+   * the aggregator thread; handlers are not thread-safe.
    */
   void resetCardinalityHandlers() {
     for (int i = 0; i < handlers.length; i++) {
