@@ -1,0 +1,22 @@
+muzzle {
+  pass {
+    group = "com.netflix.feign"
+    module = "feign-core"
+    versions = "[8.0,9.0)"
+    assertInverse = true
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'com.netflix.feign', name: 'feign-core', version: '8.0.0'
+
+  testImplementation group: 'com.netflix.feign', name: 'feign-core', version: '8.18.0'
+  testImplementation group: 'com.netflix.feign', name: 'feign-okhttp', version: '8.18.0'
+
+  latestDepTestImplementation group: 'com.netflix.feign', name: 'feign-core', version: '8.+'
+  latestDepTestImplementation group: 'com.netflix.feign', name: 'feign-okhttp', version: '8.+'
+}
