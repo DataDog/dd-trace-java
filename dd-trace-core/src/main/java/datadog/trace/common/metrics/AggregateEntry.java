@@ -92,9 +92,12 @@ final class AggregateEntry extends Hashtable.Entry {
   private final boolean synthetic;
   private final boolean traceRoot;
 
-  // Peer tags carried in two forms: raw String[] for matches() against the snapshot's pairs,
-  // and pre-encoded List<UTF8BytesString> ("name:value") for the serializer.
-  private final String[] peerTagPairsRaw;
+  // Peer tags carried in two forms: parallel String[] arrays mirroring the snapshot's (schema +
+  // values) shape for matches(), and pre-encoded List<UTF8BytesString> ("name:value") for the
+  // serializer. peerTagNames is the schema's names array (shared by-reference when the schema
+  // hasn't been replaced); peerTagValues is the per-span String[] parallel to it.
+  @Nullable private final String[] peerTagNames;
+  @Nullable private final String[] peerTagValues;
   private final List<UTF8BytesString> peerTags;
 
   // Mutable aggregate state -- single-thread (consumer/aggregator) writer.
@@ -132,11 +135,16 @@ final class AggregateEntry extends Hashtable.Entry {
     this.httpStatusCode = s.httpStatusCode;
     this.synthetic = s.synthetic;
     this.traceRoot = s.traceRoot;
-    this.peerTagPairsRaw = s.peerTagPairs;
-    this.peerTags = materializePeerTags(s.peerTagPairs);
+    this.peerTagNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
+    this.peerTagValues = s.peerTagValues;
+    this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
   }
 
-  /** Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. */
+  /**
+   * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Accepts a
+   * pre-encoded {@code List<UTF8BytesString>} of {@code "name:value"} peer tags and recovers the
+   * parallel-array {@code (names, values)} form by splitting on the {@code ':'} delimiter.
+   */
   static AggregateEntry of(
       CharSequence resource,
       CharSequence service,
@@ -151,7 +159,21 @@ final class AggregateEntry extends Hashtable.Entry {
       @Nullable CharSequence httpMethod,
       @Nullable CharSequence httpEndpoint,
       @Nullable CharSequence grpcStatusCode) {
-    String[] rawPairs = peerTagsToRawPairs(peerTags);
+    PeerTagSchema schema = null;
+    String[] values = null;
+    if (peerTags != null && !peerTags.isEmpty()) {
+      String[] names = new String[peerTags.size()];
+      values = new String[peerTags.size()];
+      int i = 0;
+      for (UTF8BytesString t : peerTags) {
+        String s = t.toString();
+        int colon = s.indexOf(':');
+        names[i] = colon < 0 ? s : s.substring(0, colon);
+        values[i] = colon < 0 ? "" : s.substring(colon + 1);
+        i++;
+      }
+      schema = PeerTagSchema.testSchema(names);
+    }
     SpanSnapshot synthetic_snapshot =
         new SpanSnapshot(
             resource,
@@ -163,7 +185,8 @@ final class AggregateEntry extends Hashtable.Entry {
             synthetic,
             traceRoot,
             spanKind == null ? null : spanKind.toString(),
-            rawPairs,
+            schema,
+            values,
             httpMethod == null ? null : httpMethod.toString(),
             httpEndpoint == null ? null : httpEndpoint.toString(),
             grpcStatusCode == null ? null : grpcStatusCode.toString(),
@@ -252,6 +275,7 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   boolean matches(SpanSnapshot s) {
+    String[] snapshotNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
     return httpStatusCode == s.httpStatusCode
         && synthetic == s.synthetic
         && traceRoot == s.traceRoot
@@ -261,7 +285,8 @@ final class AggregateEntry extends Hashtable.Entry {
         && contentEquals(serviceSource, s.serviceNameSource)
         && contentEquals(type, s.spanType)
         && stringContentEquals(spanKind, s.spanKind)
-        && Arrays.equals(peerTagPairsRaw, s.peerTagPairs)
+        && Arrays.equals(peerTagNames, snapshotNames)
+        && Arrays.equals(peerTagValues, s.peerTagValues)
         && stringContentEquals(httpMethod, s.httpMethod)
         && stringContentEquals(httpEndpoint, s.httpEndpoint)
         && stringContentEquals(grpcStatusCode, s.grpcStatusCode);
@@ -296,9 +321,14 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, s.synthetic);
     h = LongHashingUtils.addToHash(h, s.traceRoot);
     h = LongHashingUtils.addToHash(h, s.spanKind);
-    if (s.peerTagPairs != null) {
-      for (String p : s.peerTagPairs) {
-        h = LongHashingUtils.addToHash(h, p);
+    if (s.peerTagSchema != null && s.peerTagValues != null) {
+      String[] names = s.peerTagSchema.names;
+      String[] values = s.peerTagValues;
+      for (int i = 0; i < names.length; i++) {
+        if (values[i] != null) {
+          h = LongHashingUtils.addToHash(h, names[i]);
+          h = LongHashingUtils.addToHash(h, values[i]);
+        }
       }
     }
     h = LongHashingUtils.addToHash(h, s.httpMethod);
@@ -433,16 +463,38 @@ final class AggregateEntry extends Hashtable.Entry {
     return b != null && a.toString().equals(b);
   }
 
-  private static List<UTF8BytesString> materializePeerTags(String[] pairs) {
-    if (pairs == null || pairs.length == 0) {
+  /**
+   * Encodes the per-span peer-tag values into the {@code List<UTF8BytesString>} the serializer
+   * consumes. Reads name/value pairs at the same index from the schema's names and the snapshot's
+   * values; null value slots are skipped (the span didn't set that peer tag). Counts hits once for
+   * exact-size allocation and preserves the singletonList fast path for the common one-entry case
+   * (e.g. internal-kind base.service).
+   */
+  private static List<UTF8BytesString> materializePeerTags(
+      @Nullable String[] names, @Nullable String[] values) {
+    if (names == null || values == null) {
       return Collections.emptyList();
     }
-    if (pairs.length == 2) {
-      return Collections.singletonList(encodePeerTag(pairs[0], pairs[1]));
+    int n = names.length;
+    int firstHit = -1;
+    int hitCount = 0;
+    for (int i = 0; i < n; i++) {
+      if (values[i] != null) {
+        if (hitCount == 0) firstHit = i;
+        hitCount++;
+      }
     }
-    List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
-    for (int i = 0; i < pairs.length; i += 2) {
-      tags.add(encodePeerTag(pairs[i], pairs[i + 1]));
+    if (hitCount == 0) {
+      return Collections.emptyList();
+    }
+    if (hitCount == 1) {
+      return Collections.singletonList(encodePeerTag(names[firstHit], values[firstHit]));
+    }
+    List<UTF8BytesString> tags = new ArrayList<>(hitCount);
+    for (int i = firstHit; i < n; i++) {
+      if (values[i] != null) {
+        tags.add(encodePeerTag(names[i], values[i]));
+      }
     }
     return tags;
   }
@@ -451,25 +503,5 @@ final class AggregateEntry extends Hashtable.Entry {
     final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
         cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
     return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
-  }
-
-  /**
-   * Inverse of {@link #materializePeerTags}: takes pre-encoded UTF8 peer tags and recovers the raw
-   * {@code [name0, value0, name1, value1, ...]} pairs. Used by the test factory {@link #of}, not by
-   * the hot path.
-   */
-  private static String[] peerTagsToRawPairs(List<UTF8BytesString> peerTags) {
-    if (peerTags == null || peerTags.isEmpty()) {
-      return null;
-    }
-    String[] pairs = new String[peerTags.size() * 2];
-    int i = 0;
-    for (UTF8BytesString peerTag : peerTags) {
-      String s = peerTag.toString();
-      int colon = s.indexOf(':');
-      pairs[i++] = colon < 0 ? s : s.substring(0, colon);
-      pairs[i++] = colon < 0 ? "" : s.substring(colon + 1);
-    }
-    return pairs;
   }
 }

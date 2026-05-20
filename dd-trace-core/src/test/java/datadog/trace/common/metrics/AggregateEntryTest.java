@@ -102,6 +102,7 @@ class AggregateEntryTest {
             null,
             null,
             null,
+            null,
             0L);
     return AggregateEntry.forSnapshot(snapshot);
   }

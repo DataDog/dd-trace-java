@@ -198,7 +198,8 @@ class AggregateTableTest {
     private final String service;
     private final String operation;
     private final String spanKind;
-    private String[] peerTagPairs;
+    private PeerTagSchema peerTagSchema;
+    private String[] peerTagValues;
     private long tagAndDuration = 0L;
 
     SnapshotBuilder(String service, String operation, String spanKind) {
@@ -208,7 +209,15 @@ class AggregateTableTest {
     }
 
     SnapshotBuilder peerTags(String... namesAndValues) {
-      this.peerTagPairs = namesAndValues;
+      int pairCount = namesAndValues.length / 2;
+      String[] names = new String[pairCount];
+      String[] values = new String[pairCount];
+      for (int i = 0; i < pairCount; i++) {
+        names[i] = namesAndValues[2 * i];
+        values[i] = namesAndValues[2 * i + 1];
+      }
+      this.peerTagSchema = PeerTagSchema.testSchema(names);
+      this.peerTagValues = values;
       return this;
     }
 
@@ -223,7 +232,8 @@ class AggregateTableTest {
           false,
           true,
           spanKind,
-          peerTagPairs,
+          peerTagSchema,
+          peerTagValues,
           null,
           null,
           null,
