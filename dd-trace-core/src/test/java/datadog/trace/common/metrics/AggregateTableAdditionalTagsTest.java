@@ -116,9 +116,9 @@ class AggregateTableAdditionalTagsTest {
   }
 
   private static AggregateTable newTable(AdditionalTagsSchema schema, int ignoredAdditionalLimit) {
-    // The per-key cardinality cap is baked into the schema's handlers; the table itself just
-    // bounds total aggregates.
-    return new AggregateTable(256, schema);
+    // The per-key cardinality cap is baked into the schema's handlers (carried on the snapshot);
+    // the table itself just bounds total aggregates.
+    return new AggregateTable(256);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String regionValue) {

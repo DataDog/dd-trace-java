@@ -47,8 +47,7 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
-      Runnable onResetCardinality,
-      AdditionalTagsSchema additionalTagsSchema) {
+      Runnable onResetCardinality) {
     this(
         writer,
         inbox,
@@ -57,8 +56,7 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
-        onResetCardinality,
-        additionalTagsSchema);
+        onResetCardinality);
   }
 
   Aggregator(
@@ -69,11 +67,10 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
-      Runnable onResetCardinality,
-      AdditionalTagsSchema additionalTagsSchema) {
+      Runnable onResetCardinality) {
     this.writer = writer;
     this.inbox = inbox;
-    this.aggregates = new AggregateTable(maxAggregates, additionalTagsSchema);
+    this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;

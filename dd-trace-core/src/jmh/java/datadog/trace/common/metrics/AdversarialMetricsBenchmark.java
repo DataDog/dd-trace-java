@@ -147,6 +147,7 @@ public class AdversarialMetricsBenchmark {
     volatile long aggregateDropped;
     volatile long traceComputedCalls;
     volatile long totalSpansCounted;
+    volatile long tagCardinalityBlocked;
 
     @Override
     public void onStatsInboxFull() {
@@ -162,6 +163,11 @@ public class AdversarialMetricsBenchmark {
     public void onClientStatTraceComputed(int counted, int total, boolean dropped) {
       traceComputedCalls++;
       totalSpansCounted += counted;
+    }
+
+    @Override
+    public void onTagCardinalityBlocked(String tag, long count) {
+      tagCardinalityBlocked += count;
     }
   }
 }

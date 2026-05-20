@@ -93,7 +93,7 @@ class SerializingMetricWriterAdditionalTagsTest {
   // ---------- helpers ----------
 
   private static AggregateTable newTable(AdditionalTagsSchema schema) {
-    return new AggregateTable(64, schema);
+    return new AggregateTable(64);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String... values) {

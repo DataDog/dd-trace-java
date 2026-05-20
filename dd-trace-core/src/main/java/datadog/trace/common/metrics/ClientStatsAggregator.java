@@ -265,8 +265,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             reportingInterval,
             timeUnit,
             healthMetric,
-            this::resetCardinalityHandlers,
-            additionalTagsSchema);
+            this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;

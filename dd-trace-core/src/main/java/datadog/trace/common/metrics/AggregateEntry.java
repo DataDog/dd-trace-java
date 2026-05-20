@@ -293,7 +293,8 @@ final class AggregateEntry extends Hashtable.Entry {
             traceRoot,
             peerTagsArray,
             peerTagsArray.length,
-            EMPTY_ADDITIONAL_TAGS);
+            EMPTY_ADDITIONAL_TAGS,
+            0);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -356,7 +357,8 @@ final class AggregateEntry extends Hashtable.Entry {
       boolean traceRoot,
       UTF8BytesString[] peerTags,
       int peerTagsLen,
-      UTF8BytesString[] additionalTags) {
+      UTF8BytesString[] additionalTags,
+      int additionalTagsLen) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -372,7 +374,7 @@ final class AggregateEntry extends Hashtable.Entry {
     }
     // Additional tags hash in schema order (which is alphabetical by key, per the schema's
     // construction). null slots are mixed in too so absent-vs-present yields different hashes.
-    for (int i = 0; i < additionalTags.length; i++) {
+    for (int i = 0; i < additionalTagsLen; i++) {
       h = LongHashingUtils.addToHash(h, additionalTags[i]);
     }
     h = LongHashingUtils.addToHash(h, httpMethod);
@@ -508,24 +510,22 @@ final class AggregateEntry extends Hashtable.Entry {
 
     int peerTagsCount;
 
-    /** Schema + per-key cardinality handlers for additional metric tags. Immutable. */
-    final AdditionalTagsSchema additionalTagsSchema;
-
     /**
-     * Reusable buffer of canonicalized additional-tag values, sized exactly to the schema. Slot
-     * {@code i} = the canonical {@code "key:value"} UTF8BytesString for {@code schema.name(i)} (or
-     * the handler's blocked sentinel if length-capped or cardinality-capped), or {@code null} when
-     * the span didn't set that tag. Cleared on each {@link #populate}. {@link #toEntry} copies it
-     * into the new entry.
+     * Reusable buffer of canonicalized additional-tag values. Slots {@code [0..additionalTagsCount)}
+     * are the live entries (slot {@code i} = the canonical {@code "key:value"} UTF8BytesString for
+     * the snapshot schema's {@code name(i)}, the handler's blocked sentinel if length-capped or
+     * cardinality-capped, or {@code null} when the span didn't set that tag). The buffer grows to
+     * fit the largest schema we've ever seen and never shrinks; trailing slots beyond {@code
+     * additionalTagsCount} are stale dead space and never read. {@link #toEntry} snapshots
+     * {@code [0..additionalTagsCount)} into a tight array on miss.
      */
-    final UTF8BytesString[] additionalTagsBuffer;
+    UTF8BytesString[] additionalTagsBuffer = new UTF8BytesString[0];
+
+    int additionalTagsCount;
 
     long keyHash;
 
-    Canonical(AdditionalTagsSchema additionalTagsSchema) {
-      this.additionalTagsSchema = additionalTagsSchema;
-      this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
-    }
+    Canonical() {}
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
     void populate(SpanSnapshot s) {
@@ -562,7 +562,8 @@ final class AggregateEntry extends Hashtable.Entry {
           traceRoot,
           peerTagsBuffer,
           peerTagsCount,
-          additionalTagsBuffer);
+          additionalTagsBuffer,
+          additionalTagsCount);
     }
 
     /**
@@ -589,27 +590,25 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     /**
-     * Fills {@link #additionalTagsBuffer} with canonical {@code "key:value"} UTF8BytesStrings for
-     * each non-null slot in {@code values}. The per-key handler in {@link AdditionalTagsSchema}
-     * enforces the length cap and the cardinality cap and returns its {@code
-     * "<key>:blocked_by_tracer"} sentinel for either kind of overflow. Absent slots stay {@code
-     * null} so the wire format skips them.
+     * Fills {@link #additionalTagsBuffer}{@code [0..additionalTagsCount)} with canonical {@code
+     * "key:value"} UTF8BytesStrings for each non-null slot in {@code values}, using the snapshot's
+     * schema for both the live length and the per-key handler. The handler enforces the length cap
+     * and the cardinality cap and returns its {@code "<key>:blocked_by_tracer"} sentinel for
+     * either kind of overflow. Absent slots stay {@code null} so the wire format skips them.
      *
-     * <p>The {@code schema} comes from the snapshot rather than the canonical's own reference so
-     * producer and consumer agree on indexing -- mirrors the peer-tag handoff. Today the schema is
-     * built once at startup and never swapped, so these two references are always the same
-     * instance, but the snapshot-time capture keeps that contract local rather than a global
-     * invariant.
+     * <p>The buffer grows to fit the snapshot's schema and is never shrunk; trailing slots beyond
+     * {@code additionalTagsCount} are never read by hash / match / clone, so they don't leak.
      */
     private void populateAdditionalTags(AdditionalTagsSchema schema, String[] values) {
-      int n = additionalTagsBuffer.length;
-      if (n == 0 || schema == null || values == null) {
-        // Schema empty or span had no additional tags at all -- clear the buffer's slots so a
-        // previous iteration's state doesn't leak through.
-        Arrays.fill(additionalTagsBuffer, null);
+      additionalTagsCount = schema == null ? 0 : schema.size();
+      if (additionalTagsCount == 0 || values == null) {
+        additionalTagsCount = 0;
         return;
       }
-      for (int i = 0; i < n; i++) {
+      if (additionalTagsBuffer.length < additionalTagsCount) {
+        additionalTagsBuffer = new UTF8BytesString[additionalTagsCount];
+      }
+      for (int i = 0; i < additionalTagsCount; i++) {
         String v = values[i];
         additionalTagsBuffer[i] = v == null ? null : schema.register(i, v);
       }
@@ -630,22 +629,24 @@ final class AggregateEntry extends Hashtable.Entry {
           && Objects.equals(serviceSource, e.serviceSource)
           && Objects.equals(type, e.type)
           && Objects.equals(spanKind, e.spanKind)
-          && peerTagsEqual(peerTagsBuffer, peerTagsCount, e.peerTags)
-          && Arrays.equals(additionalTagsBuffer, e.additionalTags)
+          && tagBufferEquals(peerTagsBuffer, peerTagsCount, e.peerTags)
+          && tagBufferEquals(additionalTagsBuffer, additionalTagsCount, e.additionalTags)
           && Objects.equals(httpMethod, e.httpMethod)
           && Objects.equals(httpEndpoint, e.httpEndpoint)
           && Objects.equals(grpcStatusCode, e.grpcStatusCode);
     }
 
     /**
-     * Length-aware indexed comparison so the scratch buffer can be compared against a tight array.
+     * Length-aware indexed comparison so a scratch buffer (whose physical length may exceed its
+     * live prefix) can be compared against an entry's tight array. {@code Objects.equals} handles
+     * null slots (used by additional tags for "key not set" markers).
      */
-    private static boolean peerTagsEqual(UTF8BytesString[] a, int aLen, UTF8BytesString[] b) {
+    private static boolean tagBufferEquals(UTF8BytesString[] a, int aLen, UTF8BytesString[] b) {
       if (aLen != b.length) {
         return false;
       }
       for (int i = 0; i < aLen; i++) {
-        if (!a[i].equals(b[i])) {
+        if (!Objects.equals(a[i], b[i])) {
           return false;
         }
       }
@@ -653,9 +654,9 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     /**
-     * Build a new entry from the currently-populated canonical fields. The peer-tag buffer is
-     * snapshotted into a tight {@link UTF8BytesString}{@code []} so the entry's reference stays
-     * stable across subsequent {@link #populate} calls.
+     * Build a new entry from the currently-populated canonical fields. The peer-tag and
+     * additional-tag buffers are snapshotted into tight {@link UTF8BytesString}{@code []}s so the
+     * entry's references stay stable across subsequent {@link #populate} calls.
      */
     AggregateEntry toEntry() {
       UTF8BytesString[] snapshottedPeerTags;
@@ -666,10 +667,12 @@ final class AggregateEntry extends Hashtable.Entry {
         System.arraycopy(peerTagsBuffer, 0, snapshottedPeerTags, 0, peerTagsCount);
       }
       UTF8BytesString[] snapshottedAdditionalTags;
-      if (additionalTagsBuffer.length == 0) {
+      if (additionalTagsCount == 0) {
         snapshottedAdditionalTags = EMPTY_ADDITIONAL_TAGS;
       } else {
-        snapshottedAdditionalTags = additionalTagsBuffer.clone();
+        snapshottedAdditionalTags = new UTF8BytesString[additionalTagsCount];
+        System.arraycopy(
+            additionalTagsBuffer, 0, snapshottedAdditionalTags, 0, additionalTagsCount);
       }
       return new AggregateEntry(
           keyHash,
