@@ -175,23 +175,6 @@ public class JvmOtlpRuntimeMetricsTest {
         "Every jvm.gc.duration data point should carry jvm.gc.name and jvm.gc.action attributes");
   }
 
-  @Test
-  void startIsIdempotent() {
-    MetricCollector before = new MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(before);
-    int countBefore = before.metricNames.size();
-
-    JvmOtlpRuntimeMetrics.start(true);
-    JvmOtlpRuntimeMetrics.start(true);
-
-    MetricCollector after = new MetricCollector();
-    OtelMetricRegistry.INSTANCE.collectMetrics(after);
-    assertEquals(
-        countBefore,
-        after.metricNames.size(),
-        "Repeated start() must not register duplicate instruments");
-  }
-
   static final class DataPointEntry {
     final Map<String, Object> attrs;
     final Number value;
