@@ -57,44 +57,34 @@ public class ProductState {
       PollingRateHinter hinter) {
     errors = null;
 
-    List<ParsedConfigKey> configBeenUsedByProduct = new ArrayList<>();
-    List<ParsedConfigKey> changedKeys = new ArrayList<>();
     boolean changesDetected = false;
 
-    // Step 1: Detect all changes
+    // First, validate configurations and separate valid from invalid
+    List<ParsedConfigKey> validKeysToApply = new ArrayList<>();
+    List<ParsedConfigKey> validKeysUnchanged = new ArrayList<>();
     for (ParsedConfigKey configKey : relevantKeys) {
       try {
         RemoteConfigResponse.Targets.ConfigTarget target =
             getTargetOrThrow(fleetResponse, configKey);
-        configBeenUsedByProduct.add(configKey);
-
         if (isTargetChanged(configKey, target)) {
-          changesDetected = true;
-          changedKeys.add(configKey);
+          validKeysToApply.add(configKey);
+        } else {
+          validKeysUnchanged.add(configKey);
         }
       } catch (ReportableException e) {
         recordError(e);
+        // Invalid configs will be removed below
       }
     }
 
-    // Step 2: For products other than ASM_DD, apply changes immediately
-    if (product != Product.ASM_DD) {
-      for (ParsedConfigKey configKey : changedKeys) {
-        try {
-          byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
-        } catch (ReportableException e) {
-          recordError(e);
-        }
-      }
-    }
-
-    // Step 3: Remove obsolete configurations (for all products)
-    // For ASM_DD, this is critical: removes MUST happen before applies to prevent
-    // duplicate rule warnings from the ddwaf rule parser and causing memory spikes.
+    // Remove obsolete or invalid configurations before applying new ones
+    // Remove configs that are: (1) not in relevantKeys OR (2) in relevantKeys but failed validation
     List<ParsedConfigKey> keysToRemove =
         cachedTargetFiles.keySet().stream()
-            .filter(configKey -> !configBeenUsedByProduct.contains(configKey))
+            .filter(
+                configKey ->
+                    !validKeysToApply.contains(configKey)
+                        && !validKeysUnchanged.contains(configKey))
             .collect(Collectors.toList());
 
     for (ParsedConfigKey configKey : keysToRemove) {
@@ -102,22 +92,17 @@ public class ProductState {
       callListenerRemoveTarget(hinter, configKey);
     }
 
-    // Step 4: For ASM_DD, apply changes AFTER removes
-    // TODO: This is a temporary solution. The proper fix requires better synchronization
-    // between remove and add/update operations. This should be discussed
-    // with the guild to determine the best long-term design approach.
-    if (product == Product.ASM_DD) {
-      for (ParsedConfigKey configKey : changedKeys) {
-        try {
-          byte[] content = getTargetFileContent(fleetResponse, configKey);
-          callListenerApplyTarget(fleetResponse, hinter, configKey, content);
-        } catch (ReportableException e) {
-          recordError(e);
-        }
+    // Then, apply valid configurations that changed
+    for (ParsedConfigKey configKey : validKeysToApply) {
+      try {
+        changesDetected = true;
+        byte[] content = getTargetFileContent(fleetResponse, configKey);
+        callListenerApplyTarget(fleetResponse, hinter, configKey, content);
+      } catch (ReportableException e) {
+        recordError(e);
       }
     }
 
-    // Step 5: Commit if there were changes
     if (changesDetected) {
       try {
         callListenerCommit(hinter);
