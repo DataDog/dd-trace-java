@@ -45,19 +45,27 @@ final class AggregateEntry extends Hashtable.Entry {
   public static final long ERROR_TAG = 0x8000000000000000L;
   public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  // Per-field cardinality limits. Identical to the prior DDCache sizes.
-  static final PropertyCardinalityHandler RESOURCE_HANDLER = new PropertyCardinalityHandler(32);
-  static final PropertyCardinalityHandler SERVICE_HANDLER = new PropertyCardinalityHandler(32);
-  static final PropertyCardinalityHandler OPERATION_HANDLER = new PropertyCardinalityHandler(64);
-  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(16);
-  static final PropertyCardinalityHandler TYPE_HANDLER = new PropertyCardinalityHandler(8);
-  static final PropertyCardinalityHandler SPAN_KIND_HANDLER = new PropertyCardinalityHandler(16);
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER = new PropertyCardinalityHandler(8);
-  static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(32);
-  static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(32);
+  // Per-field cardinality limits. Identical to the prior DDCache sizes. Each handler's type
+  // parameter matches the corresponding SpanSnapshot field type so the cache map's key class has
+  // well-defined equals/hashCode.
+  static final PropertyCardinalityHandler<CharSequence> RESOURCE_HANDLER =
+      new PropertyCardinalityHandler<>(32);
+  static final PropertyCardinalityHandler<String> SERVICE_HANDLER =
+      new PropertyCardinalityHandler<>(32);
+  static final PropertyCardinalityHandler<CharSequence> OPERATION_HANDLER =
+      new PropertyCardinalityHandler<>(64);
+  static final PropertyCardinalityHandler<CharSequence> SERVICE_SOURCE_HANDLER =
+      new PropertyCardinalityHandler<>(16);
+  static final PropertyCardinalityHandler<CharSequence> TYPE_HANDLER =
+      new PropertyCardinalityHandler<>(8);
+  static final PropertyCardinalityHandler<String> SPAN_KIND_HANDLER =
+      new PropertyCardinalityHandler<>(16);
+  static final PropertyCardinalityHandler<String> HTTP_METHOD_HANDLER =
+      new PropertyCardinalityHandler<>(8);
+  static final PropertyCardinalityHandler<String> HTTP_ENDPOINT_HANDLER =
+      new PropertyCardinalityHandler<>(32);
+  static final PropertyCardinalityHandler<String> GRPC_STATUS_CODE_HANDLER =
+      new PropertyCardinalityHandler<>(32);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -552,8 +560,8 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // ----- helpers -----
 
-  private static UTF8BytesString registerOrEmpty(
-      PropertyCardinalityHandler handler, CharSequence value) {
+  private static <T extends CharSequence> UTF8BytesString registerOrEmpty(
+      PropertyCardinalityHandler<T> handler, T value) {
     return value == null ? UTF8BytesString.EMPTY : handler.register(value);
   }
 
