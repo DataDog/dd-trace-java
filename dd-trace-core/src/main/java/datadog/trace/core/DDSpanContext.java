@@ -47,6 +47,7 @@ import java.util.TreeMap;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import java.util.concurrent.atomic.AtomicReferenceFieldUpdater;
 import java.util.function.Function;
 import javax.annotation.Nonnull;
 import org.slf4j.Logger;
@@ -190,6 +191,22 @@ public class DDSpanContext
   private final boolean injectLinksAsTags;
   private volatile int encodedOperationName;
   private volatile int encodedResourceName;
+  private volatile ExecutionThread executionThread = null;
+
+  private static final AtomicReferenceFieldUpdater<DDSpanContext, ExecutionThread>
+      EXECUTION_THREAD_UPDATER =
+          AtomicReferenceFieldUpdater.newUpdater(
+              DDSpanContext.class, ExecutionThread.class, "executionThread");
+
+  private static final class ExecutionThread {
+    private final long id;
+    private final String name;
+
+    private ExecutionThread(long id, String name) {
+      this.id = id;
+      this.name = name;
+    }
+  }
 
   /**
    * Metastruct keys are associated to the current span, they will not propagate to the children
@@ -408,6 +425,11 @@ public class DDSpanContext
   }
 
   @Override
+  public long getParentSpanId() {
+    return parentId;
+  }
+
+  @Override
   public long getTraceIdHigh() {
     return traceId.toHighOrderLong();
   }
@@ -425,6 +447,32 @@ public class DDSpanContext
   @Override
   public int getEncodedResourceName() {
     return encodedResourceName;
+  }
+
+  public ProfilingContextIntegration getProfilingContextIntegration() {
+    return profilingContextIntegration;
+  }
+
+  @Override
+  public void captureExecutionThread(long threadId, String threadName) {
+    if (threadId <= 0 || threadName == null || threadName.isEmpty()) {
+      return;
+    }
+    // First-write-wins with atomic CAS: onTaskActivation() may race with finish callbacks
+    // running on a different thread. Publish id+name atomically as one immutable object.
+    EXECUTION_THREAD_UPDATER.compareAndSet(this, null, new ExecutionThread(threadId, threadName));
+  }
+
+  @Override
+  public long getExecutionThreadId() {
+    ExecutionThread value = executionThread;
+    return value != null ? value.id : 0;
+  }
+
+  @Override
+  public String getExecutionThreadName() {
+    ExecutionThread value = executionThread;
+    return value != null ? value.name : "";
   }
 
   public String getServiceName() {

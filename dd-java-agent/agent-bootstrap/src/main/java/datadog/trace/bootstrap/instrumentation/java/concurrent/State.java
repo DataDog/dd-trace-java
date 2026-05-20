@@ -3,6 +3,7 @@ package datadog.trace.bootstrap.instrumentation.java.concurrent;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureSpan;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ContinuationClaim.CLAIMED;
 
+import datadog.trace.api.profiling.QueueTiming;
 import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.ContextStore;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -84,8 +85,15 @@ public final class State {
   }
 
   public void stopTiming() {
+    stopTiming(0L);
+  }
+
+  public void stopTiming(long activationStartNano) {
     Timing timing = TIMING.getAndSet(this, null);
     if (timing != null) {
+      if (activationStartNano != 0L && timing instanceof QueueTiming) {
+        ((QueueTiming) timing).setActivationStartNano(activationStartNano);
+      }
       QueueTimerHelper.stopQueuingTimer(timing);
     }
   }
