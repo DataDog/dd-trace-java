@@ -7,11 +7,6 @@ import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_INTERNAL;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_PRODUCER;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_SERVER;
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
@@ -19,7 +14,9 @@ import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
 import static datadog.trace.util.AgentThreadFactory.THREAD_JOIN_TIMOUT_MS;
 import static datadog.trace.util.AgentThreadFactory.newAgentThread;
-import static java.util.Collections.unmodifiableSet;
+import static java.util.Collections.emptyList;
+import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.common.queue.Queues;
@@ -36,12 +33,10 @@ import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
+import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -50,7 +45,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Function;
-import javax.annotation.Nonnull;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -60,7 +54,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Logger log = LoggerFactory.getLogger(ConflatingMetricsAggregator.class);
 
   private static final Map<String, String> DEFAULT_HEADERS =
-      Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
+      singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
   private static final DDCache<String, UTF8BytesString> SERVICE_NAMES =
       DDCaches.newFixedSizeCache(32);
@@ -82,15 +76,19 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
                   value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
-  private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_METRICS =
-      unmodifiableSet(
-          new HashSet<>(
-              Arrays.asList(
-                  SPAN_KIND_SERVER, SPAN_KIND_CLIENT, SPAN_KIND_CONSUMER, SPAN_KIND_PRODUCER)));
+  private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
+      SpanKindFilter.builder()
+          .includeServer()
+          .includeClient()
+          .includeProducer()
+          .includeConsumer()
+          .build();
 
-  private static final Set<String> ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION =
-      unmodifiableSet(
-          new HashSet<>(Arrays.asList(SPAN_KIND_CLIENT, SPAN_KIND_PRODUCER, SPAN_KIND_CONSUMER)));
+  private static final SpanKindFilter PEER_AGGREGATION_KINDS =
+      SpanKindFilter.builder().includeClient().includeProducer().includeConsumer().build();
+
+  private static final SpanKindFilter INTERNAL_KIND =
+      SpanKindFilter.builder().includeInternal().build();
 
   private final Set<String> ignoredResources;
   private final MessagePassingQueue<Batch> batchPool;
@@ -289,8 +287,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (features.supportsMetrics()) {
       for (CoreSpan<?> span : trace) {
         boolean isTopLevel = span.isTopLevel();
-        final CharSequence spanKind = span.unsafeGetTag(SPAN_KIND, "");
-        if (shouldComputeMetric(span, spanKind)) {
+        if (shouldComputeMetric(span, isTopLevel)) {
           final CharSequence resourceName = span.getResourceName();
           if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
@@ -298,7 +295,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             break;
           }
           counted++;
-          forceKeep |= publish(span, isTopLevel, spanKind);
+          forceKeep |= publish(span, isTopLevel);
         }
       }
       healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
@@ -306,19 +303,14 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return forceKeep;
   }
 
-  private boolean shouldComputeMetric(CoreSpan<?> span, @Nonnull CharSequence spanKind) {
-    return (span.isMeasured() || span.isTopLevel() || spanKindEligible(spanKind))
+  private boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
+    return (span.isMeasured() || isTopLevel || span.isKind(METRICS_ELIGIBLE_KINDS))
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
   }
 
-  private boolean spanKindEligible(@Nonnull CharSequence spanKind) {
-    // use toString since it could be a CharSequence...
-    return ELIGIBLE_SPAN_KINDS_FOR_METRICS.contains(spanKind.toString());
-  }
-
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel, CharSequence spanKind) {
+  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -335,6 +327,9 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       Object grpcStatusObj = span.unsafeGetTag(InstrumentationTags.GRPC_STATUS_CODE);
       grpcStatusCode = grpcStatusObj != null ? grpcStatusObj.toString() : null;
     }
+    // CharSequence default keeps unsafeGetTag's generic at CharSequence so UTF8BytesString
+    // tag values don't trigger a ClassCastException on the String assignment.
+    final String spanKind = span.unsafeGetTag(SPAN_KIND, (CharSequence) "").toString();
     MetricKey newKey =
         new MetricKey(
             span.getResourceName(),
@@ -347,7 +342,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             span.getParentId() == 0,
             SPAN_KINDS.computeIfAbsent(
                 spanKind, UTF8BytesString::create), // save repeated utf8 conversions
-            getPeerTags(span, spanKind.toString()),
+            getPeerTags(span),
             httpMethod,
             httpEndpoint,
             grpcStatusCode);
@@ -382,35 +377,38 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return span.getError() > 0;
   }
 
-  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span, String spanKind) {
-    if (ELIGIBLE_SPAN_KINDS_FOR_PEER_AGGREGATION.contains(spanKind)) {
+  private List<UTF8BytesString> getPeerTags(CoreSpan<?> span) {
+    if (span.isKind(PEER_AGGREGATION_KINDS)) {
       final Set<String> eligiblePeerTags = features.peerTags();
-      List<UTF8BytesString> peerTags = new ArrayList<>(eligiblePeerTags.size());
+      List<UTF8BytesString> peerTags = null;
       for (String peerTag : eligiblePeerTags) {
         Object value = span.unsafeGetTag(peerTag);
         if (value != null) {
           final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
               cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(peerTag, PEER_TAGS_CACHE_ADDER);
+          if (peerTags == null) {
+            peerTags = new ArrayList<>(eligiblePeerTags.size());
+          }
           peerTags.add(
               cacheAndCreator
                   .getLeft()
                   .computeIfAbsent(value.toString(), cacheAndCreator.getRight()));
         }
       }
-      return peerTags;
-    } else if (SPAN_KIND_INTERNAL.equals(spanKind)) {
+      return peerTags == null ? emptyList() : peerTags;
+    } else if (span.isKind(INTERNAL_KIND)) {
       // in this case only the base service should be aggregated if present
       final Object baseService = span.unsafeGetTag(BASE_SERVICE);
       if (baseService != null) {
         final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
             cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(BASE_SERVICE, PEER_TAGS_CACHE_ADDER);
-        return Collections.singletonList(
+        return singletonList(
             cacheAndCreator
                 .getLeft()
                 .computeIfAbsent(baseService.toString(), cacheAndCreator.getRight()));
       }
     }
-    return Collections.emptyList();
+    return emptyList();
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
