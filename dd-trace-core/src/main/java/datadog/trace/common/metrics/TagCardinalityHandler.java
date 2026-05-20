@@ -78,6 +78,15 @@ final class TagCardinalityHandler {
     return idx;
   }
 
+  /**
+   * Whether {@code result} (returned from a prior {@link #register} call) is this handler's
+   * blocked sentinel. The size check short-circuits the hot path so the sentinel is never
+   * materialized before any value has actually been blocked this cycle.
+   */
+  boolean isBlockedResult(UTF8BytesString result) {
+    return this.curSize >= this.cardinalityLimit && result == blockedByTracer();
+  }
+
   private UTF8BytesString blockedByTracer() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;

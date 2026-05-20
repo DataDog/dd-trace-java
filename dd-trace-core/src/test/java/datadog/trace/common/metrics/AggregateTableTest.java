@@ -238,7 +238,8 @@ class AggregateTableTest {
       for (int i = 0; i < namesAndValues.length; i += 2) {
         names.add(namesAndValues[i]);
       }
-      this.peerTagSchema = PeerTagSchema.of(names, 0L);
+      this.peerTagSchema =
+          PeerTagSchema.of(names, 0L, datadog.trace.core.monitor.HealthMetrics.NO_OP);
       this.peerTagValues = new String[peerTagSchema.size()];
       for (int i = 0; i < namesAndValues.length; i += 2) {
         for (int j = 0; j < peerTagSchema.size(); j++) {
