@@ -10,6 +10,10 @@ import org.gradle.testing.base.TestingExtension
 import java.time.Duration
 import java.time.temporal.ChronoUnit
 
+plugins {
+  id("dd-trace-java.modifiable-config")
+}
+
 // Need concrete implementation of BuildService in Kotlin
 abstract class ForkedTestLimit : BuildService<BuildServiceParameters.None>
 // Forked tests will fail with OOM if the memory is set too high. Gitlab allows at least a limit of 3.

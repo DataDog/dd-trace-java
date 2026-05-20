@@ -40,6 +40,7 @@ public class DDAgentWriter extends RemoteWriter {
     Monitoring monitoring = Monitoring.DISABLED;
     ProtocolVersion protocolVersion = Config.get().getProtocolVersion();
     boolean metricsReportingEnabled = Config.get().isTracerMetricsEnabled();
+    boolean metricsIgnoreAgentVersion = Config.get().isTracerMetricsIgnoreAgentVersion();
     private int flushTimeout = 1;
     private TimeUnit flushTimeoutUnit = TimeUnit.SECONDS;
     boolean alwaysFlush = false;
@@ -114,6 +115,11 @@ public class DDAgentWriter extends RemoteWriter {
       return this;
     }
 
+    public DDAgentWriterBuilder metricsIgnoreAgentVersion(boolean metricsIgnoreAgentVersion) {
+      this.metricsIgnoreAgentVersion = metricsIgnoreAgentVersion;
+      return this;
+    }
+
     public DDAgentWriterBuilder featureDiscovery(DDAgentFeaturesDiscovery featureDiscovery) {
       this.featureDiscovery = featureDiscovery;
       return this;
@@ -144,7 +150,12 @@ public class DDAgentWriter extends RemoteWriter {
       if (null == featureDiscovery) {
         featureDiscovery =
             new DDAgentFeaturesDiscovery(
-                client, monitoring, agentUrl, protocolVersion, metricsReportingEnabled);
+                client,
+                monitoring,
+                agentUrl,
+                protocolVersion,
+                metricsReportingEnabled,
+                metricsIgnoreAgentVersion);
       }
       if (null == agentApi) {
         agentApi =

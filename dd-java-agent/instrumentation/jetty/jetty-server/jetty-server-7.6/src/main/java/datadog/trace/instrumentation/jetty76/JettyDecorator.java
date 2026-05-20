@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import datadog.trace.instrumentation.jetty.JettyBlockResponseFunction;
 import javax.servlet.ServletException;
+import org.eclipse.jetty.io.EndPoint;
 import org.eclipse.jetty.server.AbstractHttpConnection;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Response;
@@ -60,11 +61,31 @@ public class JettyDecorator extends HttpServerDecorator<Request, Request, Respon
 
   @Override
   protected String peerHostIP(final Request request) {
+    // Avoid Request.getRemoteAddr() since ForwardedRequestCustomizer overrides it with
+    // the value resolved from x-forwarded-for and similar proxy headers. Peer information
+    // must be the actual socket peer.
+    final AbstractHttpConnection connection = request.getConnection();
+    if (connection != null) {
+      final EndPoint endPoint = connection.getEndPoint();
+      if (endPoint != null) {
+        final String remoteAddr = endPoint.getRemoteAddr();
+        if (remoteAddr != null) {
+          return remoteAddr;
+        }
+      }
+    }
     return request.getRemoteAddr();
   }
 
   @Override
   protected int peerPort(final Request request) {
+    final AbstractHttpConnection connection = request.getConnection();
+    if (connection != null) {
+      final EndPoint endPoint = connection.getEndPoint();
+      if (endPoint != null) {
+        return endPoint.getRemotePort();
+      }
+    }
     return request.getRemotePort();
   }
 

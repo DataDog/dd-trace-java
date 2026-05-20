@@ -15,6 +15,7 @@ import datadog.trace.api.function.TriFunction;
 import datadog.trace.api.http.StoredBodySupplier;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import java.util.Collections;
 import java.util.function.BiConsumer;
 import java.util.function.BiFunction;
@@ -62,6 +63,14 @@ public class InstrumentationGatewayTest {
 
           @Override
           public <T> T getOrCreateMetaStructTop(String key, Function<String, T> defaultValue) {
+            return null;
+          }
+
+          @Override
+          public void setClientIpAddressData(ClientIpAddressData clientIpAddressData) {}
+
+          @Override
+          public ClientIpAddressData getClientIpAddressData() {
             return null;
           }
         };

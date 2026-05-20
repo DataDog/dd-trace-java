@@ -971,9 +971,9 @@
     ],
     "DD_CRASHTRACKING_ERRORS_INTAKE_ENABLED": [
       {
-        "version": "A",
+        "version": "B",
         "type": "boolean",
-        "default": "false",
+        "default": "true",
         "aliases": []
       }
     ],
@@ -1030,6 +1030,14 @@
         "version": "A",
         "type": "int",
         "default": "2",
+        "aliases": []
+      }
+    ],
+    "DD_CUSTOM_PARENT_ID": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
         "aliases": []
       }
     ],
@@ -10583,6 +10591,14 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_TRACER_METRICS_ENABLED"]
+      }
+    ],
+    "DD_TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
       }
     ],
     "DD_TRACE_STATUS404DECORATOR_ENABLED": [
