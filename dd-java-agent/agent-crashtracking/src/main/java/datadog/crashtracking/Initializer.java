@@ -17,6 +17,7 @@ import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Objects;
 import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -46,7 +47,7 @@ public final class Initializer {
     @Override
     public boolean setValue(String flagName, String value) {
       flags.setStringFlag(flagName, value);
-      return flags.getStringFlag(flagName).equals(value);
+      return Objects.equals(flags.getStringFlag(flagName), value);
     }
   }
 
