@@ -42,7 +42,10 @@ class CardinalityHandlerTest {
 
     h.reset();
 
-    // After reset, three distinct values fit again, but the previous instances aren't reused.
+    // After reset, three distinct values fit again. Prior-cycle instances are reused
+    // (see propertyPriorCycleInstancesAreReusedAcrossReset for the dedicated check); here
+    // we just confirm that the budget refreshed so values previously blocked now have
+    // a slot.
     UTF8BytesString afterReset = h.register("a");
     assertEquals("a", afterReset.toString());
     UTF8BytesString c = h.register("c");
@@ -51,6 +54,39 @@ class CardinalityHandlerTest {
     UTF8BytesString blockedYetAgain = h.register("e");
     assertEquals("blocked_by_tracer", blockedAgain.toString());
     assertSame(blockedAgain, blockedYetAgain);
+  }
+
+  @Test
+  void propertyPriorCycleInstancesAreReusedAcrossReset() {
+    // Dual role: the handler is also a UTF8 cache. Values held in the prior cycle are
+    // reused on the first registration in the new cycle, so aggregate entries that hold a
+    // reference to a UTF8BytesString still match on identity after the per-cycle reset.
+    // This is the cache-survives-reset property the canonical-key lookup depends on.
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    UTF8BytesString aBefore = h.register("a");
+    UTF8BytesString bBefore = h.register("b");
+
+    h.reset();
+
+    assertSame(aBefore, h.register("a"));
+    assertSame(bBefore, h.register("b"));
+    // Same-cycle subsequent registration continues to return the reused instance.
+    assertSame(aBefore, h.register("a"));
+  }
+
+  @Test
+  void propertyPriorCycleReuseSurvivesOneResetButNotTwo() {
+    // Reuse window is one cycle deep -- the handler swaps current/prior on reset, so a
+    // value last seen two cycles ago is no longer cached and will be re-allocated.
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    UTF8BytesString first = h.register("a");
+
+    h.reset();
+    h.reset();
+
+    UTF8BytesString afterTwoResets = h.register("a");
+    assertNotSame(first, afterTwoResets);
+    assertEquals("a", afterTwoResets.toString());
   }
 
   @Test
@@ -84,6 +120,21 @@ class CardinalityHandlerTest {
     UTF8BytesString blockedAfter = h.register("v2");
     // Both are the same sentinel instance (cacheBlocked is not cleared on reset).
     assertSame(blockedBefore, blockedAfter);
+  }
+
+  @Test
+  void tagPriorCycleInstancesAreReusedAcrossReset() {
+    // Mirrors propertyPriorCycleInstancesAreReusedAcrossReset: the pre-built "tag:value"
+    // UTF8BytesString from the prior cycle is reused on the first registration in the new
+    // cycle -- no re-concatenation, no re-encoding.
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 4);
+    UTF8BytesString hostABefore = h.register("host-a");
+    UTF8BytesString hostBBefore = h.register("host-b");
+
+    h.reset();
+
+    assertSame(hostABefore, h.register("host-a"));
+    assertSame(hostBBefore, h.register("host-b"));
   }
 
   @Test
