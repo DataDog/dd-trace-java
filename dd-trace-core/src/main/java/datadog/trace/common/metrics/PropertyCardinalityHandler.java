@@ -47,6 +47,12 @@ public final class PropertyCardinalityHandler {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
+    // Upper bound prevents overflow in the (cardinalityLimit * 2 - 1) capacity calc below.
+    // Practical limits are 8..512; this cap is well beyond any realistic configuration.
+    if (cardinalityLimit > (1 << 29)) {
+      throw new IllegalArgumentException(
+          "cardinalityLimit must be at most 2^29: " + cardinalityLimit);
+    }
     this.cardinalityLimit = cardinalityLimit;
     // Capacity = next power of two >= 2 * cardinalityLimit. Linear-probing load factor stays
     // <= 0.5 even when the budget is full, which keeps probe chains short.

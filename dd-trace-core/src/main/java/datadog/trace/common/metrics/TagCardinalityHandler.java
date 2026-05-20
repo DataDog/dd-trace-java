@@ -15,9 +15,9 @@ public final class TagCardinalityHandler {
   private final int cardinalityLimit;
   private final int capacityMask;
 
-  private Object[] curKeys;
+  private String[] curKeys;
   private UTF8BytesString[] curValues;
-  private Object[] priorKeys;
+  private String[] priorKeys;
   private UTF8BytesString[] priorValues;
   private int curSize;
 
@@ -27,13 +27,18 @@ public final class TagCardinalityHandler {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
+    // Upper bound prevents overflow in the (cardinalityLimit * 2 - 1) capacity calc below.
+    if (cardinalityLimit > (1 << 29)) {
+      throw new IllegalArgumentException(
+          "cardinalityLimit must be at most 2^29: " + cardinalityLimit);
+    }
     this.tag = tag;
     this.cardinalityLimit = cardinalityLimit;
     final int capacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
     this.capacityMask = capacity - 1;
-    this.curKeys = new Object[capacity];
+    this.curKeys = new String[capacity];
     this.curValues = new UTF8BytesString[capacity];
-    this.priorKeys = new Object[capacity];
+    this.priorKeys = new String[capacity];
     this.priorValues = new UTF8BytesString[capacity];
   }
 
@@ -58,7 +63,7 @@ public final class TagCardinalityHandler {
     return utf8;
   }
 
-  private int probe(Object[] keys, String value) {
+  private int probe(String[] keys, String value) {
     int idx = value.hashCode() & this.capacityMask;
     while (keys[idx] != null && !keys[idx].equals(value)) {
       idx = (idx + 1) & this.capacityMask;
@@ -75,7 +80,7 @@ public final class TagCardinalityHandler {
   }
 
   public void reset() {
-    final Object[] tmpKeys = this.priorKeys;
+    final String[] tmpKeys = this.priorKeys;
     final UTF8BytesString[] tmpValues = this.priorValues;
     this.priorKeys = this.curKeys;
     this.priorValues = this.curValues;
