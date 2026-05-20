@@ -731,12 +731,14 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
 
     when:
     listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
 
     then:
     service.usedDDWafConfigKeys.toList() == [key.toString()]
 
     when:
     listeners.savedWafDataChangesListener.remove(key, NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
 
     then:
     service.usedDDWafConfigKeys.empty
@@ -747,7 +749,6 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
 
     when:
-    AppSecSystem.active = true
     config.getAppSecActivation() >> ProductActivation.FULLY_ENABLED
     final service = new AppSecConfigServiceImpl(config, poller, reconf)
     service.init()
@@ -776,6 +777,118 @@ class AppSecConfigServiceImplSpecification extends DDSpecification {
     noExceptionThrown()
   }
 
+  void 'deferred commit: operations are tracked and executed via commit'() {
+    setup:
+    AppSecSystem.active = true
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+
+    when: 'activate AppSec'
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
+
+    when: 'accept and commit'
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+
+    when: 'remove and commit'
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.empty
+  }
+
+  void 'deferred commit: accept after remove cancels the remove'() {
+    setup:
+    AppSecSystem.active = true
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+
+    when: 'activate AppSec and add config'
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
+
+    then:
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+
+    when: 'remove then accept (cancel remove), then commit'
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "bar"}], "enabled": false}]}'''.getBytes(), NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
+
+    then: 'config updated not removed'
+    service.usedDDWafConfigKeys.toList() == [key.toString()]
+  }
+
+  void 'deferred commit: remove after accept cancels the accept'() {
+    setup:
+    AppSecSystem.active = true
+    final key = new ParsedConfigKey('Test', '1234', 1, 'ASM_DD', 'ID')
+    final service = new AppSecConfigServiceImpl(config, poller, reconf)
+    config.getAppSecActivation() >> ProductActivation.ENABLED_INACTIVE
+
+    when:
+    service.maybeSubscribeConfigPolling()
+
+    then:
+    1 * poller.addListener(Product.ASM_DD, _) >> {
+      listeners.savedWafDataChangesListener = it[1]
+    }
+    1 * poller.addListener(Product.ASM_FEATURES, _, _) >> {
+      listeners.savedFeaturesDeserializer = it[1]
+      listeners.savedFeaturesListener = it[2]
+    }
+
+    when: 'activate AppSec'
+    listeners.savedFeaturesListener.accept('asm_features conf',
+      listeners.savedFeaturesDeserializer.deserialize('{"asm":{"enabled": true}}'.bytes),
+      NOOP)
+
+    and: 'accept then remove (cancel accept), then commit'
+    listeners.savedWafDataChangesListener.accept(key, '''{"rules_override": [{"rules_target": [{"rule_id": "foo"}], "enabled": false}]}'''.getBytes(), NOOP)
+    listeners.savedWafDataChangesListener.remove(key, NOOP)
+    listeners.savedWafDataChangesListener.commit(NOOP)
+
+    then: 'config removed (never applied)'
+    service.usedDDWafConfigKeys.empty
+  }
 
   private static AppSecFeatures autoUserInstrum(String mode) {
     return new AppSecFeatures().tap { features ->
