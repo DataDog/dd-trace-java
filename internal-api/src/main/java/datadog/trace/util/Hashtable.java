@@ -585,7 +585,9 @@ public final class Hashtable {
     @SuppressWarnings("unchecked")
     public TEntry next() {
       Hashtable.Entry cur = this.nextEntry;
-      if (cur == null) throw new NoSuchElementException("no next!");
+      if (cur == null) {
+        throw new NoSuchElementException("no next!");
+      }
 
       Hashtable.Entry advance = cur.next();
       while (advance != null && advance.keyHash != keyHash) {
@@ -643,7 +645,9 @@ public final class Hashtable {
       } else {
         Hashtable.Entry prev, cur;
         for (prev = null, cur = headEntry; cur != null; prev = cur, cur = cur.next()) {
-          if (cur.keyHash == keyHash) break;
+          if (cur.keyHash == keyHash) {
+            break;
+          }
         }
         this.nextPrevEntry = prev;
         this.nextEntry = cur;
@@ -662,7 +666,9 @@ public final class Hashtable {
     @SuppressWarnings("unchecked")
     public TEntry next() {
       Hashtable.Entry curEntry = this.nextEntry;
-      if (curEntry == null) throw new NoSuchElementException("no next!");
+      if (curEntry == null) {
+        throw new NoSuchElementException("no next!");
+      }
 
       this.curEntry = curEntry;
       this.curPrevEntry = this.nextPrevEntry;
@@ -671,7 +677,9 @@ public final class Hashtable {
       for (prev = this.nextEntry, cur = this.nextEntry.next();
           cur != null;
           prev = cur, cur = prev.next()) {
-        if (cur.keyHash == keyHash) break;
+        if (cur.keyHash == keyHash) {
+          break;
+        }
       }
       this.nextPrevEntry = prev;
       this.nextEntry = cur;
@@ -682,9 +690,15 @@ public final class Hashtable {
     @Override
     public void remove() {
       Hashtable.Entry oldCurEntry = this.curEntry;
-      if (oldCurEntry == null) throw new IllegalStateException();
+      if (oldCurEntry == null) {
+        throw new IllegalStateException();
+      }
 
-      this.setPrevNext(oldCurEntry.next());
+      Hashtable.Entry oldNext = oldCurEntry.next();
+      this.setPrevNext(oldNext);
+      // Detach the removed entry from the chain so stale references can't traverse back into
+      // the live chain and so a now-unreachable tail can be reclaimed by GC.
+      oldCurEntry.setNext(null);
 
       // If the next match was directly after oldCurEntry, its predecessor is now
       // curPrevEntry (oldCurEntry was just unlinked from the chain).
@@ -696,10 +710,15 @@ public final class Hashtable {
 
     public void replace(TEntry replacementEntry) {
       Hashtable.Entry oldCurEntry = this.curEntry;
-      if (oldCurEntry == null) throw new IllegalStateException();
+      if (oldCurEntry == null) {
+        throw new IllegalStateException();
+      }
 
-      replacementEntry.setNext(oldCurEntry.next());
+      Hashtable.Entry oldNext = oldCurEntry.next();
+      replacementEntry.setNext(oldNext);
       this.setPrevNext(replacementEntry);
+      // Detach the replaced entry from the chain; the replacement now owns the chain slot.
+      oldCurEntry.setNext(null);
 
       // If the next match was directly after oldCurEntry, its predecessor is now
       // the replacement entry (which took oldCurEntry's chain slot).
@@ -777,7 +796,9 @@ public final class Hashtable {
     @SuppressWarnings("unchecked")
     public TEntry next() {
       Hashtable.Entry e = this.nextEntry;
-      if (e == null) throw new NoSuchElementException("no next!");
+      if (e == null) {
+        throw new NoSuchElementException("no next!");
+      }
 
       this.curEntry = e;
       this.curPrevEntry = this.nextPrevEntry;
@@ -797,13 +818,20 @@ public final class Hashtable {
     @Override
     public void remove() {
       Hashtable.Entry oldCurEntry = this.curEntry;
-      if (oldCurEntry == null) throw new IllegalStateException();
-
-      if (this.curPrevEntry == null) {
-        this.buckets[this.curBucketIndex] = oldCurEntry.next();
-      } else {
-        this.curPrevEntry.setNext(oldCurEntry.next());
+      if (oldCurEntry == null) {
+        throw new IllegalStateException();
       }
+
+      Hashtable.Entry oldNext = oldCurEntry.next();
+      if (this.curPrevEntry == null) {
+        this.buckets[this.curBucketIndex] = oldNext;
+      } else {
+        this.curPrevEntry.setNext(oldNext);
+      }
+      // Detach the removed entry from the chain so stale references can't traverse back into
+      // the live chain and so a now-unreachable tail can be reclaimed by GC.
+      oldCurEntry.setNext(null);
+
       // If the next entry was the immediate chain successor of oldCurEntry, its predecessor is
       // now what came before oldCurEntry (oldCurEntry was just unlinked).
       if (this.nextPrevEntry == oldCurEntry) {
