@@ -9,6 +9,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
+import javax.annotation.Nullable;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -107,11 +108,10 @@ final class AggregateEntry extends Hashtable.Entry {
 
   /**
    * Lazily allocated on the first recorded error. Most entries never see an error and keep this
-   * field {@code null} forever; {@link #getErrorLatencies()} returns a shared empty histogram in
-   * that case. Once allocated, {@link #clear()} just clears it (does not null) since an entry that
-   * errored once tends to error again.
+   * field {@code null} forever. Once allocated, {@link #clear()} just clears it (does not null)
+   * since an entry that errored once tends to error again.
    */
-  private Histogram errorLatencies;
+  @Nullable private Histogram errorLatencies;
 
   private int errorCount;
   private int hitCount;
@@ -224,10 +224,11 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Returns the error histogram if any error was recorded, or {@code null} otherwise. Callers (only
-   * {@link SerializingMetricWriter}) treat null as "no errors this cycle" -- it serializes an empty
-   * histogram in that case.
+   * Returns the error histogram if any error was recorded; {@code null} means "no errors this
+   * cycle" and the only caller ({@link SerializingMetricWriter}) serializes an empty histogram in
+   * that case.
    */
+  @Nullable
   Histogram getErrorLatencies() {
     return errorLatencies;
   }
@@ -439,8 +440,8 @@ final class AggregateEntry extends Hashtable.Entry {
   /**
    * Returns the configured-additional-tag values in schema (alphabetical-by-key) order. Each slot
    * is either {@code null} (span didn't set that tag) or the canonical {@code "key:value"}
-   * UTF8BytesString. The array's length matches the schema; empty array when no additional tags
-   * are configured.
+   * UTF8BytesString. The array's length matches the schema; empty array when no additional tags are
+   * configured.
    */
   UTF8BytesString[] getAdditionalTags() {
     return additionalTags;
@@ -511,13 +512,13 @@ final class AggregateEntry extends Hashtable.Entry {
     int peerTagsCount;
 
     /**
-     * Reusable buffer of canonicalized additional-tag values. Slots {@code [0..additionalTagsCount)}
-     * are the live entries (slot {@code i} = the canonical {@code "key:value"} UTF8BytesString for
-     * the snapshot schema's {@code name(i)}, the handler's blocked sentinel if length-capped or
-     * cardinality-capped, or {@code null} when the span didn't set that tag). The buffer grows to
-     * fit the largest schema we've ever seen and never shrinks; trailing slots beyond {@code
-     * additionalTagsCount} are stale dead space and never read. {@link #toEntry} snapshots
-     * {@code [0..additionalTagsCount)} into a tight array on miss.
+     * Reusable buffer of canonicalized additional-tag values. Slots {@code
+     * [0..additionalTagsCount)} are the live entries (slot {@code i} = the canonical {@code
+     * "key:value"} UTF8BytesString for the snapshot schema's {@code name(i)}, the handler's blocked
+     * sentinel if length-capped or cardinality-capped, or {@code null} when the span didn't set
+     * that tag). The buffer grows to fit the largest schema we've ever seen and never shrinks;
+     * trailing slots beyond {@code additionalTagsCount} are stale dead space and never read. {@link
+     * #toEntry} snapshots {@code [0..additionalTagsCount)} into a tight array on miss.
      */
     UTF8BytesString[] additionalTagsBuffer = new UTF8BytesString[0];
 
@@ -568,11 +569,10 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying the schema's per-tag
-     * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs;
-     * we elide those from the buffer so the wire-format list-of-pairs only contains present peer
-     * tags.
+     * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs; we
+     * elide those from the buffer so the wire-format list-of-pairs only contains present peer tags.
      */
-    private void populatePeerTags(PeerTagSchema schema, String[] values) {
+    private void populatePeerTags(@Nullable PeerTagSchema schema, @Nullable String[] values) {
       peerTagsCount = 0;
       if (schema == null || values == null) {
         return;
@@ -593,13 +593,14 @@ final class AggregateEntry extends Hashtable.Entry {
      * Fills {@link #additionalTagsBuffer}{@code [0..additionalTagsCount)} with canonical {@code
      * "key:value"} UTF8BytesStrings for each non-null slot in {@code values}, using the snapshot's
      * schema for both the live length and the per-key handler. The handler enforces the length cap
-     * and the cardinality cap and returns its {@code "<key>:blocked_by_tracer"} sentinel for
-     * either kind of overflow. Absent slots stay {@code null} so the wire format skips them.
+     * and the cardinality cap and returns its {@code "<key>:blocked_by_tracer"} sentinel for either
+     * kind of overflow. Absent slots stay {@code null} so the wire format skips them.
      *
      * <p>The buffer grows to fit the snapshot's schema and is never shrunk; trailing slots beyond
      * {@code additionalTagsCount} are never read by hash / match / clone, so they don't leak.
      */
-    private void populateAdditionalTags(AdditionalTagsSchema schema, String[] values) {
+    private void populateAdditionalTags(
+        @Nullable AdditionalTagsSchema schema, @Nullable String[] values) {
       additionalTagsCount = schema == null ? 0 : schema.size();
       if (additionalTagsCount == 0 || values == null) {
         additionalTagsCount = 0;
