@@ -2,14 +2,10 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
@@ -21,12 +17,10 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<Batch> batchPool;
   private final MessagePassingQueue<InboxItem> inbox;
-  private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final ConcurrentMap<MetricKey, Batch> pending;
-  private final Set<MetricKey> commonKeys;
+  private final AggregateTable aggregates;
   private final MetricWriter writer;
+  private final HealthMetrics healthMetrics;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
   // buffered by OkHttpSink)
@@ -41,20 +35,14 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics) {
     this(
         writer,
-        batchPool,
         inbox,
-        pending,
-        commonKeys,
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
@@ -64,28 +52,18 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics) {
     this.writer = writer;
-    this.batchPool = batchPool;
     this.inbox = inbox;
-    this.commonKeys = commonKeys;
-    this.aggregates =
-        new LRUCache<>(
-            new CommonKeyCleaner(commonKeys, healthMetrics),
-            maxAggregates * 4 / 3,
-            0.75f,
-            maxAggregates);
-    this.pending = pending;
+    this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
+    this.healthMetrics = healthMetrics;
   }
 
   public void clearAggregates() {
@@ -118,7 +96,17 @@ final class Aggregator implements Runnable {
 
     @Override
     public void accept(InboxItem item) {
-      if (item instanceof SignalItem) {
+      if (item == ClearSignal.CLEAR) {
+        // ClearSignal is routed through the inbox (rather than letting the caller mutate
+        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
+        // race with Drainer.accept on this thread.
+        if (!stopped) {
+          aggregates.clear();
+          inbox.clear();
+        }
+        ((SignalItem) item).complete();
+      } else if (item instanceof SignalItem) {
         SignalItem signal = (SignalItem) item;
         if (!stopped) {
           report(wallClockTime(), signal);
@@ -129,16 +117,16 @@ final class Aggregator implements Runnable {
         } else {
           signal.ignore();
         }
-      } else if (item instanceof Batch && !stopped) {
-        Batch batch = (Batch) item;
-        MetricKey key = batch.getKey();
-        // important that it is still *this* batch pending, must not remove otherwise
-        pending.remove(key, batch);
-        AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        batch.contributeTo(aggregate);
-        dirty = true;
-        // return the batch for reuse
-        batchPool.offer(batch);
+      } else if (item instanceof SpanSnapshot && !stopped) {
+        SpanSnapshot snapshot = (SpanSnapshot) item;
+        AggregateEntry entry = aggregates.findOrInsert(snapshot);
+        if (entry != null) {
+          entry.recordOneDuration(snapshot.tagAndDuration);
+          dirty = true;
+        } else {
+          // table at cap with no stale entry available to evict
+          healthMetrics.onStatsAggregateDropped();
+        }
       }
     }
   }
@@ -147,14 +135,16 @@ final class Aggregator implements Runnable {
     boolean skipped = true;
     if (dirty) {
       try {
-        expungeStaleAggregates();
+        aggregates.expungeStaleAggregates();
         if (!aggregates.isEmpty()) {
           skipped = false;
           writer.startBucket(aggregates.size(), when, reportingIntervalNanos);
-          for (Map.Entry<MetricKey, AggregateMetric> aggregate : aggregates.entrySet()) {
-            writer.add(aggregate.getKey(), aggregate.getValue());
-            aggregate.getValue().clear();
-          }
+          aggregates.forEach(
+              writer,
+              (w, entry) -> {
+                w.add(entry);
+                entry.clear();
+              });
           // note that this may do IO and block
           writer.finishBucket();
         }
@@ -170,39 +160,7 @@ final class Aggregator implements Runnable {
     }
   }
 
-  private void expungeStaleAggregates() {
-    Iterator<Map.Entry<MetricKey, AggregateMetric>> it = aggregates.entrySet().iterator();
-    while (it.hasNext()) {
-      Map.Entry<MetricKey, AggregateMetric> pair = it.next();
-      AggregateMetric metric = pair.getValue();
-      if (metric.getHitCount() == 0) {
-        it.remove();
-        commonKeys.remove(pair.getKey());
-      }
-    }
-  }
-
   private long wallClockTime() {
     return MILLISECONDS.toNanos(System.currentTimeMillis());
-  }
-
-  private static final class CommonKeyCleaner
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-
-    private final Set<MetricKey> commonKeys;
-    private final HealthMetrics healthMetrics;
-
-    private CommonKeyCleaner(Set<MetricKey> commonKeys, HealthMetrics healthMetrics) {
-      this.commonKeys = commonKeys;
-      this.healthMetrics = healthMetrics;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      commonKeys.remove(expired.getKey());
-      if (expired.getValue().getHitCount() > 0) {
-        healthMetrics.onStatsAggregateDropped();
-      }
-    }
   }
 }
