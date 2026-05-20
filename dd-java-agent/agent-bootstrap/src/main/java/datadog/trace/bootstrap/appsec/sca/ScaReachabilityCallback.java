@@ -60,9 +60,9 @@ public final class ScaReachabilityCallback {
       if (h == null) {
         return;
       }
-      // Include dotClassName so that two different classes in the same artifact that share
-      // a method name (e.g. ClassA.parse and ClassB.parse) produce independent hits.
-      String key = vulnId + "|" + artifact + "|" + dotClassName + "|" + methodName;
+      // Include version and dotClassName: version isolates hits across artifact versions loaded
+      // in separate classloaders; dotClassName distinguishes classes with the same method name.
+      String key = vulnId + "|" + artifact + "|" + version + "|" + dotClassName + "|" + methodName;
       if (reported.add(key)) {
         h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
       }
