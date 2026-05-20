@@ -20,10 +20,18 @@ final class SpanSnapshot implements InboxItem {
   final String spanKind;
 
   /**
-   * Flattened name/value pairs of peer-tag matches: {@code [name0, value0, name1, value1, ...]}.
-   * {@code null} when there are no matches (the common case).
+   * Schema for {@link #peerTagValues}. {@code null} when the span has no peer tags. The schema
+   * carries the names in parallel-array form; {@code peerTagValues} holds the per-span tag values
+   * at the same indices.
    */
-  final String[] peerTagPairs;
+  final PeerTagSchema peerTagSchema;
+
+  /**
+   * Peer tag values captured from the span, parallel to {@code peerTagSchema.names}. A {@code null}
+   * entry means the span didn't have that peer tag set. {@code null} (the whole array) when {@link
+   * #peerTagSchema} is {@code null}.
+   */
+  final String[] peerTagValues;
 
   final String httpMethod;
   final String httpEndpoint;
@@ -42,7 +50,8 @@ final class SpanSnapshot implements InboxItem {
       boolean synthetic,
       boolean traceRoot,
       String spanKind,
-      String[] peerTagPairs,
+      PeerTagSchema peerTagSchema,
+      String[] peerTagValues,
       String httpMethod,
       String httpEndpoint,
       String grpcStatusCode,
@@ -56,7 +65,8 @@ final class SpanSnapshot implements InboxItem {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.spanKind = spanKind;
-    this.peerTagPairs = peerTagPairs;
+    this.peerTagSchema = peerTagSchema;
+    this.peerTagValues = peerTagValues;
     this.httpMethod = httpMethod;
     this.httpEndpoint = httpEndpoint;
     this.grpcStatusCode = grpcStatusCode;

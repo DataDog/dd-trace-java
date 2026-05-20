@@ -158,23 +158,44 @@ final class Aggregator implements Runnable {
         s.synthetic,
         s.traceRoot,
         SPAN_KINDS.computeIfAbsent(s.spanKind, UTF8BytesString::create),
-        materializePeerTags(s.peerTagPairs),
+        materializePeerTags(s.peerTagSchema, s.peerTagValues),
         s.httpMethod,
         s.httpEndpoint,
         s.grpcStatusCode);
   }
 
-  private static List<UTF8BytesString> materializePeerTags(String[] pairs) {
-    if (pairs == null || pairs.length == 0) {
+  /**
+   * Encodes the per-span peer-tag values into the {@code List<UTF8BytesString>} the {@link
+   * MetricKey} consumes. Reads name/value pairs at the same index from the schema's names and the
+   * snapshot's values; null value slots are skipped (the span didn't set that peer tag).
+   */
+  private static List<UTF8BytesString> materializePeerTags(PeerTagSchema schema, String[] values) {
+    if (schema == null || values == null) {
       return Collections.emptyList();
     }
-    if (pairs.length == 2) {
-      // single-entry fast path (matches the original singletonList shape for INTERNAL spans)
-      return Collections.singletonList(encodePeerTag(pairs[0], pairs[1]));
+    String[] names = schema.names;
+    int n = names.length;
+    // Single-entry fast path (matches the original singletonList shape for INTERNAL spans and any
+    // other case where exactly one peer tag fired).
+    int firstHit = -1;
+    int hitCount = 0;
+    for (int i = 0; i < n; i++) {
+      if (values[i] != null) {
+        if (hitCount == 0) firstHit = i;
+        hitCount++;
+      }
     }
-    List<UTF8BytesString> tags = new ArrayList<>(pairs.length / 2);
-    for (int i = 0; i < pairs.length; i += 2) {
-      tags.add(encodePeerTag(pairs[i], pairs[i + 1]));
+    if (hitCount == 0) {
+      return Collections.emptyList();
+    }
+    if (hitCount == 1) {
+      return Collections.singletonList(encodePeerTag(names[firstHit], values[firstHit]));
+    }
+    List<UTF8BytesString> tags = new ArrayList<>(hitCount);
+    for (int i = firstHit; i < n; i++) {
+      if (values[i] != null) {
+        tags.add(encodePeerTag(names[i], values[i]));
+      }
     }
     return tags;
   }

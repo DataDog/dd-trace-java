@@ -2,7 +2,6 @@ package datadog.trace.common.metrics;
 
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT;
 import static datadog.trace.api.DDSpanTypes.RPC;
-import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
@@ -93,6 +92,21 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final DDAgentFeaturesDiscovery features;
   private final HealthMetrics healthMetrics;
   private final boolean includeEndpointInMetrics;
+
+  /**
+   * Cached peer-aggregation schema, keyed by reference equality of the {@code Set<String>} returned
+   * by {@link DDAgentFeaturesDiscovery#peerTags()}. {@code DDAgentFeaturesDiscovery} caches the Set
+   * on its current state, so reference identity changes exactly when discovery replaces state with
+   * a new tag configuration -- a single volatile read + a reference compare on the steady-state hot
+   * path. The {@code synchronized} refresh is the only allocator on a miss.
+   *
+   * <p>Both fields are written together inside the synchronized block, but read independently --
+   * the reference-equality check on the source Set is what guards against using a stale schema, so
+   * tearing on the schema field alone is not a correctness concern.
+   */
+  private volatile Set<String> cachedPeerTagsSource;
+
+  private volatile PeerTagSchema cachedPeerTagSchema;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
 
@@ -326,6 +340,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
+    PeerTagSchema peerTagSchema = peerTagSchemaFor(span);
+    String[] peerTagValues =
+        peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
+    if (peerTagValues == null) {
+      // No tags fired -- drop the schema reference so the consumer doesn't bother iterating an
+      // all-null array.
+      peerTagSchema = null;
+    }
+
     SpanSnapshot snapshot =
         new SpanSnapshot(
             span.getResourceName(),
@@ -337,7 +360,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             isSynthetic(span),
             span.getParentId() == 0,
             spanKind,
-            extractPeerTagPairs(span),
+            peerTagSchema,
+            peerTagValues,
             httpMethod,
             httpEndpoint,
             grpcStatusCode,
@@ -349,39 +373,67 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return error;
   }
 
-  private String[] extractPeerTagPairs(CoreSpan<?> span) {
+  /**
+   * Picks the peer-tag schema for a span. For internal-kind spans we always use the static {@link
+   * PeerTagSchema#INTERNAL} singleton (one entry for {@code base.service}); for {@code
+   * client}/{@code producer}/{@code consumer} kinds we use the cached peer-aggregation schema
+   * synced from {@link DDAgentFeaturesDiscovery#peerTags()}. Other kinds get {@code null}.
+   */
+  private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
     if (span.isKind(PEER_AGGREGATION_KINDS)) {
-      final Set<String> eligiblePeerTags = features.peerTags();
-      String[] pairs = null;
-      int count = 0;
-      for (String peerTag : eligiblePeerTags) {
-        Object value = span.unsafeGetTag(peerTag);
-        if (value != null) {
-          if (pairs == null) {
-            // pairs are flattened [name, value, ...]; size for worst case
-            pairs = new String[eligiblePeerTags.size() * 2];
-          }
-          pairs[count++] = peerTag;
-          pairs[count++] = value.toString();
-        }
-      }
-      if (pairs == null) {
-        return null;
-      }
-      if (count < pairs.length) {
-        String[] trimmed = new String[count];
-        System.arraycopy(pairs, 0, trimmed, 0, count);
-        return trimmed;
-      }
-      return pairs;
-    } else if (span.isKind(INTERNAL_KIND)) {
-      // in this case only the base service should be aggregated if present
-      final Object baseService = span.unsafeGetTag(BASE_SERVICE);
-      if (baseService != null) {
-        return new String[] {BASE_SERVICE, baseService.toString()};
-      }
+      PeerTagSchema schema = currentPeerAggSchema();
+      return schema.size() > 0 ? schema : null;
+    }
+    if (span.isKind(INTERNAL_KIND)) {
+      return PeerTagSchema.INTERNAL;
     }
     return null;
+  }
+
+  /**
+   * Returns the currently-cached peer-aggregation schema, rebuilding it if {@link
+   * DDAgentFeaturesDiscovery#peerTags()} has returned a different {@code Set} reference since the
+   * last cache. Steady-state cost: one volatile read + one reference compare.
+   */
+  private PeerTagSchema currentPeerAggSchema() {
+    Set<String> current = features.peerTags();
+    if (current == cachedPeerTagsSource) {
+      return cachedPeerTagSchema;
+    }
+    return refreshPeerAggSchema(current);
+  }
+
+  private synchronized PeerTagSchema refreshPeerAggSchema(Set<String> current) {
+    // Double-checked: another producer may have rebuilt while we were waiting on the monitor.
+    if (current == cachedPeerTagsSource) {
+      return cachedPeerTagSchema;
+    }
+    PeerTagSchema schema = PeerTagSchema.of(current);
+    cachedPeerTagSchema = schema;
+    cachedPeerTagsSource = current;
+    return schema;
+  }
+
+  /**
+   * Captures the span's peer-tag values into a {@code String[]} parallel to {@code schema.names}.
+   * Slots remain {@code null} for tags the span didn't set; the array itself is lazily allocated on
+   * the first hit so spans that fire no peer tags pay zero allocation. Returns {@code null} when
+   * none of the configured peer tags are set on the span.
+   */
+  private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
+    String[] names = schema.names;
+    int n = names.length;
+    String[] values = null;
+    for (int i = 0; i < n; i++) {
+      Object v = span.unsafeGetTag(names[i]);
+      if (v != null) {
+        if (values == null) {
+          values = new String[n];
+        }
+        values[i] = v.toString();
+      }
+    }
+    return values;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {
