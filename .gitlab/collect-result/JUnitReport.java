@@ -66,16 +66,43 @@ final class JUnitReport {
     return changed;
   }
 
+  /// Tags framework-emitted synthetic testcases so Test Optimization does not treat them as
+  /// real failures.
+  ///
+  /// **Criteria for new entries:**
+  /// - Must be a name the framework/runner emits itself — never a name a user-authored test
+  ///   could legitimately have.
+  /// - Must link to the source that emits the literal, pinned to a release tag (not a commit
+  ///   hash).
+  ///
+  /// **Frameworks/libraries to audit before adding a name:** JUnit 4, JUnit Platform engines
+  /// (Vintage / Jupiter), Gradle's JUnit and JUnit Platform adapters, TestNG, Spock, Kotest,
+  /// Maven Surefire/Failsafe. JUnit 5's main sources do not define these literals — Vintage
+  /// forwards `"initializationError"` from JUnit 4 as-is, and `"executionError"` is
+  /// Gradle-specific.
+  ///
+  /// **Do not add** generic English names such as `"test exception"`. Spock feature methods
+  /// (`def "..."()`), JUnit 5 `@DisplayName`, and Kotest specs can all produce them, so the
+  /// tagger would silently mask real pass/fail outcomes.
   void tagSyntheticFailures() {
     Map<String, List<Element>> initializationErrorsByClassname = new LinkedHashMap<>();
     for (var testcase : testcases()) {
-      var name = testcase.getAttribute("name");
-      if ("initializationError".equals(name)) {
-        initializationErrorsByClassname
-            .computeIfAbsent(testcase.getAttribute("classname"), ignored -> new ArrayList<>())
-            .add(testcase);
-      } else if ("executionError".equals(name) || "test exception".equals(name)) {
-        addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
+      switch (testcase.getAttribute("name")) {
+        // JUnit 4 ErrorReportingRunner — initializationError
+        // https://github.com/junit-team/junit4/blob/r4.13.2/src/main/java/org/junit/internal/runners/ErrorReportingRunner.java#L83
+        // Gradle JUnit Platform listener — reuses the same name for synthetic container failures
+        // https://github.com/gradle/gradle/blob/v8.14.5/platforms/jvm/testing-junit-platform/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L248
+        // https://github.com/gradle/gradle/blob/v9.5.0/platforms/jvm/testing-jvm-infrastructure/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L426
+        case "initializationError" ->
+            initializationErrorsByClassname
+                .computeIfAbsent(testcase.getAttribute("classname"), ignored -> new ArrayList<>())
+                .add(testcase);
+        // Gradle JUnit Platform listener — executionError, used when descendants already started
+        // https://github.com/gradle/gradle/blob/v8.14.5/platforms/jvm/testing-junit-platform/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L248
+        // https://github.com/gradle/gradle/blob/v9.5.0/platforms/jvm/testing-jvm-infrastructure/src/main/java/org/gradle/api/internal/tasks/testing/junitplatform/JUnitPlatformTestExecutionListener.java#L426
+        case "executionError" ->
+            addFinalStatusProperty(testcase, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
+        default -> {}
       }
     }
 
