@@ -89,12 +89,3 @@ tasks.withType(AbstractCopyTask).configureEach {
   // Don't know why the play plugin tries to copy the logback.xml file twice, but only accept it once
   duplicatesStrategy = DuplicatesStrategy.EXCLUDE
 }
-
-spotless {
-  java {
-    target "**/*.java"
-  }
-  scala {
-    target "**/*.scala"
-  }
-}
