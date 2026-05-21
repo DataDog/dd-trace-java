@@ -17,8 +17,6 @@ import org.junit.jupiter.api.Test;
 
 class TaskBlockHelperTest {
 
-  private static final long SPAN_ID = 0xDEADBEEFL;
-  private static final long ROOT_SPAN_ID = 0xCAFEBABEL;
   private static final long START_TICKS = 42_000_000L;
   private static final long BLOCKER = 1234L;
 
@@ -49,13 +47,15 @@ class TaskBlockHelperTest {
   }
 
   @Test
-  void capture_recordsActiveSpanAndEntryTiming() {
+  void capture_recordsEntryTimingWithoutSpanIds() {
+    // Span identity is captured natively at the recordTaskBlock JNI boundary; the Java-side
+    // State only retains the fields the native side cannot recompute (start tick, start nanos,
+    // blocker). The presence of an active span on the thread is still gated by capture() so we
+    // skip the JNI hop for span-less intervals.
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
     AgentSpan span = mock(AgentSpan.class);
     ProfilerSpanContext ctx = mock(ProfilerSpanContext.class);
     when(span.context()).thenReturn(ctx);
-    when(ctx.getSpanId()).thenReturn(SPAN_ID);
-    when(ctx.getRootSpanId()).thenReturn(ROOT_SPAN_ID);
     when(profiling.getCurrentTicks()).thenReturn(START_TICKS);
 
     long before = System.nanoTime();
@@ -67,8 +67,6 @@ class TaskBlockHelperTest {
     assertEquals(START_TICKS, state.startTicks);
     assertTrue(state.startNanos >= before, "startNanos should be captured after `before`");
     assertTrue(state.startNanos <= after, "startNanos should be captured before `after`");
-    assertEquals(SPAN_ID, state.spanId);
-    assertEquals(ROOT_SPAN_ID, state.rootSpanId);
     assertEquals(BLOCKER, state.blocker);
   }
 
@@ -87,12 +85,7 @@ class TaskBlockHelperTest {
     // startNanos far in the future so (now - startNanos) is negative and below threshold
     TaskBlockHelper.State state =
         new TaskBlockHelper.State(
-            profiling,
-            START_TICKS,
-            System.nanoTime() + 60_000_000_000L,
-            SPAN_ID,
-            ROOT_SPAN_ID,
-            BLOCKER);
+            profiling, START_TICKS, System.nanoTime() + 60_000_000_000L, BLOCKER);
 
     TaskBlockHelper.finish(state);
 
@@ -107,12 +100,11 @@ class TaskBlockHelperTest {
             profiling,
             START_TICKS,
             System.nanoTime() - 2 * TaskBlockHelper.MIN_TASK_BLOCK_NANOS,
-            SPAN_ID,
-            ROOT_SPAN_ID,
             BLOCKER);
 
     TaskBlockHelper.finish(state);
 
-    verify(profiling).recordTaskBlock(START_TICKS, SPAN_ID, ROOT_SPAN_ID, BLOCKER, 0L);
+    // Span ids are no longer passed across JNI; the native side reads them from OTEP TLS.
+    verify(profiling).recordTaskBlock(START_TICKS, BLOCKER, 0L);
   }
 }

@@ -1,6 +1,5 @@
 package datadog.trace.bootstrap.instrumentation.java.concurrent;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
@@ -36,40 +35,27 @@ public final class LockSupportHelper {
   public static final class ParkState {
     public final ProfilingContextIntegration profiling;
     public final long blockerHash;
-    public final long spanId;
-    public final long rootSpanId;
 
-    public ParkState(
-        ProfilingContextIntegration profiling, long blockerHash, long spanId, long rootSpanId) {
+    public ParkState(ProfilingContextIntegration profiling, long blockerHash) {
       this.profiling = profiling;
       this.blockerHash = blockerHash;
-      this.spanId = spanId;
-      this.rootSpanId = rootSpanId;
     }
   }
 
   public static ParkState captureState(Object blocker) {
-    return captureState(blocker, AgentTracer.get().getProfilingContext(), AgentTracer.activeSpan());
+    return captureState(blocker, AgentTracer.get().getProfilingContext());
   }
 
-  public static ParkState captureState(
-      Object blocker, ProfilingContextIntegration profiling, AgentSpan span) {
+  public static ParkState captureState(Object blocker, ProfilingContextIntegration profiling) {
     if (profiling == null) {
       return null;
     }
-    // Always call parkEnter for signal suppression, even without an active span.
-    // spanId/rootSpanId = 0 when no active span, and native TaskBlock eligibility filters out
-    // zero-span intervals at exit.
-    long spanId = 0L;
-    long rootSpanId = 0L;
-    ProfilerContext ctx = ProfilerContexts.of(span);
-    if (ctx != null) {
-      spanId = ctx.getSpanId();
-      rootSpanId = ctx.getRootSpanId();
-    }
-    profiling.parkEnter(spanId, rootSpanId);
+    // Always call parkEnter for signal suppression, even without an active span. The native side
+    // snapshots the OTEP TLS context at parkEnter; if no span is active the eventual TaskBlock is
+    // filtered out by the zero-span eligibility check at parkExit.
+    profiling.parkEnter();
     long blockerHash = blocker != null ? System.identityHashCode(blocker) : 0L;
-    return new ParkState(profiling, blockerHash, spanId, rootSpanId);
+    return new ParkState(profiling, blockerHash);
   }
 
   public static void finish(ParkState state) {
