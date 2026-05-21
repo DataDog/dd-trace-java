@@ -15,7 +15,6 @@ import datadog.trace.api.git.GitInfoProvider
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 import java.nio.ByteBuffer
-import java.util.concurrent.atomic.AtomicLongArray
 import org.msgpack.core.MessagePack
 import org.msgpack.core.MessageUnpacker
 
@@ -45,7 +44,7 @@ class SerializingMetricWriterTest extends DDSpecification {
       resource, service, operationName, serviceSource, type,
       httpStatusCode, synthetic, traceRoot, spanKind, peerTags,
       httpMethod, httpEndpoint, grpcStatusCode)
-    e.recordDurations(hitCount, new AtomicLongArray(1L))
+    hitCount.times { e.recordOneDuration(1L) }
     return e
   }
 

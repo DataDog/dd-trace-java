@@ -10,7 +10,6 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicLongArray;
 import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
@@ -25,17 +24,20 @@ class AggregateEntryTest {
   }
 
   @Test
-  void recordDurationsSumsToTotal() {
+  void recordOneDurationSumsToTotal() {
     AggregateEntry entry = newEntry();
-    entry.recordDurations(3, new AtomicLongArray(new long[] {1L, 2L, 3L}));
+    entry.recordOneDuration(1L);
+    entry.recordOneDuration(2L);
+    entry.recordOneDuration(3L);
     assertEquals(6, entry.getDuration());
   }
 
   @Test
   void clearResetsAllCounters() {
     AggregateEntry entry = newEntry();
-    entry.recordDurations(
-        3, new AtomicLongArray(new long[] {5L, ERROR_TAG | 6L, TOP_LEVEL_TAG | 7L}));
+    entry.recordOneDuration(5L);
+    entry.recordOneDuration(ERROR_TAG | 6L);
+    entry.recordOneDuration(TOP_LEVEL_TAG | 7L);
     entry.clear();
     assertEquals(0, entry.getDuration());
     assertEquals(0, entry.getErrorCount());
@@ -57,18 +59,11 @@ class AggregateEntryTest {
   }
 
   @Test
-  void recordDurationsIgnoresTrailingZeros() {
-    AggregateEntry entry = newEntry();
-    entry.recordDurations(3, new AtomicLongArray(new long[] {1L, 2L, 3L, 0L, 0L, 0L}));
-    assertEquals(6, entry.getDuration());
-    assertEquals(3, entry.getHitCount());
-    assertEquals(0, entry.getErrorCount());
-  }
-
-  @Test
   void hitCountIncludesErrors() {
     AggregateEntry entry = newEntry();
-    entry.recordDurations(3, new AtomicLongArray(new long[] {1L, 2L, 3L | ERROR_TAG}));
+    entry.recordOneDuration(1L);
+    entry.recordOneDuration(2L);
+    entry.recordOneDuration(3L | ERROR_TAG);
     assertEquals(3, entry.getHitCount());
     assertEquals(1, entry.getErrorCount());
   }
@@ -76,12 +71,12 @@ class AggregateEntryTest {
   @Test
   void okAndErrorLatenciesTrackedSeparately() {
     AggregateEntry entry = newEntry();
-    entry.recordDurations(
-        10,
-        new AtomicLongArray(
-            new long[] {
-              1L, 100L | ERROR_TAG, 2L, 99L | ERROR_TAG, 3L, 98L | ERROR_TAG, 4L, 97L | ERROR_TAG
-            }));
+    long[] durations = {
+      1L, 100L | ERROR_TAG, 2L, 99L | ERROR_TAG, 3L, 98L | ERROR_TAG, 4L, 97L | ERROR_TAG
+    };
+    for (long d : durations) {
+      entry.recordOneDuration(d);
+    }
     assertTrue(entry.getErrorLatencies().getMaxValue() >= 99);
     assertTrue(entry.getOkLatencies().getMaxValue() <= 5);
   }
