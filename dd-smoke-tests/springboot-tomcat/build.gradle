@@ -1,126 +1,34 @@
-import org.springframework.boot.gradle.tasks.bundling.BootWar
-
 plugins {
-  id 'war'
-  id 'org.springframework.boot' version '2.5.12'
-}
-
-ext {
-  serverName = 'tomcat'
-  serverModule = 'tomcat-9'
-  serverVersion = '9.0.117'
-  serverExtension = 'zip'
+  id 'dd-trace-java.smoke-test-app'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
-apply from: "$rootDir/gradle/spring-boot-plugin.gradle"
+
 description = 'SpringBoot Tomcat Smoke Tests.'
 
-repositories {
-  ivy {
-    url = 'https://dlcdn.apache.org'
-    patternLayout {
-      artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
-    }
-    metadataSources {
-      it.artifact()
-    }
-  }
-}
+def serverName = 'tomcat'
+def serverVersion = '9.0.117'
 
-configurations {
-  serverFile {
-    extendsFrom implementation
-    canBeResolved = true
+smokeTestApp {
+  application {
+    taskName = 'bootWar'
+    artifactPath = 'libs/springboot-tomcat-smoketest.war'
+    sysProperty = 'datadog.smoketest.springboot.war.path'
+    additionalSystemProperties.put('datadog.smoketest.tomcatDir', "apache-${serverName}-${serverVersion}")
   }
 }
 
 dependencies {
-  // uses the ivy repository url to download the tomcat server
-  // organisation = serverName, revision = serverVersion, module = serverModule, ext = serverExtension
-  serverFile "${serverName}:${serverModule}:${serverVersion}@${serverExtension}"
-
   testImplementation project(':dd-smoke-tests')
-}
-
-tasks.register("unzip", Copy) {
-  def zipFileNamePrefix = "tomcat"
-  def serverZipTree = providers.provider {
-    // eager access
-    def zipPath = project.configurations.serverFile.find {
-      it.name.startsWith(zipFileNamePrefix)
-    }
-    if (zipPath == null) {
-      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
-    }
-    zipTree(zipPath)
-  }
-
-  from serverZipTree
-  into layout.buildDirectory
-
-  // When tests are disabled this would still be run, so disable this manually
-  onlyIf { !project.rootProject.hasProperty("skipTests") }
-}
-
-dependencies {
-  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '2.5.12'
-  providedRuntime group: 'org.springframework.boot', name: 'spring-boot-starter-tomcat', version: '2.5.12'
   testImplementation group: 'commons-io', name: 'commons-io', version: '2.11.0'
-  testImplementation project(':dd-smoke-tests')
 }
 
-tasks.named('sourcesJar') {
-  dependsOn 'unzip'
-}
+spotless {
+  java {
+    target "**/*.java"
+  }
 
-tasks.named('javadocJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('bootWarMainClassName') {
-  dependsOn 'unzip'
-}
-
-tasks.named('war') {
-  dependsOn 'unzip'
-}
-
-tasks.named('javadocJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('sourcesJar') {
-  dependsOn 'unzip'
-}
-
-tasks.named('forbiddenApisMain') {
-  dependsOn 'unzip'
-}
-
-tasks.named('spotbugsMain') {
-  dependsOn 'unzip'
-}
-
-tasks.matching({it.name.startsWith('compileTest')}).configureEach {
-  dependsOn 'war', 'bootWar', 'unzip'
-}
-
-tasks.withType(Test).configureEach {
-  dependsOn "war", "bootWar", "unzip"
-
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        def bootWarTask = tasks.named('bootWar', BootWar).get()
-        return [
-          "-Ddatadog.smoketest.springboot.war.path=${bootWarTask.archiveFile.get().getAsFile()}",
-          "-Ddatadog.smoketest.tomcatDir=${layout.buildDirectory.get()}/apache-${serverName}-${serverVersion}"
-        ]
-      }
-    })
+  groovyGradle {
+    target '*.gradle', "**/*.gradle"
+  }
 }
