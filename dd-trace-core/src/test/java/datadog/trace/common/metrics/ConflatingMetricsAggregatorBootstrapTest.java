@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -12,13 +13,17 @@ import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
+import org.mockito.ArgumentCaptor;
 
 /**
  * Coverage for the {@code ConflatingMetricsAggregator} peer-tag schema bootstrap and reconcile
@@ -34,6 +39,9 @@ import org.junit.jupiter.api.Test;
  *   <li>{@link #reconcileSurvivesTimestampBumpWhenTagsUnchanged()} -- verifies that when the
  *       discovery timestamp changes but the tag set is identical, the schema continues to function
  *       correctly across cycles.
+ *   <li>{@link #reconcileSwapsSchemaWhenTagSetChanges()} -- verifies the slow-path swap branch:
+ *       when discovery refreshes with a new tag set, the cached schema is replaced and subsequent
+ *       publishes see the new tags.
  * </ul>
  */
 class ConflatingMetricsAggregatorBootstrapTest {
@@ -206,6 +214,97 @@ class ConflatingMetricsAggregatorBootstrapTest {
     }
   }
 
+  @Test
+  void reconcileSwapsSchemaWhenTagSetChanges() throws Exception {
+    // The reconcile slow-path's swap branch: discovery refreshes the timestamp AND the tag set
+    // grows. Cached schema is rebuilt and the volatile reference points at the new schema.
+    // Verification is end-to-end -- we look at the MetricKey the writer receives. Pre-swap the
+    // span snapshot was pinned to the old schema so only peer.hostname appears; post-swap a new
+    // publish reads the new schema and the next flush carries both peer tags.
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    MetricWriter writer = mock(MetricWriter.class);
+    Sink sink = mock(Sink.class);
+    DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
+    when(features.supportsMetrics()).thenReturn(true);
+    // peerTags() shape evolves across calls:
+    //   - bootstrap reads {peer.hostname}
+    //   - cycle 1 reconcile slow-path reads {peer.hostname, peer.service}
+    //   - cycle 2 reconcile is timestamp fast-path (no peerTags call)
+    when(features.peerTags())
+        .thenReturn(Collections.<String>singleton("peer.hostname"))
+        .thenReturn(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")));
+    // getLastTimeDiscovered() evolves: bootstrap = 1, then bumped to 2 for cycle 1's reconcile
+    // (mismatch -> slow path), stable at 2 for cycle 2's reconcile (match -> fast path).
+    when(features.getLastTimeDiscovered()).thenReturn(1L, 2L, 2L);
+
+    ConflatingMetricsAggregator aggregator =
+        new ConflatingMetricsAggregator(
+            Collections.<String>emptySet(),
+            features,
+            healthMetrics,
+            sink,
+            writer,
+            /* maxAggregates */ 16,
+            /* queueSize */ 64,
+            /* reportingInterval */ 10,
+            SECONDS,
+            /* includeEndpointInMetrics */ false);
+    aggregator.start();
+    try {
+      CountDownLatch cycle1 = new CountDownLatch(1);
+      CountDownLatch cycle2 = new CountDownLatch(1);
+      org.mockito.Mockito.doAnswer(
+              invocation -> {
+                cycle1.countDown();
+                return null;
+              })
+          .doAnswer(
+              invocation -> {
+                cycle2.countDown();
+                return null;
+              })
+          .when(writer)
+          .finishBucket();
+
+      // Publish 1: snapshot pinned to the original {peer.hostname} schema. cycle 1's reconcile
+      // will swap the cached schema BEFORE the flush, but this snapshot is already pinned so its
+      // MetricKey will still carry only peer.hostname.
+      aggregator.publish(
+          Collections.<CoreSpan<?>>singletonList(peerAggregationSpanWithBothPeerTags()));
+      aggregator.report();
+      assertTrue(cycle1.await(2, SECONDS));
+
+      // Publish 2: now reads the post-swap schema {peer.hostname, peer.service} so the snapshot
+      // captures both tag values. cycle 2's reconcile short-circuits on timestamp match.
+      aggregator.publish(
+          Collections.<CoreSpan<?>>singletonList(peerAggregationSpanWithBothPeerTags()));
+      aggregator.report();
+      assertTrue(cycle2.await(2, SECONDS));
+
+      // Capture every (MetricKey, AggregateMetric) the writer saw across both cycles. Pre-swap
+      // snapshot has 1 peer tag, post-swap has 2.
+      ArgumentCaptor<MetricKey> keyCaptor = ArgumentCaptor.forClass(MetricKey.class);
+      verify(writer, times(2)).add(keyCaptor.capture(), any(AggregateMetric.class));
+      List<MetricKey> keys = keyCaptor.getAllValues();
+      assertEquals(
+          Collections.singletonList(UTF8BytesString.create("peer.hostname:localhost")),
+          keys.get(0).getPeerTags(),
+          "pre-swap snapshot should encode only peer.hostname");
+      assertEquals(
+          Arrays.asList(
+              UTF8BytesString.create("peer.hostname:localhost"),
+              UTF8BytesString.create("peer.service:billing")),
+          keys.get(1).getPeerTags(),
+          "post-swap snapshot should encode both peer.hostname and peer.service");
+
+      // Bootstrap (1) + cycle 1 slow-path (1) -- cycle 2 is fast-path so doesn't reach peerTags().
+      verify(features, times(2)).peerTags();
+      verify(features, atLeastOnce()).getLastTimeDiscovered();
+    } finally {
+      aggregator.close();
+    }
+  }
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static CoreSpan<?> peerAggregationSpan() {
     CoreSpan span = mock(CoreSpan.class);
@@ -229,6 +328,19 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(span.unsafeGetTag(eq(Tags.SPAN_KIND), any(CharSequence.class))).thenReturn("client");
     // peer.hostname tag is set so capturePeerTagValues fires for the bootstrapped schema.
     when(span.unsafeGetTag("peer.hostname")).thenReturn("localhost");
+    return span;
+  }
+
+  /**
+   * Variant of {@link #peerAggregationSpan()} that sets both {@code peer.hostname} and {@code
+   * peer.service}. Used by {@link #reconcileSwapsSchemaWhenTagSetChanges()} where the schema
+   * evolves from {@code {peer.hostname}} to {@code {peer.hostname, peer.service}} mid-test, and the
+   * post-swap snapshot must be able to capture the newly-relevant tag value.
+   */
+  @SuppressWarnings({"rawtypes", "unchecked"})
+  private static CoreSpan<?> peerAggregationSpanWithBothPeerTags() {
+    CoreSpan span = peerAggregationSpan();
+    when(span.unsafeGetTag("peer.service")).thenReturn("billing");
     return span;
   }
 }

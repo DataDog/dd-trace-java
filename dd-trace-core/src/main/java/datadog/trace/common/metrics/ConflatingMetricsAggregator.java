@@ -397,11 +397,23 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     return schema;
   }
 
-  /** Builds a fresh {@link PeerTagSchema} from the current state of feature discovery. */
+  /**
+   * Builds a fresh {@link PeerTagSchema} from the current state of feature discovery.
+   *
+   * <p>Read order matters: {@code DDAgentFeaturesDiscovery} exposes {@code peerTags()} and {@code
+   * getLastTimeDiscovered()} as two separate accessors, each reading its volatile {@code
+   * discoveryState} independently. If a discovery refresh interleaves between the two reads, we
+   * want to be left with a schema whose embedded timestamp is *older* than its tag set rather than
+   * newer -- that way the next reconcile sees a timestamp mismatch and re-runs the deep compare to
+   * pick up the change, instead of short-circuiting on a too-fresh timestamp and missing it.
+   *
+   * <p>So read {@code getLastTimeDiscovered()} first, then {@code peerTags()}.
+   */
   private PeerTagSchema buildPeerTagSchema() {
+    long lastTimeDiscovered = features.getLastTimeDiscovered();
     Set<String> names = features.peerTags();
     return PeerTagSchema.of(
-        names == null ? Collections.<String>emptySet() : names, features.getLastTimeDiscovered());
+        names == null ? Collections.<String>emptySet() : names, lastTimeDiscovered);
   }
 
   /**
