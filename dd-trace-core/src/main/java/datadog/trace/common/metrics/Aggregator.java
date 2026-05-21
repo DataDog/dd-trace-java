@@ -180,9 +180,8 @@ final class Aggregator implements Runnable {
     int firstHit = -1;
     int hitCount = 0;
     for (int i = 0; i < n; i++) {
-      if (values[i] != null) {
-        if (hitCount == 0) firstHit = i;
-        hitCount++;
+      if (values[i] != null && hitCount++ == 0) {
+        firstHit = i;
       }
     }
     if (hitCount == 0) {
