@@ -324,12 +324,6 @@ class TraceGenerator {
     }
 
     @Override
-    boolean isKind(SpanKindFilter filter) {
-      def kind = metadata.getTags().get(Tags.SPAN_KIND)
-      return filter.matches(kind == null ? null : kind.toString())
-    }
-
-    @Override
     short getHttpStatusCode() {
       return httpStatusCode
     }

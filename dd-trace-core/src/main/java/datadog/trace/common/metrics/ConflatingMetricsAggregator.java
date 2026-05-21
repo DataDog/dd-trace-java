@@ -74,18 +74,20 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-aggregation schema, keyed by reference equality of the {@code Set<String>} returned
-   * by {@link DDAgentFeaturesDiscovery#peerTags()}. {@code DDAgentFeaturesDiscovery} caches the Set
-   * on its current state, so reference identity changes exactly when discovery replaces state with
-   * a new tag configuration -- a single volatile read + a reference compare on the steady-state hot
-   * path. The {@code synchronized} refresh is the only allocator on a miss.
+   * Cached peer-aggregation schema. Producers read this reference once per trace and pass it
+   * through to the consumer in {@link SpanSnapshot}; they never inspect the schema's timestamp or
+   * rebuild it. Reconciliation is the aggregator thread's job: {@link #reconcilePeerTagSchema()}
+   * compares the schema's {@link PeerTagSchema#lastTimeDiscovered} against {@link
+   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} once per reporting cycle and either bumps the
+   * timestamp in place (when the tag set is unchanged) or swaps in a freshly-built schema.
    *
-   * <p>Both fields are written together inside the synchronized block, but read independently --
-   * the reference-equality check on the source Set is what guards against using a stale schema, so
-   * tearing on the schema field alone is not a correctness concern.
+   * <p>{@code null} only on the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on
+   * the first publish.
+   *
+   * <p>{@code volatile} so the consumer's reconcile-time replacement is visible to producer
+   * threads; the schema's own internal mutable state ({@link PeerTagSchema#lastTimeDiscovered}) is
+   * exercised only on the aggregator thread.
    */
-  private volatile Set<String> cachedPeerTagsSource;
-
   private volatile PeerTagSchema cachedPeerTagSchema;
 
   private volatile AgentTaskScheduler.Scheduled<?> cancellation;
@@ -176,7 +178,13 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     this.sink = sink;
     this.aggregator =
         new Aggregator(
-            metricWriter, inbox, maxAggregates, reportingInterval, timeUnit, healthMetric);
+            metricWriter,
+            inbox,
+            maxAggregates,
+            reportingInterval,
+            timeUnit,
+            healthMetric,
+            this::reconcilePeerTagSchema);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;
@@ -361,7 +369,10 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
    */
   private PeerTagSchema peerTagSchemaFor(CoreSpan<?> span) {
     if (span.isKind(PEER_AGGREGATION_KINDS)) {
-      PeerTagSchema schema = currentPeerAggSchema();
+      PeerTagSchema schema = cachedPeerTagSchema;
+      if (schema == null) {
+        schema = bootstrapPeerTagSchema();
+      }
       return schema.size() > 0 ? schema : null;
     }
     if (span.isKind(INTERNAL_KIND)) {
@@ -371,27 +382,53 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   /**
-   * Returns the currently-cached peer-aggregation schema, rebuilding it if {@link
-   * DDAgentFeaturesDiscovery#peerTags()} has returned a different {@code Set} reference since the
-   * last cache. Steady-state cost: one volatile read + one reference compare.
+   * One-time producer-side bootstrap of {@link #cachedPeerTagSchema}. Synchronized double-check
+   * guards against two producers racing on the very first publish; after this returns, {@code
+   * cachedPeerTagSchema} is non-null forever and the aggregator thread is the sole subsequent
+   * mutator (see {@link #reconcilePeerTagSchema()}).
    */
-  private PeerTagSchema currentPeerAggSchema() {
-    Set<String> current = features.peerTags();
-    if (current == cachedPeerTagsSource) {
-      return cachedPeerTagSchema;
+  private synchronized PeerTagSchema bootstrapPeerTagSchema() {
+    PeerTagSchema cached = cachedPeerTagSchema;
+    if (cached != null) {
+      return cached;
     }
-    return refreshPeerAggSchema(current);
+    PeerTagSchema schema = buildPeerTagSchema();
+    cachedPeerTagSchema = schema;
+    return schema;
   }
 
-  private synchronized PeerTagSchema refreshPeerAggSchema(Set<String> current) {
-    // Double-checked: another producer may have rebuilt while we were waiting on the monitor.
-    if (current == cachedPeerTagsSource) {
-      return cachedPeerTagSchema;
+  /** Builds a fresh {@link PeerTagSchema} from the current state of feature discovery. */
+  private PeerTagSchema buildPeerTagSchema() {
+    Set<String> names = features.peerTags();
+    return PeerTagSchema.of(
+        names == null ? Collections.<String>emptySet() : names, features.getLastTimeDiscovered());
+  }
+
+  /**
+   * Reconciles {@link #cachedPeerTagSchema} with the latest feature discovery. Runs on the
+   * aggregator thread once per reporting cycle via the reset hook passed to {@link Aggregator}.
+   * Cheap fast path: a long compare against the cached schema's embedded timestamp short-circuits
+   * when discovery hasn't refreshed since the schema was built. On mismatch, a set compare
+   * distinguishes "discovery refreshed but tags unchanged" (just bump the timestamp in place) from
+   * "tags actually changed" (build a new schema and swap the volatile reference).
+   */
+  private void reconcilePeerTagSchema() {
+    PeerTagSchema cached = cachedPeerTagSchema;
+    if (cached == null) {
+      // First reset before the first publish -- producer-side bootstrap hasn't run yet.
+      return;
     }
-    PeerTagSchema schema = PeerTagSchema.of(current);
-    cachedPeerTagSchema = schema;
-    cachedPeerTagsSource = current;
-    return schema;
+    long latestDiscoveredAt = features.getLastTimeDiscovered();
+    if (cached.lastTimeDiscovered == latestDiscoveredAt) {
+      return;
+    }
+    Set<String> latestNames = features.peerTags();
+    Set<String> normalized = latestNames == null ? Collections.<String>emptySet() : latestNames;
+    if (cached.hasSameTagsAs(normalized)) {
+      cached.lastTimeDiscovered = latestDiscoveredAt;
+    } else {
+      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestDiscoveredAt);
+    }
   }
 
   /**
