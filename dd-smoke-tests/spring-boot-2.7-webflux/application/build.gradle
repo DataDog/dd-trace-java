@@ -16,8 +16,7 @@ if (hasProperty('appBuildDir')) {
 
 version = ""
 
-// Pin bytecode target explicitly: the nested daemon now runs on JDK 21, but the smoke test
-// launches the produced jar on Java 8.
+// Target Java 8 bytecode as daemon can run on JDK 21
 java {
   sourceCompatibility = JavaVersion.VERSION_1_8
 }
