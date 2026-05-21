@@ -25,7 +25,7 @@ abstract class AerospikeBaseTest extends VersionedNamingTestBase {
   int aerospikePort = 3000
 
   def setup() throws Exception {
-    // arm64 supported since ce-6.2.0.2
+    // Linux arm64 supported since `ce-6.2.0.2`
     aerospike = new GenericContainer('aerospike:ce-6.2.0.2')
       .withExposedPorts(3000)
       // proto-fd-max default is 15000, but container default is 1024.

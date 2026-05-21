@@ -81,9 +81,8 @@ private fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
     extension.allowReflectiveAccessToJdk
   )
 
-  // Fix for arm64 Linux ByteBuddy error:
+  // Fix for Linux arm64 ByteBuddy error:
   // "Could not self-attach to current VM using external process"
-  // Why it is needed on arm64: probably arm64 GitLab runners has stricter rules applied.
   if (HostPlatform.isLinuxArm64()) {
     conditionalJvmArgs(
       JavaVersion.VERSION_1_9,

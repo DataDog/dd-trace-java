@@ -83,10 +83,6 @@ allprojects {
     dependsOn(tasks.withType<AbstractCompile>())
   }
 
-  // Temurin 11/21 on Linux arm64 SIGSEGVs in SystemDictionary::define_instance_class
-  // during CDS shared-class restore. GRADLE_OPTS / org.gradle.jvmargs only reaches the
-  // Gradle daemon, so every forked JVM (Test executor, JavaCompile worker daemon when
-  // the toolchain differs from the daemon's JDK) must disable CDS on its own.
   val isLinuxArm64 = HostPlatform.isLinuxArm64()
 
   tasks.configureEach {
@@ -99,11 +95,13 @@ allprojects {
         "-XX:HeapDumpPath=/tmp"
       )
       if (isLinuxArm64) {
+        // Disable CDS to avoid SIGSEGVs on Linux arm64.
         jvmArgs("-Xshare:off")
       }
     }
   }
 
+  // Disable CDS to avoid SIGSEGVs on Linux arm64.
   if (isLinuxArm64) {
     tasks.withType<JavaCompile>().configureEach {
       options.forkOptions.jvmArgs?.add("-Xshare:off")

@@ -75,7 +75,7 @@ abstract class InstrumentPostProcessingAction @Inject constructor(
       forkOptions {
         setExecutable(javaLauncher.executablePath.asFile.absolutePath)
         if (HostPlatform.isLinuxArm64()) {
-          // Temurin on the arm64 Linux can crash during CDS shared-class restore;
+          // Disable CDS to avoid SIGSEGVs on Linux arm64.
           jvmArgs("-Xshare:off")
         }
       }

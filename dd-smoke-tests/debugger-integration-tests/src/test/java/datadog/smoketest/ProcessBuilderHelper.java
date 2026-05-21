@@ -57,7 +57,7 @@ class ProcessBuilderHelper {
                 "-Djava.util.prefs.userRoot=" + prefsDir));
 
     if (OperatingSystem.isLinux() && OperatingSystem.isArm64()) {
-      // Temurin on the arm64 Linux can crash during CDS shared-class restore;
+      // Disable CDS to avoid SIGSEGVs on Linux arm64.
       baseCommand.add(1, "-Xshare:off");
     }
 

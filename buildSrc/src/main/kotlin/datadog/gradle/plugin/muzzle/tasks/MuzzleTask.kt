@@ -104,7 +104,7 @@ abstract class MuzzleTask @Inject constructor(
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
           }
           if (HostPlatform.isLinuxArm64()) {
-            // Temurin on the arm64 Linux can crash during CDS shared-class restore;
+            // Disable CDS to avoid SIGSEGVs on Linux arm64.
             jvmArgs("-Xshare:off")
           }
           executable(javaLauncher.executablePath)

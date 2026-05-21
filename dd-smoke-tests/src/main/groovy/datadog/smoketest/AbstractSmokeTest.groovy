@@ -253,9 +253,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
       // ret += "-Ddd.dogstatsd.start-delay=0"
     }
 
-    // Disable CDS on Linux arm64: Temurin 11.0.31 / 21.0.10 hit a SIGSEGV during
-    // shared-class restore (ClassLoaderData::add_handle, Klass::class_loader)
-    // before any user code runs.
+    // Disable CDS to avoid SIGSEGVs on Linux arm64.
     if (OperatingSystem.isArm64() && OperatingSystem.isLinux()) {
       ret += "-Xshare:off"
     }

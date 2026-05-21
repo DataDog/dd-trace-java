@@ -101,8 +101,8 @@ tasks.withType(AbstractCopyTask).configureEach {
 
 if (HostPlatform.isLinuxArm64()) {
   tasks.named("compilePlayRoutes", RoutesCompile) { RoutesCompile task ->
-    // org.gradle.playframework.tasks.RoutesCompile does not expose worker fork options, but its
-    // worker JVM needs CDS disabled on Linux arm64 like the other forked JVMs in this build.
+    // org.gradle.playframework.tasks.RoutesCompile does not expose worker fork options,
+    // but its worker JVM needs CDS disabled on Linux arm64 to avoid SIGSEGVs.
     def workerExecutorField = RoutesCompile.getDeclaredField("workerExecutor")
     workerExecutorField.accessible = true
 

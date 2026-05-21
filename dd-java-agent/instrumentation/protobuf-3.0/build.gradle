@@ -28,7 +28,7 @@ protobuf {
   }
 }
 
-// protobuf supports arm64 linux since 3.12.0, but it is not source-compatible with 3.0.0
+// TODO: protobuf supports Linux arm64 since `3.12.0`, but it is not source-compatible with 3.0.0
 if (HostPlatform.isLinuxArm64()) {
   tasks.matching {
     it.name in [

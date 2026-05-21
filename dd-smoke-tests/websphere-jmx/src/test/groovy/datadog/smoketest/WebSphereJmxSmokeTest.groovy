@@ -24,8 +24,7 @@ import spock.lang.Shared
  *
  * Note that the websphere related metrics will only arrive if our instrumentation is applied.
  */
-// IBM does not publish an arm64 build of icr.io/appcafe/websphere-traditional, and the
-// arm64 CI runner has no amd64 emulation configured, so the container fails to start.
+//  There is no arm64 docker image for IBM icr.io/appcafe/websphere-traditional.
 @IgnoreIf({
   OperatingSystem.isArm64() && OperatingSystem.isLinux()
 })
