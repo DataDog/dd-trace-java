@@ -2,9 +2,12 @@ package datadog.trace.agent.jmxfetch;
 
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
 import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
 
+import com.sun.management.GarbageCollectionNotificationInfo;
 import com.sun.management.OperatingSystemMXBean;
+import com.sun.management.UnixOperatingSystemMXBean;
 import datadog.trace.bootstrap.otel.api.common.AttributeKey;
 import datadog.trace.bootstrap.otel.api.common.Attributes;
 import datadog.trace.bootstrap.otel.common.OtelInstrumentationScope;
@@ -16,17 +19,24 @@ import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.bootstrap.otel.metrics.data.OtelRunnableObservable;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ClassLoadingMXBean;
+import java.lang.management.GarbageCollectorMXBean;
 import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
 import java.lang.management.ThreadMXBean;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.ToLongFunction;
+import javax.management.Notification;
+import javax.management.NotificationEmitter;
+import javax.management.NotificationFilter;
+import javax.management.NotificationListener;
+import javax.management.openmbean.CompositeData;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -45,13 +55,27 @@ public final class JvmOtlpRuntimeMetrics {
       AttributeKey.stringKey("jvm.memory.pool.name");
   private static final AttributeKey<String> BUFFER_POOL =
       AttributeKey.stringKey("jvm.buffer.pool.name");
+  private static final AttributeKey<String> GC_NAME = AttributeKey.stringKey("jvm.gc.name");
+  private static final AttributeKey<String> GC_ACTION = AttributeKey.stringKey("jvm.gc.action");
+  private static final AttributeKey<String> GC_CAUSE = AttributeKey.stringKey("jvm.gc.cause");
   private static final Attributes HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "heap");
   private static final Attributes NON_HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "non_heap");
 
+  /** Explicit bucket advice for jvm.gc.duration in seconds (matches OTel runtime-telemetry). */
+  private static final List<Double> GC_DURATION_BUCKETS = Arrays.asList(0.01, 0.1, 1.0, 10.0);
+
+  private static final String GC_NOTIFICATION_TYPE = "com.sun.management.gc.notification";
+
   private static final AtomicBoolean started = new AtomicBoolean(false);
 
-  /** Registers all JVM runtime metric instruments on the bootstrap-level metric registry. */
-  public static void start() {
+  /**
+   * Registers all JVM runtime metric instruments on the bootstrap-level metric registry.
+   *
+   * @param emitExperimentalMetrics when {@code true} (the spec-aligned default), metrics marked as
+   *     <em>Development</em> in the OTel semantic conventions are also registered. When {@code
+   *     false}, only metrics with stable status are emitted.
+   */
+  public static void start(boolean emitExperimentalMetrics) {
     if (!started.compareAndSet(false, true)) {
       return;
     }
@@ -66,20 +90,31 @@ public final class JvmOtlpRuntimeMetrics {
               ((Attributes) attributes)
                   .forEach((a, v) -> visitor.visitAttribute(a.getType().ordinal(), a.getKey(), v)));
 
+      // Stable metrics — always registered.
       registerMemoryMetrics();
-      registerBufferMetrics();
       registerThreadMetrics();
       registerClassLoadingMetrics();
       registerCpuMetrics();
-      log.debug("Started OTLP runtime metrics with OTel-native naming (jvm.*)");
+      registerGcDurationMetric(emitExperimentalMetrics);
+
+      // Development-status metrics — gated by the experimental flag.
+      if (emitExperimentalMetrics) {
+        registerMemoryInitMetric();
+        registerBufferMetrics();
+        registerSystemCpuMetrics();
+        registerFileDescriptorMetrics();
+      }
+      log.debug(
+          "Started OTLP runtime metrics with OTel-native naming (jvm.*), experimental={}",
+          emitExperimentalMetrics);
     } catch (Exception e) {
       log.error("Failed to start JVM OTLP runtime metrics", e);
     }
   }
 
   /**
-   * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.init,
-   * jvm.memory.used_after_last_gc — all UpDownCounter per spec.
+   * jvm.memory.used, jvm.memory.committed, jvm.memory.limit, jvm.memory.used_after_last_gc — all
+   * Stable per spec. All UpDownCounter.
    */
   private static void registerMemoryMetrics() {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
@@ -118,34 +153,18 @@ public final class JvmOtlpRuntimeMetrics {
         UP_DOWN_COUNTER,
         storage -> {
           long heapMax = memoryBean.getHeapMemoryUsage().getMax();
-          if (heapMax > 0) {
+          if (heapMax != -1) {
             storage.recordLong(heapMax, HEAP_ATTRS);
           }
           long nonHeapMax = memoryBean.getNonHeapMemoryUsage().getMax();
-          if (nonHeapMax > 0) {
+          if (nonHeapMax != -1) {
             storage.recordLong(nonHeapMax, NON_HEAP_ATTRS);
           }
           for (MemoryPoolMXBean pool : pools) {
             long max = pool.getUsage().getMax();
-            if (max > 0) {
+            if (max != -1) {
               storage.recordLong(max, poolAttributes(pool));
             }
-          }
-        });
-
-    registerLongObservable(
-        "jvm.memory.init",
-        "Measure of initial memory requested.",
-        "By",
-        UP_DOWN_COUNTER,
-        storage -> {
-          long heapInit = memoryBean.getHeapMemoryUsage().getInit();
-          if (heapInit > 0) {
-            storage.recordLong(heapInit, HEAP_ATTRS);
-          }
-          long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
-          if (nonHeapInit > 0) {
-            storage.recordLong(nonHeapInit, NON_HEAP_ATTRS);
           }
         });
 
@@ -160,6 +179,26 @@ public final class JvmOtlpRuntimeMetrics {
             if (collectionUsage != null && collectionUsage.getUsed() >= 0) {
               storage.recordLong(collectionUsage.getUsed(), poolAttributes(pool));
             }
+          }
+        });
+  }
+
+  /** jvm.memory.init (UpDownCounter, Development). */
+  private static void registerMemoryInitMetric() {
+    MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+    registerLongObservable(
+        "jvm.memory.init",
+        "Measure of initial memory requested.",
+        "By",
+        UP_DOWN_COUNTER,
+        storage -> {
+          long heapInit = memoryBean.getHeapMemoryUsage().getInit();
+          if (heapInit != -1) {
+            storage.recordLong(heapInit, HEAP_ATTRS);
+          }
+          long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
+          if (nonHeapInit != -1) {
+            storage.recordLong(nonHeapInit, NON_HEAP_ATTRS);
           }
         });
   }
@@ -234,10 +273,7 @@ public final class JvmOtlpRuntimeMetrics {
    * Stable per spec.
    */
   private static void registerCpuMetrics() {
-    java.lang.management.OperatingSystemMXBean rawOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
-    OperatingSystemMXBean osBean =
-        rawOsBean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) rawOsBean : null;
+    OperatingSystemMXBean osBean = sunOsBean();
 
     if (osBean != null) {
       registerDoubleObservable(
@@ -263,6 +299,9 @@ public final class JvmOtlpRuntimeMetrics {
               storage.recordDouble(cpuLoad, Attributes.empty());
             }
           });
+    } else {
+      log.debug(
+          "com.sun.management.OperatingSystemMXBean not available; skipping jvm.cpu.time and jvm.cpu.recent_utilization");
     }
 
     registerLongObservable(
@@ -272,6 +311,164 @@ public final class JvmOtlpRuntimeMetrics {
         UP_DOWN_COUNTER,
         storage ->
             storage.recordLong(Runtime.getRuntime().availableProcessors(), Attributes.empty()));
+  }
+
+  /**
+   * jvm.gc.duration (Histogram, Stable) — synchronous; recorded from a JMX notification listener
+   * attached to each {@link GarbageCollectorMXBean} when the JVM completes a GC.
+   *
+   * <p>The {@code jvm.gc.cause} attribute is gated on {@code captureGcCause} because cause is not
+   * part of the stable attribute set in the OTel semantic conventions.
+   */
+  private static void registerGcDurationMetric(boolean captureGcCause) {
+    if (!isGcNotificationInfoAvailable()) {
+      log.debug(
+          "com.sun.management.GarbageCollectionNotificationInfo not available; skipping jvm.gc.duration");
+      return;
+    }
+    OtelMetricStorage storage =
+        registerDoubleHistogramStorage(
+            "jvm.gc.duration",
+            "Duration of JVM garbage collection actions.",
+            "s",
+            GC_DURATION_BUCKETS);
+    NotificationFilter filter = n -> GC_NOTIFICATION_TYPE.equals(n.getType());
+    GcNotificationListener listener = new GcNotificationListener(storage, captureGcCause);
+    for (GarbageCollectorMXBean bean : ManagementFactory.getGarbageCollectorMXBeans()) {
+      if (bean instanceof NotificationEmitter) {
+        ((NotificationEmitter) bean).addNotificationListener(listener, filter, null);
+      }
+    }
+  }
+
+  private static boolean isGcNotificationInfoAvailable() {
+    try {
+      Class.forName(
+          "com.sun.management.GarbageCollectionNotificationInfo",
+          false,
+          GarbageCollectorMXBean.class.getClassLoader());
+      return true;
+    } catch (ClassNotFoundException e) {
+      return false;
+    }
+  }
+
+  private static void recordGcDuration(
+      OtelMetricStorage storage, GarbageCollectionNotificationInfo info, boolean captureGcCause) {
+    double durationSeconds = info.getGcInfo().getDuration() / 1000d;
+    Attributes attrs =
+        captureGcCause
+            ? Attributes.of(
+                GC_NAME, info.getGcName(),
+                GC_ACTION, info.getGcAction(),
+                GC_CAUSE, info.getGcCause())
+            : Attributes.of(
+                GC_NAME, info.getGcName(),
+                GC_ACTION, info.getGcAction());
+    storage.recordDouble(durationSeconds, attrs);
+  }
+
+  /** Listener fired by the JVM on the JMX notification thread when a GC completes. */
+  static final class GcNotificationListener implements NotificationListener {
+    private final OtelMetricStorage storage;
+    private final boolean captureGcCause;
+
+    GcNotificationListener(OtelMetricStorage storage, boolean captureGcCause) {
+      this.storage = storage;
+      this.captureGcCause = captureGcCause;
+    }
+
+    @Override
+    public void handleNotification(Notification notification, Object handback) {
+      GarbageCollectionNotificationInfo info =
+          GarbageCollectionNotificationInfo.from((CompositeData) notification.getUserData());
+      recordGcDuration(storage, info, captureGcCause);
+    }
+  }
+
+  /**
+   * jvm.system.cpu.utilization (Gauge) and jvm.system.cpu.load_1m (Gauge) — both Development per
+   * spec.
+   */
+  private static void registerSystemCpuMetrics() {
+    OperatingSystemMXBean osBean = sunOsBean();
+    if (osBean != null) {
+      registerDoubleObservable(
+          "jvm.system.cpu.utilization",
+          "Recent CPU utilization for the whole system as reported by the JVM.",
+          "1",
+          GAUGE,
+          storage -> {
+            double load = osBean.getSystemCpuLoad();
+            if (load >= 0) {
+              storage.recordDouble(load, Attributes.empty());
+            }
+          });
+    } else {
+      log.debug(
+          "com.sun.management.OperatingSystemMXBean not available; skipping jvm.system.cpu.utilization");
+    }
+
+    java.lang.management.OperatingSystemMXBean stdOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    registerDoubleObservable(
+        "jvm.system.cpu.load_1m",
+        "Average CPU load of the whole system for the last minute as reported by the JVM.",
+        "{run_queue_item}",
+        GAUGE,
+        storage -> {
+          double load = stdOsBean.getSystemLoadAverage();
+          if (load >= 0) {
+            storage.recordDouble(load, Attributes.empty());
+          }
+        });
+  }
+
+  /**
+   * jvm.file_descriptor.count (UpDownCounter) and jvm.file_descriptor.limit (UpDownCounter) — both
+   * Development per spec. Only registered when the underlying JVM exposes {@link
+   * UnixOperatingSystemMXBean} (Unix-like platforms).
+   */
+  private static void registerFileDescriptorMetrics() {
+    java.lang.management.OperatingSystemMXBean rawOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    if (!(rawOsBean instanceof UnixOperatingSystemMXBean)) {
+      log.debug(
+          "com.sun.management.UnixOperatingSystemMXBean not available (non-Unix JVM); skipping jvm.file_descriptor.count and jvm.file_descriptor.limit");
+      return;
+    }
+    UnixOperatingSystemMXBean unixOsBean = (UnixOperatingSystemMXBean) rawOsBean;
+
+    registerLongObservable(
+        "jvm.file_descriptor.count",
+        "Number of open file descriptors as reported by the JVM.",
+        "{file_descriptor}",
+        UP_DOWN_COUNTER,
+        storage -> {
+          long count = unixOsBean.getOpenFileDescriptorCount();
+          if (count >= 0) {
+            storage.recordLong(count, Attributes.empty());
+          }
+        });
+
+    registerLongObservable(
+        "jvm.file_descriptor.limit",
+        "Measure of max open file descriptors as reported by the JVM.",
+        "{file_descriptor}",
+        UP_DOWN_COUNTER,
+        storage -> {
+          long limit = unixOsBean.getMaxFileDescriptorCount();
+          if (limit >= 0) {
+            storage.recordLong(limit, Attributes.empty());
+          }
+        });
+  }
+
+  /** Returns the {@code com.sun.management} OS bean if available on this JVM, else {@code null}. */
+  private static OperatingSystemMXBean sunOsBean() {
+    java.lang.management.OperatingSystemMXBean rawOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    return rawOsBean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) rawOsBean : null;
   }
 
   /**
@@ -330,6 +527,21 @@ public final class JvmOtlpRuntimeMetrics {
     OtelMetricStorage storage = registerStorage(builder.observableDescriptor());
     OtelMetricRegistry.INSTANCE.registerObservable(
         JVM_SCOPE, new OtelRunnableObservable(() -> callback.accept(storage)));
+  }
+
+  /**
+   * Registers a synchronous double histogram against the bootstrap registry and returns its storage
+   * so callers can record values directly (e.g. from a JMX notification listener).
+   */
+  private static OtelMetricStorage registerDoubleHistogramStorage(
+      String name, String description, String unit, List<Double> bucketBoundaries) {
+    OtelInstrumentBuilder builder = OtelInstrumentBuilder.ofDoubles(name, HISTOGRAM);
+    builder.setDescription(description);
+    builder.setUnit(unit);
+    return OtelMetricRegistry.INSTANCE.registerStorage(
+        JVM_SCOPE,
+        builder.descriptor(),
+        descriptor -> OtelMetricStorage.newHistogramStorage(descriptor, bucketBoundaries));
   }
 
   /** Registers metric storage for the instrument against the bootstrap registry. */
