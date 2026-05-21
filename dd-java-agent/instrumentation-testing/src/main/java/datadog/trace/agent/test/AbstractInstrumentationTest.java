@@ -69,6 +69,8 @@ public abstract class AbstractInstrumentationTest {
 
   @BeforeAll
   static void initAll() {
+    InstrumentationErrors.resetErrors();
+
     // If this fails, it's likely the result of another test loading Config before it can be
     // injected into the bootstrap classpath.
     assertNull(Config.class.getClassLoader(), "Config must load on the bootstrap classpath.");

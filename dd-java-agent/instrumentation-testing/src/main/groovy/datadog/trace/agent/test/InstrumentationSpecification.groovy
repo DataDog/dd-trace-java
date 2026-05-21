@@ -349,6 +349,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   @SuppressForbidden
   void setupSpec() {
+    InstrumentationErrors.resetErrors()
+
     AgentMeter.registerIfAbsent(
     STATS_D_CLIENT,
     new MonitoringImpl(STATS_D_CLIENT, 10, TimeUnit.SECONDS),
