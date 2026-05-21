@@ -1,0 +1,15 @@
+[
+  {
+    "language": "jvm",
+    "package": [
+      {
+        "ecosystem": "maven",
+        "name": "org.example:some-lib",
+        "version_range": ["< 1.0.0"]
+      }
+    ],
+    "ecosystem_specific": {
+      "imports": []
+    }
+  }
+]
