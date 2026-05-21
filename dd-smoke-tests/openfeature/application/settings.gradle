@@ -29,7 +29,6 @@ def isCI = providers.environmentVariable("CI").isPresent()
 // (and across CI jobs that mount the same workspace). See f6ec1f5cc8 / #982 for the
 // root-level cache, and b34ccbc048 for the `isCI` gating — locally we keep the default
 // per-user cache to avoid leaking entries into the repo tree.
-// The directory must line up with the outer project's settings.gradle.
 if (isCI) {
   def sharedRootDir = "$rootDir/../../../"
   buildCache {
@@ -39,4 +38,4 @@ if (isCI) {
   }
 }
 
-rootProject.name='webflux-2.7-smoketest'
+rootProject.name = 'openfeature-smoketest'
