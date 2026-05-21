@@ -21,7 +21,7 @@ import java.util.concurrent.CountDownLatch;
 import org.junit.jupiter.api.Test;
 
 /**
- * Coverage for the {@code ConflatingMetricsAggregator} peer-tag schema bootstrap and reconcile
+ * Coverage for the {@code ClientStatsAggregator} peer-tag schema bootstrap and reconcile
  * paths.
  *
  * <ul>
@@ -36,7 +36,7 @@ import org.junit.jupiter.api.Test;
  *       correctly across cycles.
  * </ul>
  */
-class ConflatingMetricsAggregatorBootstrapTest {
+class ClientStatsAggregatorBootstrapTest {
 
   @Test
   void bootstrapHappensOnceOnFirstPublish() {
@@ -50,8 +50,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.getLastTimeDiscovered()).thenReturn(1000L);
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -87,8 +87,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
     when(features.getLastTimeDiscovered()).thenReturn(1000L);
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
@@ -156,8 +156,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
     // Timestamp bumps every reconcile -- forces reconcile into the slow path each time.
     when(features.getLastTimeDiscovered()).thenReturn(1L, 2L, 3L);
 
-    ConflatingMetricsAggregator aggregator =
-        new ConflatingMetricsAggregator(
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
             Collections.<String>emptySet(),
             features,
             healthMetrics,
