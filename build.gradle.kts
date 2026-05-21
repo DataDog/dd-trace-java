@@ -1,4 +1,3 @@
-import com.diffplug.gradle.spotless.SpotlessExtension
 import datadog.gradle.plugin.ci.testAggregate
 
 plugins {
@@ -10,8 +9,8 @@ plugins {
   id("dd-trace-java.dump-hanged-test")
   id("dd-trace-java.config-inversion-linter")
   id("dd-trace-java.ci-jobs")
+  id("dd-trace-java.spotless-conventions")
 
-  id("com.diffplug.spotless") version "8.4.0"
   id("me.champeau.gradle.japicmp") version "0.4.3"
   id("com.github.spotbugs") version "6.5.4"
   id("de.thetaphi.forbiddenapis") version "3.10"
@@ -27,38 +26,6 @@ val isCI = providers.environmentVariable("CI")
 
 apply(from = rootDir.resolve("gradle/repositories.gradle"))
 apply(from = rootDir.resolve("gradle/ddprof-override.gradle"))
-
-spotless {
-  // only resolve the spotless dependencies once in the build
-  predeclareDeps()
-}
-
-with(extensions["spotlessPredeclare"] as SpotlessExtension) {
-  // these need to align with the types and versions in gradle/spotless.gradle
-  java {
-    removeUnusedImports()
-
-    googleJavaFormat("1.35.0")
-    tableTestFormatter("1.1.1")
-  }
-  groovyGradle {
-    greclipse()
-  }
-  groovy {
-    greclipse()
-  }
-  kotlinGradle {
-    ktlint("1.8.0")
-  }
-  kotlin {
-    ktlint("1.8.0")
-  }
-  scala {
-    // TODO: For some reason Scala format is working correctly with this version only.
-    scalafmt("3.8.6")
-  }
-}
-apply(from = rootDir.resolve("gradle/spotless.gradle"))
 
 val compileTask = tasks.register("compile")
 

@@ -407,7 +407,9 @@ spotless:
   stage: tests
   needs: []
   variables:
-    GRADLE_MEMORY_MAX: 6G
+    # Give spotlessCheck more heap and fewer parallel workers — it OOMs on CI otherwise.
+    GRADLE_MEMORY_MAX: 8G
+    GRADLE_WORKERS: 2
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS

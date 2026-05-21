@@ -5,15 +5,15 @@ import groovy.transform.CompileStatic
 import java.nio.file.Files
 import java.nio.file.LinkOption
 
-apply plugin: 'dd-trace-java.configure-tests'
 apply plugin: 'java-library'
+apply plugin: 'dd-trace-java.configure-tests'
+apply plugin: 'dd-trace-java.spotless-conventions'
 apply plugin: 'dd-trace-java.test-jvm-constraints'
 
 apply from: "$rootDir/gradle/codenarc.gradle"
 apply from: "$rootDir/gradle/forbiddenapis.gradle"
-apply from: "$rootDir/gradle/spotless.gradle"
-apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/repositories.gradle"
+apply from: "$rootDir/gradle/spotbugs.gradle"
 apply from: "$rootDir/gradle/test-suites.gradle"
 
 // Glue code for Groovy DSL.
