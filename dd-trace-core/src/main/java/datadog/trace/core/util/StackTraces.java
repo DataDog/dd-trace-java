@@ -15,12 +15,17 @@ public final class StackTraces {
   private StackTraces() {}
 
   /**
-   * Safely retrieves the message from a throwable. Returns {@code null} if {@code t} is {@code
-   * null}, or a diagnostic string of the form {@code "(Exception message unavailable for ClassName:
-   * getMessage() threw ExceptionType)"} if {@link Throwable#getMessage()} itself throws.
-   * Third-party exception classes occasionally use formatting utilities (e.g. {@code
+   * Safely retrieves the message from a throwable.
+   *
+   * <p>Third-party exception classes occasionally use formatting utilities (e.g. {@code
    * java.text.MessageFormat}) inside {@code getMessage()}, which can throw when the pattern
    * contains non-integer placeholders.
+   *
+   * @param t the throwable to retrieve the message from
+   * @return {@code null} if {@code t} is {@code null}; the result of {@link
+   *     Throwable#getMessage()} on success; or a diagnostic string of the form {@code "(Exception
+   *     message unavailable for ClassName: getMessage() threw ExceptionType)"} if {@code
+   *     getMessage()} throws
    */
   public static String safeGetMessage(Throwable t) {
     if (t == null) {
@@ -37,6 +42,19 @@ public final class StackTraces {
     }
   }
 
+  /**
+   * Returns the stack trace of {@code t} as a string, truncated to {@code maxChars} characters.
+   *
+   * <p>Uses {@link Throwable#printStackTrace(java.io.PrintWriter)} to produce the full trace
+   * including {@code Caused by} and {@code Suppressed} chains. If {@code printStackTrace} itself
+   * throws (e.g. because {@link Throwable#getMessage()} throws inside {@code toString()}), falls
+   * back to reconstructing the trace from {@link Throwable#getStackTrace()} so the call site
+   * remains locatable.
+   *
+   * @param t the throwable to format
+   * @param maxChars maximum length of the returned string
+   * @return the stack trace string, truncated if necessary
+   */
   public static String getStackTrace(Throwable t, int maxChars) {
     String trace;
     try {
