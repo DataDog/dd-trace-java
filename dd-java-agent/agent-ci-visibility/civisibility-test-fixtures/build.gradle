@@ -15,8 +15,7 @@ dependencies {
   api group: 'org.msgpack', name: 'jackson-dataformat-msgpack', version: '0.9.6'
   api group: 'org.xmlunit', name: 'xmlunit-core', version: '2.10.3'
 
-  compileOnly(libs.junit.jupiter)
-  compileOnly(libs.bundles.groovy)
-  compileOnly(libs.bundles.spock)
+  api(libs.junit.jupiter)
+  api(libs.bundles.junit5)
 }
 
