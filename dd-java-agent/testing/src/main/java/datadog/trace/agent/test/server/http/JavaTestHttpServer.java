@@ -165,26 +165,26 @@ public class JavaTestHttpServer implements AutoCloseable {
           throw new IllegalStateException(e);
         }
       }
-      long startTime = System.nanoTime();
-      long rem = TimeUnit.SECONDS.toMillis(5);
-      while (!internalServer.isStarted()) {
-        if (rem <= 0) {
-          throw new RuntimeException(
-              new TimeoutException(
-                  "Failed to start server " + this + " on port " + address.getPort()));
-        }
-        try {
-          Thread.sleep(Math.min(rem, 100));
-        } catch (InterruptedException e) {
-          Thread.currentThread().interrupt();
-          throw new RuntimeException(e);
-        }
-        long endTime = System.nanoTime();
-        rem -= TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
-        startTime = endTime;
-      }
-      System.out.println("Started server " + this + " on " + address + " and  " + secureAddress);
     }
+    long startTime = System.nanoTime();
+    long rem = TimeUnit.SECONDS.toMillis(5);
+    while (!internalServer.isStarted()) {
+      if (rem <= 0) {
+        throw new RuntimeException(
+            new TimeoutException(
+                "Failed to start server " + this + " on port " + address.getPort()));
+      }
+      try {
+        Thread.sleep(Math.min(rem, 100));
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        throw new RuntimeException(e);
+      }
+      long endTime = System.nanoTime();
+      rem -= TimeUnit.NANOSECONDS.toMillis(endTime - startTime);
+      startTime = endTime;
+    }
+    System.out.println("Started server " + this + " on " + address + " and  " + secureAddress);
     return this;
   }
 
