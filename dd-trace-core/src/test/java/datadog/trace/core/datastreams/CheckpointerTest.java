@@ -41,13 +41,9 @@ public class CheckpointerTest extends DDCoreJavaSpecification {
     scope.close();
     span.finish();
 
-    boolean hasPathwayCtxBase64 = false;
-    for (Map.Entry<String, Object> entry : carrier.entries()) {
-      if ("dd-pathway-ctx-base64".equals(entry.getKey())) {
-        hasPathwayCtxBase64 = true;
-        break;
-      }
-    }
+    boolean hasPathwayCtxBase64 =
+        carrier.entries().stream()
+            .anyMatch(entry -> "dd-pathway-ctx-base64".equals(entry.getKey()));
     assertTrue(hasPathwayCtxBase64);
     assertNotEquals(0L, ((DDSpan) span).context().getPathwayContext().getHash());
   }

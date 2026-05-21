@@ -1,5 +1,7 @@
 package datadog.trace.core.datastreams;
 
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS;
+import static datadog.trace.api.datastreams.DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
@@ -20,11 +22,10 @@ public class DataStreamsTransactionExtractorsTest extends DDCoreJavaSpecificatio
 
     assertEquals(2, extractors.size());
     assertEquals("extractor", extractors.get(0).getName());
-    assertEquals(
-        DataStreamsTransactionExtractor.Type.HTTP_OUT_HEADERS, extractors.get(0).getType());
+    assertEquals(HTTP_OUT_HEADERS, extractors.get(0).getType());
     assertEquals("transaction_id", extractors.get(0).getValue());
     assertEquals("second_extractor", extractors.get(1).getName());
-    assertEquals(DataStreamsTransactionExtractor.Type.HTTP_IN_HEADERS, extractors.get(1).getType());
+    assertEquals(HTTP_IN_HEADERS, extractors.get(1).getType());
     assertEquals("transaction_id", extractors.get(1).getValue());
   }
 }

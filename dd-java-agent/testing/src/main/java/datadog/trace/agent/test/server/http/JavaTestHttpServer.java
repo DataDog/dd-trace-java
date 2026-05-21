@@ -7,6 +7,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import datadog.trace.agent.test.base.HttpServer;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.io.ByteArrayOutputStream;
 import java.io.File;
@@ -17,6 +18,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.net.URL;
+import java.nio.charset.StandardCharsets;
 import java.security.KeyManagementException;
 import java.security.NoSuchAlgorithmException;
 import java.security.cert.X509Certificate;
@@ -59,13 +61,6 @@ public class JavaTestHttpServer implements AutoCloseable {
     void handle(HandlerApi api) throws Exception;
   }
 
-  public static JavaTestHttpServer httpServer(Consumer<JavaTestHttpServer> spec) {
-    JavaTestHttpServer server = new JavaTestHttpServer();
-    spec.accept(server);
-    server.start();
-    return server;
-  }
-
   private final Server internalServer;
   private HandlersSpec handlers;
   private Consumer<Server> customizer = s -> {};
@@ -94,6 +89,13 @@ public class JavaTestHttpServer implements AutoCloseable {
   private final HostnameVerifier hostnameVerifier =
       (hostname, session) -> "localhost".equals(hostname);
 
+  public static JavaTestHttpServer httpServer(Consumer<JavaTestHttpServer> spec) {
+    JavaTestHttpServer server = new JavaTestHttpServer();
+    spec.accept(server);
+    server.start();
+    return server;
+  }
+
   private JavaTestHttpServer() {
     // In some versions, Jetty requires max threads > than some arbitrary calculated value.
     // The calculated value can be high in CI. There is no easy way to override the configuration
@@ -107,6 +109,7 @@ public class JavaTestHttpServer implements AutoCloseable {
     }
   }
 
+  @SuppressForbidden
   public JavaTestHttpServer start() {
     if (internalServer.isStarted()) {
       return this;
@@ -202,6 +205,7 @@ public class JavaTestHttpServer implements AutoCloseable {
     }
   }
 
+  @SuppressForbidden
   public JavaTestHttpServer stop() {
     System.out.println("Stopping server " + this + " on " + address + " and  " + secureAddress);
     try {
@@ -542,7 +546,7 @@ public class JavaTestHttpServer implements AutoCloseable {
           throw new IllegalArgumentException("body must not be null");
         }
         sendWithType(contentType);
-        byte[] bytes = body.getBytes();
+        byte[] bytes = body.getBytes(StandardCharsets.UTF_8);
         resp.setContentLength(bytes.length);
         try {
           resp.getWriter().print(body);
