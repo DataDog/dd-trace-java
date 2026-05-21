@@ -94,13 +94,14 @@ class DatadogProfilerTest {
     }
 
     try {
-      // Direct bridge path (recordTaskBlock -> JavaProfiler.recordTaskBlock0)
+      // Direct bridge path (recordTaskBlock -> JavaProfiler.recordTaskBlock0). Span ids are no
+      // longer passed across JNI; the native side reads them from OTEP TLS.
       long startTicks = profiler.getCurrentTicks();
       LockSupport.parkNanos(3_000_000L); // > 1ms native threshold
-      profiler.recordTaskBlockEvent(startTicks, 101L, 202L, 303L, 404L);
+      profiler.recordTaskBlockEvent(startTicks, 303L, 404L);
 
       // Park path (parkEnter/parkExit -> JavaProfiler.parkEnter0/parkExit0)
-      profiler.parkEnter(505L, 606L);
+      profiler.parkEnter();
       LockSupport.parkNanos(3_000_000L); // > 1ms native threshold
       profiler.parkExit(707L, 808L);
 

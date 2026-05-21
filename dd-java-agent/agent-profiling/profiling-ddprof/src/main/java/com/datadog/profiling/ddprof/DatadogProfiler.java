@@ -466,17 +466,16 @@ public final class DatadogProfiler {
     }
   }
 
-  void recordTaskBlockEvent(
-      long startTicks, long spanId, long rootSpanId, long blocker, long unblockingSpanId) {
+  void recordTaskBlockEvent(long startTicks, long blocker, long unblockingSpanId) {
     if (profiler != null) {
       long endTicks = profiler.getCurrentTicks();
-      profiler.recordTaskBlock(startTicks, endTicks, spanId, rootSpanId, blocker, unblockingSpanId);
+      profiler.recordTaskBlock(startTicks, endTicks, blocker, unblockingSpanId);
     }
   }
 
-  void parkEnter(long spanId, long rootSpanId) {
+  void parkEnter() {
     if (profiler != null) {
-      profiler.parkEnter(spanId, rootSpanId);
+      profiler.parkEnter();
     }
   }
 
