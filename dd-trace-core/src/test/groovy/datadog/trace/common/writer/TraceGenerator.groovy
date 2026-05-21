@@ -11,12 +11,10 @@ import datadog.trace.api.ProcessTags
 import datadog.trace.api.TagMap
 import datadog.trace.api.sampling.PrioritySampling
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink
-import datadog.trace.bootstrap.instrumentation.api.Tags
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.core.CoreSpan
 import datadog.trace.core.Metadata
 import datadog.trace.core.MetadataConsumer
-import datadog.trace.core.SpanKindFilter
 import java.util.concurrent.ThreadLocalRandom
 import java.util.concurrent.TimeUnit
 
