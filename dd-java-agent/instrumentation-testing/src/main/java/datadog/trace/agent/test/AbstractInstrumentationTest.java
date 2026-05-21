@@ -21,6 +21,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.PendingTrace;
 import datadog.trace.core.TraceCollector;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.context.AllowContextTestingExtension;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -52,6 +53,7 @@ import org.opentest4j.AssertionFailedError;
  *   <li>{@code @AfterAll}: Closes the tracer and removes the agent transformer
  * </ul>
  */
+@WithConfig(key = "detailed.instrumentation.errors", value = "true")
 @ExtendWith({TestClassShadowingExtension.class, AllowContextTestingExtension.class})
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
