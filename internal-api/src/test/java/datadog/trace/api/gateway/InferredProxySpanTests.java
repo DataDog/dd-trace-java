@@ -5,14 +5,21 @@ import static datadog.trace.api.gateway.InferredProxySpan.PROXY_START_TIME_MS;
 import static datadog.trace.api.gateway.InferredProxySpan.PROXY_SYSTEM;
 import static datadog.trace.api.gateway.InferredProxySpan.fromContext;
 import static datadog.trace.api.gateway.InferredProxySpan.fromHeaders;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.of;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.lang.reflect.Field;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -595,5 +602,34 @@ class InferredProxySpanTests {
     // Finish both - should work independently
     proxySpan1.finish();
     proxySpan2.finish();
+  }
+
+  @Test
+  @DisplayName(
+      "finish forwards the Datadog scan/test markers from the service-entry span to the inferred span")
+  void testFinishForwardsSecurityTestingHeaders() throws Exception {
+    Map<String, String> headers = new HashMap<>();
+    headers.put(PROXY_START_TIME_MS, "12345");
+    headers.put(PROXY_SYSTEM, "aws-apigateway");
+    InferredProxySpan inferredProxySpan = fromHeaders(headers);
+
+    // Replace the real (noop) inferred span with a mock we can verify against. Drive through
+    // the public finish() API so the test stays valid if the internal copy-helper is renamed.
+    AgentSpan mockInferredSpan = mock(AgentSpan.class);
+    Field spanField = InferredProxySpan.class.getDeclaredField("span");
+    spanField.setAccessible(true);
+    spanField.set(inferredProxySpan, mockInferredSpan);
+
+    AgentSpan serviceEntrySpan = mock(AgentSpan.class);
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN))
+        .thenReturn("scan-uuid");
+    when(serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST))
+        .thenReturn("test-uuid");
+    inferredProxySpan.registerServiceEntrySpan(serviceEntrySpan);
+
+    inferredProxySpan.finish(serviceEntrySpan);
+
+    verify(mockInferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, "scan-uuid");
+    verify(mockInferredSpan).setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, "test-uuid");
   }
 }
