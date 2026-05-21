@@ -188,13 +188,17 @@ final class Aggregator implements Runnable {
     }
     String[] names = schema.names;
     int n = names.length;
-    // Single-entry fast path (matches the original singletonList shape for INTERNAL spans and any
-    // other case where exactly one peer tag fired).
+    // First pass: count how many tags fired and remember the first index. The single-entry case
+    // is common (e.g. INTERNAL spans only emit base.service) and gets a singletonList to avoid an
+    // ArrayList allocation on the hot path.
     int firstHit = -1;
     int hitCount = 0;
     for (int i = 0; i < n; i++) {
-      if (values[i] != null && hitCount++ == 0) {
-        firstHit = i;
+      if (values[i] != null) {
+        if (hitCount == 0) {
+          firstHit = i;
+        }
+        hitCount++;
       }
     }
     if (hitCount == 0) {
