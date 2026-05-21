@@ -63,19 +63,22 @@ Three rules govern the design:
 
 The producer holds **no shared state**. Per trace it:
 
-1. Snapshots the current peer-aggregation schema **once per trace** (not per
-   span):
+1. Reads the **cached peer-aggregation schema** from a volatile field on
+   `ClientStatsAggregator`:
    ```java
-   PeerTagSchema peerAggSchema = peerAggSchema(features.peerTagsRevision());
+   PeerTagSchema schema = cachedPeerTagSchema;
+   if (schema == null) { schema = bootstrapPeerTagSchema(); }
    ```
-   `peerAggSchema(...)` reads a `volatile long` revision held on the
-   aggregator and compares it to the value the cached `PeerTagSchema` was
-   built from. Match → return the cached schema (the common case, since
-   `peerTagsRevision()` only bumps when `DDAgentFeaturesDiscovery` observes a
-   peer-tag set that doesn't equal the previous one). Mismatch → take a
-   monitor on the aggregator, rebuild via `PeerTagSchema.of(names)`, and
-   publish the new schema + revision. The steady-state cost is one volatile
-   read + one long compare.
+   The steady-state cost is one volatile read. The producer does **not**
+   reconcile the schema against `DDAgentFeaturesDiscovery` — that's the
+   aggregator thread's job, run once per reporting cycle (see
+   [Aggregator-side reconcile](#aggregator-side-reconcile) below).
+
+   The bootstrap path is a synchronized double-check that runs exactly once,
+   on the very first publish. It builds the initial schema by reading
+   `features.getLastTimeDiscovered()` *first*, then `features.peerTags()`
+   (read-order matters; see the inline Javadoc on `buildPeerTagSchema`). The
+   schema cache is per-`ClientStatsAggregator` instance, not static.
 
 2. Iterates the trace; for each metrics-eligible span:
 
@@ -93,7 +96,7 @@ The producer holds **no shared state**. Per trace it:
      trace is dropped on a match.
 
    - **Picks the peer-tag schema** (`peerTagSchemaFor`): for client/producer/
-     consumer kinds → `peerAggSchema` (already synced for this trace); for
+     consumer kinds → the cached peer-aggregation schema from step 1; for
      internal-kind spans → `PeerTagSchema.INTERNAL` (single `base.service`
      entry); otherwise `null`.
 
@@ -216,12 +219,24 @@ Two distinct cadences:
   handlers. The handlers reset *every reporting cycle*, so the per-field
   budgets refresh.
 
-- **Schema sync**: `ClientStatsAggregator.peerAggSchema(long)` runs on the
-  producer thread per trace, keyed on `DDAgentFeaturesDiscovery.peerTagsRevision()`.
-  The cached schema is replaced when remote-config reconfigures the peer-tag
-  set (i.e., when the revision bumps). The schema's
-  `TagCardinalityHandler`s are reset on the aggregator thread each report
-  cycle via a hook passed into `Aggregator`.
+- <a id="aggregator-side-reconcile"></a>**Schema sync** (`reconcilePeerTagSchema`):
+  runs on the **aggregator thread** at the start of every report cycle, via a
+  hook (`onReportCycle`) passed into `Aggregator`. Fast path: compares the
+  cached schema's embedded `lastTimeDiscovered` against
+  `features.getLastTimeDiscovered()` — match → no-op. Mismatch path: reads
+  `features.peerTags()`; if the tag set is unchanged, just bumps the cached
+  schema's `lastTimeDiscovered` in place (preserving its warm
+  `TagCardinalityHandler`s); if the tag set changed, builds a fresh
+  `PeerTagSchema` and writes it to the volatile `cachedPeerTagSchema`. The
+  schema's `TagCardinalityHandler`s are reset alongside the property handlers
+  in the same cycle.
+
+  **Read-order note.** `DDAgentFeaturesDiscovery` exposes `peerTags()` and
+  `getLastTimeDiscovered()` as separate accessors over its volatile state.
+  Both `buildPeerTagSchema` and `reconcilePeerTagSchema` read the timestamp
+  *before* the tag set so that an interleaving discovery refresh leaves the
+  schema "older than its names" rather than "newer", letting the next
+  reconcile cycle detect the mismatch and self-heal.
 
 ## Memory and lifetime
 
@@ -231,10 +246,12 @@ Two distinct cadences:
   schedule-driven `REPORT`, drainer-driven inserts) route through the inbox.
 - `Canonical` and the cardinality handlers are aggregator-thread-only.
 - The cached `PeerTagSchema` lives on `ClientStatsAggregator` as a `volatile`
-  field paired with the `peerTagsRevision` it was built from; rebuild is
-  guarded by a monitor on the aggregator instance. The schema's
-  `TagCardinalityHandler`s themselves are aggregator-thread-only and are
-  reset alongside the property handlers each cycle.
+  field. Bootstrap (one-time, on the very first publish) is a synchronized
+  double-check; thereafter only the aggregator thread mutates the field, via
+  `reconcilePeerTagSchema` once per report cycle. The schema itself carries
+  the `lastTimeDiscovered` value it was built from. The schema's
+  `TagCardinalityHandler`s are aggregator-thread-only and are reset
+  alongside the property handlers each cycle.
 - Entries retain their `UTF8BytesString` references across handler resets;
   matches via content-equality so post-reset snapshots still resolve.
 - Cap: `tracerMetricsMaxAggregates` bounds table size. Cap-overrun policy:
@@ -289,11 +306,14 @@ showed the producer dominating CPU time. The major shifts:
    `PeerTagSchema`; the producer carries values in a parallel `String[]`. The
    aggregator does the `tag:value` interning via `TagCardinalityHandler` on
    its own thread.
-6. **Sync peer-tag schema once per trace.** The producer reads
-   `features.peerTagsRevision()` and compares it to the revision the cached
-   `PeerTagSchema` was built from; the steady-state cost is one volatile read
-   and one long compare. The cache lives on `ClientStatsAggregator`, not as
-   static state on `PeerTagSchema`.
+6. **Move peer-tag schema reconcile off the producer.** The producer just
+   reads the volatile cached `PeerTagSchema` (steady-state: one volatile
+   read). Schema reconciliation runs once per report cycle on the aggregator
+   thread (`reconcilePeerTagSchema`), keyed on
+   `DDAgentFeaturesDiscovery.getLastTimeDiscovered()` with a same-tags
+   slow-path that preserves warm cardinality handlers across discovery
+   refreshes. The cache lives on `ClientStatsAggregator`, not as static
+   state on `PeerTagSchema`.
 7. **Single owner of all shared state.** `disable()` routes through `CLEAR`
    rather than mutating the aggregate table directly.
 
