@@ -22,10 +22,9 @@ public final class StackTraces {
    * contains non-integer placeholders.
    *
    * @param t the throwable to retrieve the message from
-   * @return {@code null} if {@code t} is {@code null}; the result of {@link
-   *     Throwable#getMessage()} on success; or a diagnostic string of the form {@code "(Exception
-   *     message unavailable for ClassName: getMessage() threw ExceptionType)"} if {@code
-   *     getMessage()} throws
+   * @return {@code null} if {@code t} is {@code null}; the result of {@link Throwable#getMessage()}
+   *     on success; or a diagnostic string of the form {@code "(Exception message unavailable for
+   *     ClassName: getMessage() threw ExceptionType)"} if {@code getMessage()} throws
    */
   public static String safeGetMessage(Throwable t) {
     if (t == null) {
