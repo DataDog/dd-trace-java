@@ -16,6 +16,7 @@ import freemarker.core.InvalidReferenceException;
 import freemarker.template.Template;
 import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
+import java.io.Serializable;
 import java.io.StringWriter;
 import java.io.Writer;
 import java.nio.charset.StandardCharsets;
@@ -260,7 +261,8 @@ public abstract class CiVisibilityTestUtils {
 
   private static void compareJson(String expectedJson, String actualJson) {
     Map<String, String> environment = System.getenv();
-    boolean ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null;
+    boolean ciRun =
+        environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null;
     JSONCompareMode comparisonMode =
         ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE;
 
@@ -319,7 +321,9 @@ public abstract class CiVisibilityTestUtils {
   }
 
   // Sort traces in the following order: TEST -> SUITE -> MODULE -> SESSION
-  public static class SortTracesByType implements Comparator<List<DDSpan>> {
+  public static class SortTracesByType implements Comparator<List<DDSpan>>, Serializable {
+    private static final long serialVersionUID = 1L;
+
     @Override
     public int compare(List<DDSpan> o1, List<DDSpan> o2) {
       return Integer.compare(rootSpanTypeToVal(o1), rootSpanTypeToVal(o2));
