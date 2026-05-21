@@ -41,6 +41,15 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
+  /**
+   * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
+   * flush. Used by {@link ConflatingMetricsAggregator} to reconcile its cached peer-tag schema
+   * against {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the
+   * flush guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in
+   * its post-reconcile state. May be {@code null}.
+   */
+  private final Runnable onReportCycle;
+
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
@@ -52,7 +61,8 @@ final class Aggregator implements Runnable {
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this(
         writer,
         inbox,
@@ -60,7 +70,8 @@ final class Aggregator implements Runnable {
         reportingInterval,
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
-        healthMetrics);
+        healthMetrics,
+        onReportCycle);
   }
 
   Aggregator(
@@ -70,7 +81,8 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
-      HealthMetrics healthMetrics) {
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
     this.aggregates =
@@ -78,6 +90,7 @@ final class Aggregator implements Runnable {
             new AggregateExpiry(healthMetrics), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
+    this.onReportCycle = onReportCycle;
   }
 
   private static final class AggregateExpiry
@@ -206,6 +219,14 @@ final class Aggregator implements Runnable {
   }
 
   private void report(long when, SignalItem signal) {
+    // Per-cycle hook on the aggregator thread -- used by ClientStatsAggregator to reconcile the
+    // cached peer-tag schema against feature discovery. Runs before the flush so any test that
+    // awaits writer.finishBucket() observes the schema in its post-reconcile state, and so
+    // subsequent producer publishes (which may happen as soon as the flush completes) see the new
+    // schema without an additional handoff.
+    if (onReportCycle != null) {
+      onReportCycle.run();
+    }
     boolean skipped = true;
     if (dirty) {
       try {
