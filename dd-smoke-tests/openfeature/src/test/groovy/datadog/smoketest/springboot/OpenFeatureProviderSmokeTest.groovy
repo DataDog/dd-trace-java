@@ -21,8 +21,8 @@ import spock.util.concurrent.PollingConditions
 class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   @Shared
-  private final rcPayload = new JsonSlurper().parse(fetchResource("config/flags-v1.json")).with { json ->
-    return JsonOutput.toJson(json.data.attributes)
+  private final rcPayload = new JsonSlurper().parse(fetchResource("ffe-system-test-data/ufc-config.json")).with { json ->
+    return JsonOutput.toJson(json)
   }
 
   @Override
@@ -67,8 +67,9 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     setRemoteConfig("datadog/2/FFE_FLAGS/1/config", rcPayload)
     final url = "http://localhost:${httpPort}/openfeature/evaluate"
     final testCases = parseTestCases().findAll {
-      it.result.flagMetadata?.doLog
+      it.flag == 'numeric_flag'
     }
+    assert !testCases.isEmpty()
 
     when:
     final responses = testCases.collect {
@@ -115,8 +116,13 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     response.code() == 200
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
     responseBody.value == testCase.result.value
-    responseBody.variant == testCase.result.variant
-    responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    responseBody.reason == testCase.result.reason
+    if (testCase.result.containsKey('variant')) {
+      assert responseBody.variant == testCase.result.variant
+    }
+    if (testCase.result.flagMetadata?.allocationKey) {
+      assert responseBody.flagMetadata?.allocationKey == testCase.result.flagMetadata?.allocationKey
+    }
 
     where:
     testCase << parseTestCases()
@@ -127,11 +133,12 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   }
 
   private static List<Map<String, Object>> parseTestCases() {
-    final folder = fetchResource('data')
+    final folder = fetchResource('ffe-system-test-data/evaluation-cases')
     final uri = folder.toURI()
     final testsPath = Paths.get(uri)
     final files = Files.list(testsPath)
     .filter(path -> path.toString().endsWith('.json'))
+    .sorted(Comparator.comparing(path -> path.fileName.toString()))
     final result = []
     final slurper = new JsonSlurper()
     files.each {
@@ -144,6 +151,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
       }
       result.addAll(testCases)
     }
+    assert !result.isEmpty()
     return result
   }
 
