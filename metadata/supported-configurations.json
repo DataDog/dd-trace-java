@@ -11797,7 +11797,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": "false",
+        "default": null,
         "aliases": []
       }
     ]
