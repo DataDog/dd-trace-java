@@ -15,7 +15,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -249,10 +248,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
    * org.gradle.wrapper.Install}.
    */
   private void ensureDependenciesDownloaded(String gradleVersion) {
-    String label = testInfo.getDisplayName();
     try {
-      System.out.println(new Date() + ": " + label + " - Starting dependencies download");
-
       org.gradle.wrapper.Logger logger = new org.gradle.wrapper.Logger(false);
       Download download =
           new Download(
@@ -272,21 +268,15 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
       // This will download distribution (if not downloaded yet to userHomeDir) and verify its SHA.
       install.createDist(configuration);
-
-      System.out.println(new Date() + ": " + label + " - Finished dependencies download");
     } catch (Exception e) {
       System.out.println(
-          new Date()
-              + ": "
-              + label
-              + " - Failed to install Gradle distribution, will proceed to run test kit hoping for the best: "
+          "Failed to install Gradle distribution, will proceed to run test kit hoping for the best: "
               + e);
     }
   }
 
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
-    String label = testInfo.getDisplayName();
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_VERSION", gradleVersion);
 
@@ -304,12 +294,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
             .withEnvironment(buildEnv)
             .forwardOutput();
 
-    System.out.println(new Date() + ": " + label + " - Starting Gradle run");
     try {
-      BuildResult buildResult =
-          successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
-      System.out.println(new Date() + ": " + label + " - Finished Gradle run");
-      return buildResult;
+      return successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
     } catch (Exception e) {
       Path daemonLog =
           Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion))
@@ -318,12 +304,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
               .orElse(null);
       if (daemonLog != null) {
         System.out.println("==============================================================");
-        System.out.println(
-            new Date()
-                + ": "
-                + label
-                + " - Gradle Daemon log:\n"
-                + new String(Files.readAllBytes(daemonLog)));
+        System.out.println("Gradle Daemon log:\n" + new String(Files.readAllBytes(daemonLog)));
         System.out.println("==============================================================");
       }
       throw new RuntimeException(e);

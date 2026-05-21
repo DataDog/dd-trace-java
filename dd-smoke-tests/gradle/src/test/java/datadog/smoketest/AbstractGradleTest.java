@@ -21,7 +21,6 @@ import org.gradle.internal.impldep.org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 
 public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
@@ -38,16 +37,8 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   protected static final MockBackend mockBackend = new MockBackend();
 
-  /**
-   * Captured by JUnit 5 via parameter injection so methods running under a {@code @TableTest} row
-   * can include the iteration label in diagnostic output without taking {@link TestInfo} as a test
-   * parameter (which would conflict with TableTest's scenario-column convention).
-   */
-  protected TestInfo testInfo;
-
   @BeforeEach
-  void resetMockBackend(TestInfo testInfo) {
-    this.testInfo = testInfo;
+  void resetMockBackend() {
     mockBackend.reset();
   }
 

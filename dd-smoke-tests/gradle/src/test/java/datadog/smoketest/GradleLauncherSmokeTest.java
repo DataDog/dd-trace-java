@@ -3,7 +3,6 @@ package datadog.smoketest;
 import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -118,12 +117,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
           IOUtils::readFully, command.toArray(new String[0]));
     } catch (Exception e) {
       System.out.println("==============================================================");
-      System.out.println(
-          new Date()
-              + ": "
-              + testInfo.getDisplayName()
-              + " - Gradle Launcher execution failed with exception:\n "
-              + e.getMessage());
+      System.out.println("Gradle Launcher execution failed with exception:\n " + e.getMessage());
       System.out.println("==============================================================");
       throw e;
     }
