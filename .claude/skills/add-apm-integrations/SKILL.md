@@ -1,14 +1,6 @@
 ---
 name: add-apm-integrations
-description: Write a new library instrumentation end-to-end. Use when the user ask to add a new APM integration or a library instrumentation.
-context: fork
-allowed-tools:
-  - Bash
-  - Read
-  - Write
-  - Edit
-  - Glob
-  - Grep
+description: "Use when adding a new APM integration or library instrumentation to dd-trace-java. Scaffolds the Gradle module, writes Instrumentation and Decorator classes with bytecode advice, creates JUnit 5 tests, and wires up the integration following all project conventions."
 ---
 
 Write a new APM end-to-end integration for dd-trace-java, based on library instrumentations, following all project conventions.
