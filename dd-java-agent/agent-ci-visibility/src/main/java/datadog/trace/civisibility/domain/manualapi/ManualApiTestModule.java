@@ -69,6 +69,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
             moduleName,
             testSuiteName,
             null,
+            false,
             testClass,
             startTime,
             parallelized,

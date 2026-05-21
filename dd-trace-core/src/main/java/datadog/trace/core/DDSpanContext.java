@@ -26,6 +26,7 @@ import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
+import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
@@ -181,6 +182,8 @@ public class DDSpanContext
   private volatile PathwayContext pathwayContext;
 
   private volatile BlockResponseFunction blockResponseFunction;
+
+  private volatile ClientIpAddressData clientIpAddressData;
 
   private final ProfilingContextIntegration profilingContextIntegration;
   private final boolean injectBaggageAsTags;
@@ -768,22 +771,26 @@ public class DDSpanContext
    * span.kind is set.
    */
   public void setSpanKindOrdinal(String kind) {
+    spanKindOrdinal = spanKindOrdinalOf(kind);
+  }
+
+  static byte spanKindOrdinalOf(String kind) {
     if (kind == null) {
-      spanKindOrdinal = SPAN_KIND_UNSET;
+      return SPAN_KIND_UNSET;
     } else if (tagEquals(kind, Tags.SPAN_KIND_SERVER)) {
-      spanKindOrdinal = SPAN_KIND_SERVER;
+      return SPAN_KIND_SERVER;
     } else if (tagEquals(kind, Tags.SPAN_KIND_CLIENT)) {
-      spanKindOrdinal = SPAN_KIND_CLIENT;
+      return SPAN_KIND_CLIENT;
     } else if (tagEquals(kind, Tags.SPAN_KIND_PRODUCER)) {
-      spanKindOrdinal = SPAN_KIND_PRODUCER;
+      return SPAN_KIND_PRODUCER;
     } else if (tagEquals(kind, Tags.SPAN_KIND_CONSUMER)) {
-      spanKindOrdinal = SPAN_KIND_CONSUMER;
+      return SPAN_KIND_CONSUMER;
     } else if (tagEquals(kind, Tags.SPAN_KIND_INTERNAL)) {
-      spanKindOrdinal = SPAN_KIND_INTERNAL;
+      return SPAN_KIND_INTERNAL;
     } else if (tagEquals(kind, Tags.SPAN_KIND_BROKER)) {
-      spanKindOrdinal = SPAN_KIND_BROKER;
+      return SPAN_KIND_BROKER;
     } else {
-      spanKindOrdinal = SPAN_KIND_CUSTOM;
+      return SPAN_KIND_CUSTOM;
     }
   }
 
@@ -1045,12 +1052,16 @@ public class DDSpanContext
 
     synchronized (unsafeTags) {
       for (final TagMap.EntryChange entryChange : ledger) {
+        String tag = entryChange.tag();
         if (entryChange.isRemoval()) {
-          unsafeTags.remove(entryChange.tag());
+          if (tagEquals(tag, Tags.SPAN_KIND)) {
+            // mirror removeTag(String): keep the cached ordinal in sync with unsafeTags
+            spanKindOrdinal = SPAN_KIND_UNSET;
+          }
+          unsafeTags.remove(tag);
         } else {
           TagMap.Entry entry = (TagMap.Entry) entryChange;
 
-          String tag = entry.tag();
           Object value = entry.objectValue();
 
           if (!tagInterceptor.interceptTag(this, tag, value)) {
@@ -1352,6 +1363,16 @@ public class DDSpanContext
   @Override
   public BlockResponseFunction getBlockResponseFunction() {
     return getRootSpanContextOrThis().blockResponseFunction;
+  }
+
+  @Override
+  public void setClientIpAddressData(final ClientIpAddressData clientIpAddressData) {
+    getRootSpanContextOrThis().clientIpAddressData = clientIpAddressData;
+  }
+
+  @Override
+  public ClientIpAddressData getClientIpAddressData() {
+    return getRootSpanContextOrThis().clientIpAddressData;
   }
 
   public PropagationTags getPropagationTags() {

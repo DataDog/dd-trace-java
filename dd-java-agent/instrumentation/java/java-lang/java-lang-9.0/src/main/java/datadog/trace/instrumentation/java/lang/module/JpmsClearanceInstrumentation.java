@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.java.lang.module;
 
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.logFailedToOpen;
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.logNoNamedModule;
+import static datadog.trace.bootstrap.instrumentation.java.module.JpmsHelper.shouldBeOpened;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 
 import com.google.auto.service.AutoService;
@@ -13,10 +16,10 @@ import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
 
 /**
- * Generic instrumenter module that will advice the constructor of each known class in order to open
- * once their module. This is marked for bootstrap even if it's not for sure, but we cannot know in
- * advance (depends to the instrumented types and today we are instrumenting InetAddress that's in
- * the bootstrap).
+ * Generic instrumenter module that advises the constructor of each registered trigger class to open
+ * its enclosing module once. Marked {@link Instrumenter.ForBootstrap} because some trigger classes
+ * (e.g. {@code InetAddress}) reside in the bootstrap classloader; the annotation is applied
+ * conservatively since the set of trigger classes is not known until runtime.
  */
 @AutoService(InstrumenterModule.class)
 public class JpmsClearanceInstrumentation extends InstrumenterModule
@@ -34,7 +37,7 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return true; // not directly linked ot a target system
+    return true; // not directly linked to a target system
   }
 
   @Override
@@ -51,24 +54,24 @@ public class JpmsClearanceInstrumentation extends InstrumenterModule
     @Advice.OnMethodExit(suppress = Throwable.class)
     public static void onExit(@Advice.This(typing = Assigner.Typing.DYNAMIC) Object self) {
       final Class<?> cls = self.getClass();
-      if (JpmsHelper.shouldBeOpened(cls)) {
+      if (shouldBeOpened(cls)) {
         final Module module = cls.getModule();
+        final String pkg = cls.getPackageName();
         if (module != null) {
           try {
-            // This call needs imperatively to be done from the same module we're adding exports
-            // because the jdk is checking that the caller belongs to the same module.
-            // The code of this advice is getting inlined into the constructor of the class
-            // belonging
-            // to that package so it will work. Moving the same to a helper won't.
-            module.addOpens(cls.getPackageName(), JpmsHelper.class.getModule());
+            // This call must be inlined into the constructor of the class belonging to that
+            // package because the JDK verifies the caller belongs to the module being opened.
+            // Moving this to a helper method will not work.
+            module.addOpens(pkg, JpmsHelper.class.getModule());
             final ClassLoader loader = cls.getClassLoader();
             if (loader != null) {
-              module.addOpens(cls.getPackageName(), loader.getUnnamedModule());
+              module.addOpens(pkg, loader.getUnnamedModule());
             }
           } catch (Throwable t) {
-            JpmsHelper.LOGGER.debug(
-                "Unable to open package {} to the unnamed module", cls.getPackageName(), t);
+            logFailedToOpen(pkg, t);
           }
+        } else {
+          logNoNamedModule(cls);
         }
       }
     }

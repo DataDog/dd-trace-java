@@ -98,7 +98,7 @@ public class GrpcClientDecorator extends ClientDecorator {
       return AgentTracer.blackholeSpan();
     }
     AgentSpan span =
-        startSpan(OPERATION_NAME)
+        startSpan(COMPONENT_NAME.toString(), OPERATION_NAME)
             .setTag("request.type", requestMessageType(method))
             .setTag("response.type", responseMessageType(method))
             // method.getServiceName() may not be available on some grpc versions

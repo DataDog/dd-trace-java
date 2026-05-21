@@ -3,6 +3,7 @@ package datadog.trace.instrumentation.graphqljava;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.DECORATE;
+import static datadog.trace.instrumentation.graphqljava.GraphQLDecorator.GRAPHQL_JAVA;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -34,7 +35,8 @@ public class InstrumentedDataFetcher implements DataFetcher<Object> {
         return dataFetcher.get(environment);
       }
     } else {
-      final AgentSpan fieldSpan = startSpan("graphql.field", this.requestSpan.context());
+      final AgentSpan fieldSpan =
+          startSpan(GRAPHQL_JAVA.toString(), "graphql.field", this.requestSpan.context());
       DECORATE.afterStart(fieldSpan);
       String parentType = GraphQLTypeUtil.simplePrint(environment.getParentType());
       String fieldName = environment.getField().getName();

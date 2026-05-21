@@ -101,7 +101,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when:
     writer.write(trace)
@@ -132,7 +132,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .flushIntervalMilliseconds(-1)
       .build()
     writer.start()
-    def trace = [dummyTracer.buildSpan("fakeOperation").start()]
+    def trace = [dummyTracer.buildSpan("datadog", "fakeOperation").start()]
 
     when:
     (1..traceCount).each {
@@ -167,7 +167,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
       .flushIntervalMilliseconds(1000)
       .build()
     writer.start()
-    def span = dummyTracer.buildSpan("fakeOperation").start()
+    def span = dummyTracer.buildSpan("datadog", "fakeOperation").start()
     def trace = (1..10).collect { span }
 
     when:
@@ -320,7 +320,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)
@@ -379,7 +379,7 @@ class DDAgentWriterCombinedTest extends DDCoreSpecification {
     }
     def agentUrl = HttpUrl.get(agent.address)
     def client = OkHttpUtils.buildHttpClient(agentUrl, 1000)
-    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true)
+    def discovery = new DDAgentFeaturesDiscovery(client, monitoring, agentUrl, V0_5, true, false)
     def api = new DDAgentApi(client, agentUrl, discovery, monitoring, true)
     def writer = DDAgentWriter.builder()
       .featureDiscovery(discovery)

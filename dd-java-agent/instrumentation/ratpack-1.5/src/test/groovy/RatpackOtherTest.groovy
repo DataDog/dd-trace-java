@@ -80,6 +80,7 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.HTTP_ROUTE" "/$route"
             "$Tags.HTTP_USER_AGENT" String
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }
@@ -100,6 +101,7 @@ class RatpackOtherTest extends InstrumentationSpecification {
             "$Tags.HTTP_STATUS" 200
             "$Tags.HTTP_ROUTE" "/$route"
             "$Tags.HTTP_CLIENT_IP" "127.0.0.1"
+            "$Tags.NETWORK_CLIENT_IP" "127.0.0.1"
             defaultTags()
           }
         }

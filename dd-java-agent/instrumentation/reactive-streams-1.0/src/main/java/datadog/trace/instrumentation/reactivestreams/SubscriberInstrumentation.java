@@ -56,7 +56,7 @@ public class SubscriberInstrumentation
         return null;
       }
       final Context context = InstrumentationContext.get(Subscriber.class, Context.class).get(self);
-      return context == null ? null : context.attach();
+      return context == null || context == currentContext ? null : context.attach();
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)

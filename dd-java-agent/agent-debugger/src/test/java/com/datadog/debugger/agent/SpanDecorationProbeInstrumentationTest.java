@@ -728,7 +728,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         .where(typeName, methodName, signature)
         .evaluateAt(MethodLocation.EXIT)
         .targetSpan(targetSpan)
-        .decorate(decorationList);
+        .decorations(decorationList);
   }
 
   private static SpanDecorationProbe.Builder createProbeBuilder(
@@ -743,7 +743,7 @@ public class SpanDecorationProbeInstrumentationTest extends ProbeInstrumentation
         .where(sourceFile, line)
         .evaluateAt(MethodLocation.EXIT)
         .targetSpan(targetSpan)
-        .decorate(decorationList);
+        .decorations(decorationList);
   }
 
   private void installSpanProbes(String expectedClassName, SpanDecorationProbe... probes) {

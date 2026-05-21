@@ -1,5 +1,5 @@
 plugins {
-  id 'com.google.protobuf' version '0.9.3'
+  id 'com.google.protobuf' version '0.10.0'
 }
 
 apply from: "$rootDir/gradle/java.gradle"
@@ -33,8 +33,8 @@ protobuf {
     }
   }
   generateProtoTasks {
-    ofSourceSet('main')*.plugins {
-      grpc {}
+    ofSourceSet('main').configureEach {
+      plugins { grpc {} }
     }
   }
 }

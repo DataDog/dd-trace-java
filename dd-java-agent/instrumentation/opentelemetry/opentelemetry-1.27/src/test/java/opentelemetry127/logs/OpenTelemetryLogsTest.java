@@ -35,7 +35,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
   @BeforeEach
   void drainQueue() {
     // drain any stale log records from the shared processor queue before each test
-    OtelLogRecordProcessor.INSTANCE.collectLogs(LogsDrainer.INSTANCE);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(LogsDrainer.INSTANCE, 0);
   }
 
   @ParameterizedTest
@@ -48,13 +48,13 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
 
     logger.logRecordBuilder().setBody("test message").setSeverity(severity).emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
     assertEquals("test-severity", log.scopeName);
     assertEquals(severity.getSeverityNumber(), log.severityNumber);
-    assertEquals("test message", log.bodyValue);
+    assertEquals("test message", log.body);
   }
 
   @Test
@@ -68,7 +68,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
         .setSeverityText("custom-level")
         .emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
@@ -89,12 +89,12 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
         .setAttribute(doubleKey("double.key"), 1.5)
         .emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     assertEquals(1, logsReader.logs.size());
     CapturedLog log = logsReader.logs.get(0);
     assertEquals("test-attributes", log.scopeName);
-    assertEquals("attributed message", log.bodyValue);
+    assertEquals("attributed message", log.body);
     assertEquals("str-value", log.attributes.get("str.key"));
     assertEquals(42L, log.attributes.get("long.key"));
     assertEquals(true, log.attributes.get("bool.key"));
@@ -110,7 +110,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
     loggerB.logRecordBuilder().setBody("b-1").setSeverity(Severity.WARN).emit();
     loggerA.logRecordBuilder().setBody("a-2").setSeverity(Severity.DEBUG).emit();
 
-    OtelLogRecordProcessor.INSTANCE.collectLogs(logsReader);
+    OtelLogRecordProcessor.INSTANCE.waitForLogs(logsReader, 0);
 
     // logs are sorted by scope name, so all scope-a logs come before scope-b logs
     assertEquals(3, logsReader.logs.size());
@@ -125,30 +125,30 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
             .collect(Collectors.toList());
 
     assertEquals(2, scopeALogs.size());
-    assertEquals("a-1", scopeALogs.get(0).bodyValue);
-    assertEquals("a-2", scopeALogs.get(1).bodyValue);
+    assertEquals("a-1", scopeALogs.get(0).body);
+    assertEquals("a-2", scopeALogs.get(1).body);
 
     assertEquals(1, scopeBLogs.size());
-    assertEquals("b-1", scopeBLogs.get(0).bodyValue);
+    assertEquals("b-1", scopeBLogs.get(0).body);
   }
 
   static class CapturedLog {
     final String scopeName;
     final int severityNumber;
     final String severityText;
-    final Object bodyValue;
+    final String body;
     final Map<String, Object> attributes;
 
     CapturedLog(
         String scopeName,
         int severityNumber,
         String severityText,
-        Object bodyValue,
+        String body,
         Map<String, Object> attributes) {
       this.scopeName = scopeName;
       this.severityNumber = severityNumber;
       this.severityText = severityText;
-      this.bodyValue = bodyValue;
+      this.body = body;
       this.attributes = attributes;
     }
   }
@@ -176,7 +176,7 @@ class OpenTelemetryLogsTest extends AbstractInstrumentationTest {
               currentScopeName,
               logRecord.severityNumber,
               logRecord.severityText,
-              logRecord.bodyValue,
+              logRecord.body,
               new HashMap<>(currentAttributes)));
       currentAttributes.clear();
     }

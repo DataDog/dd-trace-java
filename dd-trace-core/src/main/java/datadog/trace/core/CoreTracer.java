@@ -94,6 +94,7 @@ import datadog.trace.core.datastreams.DefaultDataStreamsMonitoring;
 import datadog.trace.core.datastreams.DisabledDataStreamsMonitoring;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.monitor.TracerHealthMetrics;
+import datadog.trace.core.otlp.logs.OtlpLogsService;
 import datadog.trace.core.otlp.metrics.OtlpMetricsService;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.HttpCodec;
@@ -802,10 +803,16 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     // allowed
     metricsAggregator = NoOpMetricsAggregator.INSTANCE;
     final SharedCommunicationObjects sco = sharedCommunicationObjects;
-    // asynchronously create the aggregator to avoid triggering expensive classloading during the
-    // tracer initialisation.
+    // asynchronously create these aggregator/export components to avoid triggering
+    // expensive classloading during the tracer initialisation.
     sharedCommunicationObjects.whenReady(
-        () -> AgentTaskScheduler.get().execute(() -> startMetricsAggregation(config, sco)));
+        () ->
+            AgentTaskScheduler.get()
+                .execute(
+                    () -> {
+                      startMetricsAggregation(config, sco);
+                      maybeStartLogsExport(config);
+                    }));
 
     if (dataStreamsMonitoring == null) {
       // Avoid DSM in bazel hermetic mode
@@ -926,6 +933,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     if (config.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.start();
+    }
+  }
+
+  private void maybeStartLogsExport(Config config) {
+    if (config.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.start();
     }
   }
 
@@ -1378,6 +1391,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return "0";
   }
 
+  // @VisibleForTesting
+  TraceInterceptors getInterceptors() {
+    return interceptors;
+  }
+
   @Override
   public boolean addTraceInterceptor(final TraceInterceptor interceptor) {
     TraceInterceptor conflictingInterceptor = interceptors.add(interceptor);
@@ -1455,6 +1473,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.shutdown();
     }
+    if (initialConfig.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.shutdown();
+    }
     dataStreamsMonitoring.close();
     externalAgentLauncher.close();
     healthMetrics.close();
@@ -1493,6 +1514,13 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     if (initialConfig.isMetricsOtlpExporterEnabled()) {
       OtlpMetricsService.INSTANCE.flush();
+    }
+  }
+
+  @Override
+  public void flushLogs() {
+    if (initialConfig.isLogsOtlpExporterEnabled()) {
+      OtlpLogsService.INSTANCE.flush();
     }
   }
 
