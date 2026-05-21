@@ -300,12 +300,6 @@ class TraceGenerator {
       return false
     }
 
-    @Override
-    boolean isKind(SpanKindFilter filter) {
-      def kind = metadata.getTags().get(Tags.SPAN_KIND)
-      return filter.matches(kind == null ? null : kind.toString())
-    }
-
     Map<String, String> getBaggage() {
       return metadata.getBaggage()
     }

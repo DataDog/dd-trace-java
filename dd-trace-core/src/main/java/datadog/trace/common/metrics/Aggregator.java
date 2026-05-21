@@ -29,12 +29,13 @@ final class Aggregator implements Runnable {
   private final long sleepMillis;
 
   /**
-   * Per-cycle hook run on the aggregator thread right after {@link
-   * AggregateEntry#resetCardinalityHandlers()}. Used by {@link ClientStatsAggregator} to reset the
-   * peer-aggregation schema's handlers, which live outside {@link AggregateEntry}'s static set. May
-   * be {@code null}.
+   * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
+   * flush. Used by {@link ConflatingMetricsAggregator} to reconcile its cached peer-tag schema
+   * against {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the
+   * flush guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in
+   * its post-reconcile state. May be {@code null}.
    */
-  private final Runnable onResetCardinality;
+  private final Runnable onReportCycle;
 
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
@@ -48,7 +49,7 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
-      Runnable onResetCardinality) {
+      Runnable onReportCycle) {
     this(
         writer,
         inbox,
@@ -57,7 +58,7 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
-        onResetCardinality);
+        onReportCycle);
   }
 
   Aggregator(
@@ -68,14 +69,18 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
-      Runnable onResetCardinality) {
+      Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
     this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
-    this.onResetCardinality = onResetCardinality;
+    this.onReportCycle = onReportCycle;
+  }
+
+  public void clearAggregates() {
+    this.aggregates.clear();
   }
 
   @Override
@@ -140,6 +145,14 @@ final class Aggregator implements Runnable {
   }
 
   private void report(long when, SignalItem signal) {
+    // Per-cycle hook on the aggregator thread -- used by ClientStatsAggregator to reconcile the
+    // cached peer-tag schema against feature discovery. Runs before the flush so any test that
+    // awaits writer.finishBucket() observes the schema in its post-reconcile state, and so
+    // subsequent producer publishes (which may happen as soon as the flush completes) see the new
+    // schema without an additional handoff.
+    if (onReportCycle != null) {
+      onReportCycle.run();
+    }
     boolean skipped = true;
     if (dirty) {
       try {
@@ -161,13 +174,6 @@ final class Aggregator implements Runnable {
         log.debug("Error publishing metrics. Dropping payload", error);
       }
       dirty = false;
-    }
-    // Reset cardinality handlers each report cycle so the per-field budgets refresh. Single hook
-    // owned by ClientStatsAggregator -- it covers both the static property handlers on
-    // AggregateEntry and the cached peer-agg schema. Safe on this (aggregator) thread; handlers
-    // are HashMap-based and not thread-safe.
-    if (onResetCardinality != null) {
-      onResetCardinality.run();
     }
     signal.complete();
     if (skipped) {

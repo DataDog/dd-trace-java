@@ -2173,7 +2173,12 @@ public class Config {
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
-    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+    // Sized for ~2048 conflation slots * ~64 spans-per-batch effective capacity from the previous
+    // conflating-Batch design (131072 = 2^17). Without producer-side conflation, the inbox holds 1
+    // SpanSnapshot per metrics-eligible span instead of 1 conflated Batch per ~64 spans -- without
+    // this bump customers would see ~64x more inbox-full drops at the same span rate. ~100 B per
+    // SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor.
+    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 131072);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
