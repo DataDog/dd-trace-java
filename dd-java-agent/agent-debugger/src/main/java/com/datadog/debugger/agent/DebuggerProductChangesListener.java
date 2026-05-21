@@ -1,6 +1,11 @@
 package com.datadog.debugger.agent;
 
 import static com.datadog.debugger.agent.ConfigurationAcceptor.Source.REMOTE_CONFIG;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeLogProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeMetricProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanDecorationProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeSpanProbe;
+import static com.datadog.debugger.probe.ProbeDefinitionDeserializer.deserializeTriggerProbe;
 
 import com.datadog.debugger.probe.LogProbe;
 import com.datadog.debugger.probe.MetricProbe;
@@ -8,23 +13,15 @@ import com.datadog.debugger.probe.ProbeDefinition;
 import com.datadog.debugger.probe.SpanDecorationProbe;
 import com.datadog.debugger.probe.SpanProbe;
 import com.datadog.debugger.probe.TriggerProbe;
-import com.datadog.debugger.util.MoshiHelper;
-import com.squareup.moshi.JsonAdapter;
 import datadog.remoteconfig.PollingRateHinter;
 import datadog.remoteconfig.state.ConfigKey;
 import datadog.remoteconfig.state.ProductListener;
-import datadog.trace.api.Config;
-import datadog.trace.util.TagsHelper;
-import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.function.Consumer;
 import java.util.function.Predicate;
 import java.util.regex.Pattern;
-import okio.Okio;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -37,65 +34,15 @@ public class DebuggerProductChangesListener implements ProductListener {
   private static final Logger LOGGER =
       LoggerFactory.getLogger(DebuggerProductChangesListener.class);
 
-  static class Adapter {
-    static final JsonAdapter<Configuration> CONFIGURATION_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(Configuration.class);
-
-    static final JsonAdapter<MetricProbe> METRIC_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(MetricProbe.class);
-
-    static final JsonAdapter<LogProbe> LOG_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(LogProbe.class);
-
-    static final JsonAdapter<SpanProbe> SPAN_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(SpanProbe.class);
-
-    static final JsonAdapter<TriggerProbe> TRIGGER_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(TriggerProbe.class);
-
-    static final JsonAdapter<SpanDecorationProbe> SPAN_DECORATION_PROBE_JSON_ADAPTER =
-        MoshiHelper.createMoshiConfig().adapter(SpanDecorationProbe.class);
-
-    static Configuration deserializeConfiguration(byte[] content) throws IOException {
-      return deserialize(CONFIGURATION_JSON_ADAPTER, content);
-    }
-
-    static MetricProbe deserializeMetricProbe(byte[] content) throws IOException {
-      return deserialize(METRIC_PROBE_JSON_ADAPTER, content);
-    }
-
-    static LogProbe deserializeLogProbe(byte[] content) throws IOException {
-      return deserialize(LOG_PROBE_JSON_ADAPTER, content);
-    }
-
-    static SpanProbe deserializeSpanProbe(byte[] content) throws IOException {
-      return deserialize(SPAN_PROBE_JSON_ADAPTER, content);
-    }
-
-    static TriggerProbe deserializeTriggerProbe(byte[] content) throws IOException {
-      return deserialize(TRIGGER_PROBE_JSON_ADAPTER, content);
-    }
-
-    static SpanDecorationProbe deserializeSpanDecorationProbe(byte[] content) throws IOException {
-      return deserialize(SPAN_DECORATION_PROBE_JSON_ADAPTER, content);
-    }
-
-    private static <T> T deserialize(JsonAdapter<T> adapter, byte[] content) throws IOException {
-      return adapter.fromJson(Okio.buffer(Okio.source(new ByteArrayInputStream(content))));
-    }
-  }
-
   private static final Predicate<String> IS_UUID =
       Pattern.compile(
               "^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$")
           .asPredicate();
 
-  private final String serviceName;
   private final ConfigurationAcceptor configurationAcceptor;
-  private final Map<String, Consumer<DefinitionBuilder>> configChunks = new HashMap<>();
+  private final Map<String, ProbeDefinition> probeByConfigId = new HashMap<>();
 
-  DebuggerProductChangesListener(Config config, ConfigurationAcceptor configurationAcceptor) {
-    this.serviceName = TagsHelper.sanitize(config.getServiceName());
+  DebuggerProductChangesListener(ConfigurationAcceptor configurationAcceptor) {
     this.configurationAcceptor = configurationAcceptor;
   }
 
@@ -105,32 +52,20 @@ public class DebuggerProductChangesListener implements ProductListener {
     String configId = configKey.getConfigId();
     try {
       if (configId.startsWith(METRIC_PROBE_PREFIX)) {
-        MetricProbe metricProbe = Adapter.deserializeMetricProbe(content);
-        configChunks.put(configId, definitions -> definitions.add(metricProbe));
+        MetricProbe metricProbe = deserializeMetricProbe(content);
+        probeByConfigId.put(configId, metricProbe);
       } else if (configId.startsWith(LOG_PROBE_PREFIX)) {
-        LogProbe logProbe = Adapter.deserializeLogProbe(content);
-        configChunks.put(configId, definitions -> definitions.add(logProbe));
+        LogProbe logProbe = deserializeLogProbe(content);
+        probeByConfigId.put(configId, logProbe);
       } else if (configId.startsWith(SPAN_PROBE_PREFIX)) {
-        SpanProbe spanProbe = Adapter.deserializeSpanProbe(content);
-        configChunks.put(configId, definitions -> definitions.add(spanProbe));
+        SpanProbe spanProbe = deserializeSpanProbe(content);
+        probeByConfigId.put(configId, spanProbe);
       } else if (configId.startsWith(TRIGGER_PROBE_PREFIX)) {
-        TriggerProbe triggerProbe = Adapter.deserializeTriggerProbe(content);
-        configChunks.put(configId, definitions -> definitions.add(triggerProbe));
+        TriggerProbe triggerProbe = deserializeTriggerProbe(content);
+        probeByConfigId.put(configId, triggerProbe);
       } else if (configId.startsWith(SPAN_DECORATION_PROBE_PREFIX)) {
-        SpanDecorationProbe spanDecorationProbe = Adapter.deserializeSpanDecorationProbe(content);
-        configChunks.put(configId, definitions -> definitions.add(spanDecorationProbe));
-      } else if (IS_UUID.test(configId)) {
-        Configuration newConfig = Adapter.deserializeConfiguration(content);
-        if (newConfig.getService().equals(serviceName)) {
-          configChunks.put(
-              configId,
-              (builder) -> {
-                builder.addAll(newConfig.getDefinitions());
-              });
-        } else {
-          throw new IOException(
-              "got config.serviceName = " + newConfig.getService() + ", ignoring configuration");
-        }
+        SpanDecorationProbe spanDecorationProbe = deserializeSpanDecorationProbe(content);
+        probeByConfigId.put(configId, spanDecorationProbe);
       } else {
         LOGGER.debug("Unsupported configuration id: {}, ignoring configuration", configId);
       }
@@ -142,59 +77,12 @@ public class DebuggerProductChangesListener implements ProductListener {
 
   @Override
   public void remove(ConfigKey configKey, PollingRateHinter pollingRateHinter) throws IOException {
-    configChunks.remove(configKey.getConfigId());
+    probeByConfigId.remove(configKey.getConfigId());
   }
 
   @Override
   public void commit(PollingRateHinter pollingRateHinter) {
-    DefinitionBuilder builder = new DefinitionBuilder();
-    for (Consumer<DefinitionBuilder> chunk : configChunks.values()) {
-      chunk.accept(builder);
-    }
-    configurationAcceptor.accept(REMOTE_CONFIG, builder.build());
-  }
-
-  static class DefinitionBuilder {
-    private final Collection<ProbeDefinition> definitions = new ArrayList<>();
-
-    void add(MetricProbe probe) {
-      definitions.add(probe);
-    }
-
-    void add(LogProbe probe) {
-      definitions.add(probe);
-    }
-
-    void add(SpanProbe probe) {
-      definitions.add(probe);
-    }
-
-    void add(TriggerProbe probe) {
-      definitions.add(probe);
-    }
-
-    void add(SpanDecorationProbe probe) {
-      definitions.add(probe);
-    }
-
-    void addAll(Collection<ProbeDefinition> newDefinitions) {
-      for (ProbeDefinition definition : newDefinitions) {
-        if (definition instanceof MetricProbe) {
-          add((MetricProbe) definition);
-        } else if (definition instanceof LogProbe) {
-          add((LogProbe) definition);
-        } else if (definition instanceof SpanProbe) {
-          add((SpanProbe) definition);
-        } else if (definition instanceof TriggerProbe) {
-          add((TriggerProbe) definition);
-        } else if (definition instanceof SpanDecorationProbe) {
-          add((SpanDecorationProbe) definition);
-        }
-      }
-    }
-
-    Collection<ProbeDefinition> build() {
-      return definitions;
-    }
+    // create a snapshot of the actual probes stored into probeByConfigId map
+    configurationAcceptor.accept(REMOTE_CONFIG, new ArrayList<>(probeByConfigId.values()));
   }
 }

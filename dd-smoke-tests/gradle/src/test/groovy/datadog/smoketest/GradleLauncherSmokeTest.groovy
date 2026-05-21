@@ -80,8 +80,9 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       "DD_CIVISIBILITY_AGENTLESS_URL"     : "${mockBackend.intakeUrl}".toString(),
       "DD_CIVISIBILITY_GIT_UPLOAD_ENABLED": "false",
       "DD_CIVISIBILITY_GIT_CLIENT_ENABLED": "false",
-      "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"  : "false",
-      "DD_API_KEY"                        : "dummy"
+      "DD_CODE_ORIGIN_FOR_SPANS_ENABLED"     : "false",
+      "DD_CIVISIBILITY_CODE_COVERAGE_ENABLED": "false",
+      "DD_API_KEY"                           : "dummy"
     ])
     String[] command = ["./gradlew", "--no-daemon", "--info"]
     if (gradleDaemonCmdLineParams) {

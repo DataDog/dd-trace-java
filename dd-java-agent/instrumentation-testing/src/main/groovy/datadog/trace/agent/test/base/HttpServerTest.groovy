@@ -136,6 +136,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     ss.registerCallback(events.requestBodyDone(), callbacks.requestBodyEndCb)
     ss.registerCallback(events.requestBodyProcessed(), callbacks.requestBodyObjectCb)
     ss.registerCallback(events.requestFilesFilenames(), callbacks.requestFilesFilenamesCb)
+    ss.registerCallback(events.requestFilesContent(), callbacks.requestFilesContentCb)
     ss.registerCallback(events.responseBody(), callbacks.responseBodyObjectCb)
     ss.registerCallback(events.responseStarted(), callbacks.responseStartedCb)
     ss.registerCallback(events.responseHeader(), callbacks.responseHeaderCb)
@@ -369,6 +370,10 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   boolean testBodyFilenames() {
+    false
+  }
+
+  boolean testBodyFilesContent() {
     false
   }
 
@@ -1243,7 +1248,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
   }
 
   @Flaky(value = "https://github.com/DataDog/dd-trace-java/issues/9396", suites = ["PekkoHttpServerInstrumentationAsyncHttp2Test"])
-  def "test exception"() {
+  def "Instrumentation test exception"() {
     setup:
     def method = "GET"
     def body = null
@@ -1646,6 +1651,82 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
     then:
     TEST_WRITER.get(0).any {
       it.getTag('request.body.filenames') == "[evil.php]"
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    RequestBody fileBody = RequestBody.create(MediaType.parse('application/octet-stream'), 'file content')
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'test.bin', fileBody)
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      it.getTag('request.body.files_content') == '[file content]'
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content truncated at max size'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxContentBytes = Config.get().getAppSecMaxFileContentBytes()
+    def body = new MultipartBody.Builder()
+    .setType(MultipartBody.FORM)
+    .addFormDataPart('file', 'large.bin',
+    RequestBody.create(MediaType.parse('application/octet-stream'), 'X' * (maxContentBytes + 500)))
+    .build()
+    def httpRequest = request(BODY_MULTIPART, 'POST', body).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      span ->
+      span.getTag('request.body.files_content') == '[' + 'X' * maxContentBytes + ']'
+    }
+
+    cleanup:
+    response.close()
+  }
+
+  def 'test instrumentation gateway file upload content max files limit'() {
+    setup:
+    assumeTrue(testBodyFilesContent())
+    def maxFilesToInspect = Config.get().getAppSecMaxFileContentCount()
+    def bodyBuilder = new MultipartBody.Builder().setType(MultipartBody.FORM)
+    (1..maxFilesToInspect + 1).each {
+      i ->
+      bodyBuilder.addFormDataPart("file$i", "file${i}.bin",
+      RequestBody.create(MediaType.parse('application/octet-stream'), "content_of_file_$i"))
+    }
+    def httpRequest = request(BODY_MULTIPART, 'POST', bodyBuilder.build()).build()
+    def response = client.newCall(httpRequest).execute()
+
+    when:
+    TEST_WRITER.waitForTraces(1)
+
+    then:
+    TEST_WRITER.get(0).any {
+      span ->
+      def tag = span.getTag('request.body.files_content') as String
+      tag?.contains("content_of_file_$maxFilesToInspect") &&
+      !tag.contains("content_of_file_${maxFilesToInspect + 1}")
     }
 
     cleanup:
@@ -2490,22 +2571,18 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
           if (hasPeerPort) {
             "$Tags.PEER_PORT" Integer
           }
+          def peerHostTag = Tags.PEER_HOST_IPV4
+          def expectedPeerIp = "127.0.0.1"
           if (span.getTag(Tags.PEER_HOST_IPV6) != null) {
-            "$Tags.PEER_HOST_IPV6" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "0:0:0:0:0:0:0:1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-          } else {
-            "$Tags.PEER_HOST_IPV4" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
-            "$Tags.HTTP_CLIENT_IP" {
-              it == "127.0.0.1" || (endpoint == FORWARDED && it == endpoint.body)
-            }
+            peerHostTag = Tags.PEER_HOST_IPV6
+            expectedPeerIp = "0:0:0:0:0:0:0:1"
           }
+          tag(peerHostTag, expectedPeerIp)
+          "$Tags.HTTP_CLIENT_IP" clientIp ?: expectedPeerIp
+          "$Tags.NETWORK_CLIENT_IP" expectedPeerIp
         } else {
+          // http.client_ip is inferred from forwarded headers; network.client.ip requires peerIp.
+          "$Tags.NETWORK_CLIENT_IP" null
           "$Tags.HTTP_CLIENT_IP" clientIp
         }
         "$Tags.HTTP_HOSTNAME" address.host
@@ -2589,6 +2666,7 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       boolean responseBodyTag
       Object responseBody
       List<String> uploadedFilenames
+      List<String> uploadedFilesContent
     }
 
     static final String stringOrEmpty(String string) {
@@ -2762,6 +2840,15 @@ abstract class HttpServerTest<SERVER> extends WithHttpServer<SERVER> {
       rqCtxt.traceSegment.setTagTop('request.body.filenames', filenames as String)
       Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
       context.uploadedFilenames = filenames
+      Flow.ResultFlow.empty()
+    } as BiFunction<RequestContext, List<String>, Flow<Void>>)
+
+    final BiFunction<RequestContext, List<String>, Flow<Void>> requestFilesContentCb =
+    ({
+      RequestContext rqCtxt, List<String> contents ->
+      rqCtxt.traceSegment.setTagTop('request.body.files_content', contents as String)
+      Context context = rqCtxt.getData(RequestContextSlot.APPSEC)
+      context.uploadedFilesContent = contents
       Flow.ResultFlow.empty()
     } as BiFunction<RequestContext, List<String>, Flow<Void>>)
 

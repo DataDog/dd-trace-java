@@ -1,6 +1,5 @@
 package datadog.trace.core.otlp.trace;
 
-import static datadog.trace.core.otlp.common.OtlpCommonProto.recordMessage;
 import static datadog.trace.core.otlp.common.OtlpResourceProto.RESOURCE_MESSAGE;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordScopedSpansMessage;
 import static datadog.trace.core.otlp.trace.OtlpTraceProto.recordSpanLinkMessage;
@@ -13,9 +12,7 @@ import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.otlp.common.OtlpCommonProto;
 import datadog.trace.core.otlp.common.OtlpPayload;
-import java.util.ArrayDeque;
-import java.util.ArrayList;
-import java.util.Deque;
+import datadog.trace.core.otlp.common.OtlpProtoBuffer;
 import java.util.List;
 
 /**
@@ -32,22 +29,14 @@ import java.util.List;
  * to the payload. Once all the span data has been chunked we add the enclosing resource span
  * message to the start of the payload.
  */
-public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
-
-  public static final OtlpTraceProtoCollector INSTANCE = new OtlpTraceProtoCollector();
+public final class OtlpTraceProtoCollector extends OtlpTraceCollector {
 
   private static final OtelInstrumentationScope DEFAULT_TRACE_SCOPE =
       new OtelInstrumentationScope("", null, null);
 
-  private static final String PROTOBUF_CONTENT_TYPE = "application/x-protobuf";
-
   private final GrowableBuffer buf = new GrowableBuffer(512);
   private final OtlpTraceProto.MetaWriter metaWriter = new OtlpTraceProto.MetaWriter(buf);
-
-  // temporary collections of chunks at different nesting levels
-  private final Deque<byte[]> payloadChunks = new ArrayDeque<>();
-  private final List<byte[]> scopedChunks = new ArrayList<>();
-  private final List<byte[]> spanChunks = new ArrayList<>();
+  private final OtlpProtoBuffer protobuf = new OtlpProtoBuffer(8192);
 
   private boolean payloadStarted;
 
@@ -64,14 +53,11 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   public void addTrace(List<? extends CoreSpan<?>> spans) {
     if (!payloadStarted) {
       start();
-      metaWriter.includeProcessTags();
       payloadStarted = true;
     }
 
-    for (int i = 0, len = spans.size(); i < len; i++) {
-      if (i == 0 || i == len - 1) {
-        metaWriter.includeSamplingTags();
-      }
+    // OtlpProtoBuffer collects spans in reverse
+    for (int i = spans.size() - 1; i >= 0; i--) {
       visitSpan(spans.get(i));
     }
   }
@@ -93,9 +79,6 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   /** Prepare temporary elements to collect trace data. */
   private void start() {
 
-    // clear payloadChunks in case it wasn't fully consumed via OtlpPayload
-    payloadChunks.clear();
-
     // remove stale entries from caches
     OtlpCommonProto.recalibrateCaches();
 
@@ -108,10 +91,7 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
     payloadStarted = false;
 
     buf.reset();
-
-    // leave payloadChunks in place so it can be consumed via OtlpPayload
-    scopedChunks.clear();
-    spanChunks.clear();
+    protobuf.reset();
 
     payloadBytes = 0;
     scopedBytes = 0;
@@ -129,17 +109,22 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
   }
 
   private void visitSpan(CoreSpan<?> span) {
-    if (currentSpan != null) {
-      completeSpan();
+    if (shouldExport(span)) {
+      if (currentSpan != null) {
+        // ensure last span written at trace boundary includes sampling tags
+        // payload buffer is prepending, so last span written appears first!
+        if (!span.getTraceId().equals(currentSpan.getTraceId())) {
+          metaWriter.includeSamplingTags();
+        }
+        completeSpan();
+      }
+      currentSpan = (DDSpan) span;
+      currentSpan.getLinks().forEach(this::visitSpanLink);
     }
-    currentSpan = (DDSpan) span;
-    currentSpan.getLinks().forEach(this::visitSpanLink);
   }
 
   private void visitSpanLink(AgentSpanLink spanLink) {
-    byte[] spanLinkMessage = recordSpanLinkMessage(buf, spanLink);
-    spanChunks.add(spanLinkMessage);
-    spanBytes += spanLinkMessage.length;
+    spanBytes += recordSpanLinkMessage(buf, spanLink, protobuf);
   }
 
   // called once we've processed all scopes and span messages
@@ -153,49 +138,39 @@ public final class OtlpTraceProtoCollector implements OtlpTraceCollector {
     }
 
     // prepend the canned resource chunk
-    payloadChunks.addFirst(RESOURCE_MESSAGE);
-    payloadBytes += RESOURCE_MESSAGE.length;
+    payloadBytes += protobuf.recordMessage(RESOURCE_MESSAGE);
 
     // finally prepend the total length of all collected chunks
-    byte[] prefix = recordMessage(buf, 1, payloadBytes);
-    payloadChunks.addFirst(prefix);
-    payloadBytes += prefix.length;
-
-    return new OtlpPayload(payloadChunks, payloadBytes, PROTOBUF_CONTENT_TYPE);
+    protobuf.recordMessage(buf, 1, payloadBytes);
+    return protobuf.toPayload();
   }
 
   // called once we've processed all spans in a specific scope
   private void completeScope() {
     if (currentSpan != null) {
+      // ensure last span written at scope boundary includes process+sampling tags
+      // payload buffer is prepending, so last span written appears first!
+      metaWriter.includeProcessTags();
+      metaWriter.includeSamplingTags();
       completeSpan();
     }
 
-    // add scoped spans message prefix to its nested chunks and promote to payload
     if (scopedBytes > 0) {
-      byte[] scopedPrefix = recordScopedSpansMessage(buf, currentScope, scopedBytes);
-      payloadChunks.add(scopedPrefix);
-      payloadChunks.addAll(scopedChunks);
-      payloadBytes += scopedPrefix.length + scopedBytes;
+      payloadBytes += recordScopedSpansMessage(buf, currentScope, scopedBytes, protobuf);
     }
 
     // reset temporary elements for next scope
     currentScope = null;
-    scopedChunks.clear();
     scopedBytes = 0;
   }
 
   // called once we've processed all span-links in a specific span
   private void completeSpan() {
 
-    // add span message prefix to its nested chunks and promote to scoped
-    byte[] spanPrefix = recordSpanMessage(buf, currentSpan, metaWriter, spanBytes);
-    scopedChunks.add(spanPrefix);
-    scopedChunks.addAll(spanChunks);
-    scopedBytes += spanPrefix.length + spanBytes;
+    scopedBytes += recordSpanMessage(buf, currentSpan, metaWriter, spanBytes, protobuf);
 
     // reset temporary elements for next span
     currentSpan = null;
-    spanChunks.clear();
     spanBytes = 0;
   }
 }

@@ -189,6 +189,16 @@ public class CiVisibilityRepoServices {
   }
 
   private static String getRepoRoot(CIInfo ciInfo, GitClient.Factory gitClientFactory) {
+    BazelMode bazelMode = BazelMode.get();
+    if (bazelMode.isEnabled()) {
+      String bazelRepoRoot = bazelMode.getRepoRoot();
+      if (bazelRepoRoot != null) {
+        // The on-disk repo is unreachable from a Bazel test sandbox, so the runfiles workspace
+        // dir is used as a virtual repo root for source-path resolution.
+        return bazelRepoRoot;
+      }
+    }
+
     String ciWorkspace = ciInfo.getCiWorkspace();
     if (Strings.isNotBlank(ciWorkspace)) {
       return ciWorkspace;
@@ -256,11 +266,11 @@ public class CiVisibilityRepoServices {
       LOGGER.info("[bazel mode] Manifest mode detected. Using file-based configuration API");
       configurationApi =
           new FileBasedConfigurationApi(
-              bazelMode.getSettingsPath(),
+              toPathOrNull(bazelMode.getSettingsPath()),
               null,
-              bazelMode.getFlakyTestsPath(),
-              bazelMode.getKnownTestsPath(),
-              bazelMode.getTestManagementPath());
+              toPathOrNull(bazelMode.getFlakyTestsPath()),
+              toPathOrNull(bazelMode.getKnownTestsPath()),
+              toPathOrNull(bazelMode.getTestManagementPath()));
     } else if (backendApi == null) {
       LOGGER.warn(
           "Remote config and skippable tests requests will be skipped since backend API client could not be created");
@@ -283,6 +293,11 @@ public class CiVisibilityRepoServices {
     } else {
       return new MultiModuleExecutionSettingsFactory(config, factory);
     }
+  }
+
+  @Nullable
+  private static Path toPathOrNull(@Nullable String path) {
+    return path != null ? Paths.get(path) : null;
   }
 
   private static GitDataUploader buildGitDataUploader(

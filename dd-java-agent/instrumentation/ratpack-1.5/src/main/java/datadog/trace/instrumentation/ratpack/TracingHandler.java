@@ -38,7 +38,7 @@ public final class TracingHandler implements Handler {
     final AgentSpan nettySpan = nettyContext != null ? fromContext(nettyContext) : null;
 
     // Relying on executor instrumentation to assume the netty span is in context as the parent.
-    final AgentSpan ratpackSpan = startSpan(DECORATE.spanName()).setMeasured(true);
+    final AgentSpan ratpackSpan = startSpan("ratpack", DECORATE.spanName()).setMeasured(true);
     DECORATE.afterStart(ratpackSpan);
     DECORATE.onRequest(ratpackSpan, request, request, root());
     ctx.getExecution().add(ratpackSpan);

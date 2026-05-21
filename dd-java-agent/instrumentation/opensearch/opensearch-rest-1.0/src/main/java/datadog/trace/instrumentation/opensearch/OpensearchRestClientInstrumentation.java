@@ -4,6 +4,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.opensearch.OpensearchRestClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.opensearch.OpensearchRestClientDecorator.OPENSEARCH_JAVA;
 import static datadog.trace.instrumentation.opensearch.OpensearchRestClientDecorator.OPERATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -66,7 +67,7 @@ public class OpensearchRestClientInstrumentation extends InstrumenterModule.Trac
         @Advice.Argument(value = 1, readOnly = false, optional = true)
             ResponseListener responseListener) {
 
-      final AgentSpan span = startSpan(OPERATION_NAME);
+      final AgentSpan span = startSpan(OPENSEARCH_JAVA.toString(), OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onRequest(
           span,
