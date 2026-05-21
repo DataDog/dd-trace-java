@@ -28,6 +28,10 @@ public class GitRepoUnshallow {
     long unshallowStart = System.currentTimeMillis();
     try {
       gitClient.unshallow(GitClient.HEAD);
+      LOGGER.debug(
+          "Repository unshallowing via HEAD took {} ms",
+          System.currentTimeMillis() - unshallowStart);
+      return true;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
           "Could not unshallow using HEAD - assuming HEAD points to a local commit that does not exist in the remote repo",
@@ -37,13 +41,20 @@ public class GitRepoUnshallow {
     try {
       String upstreamBranch = gitClient.getUpstreamBranchSha();
       gitClient.unshallow(upstreamBranch);
+      LOGGER.debug(
+          "Repository unshallowing via upstream branch took {} ms",
+          System.currentTimeMillis() - unshallowStart);
+      return true;
     } catch (ShellCommandExecutor.ShellCommandFailedException e) {
       LOGGER.debug(
           "Could not unshallow using upstream branch - assuming currently checked out local branch does not track any remote branch",
           e);
-      gitClient.unshallow(null);
     }
-    LOGGER.debug("Repository unshallowing took {} ms", System.currentTimeMillis() - unshallowStart);
+
+    gitClient.unshallow(null);
+    LOGGER.debug(
+        "Repository unshallowing via no-ref fetch took {} ms",
+        System.currentTimeMillis() - unshallowStart);
     return true;
   }
 }
