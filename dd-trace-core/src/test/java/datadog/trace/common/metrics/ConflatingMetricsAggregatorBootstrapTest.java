@@ -193,10 +193,10 @@ class ConflatingMetricsAggregatorBootstrapTest {
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
 
-      // Both cycles flushed: writer.add was invoked twice (once per cycle). The schema kept
-      // producing the same MetricKey across cycles -- if the schema had been broken by the
-      // timestamp bump, no buckets would have flushed.
-      verify(writer, times(2)).add(any(MetricKey.class), any(AggregateMetric.class));
+      // Both cycles flushed (both latches counted down via writer.finishBucket). The schema kept
+      // producing buckets across the timestamp bumps; if the schema had been broken by the
+      // bump-in-place path, the second cycle's flush would not have happened.
+      verify(writer, times(2)).finishBucket();
       // Bootstrap (1) + two reconciles (2) -- each reconcile saw a timestamp mismatch and went
       // through the deep compare, calling peerTags() once = 3 total.
       verify(features, times(3)).peerTags();
