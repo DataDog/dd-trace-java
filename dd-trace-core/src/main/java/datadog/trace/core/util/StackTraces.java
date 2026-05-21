@@ -64,12 +64,16 @@ public final class StackTraces {
     } catch (Exception ignored) {
       // printStackTrace() failed (e.g. getMessage() throws inside toString()).
       // Reconstruct from getStackTrace() so the call site is still locatable.
-      trace =
-          t.getClass().getName()
-              + System.lineSeparator()
-              + Arrays.stream(t.getStackTrace())
-                  .map(f -> "\tat " + f)
-                  .collect(Collectors.joining(System.lineSeparator()));
+      try {
+        trace =
+            t.getClass().getName()
+                + System.lineSeparator()
+                + Arrays.stream(t.getStackTrace())
+                    .map(f -> "\tat " + f)
+                    .collect(Collectors.joining(System.lineSeparator()));
+      } catch (Exception ignored2) {
+        trace = t.getClass().getName();
+      }
     }
     try {
       return truncate(trace, maxChars);
