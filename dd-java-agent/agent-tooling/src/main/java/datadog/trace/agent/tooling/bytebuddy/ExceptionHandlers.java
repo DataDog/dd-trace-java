@@ -45,7 +45,7 @@ public class ExceptionHandlers {
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .debug("Failed to handle exception in instrumentation for ...", t);
               // } catch (Throwable t2) {
@@ -55,7 +55,7 @@ public class ExceptionHandlers {
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
               //   System.exit(1);
