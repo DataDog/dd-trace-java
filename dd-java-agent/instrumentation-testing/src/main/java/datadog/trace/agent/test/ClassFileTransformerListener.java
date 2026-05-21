@@ -68,8 +68,6 @@ public class ClassFileTransformerListener implements AgentBuilder.Listener {
   }
 
   public void verify() {
-    // Check instrumentation errors
-    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
     // Check effectively transformed classes that should have been ignored
     assertTrue(
         this.transformedClassesTypes.stream()

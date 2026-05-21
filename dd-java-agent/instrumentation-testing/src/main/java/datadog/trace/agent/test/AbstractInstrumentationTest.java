@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.TracerInstaller;
 import datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers;
 import datadog.trace.api.Config;
 import datadog.trace.api.IdGenerationStrategy;
+import datadog.trace.bootstrap.InstrumentationErrors;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer.TracerAPI;
 import datadog.trace.common.writer.ListWriter;
@@ -97,10 +98,14 @@ public abstract class AbstractInstrumentationTest {
     activeTransformer =
         AgentInstaller.installBytebuddyAgent(
             INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), transformerListener);
+
+    // check for instrumentation issues during installation
+    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
 
   @BeforeEach
   public void init() {
+    InstrumentationErrors.resetErrors(); // reset for each test
     tracer.flush();
     writer.start();
   }
@@ -108,6 +113,9 @@ public abstract class AbstractInstrumentationTest {
   @AfterEach
   public void tearDown() {
     tracer.flush();
+
+    // check for instrumentation issues while running each test
+    assertTrue(InstrumentationErrors.noErrors(), InstrumentationErrors::describeErrors);
   }
 
   @AfterAll

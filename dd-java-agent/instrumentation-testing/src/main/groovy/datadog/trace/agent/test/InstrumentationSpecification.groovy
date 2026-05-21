@@ -419,6 +419,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     .hasNext(): "No instrumentation found"
     activeTransformer = AgentInstaller.installBytebuddyAgent(
     INSTRUMENTATION, true, AgentInstaller.getEnabledSystems(), this)
+
+    // check for instrumentation issues during installation
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   protected String idGenerationStrategyName() {
@@ -434,6 +437,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   }
 
   void setup() {
+    InstrumentationErrors.resetErrors() // reset for each test
+
     configureLoggingLevels()
 
     assertThreadsEachCleanup = false
@@ -469,7 +474,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    InstrumentationErrors.resetErrors()
     ProcessTags.reset()
   }
 
@@ -511,6 +515,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       spanFinishLocations.clear()
       originalToTrackingSpan.clear()
     }
+
+    // check for instrumentation issues while running each test
     assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
@@ -553,8 +559,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     cleanupAfterAgent()
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
-
     assert TRANSFORMED_CLASSES_TYPES.findAll {
       GlobalIgnores.isAdditionallyIgnored(it.getActualName())
     }.isEmpty(): "Transformed classes match global libraries ignore matcher"
