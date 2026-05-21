@@ -67,16 +67,6 @@ public class DDLLMObsSpan implements LLMObsSpan {
       spanName = kind;
     }
 
-    // If no explicit session_id was passed, inherit it from the active LLMObs parent.
-    // This matches dd-trace-py and dd-trace-js, and the public SDK docs which state that
-    // session_id only needs to be set on the root span — descendants inherit it.
-    if (sessionId == null || sessionId.isEmpty()) {
-      String inherited = LLMObsContext.currentSessionId();
-      if (inherited != null && !inherited.isEmpty()) {
-        sessionId = inherited;
-      }
-    }
-
     AgentTracer.SpanBuilder spanBuilder =
         AgentTracer.get()
             .buildSpan(LLM_OBS_INSTRUMENTATION_NAME, spanName)
@@ -99,11 +89,9 @@ public class DDLLMObsSpan implements LLMObsSpan {
     span.setTag(SPAN_KIND, kind);
     spanKind = kind;
     span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.ML_APP, mlApp);
-    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
-    if (this.hasSessionId) {
-      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
-    }
-
+    // Resolve effective parent_id and session_id from the LLMObs context, both gated on
+    // trace-id consistency. A stale context from a different trace (e.g. async boundary
+    // leakage) must not contribute either tag.
     AgentSpanContext parent = LLMObsContext.current();
     String parentSpanID = LLMObsContext.ROOT_SPAN_ID;
     if (null != parent) {
@@ -116,7 +104,21 @@ public class DDLLMObsSpan implements LLMObsSpan {
             span.getSpanId());
       } else {
         parentSpanID = String.valueOf(parent.getSpanId());
+        // Inherit session_id from parent context only when it belongs to the same trace.
+        // Matches dd-trace-py and dd-trace-js: session_id need only be set on the root
+        // span; descendants inherit transitively via context propagation.
+        if (sessionId == null || sessionId.isEmpty()) {
+          String inherited = LLMObsContext.currentSessionId();
+          if (inherited != null && !inherited.isEmpty()) {
+            sessionId = inherited;
+          }
+        }
       }
+    }
+
+    this.hasSessionId = sessionId != null && !sessionId.isEmpty();
+    if (this.hasSessionId) {
+      span.setTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID, sessionId);
     }
     span.setTag(LLMOBS_TAG_PREFIX + PARENT_ID_TAG_INTERNAL, parentSpanID);
     // Propagate the effective sessionId to descendant LLMObs spans via the context.

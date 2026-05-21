@@ -415,6 +415,10 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-abc-123"
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", expectedSessionId)
+    // Activate the parent's AgentScope so the child span is created in the same trace.
+    // Without this, the child gets a fresh trace_id and the trace-consistency gate in
+    // DDLLMObsSpan would (correctly) skip session_id inheritance.
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
 
     when:
     // Child created with null sessionId — should inherit from the parent's LLMObsContext.
@@ -426,6 +430,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     cleanup:
     child.finish()
+    parentScope.close()
     parent.finish()
   }
 
@@ -449,7 +454,11 @@ class DDLLMObsSpanTest  extends DDSpecification{
     setup:
     def expectedSessionId = "session-grandparent-xyz"
     def grandparent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "grandparent-workflow", expectedSessionId)
+    // Activate each ancestor's AgentScope so descendants stay in the same trace —
+    // session_id inheritance is gated on trace-id consistency in DDLLMObsSpan.
+    def grandparentScope = AgentTracer.activateSpan((AgentSpan) grandparent.span)
     def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "parent-workflow", null)
+    def parentScope = AgentTracer.activateSpan((AgentSpan) parent.span)
 
     when:
     // Grandchild created with null sessionId — should inherit transitively
@@ -462,8 +471,34 @@ class DDLLMObsSpanTest  extends DDSpecification{
 
     cleanup:
     grandchild.finish()
+    parentScope.close()
     parent.finish()
+    grandparentScope.close()
     grandparent.finish()
+  }
+
+  def "child LLMObs span does NOT inherit session_id when LLMObs context belongs to a different trace"() {
+    setup:
+    // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
+    // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
+    // next span we create starts a fresh trace and the trace-consistency gate must skip
+    // session_id inheritance.
+    def parent = llmObsSpan(Tags.LLMOBS_WORKFLOW_SPAN_KIND, "stale-workflow", "stale-session-id")
+
+    when:
+    def child = llmObsSpan(Tags.LLMOBS_LLM_SPAN_KIND, "child-llm", null)
+
+    then:
+    def innerParent = (AgentSpan) parent.span
+    def innerChild = (AgentSpan) child.span
+    // Sanity: traces differ — confirms the scenario is set up correctly.
+    innerParent.getTraceId() != innerChild.getTraceId()
+    // Session_id from the stale-trace context must NOT leak into the new span.
+    null == innerChild.getTag(LLMOBS_TAG_PREFIX + LLMObsTags.SESSION_ID)
+
+    cleanup:
+    child.finish()
+    parent.finish()
   }
 
   def "global dd_tags are included in LLMObs span tags"() {

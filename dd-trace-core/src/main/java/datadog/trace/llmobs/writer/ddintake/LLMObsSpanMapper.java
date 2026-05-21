@@ -132,7 +132,11 @@ public class LLMObsSpanMapper implements RemoteMapper {
       // Read session_id off the span before opening the map so we can size it correctly.
       // We deliberately do NOT remove the tag (unlike parent_id) — the session_id:<value>
       // entry must remain in the tags[] array to match dd-trace-py and dd-trace-js behavior.
-      String sessionId = span.getTag(SESSION_ID_TAG_INTERNAL_FULL);
+      // span.getTag returns Object — guard against generic tag APIs setting a non-string
+      // session_id value, which would otherwise throw ClassCastException here and drop
+      // the entire LLMObs payload for the trace.
+      Object rawSessionId = span.getTag(SESSION_ID_TAG_INTERNAL_FULL);
+      String sessionId = rawSessionId instanceof String ? (String) rawSessionId : null;
       boolean hasSessionId = sessionId != null && !sessionId.isEmpty();
 
       writable.startMap(hasSessionId ? 12 : 11);
