@@ -10,6 +10,7 @@ import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
+import java.util.concurrent.atomic.LongAdder;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
 import org.openjdk.jmh.annotations.Fork;
@@ -92,21 +93,18 @@ public class AdversarialMetricsBenchmark {
   @TearDown
   public void tearDown() {
     aggregator.close();
+    // Counters accumulate across the trial (warmup + measurement iterations), since the
+    // CountingHealthMetrics instance is created once in @Setup and never reset.
     System.err.println(
-        "[ADVERSARIAL] snapshots offered (across all threads, both forks combined for this run):");
+        "[ADVERSARIAL] drops over the trial (8 threads, warmup + measurement combined):");
     System.err.println(
         "  onStatsInboxFull         = "
-            + health.inboxFull
+            + health.inboxFull.sum()
             + "   (snapshots dropped because the MPSC inbox was full)");
     System.err.println(
         "  onStatsAggregateDropped  = "
-            + health.aggregateDropped
+            + health.aggregateDropped.sum()
             + "   (snapshots dropped because the AggregateTable was full with no stale entry)");
-    System.err.println(
-        "  onClientStatTraceComputed total = "
-            + health.traceComputedCalls
-            + "  spans counted = "
-            + health.totalSpansCounted);
   }
 
   @Benchmark
@@ -138,30 +136,22 @@ public class AdversarialMetricsBenchmark {
   }
 
   /**
-   * Counts what gets dropped. The aggregator publishes onto these counters from many threads, so
-   * the fields are {@code volatile long} with non-atomic increments -- precise counts aren't the
-   * point, order-of-magnitude is.
+   * Counts what gets dropped. Uses {@link LongAdder} so the printed totals hold up under 8-way
+   * contention -- {@code volatile long ++} loses ~20% of updates here, which would mask the
+   * order-of-magnitude shape the bench is trying to surface (inbox-full vs aggregate-dropped).
    */
   static final class CountingHealthMetrics extends HealthMetrics {
-    volatile long inboxFull;
-    volatile long aggregateDropped;
-    volatile long traceComputedCalls;
-    volatile long totalSpansCounted;
+    final LongAdder inboxFull = new LongAdder();
+    final LongAdder aggregateDropped = new LongAdder();
 
     @Override
     public void onStatsInboxFull() {
-      inboxFull++;
+      inboxFull.increment();
     }
 
     @Override
     public void onStatsAggregateDropped() {
-      aggregateDropped++;
-    }
-
-    @Override
-    public void onClientStatTraceComputed(int counted, int total, boolean dropped) {
-      traceComputedCalls++;
-      totalSpansCounted += counted;
+      aggregateDropped.increment();
     }
   }
 }
