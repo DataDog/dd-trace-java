@@ -1,7 +1,7 @@
 package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -286,14 +286,15 @@ class ClientStatsAggregatorBootstrapTest {
       ArgumentCaptor<AggregateEntry> entryCaptor = ArgumentCaptor.forClass(AggregateEntry.class);
       verify(writer, times(2)).add(entryCaptor.capture());
       List<AggregateEntry> entries = entryCaptor.getAllValues();
-      assertEquals(
-          Collections.singletonList(UTF8BytesString.create("peer.hostname:localhost")),
+      assertArrayEquals(
+          new UTF8BytesString[] {UTF8BytesString.create("peer.hostname:localhost")},
           entries.get(0).getPeerTags(),
           "pre-swap snapshot should encode only peer.hostname");
-      assertEquals(
-          Arrays.asList(
-              UTF8BytesString.create("peer.hostname:localhost"),
-              UTF8BytesString.create("peer.service:billing")),
+      assertArrayEquals(
+          new UTF8BytesString[] {
+            UTF8BytesString.create("peer.hostname:localhost"),
+            UTF8BytesString.create("peer.service:billing")
+          },
           entries.get(1).getPeerTags(),
           "post-swap snapshot should encode both peer.hostname and peer.service");
 
