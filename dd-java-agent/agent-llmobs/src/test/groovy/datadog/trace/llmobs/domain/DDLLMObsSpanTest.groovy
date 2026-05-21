@@ -477,7 +477,7 @@ class DDLLMObsSpanTest  extends DDSpecification{
     grandparent.finish()
   }
 
-  def "child LLMObs span does NOT inherit session_id when LLMObs context belongs to a different trace"() {
+  def "child does NOT inherit session_id when stale LLMObsContext is from a different trace (e.g. async boundary leak)"() {
     setup:
     // Simulates a stale LLMObsContext (e.g. leaked across an async boundary). The parent's
     // LLMObsContext is attached, but its AgentScope is deliberately NOT activated — so the
