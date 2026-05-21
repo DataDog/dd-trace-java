@@ -70,7 +70,7 @@ final class JUnitReport {
   /// real failures.
   ///
   /// **Criteria for new entries:**
-  /// - Must be a name the framework/runner emits itself — never a name a user-authored test
+  /// - Must be a name the framework/runner emits itself — never use a name that a user-authored test
   ///   could legitimately have.
   /// - Must link to the source that emits the literal, pinned to a release tag (not a commit
   ///   hash).
