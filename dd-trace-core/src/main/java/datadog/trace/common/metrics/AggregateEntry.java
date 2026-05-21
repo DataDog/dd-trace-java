@@ -143,6 +143,12 @@ final class AggregateEntry extends Hashtable.Entry {
    * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Accepts a
    * pre-encoded {@code List<UTF8BytesString>} of {@code "name:value"} peer tags and recovers the
    * parallel-array {@code (names, values)} form by splitting on the {@code ':'} delimiter.
+   *
+   * <p><b>Test-only.</b> The split is at the <em>first</em> {@code ':'}, so peer-tag values
+   * containing a colon (URLs, IPv6 addresses, {@code service:env} patterns) will be silently
+   * misparsed and the recovered (name, value) pair will be wrong. Keep test data colon-free in
+   * peer-tag values, or wire production-style snapshots through {@link #forSnapshot(SpanSnapshot)}
+   * instead.
    */
   static AggregateEntry of(
       CharSequence resource,
