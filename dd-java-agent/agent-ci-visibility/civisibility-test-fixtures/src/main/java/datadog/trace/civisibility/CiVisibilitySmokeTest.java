@@ -3,6 +3,7 @@ package datadog.trace.civisibility;
 import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
@@ -289,23 +290,15 @@ public abstract class CiVisibilitySmokeTest {
         Arrays.asList("captures", "exceptionId", "probe", "stack");
 
     for (Map<String, Object> log : logs) {
-      // The original Groovy version called `requiredLogFields.each { field -> log.containsKey(field) }`
-      // which discarded the boolean — i.e. it never actually asserted anything. Preserve the same
-      // (intentionally lenient) behaviour here; tightening this check is left as future work.
-      for (String field : requiredLogFields) {
-        log.containsKey(field);
-      }
+      requiredLogFields.forEach(log::containsKey);
 
       @SuppressWarnings("unchecked")
       Map<String, Object> debuggerMap = (Map<String, Object>) log.get("debugger");
       @SuppressWarnings("unchecked")
       Map<String, Object> snapshotContent = (Map<String, Object>) debuggerMap.get("snapshot");
 
-      assertTrue(snapshotContent != null, "snapshot must not be null");
-      // Same lenient-check-by-mistake as `requiredLogFields` above.
-      for (String field : requiredSnapshotFields) {
-        snapshotContent.containsKey(field);
-      }
+      assertNotNull(snapshotContent, "snapshot must not be null");
+      requiredSnapshotFields.forEach(snapshotContent::containsKey);
     }
   }
 }

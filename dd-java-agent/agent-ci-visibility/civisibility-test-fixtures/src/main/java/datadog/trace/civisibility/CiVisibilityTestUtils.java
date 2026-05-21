@@ -332,6 +332,9 @@ public abstract class CiVisibilityTestUtils {
     public int rootSpanTypeToVal(List<DDSpan> trace) {
       assert !trace.isEmpty();
       CharSequence spanType = trace.get(0).getSpanType();
+      if (spanType == null) {
+        return 4;
+      }
       if (DDSpanTypes.TEST.contentEquals(spanType)) {
         return 0;
       }
