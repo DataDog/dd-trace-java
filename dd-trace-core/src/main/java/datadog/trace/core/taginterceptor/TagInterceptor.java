@@ -298,8 +298,7 @@ public class TagInterceptor {
     return true;
   }
 
-  private boolean interceptServiceName(
-      RuleFlags.Feature feature, DDSpanContext span, Object value) {
+  boolean interceptServiceName(RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
       String serviceName = String.valueOf(value);
       span.setServiceName(serviceName);
@@ -336,7 +335,7 @@ public class TagInterceptor {
     return false;
   }
 
-  private boolean interceptServletContext(DDSpanContext span, Object value) {
+  boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
     // in the trace agent) we also want to store it in the tags no matter what,
