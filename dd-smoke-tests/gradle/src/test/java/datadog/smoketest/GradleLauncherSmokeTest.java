@@ -7,7 +7,6 @@ import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.opentest4j.AssertionFailedError;
 import org.slf4j.Logger;
@@ -28,20 +27,19 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   private static final String JAVA_HOME = buildJavaHome();
 
   @TableTest({
-    "gradleVersion | gradleDaemonCmdLineParams         ",
-    "6.6.1         |                                   ",
-    "6.6.1         | -Duser.country=VALUE_FROM_CMD_LINE",
-    "7.6.4         |                                   ",
-    "7.6.4         | -Duser.country=VALUE_FROM_CMD_LINE",
-    "8.11.1        |                                   ",
-    "8.11.1        | -Duser.country=VALUE_FROM_CMD_LINE",
-    "latest        |                                   ",
-    "latest        | -Duser.country=VALUE_FROM_CMD_LINE"
+    "scenario                 | gradleVersion | gradleDaemonCmdLineParams         ",
+    "6.6.1-from-gradle-props  | 6.6.1         |                                   ",
+    "6.6.1-from-cmd-line      | 6.6.1         | -Duser.country=VALUE_FROM_CMD_LINE",
+    "7.6.4-from-gradle-props  | 7.6.4         |                                   ",
+    "7.6.4-from-cmd-line      | 7.6.4         | -Duser.country=VALUE_FROM_CMD_LINE",
+    "8.11.1-from-gradle-props | 8.11.1        |                                   ",
+    "8.11.1-from-cmd-line     | 8.11.1        | -Duser.country=VALUE_FROM_CMD_LINE",
+    "latest-from-gradle-props | latest        |                                   ",
+    "latest-from-cmd-line     | latest        | -Duser.country=VALUE_FROM_CMD_LINE"
   })
-  @ParameterizedTest(
-      name = "test Gradle Launcher injects tracer into Gradle Daemon: v{0}, cmd line - {1}")
+  @ParameterizedTest
   void testGradleLauncherInjectsTracerIntoGradleDaemon(
-      String gradleVersion, String gradleDaemonCmdLineParams, TestInfo testInfo) throws Exception {
+      String gradleVersion, String gradleDaemonCmdLineParams) throws Exception {
     String resolvedGradleVersion =
         "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
     String cmdLineParams =
@@ -58,7 +56,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     // we want to check that instrumentation works with different wrapper versions too
     givenGradleWrapper(resolvedGradleVersion);
 
-    String output = whenRunningGradleLauncherWithJavaTracerInjected(cmdLineParams, testInfo);
+    String output = whenRunningGradleLauncherWithJavaTracerInjected(cmdLineParams);
 
     gradleDaemonStartCommandContains(
         output,
@@ -92,8 +90,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
         "Tried " + GRADLE_WRAPPER_RETRIES + " times to execute gradle wrapper command and failed");
   }
 
-  private String whenRunningGradleLauncherWithJavaTracerInjected(
-      String gradleDaemonCmdLineParams, TestInfo testInfo) throws Exception {
+  private String whenRunningGradleLauncherWithJavaTracerInjected(String gradleDaemonCmdLineParams)
+      throws Exception {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_OPTS", "-javaagent:" + AGENT_JAR);

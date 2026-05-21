@@ -11,6 +11,7 @@ import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
+import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.BufferedReader;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -44,11 +45,12 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.tabletest.junit.TableTest;
-import org.tabletest.junit.TypeConverter;
+import org.tabletest.junit.TypeConverterSources;
 
 @DisabledIf(
     value = "disabledOnIbm8",
     disabledReason = "IBM8 has flaky AES-GCM TLS failures when downloading Maven artifacts")
+@TypeConverterSources(CiVisibilityTableTestConverters.class)
 class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static final Logger LOGGER = LoggerFactory.getLogger(MavenSmokeTest.class);
@@ -80,25 +82,22 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "projectName                                       | mavenVersion | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                                | minSupportedJavaVersion",
-    "test_successful_maven_run                         | 3.5.4        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run                         | 3.6.3        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run                         | 3.8.8        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run                         | 3.9.9        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_surefire_3_0_0          | 3.9.9        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_surefire_3_0_0          | latest       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
-    "test_successful_maven_run_surefire_3_5_0          | 3.9.9        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_surefire_3_5_0          | latest       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
-    "test_successful_maven_run_builtin_coverage        | 3.9.9        | 5              | 1                 | true          | true          | false        | false          | []                                                               | 8                      ",
-    "test_successful_maven_run_with_jacoco_and_argline | 3.9.9        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_with_cucumber           | 3.9.9        | 4              | 1                 | true          | false         | false        | true           | []                                                               | 8                      ",
-    "test_failed_maven_run_flaky_retries               | 3.9.9        | 8              | 5                 | false         | false         | true         | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_junit_platform_runner   | 3.9.9        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
-    "test_successful_maven_run_with_arg_line_property  | 3.9.9        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
-    "test_successful_maven_run_multiple_forks          | 3.9.9        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
-    "test_successful_maven_run_multiple_forks          | latest       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     "
+    "scenario                   | projectName                                       | mavenVersion                 | expectedEvents | expectedCoverages | expectSuccess | testsSkipping | flakyRetries | jacocoCoverage | commandLineParams                                                | minSupportedJavaVersion",
+    "succeed-base               | test_successful_maven_run                         | {3.5.4, 3.6.3, 3.8.8, 3.9.9} | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
+    "succeed-surefire-3.0.0-j8  | test_successful_maven_run_surefire_3_0_0          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
+    "succeed-surefire-3.0.0-j17 | test_successful_maven_run_surefire_3_0_0          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
+    "succeed-surefire-3.5.0-j8  | test_successful_maven_run_surefire_3_5_0          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
+    "succeed-surefire-3.5.0-j17 | test_successful_maven_run_surefire_3_5_0          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     ",
+    "succeed-builtin-coverage   | test_successful_maven_run_builtin_coverage        | 3.9.9                        | 5              | 1                 | true          | true          | false        | false          | []                                                               | 8                      ",
+    "succeed-jacoco-argline     | test_successful_maven_run_with_jacoco_and_argline | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
+    "succeed-cucumber           | test_successful_maven_run_with_cucumber           | 3.9.9                        | 4              | 1                 | true          | false         | false        | true           | []                                                               | 8                      ",
+    "failed-flaky-retries       | test_failed_maven_run_flaky_retries               | 3.9.9                        | 8              | 5                 | false         | false         | true         | true           | []                                                               | 8                      ",
+    "succeed-junit-platform     | test_successful_maven_run_junit_platform_runner   | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | []                                                               | 8                      ",
+    "succeed-arg-line-property  | test_successful_maven_run_with_arg_line_property  | 3.9.9                        | 4              | 0                 | true          | false         | false        | false          | [\"-DargLine='-Dmy-custom-property=provided-via-command-line'\"] | 8                      ",
+    "succeed-multi-forks-j8     | test_successful_maven_run_multiple_forks          | 3.9.9                        | 5              | 1                 | true          | true          | false        | true           | []                                                               | 8                      ",
+    "succeed-multi-forks-j17    | test_successful_maven_run_multiple_forks          | latest                       | 5              | 1                 | true          | true          | false        | true           | []                                                               | 17                     "
   })
-  @ParameterizedTest(name = "test {0}, v{1}")
+  @ParameterizedTest
   void testMavenRun(
       String projectName,
       String mavenVersion,
@@ -181,10 +180,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "projectName                               | mavenVersion",
-    "test_successful_maven_run_test_management | 3.9.9       "
+    "scenario        | projectName                               | mavenVersion",
+    "test-management | test_successful_maven_run_test_management | 3.9.9       "
   })
-  @ParameterizedTest(name = "test test management")
+  @ParameterizedTest
   void testTestManagement(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -222,15 +221,14 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "testcaseName                     | projectName                                              | mavenVersion | surefireVersion       | flakyTests                                                                                                                                | knownTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
+    "scenario                         | projectName                                              | mavenVersion | surefireVersion       | flakyTests                                                                                                                                | knownTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
     "junit4-provider                  | test_successful_maven_run_junit4_class_ordering          | 3.9.9        | 3.0.0                 | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
     "junit47-provider                 | test_successful_maven_run_junit4_class_ordering_parallel | 3.9.9        | 3.0.0                 | ['datadog.smoke.TestSucceedC:test_succeed']                                                                                               | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                    | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                                                                                                                          | 12          ",
     "junit4-provider-latest-surefire  | test_successful_maven_run_junit4_class_ordering          | 3.9.9        | latest-maven-surefire | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
     "junit47-provider-latest-surefire | test_successful_maven_run_junit4_class_ordering_parallel | 3.9.9        | latest-maven-surefire | ['datadog.smoke.TestSucceedC:test_succeed']                                                                                               | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                    | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedA:test_succeed']                                                                                                                                                          | 12          "
   })
-  @ParameterizedTest(name = "test junit4 class ordering {0}")
+  @ParameterizedTest
   void testJunit4ClassOrdering(
-      String testcaseName,
       String projectName,
       String mavenVersion,
       String surefireVersion,
@@ -278,10 +276,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "projectName                                         | mavenVersion",
-    "test_successful_maven_run_child_service_propagation | 3.9.9       "
+    "scenario                  | projectName                                         | mavenVersion",
+    "child-service-propagation | test_successful_maven_run_child_service_propagation | 3.9.9       "
   })
-  @ParameterizedTest(name = "test service name is propagated to child processes")
+  @ParameterizedTest
   void testServiceNamePropagation(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -303,10 +301,10 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
   }
 
   @TableTest({
-    "projectName                          | mavenVersion",
-    "test_failed_maven_failed_test_replay | 3.9.9       "
+    "scenario           | projectName                          | mavenVersion",
+    "failed-test-replay | test_failed_maven_failed_test_replay | 3.9.9       "
   })
-  @ParameterizedTest(name = "test failed test replay")
+  @ParameterizedTest
   void testFailedTestReplay(String projectName, String mavenVersion) throws Exception {
     givenWrapperPropertiesFile(mavenVersion);
     givenMavenProjectFiles(projectName);
@@ -608,11 +606,5 @@ class MavenSmokeTest extends CiVisibilitySmokeTest {
 
   private static String resolveLatestMaven(String mavenVersion) {
     return "latest".equals(mavenVersion) ? LATEST_MAVEN_VERSION : mavenVersion;
-  }
-
-  @TypeConverter
-  public static TestFQN toTestFQN(String value) {
-    int colon = value.indexOf(':');
-    return new TestFQN(value.substring(0, colon), value.substring(colon + 1));
   }
 }

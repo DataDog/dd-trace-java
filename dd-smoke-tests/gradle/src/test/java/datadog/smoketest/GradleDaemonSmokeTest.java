@@ -9,6 +9,7 @@ import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
+import datadog.trace.civisibility.CiVisibilityTableTestConverters;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,12 +31,12 @@ import org.gradle.wrapper.Install;
 import org.gradle.wrapper.PathAssembler;
 import org.gradle.wrapper.WrapperConfiguration;
 import org.junit.jupiter.api.Assumptions;
-import org.junit.jupiter.api.TestInfo;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.tabletest.junit.TableTest;
-import org.tabletest.junit.TypeConverter;
+import org.tabletest.junit.TypeConverterSources;
 
+@TypeConverterSources(CiVisibilityTableTestConverters.class)
 class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   private static final String TEST_SERVICE_NAME = "test-gradle-service";
@@ -46,23 +47,22 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   @TempDir static Path testKitFolder;
 
   @TableTest({
-    "gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
-    "3.5           | test-succeed-old-gradle                          | true            | 5              | 1                ",
-    "7.6.4         | test-succeed-legacy-instrumentation              | true            | 5              | 1                ",
-    "7.6.4         | test-succeed-multi-module-legacy-instrumentation | true            | 7              | 2                ",
-    "7.6.4         | test-succeed-multi-forks-legacy-instrumentation  | true            | 6              | 2                ",
-    "7.6.4         | test-skip-legacy-instrumentation                 | true            | 2              | 0                ",
-    "7.6.4         | test-failed-legacy-instrumentation               | false           | 4              | 0                ",
-    "7.6.4         | test-corrupted-config-legacy-instrumentation     | false           | 1              | 0                "
+    "scenario                    | gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
+    "succeed-old-gradle-3.5      | 3.5           | test-succeed-old-gradle                          | true            | 5              | 1                ",
+    "succeed-legacy              | 7.6.4         | test-succeed-legacy-instrumentation              | true            | 5              | 1                ",
+    "succeed-multi-module-legacy | 7.6.4         | test-succeed-multi-module-legacy-instrumentation | true            | 7              | 2                ",
+    "succeed-multi-forks-legacy  | 7.6.4         | test-succeed-multi-forks-legacy-instrumentation  | true            | 6              | 2                ",
+    "skip-legacy                 | 7.6.4         | test-skip-legacy-instrumentation                 | true            | 2              | 0                ",
+    "failed-legacy               | 7.6.4         | test-failed-legacy-instrumentation               | false           | 4              | 0                ",
+    "corrupted-config-legacy     | 7.6.4         | test-corrupted-config-legacy-instrumentation     | false           | 1              | 0                "
   })
-  @ParameterizedTest(name = "test legacy {1}, v{0}")
+  @ParameterizedTest
   void testLegacy(
       String gradleVersion,
       String projectName,
       boolean successExpected,
       int expectedTraces,
-      int expectedCoverages,
-      TestInfo testInfo)
+      int expectedCoverages)
       throws IOException {
     // Jacoco plugin does not work with OpenJ9 in older Gradle versions
     Assumptions.assumeFalse(
@@ -75,28 +75,24 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         successExpected,
         false,
         expectedTraces,
-        expectedCoverages,
-        testInfo);
+        expectedCoverages);
   }
 
   @TableTest({
-    "gradleVersion | projectName                                   | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages",
-    "8.3           | test-succeed-new-instrumentation              | false              | true            | false        | 5              | 1                ",
-    "8.9           | test-succeed-new-instrumentation              | false              | true            | false        | 5              | 1                ",
-    "latest        | test-succeed-new-instrumentation              | false              | true            | false        | 5              | 1                ",
-    "8.3           | test-succeed-new-instrumentation              | true               | true            | false        | 5              | 1                ",
-    "8.9           | test-succeed-new-instrumentation              | true               | true            | false        | 5              | 1                ",
-    "latest        | test-succeed-new-instrumentation              | true               | true            | false        | 5              | 1                ",
-    "latest        | test-succeed-multi-module-new-instrumentation | false              | true            | false        | 7              | 2                ",
-    "latest        | test-succeed-multi-forks-new-instrumentation  | false              | true            | false        | 6              | 2                ",
-    "latest        | test-skip-new-instrumentation                 | false              | true            | false        | 2              | 0                ",
-    "latest        | test-failed-new-instrumentation               | false              | false           | false        | 4              | 0                ",
-    "latest        | test-corrupted-config-new-instrumentation     | false              | false           | false        | 1              | 0                ",
-    "latest        | test-succeed-junit-5                          | false              | true            | false        | 5              | 1                ",
-    "latest        | test-failed-flaky-retries                     | false              | false           | true         | 8              | 0                ",
-    "9.3.1         | test-succeed-gradle-plugin-test               | false              | true            | false        | 5              | 0                "
+    "scenario                   | gradleVersion | projectName                                   | configurationCache | successExpected | flakyRetries | expectedTraces | expectedCoverages",
+    "succeed-new-8.3            | 8.3           | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
+    "succeed-new-8.9            | 8.9           | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
+    "succeed-new-latest         | latest        | test-succeed-new-instrumentation              | {false, true}      | true            | false        | 5              | 1                ",
+    "succeed-multi-module-new   | latest        | test-succeed-multi-module-new-instrumentation | false              | true            | false        | 7              | 2                ",
+    "succeed-multi-forks-new    | latest        | test-succeed-multi-forks-new-instrumentation  | false              | true            | false        | 6              | 2                ",
+    "skip-new                   | latest        | test-skip-new-instrumentation                 | false              | true            | false        | 2              | 0                ",
+    "failed-new                 | latest        | test-failed-new-instrumentation               | false              | false           | false        | 4              | 0                ",
+    "corrupted-config-new       | latest        | test-corrupted-config-new-instrumentation     | false              | false           | false        | 1              | 0                ",
+    "succeed-junit-5            | latest        | test-succeed-junit-5                          | false              | true            | false        | 5              | 1                ",
+    "failed-flaky-retries       | latest        | test-failed-flaky-retries                     | false              | false           | true         | 8              | 0                ",
+    "succeed-gradle-plugin-test | 9.3.1         | test-succeed-gradle-plugin-test               | false              | true            | false        | 5              | 0                "
   })
-  @ParameterizedTest(name = "test {1}, v{0}, configCache: {2}")
+  @ParameterizedTest
   void testNew(
       String gradleVersion,
       String projectName,
@@ -104,8 +100,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       boolean successExpected,
       boolean flakyRetries,
       int expectedTraces,
-      int expectedCoverages,
-      TestInfo testInfo)
+      int expectedCoverages)
       throws IOException {
     String resolvedGradleVersion = resolveLatest(gradleVersion);
     runGradleTest(
@@ -115,29 +110,27 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         successExpected,
         flakyRetries,
         expectedTraces,
-        expectedCoverages,
-        testInfo);
+        expectedCoverages);
   }
 
   // TODO: add back LATEST_GRADLE_VERSION after fixing ordering on Gradle 9.3.0
   @TableTest({
-    "gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
-    "7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
-    "9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
+    "scenario              | gradleVersion | projectName                         | flakyTests                                                                                                                                | expectedOrder                                                                                                                                                                                                                                                                              | eventsNumber",
+    "junit4-ordering-7.6.4 | 7.6.4         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          ",
+    "junit4-ordering-9.2.1 | 9.2.1         | test-succeed-junit-4-class-ordering | ['datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed'] | ['datadog.smoke.TestSucceedC:test_succeed', 'datadog.smoke.TestSucceedC:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed_another', 'datadog.smoke.TestSucceedA:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed', 'datadog.smoke.TestSucceedB:test_succeed_another'] | 15          "
   })
-  @ParameterizedTest(name = "test junit4 class ordering v{0}")
+  @ParameterizedTest
   void testJunit4ClassOrdering(
       String gradleVersion,
       String projectName,
       List<TestFQN> flakyTests,
       List<TestFQN> expectedOrder,
-      int eventsNumber,
-      TestInfo testInfo)
+      int eventsNumber)
       throws IOException {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
-    ensureDependenciesDownloaded(gradleVersion, testInfo);
+    ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenKnownTests(true);
     for (TestFQN flakyTest : flakyTests) {
@@ -145,7 +138,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       mockBackend.givenKnownTest(":test", flakyTest.getSuite(), flakyTest.getName());
     }
 
-    BuildResult buildResult = runGradleTests(gradleVersion, true, false, testInfo);
+    BuildResult buildResult = runGradleTests(gradleVersion, true, false);
     assertBuildSuccessful(buildResult);
 
     verifyTestOrder(mockBackend.waitForEvents(eventsNumber), expectedOrder);
@@ -155,12 +148,6 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     return "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
   }
 
-  @TypeConverter
-  public static TestFQN toTestFQN(String value) {
-    int colon = value.indexOf(':');
-    return new TestFQN(value.substring(0, colon), value.substring(colon + 1));
-  }
-
   private void runGradleTest(
       String gradleVersion,
       String projectName,
@@ -168,14 +155,13 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       boolean successExpected,
       boolean flakyRetries,
       int expectedTraces,
-      int expectedCoverages,
-      TestInfo testInfo)
+      int expectedCoverages)
       throws IOException {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
-    ensureDependenciesDownloaded(gradleVersion, testInfo);
+    ensureDependenciesDownloaded(gradleVersion);
 
     mockBackend.givenFlakyRetries(flakyRetries);
     mockBackend.givenFlakyTest(":test", "datadog.smoke.TestFailed", "test_failed");
@@ -184,8 +170,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     mockBackend.givenSkippableTest(
         ":test", "datadog.smoke.TestSucceed", "test_to_skip_with_itr", Collections.emptyMap());
 
-    BuildResult buildResult =
-        runGradleTests(gradleVersion, successExpected, configurationCache, testInfo);
+    BuildResult buildResult = runGradleTests(gradleVersion, successExpected, configurationCache);
 
     if (successExpected) {
       assertBuildSuccessful(buildResult);
@@ -202,7 +187,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       // If configuration cache is enabled, run the build one more time to verify that building
       // with an existing configuration cache entry works.
       BuildResult buildResultWithConfigCacheEntry =
-          runGradleTests(gradleVersion, successExpected, configurationCache, testInfo);
+          runGradleTests(gradleVersion, successExpected, configurationCache);
 
       assertBuildSuccessful(buildResultWithConfigCacheEntry);
       verifyEventsAndCoverages(
@@ -244,7 +229,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   }
 
   private BuildResult runGradleTests(
-      String gradleVersion, boolean successExpected, boolean configurationCache, TestInfo testInfo)
+      String gradleVersion, boolean successExpected, boolean configurationCache)
       throws IOException {
     List<String> arguments = new java.util.ArrayList<>(Arrays.asList("test", "--stacktrace"));
     if (gradleVersion.compareTo("4.5") > 0) {
@@ -254,7 +239,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     if (configurationCache) {
       arguments.addAll(Arrays.asList("--configuration-cache", "--rerun-tasks"));
     }
-    return runGradle(gradleVersion, arguments, successExpected, testInfo);
+    return runGradle(gradleVersion, arguments, successExpected);
   }
 
   /**
@@ -263,10 +248,10 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
    * increased timeout (30s vs default 10s). Retry logic (3 retries) is already present in {@code
    * org.gradle.wrapper.Install}.
    */
-  private void ensureDependenciesDownloaded(String gradleVersion, TestInfo testInfo) {
+  private void ensureDependenciesDownloaded(String gradleVersion) {
+    String label = testInfo.getDisplayName();
     try {
-      System.out.println(
-          new Date() + ": " + testInfo.getDisplayName() + " - Starting dependencies download");
+      System.out.println(new Date() + ": " + label + " - Starting dependencies download");
 
       org.gradle.wrapper.Logger logger = new org.gradle.wrapper.Logger(false);
       Download download =
@@ -288,21 +273,20 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       // This will download distribution (if not downloaded yet to userHomeDir) and verify its SHA.
       install.createDist(configuration);
 
-      System.out.println(
-          new Date() + ": " + testInfo.getDisplayName() + " - Finished dependencies download");
+      System.out.println(new Date() + ": " + label + " - Finished dependencies download");
     } catch (Exception e) {
       System.out.println(
           new Date()
               + ": "
-              + testInfo.getDisplayName()
+              + label
               + " - Failed to install Gradle distribution, will proceed to run test kit hoping for the best: "
               + e);
     }
   }
 
   private BuildResult runGradle(
-      String gradleVersion, List<String> arguments, boolean successExpected, TestInfo testInfo)
-      throws IOException {
+      String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
+    String label = testInfo.getDisplayName();
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_VERSION", gradleVersion);
 
@@ -320,11 +304,11 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
             .withEnvironment(buildEnv)
             .forwardOutput();
 
-    System.out.println(new Date() + ": " + testInfo.getDisplayName() + " - Starting Gradle run");
+    System.out.println(new Date() + ": " + label + " - Starting Gradle run");
     try {
       BuildResult buildResult =
           successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
-      System.out.println(new Date() + ": " + testInfo.getDisplayName() + " - Finished Gradle run");
+      System.out.println(new Date() + ": " + label + " - Finished Gradle run");
       return buildResult;
     } catch (Exception e) {
       Path daemonLog =
@@ -337,7 +321,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
         System.out.println(
             new Date()
                 + ": "
-                + testInfo.getDisplayName()
+                + label
                 + " - Gradle Daemon log:\n"
                 + new String(Files.readAllBytes(daemonLog)));
         System.out.println("==============================================================");
