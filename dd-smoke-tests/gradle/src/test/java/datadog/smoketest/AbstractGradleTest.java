@@ -21,8 +21,10 @@ import org.gradle.internal.impldep.org.apache.commons.io.FileUtils;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.TestInstance;
 import org.junit.jupiter.api.io.TempDir;
 
+@TestInstance(TestInstance.Lifecycle.PER_CLASS)
 public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   protected static final String LATEST_GRADLE_VERSION = getLatestGradleVersion();
@@ -35,7 +37,7 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   @TempDir protected Path projectFolder;
 
-  protected static final MockBackend mockBackend = new MockBackend();
+  protected final MockBackend mockBackend = new MockBackend();
 
   @BeforeEach
   void resetMockBackend() {
@@ -43,7 +45,7 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
   }
 
   @AfterAll
-  static void closeMockBackend() throws Exception {
+  void closeMockBackend() throws Exception {
     mockBackend.close();
   }
 
