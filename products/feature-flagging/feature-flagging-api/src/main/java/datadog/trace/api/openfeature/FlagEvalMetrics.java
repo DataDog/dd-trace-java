@@ -78,10 +78,7 @@ class FlagEvalMetrics implements Closeable {
       Resource resource = buildResource();
 
       SdkMeterProvider sdkMeterProvider =
-          SdkMeterProvider.builder()
-              .setResource(resource)
-              .registerMetricReader(reader)
-              .build();
+          SdkMeterProvider.builder().setResource(resource).registerMetricReader(reader).build();
       meterProvider = sdkMeterProvider;
 
       Meter meter = sdkMeterProvider.meterBuilder(METER_NAME).build();
@@ -95,9 +92,9 @@ class FlagEvalMetrics implements Closeable {
       log.debug("Flag evaluation metrics initialized, exporting to {}", endpoint);
     } catch (NoClassDefFoundError e) {
       log.error(
-          "OpenTelemetry SDK is not on the classpath — evaluation metrics disabled. "
-              + "Add opentelemetry-sdk-metrics and opentelemetry-exporter-otlp to your dependencies "
-              + "to enable flag evaluation metrics.",
+          "OpenTelemetry SDK is not on the classpath — evaluation metrics disabled. Add"
+              + " opentelemetry-sdk-metrics and opentelemetry-exporter-otlp to your dependencies to"
+              + " enable flag evaluation metrics.",
           e);
       counter = null;
       meterProvider = null;
@@ -168,8 +165,8 @@ class FlagEvalMetrics implements Closeable {
   }
 
   /**
-   * Builds a Resource with the service name from OTEL_SERVICE_NAME environment variable.
-   * Falls back to Resource.getDefault() if OTEL_SERVICE_NAME is not set.
+   * Builds a Resource with the service name from OTEL_SERVICE_NAME environment variable. Falls back
+   * to Resource.getDefault() if OTEL_SERVICE_NAME is not set.
    */
   private static Resource buildResource() {
     String serviceName = ConfigHelper.env(SERVICE_NAME_ENV);
