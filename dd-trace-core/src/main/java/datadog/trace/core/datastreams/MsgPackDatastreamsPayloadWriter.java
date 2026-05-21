@@ -58,6 +58,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
   private static final byte[] CONFIG_KAFKA_CLUSTER_ID = "KafkaClusterId".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_CONSUMER_GROUP = "ConsumerGroup".getBytes(ISO_8859_1);
   private static final byte[] CONFIG_ENTRIES = "Config".getBytes(ISO_8859_1);
+  private static final byte[] CONFIG_CONNECTION_STATUS = "ConnectionStatus".getBytes(ISO_8859_1);
 
   private static final int INITIAL_CAPACITY = 512 * 1024;
 
@@ -290,7 +291,7 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
     packer.writeUTF8(CONFIGS);
     packer.startArray(configs.size());
     for (KafkaConfigReport config : configs) {
-      packer.startMap(4); // Type, KafkaClusterId, ConsumerGroup, Config
+      packer.startMap(5); // Type, KafkaClusterId, ConsumerGroup, ConnectionStatus, Config
 
       packer.writeUTF8(CONFIG_TYPE);
       packer.writeString(config.getType(), null);
@@ -300,6 +301,9 @@ public class MsgPackDatastreamsPayloadWriter implements DatastreamsPayloadWriter
 
       packer.writeUTF8(CONFIG_CONSUMER_GROUP);
       packer.writeString(config.getConsumerGroup(), null);
+
+      packer.writeUTF8(CONFIG_CONNECTION_STATUS);
+      packer.writeString(config.getConnectionStatus(), null);
 
       packer.writeUTF8(CONFIG_ENTRIES);
       Map<String, String> entries = config.getConfig();

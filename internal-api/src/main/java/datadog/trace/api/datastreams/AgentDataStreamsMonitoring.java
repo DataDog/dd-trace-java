@@ -18,9 +18,16 @@ public interface AgentDataStreamsMonitoring
    * @param kafkaClusterId the Kafka cluster identifier, or empty string if not yet known
    * @param consumerGroup the consumer group name, or empty string for producers
    * @param config the configuration key-value pairs
+   * @param connectionStatus "connected" if the client successfully fetched metadata from a broker,
+   *     "failed" if metadata fetch failed (e.g. auth error, broker unreachable). Empty string if
+   *     unknown.
    */
   void reportKafkaConfig(
-      String type, String kafkaClusterId, String consumerGroup, Map<String, String> config);
+      String type,
+      String kafkaClusterId,
+      String consumerGroup,
+      Map<String, String> config,
+      String connectionStatus);
 
   /**
    * Tracks Schema Registry usage for Data Streams Monitoring.
