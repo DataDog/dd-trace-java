@@ -12,11 +12,6 @@ testJvmConstraints {
 description = 'Quarkus Smoke Tests.'
 
 smokeTestApp {
-  // Quarkus 1.9.2 (Sep 2020) cannot run on JDK 21; the previous Exec-based setup pinned
-  // JAVA_HOME=getLazyJavaHomeFor(8) and that is required at runtime, not just for bytecode.
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(8)
-  }
   application {
     taskName = 'quarkusBuild'
     nestedTasks = ['build']
