@@ -12,6 +12,10 @@ testJvmConstraints {
 description = 'Quarkus Smoke Tests.'
 
 smokeTestApp {
+  // Quarkus 1.9.2 (Sep 2020) cannot run on JDK 21; use Java 11 launcher
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(11)
+  }
   application {
     taskName = 'quarkusBuild'
     nestedTasks = ['build']
