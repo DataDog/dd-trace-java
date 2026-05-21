@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.kafka_common;
 
+import datadog.context.Context;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import java.nio.charset.StandardCharsets;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
@@ -8,6 +9,11 @@ import org.apache.kafka.common.header.Headers;
 
 public final class Utils {
   private Utils() {} // prevent instantiation
+
+  /** Returns the current context from the thread-local context store. */
+  public static Context currentContext() {
+    return Context.current();
+  }
 
   public static DataStreamsTransactionTracker.TransactionSourceReader
       DSM_TRANSACTION_SOURCE_READER =

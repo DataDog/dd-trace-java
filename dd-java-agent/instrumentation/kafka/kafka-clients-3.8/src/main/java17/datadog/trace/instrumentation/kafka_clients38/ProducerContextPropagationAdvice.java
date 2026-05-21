@@ -19,6 +19,7 @@ import datadog.trace.api.datastreams.DataStreamsTags;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.instrumentation.kafka_common.MetadataState;
+import datadog.trace.instrumentation.kafka_common.Utils;
 import net.bytebuddy.asm.Advice;
 import org.apache.kafka.clients.Metadata;
 import org.apache.kafka.clients.producer.ProducerRecord;
@@ -43,7 +44,7 @@ public class ProducerContextPropagationAdvice {
     }
     DataStreamsTags tags = create("kafka", OUTBOUND, record.topic(), null, clusterId);
     try {
-      defaultPropagator().inject(span, record.headers(), setter);
+      defaultPropagator().inject(Utils.currentContext(), record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         // inject the context in the headers, but delay sending the stats until we know the
@@ -65,7 +66,7 @@ public class ProducerContextPropagationAdvice {
               record.value(),
               record.headers());
 
-      defaultPropagator().inject(span, record.headers(), setter);
+      defaultPropagator().inject(Utils.currentContext(), record.headers(), setter);
       if (STREAMING_CONTEXT.isDisabledForTopic(record.topic())
           || STREAMING_CONTEXT.isSinkTopic(record.topic())) {
         Propagator dsmPropagator = Propagators.forConcern(DSM_CONCERN);
