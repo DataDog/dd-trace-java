@@ -27,6 +27,8 @@ public class ExceptionHandlers {
             private final Size size = new StackManipulation.Size(-1, 3);
             private final boolean appSecEnabled =
                 InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+            private final boolean detailedErrors =
+                InstrumenterConfig.get().isDetailedInstrumentationErrors();
 
             @Override
             public boolean isValid() {
@@ -39,15 +41,24 @@ public class ExceptionHandlers {
               final boolean exitOnFailure = InstrumenterConfig.get().isInternalExitOnFailure();
               final String logMethod = exitOnFailure ? "error" : "debug";
 
-              // Writes the following bytecode (note that some statements are conditionally
-              // written):
+              // Writes the following bytecode if exitOnFailure is false:
               //
-              // BlockingExceptionHandler.rethrowIfBlockingException(t); // when appSecEnabled=true
+              // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
-              //   if (InstrumentationErrors.isEnabled()) InstrumentationErrors.recordError(t);
+              //   InstrumentationErrors.incrementErrorCount();
+              //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
+              //     .debug("Failed to handle exception in instrumentation for ...", t);
+              // } catch (Throwable t2) {
+              // }
+              //
+              // And the following bytecode if exitOnFailure is true:
+              //
+              // BlockingExceptionHandler.rethrowIfBlockingException(t);
+              // try {
+              //   InstrumentationErrors.incrementErrorCount();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
-              //   System.exit(1); // when exitOnFailure=true
+              //   System.exit(1);
               // } catch (Throwable t2) {
               // }
               //
@@ -67,32 +78,28 @@ public class ExceptionHandlers {
                     Opcodes.INVOKESTATIC,
                     "datadog/trace/bootstrap/blocking/BlockingExceptionHandler",
                     "rethrowIfBlockingException",
-                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;",
+                    false);
               }
-
-              final Label skipRecord = new Label();
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  "datadog/trace/bootstrap/InstrumentationErrors",
-                  "isEnabled",
-                  "()Z",
-                  false);
-              mv.visitJumpInsn(Opcodes.IFEQ, skipRecord);
-              mv.visitInsn(Opcodes.DUP); // stack: (top) throwable,throwable
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  "datadog/trace/bootstrap/InstrumentationErrors",
-                  "recordError",
-                  "(Ljava/lang/Throwable;)V",
-                  false);
-              mv.visitLabel(skipRecord);
-              if (frames) {
-                mv.visitFrame(Opcodes.F_SAME1, 0, null, 1, new Object[] {"java/lang/Throwable"});
+              // record instrumentation error
+              if (detailedErrors) {
+                mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "datadog/trace/bootstrap/InstrumentationErrors",
+                    "recordError",
+                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;",
+                    false);
+              } else {
+                mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "datadog/trace/bootstrap/InstrumentationErrors",
+                    "recordError",
+                    "()V",
+                    false);
               }
-
               // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(

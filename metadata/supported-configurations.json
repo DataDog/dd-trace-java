@@ -11792,6 +11792,14 @@
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_JAVA_MODULE_ENABLED", "DD_INTEGRATION_JAVA_MODULE_ENABLED"]
       }
+    ],
+    "DD_DETAILED_INSTRUMENTATION_ERRORS": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
     ]
   },
   "deprecations": {}

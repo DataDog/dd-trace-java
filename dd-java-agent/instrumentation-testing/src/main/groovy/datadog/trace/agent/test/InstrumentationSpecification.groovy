@@ -10,6 +10,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FO
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.closePrevious
 import static datadog.trace.util.AgentThreadFactory.AgentThread.TASK_SCHEDULER
 
+
 import ch.qos.logback.classic.Level
 import ch.qos.logback.classic.util.ContextInitializer
 import com.datadog.debugger.agent.ClassesToRetransformFinder
@@ -46,6 +47,7 @@ import datadog.trace.api.Pair
 import datadog.trace.api.ProcessTags
 import datadog.trace.api.TraceConfig
 import datadog.trace.api.config.GeneralConfig
+import datadog.trace.api.config.TraceInstrumentationConfig
 import datadog.trace.api.config.TracerConfig
 import datadog.trace.api.datastreams.AgentDataStreamsMonitoring
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
@@ -76,7 +78,6 @@ import java.lang.instrument.ClassFileTransformer
 import java.lang.instrument.Instrumentation
 import java.nio.ByteBuffer
 import java.util.concurrent.ConcurrentHashMap
-import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.TimeoutException
 import net.bytebuddy.agent.ByteBuddyAgent
@@ -167,10 +168,6 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
   @SuppressWarnings('PropertyName')
   @Shared
   Set<TypeDescription> TRANSFORMED_CLASSES_TYPES = Sets.newConcurrentHashSet()
-
-  @SuppressWarnings('PropertyName')
-  @Shared
-  List<String> INSTRUMENTATION_ERRORS = new CopyOnWriteArrayList<String>()
 
   // don't use mocks because it will break too many exhaustive interaction-verifying tests
   @SuppressWarnings('PropertyName')
@@ -430,6 +427,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
   /** Override to set config before the agent is installed */
   protected void configurePreAgent() {
+    injectSysConfig(TraceInstrumentationConfig.DETAILED_INSTRUMENTATION_ERRORS, "true")
     injectSysConfig(TracerConfig.SCOPE_ITERATION_KEEP_ALIVE, "1") // don't let iteration spans linger
     injectSysConfig(GeneralConfig.DATA_STREAMS_ENABLED, String.valueOf(isDataStreamsEnabled()))
     injectSysConfig(GeneralConfig.DATA_JOBS_ENABLED, String.valueOf(isDataJobsEnabled()))
@@ -471,7 +469,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     if (forceAppSecActive) {
       ActiveSubsystems.APPSEC_ACTIVE = true
     }
-    InstrumentationErrors.enableRecordingAndReset()
+    InstrumentationErrors.resetErrors()
     ProcessTags.reset()
   }
 
@@ -513,8 +511,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       spanFinishLocations.clear()
       originalToTrackingSpan.clear()
     }
-    def instrumentationErrorCount = InstrumentationErrors.getErrors().size()
-    assert instrumentationErrorCount == 0, "${instrumentationErrorCount} instrumentation errors were seen:\n${InstrumentationErrors.getErrors().join("\n---\n")}"
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
   }
 
   private void doCheckRepeatedFinish() {
@@ -556,8 +553,7 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     cleanupAfterAgent()
 
     // All cleanup should happen before these assertion.  If not, a failing assertion may prevent cleanup
-    def instrumentationErrors = INSTRUMENTATION_ERRORS.size()
-    assert instrumentationErrors == 0: "${instrumentationErrors} Instrumentation errors during test:\n${INSTRUMENTATION_ERRORS.join("\n---\n")}"
+    assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
 
     assert TRANSFORMED_CLASSES_TYPES.findAll {
       GlobalIgnores.isAdditionallyIgnored(it.getActualName())
@@ -659,11 +655,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
       return
     }
 
+    InstrumentationErrors.recordError(throwable)
     println "Unexpected instrumentation error when instrumenting ${typeName} on ${classLoader}"
     throwable.printStackTrace()
-    def stackTrace = new StringWriter()
-    throwable.printStackTrace(new PrintWriter(stackTrace))
-    INSTRUMENTATION_ERRORS.add(stackTrace.toString())
   }
 
   @Override

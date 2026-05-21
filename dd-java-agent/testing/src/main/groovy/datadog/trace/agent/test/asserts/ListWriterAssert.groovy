@@ -2,7 +2,6 @@ package datadog.trace.agent.test.asserts
 
 import static TraceAssert.assertTrace
 
-import datadog.trace.bootstrap.InstrumentationErrors
 import datadog.trace.common.writer.ListWriter
 import datadog.trace.core.DDSpan
 import groovy.transform.stc.ClosureParams
@@ -48,15 +47,7 @@ class ListWriterAssert {
     @ClosureParams(value = SimpleType, options = ['datadog.trace.agent.test.asserts.ListWriterAssert'])
     @DelegatesTo(value = ListWriterAssert, strategy = Closure.DELEGATE_FIRST) Closure spec) {
     try {
-      // Fail fast if we see any muzzle errors or instrumentation errors
-      for (int timeoutRemaining = ListWriter.WAIT_FOR_TRACES_TIMEOUT_SECONDS; timeoutRemaining > 0; timeoutRemaining--) {
-        if (writer.waitForTracesMax(expectedSize, 1)) {
-          break
-        }
-        assertNoErrors()
-      }
-      assertNoErrors() // even if we break immediately above, make sure we check for errors at least once
-      writer.waitForTraces(expectedSize, 0)
+      writer.waitForTraces(expectedSize)
       def array = writer.toArray()
       assert array.length == expectedSize
       def traces = (Arrays.asList(array) as List<List<DDSpan>>)
@@ -98,11 +89,6 @@ class ListWriterAssert {
       def condition = new Condition(null, "$stackLine", TextPosition.create(stackLine == null ? 0 : stackLine.lineNumber, 0), e.message, null, e)
       throw new ConditionNotSatisfiedError(condition, e)
     }
-  }
-
-  static void assertNoErrors() {
-    assert InstrumentationErrors.getErrors().size() == 0 : "Instrumentation errors were seen, failing fast"
-    // InstrumentationSpecification.{cleanup,cleanupAfterAgent} will provide details later
   }
 
   void sortSpansByStart() {

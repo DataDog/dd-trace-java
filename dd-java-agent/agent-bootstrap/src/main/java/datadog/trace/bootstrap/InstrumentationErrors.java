@@ -2,38 +2,60 @@ package datadog.trace.bootstrap;
 
 import java.io.PrintWriter;
 import java.io.StringWriter;
-import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.concurrent.atomic.AtomicLong;
 
 public class InstrumentationErrors {
-  private static final List<String> ERRORS = new CopyOnWriteArrayList<>();
-  private static volatile boolean recordErrors = false;
+  private static final AtomicLong COUNTER = new AtomicLong();
+
+  private static final class Detailed {
+    static final List<String> ERRORS = new CopyOnWriteArrayList<>();
+  }
+
+  private static volatile boolean detailed;
+
+  /** Record an error occurred without any detail about it. */
+  public static void recordError() {
+    COUNTER.incrementAndGet();
+  }
+
+  /** Record an error occurred, including its stack trace. */
+  public static Throwable recordError(Throwable error) {
+    COUNTER.incrementAndGet();
+    StringWriter detail = new StringWriter();
+    error.printStackTrace(new PrintWriter(detail));
+    Detailed.ERRORS.add(detail.toString());
+    detailed = true;
+    return error; // keep throwable at top of the stack
+  }
+
+  // Visible for testing
+  public static void resetErrors() {
+    COUNTER.set(0);
+    if (detailed) {
+      Detailed.ERRORS.clear();
+      detailed = false;
+    }
+  }
 
   /**
-   * Record an error from {@link datadog.trace.agent.tooling.bytebuddy.ExceptionHandlers} for test
-   * visibility.
+   * @return {@code true} if no errors were recorded; otherwise {@code false}
    */
-  @SuppressWarnings("unused")
-  public static boolean isEnabled() {
-    return recordErrors;
+  public static boolean noErrors() {
+    return COUNTER.get() == 0;
   }
 
-  @SuppressWarnings("unused")
-  public static void recordError(final Throwable throwable) {
-    StringWriter stackTrace = new StringWriter();
-    throwable.printStackTrace(new PrintWriter(stackTrace));
-    ERRORS.add(stackTrace.toString());
-  }
-
-  // Visible for testing
-  public static void enableRecordingAndReset() {
-    recordErrors = true;
-    ERRORS.clear();
-  }
-
-  // Visible for testing
-  public static List<String> getErrors() {
-    return Collections.unmodifiableList(ERRORS);
+  /**
+   * @return a human-readable description of the errors recorded so far
+   */
+  public static String describeErrors() {
+    StringBuilder buf = new StringBuilder().append(COUNTER.get()).append(" instrumentation errors");
+    if (detailed) {
+      for (String error : Detailed.ERRORS) {
+        buf.append("\n---\n").append(error);
+      }
+    }
+    return buf.toString();
   }
 }

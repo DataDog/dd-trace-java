@@ -56,6 +56,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.AKKA_FORK_JOIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.AXIS_TRANSPORT_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT;
+import static datadog.trace.api.config.TraceInstrumentationConfig.DETAILED_INSTRUMENTATION_ERRORS;
 import static datadog.trace.api.config.TraceInstrumentationConfig.EXPERIMENTAL_DEFER_INTEGRATIONS_UNTIL;
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_URL_CONNECTION_CLASS_NAME;
 import static datadog.trace.api.config.TraceInstrumentationConfig.INSTRUMENTATION_CONFIG_ID;
@@ -145,6 +146,7 @@ public class InstrumenterConfig {
   private final boolean triageEnabled;
 
   private final boolean integrationsEnabled;
+  private final boolean detailedInstrumentationErrors;
 
   private final boolean codeOriginEnabled;
   private final boolean codeOriginInterfaceSupport;
@@ -249,6 +251,8 @@ public class InstrumenterConfig {
 
     integrationsEnabled =
         configProvider.getBoolean(INTEGRATIONS_ENABLED, DEFAULT_INTEGRATIONS_ENABLED);
+    detailedInstrumentationErrors =
+        configProvider.getBoolean(DETAILED_INSTRUMENTATION_ERRORS, false);
 
     codeOriginEnabled =
         configProvider.getBoolean(
@@ -406,6 +410,10 @@ public class InstrumenterConfig {
 
   public boolean isIntegrationsEnabled() {
     return integrationsEnabled;
+  }
+
+  public boolean isDetailedInstrumentationErrors() {
+    return detailedInstrumentationErrors;
   }
 
   /**
