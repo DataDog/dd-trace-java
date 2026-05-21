@@ -114,7 +114,7 @@ public class SessionInstrumentation
           int ackMode;
           try {
             ackMode = session.getAcknowledgeMode();
-          } catch (Exception ignored) {
+          } catch (Throwable ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
@@ -155,7 +155,7 @@ public class SessionInstrumentation
           int ackMode;
           try {
             ackMode = session.getAcknowledgeMode();
-          } catch (Exception ignored) {
+          } catch (Throwable ignored) {
             ackMode = Session.AUTO_ACKNOWLEDGE;
           }
           sessionState =
