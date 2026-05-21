@@ -11,6 +11,7 @@ import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
+import io.opentelemetry.sdk.resources.Resource;
 import java.io.Closeable;
 import java.time.Duration;
 import org.slf4j.Logger;
@@ -31,6 +32,10 @@ class FlagEvalMetrics implements Closeable {
   private static final String ENDPOINT_ENV = "OTEL_EXPORTER_OTLP_METRICS_ENDPOINT";
   // Generic env var fallback (base URL, /v1/metrics is appended)
   private static final String ENDPOINT_GENERIC_ENV = "OTEL_EXPORTER_OTLP_ENDPOINT";
+  // OTel standard env vars for service name
+  private static final String SERVICE_NAME_ENV = "OTEL_SERVICE_NAME";
+  private static final AttributeKey<String> SERVICE_NAME_KEY =
+      AttributeKey.stringKey("service.name");
 
   private static final AttributeKey<String> ATTR_FLAG_KEY =
       AttributeKey.stringKey("feature_flag.key");
@@ -68,8 +73,15 @@ class FlagEvalMetrics implements Closeable {
       PeriodicMetricReader reader =
           PeriodicMetricReader.builder(exporter).setInterval(EXPORT_INTERVAL).build();
 
+      // Build resource with service name from OTEL_SERVICE_NAME env var
+      // Resource.getDefault() only provides unknown_service:java, so we read env vars manually
+      Resource resource = buildResource();
+
       SdkMeterProvider sdkMeterProvider =
-          SdkMeterProvider.builder().registerMetricReader(reader).build();
+          SdkMeterProvider.builder()
+              .setResource(resource)
+              .registerMetricReader(reader)
+              .build();
       meterProvider = sdkMeterProvider;
 
       Meter meter = sdkMeterProvider.meterBuilder(METER_NAME).build();
@@ -153,5 +165,18 @@ class FlagEvalMetrics implements Closeable {
         // Ignore shutdown errors
       }
     }
+  }
+
+  /**
+   * Builds a Resource with the service name from OTEL_SERVICE_NAME environment variable.
+   * Falls back to Resource.getDefault() if OTEL_SERVICE_NAME is not set.
+   */
+  private static Resource buildResource() {
+    String serviceName = ConfigHelper.env(SERVICE_NAME_ENV);
+    if (serviceName != null && !serviceName.isEmpty()) {
+      return Resource.getDefault()
+          .merge(Resource.builder().put(SERVICE_NAME_KEY, serviceName).build());
+    }
+    return Resource.getDefault();
   }
 }
