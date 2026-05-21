@@ -4,7 +4,6 @@ import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestFQN;
