@@ -14,7 +14,6 @@ import datadog.trace.common.metrics.OkHttpSink
 import datadog.trace.common.metrics.SerializingMetricWriter
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicLongArray
 import okhttp3.HttpUrl
 
 class MetricsIntegrationTest extends AbstractTraceAgentTest {
@@ -39,10 +38,10 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
     def entry1 = AggregateEntry.of("resource1", "service1", "operation1", null, "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null)
-    entry1.aggregate.recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
+    [2, 1, 2, 250, 4].each { entry1.recordOneDuration(it as long) }
     writer.add(entry1)
     def entry2 = AggregateEntry.of("resource2", "service2", "operation2", null, "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null)
-    entry2.aggregate.recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
+    [1, 1, 200, 2, 3, 4, 5, 6, 7, 8].each { entry2.recordOneDuration(it as long) }
     writer.add(entry2)
     writer.finishBucket()
 

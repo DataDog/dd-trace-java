@@ -134,7 +134,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -180,7 +180,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -232,7 +232,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       httpEndpoint,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     (statsComputed ? 1 : 0) * writer.finishBucket() >> { latch.countDown() }
 
@@ -297,7 +297,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -315,7 +315,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -362,7 +362,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 0 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -414,7 +414,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == topLevelCount && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == topLevelCount && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -473,7 +473,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == count && e.getDuration() == count * duration
+        assert e.getHitCount() == count && e.getDuration() == count * duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource2",
@@ -490,7 +490,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == count && e.getDuration() == count * duration * 2
+        assert e.getHitCount() == count && e.getDuration() == count * duration * 2
       }
 
     cleanup:
@@ -544,7 +544,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == count && e.getDuration() == count * duration
+        assert e.getHitCount() == count && e.getDuration() == count * duration
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -585,7 +585,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration
+        assert e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -602,7 +602,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/orders/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 2
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -619,7 +619,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 3
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 3
       }
     1 * writer.finishBucket() >> { latch2.countDown() }
 
@@ -683,7 +683,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration
+        assert e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -700,7 +700,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 2
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -717,7 +717,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 3
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 3
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -734,7 +734,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/orders/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 4
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 4
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -787,7 +787,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration
+        assert e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -804,7 +804,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration * 2
+        assert e.getHitCount() == 1 && e.getDuration() == duration * 2
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -855,7 +855,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 2 && e.getDuration() == 2 * duration
+        assert e.getHitCount() == 2 && e.getDuration() == 2 * duration
       }
     1 * writer.add(AggregateEntry.of(
       "resource",
@@ -872,7 +872,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getDuration() == duration
+        assert e.getHitCount() == 1 && e.getDuration() == duration
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -926,7 +926,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.getHitCount() == 1 && e.getDuration() == duration
+          assert e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     0 * writer.add(AggregateEntry.of(
@@ -1073,7 +1073,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.getHitCount() == 1 && e.getDuration() == duration
+          assert e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1108,7 +1108,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.getHitCount() == 1 && e.getDuration() == duration
+          assert e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     0 * writer.add(AggregateEntry.of(
@@ -1175,7 +1175,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.getHitCount() == 1 && e.getDuration() == duration
+          assert e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1234,7 +1234,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
         null,
         null
         )) >> { AggregateEntry e ->
-          e.getHitCount() == 1 && e.getDuration() == duration
+          assert e.getHitCount() == 1 && e.getDuration() == duration
         }
     }
     1 * writer.finishBucket() >> { latch.countDown() }
@@ -1401,7 +1401,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1456,7 +1456,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 3 && e.getTopLevelCount() == 3 && e.getDuration() == 450
+        assert e.getHitCount() == 3 && e.getTopLevelCount() == 3 && e.getDuration() == 450
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 
@@ -1511,7 +1511,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/users/:id",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 100
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -1529,7 +1529,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       "/api/orders",
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 200
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 200
       }
     1 * writer.add(
       AggregateEntry.of(
@@ -1547,7 +1547,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
       null,
       null
       )) >> { AggregateEntry e ->
-        e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 150
+        assert e.getHitCount() == 1 && e.getTopLevelCount() == 1 && e.getDuration() == 150
       }
     1 * writer.finishBucket() >> { latch.countDown() }
 

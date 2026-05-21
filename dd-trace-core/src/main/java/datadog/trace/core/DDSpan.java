@@ -354,10 +354,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
-      String message = error.getMessage();
+      String message = StackTraces.safeGetMessage(error);
       if (!"broken pipe".equalsIgnoreCase(message)
           && (error.getCause() == null
-              || !"broken pipe".equalsIgnoreCase(error.getCause().getMessage()))) {
+              || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping

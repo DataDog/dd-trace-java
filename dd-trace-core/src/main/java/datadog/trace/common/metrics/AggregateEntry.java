@@ -9,7 +9,6 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Objects;
-import java.util.concurrent.atomic.AtomicLongArray;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -120,26 +119,6 @@ final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = synthetic;
     this.traceRoot = traceRoot;
     this.peerTags = peerTags;
-  }
-
-  AggregateEntry recordDurations(int count, AtomicLongArray durations) {
-    this.hitCount += count;
-    for (int i = 0; i < count && i < durations.length(); ++i) {
-      long duration = durations.getAndSet(i, 0);
-      if ((duration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
-        duration ^= TOP_LEVEL_TAG;
-        ++topLevelCount;
-      }
-      if ((duration & ERROR_TAG) == ERROR_TAG) {
-        duration ^= ERROR_TAG;
-        errorLatencies.accept(duration);
-        ++errorCount;
-      } else {
-        okLatencies.accept(duration);
-      }
-      this.duration += duration;
-    }
-    return this;
   }
 
   /**
