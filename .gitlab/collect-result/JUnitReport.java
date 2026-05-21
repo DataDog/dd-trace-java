@@ -114,6 +114,32 @@ final class JUnitReport {
     }
   }
 
+  /// Tags non-final attempts of a retried test so Test Optimization does not surface them as
+  /// real failures. The Develocity testRetry plugin re-runs failed tests and emits one
+  /// `<testcase>` per attempt sharing the same `(classname, name)`; CI ignores all but the
+  /// final attempt, so this method does the same by marking earlier attempts as `skip`.
+  ///
+  /// Must run before [#tagFinalStatuses] so the existing per-testcase tagger does not
+  /// overwrite `skip` with `fail`.
+  ///
+  /// See https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
+  void tagRetriedTests() {
+    var all = testcases();
+    for (var i = 0; i < all.size(); i++) {
+      var current = all.get(i);
+      var classname = current.getAttribute("classname");
+      var name = current.getAttribute("name");
+      for (var j = i + 1; j < all.size(); j++) {
+        var later = all.get(j);
+        if (classname.equals(later.getAttribute("classname"))
+            && name.equals(later.getAttribute("name"))) {
+          addFinalStatusProperty(current, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
+          break;
+        }
+      }
+    }
+  }
+
   void tagFinalStatuses() {
     for (var testcase : testcases()) {
       if (hasFinalStatusProperty(testcase)) {

@@ -48,6 +48,7 @@ final class ResultCollector {
     var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
+    report.tagRetriedTests();
     report.tagFinalStatuses();
     report.write(targetXml);
 
