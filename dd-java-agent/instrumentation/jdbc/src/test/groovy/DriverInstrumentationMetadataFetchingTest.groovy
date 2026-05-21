@@ -131,14 +131,14 @@ abstract class DriverInstrumentationMetadataFetchingTestBase extends Instrumenta
     connection?.close()
   }
 
-  def "test driver connect with metadata exception"() {
+  def "test driver connect with metadata exception #exceptionType"() {
     setup:
     def originalUrl = "jdbc:postgresql://original-host:5432/originaldb"
 
     def testConnection = new TestConnection(false) {
         @Override
         DatabaseMetaData getMetaData() throws SQLException {
-          throw new SQLException("Test exception")
+          throw metadataException
         }
       }
 
@@ -179,6 +179,11 @@ abstract class DriverInstrumentationMetadataFetchingTestBase extends Instrumenta
     cleanup:
     statement?.close()
     connection?.close()
+
+    where:
+    exceptionType      | metadataException
+    "SQLException"     | new SQLException("Test exception")
+    "RuntimeException" | new RuntimeException("Test exception")
   }
 
   def "test driver connect with Oracle sharding driver"() {
@@ -268,4 +273,3 @@ class DriverInstrumentationWithoutMetadataOnConnectForkedTest extends DriverInst
     return false
   }
 }
-
