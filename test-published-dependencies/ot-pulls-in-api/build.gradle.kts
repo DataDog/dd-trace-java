@@ -1,0 +1,25 @@
+plugins {
+  java
+  application
+}
+
+java {
+  disableAutoTargetJvm()
+}
+
+dependencies {
+  implementation("com.datadoghq:dd-trace-ot:$version")
+  testImplementation(platform("org.junit:junit-bom:5.9.2"))
+  testImplementation("org.junit.jupiter:junit-jupiter")
+}
+
+tasks.named<Test>("test") {
+  useJUnitPlatform()
+  testLogging {
+    events("passed", "skipped", "failed")
+  }
+}
+
+application {
+  mainClass = "test.published.dependencies.App"
+}
