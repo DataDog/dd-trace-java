@@ -30,6 +30,8 @@ dependencies {
 
   testImplementation project(':dd-java-agent:testing')
   testImplementation group: 'com.google.guava', name: 'guava-testlib', version: '20.0'
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
 }
 
 // Must use Java 11 to build JFR enabled code - there is no JFR in OpenJDK 8 (revisit once JFR in Java 8 is available)
