@@ -18,6 +18,7 @@ import freemarker.template.TemplateException;
 import freemarker.template.TemplateExceptionHandler;
 import java.io.StringWriter;
 import java.io.Writer;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
 import java.util.ArrayList;
@@ -133,20 +134,24 @@ public abstract class CiVisibilityTestUtils {
       eventPaths.addAll(compiledAdditionalReplacements);
       Files.write(
           Paths.get(baseTemplatesPath, "events.ftl"),
-          templateGenerator.generateTemplate(mutableEvents, eventPaths).getBytes());
+          templateGenerator
+              .generateTemplate(mutableEvents, eventPaths)
+              .getBytes(StandardCharsets.UTF_8));
 
       List<DynamicPath> coveragePaths = new ArrayList<>(COVERAGE_DYNAMIC_PATHS);
       coveragePaths.addAll(compiledAdditionalReplacements);
       Files.write(
           Paths.get(baseTemplatesPath, "coverages.ftl"),
-          templateGenerator.generateTemplate(coverages, coveragePaths).getBytes());
+          templateGenerator
+              .generateTemplate(coverages, coveragePaths)
+              .getBytes(StandardCharsets.UTF_8));
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
   }
 
   public static void assertData(
-      String baseTemplatesPath, List<CoverageReport> reports, Map<String, String> replacements) {
+      String baseTemplatesPath, List<CoverageReport> reports, Map<String, ?> replacements) {
     try {
       String expectedReportEvent =
           getFreemarkerTemplate(baseTemplatesPath + "/coverage_report_event.ftl", replacements);
@@ -195,7 +200,7 @@ public abstract class CiVisibilityTestUtils {
       String baseTemplatesPath,
       List<? extends Map<?, ?>> events,
       List<? extends Map<?, ?>> coverages,
-      Map<String, String> additionalReplacements,
+      Map<String, ?> additionalReplacements,
       List<String> ignoredTags) {
     return assertData(
         baseTemplatesPath,
@@ -210,7 +215,7 @@ public abstract class CiVisibilityTestUtils {
       String baseTemplatesPath,
       List<? extends Map<?, ?>> events,
       List<? extends Map<?, ?>> coverages,
-      Map<String, String> additionalReplacements,
+      Map<String, ?> additionalReplacements,
       List<String> ignoredTags,
       List<String> additionalDynamicPaths) {
     List<Map<?, ?>> mutableEvents = new ArrayList<>(events);
@@ -225,8 +230,11 @@ public abstract class CiVisibilityTestUtils {
     Map<String, String> replacementMap =
         templateGenerator.generateReplacementMap(coverages, COVERAGE_DYNAMIC_PATHS);
 
-    for (Map.Entry<String, String> e : additionalReplacements.entrySet()) {
-      replacementMap.put(labelGenerator.forKey(e.getKey()), "\"" + e.getValue() + "\"");
+    // Tolerate Groovy callers passing GString values: convert each value to String via
+    // String.valueOf before storing it in the replacement map.
+    for (Map.Entry<String, ?> e : additionalReplacements.entrySet()) {
+      replacementMap.put(
+          labelGenerator.forKey(e.getKey()), "\"" + String.valueOf(e.getValue()) + "\"");
     }
 
     // ignore provided tags
@@ -252,8 +260,7 @@ public abstract class CiVisibilityTestUtils {
 
   private static void compareJson(String expectedJson, String actualJson) {
     Map<String, String> environment = System.getenv();
-    boolean ciRun =
-        environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null;
+    boolean ciRun = environment.get("GITHUB_ACTION") != null || environment.get("GITLAB_CI") != null;
     JSONCompareMode comparisonMode =
         ciRun ? JSONCompareMode.LENIENT : JSONCompareMode.NON_EXTENSIBLE;
 
@@ -264,7 +271,7 @@ public abstract class CiVisibilityTestUtils {
     } catch (AssertionError e) {
       if (ciRun) {
         // When running in CI the assertion error message does not contain the actual diff,
-        // so we print the events to the console to help debug the issue
+        // so we print the events to the console to help debug the issue.
         System.out.println("Expected JSON: " + expectedJson);
         System.out.println("Actual JSON: " + actualJson);
       }
@@ -433,9 +440,8 @@ public abstract class CiVisibilityTestUtils {
               });
         }
       }
-      return JSON_MAPPER
-          .writeValueAsString(objects)
-          .replaceAll(PLACEHOLDER_PATTERN.pattern(), "$1"); // remove quotes around placeholders
+      // remove quotes around placeholders
+      return PLACEHOLDER_PATTERN.matcher(JSON_MAPPER.writeValueAsString(objects)).replaceAll("$1");
     }
 
     Map<String, String> generateReplacementMap(
