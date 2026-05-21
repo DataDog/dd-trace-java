@@ -20,8 +20,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 @ExtendWith(MockitoExtension.class)
 class ObjectWaitProfilingInstrumentationTest {
 
-  private static final long SPAN_ID = 0xDEADBEEFL;
-  private static final long ROOT_SPAN_ID = 0xCAFEBABEL;
   private static final long START_TICKS = 42_000_000L;
   private static final long BLOCKER = 1234L;
 
@@ -38,21 +36,16 @@ class ObjectWaitProfilingInstrumentationTest {
 
     WaitAdvice.after(state);
 
-    verify(profiling).recordTaskBlock(START_TICKS, SPAN_ID, ROOT_SPAN_ID, BLOCKER, 0L);
+    // Span ids are no longer passed across JNI; native side reads them from OTEP TLS.
+    verify(profiling).recordTaskBlock(START_TICKS, BLOCKER, 0L);
   }
 
   private TaskBlockHelper.State newState(long startNanos) throws Exception {
     Constructor<TaskBlockHelper.State> constructor =
         TaskBlockHelper.State.class.getDeclaredConstructor(
-            ProfilingContextIntegration.class,
-            long.class,
-            long.class,
-            long.class,
-            long.class,
-            long.class);
+            ProfilingContextIntegration.class, long.class, long.class, long.class);
     constructor.setAccessible(true);
-    return constructor.newInstance(
-        profiling, START_TICKS, startNanos, SPAN_ID, ROOT_SPAN_ID, BLOCKER);
+    return constructor.newInstance(profiling, START_TICKS, startNanos, BLOCKER);
   }
 
   private static long taskBlockThresholdNanos() throws Exception {

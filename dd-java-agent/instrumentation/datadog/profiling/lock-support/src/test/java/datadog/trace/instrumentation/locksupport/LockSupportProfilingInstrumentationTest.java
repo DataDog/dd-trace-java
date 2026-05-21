@@ -8,11 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
-import static org.mockito.Mockito.when;
 
-import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
-import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
-import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.LockSupportHelper;
 import java.util.concurrent.CountDownLatch;
@@ -29,11 +25,6 @@ import org.junit.jupiter.api.Test;
  * to communicate the unblocking span ID from {@code UnparkAdvice} to {@code ParkAdvice}.
  */
 class LockSupportProfilingInstrumentationTest {
-
-  private static final long SPAN_ID = 1234L;
-  private static final long ROOT_SPAN_ID = 5678L;
-
-  private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
 
   @BeforeEach
   void clearState() {
@@ -168,48 +159,39 @@ class LockSupportProfilingInstrumentationTest {
 
   @Test
   void parkAdvice_captureState_nullProfiling_returnsNull() {
-    AgentSpan span = mock(AgentSpan.class);
-
-    assertNull(LockSupportHelper.captureState(new Object(), null, span));
+    assertNull(LockSupportHelper.captureState(new Object(), null));
   }
 
   @Test
-  void parkAdvice_captureState_spanless_callsParkEnterWithZeroIds() {
+  void parkAdvice_captureState_callsParkEnterAndRecordsBlocker() {
+    // Span identity is no longer surfaced through ParkState — it is read natively from the OTEP
+    // TLS sidecar inside ProfiledThread::parkEnter. The Java-side ParkState only needs to retain
+    // the blocker hash so parkExit can pair the eventual TaskBlock with the right monitor.
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-
-    LockSupportHelper.ParkState state =
-        LockSupportHelper.captureState(new Object(), profiling, null);
-
-    assertNotNull(state);
-    assertEquals(0L, state.spanId);
-    assertEquals(0L, state.rootSpanId);
-    verify(profiling).parkEnter(0L, 0L);
-  }
-
-  @Test
-  void parkAdvice_captureState_activeSpan_callsParkEnterWithSpanIds() {
-    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    AgentSpan span = mock(AgentSpan.class);
-    ProfilerSpanContext context = mock(ProfilerSpanContext.class);
     Object blocker = new Object();
-    when(span.context()).thenReturn(context);
-    when(context.getSpanId()).thenReturn(SPAN_ID);
-    when(context.getRootSpanId()).thenReturn(ROOT_SPAN_ID);
 
-    LockSupportHelper.ParkState state = LockSupportHelper.captureState(blocker, profiling, span);
+    LockSupportHelper.ParkState state = LockSupportHelper.captureState(blocker, profiling);
 
     assertNotNull(state);
     assertEquals(System.identityHashCode(blocker), state.blockerHash);
-    assertEquals(SPAN_ID, state.spanId);
-    assertEquals(ROOT_SPAN_ID, state.rootSpanId);
-    verify(profiling).parkEnter(SPAN_ID, ROOT_SPAN_ID);
+    verify(profiling).parkEnter();
+  }
+
+  @Test
+  void parkAdvice_captureState_nullBlocker_recordsZeroHash() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+
+    LockSupportHelper.ParkState state = LockSupportHelper.captureState(null, profiling);
+
+    assertNotNull(state);
+    assertEquals(0L, state.blockerHash);
+    verify(profiling).parkEnter();
   }
 
   @Test
   void parkAdvice_finish_callsOriginalProfilingContext() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
-    LockSupportHelper.ParkState state =
-        new LockSupportHelper.ParkState(profiling, 42L, SPAN_ID, ROOT_SPAN_ID);
+    LockSupportHelper.ParkState state = new LockSupportHelper.ParkState(profiling, 42L);
 
     LockSupportHelper.finish(state, 99L);
 
