@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import static datadog.environment.OperatingSystem.architecture
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.api.ProtocolVersion.V0_4
 import static datadog.trace.api.ProtocolVersion.V0_5
@@ -254,7 +255,7 @@ abstract class AbstractSmokeTest extends ProcessManager {
     }
 
     // Disable CDS to avoid SIGSEGVs on Linux arm64.
-    if (OperatingSystem.isArm64() && OperatingSystem.isLinux()) {
+    if (OperatingSystem.isLinux() && architecture().isArm64()) {
       ret += "-Xshare:off"
     }
     ret as String[]

@@ -1,6 +1,5 @@
 package datadog.environment;
 
-import static datadog.environment.OperatingSystem.Architecture.ARM64;
 import static datadog.environment.OperatingSystem.Type.LINUX;
 import static datadog.environment.OperatingSystem.Type.MACOS;
 import static datadog.environment.OperatingSystem.Type.WINDOWS;
@@ -25,15 +24,6 @@ public final class OperatingSystem {
   private static final Architecture ARCHITECTURE = Architecture.current();
 
   private OperatingSystem() {}
-
-  /**
-   * Checks whether the architecture is arm64.
-   *
-   * @return @{@code true} if architecture is arm64, {@code false} otherwise.
-   */
-  public static boolean isArm64() {
-    return ARCHITECTURE == ARM64;
-  }
 
   /**
    * Checks whether the operating system is Linux based.
@@ -222,6 +212,15 @@ public final class OperatingSystem {
     static Architecture current() {
       String property = SystemProperties.getOrDefault(OS_ARCH_PROPERTY, "").toLowerCase(ROOT);
       return Architecture.of(property);
+    }
+
+    /**
+     * Checks whether the architecture is arm64.
+     *
+     * @return {@code true} if architecture is arm64, {@code false} otherwise.
+     */
+    public boolean isArm64() {
+      return this == ARM64;
     }
   }
 }
