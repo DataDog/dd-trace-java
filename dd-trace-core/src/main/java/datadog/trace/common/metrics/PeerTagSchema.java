@@ -20,47 +20,46 @@ import java.util.Set;
  * <ul>
  *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
- *   <li>A peer-aggregation schema built via {@link #of(Set, long)} for {@code client}/{@code
+ *   <li>A peer-aggregation schema built via {@link #of(Set, String)} for {@code client}/{@code
  *       producer}/{@code consumer} spans. {@link ConflatingMetricsAggregator} caches the most
  *       recently built schema and reconciles it on the aggregator thread once per reporting cycle
- *       by comparing {@link #lastTimeDiscovered} against {@link
- *       DDAgentFeaturesDiscovery#getLastTimeDiscovered()}.
+ *       by comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
  * <p>This class deliberately has no cardinality limiters -- callers that need those layer them on
  * top.
  *
- * <p><b>Thread-safety:</b> {@link #names} is final and safe to read from any thread. {@link
- * #lastTimeDiscovered} is exercised only on the aggregator thread (read and updated in
- * reconciliation); producer threads access the schema only through the volatile {@code
- * cachedPeerTagSchema} reference in {@link ConflatingMetricsAggregator}.
+ * <p><b>Thread-safety:</b> {@link #names} is final and safe to read from any thread. {@link #state}
+ * is exercised only on the aggregator thread (read and updated in reconciliation); producer threads
+ * access the schema only through the volatile {@code cachedPeerTagSchema} reference in {@link
+ * ConflatingMetricsAggregator}.
  */
 final class PeerTagSchema {
 
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL =
-      // -1L sentinel; INTERNAL is never reconciled, so the value just has to be distinct from any
-      // real System.currentTimeMillis() that the aggregator might observe.
-      new PeerTagSchema(new String[] {BASE_SERVICE}, -1L);
+      // INTERNAL is never reconciled, so the state value is irrelevant.
+      new PeerTagSchema(new String[] {BASE_SERVICE}, null);
 
   final String[] names;
 
   /**
-   * The {@code DDAgentFeaturesDiscovery.getLastTimeDiscovered()} value this schema was built from.
-   * The aggregator thread reads and updates this once per reporting cycle when reconciling against
-   * the latest discovery; producer threads never touch it. Plain (non-volatile, non-final) because
-   * the aggregator is the sole reader/writer.
+   * The {@code DDAgentFeaturesDiscovery.state()} hash this schema was built from. The aggregator
+   * thread reads and updates this once per reporting cycle when reconciling against the latest
+   * discovery; producer threads never touch it. Plain (non-volatile, non-final) because the
+   * aggregator is the sole reader/writer. May be {@code null} before discovery has produced a
+   * response.
    */
-  long lastTimeDiscovered;
+  String state;
 
-  private PeerTagSchema(String[] names, long lastTimeDiscovered) {
+  private PeerTagSchema(String[] names, String state) {
     this.names = names;
-    this.lastTimeDiscovered = lastTimeDiscovered;
+    this.state = state;
   }
 
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> tags, long lastTimeDiscovered) {
-    return new PeerTagSchema(tags.toArray(new String[0]), lastTimeDiscovered);
+  static PeerTagSchema of(Set<String> tags, String state) {
+    return new PeerTagSchema(tags.toArray(new String[0]), state);
   }
 
   /**
@@ -68,15 +67,14 @@ final class PeerTagSchema {
    * order without going through a {@link Set}.
    */
   static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, 0L);
+    return new PeerTagSchema(names, null);
   }
 
   /**
    * Whether this schema's tag names exactly match {@code other}. Used by the aggregator's reconcile
-   * path: when a feature discovery refresh bumps {@link
-   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} but the resulting set is unchanged, the
-   * aggregator can keep this schema and just bump {@link #lastTimeDiscovered} instead of
-   * rebuilding.
+   * path: when a feature discovery refresh changes {@link DDAgentFeaturesDiscovery#state()} but the
+   * resulting set is unchanged, the aggregator can keep this schema and just update {@link #state}
+   * instead of rebuilding.
    */
   boolean hasSameTagsAs(Set<String> other) {
     if (this.names.length != other.size()) {

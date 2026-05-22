@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.util.Arrays;
@@ -20,21 +21,22 @@ import org.junit.jupiter.api.Test;
 class PeerTagSchemaTest {
 
   @Test
-  void ofBuildsSchemaFromSetWithTimestamp() {
+  void ofBuildsSchemaFromSetWithState() {
     Set<String> tags = new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service"));
-    PeerTagSchema schema = PeerTagSchema.of(tags, 1234L);
+    PeerTagSchema schema = PeerTagSchema.of(tags, "abc123");
 
     assertArrayEquals(new String[] {"peer.hostname", "peer.service"}, schema.names);
-    assertEquals(1234L, schema.lastTimeDiscovered);
+    assertEquals("abc123", schema.state);
     assertEquals(2, schema.size());
   }
 
   @Test
   void ofHandlesEmptySet() {
-    PeerTagSchema schema = PeerTagSchema.of(Collections.<String>emptySet(), 0L);
+    PeerTagSchema schema = PeerTagSchema.of(Collections.<String>emptySet(), null);
 
     assertEquals(0, schema.size());
     assertEquals(0, schema.names.length);
+    assertNull(schema.state);
   }
 
   @Test
@@ -46,7 +48,8 @@ class PeerTagSchemaTest {
   @Test
   void hasSameTagsAsReturnsTrueForExactMatch() {
     PeerTagSchema schema =
-        PeerTagSchema.of(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), 1L);
+        PeerTagSchema.of(
+            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
 
     // Same content via a different Set reference -- this is the case the reconcile fast-path
     // depends on (Set returned from a fresh discovery cycle is content-equal to the prior one).
@@ -56,7 +59,8 @@ class PeerTagSchemaTest {
 
   @Test
   void hasSameTagsAsReturnsFalseWhenSetGrew() {
-    PeerTagSchema schema = PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), 1L);
+    PeerTagSchema schema =
+        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), "state-1");
 
     Set<String> larger = new HashSet<>(Arrays.asList("peer.hostname", "peer.service"));
     assertFalse(schema.hasSameTagsAs(larger));
@@ -65,21 +69,23 @@ class PeerTagSchemaTest {
   @Test
   void hasSameTagsAsReturnsFalseWhenSetShrank() {
     PeerTagSchema schema =
-        PeerTagSchema.of(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), 1L);
+        PeerTagSchema.of(
+            new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")), "state-1");
 
     assertFalse(schema.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
   }
 
   @Test
   void hasSameTagsAsReturnsFalseWhenContentDifferent() {
-    PeerTagSchema schema = PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), 1L);
+    PeerTagSchema schema =
+        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), "state-1");
 
     assertFalse(schema.hasSameTagsAs(Collections.<String>singleton("peer.service")));
   }
 
   @Test
   void hasSameTagsAsHandlesEmpty() {
-    PeerTagSchema empty = PeerTagSchema.of(Collections.<String>emptySet(), 1L);
+    PeerTagSchema empty = PeerTagSchema.of(Collections.<String>emptySet(), "state-1");
 
     assertTrue(empty.hasSameTagsAs(Collections.<String>emptySet()));
     assertFalse(empty.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
