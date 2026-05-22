@@ -249,6 +249,49 @@ class AggregateTableTest {
     assertEquals(1, table.size());
   }
 
+  @Test
+  void nullServiceAndSpanKindDoNotNpeAndCollapseWithEmpty() {
+    // Regression: serviceName and spanKind used to bypass canonicalize() and call
+    // cache.computeIfAbsent directly, which would NPE on a null input. Production paths never
+    // pass null for these (DDSpan always supplies a service; producer defaults spanKind to ""),
+    // but the matches/contentEquals logic already treats null-and-empty as equal, so the
+    // constructor should be consistent. This pins both null-safety and null-equals-empty
+    // behavior for the two fields that recently moved through canonicalize().
+    AggregateTable table = new AggregateTable(8);
+
+    SpanSnapshot allNulls = nullServiceKindSnapshot(null, null);
+    SpanSnapshot allEmpty = nullServiceKindSnapshot("", "");
+
+    AggregateEntry first = table.findOrInsert(allNulls);
+    AggregateEntry secondNull = table.findOrInsert(nullServiceKindSnapshot(null, null));
+    AggregateEntry forEmpty = table.findOrInsert(allEmpty);
+
+    assertSame(first, secondNull, "two null-service/-kind snapshots must hit the same entry");
+    assertSame(first, forEmpty, "null- and empty-service/-kind snapshots must hit the same entry");
+    assertEquals(1, table.size());
+    assertEquals(0, first.getService().length(), "null serviceName should canonicalize to EMPTY");
+    assertEquals(0, first.getSpanKind().length(), "null spanKind should canonicalize to EMPTY");
+  }
+
+  private static SpanSnapshot nullServiceKindSnapshot(String service, String spanKind) {
+    return new SpanSnapshot(
+        "resource",
+        service,
+        "op",
+        null,
+        "web",
+        (short) 200,
+        false,
+        true,
+        spanKind,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0L);
+  }
+
   private static SpanSnapshot nullableSnapshot(
       String resource, String operation, String type, String serviceNameSource) {
     return new SpanSnapshot(

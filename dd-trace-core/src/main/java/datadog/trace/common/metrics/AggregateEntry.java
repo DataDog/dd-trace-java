@@ -1,6 +1,5 @@
 package datadog.trace.common.metrics;
 
-import static datadog.trace.api.Functions.UTF8_ENCODE;
 import static datadog.trace.bootstrap.instrumentation.api.UTF8BytesString.EMPTY;
 
 import datadog.metrics.api.Histogram;
@@ -111,14 +110,14 @@ final class AggregateEntry extends Hashtable.Entry {
   private AggregateEntry(SpanSnapshot s, long keyHash) {
     super(keyHash);
     this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
-    this.service = SERVICE_CACHE.computeIfAbsent(s.serviceName, UTF8_ENCODE);
+    this.service = canonicalize(SERVICE_CACHE, s.serviceName);
     this.operationName = canonicalize(OPERATION_CACHE, s.operationName);
     this.serviceSource =
         s.serviceNameSource == null
             ? null
             : canonicalize(SERVICE_SOURCE_CACHE, s.serviceNameSource);
     this.type = canonicalize(TYPE_CACHE, s.spanType);
-    this.spanKind = SPAN_KIND_CACHE.computeIfAbsent(s.spanKind, UTF8BytesString::create);
+    this.spanKind = canonicalize(SPAN_KIND_CACHE, s.spanKind);
     this.httpMethod =
         s.httpMethod == null
             ? null
