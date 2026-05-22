@@ -107,6 +107,50 @@ class AggregateTableTest {
   }
 
   @Test
+  void backToBackEvictionsAllSucceed() {
+    // Cursor amortization regression: cap the table, fill with stale entries, then force a
+    // sequence of cap-overrun inserts. Each insert must succeed (evicting one stale entry and
+    // inserting one new). The cursor field is internal, but if it were ever wedged (e.g.
+    // pointing past the end of buckets, or not advancing after a successful eviction), some
+    // later insert would fail to find a stale entry. Drives ~3x the capacity worth of inserts to
+    // give wrap-around plenty of chances to misbehave.
+    AggregateTable table = new AggregateTable(8);
+    for (int i = 0; i < 8; i++) {
+      table.findOrInsert(snapshot("init-" + i, "op", "client"));
+    }
+    for (int i = 0; i < 32; i++) {
+      AggregateEntry inserted = table.findOrInsert(snapshot("post-" + i, "op", "client"));
+      assertNotNull(
+          inserted, "insert #" + i + " should evict a stale entry and succeed (table full)");
+    }
+    assertEquals(8, table.size());
+  }
+
+  @Test
+  void clearResetsCursorForSubsequentEvictions() {
+    // The cursor must reset to 0 on clear so a re-filled table doesn't start eviction at a
+    // stale bucket index. Verified indirectly: clear and re-fill, then force an eviction; the
+    // newcomer must successfully take a slot (which only works if a stale entry was found).
+    AggregateTable table = new AggregateTable(4);
+
+    // Fill, age, evict once -- cursor lands at some non-zero bucket
+    for (int i = 0; i < 4; i++) {
+      table.findOrInsert(snapshot("warm-" + i, "op", "client"));
+    }
+    table.findOrInsert(snapshot("evict-trigger", "op", "client"));
+
+    table.clear();
+    assertEquals(0, table.size());
+
+    // Re-fill, age, force eviction -- should still find a stale entry from bucket 0 onward
+    for (int i = 0; i < 4; i++) {
+      table.findOrInsert(snapshot("fresh-" + i, "op", "client"));
+    }
+    AggregateEntry newcomer = table.findOrInsert(snapshot("post-clear", "op", "client"));
+    assertNotNull(newcomer, "post-clear cap-overrun insert must succeed via cursor-reset evict");
+  }
+
+  @Test
   void capOverrunWithNoStaleReturnsNull() {
     AggregateTable table = new AggregateTable(2);
 

@@ -25,6 +25,13 @@ final class AggregateTable {
   private final int maxAggregates;
   private int size;
 
+  /**
+   * Bucket index where the last {@link #evictOneStale} successfully removed an entry. The next call
+   * resumes from this bucket so a fast-evicting workload doesn't repeatedly re-walk the same hot
+   * entries clustered near bucket 0. Reset to {@code 0} by {@link #clear}.
+   */
+  private int evictCursor;
+
   AggregateTable(int maxAggregates) {
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
@@ -62,23 +69,34 @@ final class AggregateTable {
   }
 
   /**
-   * Unlinks the first entry whose {@code getHitCount() == 0}.
+   * Unlinks the first entry whose {@code getHitCount() == 0}, resuming the scan from {@link
+   * #evictCursor} so back-to-back evictions amortize to O(1) per call. Worst case for a single call
+   * is still O(N) when nearly every entry is hot, but a sustained eviction stream never re-scans
+   * the hot prefix more than twice across N evictions.
    *
-   * <p>O(N) per call -- scans buckets in array order from the start every time. That's a regression
-   * from the prior {@code LRUCache}'s O(1) LRU eviction, but the semantic change is deliberate: at
-   * cap with all entries live, we drop the new key (and report it via {@code
-   * onStatsAggregateDropped}) rather than evicting an established key. The expectation is that the
-   * cap is sized to the steady-state working set, so eviction is rare; if a future workload runs
-   * persistently at cap, this is the place to consider caching a cursor across calls so the scan
-   * resumes where it left off.
+   * <p>The semantic intent: at cap with all entries live, drop the new key (reported via {@code
+   * onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
+   * steady-state working set, so eviction is rare; this cursor optimization handles the
+   * pathological "persistently at cap" case.
    */
   private boolean evictOneStale() {
-    for (MutatingTableIterator<AggregateEntry> iter = Support.mutatingTableIterator(buckets);
-        iter.hasNext(); ) {
+    // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The
+    // second pass is naturally empty when cursor==0, so no extra check needed.
+    return evictOneStaleInRange(evictCursor, buckets.length)
+        || evictOneStaleInRange(0, evictCursor);
+  }
+
+  /** Scans {@code [startBucket, endBucket)} for the first stale entry and unlinks it. */
+  private boolean evictOneStaleInRange(int startBucket, int endBucket) {
+    MutatingTableIterator<AggregateEntry> iter =
+        Support.mutatingTableIterator(buckets, startBucket, endBucket);
+    while (iter.hasNext()) {
       AggregateEntry e = iter.next();
       if (e.getHitCount() == 0) {
+        int bucket = iter.currentBucket();
         iter.remove();
         size--;
+        evictCursor = bucket;
         return true;
       }
     }
@@ -113,5 +131,6 @@ final class AggregateTable {
   void clear() {
     Support.clear(buckets);
     size = 0;
+    evictCursor = 0;
   }
 }
