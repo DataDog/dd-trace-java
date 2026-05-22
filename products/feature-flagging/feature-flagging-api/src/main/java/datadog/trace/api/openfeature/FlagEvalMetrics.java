@@ -67,7 +67,7 @@ class FlagEvalMetrics implements Closeable {
       OtlpHttpMetricExporter exporter =
           OtlpHttpMetricExporter.builder()
               .setEndpoint(endpoint)
-              .setAggregationTemporalitySelector(AggregationTemporalitySelector.alwaysCumulative())
+              .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
               .build();
 
       PeriodicMetricReader reader =
