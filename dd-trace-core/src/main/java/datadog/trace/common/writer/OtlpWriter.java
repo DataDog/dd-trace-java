@@ -147,7 +147,7 @@ public class OtlpWriter extends RemoteWriter {
               healthMetrics,
               dispatcher,
               DroppingPolicy.DISABLED,
-              Prioritization.ENSURE_TRACE,
+              Prioritization.FAST_LANE,
               flushIntervalMilliseconds,
               TimeUnit.MILLISECONDS,
               singleSpanSampler);
