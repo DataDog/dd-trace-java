@@ -243,6 +243,14 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     - mkdir -p .mvn/caches
+    # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
+    # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
+    - |
+      mkdir -p .mvn/caches/equo "$HOME/.m2/repository/dev"
+      if [ ! -L "$HOME/.m2/repository/dev/equo" ]; then
+        rm -rf "$HOME/.m2/repository/dev/equo"
+        ln -s "$(pwd)/.mvn/caches/equo" "$HOME/.m2/repository/dev/equo"
+      fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
@@ -383,6 +391,9 @@ populate_dep_cache:
         CACHE_TYPE: "latestdep"
       - GRADLE_TARGET: ":smokeTest"
         CACHE_TYPE: "smoke"
+      - GRADLE_TARGET: "spotlessCheck"
+        CACHE_TYPE: "spotless"
+        GRADLE_MEMORY_MAX: "6G"
 
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
@@ -422,6 +433,7 @@ spotless:
   needs: []
   variables:
     GRADLE_MEMORY_MAX: 6G
+    CACHE_TYPE: "spotless"
   script:
     - ./gradlew --version
     - ./gradlew spotlessCheck $GRADLE_ARGS
