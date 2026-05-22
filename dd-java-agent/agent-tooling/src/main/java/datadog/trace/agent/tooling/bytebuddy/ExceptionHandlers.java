@@ -27,6 +27,8 @@ public class ExceptionHandlers {
             private final Size size = new StackManipulation.Size(-1, 3);
             private final boolean appSecEnabled =
                 InstrumenterConfig.get().getAppSecActivation() != ProductActivation.FULLY_DISABLED;
+            private final boolean detailedErrors =
+                InstrumenterConfig.get().isDetailedInstrumentationErrors();
 
             @Override
             public boolean isValid() {
@@ -43,7 +45,7 @@ public class ExceptionHandlers {
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .debug("Failed to handle exception in instrumentation for ...", t);
               // } catch (Throwable t2) {
@@ -53,7 +55,7 @@ public class ExceptionHandlers {
               //
               // BlockingExceptionHandler.rethrowIfBlockingException(t);
               // try {
-              //   InstrumentationErrors.incrementErrorCount();
+              //   InstrumentationErrors.recordError();
               //   org.slf4j.LoggerFactory.getLogger((Class)ExceptionLogger.class)
               //     .error("Failed to handle exception in instrumentation for ...", t);
               //   System.exit(1);
@@ -76,17 +78,28 @@ public class ExceptionHandlers {
                     Opcodes.INVOKESTATIC,
                     "datadog/trace/bootstrap/blocking/BlockingExceptionHandler",
                     "rethrowIfBlockingException",
-                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;");
+                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;",
+                    false);
               }
 
               mv.visitTryCatchBlock(logStart, logEnd, eatException, "java/lang/Throwable");
               mv.visitLabel(logStart);
-              // invoke incrementAndGet on our exception counter
-              mv.visitMethodInsn(
-                  Opcodes.INVOKESTATIC,
-                  "datadog/trace/bootstrap/InstrumentationErrors",
-                  "incrementErrorCount",
-                  "()V");
+              // record instrumentation error
+              if (detailedErrors) {
+                mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "datadog/trace/bootstrap/InstrumentationErrors",
+                    "recordError",
+                    "(Ljava/lang/Throwable;)Ljava/lang/Throwable;",
+                    false);
+              } else {
+                mv.visitMethodInsn(
+                    Opcodes.INVOKESTATIC,
+                    "datadog/trace/bootstrap/InstrumentationErrors",
+                    "recordError",
+                    "()V",
+                    false);
+              }
               // stack: (top) throwable
               mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
               mv.visitMethodInsn(

@@ -55,7 +55,7 @@ class ClientStatsAggregatorDisableTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
-    when(features.getLastTimeDiscovered()).thenReturn(1L);
+    when(features.state()).thenReturn("state-1");
 
     ClientStatsAggregator aggregator =
         new ClientStatsAggregator(
@@ -135,13 +135,62 @@ class ClientStatsAggregatorDisableTest {
     }
   }
 
+  @Test
+  void clearDoesNotTrampleQueuedStopSignal() throws Exception {
+    // Regression: prior CLEAR handler called inbox.clear(), which would erase any STOP signal
+    // queued behind it. close() then waited out thread.join's timeout because Drainer never saw
+    // the STOP and `stopped` was never set. Now the CLEAR handler clears only the aggregates
+    // table; queued signals (STOP, REPORT) survive and get processed normally.
+    HealthMetrics healthMetrics = mock(HealthMetrics.class);
+    MetricWriter writer = mock(MetricWriter.class);
+    Sink sink = mock(Sink.class);
+    DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
+    when(features.supportsMetrics()).thenReturn(true);
+    when(features.peerTags()).thenReturn(Collections.<String>emptySet());
+    when(features.state()).thenReturn("state-1");
+
+    ClientStatsAggregator aggregator =
+        new ClientStatsAggregator(
+            Collections.<String>emptySet(),
+            features,
+            healthMetrics,
+            sink,
+            writer,
+            /* maxAggregates */ 16,
+            /* queueSize */ 64,
+            /* reportingInterval */ 10,
+            SECONDS,
+            /* includeEndpointInMetrics */ false);
+    aggregator.start();
+
+    // Force at least one snapshot into the inbox so the aggregator has something to drain.
+    aggregator.publish(Collections.<CoreSpan<?>>singletonList(metricsEligibleSpan()));
+
+    // Fire DOWNGRADED on this thread. disable() flips supportsMetrics() to false and offers
+    // CLEAR. Then immediately call close() which offers STOP. If CLEAR's handler clears the
+    // inbox, STOP gets trampled and close() hangs until the join timeout.
+    when(features.supportsMetrics()).thenReturn(false);
+    aggregator.onEvent(EventListener.EventType.DOWNGRADED, "");
+
+    // close() is synchronous; bound it ourselves rather than trusting THREAD_JOIN_TIMEOUT_MS.
+    long deadlineNanos = System.nanoTime() + java.util.concurrent.TimeUnit.SECONDS.toNanos(2);
+    Thread closer = new Thread(aggregator::close, "test-closer");
+    closer.start();
+    while (closer.isAlive() && System.nanoTime() < deadlineNanos) {
+      closer.join(50);
+    }
+    assertTrue(
+        !closer.isAlive(),
+        "close() must return promptly -- if CLEAR trampled STOP, this hangs out the join timeout");
+  }
+
   @SuppressWarnings({"rawtypes", "unchecked"})
   private static CoreSpan<?> metricsEligibleSpan() {
     CoreSpan span = mock(CoreSpan.class);
     when(span.isMeasured()).thenReturn(false);
     when(span.isTopLevel()).thenReturn(true);
     // Return true for any SpanKindFilter so peerTagSchemaFor enters the bootstrap path on the
-    // first publish. We want that bootstrap to fire (it's what makes features.getLastTimeDiscovered
+    // first publish. We want that bootstrap to fire (it's what makes features.state()
     // observable), even though peerTags() returns emptySet here and the resulting schema has
     // size 0.
     when(span.isKind(any(SpanKindFilter.class))).thenReturn(true);

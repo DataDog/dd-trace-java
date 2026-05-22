@@ -76,8 +76,14 @@ final class TagCardinalityHandler {
     return utf8;
   }
 
+  /**
+   * Mixes the input hash with its upper half ({@code h ^ (h >>> 16)}) before masking so that inputs
+   * sharing a low-bit pattern don't collapse onto the same probe chain. Same trick {@code
+   * HashMap.hash} uses.
+   */
   private int probe(String[] keys, String value) {
-    int idx = value.hashCode() & this.capacityMask;
+    int h = value.hashCode();
+    int idx = (h ^ (h >>> 16)) & this.capacityMask;
     while (keys[idx] != null && !keys[idx].equals(value)) {
       idx = (idx + 1) & this.capacityMask;
     }

@@ -491,9 +491,10 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying the schema's per-tag
-     * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs;
-     * we elide those from the buffer so the wire-format list-of-pairs only contains present peer
-     * tags.
+     * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs; we
+     * elide those from the buffer so the wire-format list-of-pairs only contains present peer tags.
+     * No allocation when the schema/values are absent or all values are null (buffer is just
+     * cleared).
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
       peerTagsCount = 0;

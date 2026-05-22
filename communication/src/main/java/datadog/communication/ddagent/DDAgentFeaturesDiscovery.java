@@ -404,16 +404,6 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
     return discoveryState.peerTags;
   }
 
-  /**
-   * Wall-clock timestamp ({@link System#currentTimeMillis()}) of the most recent successful
-   * feature discovery, or {@code 0L} if discovery has never run. Callers (e.g. the client-stats
-   * aggregator) snapshot this alongside {@link #peerTags()} to detect when discovery has refreshed
-   * and a cached view of feature state may be stale.
-   */
-  public long getLastTimeDiscovered() {
-    return discoveryState.lastTimeDiscovered;
-  }
-
   public String getMetricsEndpoint() {
     return discoveryState.metricsEndpoint;
   }

@@ -19,6 +19,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 class AggregateTableTest {
@@ -29,6 +30,15 @@ class AggregateTableTest {
     MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
     AgentMeter.registerIfAbsent(StatsDClient.NO_OP, monitoring, DDSketchHistograms.FACTORY);
     monitoring.newTimer("test.init");
+  }
+
+  @BeforeEach
+  void resetCardinalityHandlers() {
+    // AggregateEntry's property handlers are static and accumulate state across tests. Some tests
+    // in this class (e.g. backToBackEvictionsAllSucceed) drive 40 distinct services, which exceeds
+    // MetricCardinalityLimits.SERVICE (32) and leaves later tests seeing a shared "blocked"
+    // canonical for "a"/"b"/"c"-style services -- collapsing distinct snapshots into one entry.
+    AggregateEntry.resetCardinalityHandlers();
   }
 
   @Test
@@ -128,6 +138,50 @@ class AggregateTableTest {
   }
 
   @Test
+  void backToBackEvictionsAllSucceed() {
+    // Cursor amortization regression: cap the table, fill with stale entries, then force a
+    // sequence of cap-overrun inserts. Each insert must succeed (evicting one stale entry and
+    // inserting one new). The cursor field is internal, but if it were ever wedged (e.g.
+    // pointing past the end of buckets, or not advancing after a successful eviction), some
+    // later insert would fail to find a stale entry. Drives ~3x the capacity worth of inserts to
+    // give wrap-around plenty of chances to misbehave.
+    AggregateTable table = new AggregateTable(8);
+    for (int i = 0; i < 8; i++) {
+      table.findOrInsert(snapshot("init-" + i, "op", "client"));
+    }
+    for (int i = 0; i < 32; i++) {
+      AggregateEntry inserted = table.findOrInsert(snapshot("post-" + i, "op", "client"));
+      assertNotNull(
+          inserted, "insert #" + i + " should evict a stale entry and succeed (table full)");
+    }
+    assertEquals(8, table.size());
+  }
+
+  @Test
+  void clearResetsCursorForSubsequentEvictions() {
+    // The cursor must reset to 0 on clear so a re-filled table doesn't start eviction at a
+    // stale bucket index. Verified indirectly: clear and re-fill, then force an eviction; the
+    // newcomer must successfully take a slot (which only works if a stale entry was found).
+    AggregateTable table = new AggregateTable(4);
+
+    // Fill, age, evict once -- cursor lands at some non-zero bucket
+    for (int i = 0; i < 4; i++) {
+      table.findOrInsert(snapshot("warm-" + i, "op", "client"));
+    }
+    table.findOrInsert(snapshot("evict-trigger", "op", "client"));
+
+    table.clear();
+    assertEquals(0, table.size());
+
+    // Re-fill, age, force eviction -- should still find a stale entry from bucket 0 onward
+    for (int i = 0; i < 4; i++) {
+      table.findOrInsert(snapshot("fresh-" + i, "op", "client"));
+    }
+    AggregateEntry newcomer = table.findOrInsert(snapshot("post-clear", "op", "client"));
+    assertNotNull(newcomer, "post-clear cap-overrun insert must succeed via cursor-reset evict");
+  }
+
+  @Test
   void capOverrunWithNoStaleReturnsNull() {
     AggregateTable table = new AggregateTable(2);
 
@@ -203,6 +257,90 @@ class AggregateTableTest {
     assertEquals("svc", e.getService().toString());
     assertEquals("op", e.getOperationName().toString());
     assertEquals("client", e.getSpanKind().toString());
+  }
+
+  @Test
+  void nullAndEmptyOptionalFieldsCollapseToOneEntry() {
+    // Regression: canonicalize() maps null -> EMPTY (or to a cache.computeIfAbsent("") entry for
+    // ""), but the prior contentEquals impl treated `non-null vs null` as not-equal -- so a second
+    // snapshot with the same null fields hashed to the same bucket but failed matches(), causing a
+    // spurious duplicate insert. The fix unifies null and length-zero on both sides of
+    // contentEquals/stringContentEquals.
+    AggregateTable table = new AggregateTable(8);
+
+    SpanSnapshot snapNull = nullableSnapshot(null, null, null, null);
+    SpanSnapshot snapEmpty = nullableSnapshot("", "", "", "");
+
+    AggregateEntry first = table.findOrInsert(snapNull);
+    AggregateEntry secondNull = table.findOrInsert(nullableSnapshot(null, null, null, null));
+    AggregateEntry forEmpty = table.findOrInsert(snapEmpty);
+
+    assertSame(first, secondNull, "two null-fielded snapshots must hit the same entry");
+    assertSame(first, forEmpty, "null- and empty-fielded snapshots must hit the same entry");
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void nullServiceAndSpanKindDoNotNpeAndCollapseWithEmpty() {
+    // Regression: serviceName and spanKind used to bypass canonicalize() and call
+    // cache.computeIfAbsent directly, which would NPE on a null input. Production paths never
+    // pass null for these (DDSpan always supplies a service; producer defaults spanKind to ""),
+    // but the matches/contentEquals logic already treats null-and-empty as equal, so the
+    // constructor should be consistent. This pins both null-safety and null-equals-empty
+    // behavior for the two fields that recently moved through canonicalize().
+    AggregateTable table = new AggregateTable(8);
+
+    SpanSnapshot allNulls = nullServiceKindSnapshot(null, null);
+    SpanSnapshot allEmpty = nullServiceKindSnapshot("", "");
+
+    AggregateEntry first = table.findOrInsert(allNulls);
+    AggregateEntry secondNull = table.findOrInsert(nullServiceKindSnapshot(null, null));
+    AggregateEntry forEmpty = table.findOrInsert(allEmpty);
+
+    assertSame(first, secondNull, "two null-service/-kind snapshots must hit the same entry");
+    assertSame(first, forEmpty, "null- and empty-service/-kind snapshots must hit the same entry");
+    assertEquals(1, table.size());
+    assertEquals(0, first.getService().length(), "null serviceName should canonicalize to EMPTY");
+    assertEquals(0, first.getSpanKind().length(), "null spanKind should canonicalize to EMPTY");
+  }
+
+  private static SpanSnapshot nullServiceKindSnapshot(String service, String spanKind) {
+    return new SpanSnapshot(
+        "resource",
+        service,
+        "op",
+        null,
+        "web",
+        (short) 200,
+        false,
+        true,
+        spanKind,
+        null,
+        null,
+        null,
+        null,
+        null,
+        0L);
+  }
+
+  private static SpanSnapshot nullableSnapshot(
+      String resource, String operation, String type, String serviceNameSource) {
+    return new SpanSnapshot(
+        resource,
+        "svc",
+        operation,
+        serviceNameSource,
+        type,
+        (short) 200,
+        false,
+        true,
+        "client",
+        null,
+        null,
+        null,
+        null,
+        null,
+        0L);
   }
 
   // ---------- helpers ----------
