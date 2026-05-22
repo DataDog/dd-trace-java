@@ -320,6 +320,15 @@ final class AggregateEntry extends Hashtable.Entry {
    * Equality on the 13 label fields (not on the aggregate). Used only by test mock matchers; the
    * {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link #matches(SpanSnapshot)}
    * and never calls {@code equals}.
+   *
+   * <p>Peer tags are compared via the raw parallel arrays ({@code peerTagNames} and {@code
+   * peerTagValues}) rather than the pre-encoded {@code peerTags} list, so the equality contract
+   * stays consistent with {@link #hashCode()} (which goes through {@link #hashOf} -- driven off the
+   * raw arrays via {@link PeerTagSchema#hashCode} and {@link java.util.Arrays#hashCode}). Comparing
+   * the encoded list would let two entries with different raw layouts collapse to the same encoded
+   * form (e.g. tag {@code "b"} at index 1 in schema A vs index 0 in schema B, with matching values)
+   * and produce {@code equals=true} alongside different {@code hashCode}s -- violating the hashCode
+   * contract.
    */
   @Override
   public boolean equals(Object o) {
@@ -335,7 +344,8 @@ final class AggregateEntry extends Hashtable.Entry {
         && Objects.equals(serviceSource, that.serviceSource)
         && Objects.equals(type, that.type)
         && Objects.equals(spanKind, that.spanKind)
-        && peerTags.equals(that.peerTags)
+        && Arrays.equals(peerTagNames, that.peerTagNames)
+        && Arrays.equals(peerTagValues, that.peerTagValues)
         && Objects.equals(httpMethod, that.httpMethod)
         && Objects.equals(httpEndpoint, that.httpEndpoint)
         && Objects.equals(grpcStatusCode, that.grpcStatusCode);

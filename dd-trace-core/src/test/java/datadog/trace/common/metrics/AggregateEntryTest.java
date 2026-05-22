@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
 import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.metrics.agent.AgentMeter;
@@ -79,6 +80,66 @@ class AggregateEntryTest {
     }
     assertTrue(entry.getErrorLatencies().getMaxValue() >= 99);
     assertTrue(entry.getOkLatencies().getMaxValue() <= 5);
+  }
+
+  @Test
+  void equalsConsistentWithHashCodeAcrossDifferentSchemaLayouts() {
+    // Regression: equals() compared the pre-encoded peerTags list, but hashCode (via hashOf)
+    // mixes in the raw schema names + values arrays. Two entries built from different schema
+    // layouts could collapse to the same encoded peerTags ("b:x") while their raw arrays differ
+    // -- equals returned true but hashCodes differed, violating the hashCode contract. Now
+    // equals compares the raw arrays directly, mirroring matches()/hashOf().
+    //
+    // Build two entries that exercise that exact shape:
+    //   A: schema ["a","b"], values [null,"x"] -> encoded ["b:x"]
+    //   B: schema ["b","c"], values ["x",null] -> encoded ["b:x"]
+    AggregateEntry a =
+        AggregateEntry.forSnapshot(
+            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
+    AggregateEntry b =
+        AggregateEntry.forSnapshot(
+            snapshotWithPeerTags(new String[] {"b", "c"}, new String[] {"x", null}));
+
+    // Sanity: same encoded peer tags, despite different raw layout.
+    assertEquals(a.getPeerTags(), b.getPeerTags());
+
+    // Different raw layouts -> entries must not be equal.
+    assertNotEquals(a, b);
+    // And different hashCodes (matching the inequality).
+    assertNotEquals(a.hashCode(), b.hashCode());
+  }
+
+  @Test
+  void equalEntriesHaveEqualHashCodes() {
+    // Positive case: two entries built from identical snapshots must equal AND share hashCode.
+    AggregateEntry a =
+        AggregateEntry.forSnapshot(
+            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
+    AggregateEntry b =
+        AggregateEntry.forSnapshot(
+            snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
+
+    assertEquals(a, b);
+    assertEquals(a.hashCode(), b.hashCode());
+  }
+
+  private static SpanSnapshot snapshotWithPeerTags(String[] names, String[] values) {
+    return new SpanSnapshot(
+        "resource",
+        "svc",
+        "op",
+        null,
+        "type",
+        (short) 200,
+        false,
+        true,
+        "client",
+        PeerTagSchema.testSchema(names),
+        values,
+        null,
+        null,
+        null,
+        0L);
   }
 
   private static AggregateEntry newEntry() {
