@@ -117,6 +117,11 @@ final class Aggregator implements Runnable {
         if (!stopped) {
           aggregates.clear();
           inbox.clear();
+          // Clear dirty too -- without this, the next report() would see dirty=true, run
+          // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
+          // the flush anyway. Same observable outcome, but resetting here keeps the invariant
+          // "dirty implies there's data to flush" honest.
+          dirty = false;
         }
         ((SignalItem) item).complete();
       } else if (item instanceof SignalItem) {
