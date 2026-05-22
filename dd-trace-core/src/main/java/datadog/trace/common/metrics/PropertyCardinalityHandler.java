@@ -109,9 +109,14 @@ final class PropertyCardinalityHandler {
    * UTF8BytesString, or the first empty slot in the probe chain. {@link UTF8BytesString#hashCode}
    * is content-stable with the underlying String, so the same content hashes to the same slot
    * regardless of whether the input is a String or UTF8BytesString.
+   *
+   * <p>Mixes the input hash with its upper half ({@code h ^ (h >>> 16)}) before masking so that
+   * inputs sharing a low-bit pattern (e.g. URL templates with a common prefix) don't collapse onto
+   * the same probe chain. Same trick {@code HashMap.hash} uses.
    */
   private int probe(UTF8BytesString[] values, CharSequence value) {
-    int idx = value.hashCode() & this.capacityMask;
+    int h = value.hashCode();
+    int idx = (h ^ (h >>> 16)) & this.capacityMask;
     while (values[idx] != null && !values[idx].toString().contentEquals(value)) {
       idx = (idx + 1) & this.capacityMask;
     }
