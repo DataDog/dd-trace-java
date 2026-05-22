@@ -422,13 +422,21 @@ final class AggregateEntry extends Hashtable.Entry {
     return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
   }
 
-  /** UTF8 vs raw CharSequence content-equality, no allocation in the common (String) case. */
+  /**
+   * UTF8 vs raw CharSequence content-equality, no allocation in the common (String) case.
+   *
+   * <p>Treats {@code null} and empty (length 0) as equivalent on either side. This matches the
+   * canonicalization semantics: {@link #canonicalize} maps a {@code null} input to {@link
+   * UTF8BytesString#EMPTY}, so an entry built from a snapshot with a null field needs to match a
+   * subsequent snapshot whose field is still null. {@code intHash(null) == 0 == "".hashCode()}, so
+   * the hash already agrees with this view.
+   */
   private static boolean contentEquals(UTF8BytesString a, CharSequence b) {
     if (a == null) {
-      return b == null;
+      return b == null || b.length() == 0;
     }
     if (b == null) {
-      return false;
+      return a.length() == 0;
     }
     // UTF8BytesString.toString() returns the underlying String -- O(1), no allocation.
     String aStr = a.toString();
@@ -443,9 +451,12 @@ final class AggregateEntry extends Hashtable.Entry {
 
   private static boolean stringContentEquals(UTF8BytesString a, String b) {
     if (a == null) {
-      return b == null;
+      return b == null || b.isEmpty();
     }
-    return b != null && a.toString().equals(b);
+    if (b == null) {
+      return a.length() == 0;
+    }
+    return a.toString().equals(b);
   }
 
   /**

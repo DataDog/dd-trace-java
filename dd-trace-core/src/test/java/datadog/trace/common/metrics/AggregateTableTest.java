@@ -184,6 +184,47 @@ class AggregateTableTest {
     assertEquals("client", e.getSpanKind().toString());
   }
 
+  @Test
+  void nullAndEmptyOptionalFieldsCollapseToOneEntry() {
+    // Regression: canonicalize() maps null -> EMPTY (or to a cache.computeIfAbsent("") entry for
+    // ""), but the prior contentEquals impl treated `non-null vs null` as not-equal -- so a second
+    // snapshot with the same null fields hashed to the same bucket but failed matches(), causing a
+    // spurious duplicate insert. The fix unifies null and length-zero on both sides of
+    // contentEquals/stringContentEquals.
+    AggregateTable table = new AggregateTable(8);
+
+    SpanSnapshot snapNull = nullableSnapshot(null, null, null, null);
+    SpanSnapshot snapEmpty = nullableSnapshot("", "", "", "");
+
+    AggregateEntry first = table.findOrInsert(snapNull);
+    AggregateEntry secondNull = table.findOrInsert(nullableSnapshot(null, null, null, null));
+    AggregateEntry forEmpty = table.findOrInsert(snapEmpty);
+
+    assertSame(first, secondNull, "two null-fielded snapshots must hit the same entry");
+    assertSame(first, forEmpty, "null- and empty-fielded snapshots must hit the same entry");
+    assertEquals(1, table.size());
+  }
+
+  private static SpanSnapshot nullableSnapshot(
+      String resource, String operation, String type, String serviceNameSource) {
+    return new SpanSnapshot(
+        resource,
+        "svc",
+        operation,
+        serviceNameSource,
+        type,
+        (short) 200,
+        false,
+        true,
+        "client",
+        null,
+        null,
+        null,
+        null,
+        null,
+        0L);
+  }
+
   // ---------- helpers ----------
 
   private static SpanSnapshot snapshot(String service, String operation, String spanKind) {
