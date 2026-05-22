@@ -38,6 +38,12 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
   def capturedBody = null
   def appSecEnded = false
 
+  // Response callback capture fields
+  def capturedResponseStatus = null
+  def capturedResponseHeaders = [:]
+  def capturedResponseBody = null
+  def responseHeaderDoneCalled = false
+
   def setup() {
     ig = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC)
     ActiveSubsystems.APPSEC_ACTIVE = true
@@ -47,6 +53,12 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     capturedHeaders = [:]
     capturedBody = null
     appSecEnded = false
+    capturedResponseStatus = null
+    capturedResponseHeaders = [:]
+    capturedResponseBody = null
+    responseHeaderDoneCalled = false
+
+    // Request callbacks
     ig.registerCallback(EVENTS.requestStarted(), {
       appSecStarted = true
       new Flow.ResultFlow(new Object())
@@ -68,6 +80,23 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     } as BiFunction)
     ig.registerCallback(EVENTS.requestEnded(), { RequestContext ctx, Object spanInfo ->
       appSecEnded = true
+      Flow.ResultFlow.empty()
+    } as BiFunction)
+
+    // Response callbacks
+    ig.registerCallback(EVENTS.responseStarted(), { RequestContext ctx, Integer status ->
+      capturedResponseStatus = status
+      Flow.ResultFlow.empty()
+    } as BiFunction)
+    ig.registerCallback(EVENTS.responseHeader(), { RequestContext ctx, String name, String value ->
+      capturedResponseHeaders[name] = value
+    } as TriConsumer)
+    ig.registerCallback(EVENTS.responseHeaderDone(), { RequestContext ctx ->
+      responseHeaderDoneCalled = true
+      Flow.ResultFlow.empty()
+    } as Function)
+    ig.registerCallback(EVENTS.responseBody(), { RequestContext ctx, Object body ->
+      capturedResponseBody = body
       Flow.ResultFlow.empty()
     } as BiFunction)
   }
@@ -256,6 +285,146 @@ abstract class LambdaHandlerInstrumentationTest extends VersionedNamingTestBase 
     !appSecStarted
     capturedMethod == null
     !appSecEnded
+    capturedResponseStatus == null
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          spanType DDSpanTypes.SERVERLESS
+          errored false
+        }
+      }
+    }
+  }
+
+  def "response callbacks are invoked for API Gateway v1 response format"() {
+    given:
+    def eventJson = """{
+      "path": "/api/test",
+      "headers": {"content-type": "application/json"},
+      "requestContext": {
+        "httpMethod": "GET",
+        "requestId": "req-resp-1",
+        "identity": {"sourceIp": "127.0.0.1"}
+      }
+    }"""
+
+    when:
+    def input = new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8))
+    def output = new ByteArrayOutputStream()
+    def ctx = Stub(Context) { getAwsRequestId() >> requestId }
+    new HandlerStreamingWithApiGwResponse().handleRequest(input, output, ctx)
+
+    then:
+    capturedResponseStatus == 200
+    capturedResponseHeaders["content-type"] == "application/json"
+    capturedResponseHeaders["x-custom"] == "custom-val"
+    capturedResponseBody instanceof Map
+    capturedResponseBody["result"] == "ok"
+    responseHeaderDoneCalled
+    appSecEnded
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          spanType DDSpanTypes.SERVERLESS
+          errored false
+        }
+      }
+    }
+  }
+
+  def "response callbacks receive correct data for 404 response"() {
+    given:
+    def eventJson = """{
+      "path": "/missing",
+      "requestContext": {
+        "httpMethod": "GET",
+        "requestId": "req-resp-2"
+      }
+    }"""
+
+    when:
+    def input = new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8))
+    def output = new ByteArrayOutputStream()
+    def ctx = Stub(Context) { getAwsRequestId() >> requestId }
+    new HandlerStreamingWith404Response().handleRequest(input, output, ctx)
+
+    then:
+    capturedResponseStatus == 404
+    capturedResponseHeaders["content-type"] == "text/html"
+    capturedResponseBody == "Not Found"  // text/html body passed as raw string
+    appSecEnded
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          spanType DDSpanTypes.SERVERLESS
+          errored false
+        }
+      }
+    }
+  }
+
+  def "response callbacks handle non-API-Gateway response gracefully"() {
+    when:
+    def input = new ByteArrayInputStream(StandardCharsets.UTF_8.encode("Hello").array())
+    def output = new ByteArrayOutputStream()
+    def ctx = Stub(Context) { getAwsRequestId() >> requestId }
+    new HandlerStreaming().handleRequest(input, output, ctx)
+
+    then:
+    // HandlerStreaming writes "Hello World!" which is not valid API GW JSON
+    // Response parsing should fail gracefully
+    capturedResponseStatus == null
+    capturedResponseHeaders.isEmpty()
+    capturedResponseBody == null
+    // requestEnded should still be called
+    appSecEnded
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName operation()
+          spanType DDSpanTypes.SERVERLESS
+          errored false
+        }
+      }
+    }
+  }
+
+  def "response and request callbacks are both invoked in correct order"() {
+    given:
+    def eventJson = """{
+      "path": "/api/users/123",
+      "headers": {"content-type": "application/json"},
+      "body": "{\\"key\\": \\"value\\"}",
+      "requestContext": {
+        "httpMethod": "POST",
+        "requestId": "req-order-1",
+        "identity": {"sourceIp": "10.0.0.1"}
+      }
+    }"""
+
+    when:
+    def input = new ByteArrayInputStream(eventJson.getBytes(StandardCharsets.UTF_8))
+    def output = new ByteArrayOutputStream()
+    def ctx = Stub(Context) { getAwsRequestId() >> requestId }
+    new HandlerStreamingWithApiGwResponse().handleRequest(input, output, ctx)
+
+    then:
+    // Request callbacks fired
+    appSecStarted
+    capturedMethod == "POST"
+    capturedPath == "/api/users/123"
+    capturedBody instanceof Map
+
+    // Response callbacks fired
+    capturedResponseStatus == 200
+    capturedResponseHeaders["content-type"] == "application/json"
+    capturedResponseBody instanceof Map
+
+    // requestEnded fired last
+    appSecEnded
     assertTraces(1) {
       trace(1) {
         span {

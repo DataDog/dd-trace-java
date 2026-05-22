@@ -4,6 +4,7 @@ import static datadog.trace.api.gateway.Events.EVENTS;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
 import datadog.trace.api.function.TriConsumer;
 import datadog.trace.api.gateway.BlockResponseFunction;
@@ -24,16 +25,12 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapterBase;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
-import java.io.InputStreamReader;
-import java.io.Reader;
 import java.nio.charset.StandardCharsets;
-import java.util.Arrays;
 import java.util.Base64;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.function.BiFunction;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -47,16 +44,13 @@ import org.slf4j.LoggerFactory;
 public class LambdaAppSecHandler {
 
   private static final Logger log = LoggerFactory.getLogger(LambdaAppSecHandler.class);
+  private static final RatelimitedLogger rlLog = new RatelimitedLogger(log, 5, TimeUnit.MINUTES);
 
   private static final Moshi MOSHI = new Moshi.Builder().build();
   private static final JsonAdapter<Map> MAP_ADAPTER = MOSHI.adapter(Map.class);
   private static final JsonAdapter<Object> OBJECT_ADAPTER = MOSHI.adapter(Object.class);
 
   private static final int MAX_EVENT_SIZE = Config.get().getAppSecBodyParsingSizeLimit();
-
-  private static final Set<String> RESPONSE_HEADER_ALLOW_LIST =
-      new HashSet<>(
-          Arrays.asList("content-length", "content-type", "content-encoding", "content-language"));
 
   /**
    * Process AppSec request data at the start of a Lambda invocation. Extract event data and invokes
@@ -189,7 +183,7 @@ public class LambdaAppSecHandler {
         }
       }
     } catch (Exception e) {
-      log.error("Failed to process AppSec response data", e);
+      log.debug("Failed to process AppSec response data", e);
     }
   }
 
@@ -207,9 +201,8 @@ public class LambdaAppSecHandler {
         statusCode = ((Number) statusCodeObj).intValue();
       }
 
-      // Extract and filter headers
-      Map<String, String> headers = new java.util.HashMap<>();
-      Map<String, String> rawHeaders = extractStringMap(response.get("headers"));
+      // Extract headers
+      Map<String, String> headers = extractStringMap(response.get("headers"));
 
       // Merge multiValueHeaders if present (API GW v1 / ALB)
       Object multiValueHeadersObj = response.get("multiValueHeaders");
@@ -223,15 +216,8 @@ public class LambdaAppSecHandler {
                 values.stream()
                     .map(String::valueOf)
                     .collect(java.util.stream.Collectors.joining(", "));
-            rawHeaders.put(key, joinedValue);
+            headers.put(key, joinedValue);
           }
-        }
-      }
-
-      // Filter to allow-list (case-insensitive)
-      for (Map.Entry<String, String> entry : rawHeaders.entrySet()) {
-        if (RESPONSE_HEADER_ALLOW_LIST.contains(entry.getKey().toLowerCase())) {
-          headers.put(entry.getKey(), entry.getValue());
         }
       }
 
@@ -309,7 +295,7 @@ public class LambdaAppSecHandler {
         return merged;
       }
 
-      log.debug(
+      rlLog.warn(
           "Cannot merge AppSec data: extension context is not a TagContext: {}",
           extensionContext.getClass());
     }
@@ -436,15 +422,12 @@ public class LambdaAppSecHandler {
         return LambdaEventData.EMPTY;
       }
 
-      StringBuilder jsonBuilder = new StringBuilder(availableBytes);
-      try (Reader reader = new InputStreamReader(inputStream, StandardCharsets.UTF_8)) {
-        char[] buffer = new char[1024];
-        int charsRead;
-        while ((charsRead = reader.read(buffer)) != -1) {
-          jsonBuilder.append(buffer, 0, charsRead);
-        }
+      byte[] bytes = new byte[availableBytes];
+      int read = inputStream.read(bytes);
+      if (read <= 0) {
+        return LambdaEventData.EMPTY;
       }
-      return extractEventDataFromJson(jsonBuilder.toString());
+      return extractEventDataFromJson(new String(bytes, 0, read, StandardCharsets.UTF_8));
     } finally {
       inputStream.reset();
     }
@@ -678,7 +661,11 @@ public class LambdaAppSecHandler {
     String method = (String) event.get("httpMethod");
     String path = (String) event.get("path");
     String xff = headers.get("x-forwarded-for");
-    String sourceIp = xff != null ? xff.split(",")[0].trim() : null;
+    String sourceIp = null;
+    if (xff != null) {
+      int commaIdx = xff.indexOf(',');
+      sourceIp = (commaIdx >= 0 ? xff.substring(0, commaIdx) : xff).trim();
+    }
 
     return new LambdaEventData(
         headers, method, path, sourceIp, null, triggerType, pathParameters, queryParameters, body);

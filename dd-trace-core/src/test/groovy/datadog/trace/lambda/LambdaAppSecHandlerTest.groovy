@@ -1437,6 +1437,620 @@ class LambdaAppSecHandlerTest extends DDCoreSpecification {
     AgentTracer.forceRegister(mockTracer)
   }
 
+  // ============================================================================
+  // processResponseData Tests
+  // ============================================================================
+
+  def "processResponseData does nothing when AppSec is disabled"() {
+    given:
+    ActiveSubsystems.APPSEC_ACTIVE = false
+    def span = Mock(AgentSpan)
+    def result = createOutputStream('{"statusCode": 200, "body": "ok"}')
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    0 * span._
+  }
+
+  def "processResponseData does nothing for null span"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200}')
+
+    when:
+    LambdaAppSecHandler.processResponseData(null, result)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "processResponseData does nothing for non-ByteArrayOutputStream result"() {
+    given:
+    def span = Mock(AgentSpan)
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, "string result")
+
+    then:
+    0 * span._
+  }
+
+  def "processResponseData does nothing for null result"() {
+    given:
+    def span = Mock(AgentSpan)
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, null)
+
+    then:
+    0 * span._
+  }
+
+  def "processResponseData does nothing when span has no RequestContext"() {
+    given:
+    def span = Mock(AgentSpan) {
+      getRequestContext() >> null
+    }
+    def result = createOutputStream('{"statusCode": 200}')
+
+    setupMockResponseCallbacks([:])
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    noExceptionThrown()
+  }
+
+  def "processResponseData does nothing for oversized response"() {
+    given:
+    def maxSize = Config.get().getAppSecBodyParsingSizeLimit()
+    def largeBody = "x" * (maxSize + 1)
+    def result = createOutputStream(largeBody)
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedStatus == null
+  }
+
+  def "processResponseData does nothing for empty ByteArrayOutputStream"() {
+    given:
+    def result = new ByteArrayOutputStream()  // 0 bytes
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedStatus == null
+  }
+
+  // --- Status code extraction ---
+
+  def "processResponseData extracts statusCode correctly"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200, "body": "ok"}')
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedStatus == 200
+  }
+
+  def "processResponseData extracts statusCode as integer from double"() {
+    given:
+    def result = createOutputStream('{"statusCode": 404.0, "body": "not found"}')
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedStatus == 404
+  }
+
+  def "processResponseData handles missing statusCode"() {
+    given:
+    def result = createOutputStream('{"body": "ok"}')
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedStatus == null  // statusCode is 0, so responseStarted is not called
+  }
+
+  def "processResponseData handles non-numeric statusCode"() {
+    given:
+    def result = createOutputStream('{"statusCode": "bad", "body": "ok"}')
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    noExceptionThrown()
+    capturedStatus == null  // "bad" is not a Number, statusCode stays 0
+  }
+
+  // --- Header extraction ---
+
+  def "processResponseData forwards all response headers"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "application/json", "x-custom": "val", "content-length": "42", "set-cookie": "a=1"}}'
+    def result = createOutputStream(json)
+    def capturedHeaders = [:]
+
+    def span = setupMockResponseCallbacks(
+    onResponseHeader: { name, value ->
+      capturedHeaders[name] = value
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedHeaders.size() == 4
+    capturedHeaders["content-type"] == "application/json"
+    capturedHeaders["x-custom"] == "val"
+    capturedHeaders["content-length"] == "42"
+    capturedHeaders["set-cookie"] == "a=1"
+  }
+
+  def "processResponseData preserves original header casing"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"Content-Type": "text/html", "CONTENT-LENGTH": "10"}}'
+    def result = createOutputStream(json)
+    def capturedHeaders = [:]
+
+    def span = setupMockResponseCallbacks(
+    onResponseHeader: { name, value ->
+      capturedHeaders[name] = value
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedHeaders["Content-Type"] == "text/html"
+    capturedHeaders["CONTENT-LENGTH"] == "10"
+  }
+
+  def "processResponseData merges multiValueHeaders with single-value headers"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "text/html"}, "multiValueHeaders": {"content-encoding": ["gzip", "br"]}}'
+    def result = createOutputStream(json)
+    def capturedHeaders = [:]
+
+    def span = setupMockResponseCallbacks(
+    onResponseHeader: { name, value ->
+      capturedHeaders[name] = value
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedHeaders["content-type"] == "text/html"
+    capturedHeaders["content-encoding"] == "gzip, br"
+  }
+
+  def "processResponseData handles empty headers"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200}')
+    def capturedHeaders = [:]
+    def headerDoneCalled = false
+
+    def span = setupMockResponseCallbacks(
+    onResponseHeader: { name, value -> capturedHeaders[name] = value },
+    onResponseHeaderDone: {
+      headerDoneCalled = true
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedHeaders.isEmpty()
+    headerDoneCalled
+  }
+
+  // --- Body extraction ---
+
+  def "processResponseData parses JSON body"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "application/json"}, "body": "{\\"key\\": \\"value\\"}"}'
+    def result = createOutputStream(json)
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody instanceof Map
+    capturedBody["key"] == "value"
+  }
+
+  def "processResponseData handles non-JSON body as raw string"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "text/plain"}, "body": "plain text"}'
+    def result = createOutputStream(json)
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody == "plain text"
+  }
+
+  def "processResponseData handles base64 encoded body"() {
+    given:
+    def originalBody = '{"decoded": "content"}'
+    def base64Body = Base64.getEncoder().encodeToString(originalBody.getBytes(StandardCharsets.UTF_8))
+    def json = """{"statusCode": 200, "body": "${base64Body}", "isBase64Encoded": true}"""
+    def result = createOutputStream(json)
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody instanceof Map
+    capturedBody["decoded"] == "content"
+  }
+
+  def "processResponseData handles null body"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200, "body": null}')
+    def capturedBody = "NOT_CALLED"
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody == "NOT_CALLED"
+  }
+
+  def "processResponseData handles missing body field"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200}')
+    def capturedBody = "NOT_CALLED"
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody == "NOT_CALLED"
+  }
+
+  def "processResponseData attempts JSON parse when no content-type"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200, "body": "{\\"a\\": 1}"}')
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody instanceof Map
+    capturedBody["a"] == 1.0d  // Moshi parses numbers as Double
+  }
+
+  def "processResponseData falls back to raw string when JSON parse fails"() {
+    given:
+    def result = createOutputStream('{"statusCode": 200, "body": "not json {"}')
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody == "not json {"
+  }
+
+  // --- Event ordering ---
+
+  def "processResponseData fires events in correct order"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "application/json"}, "body": "{\\"k\\": \\"v\\"}"}'
+    def result = createOutputStream(json)
+    def order = []
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status -> order << "responseStarted" },
+    onResponseHeader: { name, value -> order << "responseHeader" },
+    onResponseHeaderDone: { order << "responseHeaderDone" },
+    onResponseBody: { body ->
+      order << "responseBody"
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    order[0] == "responseStarted"
+    order.findAll { it == "responseHeader" }.size() >= 1
+    def headerDoneIdx = order.indexOf("responseHeaderDone")
+    def lastHeaderIdx = order.lastIndexOf("responseHeader")
+    headerDoneIdx > lastHeaderIdx
+    order.last() == "responseBody"
+  }
+
+  def "processResponseData handles invalid base64 response body gracefully"() {
+    given:
+    def json = '{"statusCode": 200, "body": "not-valid-base64!!!", "isBase64Encoded": true}'
+    def result = createOutputStream(json)
+    def capturedBody = "NOT_CALLED"
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    noExceptionThrown()
+    capturedBody == "NOT_CALLED"
+  }
+
+  def "processResponseData parses body as JSON for javascript content-type"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "application/javascript"}, "body": "{\\"key\\": \\"val\\"}"}'
+    def result = createOutputStream(json)
+    def capturedBody = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseBody: { body ->
+      capturedBody = body
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedBody instanceof Map
+    capturedBody["key"] == "val"
+  }
+
+  def "processResponseData multiValueHeaders override single-value headers"() {
+    given:
+    def json = '{"statusCode": 200, "headers": {"content-type": "text/html"}, "multiValueHeaders": {"content-type": ["application/json", "charset=utf-8"]}}'
+    def result = createOutputStream(json)
+    def capturedHeaders = [:]
+
+    def span = setupMockResponseCallbacks(
+    onResponseHeader: { name, value ->
+      capturedHeaders[name] = value
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    capturedHeaders["content-type"] == "application/json, charset=utf-8"
+  }
+
+  // --- Error handling ---
+
+  def "processResponseData handles malformed JSON response"() {
+    given:
+    def result = createOutputStream('{not valid json')
+    def capturedStatus = null
+
+    def span = setupMockResponseCallbacks(
+    onResponseStarted: { status ->
+      capturedStatus = status
+    }
+    )
+
+    when:
+    LambdaAppSecHandler.processResponseData(span, result)
+
+    then:
+    noExceptionThrown()
+    capturedStatus == null
+  }
+
+  def "processResponseData handles empty string response"() {
+    given:
+    // Empty string inside a non-empty BAOS (the string "")
+    // This would fail JSON parsing
+    def result = createOutputStream('')
+
+    when:
+    LambdaAppSecHandler.processResponseData(Mock(AgentSpan), result)
+
+    then:
+    noExceptionThrown()
+  }
+
+  // ============================================================================
+  // extractResponseData Unit Tests
+  // ============================================================================
+
+  def "extractResponseData returns null for malformed JSON"() {
+    when:
+    def result = LambdaAppSecHandler.extractResponseData('{bad json')
+
+    then:
+    result == null
+  }
+
+  def "extractResponseData returns null for null JSON parse result"() {
+    when:
+    def result = LambdaAppSecHandler.extractResponseData('null')
+
+    then:
+    result == null
+  }
+
+  // ============================================================================
+  // Helper Methods
+  // ============================================================================
+
+  private ByteArrayOutputStream createOutputStream(String json) {
+    def baos = new ByteArrayOutputStream()
+    baos.write(json.getBytes(StandardCharsets.UTF_8))
+    return baos
+  }
+
+  /**
+   * Set up mock response callbacks and return a mock span with a valid RequestContext.
+   * processResponseData uses span.getRequestContext() to get the RequestContext,
+   * unlike processRequestStart which uses TemporaryRequestContext.
+   */
+  private AgentSpan setupMockResponseCallbacks(Map<String, Closure> callbacks) {
+    def mockAppSecContext = new Object()
+    def mockRequestContext = Mock(RequestContext) {
+      getData(RequestContextSlot.APPSEC) >> mockAppSecContext
+    }
+    def mockSpan = Mock(AgentSpan) {
+      getRequestContext() >> mockRequestContext
+    }
+
+    def mockResponseStartedCb = callbacks.onResponseStarted ? Mock(BiFunction) {
+      apply(_ as RequestContext, _ as Integer) >> {
+        RequestContext ctx, Integer status ->
+        callbacks.onResponseStarted(status)
+        return new Flow.ResultFlow<>(null)
+      }
+    } : null
+
+    def mockResponseHeaderCb = callbacks.onResponseHeader ? Mock(TriConsumer) {
+      accept(_ as RequestContext, _ as String, _ as String) >> {
+        RequestContext ctx, String name, String value ->
+        callbacks.onResponseHeader(name, value)
+      }
+    } : null
+
+    def mockResponseHeaderDoneCb = callbacks.onResponseHeaderDone ? Mock(Function) {
+      apply(_ as RequestContext) >> {
+        callbacks.onResponseHeaderDone()
+        return new Flow.ResultFlow<>(null)
+      }
+    } : Mock(Function) {
+      apply(_ as RequestContext) >> new Flow.ResultFlow<>(null)
+    }
+
+    def mockResponseBodyCb = callbacks.onResponseBody ? Mock(BiFunction) {
+      apply(_ as RequestContext, _ as Object) >> {
+        RequestContext ctx, Object body ->
+        callbacks.onResponseBody(body)
+        return new Flow.ResultFlow<>(null)
+      }
+    } : null
+
+    def mockCallbackProvider = Mock(CallbackProvider) {
+      getCallback(EVENTS.responseStarted()) >> mockResponseStartedCb
+      getCallback(EVENTS.responseHeader()) >> mockResponseHeaderCb
+      getCallback(EVENTS.responseHeaderDone()) >> mockResponseHeaderDoneCb
+      getCallback(EVENTS.responseBody()) >> mockResponseBodyCb
+    }
+
+    def mockTracer = Mock(AgentTracer.TracerAPI) {
+      getCallbackProvider(RequestContextSlot.APPSEC) >> mockCallbackProvider
+    }
+
+    AgentTracer.forceRegister(mockTracer)
+    return mockSpan
+  }
+
   def cleanup() {
     // Reset tracer after each test
     AgentTracer.forceRegister(null)
