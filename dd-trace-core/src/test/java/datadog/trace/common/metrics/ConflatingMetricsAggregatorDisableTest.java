@@ -55,7 +55,7 @@ class ConflatingMetricsAggregatorDisableTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
-    when(features.getLastTimeDiscovered()).thenReturn(1L);
+    when(features.state()).thenReturn("state-1");
 
     ConflatingMetricsAggregator aggregator =
         new ConflatingMetricsAggregator(
@@ -147,7 +147,7 @@ class ConflatingMetricsAggregatorDisableTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>emptySet());
-    when(features.getLastTimeDiscovered()).thenReturn(1L);
+    when(features.state()).thenReturn("state-1");
 
     ConflatingMetricsAggregator aggregator =
         new ConflatingMetricsAggregator(
@@ -190,7 +190,7 @@ class ConflatingMetricsAggregatorDisableTest {
     when(span.isMeasured()).thenReturn(false);
     when(span.isTopLevel()).thenReturn(true);
     // Return true for any SpanKindFilter so peerTagSchemaFor enters the bootstrap path on the
-    // first publish. We want that bootstrap to fire (it's what makes features.getLastTimeDiscovered
+    // first publish. We want that bootstrap to fire (it's what makes features.state()
     // observable), even though peerTags() returns emptySet here and the resulting schema has
     // size 0.
     when(span.isKind(any(SpanKindFilter.class))).thenReturn(true);

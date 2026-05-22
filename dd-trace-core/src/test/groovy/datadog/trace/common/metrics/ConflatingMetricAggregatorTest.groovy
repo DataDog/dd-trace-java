@@ -264,10 +264,10 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
     features.peerTags() >>> [["country"], ["country", "georegion"]]
-    // Bump the discovered-at timestamp so reconcile during report cycle 1 sees a mismatch and
+    // Bump the discovered state hash so reconcile during report cycle 1 sees a mismatch and
     // rebuilds the schema for span 2. Three calls: bootstrap (span1's publish), reconcile-during-
     // report-1 (mismatch -> rebuild + 2nd peerTags() call), reconcile-during-report-2 (no change).
-    features.getLastTimeDiscovered() >>> [1L, 2L, 2L]
+    features.state() >>> ["state-1", "state-2", "state-2"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
