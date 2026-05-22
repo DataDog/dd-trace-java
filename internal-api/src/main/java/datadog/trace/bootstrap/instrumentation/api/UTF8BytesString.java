@@ -58,6 +58,13 @@ public final class UTF8BytesString implements CharSequence {
 
   private final String string;
   private byte[] utf8Bytes;
+  // Lazy hashCode cache. {@link String} already caches its own {@code hashCode} internally, but
+  // the inter-class call through {@code string.hashCode()} still costs a virtual dispatch + the
+  // String's own cached-hash field read + branch -- caching here saves all of that on subsequent
+  // calls. Benign race in the same shape as {@link #utf8Bytes}: two threads computing the same
+  // hash in parallel both produce the same value, and {@code int} writes are atomic per JLS so a
+  // reader cannot observe a partial value.
+  private int cachedHashCode;
 
   private UTF8BytesString(String string) {
     this.string = string;
@@ -114,7 +121,12 @@ public final class UTF8BytesString implements CharSequence {
 
   @Override
   public int hashCode() {
-    return this.string.hashCode();
+    int h = this.cachedHashCode;
+    if (h == 0) {
+      h = this.string.hashCode();
+      this.cachedHashCode = h;
+    }
+    return h;
   }
 
   @Override
