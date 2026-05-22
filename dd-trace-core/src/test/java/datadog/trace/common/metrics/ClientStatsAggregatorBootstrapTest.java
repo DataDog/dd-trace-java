@@ -26,8 +26,7 @@ import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 
 /**
- * Coverage for the {@code ClientStatsAggregator} peer-tag schema bootstrap and reconcile
- * paths.
+ * Coverage for the {@code ClientStatsAggregator} peer-tag schema bootstrap and reconcile paths.
  *
  * <ul>
  *   <li>{@link #bootstrapHappensOnceOnFirstPublish()} -- verifies the synchronized producer-side

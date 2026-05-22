@@ -87,10 +87,10 @@ final class PeerTagSchema {
   }
 
   /**
-   * Test-only factory that takes the names array directly so tests can build a schema in a
-   * specific order without going through a {@link Set}. Uses {@link HealthMetrics#NO_OP} and a
-   * sentinel discovery timestamp; tests exercising the cardinality-handler reset path should use
-   * {@link #of(Set, long, HealthMetrics)} instead.
+   * Test-only factory that takes the names array directly so tests can build a schema in a specific
+   * order without going through a {@link Set}. Uses {@link HealthMetrics#NO_OP} and a sentinel
+   * discovery timestamp; tests exercising the cardinality-handler reset path should use {@link
+   * #of(Set, long, HealthMetrics)} instead.
    */
   static PeerTagSchema testSchema(String[] names) {
     return new PeerTagSchema(names, 0L, HealthMetrics.NO_OP);

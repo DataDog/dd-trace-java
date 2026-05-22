@@ -62,8 +62,7 @@ class PeerTagSchemaTest {
   @Test
   void hasSameTagsAsReturnsFalseWhenSetGrew() {
     PeerTagSchema schema =
-        PeerTagSchema.of(
-            Collections.<String>singleton("peer.hostname"), 1L, HealthMetrics.NO_OP);
+        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), 1L, HealthMetrics.NO_OP);
 
     Set<String> larger = new HashSet<>(Arrays.asList("peer.hostname", "peer.service"));
     assertFalse(schema.hasSameTagsAs(larger));
@@ -83,16 +82,14 @@ class PeerTagSchemaTest {
   @Test
   void hasSameTagsAsReturnsFalseWhenContentDifferent() {
     PeerTagSchema schema =
-        PeerTagSchema.of(
-            Collections.<String>singleton("peer.hostname"), 1L, HealthMetrics.NO_OP);
+        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), 1L, HealthMetrics.NO_OP);
 
     assertFalse(schema.hasSameTagsAs(Collections.<String>singleton("peer.service")));
   }
 
   @Test
   void hasSameTagsAsHandlesEmpty() {
-    PeerTagSchema empty =
-        PeerTagSchema.of(Collections.<String>emptySet(), 1L, HealthMetrics.NO_OP);
+    PeerTagSchema empty = PeerTagSchema.of(Collections.<String>emptySet(), 1L, HealthMetrics.NO_OP);
 
     assertTrue(empty.hasSameTagsAs(Collections.<String>emptySet()));
     assertFalse(empty.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
