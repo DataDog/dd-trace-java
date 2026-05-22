@@ -79,10 +79,6 @@ final class Aggregator implements Runnable {
     this.onReportCycle = onReportCycle;
   }
 
-  public void clearAggregates() {
-    this.aggregates.clear();
-  }
-
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();

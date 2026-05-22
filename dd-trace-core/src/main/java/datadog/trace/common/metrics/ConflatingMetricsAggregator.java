@@ -512,8 +512,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
       // Route the clear through the inbox so the aggregator thread is the only writer.
-      // AggregateTable is not thread-safe; calling clearAggregates() directly from this thread
-      // would race with Drainer.accept on the aggregator thread.
+      // AggregateTable is not thread-safe; mutating it directly from this thread would race
+      // with Drainer.accept on the aggregator thread.
       //
       // Best-effort single offer rather than the retry-loop pattern in report(). If the inbox is
       // full at downgrade time the clear is dropped, but the system self-heals: features.discover()
