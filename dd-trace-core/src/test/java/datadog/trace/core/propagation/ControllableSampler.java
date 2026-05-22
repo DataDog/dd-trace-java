@@ -1,9 +1,10 @@
-package datadog.trace.core;
+package datadog.trace.core.propagation;
 
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.common.sampling.PrioritySampler;
 import datadog.trace.common.sampling.Sampler;
+import datadog.trace.core.CoreSpan;
 
 public class ControllableSampler implements Sampler, PrioritySampler {
   protected int nextSamplingPriority = PrioritySampling.SAMPLER_KEEP;
