@@ -46,25 +46,23 @@ class ProcessBuilderHelper {
             + System.nanoTime();
 
     List<String> baseCommand =
-        new ArrayList<>(
-            Arrays.asList(
-                javaPath(),
-                // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
-                "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
-                "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
-                "-javaagent:" + agentShadowJar(),
-                "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-                "-Ddd.env=smoketest",
-                "-Ddd.version=99",
-                "-Djava.util.prefs.userRoot=" + prefsDir));
-
-    if (OperatingSystem.isLinux() && architecture().isArm64()) {
-      // Disable CDS to avoid SIGSEGVs on Linux arm64.
-      baseCommand.add(1, "-Xshare:off");
-    }
+        Arrays.asList(
+            javaPath(),
+            // "-agentlib:jdwp=transport=dt_socket,server=y,suspend=y,address=localhost:5006",
+            "-Xmx" + System.getProperty("datadog.forkedMaxHeapSize", "1024M"),
+            "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
+            "-javaagent:" + agentShadowJar(),
+            "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
+            "-Ddd.env=smoketest",
+            "-Ddd.version=99",
+            "-Djava.util.prefs.userRoot=" + prefsDir);
 
     List<String> command = new ArrayList<>();
     command.addAll(baseCommand);
+    if (OperatingSystem.isLinux() && architecture().isArm64()) {
+      // Disable CDS to avoid SIGSEGVs on Linux arm64.
+      command.add(1, "-Xshare:off");
+    }
     command.addAll(additionalCommandParams);
     command.addAll(Arrays.asList("-cp", classpath, mainClassName));
     command.addAll(Arrays.asList(params));
