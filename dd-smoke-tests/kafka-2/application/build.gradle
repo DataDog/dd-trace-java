@@ -1,0 +1,42 @@
+// Spring Boot 2.7.x is the last line that still supports Java 8, which this smoke test
+// exercises (see the Java 8 `sourceCompatibility` below). Do not bump to 3.x without
+// also moving the smoke test off Java 8.
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the smoke test launches
+// the produced jar on Java 8.
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+// `iastUtilJar` is wired up by the outer `smokeTestApp { projectJar('iastUtilJar', ...) }`
+// block in ../build.gradle: it passes the path of the built `:dd-smoke-tests:iast-util`
+// jar into this nested build as a Gradle property. We add it as a flat-file dependency
+// because the outer build's projects are not addressable from inside the nested build.
+if (hasProperty('iastUtilJar')) {
+  dependencies {
+    implementation files(property('iastUtilJar'))
+  }
+}
+
+dependencies {
+  implementation('org.springframework.boot:spring-boot-starter-web')
+  implementation('org.springframework.boot:spring-boot-starter-actuator')
+  implementation('org.springframework.kafka:spring-kafka')
+}
