@@ -7,6 +7,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.monitor.HealthMetrics;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ThreadLocalRandom;
@@ -85,6 +86,7 @@ public class AdversarialMetricsBenchmark {
   }
 
   @TearDown
+  @SuppressForbidden
   public void tearDown() {
     aggregator.close();
     // Counters accumulate across the trial (warmup + measurement iterations), since the

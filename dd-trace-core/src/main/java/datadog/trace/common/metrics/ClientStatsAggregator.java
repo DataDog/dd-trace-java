@@ -30,6 +30,7 @@ import datadog.trace.util.AgentTaskScheduler;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
@@ -73,20 +74,20 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private final boolean includeEndpointInMetrics;
 
   /**
-   * Cached peer-tag schema. Producers read this reference once per trace and pass it through to the
-   * consumer in {@link SpanSnapshot}; they never inspect the schema's timestamp or rebuild it.
-   * Reconciliation is the aggregator thread's job: {@link #resetCardinalityHandlers()} compares the
-   * schema's {@link PeerTagSchema#lastTimeDiscovered} against {@link
-   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} once per reporting cycle and either updates
-   * the timestamp in place (when the tag set is unchanged, preserving the schema's warm cardinality
-   * handlers) or swaps in a freshly-built schema.
+   * Cached peer-aggregation schema. Producers read this reference once per trace and pass it
+   * through to the consumer in {@link SpanSnapshot}; they never inspect the schema's discovery
+   * state or rebuild it. Reconciliation is the aggregator thread's job: {@link
+   * #reconcilePeerTagSchema()} (called from {@link #resetCardinalityHandlers()}) compares the
+   * schema's {@link PeerTagSchema#state} against {@link DDAgentFeaturesDiscovery#state()} once per
+   * reporting cycle and either updates the state in place (when the tag set is unchanged,
+   * preserving the schema's warm cardinality handlers) or swaps in a freshly-built schema.
    *
    * <p>An empty schema (size 0) represents the "peer tags unconfigured" state; {@code null} only on
    * the bootstrap window before {@link #bootstrapPeerTagSchema()} runs on the first publish.
    *
    * <p>{@code volatile} so the consumer's reconcile-time replacement is visible to producer
-   * threads; the schema's own internal mutable state (handlers, block counters, timestamp) is
-   * exercised only on the aggregator thread.
+   * threads; the schema's own internal mutable state (handlers, block counters, {@link
+   * PeerTagSchema#state}) is exercised only on the aggregator thread.
    */
   private volatile PeerTagSchema cachedPeerTagSchema;
 
@@ -380,19 +381,19 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Builds a fresh {@link PeerTagSchema} from the current state of feature discovery.
    *
    * <p>Read order matters: {@code DDAgentFeaturesDiscovery} exposes {@code peerTags()} and {@code
-   * getLastTimeDiscovered()} as two separate accessors, each reading its volatile {@code
-   * discoveryState} independently. If a discovery refresh interleaves between the two reads, we
-   * want to be left with a schema whose embedded timestamp is *older* than its tag set rather than
-   * newer -- that way the next reconcile sees a timestamp mismatch and re-runs the deep compare to
-   * pick up the change, instead of short-circuiting on a too-fresh timestamp and missing it.
+   * state()} as two separate accessors, each reading its volatile {@code discoveryState}
+   * independently. If a discovery refresh interleaves between the two reads, we want to be left
+   * with a schema whose embedded state is *stale* relative to its tag set rather than the other way
+   * around -- that way the next reconcile sees a state mismatch and re-runs the deep compare to
+   * pick up the change, instead of short-circuiting on a too-fresh state and missing it.
    *
-   * <p>So read {@code getLastTimeDiscovered()} first, then {@code peerTags()}.
+   * <p>So read {@code state()} first, then {@code peerTags()}.
    */
   private PeerTagSchema buildPeerTagSchema() {
-    long lastTimeDiscovered = features.getLastTimeDiscovered();
+    String state = features.state();
     Set<String> names = features.peerTags();
     return PeerTagSchema.of(
-        names == null ? Collections.<String>emptySet() : names, lastTimeDiscovered, healthMetrics);
+        names == null ? Collections.<String>emptySet() : names, state, healthMetrics);
   }
 
   /**
@@ -414,10 +415,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
 
   /**
    * Reconciles {@link #cachedPeerTagSchema} with the latest feature discovery. Runs on the
-   * aggregator thread once per reporting cycle. Cheap fast path: a long compare against the cached
-   * schema's embedded timestamp short-circuits when discovery hasn't refreshed since the schema was
-   * built. On mismatch, a set compare distinguishes "discovery refreshed but tags unchanged" (just
-   * bump the timestamp in place to preserve the warm cardinality handlers) from "tags actually
+   * aggregator thread once per reporting cycle via the reset hook passed to {@link Aggregator}.
+   * Cheap fast path: an equality check against the cached schema's embedded {@link
+   * DDAgentFeaturesDiscovery#state()} hash short-circuits when discovery's response hasn't changed
+   * since the schema was built. On mismatch, a set compare distinguishes "discovery response
+   * changed but peer tags are the same" (just update the cached state in place to preserve the
+   * warm cardinality handlers) from "tags actually
    * changed" (build a new schema and swap the volatile reference).
    */
   private void reconcilePeerTagSchema() {
@@ -426,16 +429,16 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       // First reset before the first publish -- producer-side bootstrap hasn't run yet.
       return;
     }
-    long latestDiscoveredAt = features.getLastTimeDiscovered();
-    if (cached.lastTimeDiscovered == latestDiscoveredAt) {
+    String latestState = features.state();
+    if (Objects.equals(cached.state, latestState)) {
       return;
     }
     Set<String> latestNames = features.peerTags();
     Set<String> normalized = latestNames == null ? Collections.emptySet() : latestNames;
     if (cached.hasSameTagsAs(normalized)) {
-      cached.lastTimeDiscovered = latestDiscoveredAt;
+      cached.state = latestState;
     } else {
-      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestDiscoveredAt, healthMetrics);
+      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState, healthMetrics);
     }
   }
 
@@ -524,8 +527,15 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
       // Route the clear through the inbox so the aggregator thread is the only writer.
-      // AggregateTable is not thread-safe; clearing it directly from this thread would race
+      // AggregateTable is not thread-safe; mutating it directly from this thread would race
       // with Drainer.accept on the aggregator thread.
+      //
+      // Best-effort single offer rather than the retry-loop pattern in report(). If the inbox is
+      // full at downgrade time the clear is dropped, but the system self-heals: features.discover()
+      // already flipped supportsMetrics() false, so producer publish() calls now skip the inbox;
+      // the aggregator drains existing snapshots and ships them on the next report cycle; the
+      // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
+      // now-empty inbox. Worst case: one extra reporting cycle of stale data.
       inbox.offer(CLEAR);
     }
   }

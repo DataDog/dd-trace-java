@@ -2,8 +2,10 @@ package datadog.trace.common.metrics;
 
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 
+import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
+import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -22,11 +24,10 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
- *   <li>A peer-aggregation schema built via {@link #of(Set, long, HealthMetrics)} for {@code
+ *   <li>A peer-aggregation schema built via {@link #of(Set, String, HealthMetrics)} for {@code
  *       client}/{@code producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the
  *       most recently built schema and reconciles it on the aggregator thread once per reporting
- *       cycle by comparing {@link #lastTimeDiscovered} against {@code
- *       DDAgentFeaturesDiscovery.getLastTimeDiscovered()}.
+ *       cycle by comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
  * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
@@ -38,10 +39,9 @@ import org.slf4j.LoggerFactory;
  * the indexing even if the current schema is replaced between capture and consumption.
  *
  * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
- * {@link #blockedCounts}, and {@link #lastTimeDiscovered}) is exercised only on the aggregator
- * thread. {@link #names} and {@link #handlers} are final and safe to read from any thread; producer
- * threads access them through the volatile {@code cachedPeerTagSchema} reference in {@link
- * ClientStatsAggregator}.
+ * {@link #blockedCounts}, and {@link #state}) is exercised only on the aggregator thread. {@link
+ * #names} and {@link #handlers} are final and safe to read from any thread; producer threads access
+ * them through the volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
@@ -49,20 +49,29 @@ final class PeerTagSchema {
 
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL =
-      // -1L sentinel; INTERNAL is never reconciled, so the value just has to be distinct from any
-      // real System.currentTimeMillis() that the aggregator might observe.
-      new PeerTagSchema(new String[] {BASE_SERVICE}, -1L, HealthMetrics.NO_OP);
+      // INTERNAL is never reconciled, so the state value is irrelevant.
+      new PeerTagSchema(new String[] {BASE_SERVICE}, null, HealthMetrics.NO_OP);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
 
   /**
-   * The {@code DDAgentFeaturesDiscovery.getLastTimeDiscovered()} value this schema was built from.
-   * The aggregator thread reads and updates this once per reporting cycle when reconciling against
-   * the latest discovery; producer threads never touch it. Plain (non-volatile, non-final) because
-   * the aggregator is the sole reader/writer.
+   * The {@code DDAgentFeaturesDiscovery.state()} hash this schema was built from. The aggregator
+   * thread reads and updates this once per reporting cycle when reconciling against the latest
+   * discovery; producer threads never touch it. Plain (non-volatile, non-final) because the
+   * aggregator is the sole reader/writer. May be {@code null} before discovery has produced a
+   * response.
    */
-  long lastTimeDiscovered;
+  String state;
+
+  /**
+   * Lazily computed content hash of {@link #names}, used as the bucket-distinguishing contribution
+   * when {@link AggregateEntry#hashOf} hashes a snapshot's peer-tag schema. Benign race pattern: a
+   * concurrent first-time read may recompute the value, but {@link Arrays#hashCode(Object[])} on
+   * the same content array is deterministic so the recomputed value matches. {@code int} writes are
+   * atomic per JLS.
+   */
+  private int cachedHashCode;
 
   private final HealthMetrics healthMetrics;
 
@@ -82,23 +91,23 @@ final class PeerTagSchema {
   private final long[] blockedCounts;
 
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> names, long lastTimeDiscovered, HealthMetrics healthMetrics) {
-    return new PeerTagSchema(names.toArray(new String[0]), lastTimeDiscovered, healthMetrics);
+  static PeerTagSchema of(Set<String> names, String state, HealthMetrics healthMetrics) {
+    return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics);
   }
 
   /**
    * Test-only factory that takes the names array directly so tests can build a schema in a specific
-   * order without going through a {@link Set}. Uses {@link HealthMetrics#NO_OP} and a sentinel
-   * discovery timestamp; tests exercising the cardinality-handler reset path should use {@link
-   * #of(Set, long, HealthMetrics)} instead.
+   * order without going through a {@link Set}. Uses {@link HealthMetrics#NO_OP} and a {@code null}
+   * state; tests exercising the cardinality-handler reset path should use {@link #of(Set, String,
+   * HealthMetrics)} instead.
    */
   static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, 0L, HealthMetrics.NO_OP);
+    return new PeerTagSchema(names, null, HealthMetrics.NO_OP);
   }
 
-  private PeerTagSchema(String[] names, long lastTimeDiscovered, HealthMetrics healthMetrics) {
+  private PeerTagSchema(String[] names, String state, HealthMetrics healthMetrics) {
     this.names = names;
-    this.lastTimeDiscovered = lastTimeDiscovered;
+    this.state = state;
     this.healthMetrics = healthMetrics;
     this.handlers = new TagCardinalityHandler[names.length];
     this.blockedCounts = new long[names.length];
@@ -110,10 +119,9 @@ final class PeerTagSchema {
 
   /**
    * Whether this schema's tag names exactly match {@code other}. Used by the aggregator's reconcile
-   * path: when a feature discovery refresh bumps {@link
-   * DDAgentFeaturesDiscovery#getLastTimeDiscovered()} but the resulting set is unchanged, the
-   * aggregator can keep this schema (and its warm cardinality handlers) and just bump {@link
-   * #lastTimeDiscovered} instead of rebuilding.
+   * path: when a feature discovery refresh changes {@link DDAgentFeaturesDiscovery#state()} but the
+   * resulting set is unchanged, the aggregator can keep this schema (and its warm cardinality
+   * handlers) and just update {@link #state} instead of rebuilding.
    */
   boolean hasSameTagsAs(Set<String> other) {
     if (this.names.length != other.size()) {
@@ -172,5 +180,37 @@ final class PeerTagSchema {
 
   String name(int i) {
     return names[i];
+  }
+
+  /**
+   * Content-based hash of {@link #names}. Used by {@link AggregateEntry#hashOf} to incorporate the
+   * schema identity into a snapshot's lookup hash. Distinct schemas with the same names hash to the
+   * same value so an entry built under one schema instance still matches a snapshot pinned to a
+   * content-equal replacement (e.g. after reconcile rebuilds the schema).
+   */
+  @Override
+  public int hashCode() {
+    int h = cachedHashCode;
+    if (h == 0) {
+      h = Arrays.hashCode(names);
+      cachedHashCode = h;
+    }
+    return h;
+  }
+
+  /**
+   * Content equality on {@link #names}. {@link #state} is intentionally excluded: it is a
+   * reconcile-bookkeeping field, not part of the schema's identity. Two schemas built from the same
+   * tag list at different discovery snapshots represent the same schema.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof PeerTagSchema)) {
+      return false;
+    }
+    return Arrays.equals(names, ((PeerTagSchema) o).names);
   }
 }

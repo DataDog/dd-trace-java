@@ -31,12 +31,11 @@ import org.mockito.ArgumentCaptor;
  * <ul>
  *   <li>{@link #bootstrapHappensOnceOnFirstPublish()} -- verifies the synchronized producer-side
  *       bootstrap runs exactly once and is skipped on subsequent publishes.
- *   <li>{@link #reconcileSkipsDeepCompareWhenTimestampMatches()} -- verifies the aggregator-thread
- *       reconcile's timestamp-only fast path: when the cached schema's {@code lastTimeDiscovered}
- *       matches {@code features.getLastTimeDiscovered()}, reconcile returns without calling {@code
- *       features.peerTags()}.
- *   <li>{@link #reconcileSurvivesTimestampBumpWhenTagsUnchanged()} -- verifies that when the
- *       discovery timestamp changes but the tag set is identical, the schema continues to function
+ *   <li>{@link #reconcileSkipsDeepCompareWhenStateMatches()} -- verifies the aggregator-thread
+ *       reconcile's state-only fast path: when the cached schema's {@code state} matches {@code
+ *       features.state()}, reconcile returns without calling {@code features.peerTags()}.
+ *   <li>{@link #reconcileSurvivesStateChangeWhenTagsUnchanged()} -- verifies that when the
+ *       discovery state hash changes but the tag set is identical, the schema continues to function
  *       correctly across cycles.
  *   <li>{@link #reconcileSwapsSchemaWhenTagSetChanges()} -- verifies the slow-path swap branch:
  *       when discovery refreshes with a new tag set, the cached schema is replaced and subsequent
@@ -55,7 +54,7 @@ class ClientStatsAggregatorBootstrapTest {
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
-    when(features.getLastTimeDiscovered()).thenReturn(1000L);
+    when(features.state()).thenReturn("state-1");
 
     ClientStatsAggregator aggregator =
         new ClientStatsAggregator(
@@ -78,21 +77,21 @@ class ClientStatsAggregatorBootstrapTest {
     // Bootstrap is the only path that queries features for peer-tag schema, and it runs
     // exactly once across three publishes.
     verify(features, times(1)).peerTags();
-    verify(features, times(1)).getLastTimeDiscovered();
+    verify(features, times(1)).state();
     aggregator.close();
   }
 
   @Test
-  void reconcileSkipsDeepCompareWhenTimestampMatches() throws Exception {
-    // Two reporting cycles with the same (mocked-constant) discovery timestamp -- the second
-    // reconcile must short-circuit on the timestamp compare and avoid touching peerTags().
+  void reconcileSkipsDeepCompareWhenStateMatches() throws Exception {
+    // Two reporting cycles with the same (mocked-constant) discovery state -- the second
+    // reconcile must short-circuit on the state compare and avoid touching peerTags().
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     MetricWriter writer = mock(MetricWriter.class);
     Sink sink = mock(Sink.class);
     DDAgentFeaturesDiscovery features = mock(DDAgentFeaturesDiscovery.class);
     when(features.supportsMetrics()).thenReturn(true);
     when(features.peerTags()).thenReturn(Collections.<String>singleton("peer.hostname"));
-    when(features.getLastTimeDiscovered()).thenReturn(1000L);
+    when(features.state()).thenReturn("state-1");
 
     ClientStatsAggregator aggregator =
         new ClientStatsAggregator(
@@ -133,21 +132,21 @@ class ClientStatsAggregatorBootstrapTest {
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
 
-      // peerTags() is called only by bootstrap; both reconciles short-circuit on the timestamp
-      // fast path (cached lastTimeDiscovered == features.getLastTimeDiscovered() == 1000L), so
-      // neither reconcile reaches the deep set compare. Total peerTags() calls: 1.
+      // peerTags() is called only by bootstrap; both reconciles short-circuit on the state
+      // fast path (cached state == features.state() == "state-1"), so neither reconcile reaches
+      // the deep set compare. Total peerTags() calls: 1.
       verify(features, times(1)).peerTags();
-      // getLastTimeDiscovered() is called by bootstrap (1) + each reconcile (2) = 3 total.
-      verify(features, times(3)).getLastTimeDiscovered();
+      // state() is called by bootstrap (1) + each reconcile (2) = 3 total.
+      verify(features, times(3)).state();
     } finally {
       aggregator.close();
     }
   }
 
   @Test
-  void reconcileSurvivesTimestampBumpWhenTagsUnchanged() throws Exception {
-    // Behavioral cross-check on the "set is unchanged, just bump timestamp" branch: discovery
-    // refreshes (timestamp moves) but the underlying tag set is identical. The aggregator must
+  void reconcileSurvivesStateChangeWhenTagsUnchanged() throws Exception {
+    // Behavioral cross-check on the "set is unchanged, just update state" branch: discovery
+    // refreshes (state hash moves) but the underlying tag set is identical. The aggregator must
     // continue producing valid buckets for the same logical peer tag across cycles.
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     MetricWriter writer = mock(MetricWriter.class);
@@ -160,8 +159,8 @@ class ClientStatsAggregatorBootstrapTest {
         .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
         .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")))
         .thenReturn(new LinkedHashSet<>(Collections.<String>singleton("peer.hostname")));
-    // Timestamp bumps every reconcile -- forces reconcile into the slow path each time.
-    when(features.getLastTimeDiscovered()).thenReturn(1L, 2L, 3L);
+    // State hash changes every reconcile -- forces reconcile into the slow path each time.
+    when(features.state()).thenReturn("state-1", "state-2", "state-3");
 
     ClientStatsAggregator aggregator =
         new ClientStatsAggregator(
@@ -201,13 +200,13 @@ class ClientStatsAggregatorBootstrapTest {
       assertTrue(cycle2.await(2, SECONDS));
 
       // Both cycles flushed (both latches counted down via writer.finishBucket). The schema kept
-      // producing buckets across the timestamp bumps; if the schema had been broken by the
-      // bump-in-place path, the second cycle's flush would not have happened.
+      // producing buckets across the state-hash changes; if the schema had been broken by the
+      // update-in-place path, the second cycle's flush would not have happened.
       verify(writer, times(2)).finishBucket();
-      // Bootstrap (1) + two reconciles (2) -- each reconcile saw a timestamp mismatch and went
+      // Bootstrap (1) + two reconciles (2) -- each reconcile saw a state mismatch and went
       // through the deep compare, calling peerTags() once = 3 total.
       verify(features, times(3)).peerTags();
-      verify(features, atLeastOnce()).getLastTimeDiscovered();
+      verify(features, atLeastOnce()).state();
     } finally {
       aggregator.close();
     }
@@ -215,7 +214,7 @@ class ClientStatsAggregatorBootstrapTest {
 
   @Test
   void reconcileSwapsSchemaWhenTagSetChanges() throws Exception {
-    // The reconcile slow-path's swap branch: discovery refreshes the timestamp AND the tag set
+    // The reconcile slow-path's swap branch: discovery refreshes the state AND the tag set
     // grows. Cached schema is rebuilt and the volatile reference points at the new schema.
     // Verification is end-to-end -- we look at the AggregateEntry the writer receives. Pre-swap
     // the span snapshot was pinned to the old schema so only peer.hostname appears; post-swap a
@@ -228,13 +227,13 @@ class ClientStatsAggregatorBootstrapTest {
     // peerTags() shape evolves across calls:
     //   - bootstrap reads {peer.hostname}
     //   - cycle 1 reconcile slow-path reads {peer.hostname, peer.service}
-    //   - cycle 2 reconcile is timestamp fast-path (no peerTags call)
+    //   - cycle 2 reconcile is state fast-path (no peerTags call)
     when(features.peerTags())
         .thenReturn(Collections.<String>singleton("peer.hostname"))
         .thenReturn(new LinkedHashSet<>(Arrays.asList("peer.hostname", "peer.service")));
-    // getLastTimeDiscovered() evolves: bootstrap = 1, then bumped to 2 for cycle 1's reconcile
-    // (mismatch -> slow path), stable at 2 for cycle 2's reconcile (match -> fast path).
-    when(features.getLastTimeDiscovered()).thenReturn(1L, 2L, 2L);
+    // state() evolves: bootstrap = "state-1", then changes to "state-2" for cycle 1's reconcile
+    // (mismatch -> slow path), stable at "state-2" for cycle 2's reconcile (match -> fast path).
+    when(features.state()).thenReturn("state-1", "state-2", "state-2");
 
     ClientStatsAggregator aggregator =
         new ClientStatsAggregator(
@@ -298,7 +297,7 @@ class ClientStatsAggregatorBootstrapTest {
 
       // Bootstrap (1) + cycle 1 slow-path (1) -- cycle 2 is fast-path so doesn't reach peerTags().
       verify(features, times(2)).peerTags();
-      verify(features, atLeastOnce()).getLastTimeDiscovered();
+      verify(features, atLeastOnce()).state();
     } finally {
       aggregator.close();
     }

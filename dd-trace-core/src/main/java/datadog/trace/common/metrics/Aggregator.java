@@ -79,10 +79,6 @@ final class Aggregator implements Runnable {
     this.onReportCycle = onReportCycle;
   }
 
-  public void clearAggregates() {
-    this.aggregates.clear();
-  }
-
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
@@ -114,9 +110,23 @@ final class Aggregator implements Runnable {
         // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
         // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
         // race with Drainer.accept on this thread.
+        //
+        // We deliberately do NOT call inbox.clear() here. Doing so would erase any queued STOP
+        // (or REPORT) signals that happen to sit behind CLEAR -- a real concern when a
+        // downgrade is followed quickly by close(), where the trampled STOP leaves the
+        // aggregator thread spinning until thread.join times out. features.supportsMetrics() is
+        // already false by the time CLEAR was offered, so producers have stopped publishing;
+        // any in-flight snapshots will drain naturally into the just-cleared table, get
+        // re-aggregated, and flushed on the next report -- where the agent rejects them again,
+        // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
+        // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
         if (!stopped) {
           aggregates.clear();
-          inbox.clear();
+          // Clear dirty too -- without this, the next report() would see dirty=true, run
+          // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
+          // the flush anyway. Same observable outcome, but resetting here keeps the invariant
+          // "dirty implies there's data to flush" honest.
+          dirty = false;
         }
         ((SignalItem) item).complete();
       } else if (item instanceof SignalItem) {
