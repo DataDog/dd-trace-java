@@ -2183,17 +2183,19 @@ public class Config {
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
-    // TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
-    // via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
-    // we multiply the configured value by the legacy batch size to preserve the effective
-    // span-throughput capacity of the prior default *and* of any existing customer override
-    // (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
-    // per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
-    //
-    // Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
-    // override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
-    // bytes below Integer.MAX_VALUE because the JVM reserves header slack on array allocations;
-    // see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
+    /*
+     * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
+     * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
+     * we multiply the configured value by the legacy batch size to preserve the effective
+     * span-throughput capacity of the prior default *and* of any existing customer override
+     * (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
+     * per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
+     *
+     * Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
+     * override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
+     * bytes below Integer.MAX_VALUE because the JVM reserves header slack on array allocations;
+     * see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
+     */
     long requestedMaxPending =
         (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
