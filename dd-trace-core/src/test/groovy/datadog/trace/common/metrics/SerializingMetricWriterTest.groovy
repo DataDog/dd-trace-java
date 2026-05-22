@@ -40,7 +40,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     CharSequence httpEndpoint,
     CharSequence grpcStatusCode,
     int hitCount) {
-    AggregateEntry e = AggregateEntry.of(
+    AggregateEntry e = AggregateEntries.of(
       resource, service, operationName, serviceSource, type,
       httpStatusCode, synthetic, traceRoot, spanKind, peerTags,
       httpMethod, httpEndpoint, grpcStatusCode)

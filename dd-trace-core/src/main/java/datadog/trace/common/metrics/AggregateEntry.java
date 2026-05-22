@@ -139,66 +139,6 @@ final class AggregateEntry extends Hashtable.Entry {
     this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
   }
 
-  /**
-   * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Accepts a
-   * pre-encoded {@code List<UTF8BytesString>} of {@code "name:value"} peer tags and recovers the
-   * parallel-array {@code (names, values)} form by splitting on the {@code ':'} delimiter.
-   *
-   * <p><b>Test-only.</b> The split is at the <em>first</em> {@code ':'}, so peer-tag values
-   * containing a colon (URLs, IPv6 addresses, {@code service:env} patterns) will be silently
-   * misparsed and the recovered (name, value) pair will be wrong. Keep test data colon-free in
-   * peer-tag values, or wire production-style snapshots through {@link #forSnapshot(SpanSnapshot)}
-   * instead.
-   */
-  static AggregateEntry of(
-      CharSequence resource,
-      CharSequence service,
-      CharSequence operationName,
-      @Nullable CharSequence serviceSource,
-      CharSequence type,
-      int httpStatusCode,
-      boolean synthetic,
-      boolean traceRoot,
-      CharSequence spanKind,
-      @Nullable List<UTF8BytesString> peerTags,
-      @Nullable CharSequence httpMethod,
-      @Nullable CharSequence httpEndpoint,
-      @Nullable CharSequence grpcStatusCode) {
-    PeerTagSchema schema = null;
-    String[] values = null;
-    if (peerTags != null && !peerTags.isEmpty()) {
-      String[] names = new String[peerTags.size()];
-      values = new String[peerTags.size()];
-      int i = 0;
-      for (UTF8BytesString t : peerTags) {
-        String s = t.toString();
-        int colon = s.indexOf(':');
-        names[i] = colon < 0 ? s : s.substring(0, colon);
-        values[i] = colon < 0 ? "" : s.substring(colon + 1);
-        i++;
-      }
-      schema = PeerTagSchema.testSchema(names);
-    }
-    SpanSnapshot synthetic_snapshot =
-        new SpanSnapshot(
-            resource,
-            service == null ? null : service.toString(),
-            operationName,
-            serviceSource,
-            type,
-            (short) httpStatusCode,
-            synthetic,
-            traceRoot,
-            spanKind == null ? null : spanKind.toString(),
-            schema,
-            values,
-            httpMethod == null ? null : httpMethod.toString(),
-            httpEndpoint == null ? null : httpEndpoint.toString(),
-            grpcStatusCode == null ? null : grpcStatusCode.toString(),
-            0L);
-    return new AggregateEntry(synthetic_snapshot, hashOf(synthetic_snapshot));
-  }
-
   /** Construct from a snapshot at consumer-thread miss time. */
   static AggregateEntry forSnapshot(SpanSnapshot s) {
     return new AggregateEntry(s, hashOf(s));
