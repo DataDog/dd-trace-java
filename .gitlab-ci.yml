@@ -379,6 +379,7 @@ populate_dep_cache:
         CACHE_TYPE: "smoke"
       - GRADLE_TARGET: "spotlessCheck"
         CACHE_TYPE: "spotless"
+        GRADLE_MEMORY_MAX: "6G"
 
 publish-artifacts-to-s3:
   image: registry.ddbuild.io/images/mirror/amazon/aws-cli:2.4.29
