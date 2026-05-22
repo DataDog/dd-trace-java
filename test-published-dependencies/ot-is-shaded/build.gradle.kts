@@ -5,7 +5,7 @@ plugins {
   java
 }
 
-val jarfile: Configuration by configurations.creating
+val jarfile = configurations.register("jarfile")
 
 dependencies {
   jarfile("com.datadoghq:dd-trace-ot:$version")
@@ -66,9 +66,9 @@ abstract class CheckJarContentsTask : DefaultTask() {
   }
 }
 
-val jarFile = jarfile.filter { it.name.startsWith("dd-trace-ot") }.singleFile
+val jarFile = layout.file(jarfile.map { it.filter { file -> file.name.startsWith("dd-trace-ot") }.singleFile })
 
-tasks.register<CheckJarContentsTask>("checkJarContents") {
+val checkJarContents = tasks.register<CheckJarContentsTask>("checkJarContents") {
   file.set(jarFile)
   expectedPatterns.set(
     listOf(
@@ -93,16 +93,18 @@ tasks.register<CheckJarContentsTask>("checkJarContents") {
   )
 }
 
-tasks.register("checkJarSize") {
+val checkJarSize = tasks.register("checkJarSize") {
   inputs.file(jarFile)
   doLast {
+    val jar = jarFile.get().asFile
     // Arbitrary limit to prevent unintentional increases to the dd-trace-ot jar size
     // Raise or lower as required
-    assert(jarFile.length() <= 8 * 1024 * 1024)
+    if (jar.length() > 8 * 1024 * 1024) {
+      throw GradleException("jar size is too big: ${jar.length()} bytes")
+    }
   }
 }
 
-tasks.named("check") {
-  dependsOn("checkJarContents")
-  dependsOn("checkJarSize")
+tasks.check {
+  dependsOn(checkJarContents, checkJarSize)
 }
