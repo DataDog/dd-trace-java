@@ -2183,8 +2183,13 @@ public class Config {
     // span-throughput capacity of the prior default *and* of any existing customer override
     // (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
     // per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
+    //
+    // multiplyExact guards against an absurd customer override (>= ~33M) silently wrapping to a
+    // negative int that would then explode the MPSC queue allocation with a confusing error;
+    // ArithmeticException at startup is the clearer failure mode.
     tracerMetricsMaxPending =
-        configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
+        Math.multiplyExact(
+            configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048), LEGACY_BATCH_SIZE);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
