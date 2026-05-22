@@ -306,16 +306,13 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, s.synthetic);
     h = LongHashingUtils.addToHash(h, s.traceRoot);
     h = LongHashingUtils.addToHash(h, s.spanKind);
-    if (s.peerTagSchema != null && s.peerTagValues != null) {
-      String[] names = s.peerTagSchema.names;
-      String[] values = s.peerTagValues;
-      for (int i = 0; i < names.length; i++) {
-        if (values[i] != null) {
-          h = LongHashingUtils.addToHash(h, names[i]);
-          h = LongHashingUtils.addToHash(h, values[i]);
-        }
-      }
-    }
+    // Always mix in both the schema's content hash and the values' content hash, unconditionally
+    // (no null-skip). PeerTagSchema overrides hashCode() to be content-based on names; we use
+    // Arrays.hashCode for the String[] values since the default Object[].hashCode is identity-
+    // based, not content-based. Null inputs hash to 0 for both, distinct from any real schema's
+    // hash or any non-empty values array.
+    h = LongHashingUtils.addToHash(h, s.peerTagSchema);
+    h = LongHashingUtils.addToHash(h, Arrays.hashCode(s.peerTagValues));
     h = LongHashingUtils.addToHash(h, s.httpMethod);
     h = LongHashingUtils.addToHash(h, s.httpEndpoint);
     h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
