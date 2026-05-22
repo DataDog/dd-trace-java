@@ -813,6 +813,12 @@ public class Config {
   // legacy batch units) into the new per-SpanSnapshot inbox capacity.
   private static final int LEGACY_BATCH_SIZE = 64;
 
+  // Practical upper bound on Object[] allocations. Sits a few bytes below Integer.MAX_VALUE
+  // because the JVM reserves header slack on array allocations; matches the JDK's own
+  // {@code java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH} convention. Used to clamp computed
+  // capacities that feed into array-backed collections.
+  private static final int MAX_SAFE_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
@@ -2184,12 +2190,13 @@ public class Config {
     // (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
     // per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
     //
-    // multiplyExact guards against an absurd customer override (>= ~33M) silently wrapping to a
-    // negative int that would then explode the MPSC queue allocation with a confusing error;
-    // ArithmeticException at startup is the clearer failure mode.
-    tracerMetricsMaxPending =
-        Math.multiplyExact(
-            configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048), LEGACY_BATCH_SIZE);
+    // Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
+    // override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
+    // bytes below Integer.MAX_VALUE because the JVM reserves header slack on array allocations;
+    // see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
+    long requestedMaxPending =
+        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
+    tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
