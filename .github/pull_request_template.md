@@ -15,7 +15,7 @@
 
 Jira ticket: [PROJ-IDENT]
 
-***Note:*** **Once your PR is ready to merge, add it to the merge queue by commenting `/merge`.** `/merge -c` cancels the queue request. `/merge -f --reason "reason"` skips all merge queue checks; please use this judiciously, as some checks do not run at the PR-level. For more information, see [this doc](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue).
+***Note:*** **Once your PR is ready to merge, add it to the merge queue by commenting `/merge`.** Customize the commit message associated with the merge with `/merge --commit-message "..."`. Remove your PR from the merge queue with `/merge -c`. Skip all merge queue checks with `/merge -f --reason "reason"`; please use this judiciously, as some checks do not run at the PR-level. For more information, see [this doc](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue).
 
 <!--
 # Opening vs Drafting a PR:
