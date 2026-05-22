@@ -709,7 +709,7 @@ muzzle-dep-report:
       - data_integrity_failure
 
 .test_job_arm64:
-  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}base
+  image: ${BUILDER_IMAGE_REPO}:${BUILDER_IMAGE_VERSION_PREFIX}$testJvm
   tags: [ "docker-in-docker:arm64" ]
   stage: tests-arm64
   needs: []
