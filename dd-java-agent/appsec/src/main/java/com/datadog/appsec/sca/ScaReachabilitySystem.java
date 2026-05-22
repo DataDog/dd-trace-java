@@ -45,9 +45,10 @@ public final class ScaReachabilitySystem {
     //   this handler lambda
     //   ScaReachabilityCallback.onMethodHit
     //   <vulnerable method> (dotClassName.methodName)
+    //   [optional intermediate library frames]
     //   <application callsite>  ← what we report
-    // We use the IAST trie-based filter (AbstractStackWalker.isNotDatadogTraceStackElement) to
-    // identify application frames, matching the existing callsite-detection infrastructure.
+    // Agent frames are filtered by AbstractStackWalker.isNotDatadogTraceStackElement; intermediate
+    // library frames are filtered by ScaStackExclusionTrie so we skip past them to client code.
     ScaReachabilityCallback.register(
         (vulnId, artifact, version, dotClassName, methodName, line) -> {
           StackTraceElement callsite = findCallsite(dotClassName);
@@ -87,8 +88,9 @@ public final class ScaReachabilitySystem {
 
   /**
    * Walks the current thread stack to find the first application frame that called the vulnerable
-   * method. Uses {@link AbstractStackWalker#isNotDatadogTraceStackElement} (backed by the IAST
-   * exclusion trie) to distinguish application code from agent/JDK/framework frames.
+   * method. Agent frames are skipped via {@link AbstractStackWalker#isNotDatadogTraceStackElement};
+   * intermediate library frames (e.g. a wrapper around the vulnerable API) are skipped via {@link
+   * ScaStackExclusionTrie}.
    *
    * <p>The stack at call time is:
    *
@@ -96,34 +98,47 @@ public final class ScaReachabilitySystem {
    *   ScaReachabilitySystem handler lambda  (skip - agent)
    *   ScaReachabilityCallback.onMethodHit   (skip - agent)
    *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip - the instrumented library class)
+   *   [intermediate library frames]         (skip - trie-excluded)
    *   &lt;application callsite&gt;               ← return this
    * </pre>
    *
-   * @param vulnerableClass dot-notation FQN of the instrumented class (used to skip library frames)
+   * @param vulnerableClass dot-notation FQN of the instrumented class
    * @return first application callsite frame, or {@code null} if not found
    */
   static StackTraceElement findCallsite(String vulnerableClass) {
-    StackTraceElement[] stack = Thread.currentThread().getStackTrace();
+    return findCallsite(vulnerableClass, Thread.currentThread().getStackTrace());
+  }
+
+  /**
+   * Overload that accepts an explicit stack for testing.
+   *
+   * @see #findCallsite(String)
+   */
+  static StackTraceElement findCallsite(String vulnerableClass, StackTraceElement[] stack) {
     boolean pastVulnerableClass = false;
 
     for (StackTraceElement frame : stack) {
       String cls = frame.getClassName();
 
-      // Skip agent and JDK frames using the shared predicate from AbstractStackWalker
+      // Skip agent frames (datadog.trace.*, com.datadog.appsec.*, etc.)
       if (!AbstractStackWalker.isNotDatadogTraceStackElement(frame)) {
         continue;
       }
 
       if (!pastVulnerableClass) {
-        // Skip frames until we have passed all frames from the vulnerable class
         if (cls.equals(vulnerableClass)) {
           pastVulnerableClass = true;
         }
         continue;
       }
 
-      // Skip any additional frames still inside the vulnerable class (library-internal chains)
+      // Skip remaining frames from the vulnerable class itself
       if (cls.equals(vulnerableClass)) {
+        continue;
+      }
+
+      // Skip intermediate library frames so we report client code, not a wrapper library
+      if (ScaStackExclusionTrie.apply(cls) >= 1) {
         continue;
       }
 
