@@ -1,3 +1,9 @@
+// The `gradlePluginProxy` / `mavenRepositoryProxy` properties point to internal Maven
+// mirrors used by CI when the public repos are unreachable; they are forwarded from the
+// outer build via the smoke-test plugin. `allowInsecureProtocol` is required because the
+// mirrors are reached over plain HTTP inside the CI network.
+// The inner `plugins { id 'io.quarkus' ... }` block resolves the Quarkus version from a
+// `quarkusPluginVersion` Gradle property forwarded by the outer build.
 pluginManagement {
   repositories {
     mavenLocal()
@@ -23,12 +29,16 @@ pluginManagement {
 
 def isCI = providers.environmentVariable("CI").isPresent()
 
-// Don't pollute the dependency cache with the build cache
+// On CI, point the local Gradle build cache to the shared workspace directory under the
+// repository root, so cache entries are reused across the many smoke-test nested builds
+// (and across CI jobs that mount the same workspace). See f6ec1f5cc8 / #982 for the
+// root-level cache, and b34ccbc048 for the `isCI` gating — locally we keep the default
+// per-user cache to avoid leaking entries into the repo tree.
+// The directory must line up with the outer project's settings.gradle.
 if (isCI) {
   def sharedRootDir = "$rootDir/../../../"
   buildCache {
     local {
-      // This needs to line up with the code in the outer project settings.gradle
       directory = "$sharedRootDir/workspace/build-cache"
     }
   }
