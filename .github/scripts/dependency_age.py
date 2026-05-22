@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
@@ -16,6 +17,7 @@ from typing import Any
 
 GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
+MAVEN_REPO_URL = "https://repo1.maven.org/maven2"
 DEFAULT_MIN_AGE_HOURS = 48
 
 
@@ -55,7 +57,7 @@ def parse_args() -> argparse.Namespace:
     validate.add_argument("--baseline-dir", required=True)
     validate.add_argument("--current-dir", default=".")
     validate.add_argument("--metadata-file", help="JSON file mapping group:artifact:version to a timestamp override.")
-    validate.add_argument("--search-url", default=MAVEN_SEARCH_URL)
+    validate.add_argument("--repo-url", action="append", default=[])
     validate.add_argument("--min-age-hours", type=int, default=default_min_age_hours())
     validate.add_argument("--now")
     validate.add_argument("--github-output", default=None)
@@ -353,6 +355,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     baseline_dir = Path(args.baseline_dir)
     current_dir = Path(args.current_dir)
     metadata = load_metadata_overrides(args.metadata_file)
+    repo_urls = args.repo_url if args.repo_url else [MAVEN_REPO_URL]
 
     # Guard against a silent snapshot failure: if baseline is empty but current has lockfiles,
     # every coordinate would appear "new" and the age check would be meaningless
@@ -380,7 +383,7 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     for relative_path, gavs in sorted(changed_by_file.items()):
         for gav in gavs:
             if gav not in timestamp_cache:
-                timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, search_url=args.search_url)
+                timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, repo_urls=repo_urls)
             published_at, reason = timestamp_cache[gav]
             if published_at is None:
                 violations_by_file.setdefault(relative_path, []).append((gav, unverified))
@@ -444,52 +447,50 @@ def revert_lockfiles_to_baseline(
             print(f"Removed new lockfile {relative_path} (no baseline copy to restore).")
 
 
-# look up the publish timestamp for a group:artifact:version coordinate in Maven Central
-# returns (datetime, None) on success, (None, reason) when the timestamp cannot be determined
-# retries once on any error
+# look up the publish timestamp for a group:artifact:version coordinate
+# uses a HEAD request against the POM file to read the Last-Modified header
+# tries each repo URL in order, falling back to the next on 404
+# returns (datetime, None) on success; (None, reason) when the timestamp cannot be determined
 def resolve_gav_timestamp(
     *,
     gav: str,
     metadata: dict[str, Any],
-    search_url: str,
+    repo_urls: list[str],
 ) -> tuple[datetime | None, str | None]:
     if gav in metadata:
         return parse_metadata_override(gav, metadata[gav])
 
     group_id, artifact_id, version = gav.split(":", 2)
-    query = urllib.parse.urlencode({
-        "q": f'g:"{group_id}" AND a:"{artifact_id}" AND v:"{version}"',
-        "core": "gav",
-        "rows": 20,
-        "wt": "json",
-    })
-    url = f"{search_url}?{query}"
-    payload = None
-    fetch_error = None
+    group_path = group_id.replace(".", "/")
+    pom_path = f"{group_path}/{artifact_id}/{version}/{artifact_id}-{version}.pom"
+
+    for repo_url in repo_urls:
+        result = _head_pom_timestamp(f"{repo_url}/{pom_path}")
+        if result is not None:
+            return result, None
+    return None, f"{gav} was not found in any configured repository."
+
+
+# issue a HEAD request for a POM URL and return the parsed Last-Modified timestamp, or None on 404
+# retries once on transient errors; raises on persistent non-404 failures
+def _head_pom_timestamp(pom_url: str) -> datetime | None:
     for attempt in range(2):
         try:
-            payload = load_json(None, url)
-            fetch_error = None
-            break
+            request = urllib.request.Request(pom_url, method="HEAD")
+            with urllib.request.urlopen(request, timeout=30) as response:
+                last_modified = response.headers.get("Last-Modified")
+            if not last_modified:
+                return None
+            return parsedate_to_datetime(last_modified).astimezone(timezone.utc)
         except urllib.error.HTTPError as exc:
-            fetch_error = f"Maven Central search failed (HTTP {exc.code})."
-        except (urllib.error.URLError, TimeoutError, OSError, ValueError):
-            fetch_error = "Maven Central search was unreachable."
-
-    if fetch_error:
-        return None, fetch_error
-
-    for doc in payload.get("response", {}).get("docs", []):
-        if doc.get("v") != version:
-            continue
-        timestamp = doc.get("timestamp")
-        if timestamp is None:
-            return None, "Maven Central search result did not include a publish timestamp."
-        try:
-            return parse_datetime(timestamp), None
-        except (ValueError, TypeError) as exc:
-            return None, f"Maven Central returned an unparseable timestamp for {gav}: {exc}"
-    return None, f"{gav} was not found in Maven Central. Add an entry in --metadata-file to bypass."
+            if exc.code in (404, 403):
+                return None
+            if attempt == 1:
+                return None
+        except (urllib.error.URLError, TimeoutError, OSError):
+            if attempt == 1:
+                return None
+    return None
 
 
 # load optional metadata overrides from a JSON file (group:artifact:version -> timestamp)
