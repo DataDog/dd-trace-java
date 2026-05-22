@@ -38,7 +38,7 @@ public final class NettyMultipartHelper {
         dataType = data.getHttpDataType();
       } catch (UnsupportedOperationException ignored) {
         // Some framework-specific implementations (e.g. Vert.x NettyFileUpload) do not support
-        // getHttpDataType() — skip them; their framework's own instrumentation handles them.
+        // getHttpDataType() - skip them; their framework's own instrumentation handles them.
         continue;
       }
       if (attributes != null && dataType == InterfaceHttpData.HttpDataType.Attribute) {
