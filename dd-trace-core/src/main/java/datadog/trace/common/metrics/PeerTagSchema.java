@@ -119,4 +119,20 @@ final class PeerTagSchema {
     }
     return h;
   }
+
+  /**
+   * Content equality on {@link #names}. {@link #lastTimeDiscovered} is intentionally excluded: it
+   * is a reconcile-timing field, not part of the schema's identity. Two schemas built from the same
+   * tag list at different discovery snapshots represent the same schema.
+   */
+  @Override
+  public boolean equals(Object o) {
+    if (this == o) {
+      return true;
+    }
+    if (!(o instanceof PeerTagSchema)) {
+      return false;
+    }
+    return Arrays.equals(names, ((PeerTagSchema) o).names);
+  }
 }
