@@ -1,3 +1,9 @@
+import datadog.buildlogic.smoketest.NestedGradleBuild
+
+plugins {
+  id 'dd-trace-java.smoke-test-app'
+}
+
 ext {
   serverName = 'wildfly'
   //serverModule = 'servlet'
@@ -49,32 +55,17 @@ dependencies {
   testImplementation project(':dd-smoke-tests')
 }
 
-def appDir = "$projectDir/spring-ear"
-def appBuildDir = "$buildDir/spring-ear"
-def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
-def gradlewCommand = isWindows ? 'gradlew.bat' : 'gradlew'
-// define the task that builds the quarkus project
-tasks.register('earBuild', Exec) {
-  workingDir "$appDir"
-  environment += [
-    "GRADLE_OPTS": "-Dorg.gradle.jvmargs='-Xmx512M'",
-    "JAVA_HOME": getLazyJavaHomeFor(8)
-  ]
-  commandLine "$rootDir/${gradlewCommand}", "assemble", "--no-daemon", "--max-workers=4", "-PappBuildDir=$appBuildDir", "-PapiJar=${project(':dd-trace-api').tasks.jar.archiveFile.get()}"
+def appBuildDir = layout.buildDirectory.dir("spring-ear")
+evaluationDependsOn(':dd-trace-api')
+def apiJarTask = project(':dd-trace-api').tasks.named('jar')
 
-  outputs.cacheIf { true }
-
-  outputs.dir(appBuildDir)
-    .withPropertyName("applicationEar")
-
-  inputs.files(fileTree(appDir) {
-    include '**/*'
-    exclude '.gradle/**'
-  })
-  .withPropertyName("application")
-  .withPathSensitivity(PathSensitivity.RELATIVE)
-
-  dependsOn project(':dd-trace-api').tasks.named("jar")
+// Run the nested EAR build through the Gradle Tooling API.
+tasks.register('earBuild', NestedGradleBuild) {
+  applicationDir = layout.projectDirectory.dir("spring-ear")
+  applicationBuildDir = appBuildDir
+  tasksToRun = ['assemble']
+  projectJar('apiJar', apiJarTask.flatMap { it.archiveFile })
+  dependsOn apiJarTask
 }
 
 tasks.named("compileTestGroovy", GroovyCompile) {
@@ -124,8 +115,8 @@ tasks.withType(Jar).configureEach {
 def wildflyDir = "${buildDir}/${serverName}-${serverVersion}"
 
 tasks.register("deploy", Copy) {
-  dependsOn 'unzip'
-  from "${appBuildDir}/libs/wildfly-spring-ear-smoketest.ear"
+  dependsOn 'unzip', 'earBuild'
+  from appBuildDir.map { it.file("libs/wildfly-spring-ear-smoketest.ear") }
   into "${wildflyDir}/standalone/deployments"
 }
 
