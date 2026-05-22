@@ -28,6 +28,7 @@ import java.util.Set;
  * </ul>
  *
  * <p>This class deliberately has no cardinality limiters or per-cycle state -- callers that need
+ * <p>This class deliberately has no cardinality limiters -- callers that need
  * those layer them on top.
  *
  * <p><b>Thread-safety:</b> {@link #names} is final and safe to read from any thread. {@link
