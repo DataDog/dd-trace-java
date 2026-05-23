@@ -1,6 +1,8 @@
 package datadog.trace.common.writer
 
 import datadog.communication.http.OkHttpUtils
+import datadog.environment.JavaVirtualMachine
+import datadog.environment.OperatingSystem
 import datadog.communication.serialization.ByteBufferConsumer
 import datadog.communication.serialization.FlushingBuffer
 import datadog.communication.serialization.msgpack.MsgPackWriter
@@ -24,6 +26,7 @@ import datadog.trace.core.propagation.PropagationTags
 import datadog.trace.core.test.DDCoreSpecification
 import datadog.trace.test.util.Flaky
 import okhttp3.HttpUrl
+import spock.lang.IgnoreIf
 import spock.lang.Shared
 import spock.lang.Timeout
 import spock.util.concurrent.PollingConditions
@@ -35,6 +38,7 @@ import java.util.concurrent.Semaphore
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 
+import static datadog.environment.OperatingSystem.architecture
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.common.writer.DDIntakeWriter.BUFFER_SIZE
 import static datadog.trace.common.writer.ddagent.Prioritization.ENSURE_TRACE
@@ -185,6 +189,11 @@ class DDIntakeWriterCombinedTest extends DDCoreSpecification {
     trackType << [TrackType.CITESTCYCLE]
   }
 
+  // TODO: Oracle JDK 8 on linux-aarch64 crashes in PSPromotionManager under the heavy allocation
+  // pressure of this test.
+  @IgnoreIf({
+    OperatingSystem.isLinux() && architecture().isArm64() && JavaVirtualMachine.isOracleJDK8()
+  })
   @Timeout(30)
   def "test default buffer size for #trackType"() {
     setup:
