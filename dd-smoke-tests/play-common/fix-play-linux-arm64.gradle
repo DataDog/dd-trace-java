@@ -26,6 +26,9 @@ if (HostPlatform.isLinuxArm64()) {
     def specClass = cl.loadClass('org.gradle.playframework.tools.internal.routes.DefaultRoutesCompileSpec')
     def workActionClass = cl.loadClass('org.gradle.playframework.tasks.internal.RoutesCompileWorkAction')
     def factoryClass = cl.loadClass('org.gradle.playframework.tools.internal.routes.RoutesCompilerFactory')
+    // The `platform` value at runtime is `PlayPlatform_Decorated` (Gradle's generated subclass).
+    // `Class.getMethod` requires an exact parameter-type match, so look up the undecorated type.
+    def platformClass = cl.loadClass('org.gradle.playframework.extensions.PlayPlatform')
 
     task.actions.clear()
     task.doLast {
@@ -42,7 +45,7 @@ if (HostPlatform.isLinuxArm64()) {
 
       def workerExecutor = workerExecutorField.get(task)
       def platform = task.platform.get()
-      def compiler = factoryClass.getMethod('create', platform.getClass()).invoke(null, platform)
+      def compiler = factoryClass.getMethod('create', platformClass).invoke(null, platform)
 
       workerExecutor.processIsolation { workerSpec ->
         workerSpec.forkOptions { options ->
