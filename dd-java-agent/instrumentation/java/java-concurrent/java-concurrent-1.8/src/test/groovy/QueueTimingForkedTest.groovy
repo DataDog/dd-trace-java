@@ -1,5 +1,4 @@
 import datadog.environment.JavaVirtualMachine
-import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.TestProfilingContextIntegration
 import datadog.trace.bootstrap.instrumentation.jfr.InstrumentationBasedProfiling
@@ -12,17 +11,11 @@ import static datadog.trace.agent.test.utils.TraceUtils.runUnderTrace
 
 class QueueTimingForkedTest extends InstrumentationSpecification {
 
-  // Hypothesis check: Oracle JDK 8 on linux-aarch64 SIGSEGVs inside Parallel Old GC
-  // when the profiler is started in-process. Disable profiling on that platform to
-  // see whether the crash is profiling-related. See crash.md.
-  private static final String PROFILING_ENABLED =
-  String.valueOf(!(JavaVirtualMachine.isOracleJDK8() && OperatingSystem.architecture().isArm64()))
-
   @Override
   protected void configurePreAgent() {
     // required for enabling the unwrapping instrumentation to get the relevant non-carrier class names
-    injectSysConfig("dd.profiling.enabled", PROFILING_ENABLED)
-    injectSysConfig("dd.profiling.queueing.time.enabled", PROFILING_ENABLED)
+    injectSysConfig("dd.profiling.enabled", "true")
+    injectSysConfig("dd.profiling.queueing.time.enabled", "true")
     InstrumentationBasedProfiling.enableInstrumentationBasedProfiling()
     super.configurePreAgent()
   }

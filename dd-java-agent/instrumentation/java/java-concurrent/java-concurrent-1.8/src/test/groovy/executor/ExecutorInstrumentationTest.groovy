@@ -1,8 +1,6 @@
 package executor
 
 import com.google.common.util.concurrent.MoreExecutors
-import datadog.environment.JavaVirtualMachine
-import datadog.environment.OperatingSystem
 import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.api.Trace
 import datadog.trace.bootstrap.instrumentation.api.Tags
@@ -499,12 +497,7 @@ class ExecutorInstrumentationLegacyForkedTest extends ExecutorInstrumentationTes
 
 class ExecutorInstrumentationQueueTimeForkedTest extends ExecutorInstrumentationTest {
   def setupSpec() {
-    // Hypothesis check: Oracle JDK 8 on linux-aarch64 SIGSEGVs inside Parallel Old GC
-    // when the profiler is started in-process. Disable profiling on that platform to
-    // see whether the crash is profiling-related. See crash.md.
-    String profilingEnabled =
-      String.valueOf(!(JavaVirtualMachine.isOracleJDK8() && OperatingSystem.architecture().isArm64()))
-    System.setProperty("dd.profiling.enabled", profilingEnabled)
-    System.setProperty("dd.profiling.queueing.time.enabled", profilingEnabled)
+    System.setProperty("dd.profiling.enabled", "true")
+    System.setProperty("dd.profiling.queueing.time.enabled", "true")
   }
 }
