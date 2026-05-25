@@ -9,7 +9,6 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Locale;
 import java.util.Properties;
-import javax.annotation.Nonnull;
 
 // backported from org.apache.maven:maven-artifact:3.9.9
 public class ComparableVersion implements Comparable<ComparableVersion> {
