@@ -728,7 +728,7 @@ muzzle-dep-report:
     - if: $testJvm =~ $DEFAULT_TEST_JVMS
       when: manual
       allow_failure: true
-    - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8"'
+    - if: '$NON_DEFAULT_JVMS == "true" && $testJvm != "ibm8" && $testJvm != "oracle8"'
       when: manual
       allow_failure: true
   cache:

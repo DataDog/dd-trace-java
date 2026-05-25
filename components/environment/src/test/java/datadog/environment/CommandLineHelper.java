@@ -99,27 +99,6 @@ class CommandLineHelper {
       arguments.cmdArgs = cmdArgs;
       return arguments;
     }
-
-    /**
-     * Prepends {@code -XX:+UnlockExperimentalVMOptions} when the JVM options reference an
-     * experimental flag on the current JVM. Required for {@code -XX:+UseG1GC} on Oracle JDK 8
-     * aarch64, where G1GC is shipped as experimental.
-     */
-    RunArguments withUnlockExperimentalVMOptionsIfNeeded() {
-      if (!needsUnlockExperimentalVMOptions(jvmOptions)) {
-        return this;
-      }
-      List<String> updated = new ArrayList<>(jvmOptions.size() + 1);
-      updated.add("-XX:+UnlockExperimentalVMOptions");
-      updated.addAll(jvmOptions);
-      return RunArguments.of(updated, cmdArgs);
-    }
-
-    private static boolean needsUnlockExperimentalVMOptions(List<String> jvmOptions) {
-      return JavaVirtualMachine.isOracleJDK8()
-          && OperatingSystem.architecture().isArm64()
-          && jvmOptions.contains("-XX:+UseG1GC");
-    }
   }
 
   static class Result extends RunArguments {

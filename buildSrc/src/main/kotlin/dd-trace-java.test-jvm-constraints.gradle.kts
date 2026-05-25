@@ -89,17 +89,6 @@ private fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
       listOf("-Djdk.attach.allowAttachSelf=true")
     )
   }
-
-  // Mitigation for SIGSEGV in Parallel Old GC on Oracle JDK 8 / linux-aarch64
-  // (InstanceKlass::oop_follow_contents in PSParallelCompact). Switching to Serial GC
-  // removes the crashing code path entirely. See crash.md.
-  if (HostPlatform.isLinuxArm64()) {
-    conditionalJvmArgs(
-      JavaVersion.VERSION_1_8,
-      listOf("-XX:+UseSerialGC"),
-      testJvmSpec.testJvmProperty.map { it == "8" || it == "oracle8" }.orElse(false)
-    )
-  }
 }
 
 // Jacoco plugin is not applied on every project

@@ -36,25 +36,17 @@ class CommandLineTest {
             of(emptyList(), emptyList())
         ),
         arguments(
-            "JVM options only with G1GC",
+            "JVM options only",
             of(asList("-Xmx128m", "-XX:+UseG1GC", "-Dtest.property=value"), emptyList()),
             of(asList("-Xmx128m", "-XX:+UseG1GC", "-Dtest.property=value"), emptyList())),
-        arguments(
-            "JVM options only with ParallelGC",
-            of(asList("-Xmx128m", "-XX:+UseParallelGC", "-Dtest.property=value"), emptyList()),
-            of(asList("-Xmx128m", "-XX:+UseParallelGC", "-Dtest.property=value"), emptyList())),
         arguments(
             "Command arguments only",
             of(emptyList(), asList("arg1", "arg2")),
             of(emptyList(), asList("arg1", "arg2"))),
         arguments(
-            "Both JVM options and command arguments with G1GC",
+            "Both JVM options and command arguments",
             of(asList("-Xmx128m", "-XX:+UseG1GC", "-Dtest.property=value"), asList("arg1", "arg2")),
             of(asList("-Xmx128m", "-XX:+UseG1GC", "-Dtest.property=value"), asList("arg1", "arg2"))),
-        arguments(
-            "Both JVM options and command arguments with ParallelGC",
-            of(asList("-Xmx128m", "-XX:+UseParallelGC", "-Dtest.property=value"), asList("arg1", "arg2")),
-            of(asList("-Xmx128m", "-XX:+UseParallelGC", "-Dtest.property=value"), asList("arg1", "arg2"))),
         arguments(
             "JVM options from argfile",
             of(asList("-Dtest.property=value", argFile("carriage-return-separated")), asList("arg1", "arg2")),
@@ -81,9 +73,6 @@ class CommandLineTest {
       throws Exception {
     // Skip unsupported test cases
     skipArgFileTestOnJava8(arguments);
-    // Unlock experimental options when needed (e.g. UseG1GC on Oracle JDK 8 aarch64)
-    arguments = arguments.withUnlockExperimentalVMOptionsIfNeeded();
-    expectedArguments = expectedArguments.withUnlockExperimentalVMOptionsIfNeeded();
     // Run test process
     Result result = forkAndRunWithArgs(arguments);
     // Check results
