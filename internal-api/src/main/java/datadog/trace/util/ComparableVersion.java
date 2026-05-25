@@ -126,11 +126,6 @@ public class ComparableVersion implements Comparable<ComparableVersion> {
     return this.items.compareTo(o.items);
   }
 
-  /** Checks if the version is in the range {@code [start, end)} */
-  public boolean isWithin(@Nonnull ComparableVersion start, @Nonnull ComparableVersion end) {
-    return compareTo(start) >= 0 && compareTo(end) < 0;
-  }
-
   public String toString() {
     return this.value;
   }
