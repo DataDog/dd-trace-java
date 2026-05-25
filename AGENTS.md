@@ -39,6 +39,7 @@ docs/                     Developer documentation (see below)
 | Working with Gradle | [docs/how_to_work_with_gradle.md](docs/how_to_work_with_gradle.md) |
 | Bootstrap/premain constraints | [docs/bootstrap_design_guidelines.md](docs/bootstrap_design_guidelines.md) |
 | CI/CD workflows | [.github/workflows/README.md](.github/workflows/README.md) |
+| AppSec: blocking, WAF API, IG events | [docs/appsec/](docs/appsec/) |
 
 **When working on a topic above, read the linked file first** — they are the source of truth maintained by humans.
 
