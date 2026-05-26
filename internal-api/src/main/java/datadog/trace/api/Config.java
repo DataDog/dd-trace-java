@@ -1790,7 +1790,9 @@ public class Config {
         configProvider.getBoolean(
             DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
-    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
+    dbmInjectSqlBaseHash =
+        configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
+            || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -5663,7 +5665,7 @@ public class Config {
   }
 
   public boolean isDbmInjectSqlBaseHash() {
-    return dbmInjectSqlBaseHash || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
+    return dbmInjectSqlBaseHash;
   }
 
   public boolean isDbmTracePreparedStatements() {
