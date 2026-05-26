@@ -351,35 +351,9 @@ final class AggregateEntry extends Hashtable.Entry {
     return peerTags;
   }
 
-  /**
-   * Equality on the 13 label fields (not on the aggregate). Used only by test mock matchers; the
-   * {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link Canonical#matches} and
-   * never calls {@code equals}.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof AggregateEntry)) return false;
-    AggregateEntry that = (AggregateEntry) o;
-    return httpStatusCode == that.httpStatusCode
-        && synthetic == that.synthetic
-        && traceRoot == that.traceRoot
-        && Objects.equals(resource, that.resource)
-        && Objects.equals(service, that.service)
-        && Objects.equals(operationName, that.operationName)
-        && Objects.equals(serviceSource, that.serviceSource)
-        && Objects.equals(type, that.type)
-        && Objects.equals(spanKind, that.spanKind)
-        && peerTags.equals(that.peerTags)
-        && Objects.equals(httpMethod, that.httpMethod)
-        && Objects.equals(httpEndpoint, that.httpEndpoint)
-        && Objects.equals(grpcStatusCode, that.grpcStatusCode);
-  }
-
-  @Override
-  public int hashCode() {
-    return (int) keyHash;
-  }
+  // Production AggregateEntry intentionally has no equals/hashCode override -- AggregateTable
+  // bucketing uses keyHash + Canonical.matches and never invokes Object.equals. For tests that
+  // need value-equality (Spock argument matchers), use AggregateEntryTestUtils in src/test.
 
   /**
    * Reusable scratch buffer for canonicalizing a {@link SpanSnapshot} into UTF8 fields, computing
