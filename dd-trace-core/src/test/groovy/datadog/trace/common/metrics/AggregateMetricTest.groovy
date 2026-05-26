@@ -4,16 +4,9 @@ import datadog.metrics.agent.AgentMeter
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.metrics.api.statsd.StatsDClient
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.test.util.DDSpecification
 
-import java.util.concurrent.BlockingDeque
-import java.util.concurrent.CountDownLatch
-import java.util.concurrent.ExecutorService
-import java.util.concurrent.Executors
-import java.util.concurrent.LinkedBlockingDeque
 import java.util.concurrent.TimeUnit
-import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLongArray
 
 import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG
@@ -61,43 +54,16 @@ class AggregateMetricTest extends DDSpecification {
     aggregate.getHitCount() == 0
   }
 
-  def "contribute batch with key to aggregate"() {
+  def "recordOneDuration accumulates ok and error and top-level"() {
     given:
-    AggregateMetric aggregate = new AggregateMetric().recordDurations(3, new AtomicLongArray(0L, 0L, 0L | ERROR_TAG | TOP_LEVEL_TAG))
+    AggregateMetric aggregate = new AggregateMetric()
+      .recordOneDuration(10L)
+      .recordOneDuration(10L | TOP_LEVEL_TAG)
+      .recordOneDuration(10L | ERROR_TAG)
 
-    Batch batch = new Batch().reset(new MetricKey("foo", "bar", "qux", null, "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")], null, null, null))
-    batch.add(0L, 10)
-    batch.add(0L, 10)
-    batch.add(0L, 10)
-
-    when:
-    batch.contributeTo(aggregate)
-
-    then: "batch used and values contributed to existing aggregate"
-    batch.isUsed()
+    expect:
+    aggregate.getHitCount() == 3
     aggregate.getDuration() == 30
-    aggregate.getHitCount() == 6
-    aggregate.getErrorCount() == 1
-    aggregate.getTopLevelCount() == 1
-  }
-
-  def "ignore used batches"() {
-    given:
-    AggregateMetric aggregate = new AggregateMetric().recordDurations(10,
-      new AtomicLongArray(1L, 1L, 1L, 1L, 1L, 1L, 1L | TOP_LEVEL_TAG, 1L, 1L, 1L | ERROR_TAG))
-
-
-    Batch batch = new Batch()
-    batch.contributeTo(aggregate)
-    // must be used now
-    batch.add(0L, 10)
-
-    when:
-    batch.contributeTo(aggregate)
-
-    then: "batch ignored"
-    aggregate.getDuration() == 10
-    aggregate.getHitCount() == 10
     aggregate.getErrorCount() == 1
     aggregate.getTopLevelCount() == 1
   }
@@ -135,54 +101,5 @@ class AggregateMetricTest extends DDSpecification {
     def okLatencies = aggregate.getOkLatencies()
     errorLatencies.getMaxValue() >= 99
     okLatencies.getMaxValue() <= 5
-  }
-
-  def "consistent under concurrent attempts to read and write"() {
-    given:
-    AggregateMetric aggregate = new AggregateMetric()
-    MetricKey key = new MetricKey("foo", "bar", "qux", null, "type", 0, false, true, "corge", [UTF8BytesString.create("grault:quux")], null, null, null)
-    BlockingDeque<Batch> queue = new LinkedBlockingDeque<>(1000)
-    ExecutorService reader = Executors.newSingleThreadExecutor()
-    int writerCount = 10
-    ExecutorService writers = Executors.newFixedThreadPool(writerCount)
-    CountDownLatch readerLatch = new CountDownLatch(1)
-    CountDownLatch writerLatch = new CountDownLatch(writerCount)
-    CountDownLatch queueEmptyLatch = new CountDownLatch(1)
-
-    AtomicInteger written = new AtomicInteger(0)
-
-    when:
-    for (int i = 0; i < writerCount; ++i) {
-      writers.submit({
-        readerLatch.await()
-        for (int j = 0; j < 10_000; ++j) {
-          Batch batch = queue.peekLast()
-          if (batch?.add(0L, 1)) {
-            written.incrementAndGet()
-          } else {
-            queue.offer(new Batch().reset(key))
-          }
-        }
-        writerLatch.countDown()
-      })
-    }
-    def future = reader.submit({
-      readerLatch.countDown()
-      while (!Thread.currentThread().isInterrupted()) {
-        Batch batch = queue.poll(100, TimeUnit.MILLISECONDS)
-        if (null == batch && writerLatch.count == 0) {
-          queueEmptyLatch.countDown()
-        } else if (null != batch) {
-          batch.contributeTo(aggregate)
-        }
-      }
-    })
-    assert writerLatch.await(10, TimeUnit.SECONDS)
-    // Wait here until we know that the queue is empty
-    assert queueEmptyLatch.await(10, TimeUnit.SECONDS)
-    future.cancel(true)
-
-    then:
-    aggregate.getHitCount() == written.get()
   }
 }
