@@ -120,7 +120,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         null,
         "service",
         "operation",
@@ -168,7 +168,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -222,7 +222,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     (statsComputed ? 1 : 0) * writer.startBucket(1, _, _)
     (statsComputed ? 1 : 0) * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -301,7 +301,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     cycle2Triggered
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -321,7 +321,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     }
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -370,7 +370,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -424,7 +424,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -485,7 +485,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     1 * writer.finishBucket() >> { latch.countDown() }
     1 * writer.startBucket(2, _, SECONDS.toNanos(reportingInterval))
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -504,7 +504,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == count && e.getDuration() == count * duration
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource2",
         "service2",
         "operation2",
@@ -560,7 +560,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -603,7 +603,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered2
     1 * writer.startBucket(3, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -622,7 +622,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -641,7 +641,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration * 2
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -707,7 +707,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(4, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -726,7 +726,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -745,7 +745,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration * 2
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -764,7 +764,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration * 3
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -819,7 +819,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(2, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -838,7 +838,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 1 && e.getDuration() == duration
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -891,7 +891,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(2, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -910,7 +910,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       assert e.getHitCount() == 2 && e.getDuration() == 2 * duration
     }
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -965,7 +965,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(10, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 10; ++i) {
-      def expected = AggregateEntryFixtures.of(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -984,7 +984,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       }
     }
     0 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service10",
         "operation",
@@ -1114,7 +1114,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      def expected = AggregateEntryFixtures.of(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1149,7 +1149,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(4, _, SECONDS.toNanos(reportingInterval))
     for (int i = 1; i < 5; ++i) {
-      def expected = AggregateEntryFixtures.of(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1168,7 +1168,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       }
     }
     0 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "resource",
         "service0",
         "operation",
@@ -1218,7 +1218,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(reportingInterval))
     for (int i = 0; i < 5; ++i) {
-      def expected = AggregateEntryFixtures.of(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1277,7 +1277,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(5, _, SECONDS.toNanos(1))
     for (int i = 0; i < 5; ++i) {
-      def expected = AggregateEntryFixtures.of(
+      def expected = AggregateEntryTestUtils.of(
         "resource",
         "service" + i,
         "operation",
@@ -1445,7 +1445,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -1502,7 +1502,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     1 * writer.startBucket(1, _, _)
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -1559,7 +1559,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     1 * writer.startBucket(3, _, _)
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -1579,7 +1579,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     }
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -1599,7 +1599,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     }
     1 * writer.add({
       AggregateEntryTestUtils.equals(it,
-        AggregateEntryFixtures.of(
+        AggregateEntryTestUtils.of(
         "resource",
         "service",
         "operation",
@@ -1653,7 +1653,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
     latchTriggered
     1 * writer.startBucket(3, _, _)
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "grpc.service/Method",
         "service",
         "grpc.server",
@@ -1670,7 +1670,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         ))
     })
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "grpc.service/Method",
         "service",
         "grpc.server",
@@ -1687,7 +1687,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
         ))
     })
     1 * writer.add({
-      AggregateEntryTestUtils.equals(it,AggregateEntryFixtures.of(
+      AggregateEntryTestUtils.equals(it,AggregateEntryTestUtils.of(
         "GET /api",
         "service",
         "http.request",
