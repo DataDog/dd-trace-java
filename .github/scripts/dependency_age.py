@@ -380,7 +380,6 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         changed_by_file.setdefault(relative_path, []).append(gav)
 
     timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
-    fallback_cache: dict[str, str | None] = {}  # gav -> replacement gav or None
     replacements_by_file: dict[str, dict[str, str]] = {}
     violations_by_file: dict[str, list[tuple[str, str]]] = {}
     for relative_path, gavs in sorted(changed_by_file.items()):
@@ -394,18 +393,15 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
             elif published_at > cutoff:
                 group_id, artifact_id, version = gav.split(":", 2)
                 baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
-                cache_key = f"{gav}@{baseline_version}"
-                if cache_key not in fallback_cache:
-                    eligible = find_eligible_version(
-                        group_id=group_id, artifact_id=artifact_id,
-                        too_new_version=version, baseline_version=baseline_version,
-                        cutoff=cutoff, repo_urls=repo_urls,
-                    )
-                    fallback_cache[cache_key] = f"{group_id}:{artifact_id}:{eligible[0]}" if eligible else None
-                replacement = fallback_cache[cache_key]
-                if replacement:
-                    replacements_by_file.setdefault(relative_path, {})[gav] = replacement
-                    print(f"Downgraded {gav} -> {replacement} (cutoff {format_datetime(cutoff)})")
+                eligible = find_eligible_version(
+                    group_id=group_id, artifact_id=artifact_id,
+                    too_new_version=version, baseline_version=baseline_version,
+                    cutoff=cutoff, repo_urls=repo_urls,
+                )
+                if eligible:
+                    replacement_gav = f"{group_id}:{artifact_id}:{eligible[0]}"
+                    replacements_by_file.setdefault(relative_path, {})[gav] = replacement_gav
+                    print(f"Latest version {gav} did not meet 48h cooldown requirement, updating to {replacement_gav} instead.")
                 else:
                     violations_by_file.setdefault(relative_path, []).append((gav, "too_new"))
             else:
@@ -472,7 +468,6 @@ def apply_lockfile_replacements(
                     line = f"{new_coord}={configs}\n"
             new_lines.append(line)
         lockfile_path.write_text("".join(new_lines), encoding="utf-8")
-        print(f"Applied {len(replacements)} version replacement(s) in {relative_path}.")
 
 
 # restore each violating lockfile to its baseline copy to keep the file consistent
