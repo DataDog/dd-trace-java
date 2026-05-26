@@ -9,8 +9,8 @@ import javax.annotation.Nullable;
  * stays free of test-only API; same {@code datadog.trace.common.metrics} package so this helper can
  * reach {@link AggregateEntry#of} directly.
  */
-public final class AggregateEntries {
-  private AggregateEntries() {}
+public final class AggregateEntryFixtures {
+  private AggregateEntryFixtures() {}
 
   /**
    * Builds an {@link AggregateEntry} from the same positional shape the prior {@code new

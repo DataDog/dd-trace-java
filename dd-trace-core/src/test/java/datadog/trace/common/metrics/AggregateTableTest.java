@@ -261,11 +261,8 @@ class AggregateTableTest {
 
   @Test
   void nullAndEmptyOptionalFieldsCollapseToOneEntry() {
-    // Regression: canonicalize() maps null -> EMPTY (or to a cache.computeIfAbsent("") entry for
-    // ""), but the prior contentEquals impl treated `non-null vs null` as not-equal -- so a second
-    // snapshot with the same null fields hashed to the same bucket but failed matches(), causing a
-    // spurious duplicate insert. The fix unifies null and length-zero on both sides of
-    // contentEquals/stringContentEquals.
+    // null and length-zero are treated as equivalent for optional fields, so snapshots that
+    // differ only in null-vs-"" land on the same entry.
     AggregateTable table = new AggregateTable(8);
 
     SpanSnapshot snapNull = nullableSnapshot(null, null, null, null);
@@ -282,12 +279,8 @@ class AggregateTableTest {
 
   @Test
   void nullServiceAndSpanKindDoNotNpeAndCollapseWithEmpty() {
-    // Regression: serviceName and spanKind used to bypass canonicalize() and call
-    // cache.computeIfAbsent directly, which would NPE on a null input. Production paths never
-    // pass null for these (DDSpan always supplies a service; producer defaults spanKind to ""),
-    // but the matches/contentEquals logic already treats null-and-empty as equal, so the
-    // constructor should be consistent. This pins both null-safety and null-equals-empty
-    // behavior for the two fields that recently moved through canonicalize().
+    // Null service and spanKind are accepted (canonicalize to length-zero) and collapse with
+    // empty-string variants onto the same entry.
     AggregateTable table = new AggregateTable(8);
 
     SpanSnapshot allNulls = nullServiceKindSnapshot(null, null);
