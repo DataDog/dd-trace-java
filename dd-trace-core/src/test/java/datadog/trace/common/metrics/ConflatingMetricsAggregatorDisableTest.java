@@ -137,10 +137,8 @@ class ConflatingMetricsAggregatorDisableTest {
 
   @Test
   void clearDoesNotTrampleQueuedStopSignal() throws Exception {
-    // Regression: prior CLEAR handler called inbox.clear(), which would erase any STOP signal
-    // queued behind it. close() then waited out thread.join's timeout because Drainer never saw
-    // the STOP and `stopped` was never set. Now the CLEAR handler clears only the aggregates
-    // table; queued signals (STOP, REPORT) survive and get processed normally.
+    // CLEAR handler clears only the aggregates table; queued signals (STOP, REPORT) survive and
+    // get processed normally.
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     MetricWriter writer = mock(MetricWriter.class);
     Sink sink = mock(Sink.class);
