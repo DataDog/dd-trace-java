@@ -4,6 +4,7 @@ import static datadog.trace.util.ConfigStrings.propertyNameToSystemPropertyName;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.civisibility.config.TestFQN;
@@ -284,12 +285,13 @@ public abstract class CiVisibilitySmokeTest {
     assertEquals(expectedCount, logs.size());
 
     List<String> requiredLogFields =
-        Arrays.asList("logger.name", "logger.method", "dd.spanid", "dd.traceid");
+        Arrays.asList("logger.name", "logger.method", "dd.span_id", "dd.trace_id");
     List<String> requiredSnapshotFields =
         Arrays.asList("captures", "exceptionId", "probe", "stack");
 
     for (Map<String, Object> log : logs) {
-      requiredLogFields.forEach(log::containsKey);
+      requiredLogFields.forEach(
+          field -> assertTrue(log.containsKey(field), "log must contain field: " + field));
 
       @SuppressWarnings("unchecked")
       Map<String, Object> debuggerMap = (Map<String, Object>) log.get("debugger");
@@ -297,7 +299,10 @@ public abstract class CiVisibilitySmokeTest {
       Map<String, Object> snapshotContent = (Map<String, Object>) debuggerMap.get("snapshot");
 
       assertNotNull(snapshotContent, "snapshot must not be null");
-      requiredSnapshotFields.forEach(snapshotContent::containsKey);
+      requiredSnapshotFields.forEach(
+          field ->
+              assertTrue(
+                  snapshotContent.containsKey(field), "snapshot must contain field: " + field));
     }
   }
 }

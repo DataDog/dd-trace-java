@@ -89,7 +89,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     "corrupted-config-new       | latest        | test-corrupted-config-new-instrumentation     | false              | false           | false        | 1              | 0                ",
     "succeed-junit-5            | latest        | test-succeed-junit-5                          | false              | true            | false        | 5              | 1                ",
     "failed-flaky-retries       | latest        | test-failed-flaky-retries                     | false              | false           | true         | 8              | 0                ",
-    "succeed-gradle-plugin-test | 9.3.1         | test-succeed-gradle-plugin-test               | false              | true            | false        | 5              | 0                "
+    "succeed-gradle-plugin-test | latest        | test-succeed-gradle-plugin-test               | false              | true            | false        | 5              | 0                "
   })
   @ParameterizedTest
   void testNew(
