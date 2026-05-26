@@ -45,8 +45,8 @@ import java.util.Objects;
     justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 final class AggregateEntry extends Hashtable.Entry {
 
-  public static final long ERROR_TAG = 0x8000000000000000L;
-  public static final long TOP_LEVEL_TAG = 0x4000000000000000L;
+  static final long ERROR_TAG = 0x8000000000000000L;
+  static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   /** Shared empty array used by entries with no peer tags. */
   private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
