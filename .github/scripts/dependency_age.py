@@ -392,16 +392,17 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
             if published_at is None:
                 violations_by_file.setdefault(relative_path, []).append((gav, "unverified"))
             elif published_at > cutoff:
-                if gav not in fallback_cache:
-                    group_id, artifact_id, version = gav.split(":", 2)
-                    baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
+                group_id, artifact_id, version = gav.split(":", 2)
+                baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
+                cache_key = f"{gav}@{baseline_version}"
+                if cache_key not in fallback_cache:
                     eligible = find_eligible_version(
                         group_id=group_id, artifact_id=artifact_id,
                         too_new_version=version, baseline_version=baseline_version,
                         cutoff=cutoff, repo_urls=repo_urls,
                     )
-                    fallback_cache[gav] = f"{group_id}:{artifact_id}:{eligible[0]}" if eligible else None
-                replacement = fallback_cache[gav]
+                    fallback_cache[cache_key] = f"{group_id}:{artifact_id}:{eligible[0]}" if eligible else None
+                replacement = fallback_cache[cache_key]
                 if replacement:
                     replacements_by_file.setdefault(relative_path, {})[gav] = replacement
                     print(f"Downgraded {gav} -> {replacement} (cutoff {format_datetime(cutoff)})")
