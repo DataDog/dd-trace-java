@@ -29,11 +29,28 @@ import java.util.Objects;
  * <p>The handlers are reset on the aggregator thread every reporting cycle via {@link
  * #resetCardinalityHandlers()}.
  *
+ * <p><b>Deliberate cohesion.</b> This class concentrates the per-field {@code
+ * PropertyCardinalityHandler}/{@code TagCardinalityHandler} infrastructure, the canonicalized label
+ * fields, the encoded {@code peerTags} list used by the serializer, the {@link Canonical} scratch
+ * buffer, and the mutable counter/histogram aggregate state on a single object. The prior design
+ * split label fields and aggregate state across separate {@code MetricKey} and {@code
+ * AggregateMetric} instances, allocating both per unique key on miss; folding them yields one
+ * allocation per unique key. The class is wider than its predecessors as a result, but that's the
+ * trade we explicitly chose.
+ *
  * <p><b>Thread-safety:</b> not thread-safe. Counter and histogram updates, cardinality-handler
  * registration, and {@link Canonical} use all run on the aggregator thread. Producer threads tag
  * durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and hand them off through the
  * snapshot inbox. Test code uses {@link #of} which constructs entries without touching the
  * cardinality handlers.
+ *
+ * <p><b>Single-writer invariant relies on convention.</b> The aggregator thread is the only mutator
+ * of this class and of {@link AggregateTable}. The {@code SuppressFBWarnings} below documents this
+ * assumption but nothing enforces it at runtime -- a stray mutation from a different thread (e.g.
+ * an HTTP-client callback) would corrupt counters, cardinality-handler state, or hashtable chains
+ * silently. The {@code ClearSignal} routing in {@link Aggregator} is the explicit mechanism for
+ * funneling cross-thread requests (e.g. {@code disable()}) back onto the aggregator thread; any new
+ * entry point that mutates aggregate state must do the same.
  */
 @SuppressFBWarnings(
     value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
