@@ -1,0 +1,13 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    coreJdk('11')
+  }
+}
+
+dependencies {
+  testImplementation libs.bundles.junit5
+  testImplementation libs.bundles.mockito
+  testImplementation libs.bytebuddy
+}

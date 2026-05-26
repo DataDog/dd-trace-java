@@ -3,6 +3,7 @@ package datadog.libs.ddprof;
 import com.datadoghq.profiler.JVMAccess;
 import com.datadoghq.profiler.JavaProfiler;
 import com.datadoghq.profiler.OTelContext;
+import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
@@ -10,6 +11,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
+import java.util.Collections;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
 import org.slf4j.Logger;
@@ -129,10 +131,12 @@ public final class DdprofLibraryLoader {
     try {
       ConfigProvider configProvider = ConfigProvider.getInstance();
       String scratch = getScratchDir(configProvider);
+      boolean delegateMonitorEvents = shouldDelegateMonitorEvents(configProvider);
       profiler =
           JavaProfiler.getInstance(
               configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
-              scratch);
+              scratch,
+              delegateMonitorEvents);
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
     } catch (Throwable t) {
@@ -140,6 +144,22 @@ public final class DdprofLibraryLoader {
       profiler = null;
     }
     return new JavaProfilerHolder(profiler, reasonNotLoaded);
+  }
+
+  private static boolean shouldDelegateMonitorEvents(ConfigProvider configProvider) {
+    boolean requested =
+        configProvider.getBoolean(
+            ProfilingConfig.PROFILING_DELEGATE_MONITOR_EVENTS_TO_AGENT,
+            ProfilingConfig.PROFILING_DELEGATE_MONITOR_EVENTS_TO_AGENT_DEFAULT);
+    if (!requested) {
+      return false;
+    }
+
+    InstrumenterConfig instrumenterConfig = InstrumenterConfig.get();
+    return instrumenterConfig.isIntegrationsEnabled()
+        && instrumenterConfig.isIntegrationEnabled(Collections.singletonList("object-wait"), true)
+        && instrumenterConfig.isIntegrationEnabled(
+            Collections.singletonList("synchronized-contention"), true);
   }
 
   private static JVMAccessHolder initJVMAccess() {

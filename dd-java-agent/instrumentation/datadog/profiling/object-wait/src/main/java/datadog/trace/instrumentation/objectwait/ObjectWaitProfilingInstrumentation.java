@@ -18,8 +18,8 @@ import net.bytebuddy.asm.Advice;
  *
  * <p>In JDK 21+, {@code wait(long)} is a pure-Java wrapper around the native {@code wait0(long)},
  * so ByteBuddy can add advice to it. In JDK 8-20 the method is declared {@code native} and is not
- * instrumented by this class (Approach 1 osThreadState precheck already suppresses SIGVTALRM for
- * threads in OBJECT_WAIT state on all JDK versions).
+ * instrumented by this class; the native profiler's JVMTI {@code MonitorWait}/{@code MonitorWaited}
+ * callbacks cover that population instead.
  *
  * <p>Only {@code wait(long)} is instrumented: {@code wait()} delegates to {@code wait(0L)} and
  * {@code wait(long, int)} delegates to {@code wait(long)}, so all wait variants are covered.

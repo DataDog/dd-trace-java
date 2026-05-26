@@ -36,6 +36,55 @@ public final class TaskBlockHelper {
     return capture(blocker, AgentTracer.get().getProfilingContext(), AgentTracer.activeSpan());
   }
 
+  public static State captureForMonitor(Object monitor) {
+    try {
+      if (monitor == null) {
+        return null;
+      }
+      return capture(System.identityHashCode(monitor));
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
+  /**
+   * Capture entry-point for {@code Thread.sleep} bracketing. The blocker key is {@code 0} because a
+   * sleep has no associated monitor identity; consumers distinguishing sleep from other populations
+   * should rely on the call-site context (or future helper-specific marker) rather than on {@code
+   * State.blocker}. Returns {@code null} (so {@link #finish(State)} is a no-op) when no profiling
+   * context is active — matches the fast-path of {@link #capture(long)} so sleep sites in untraced
+   * code carry zero allocation cost.
+   */
+  public static State captureForSleep() {
+    return captureSafely(0L);
+  }
+
+  /**
+   * Capture entry-point for blocking I/O bracketing (currently used by the {@code nio-selector}
+   * instrumentation). The blocker key is the file descriptor or fd-hash supplied by the caller (or
+   * {@code 0} when not available, e.g. {@code Selector.select} which watches a set of fds). Returns
+   * {@code null} when no profiling context is active.
+   */
+  public static State captureForIo(long fd) {
+    return captureSafely(fd);
+  }
+
+  static State captureSafely(long blocker) {
+    try {
+      return capture(blocker);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
+  static State captureSafely(long blocker, ProfilingContextIntegration profiling, AgentSpan span) {
+    try {
+      return capture(blocker, profiling, span);
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
   static State capture(long blocker, ProfilingContextIntegration profiling, AgentSpan span) {
     if (profiling == null) {
       return null;
@@ -53,6 +102,12 @@ public final class TaskBlockHelper {
     if (state == null || System.nanoTime() - state.startNanos < MIN_TASK_BLOCK_NANOS) {
       return;
     }
-    state.profiling.recordTaskBlock(state.startTicks, state.blocker, 0L);
+    try {
+      state.profiling.recordTaskBlock(state.startTicks, state.blocker, 0L);
+    } catch (Throwable ignored) {
+      // Bytecode-injected sites must not propagate exceptions from instrumentation — a throw here
+      // could leak a held monitor at a synchronized(obj){} site where the javac-emitted
+      // try-region starts only after our injected finish() call.
+    }
   }
 }
