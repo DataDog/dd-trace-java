@@ -16,8 +16,12 @@ import java.util.function.Consumer;
  * AggregateEntry.Canonical} scratch buffer; on a hit nothing is allocated, on a miss the buffer's
  * references are copied into a fresh entry and the buffer is overwritten on the next call.
  *
- * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer; {@link #clear()} must be
- * routed through the inbox rather than called from arbitrary threads.
+ * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
+ * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
+ * {@link ConflatingMetricsAggregator#disable()} -- must funnel onto the aggregator thread via the
+ * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
+ * bucket chains silently.
  */
 final class AggregateTable {
 
