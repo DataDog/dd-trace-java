@@ -419,9 +419,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
    * Cheap fast path: an equality check against the cached schema's embedded {@link
    * DDAgentFeaturesDiscovery#state()} hash short-circuits when discovery's response hasn't changed
    * since the schema was built. On mismatch, a set compare distinguishes "discovery response
-   * changed but peer tags are the same" (just update the cached state in place to preserve the
-   * warm cardinality handlers) from "tags actually
-   * changed" (build a new schema and swap the volatile reference).
+   * changed but peer tags are the same" (just update the cached state in place to preserve the warm
+   * cardinality handlers) from "tags actually changed" (build a new schema and swap the volatile
+   * reference).
    */
   private void reconcilePeerTagSchema() {
     PeerTagSchema cached = cachedPeerTagSchema;
