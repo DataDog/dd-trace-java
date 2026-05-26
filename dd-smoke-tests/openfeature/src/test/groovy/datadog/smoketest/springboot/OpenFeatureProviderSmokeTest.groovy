@@ -126,6 +126,9 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     final responseBody = new JsonSlurper().parse(response.body().byteStream())
     responseBody.value == testCase.result.value
     responseBody.reason == testCase.result.reason
+    if (testCase.result.containsKey('errorCode')) {
+      assert responseBody.errorCode == testCase.result.errorCode
+    }
     if (testCase.result.containsKey('variant')) {
       assert responseBody.variant == testCase.result.variant
     }
