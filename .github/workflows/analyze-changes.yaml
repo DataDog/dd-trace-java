@@ -30,7 +30,7 @@ jobs:
             ${{ runner.os }}-gradle-
         
       - name: Initialize CodeQL
-        uses: github/codeql-action/init@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/init@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         with:
           languages: 'java'
           build-mode: 'manual'
@@ -43,7 +43,7 @@ jobs:
           ./gradlew clean :dd-java-agent:shadowJar --build-cache --parallel --stacktrace --no-daemon --max-workers=4
 
       - name: Perform CodeQL Analysis and upload results to GitHub Security tab
-        uses: github/codeql-action/analyze@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/analyze@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
 
   trivy:
     name: Analyze changes with Trivy
@@ -102,16 +102,17 @@ jobs:
           TRIVY_JAVA_DB_REPOSITORY: ghcr.io/aquasecurity/trivy-java-db,public.ecr.aws/aquasecurity/trivy-java-db
 
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@e46ed2cbd01164d986452f91f178727624ae40d7 # v4.35.3
+        uses: github/codeql-action/upload-sarif@9e0d7b8d25671d64c341c19c0152d693099fb5ba # v4.35.5
         if: always()
         with:
           sarif_file: 'trivy-results.sarif'
 
+      - name: Install datadog-ci
+        uses: DataDog/install-datadog-ci-github-action@6d7f0c7c5402a4b1912055b76970ca76bef71fe5 # v1.0.4
+        with:
+          version: v5.17.0
       - name: Upload results to Datadog CI Static Analysis
-        run: |
-          wget --no-verbose https://github.com/DataDog/datadog-ci/releases/latest/download/datadog-ci_linux-x64 -O datadog-ci
-          chmod +x datadog-ci
-          ./datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
+        run: datadog-ci sarif upload trivy-results.sarif --service dd-trace-java --env ci
         env:
           DD_API_KEY: ${{ secrets.DATADOG_API_KEY_PROD }}
           DD_SITE: datadoghq.com

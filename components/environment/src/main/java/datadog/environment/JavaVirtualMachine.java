@@ -116,6 +116,10 @@ public final class JavaVirtualMachine {
     return isIbm() && isJavaVersion(8);
   }
 
+  public static boolean isZulu8() {
+    return runtime.vendor.contains("Azul") && isJavaVersion(8);
+  }
+
   public static boolean isGraalVM() {
     return runtime.vendorVersion.toLowerCase().contains("graalvm");
   }
