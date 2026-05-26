@@ -15,4 +15,9 @@ public class MetadataState {
   public PendingConfig takePendingConfig() {
     return pendingConfig.getAndSet(null);
   }
+
+  /** Snapshot the pending config without clearing it. */
+  public PendingConfig peekPendingConfig() {
+    return pendingConfig.get();
+  }
 }
