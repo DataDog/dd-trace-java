@@ -5638,7 +5638,7 @@ public class Config {
   }
 
   public boolean isDbmInjectSqlBaseHash() {
-    return dbmInjectSqlBaseHash;
+    return dbmInjectSqlBaseHash || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
   }
 
   public boolean isDbmTracePreparedStatements() {
@@ -5656,6 +5656,7 @@ public class Config {
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
+  public static final String DBM_PROPAGATION_MODE_DYNAMIC_SERVICE = "dynamic_service";
 
   // Helper method to check if comment injection is enabled
   public boolean isDbmCommentInjectionEnabled() {
@@ -5663,7 +5664,8 @@ public class Config {
       return false;
     }
     return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
-        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC)
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   }
 
   private void logIgnoredSettingWarning(
