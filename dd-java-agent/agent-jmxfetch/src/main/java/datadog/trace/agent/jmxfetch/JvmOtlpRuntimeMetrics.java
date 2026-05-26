@@ -17,6 +17,9 @@ import datadog.trace.bootstrap.otel.metrics.OtelInstrumentType;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricRegistry;
 import datadog.trace.bootstrap.otel.metrics.data.OtelMetricStorage;
 import datadog.trace.bootstrap.otel.metrics.data.OtelRunnableObservable;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
+import java.lang.invoke.MethodType;
 import java.lang.management.BufferPoolMXBean;
 import java.lang.management.ClassLoadingMXBean;
 import java.lang.management.GarbageCollectorMXBean;
@@ -24,10 +27,13 @@ import java.lang.management.ManagementFactory;
 import java.lang.management.MemoryMXBean;
 import java.lang.management.MemoryPoolMXBean;
 import java.lang.management.MemoryUsage;
+import java.lang.management.ThreadInfo;
 import java.lang.management.ThreadMXBean;
 import java.util.Arrays;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -58,8 +64,67 @@ public final class JvmOtlpRuntimeMetrics {
   private static final AttributeKey<String> GC_NAME = AttributeKey.stringKey("jvm.gc.name");
   private static final AttributeKey<String> GC_ACTION = AttributeKey.stringKey("jvm.gc.action");
   private static final AttributeKey<String> GC_CAUSE = AttributeKey.stringKey("jvm.gc.cause");
+  private static final AttributeKey<Boolean> THREAD_DAEMON =
+      AttributeKey.booleanKey("jvm.thread.daemon");
+  private static final AttributeKey<String> THREAD_STATE =
+      AttributeKey.stringKey("jvm.thread.state");
   private static final Attributes HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "heap");
   private static final Attributes NON_HEAP_ATTRS = Attributes.of(MEMORY_TYPE, "non_heap");
+
+  /**
+   * Precomputed Attributes for each (daemon, Thread.State) pair, used by jvm.thread.count. There
+   * are only 12 combinations, so caching avoids per-poll allocation of identical Attribute objects.
+   */
+  private static final Attributes[] DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(true);
+
+  private static final Attributes[] NON_DAEMON_THREAD_STATE_ATTRS = buildThreadStateAttrs(false);
+
+  private static Attributes[] buildThreadStateAttrs(boolean daemon) {
+    Thread.State[] states = Thread.State.values();
+    Attributes[] result = new Attributes[states.length];
+    for (Thread.State state : states) {
+      result[state.ordinal()] =
+          Attributes.of(THREAD_DAEMON, daemon, THREAD_STATE, state.name().toLowerCase(Locale.ROOT));
+    }
+    return result;
+  }
+
+  /**
+   * MethodHandle for {@code ThreadInfo#isDaemon()}: non-null on Java 9+, null on Java 8. Doubles as
+   * the Java-version probe since this code is compiled against Java 8 and cannot reference the
+   * symbol directly.
+   */
+  private static final MethodHandle THREAD_INFO_IS_DAEMON = resolveThreadInfoIsDaemon();
+
+  private static final ThreadMXBean THREAD_BEAN = ManagementFactory.getThreadMXBean();
+
+  /**
+   * jvm.thread.count collector, chosen once at class load. Java 9+ uses {@link
+   * ThreadMXBean#getThreadInfo(long[])} (the single-arg overload omits stack-trace capture); Java 8
+   * (and GraalVM native image, where ThreadMXBean is unsupported) walks the root {@link
+   * ThreadGroup}. Avoids {@link Thread#getAllStackTraces()}, which forces a safepoint and allocates
+   * a {@code StackTraceElement[]} per thread on every poll.
+   */
+  private static final Consumer<OtelMetricStorage> THREAD_COUNT_COLLECTOR =
+      chooseThreadCountCollector();
+
+  private static MethodHandle resolveThreadInfoIsDaemon() {
+    try {
+      return MethodHandles.publicLookup()
+          .findVirtual(ThreadInfo.class, "isDaemon", MethodType.methodType(boolean.class));
+    } catch (NoSuchMethodException | IllegalAccessException e) {
+      return null; // Java 8 — fall back to ThreadGroup walk
+    }
+  }
+
+  private static Consumer<OtelMetricStorage> chooseThreadCountCollector() {
+    boolean isJava9OrNewer = THREAD_INFO_IS_DAEMON != null;
+    boolean isNativeImage = System.getProperty("org.graalvm.nativeimage.imagecode") != null;
+    if (isJava9OrNewer && !isNativeImage) {
+      return JvmOtlpRuntimeMetrics::collectThreadCountsViaThreadMXBean;
+    }
+    return JvmOtlpRuntimeMetrics::collectThreadCountsViaThreadGroup;
+  }
 
   /** Explicit bucket advice for jvm.gc.duration in seconds (matches OTel runtime-telemetry). */
   private static final List<Double> GC_DURATION_BUCKETS = Arrays.asList(0.01, 0.1, 1.0, 10.0);
@@ -186,6 +251,7 @@ public final class JvmOtlpRuntimeMetrics {
   /** jvm.memory.init (UpDownCounter, Development). */
   private static void registerMemoryInitMetric() {
     MemoryMXBean memoryBean = ManagementFactory.getMemoryMXBean();
+    List<MemoryPoolMXBean> pools = ManagementFactory.getMemoryPoolMXBeans();
     registerLongObservable(
         "jvm.memory.init",
         "Measure of initial memory requested.",
@@ -199,6 +265,12 @@ public final class JvmOtlpRuntimeMetrics {
           long nonHeapInit = memoryBean.getNonHeapMemoryUsage().getInit();
           if (nonHeapInit != -1) {
             storage.recordLong(nonHeapInit, NON_HEAP_ATTRS);
+          }
+          for (MemoryPoolMXBean pool : pools) {
+            long init = pool.getUsage().getInit();
+            if (init != -1) {
+              storage.recordLong(init, poolAttributes(pool));
+            }
           }
         });
   }
@@ -227,15 +299,91 @@ public final class JvmOtlpRuntimeMetrics {
         BufferPoolMXBean::getCount);
   }
 
-  /** jvm.thread.count (UpDownCounter, Stable). */
+  /**
+   * jvm.thread.count (UpDownCounter, Stable). Bucketed by {@code jvm.thread.daemon} and {@code
+   * jvm.thread.state} per the OTel JVM semantic conventions.
+   */
   private static void registerThreadMetrics() {
-    ThreadMXBean threadBean = ManagementFactory.getThreadMXBean();
     registerLongObservable(
         "jvm.thread.count",
         "Number of executing platform threads.",
         "{thread}",
         UP_DOWN_COUNTER,
-        storage -> storage.recordLong(threadBean.getThreadCount(), Attributes.empty()));
+        THREAD_COUNT_COLLECTOR);
+  }
+
+  /**
+   * Java 9+ path. Enumerates threads via {@link ThreadMXBean#getThreadInfo(long[])}; the single-arg
+   * overload omits stack-trace capture, avoiding the safepoint and per-frame allocation incurred by
+   * {@link Thread#getAllStackTraces()}.
+   */
+  private static void collectThreadCountsViaThreadMXBean(OtelMetricStorage storage) {
+    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
+    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    long[] ids = THREAD_BEAN.getAllThreadIds();
+    for (ThreadInfo info : THREAD_BEAN.getThreadInfo(ids)) {
+      if (info == null) {
+        continue; // thread terminated between getAllThreadIds and getThreadInfo
+      }
+      Map<Thread.State, long[]> bucket = threadInfoIsDaemon(info) ? daemonCounts : nonDaemonCounts;
+      bucket.computeIfAbsent(info.getThreadState(), k -> new long[1])[0]++;
+    }
+    recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
+    recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
+  }
+
+  /**
+   * Java 8 / GraalVM fallback. Walks the root {@link ThreadGroup} because {@code
+   * ThreadInfo.isDaemon()} was added in Java 9 and {@link ThreadMXBean} is not supported on GraalVM
+   * native images.
+   */
+  private static void collectThreadCountsViaThreadGroup(OtelMetricStorage storage) {
+    Map<Thread.State, long[]> daemonCounts = new EnumMap<>(Thread.State.class);
+    Map<Thread.State, long[]> nonDaemonCounts = new EnumMap<>(Thread.State.class);
+    for (Thread thread : enumerateAllThreads()) {
+      Map<Thread.State, long[]> bucket = thread.isDaemon() ? daemonCounts : nonDaemonCounts;
+      bucket.computeIfAbsent(thread.getState(), k -> new long[1])[0]++;
+    }
+    recordThreadStateCounts(storage, daemonCounts, DAEMON_THREAD_STATE_ATTRS);
+    recordThreadStateCounts(storage, nonDaemonCounts, NON_DAEMON_THREAD_STATE_ATTRS);
+  }
+
+  /** Invokes {@code ThreadInfo#isDaemon()} via {@link #THREAD_INFO_IS_DAEMON} (Java 9+ only). */
+  private static boolean threadInfoIsDaemon(ThreadInfo info) {
+    try {
+      return (boolean) THREAD_INFO_IS_DAEMON.invoke(info);
+    } catch (Throwable t) {
+      throw new IllegalStateException("Unexpected error invoking ThreadInfo#isDaemon()", t);
+    }
+  }
+
+  /**
+   * Walks the root {@link ThreadGroup} and returns a snapshot of active threads. Allocates a
+   * slightly oversized buffer to absorb threads created between {@code activeCount()} and {@code
+   * enumerate()}; if the buffer is still too small the returned array may be truncated.
+   */
+  private static Thread[] enumerateAllThreads() {
+    ThreadGroup group = Thread.currentThread().getThreadGroup();
+    // ThreadGroup.enumerate() recursively descends through children by default, so enumerating from
+    // the root gives every live thread in the JVM.
+    while (group.getParent() != null) {
+      group = group.getParent();
+    }
+    Thread[] buffer = new Thread[group.activeCount() + 10];
+    int n = group.enumerate(buffer);
+    if (n == buffer.length) {
+      return buffer;
+    }
+    Thread[] trimmed = new Thread[n];
+    System.arraycopy(buffer, 0, trimmed, 0, n);
+    return trimmed;
+  }
+
+  private static void recordThreadStateCounts(
+      OtelMetricStorage storage, Map<Thread.State, long[]> counts, Attributes[] attrsByState) {
+    for (Map.Entry<Thread.State, long[]> entry : counts.entrySet()) {
+      storage.recordLong(entry.getValue()[0], attrsByState[entry.getKey().ordinal()]);
+    }
   }
 
   /**
@@ -273,16 +421,17 @@ public final class JvmOtlpRuntimeMetrics {
    * Stable per spec.
    */
   private static void registerCpuMetrics() {
-    OperatingSystemMXBean osBean = sunOsBean();
-
-    if (osBean != null) {
+    java.lang.management.OperatingSystemMXBean rawOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    if (rawOsBean instanceof OperatingSystemMXBean) {
+      OperatingSystemMXBean sunOsBean = (OperatingSystemMXBean) rawOsBean;
       registerDoubleObservable(
           "jvm.cpu.time",
           "CPU time used by the process as reported by the JVM.",
           "s",
           COUNTER,
           storage -> {
-            long nanos = osBean.getProcessCpuTime();
+            long nanos = sunOsBean.getProcessCpuTime();
             if (nanos >= 0) {
               storage.recordDouble(nanos / 1e9, Attributes.empty());
             }
@@ -294,7 +443,7 @@ public final class JvmOtlpRuntimeMetrics {
           "1",
           GAUGE,
           storage -> {
-            double cpuLoad = osBean.getProcessCpuLoad();
+            double cpuLoad = sunOsBean.getProcessCpuLoad();
             if (cpuLoad >= 0) {
               storage.recordDouble(cpuLoad, Attributes.empty());
             }
@@ -348,7 +497,7 @@ public final class JvmOtlpRuntimeMetrics {
           false,
           GarbageCollectorMXBean.class.getClassLoader());
       return true;
-    } catch (ClassNotFoundException e) {
+    } catch (Exception e) {
       return false;
     }
   }
@@ -382,6 +531,10 @@ public final class JvmOtlpRuntimeMetrics {
     public void handleNotification(Notification notification, Object handback) {
       GarbageCollectionNotificationInfo info =
           GarbageCollectionNotificationInfo.from((CompositeData) notification.getUserData());
+      if (info == null) {
+        log.debug("Skipping jvm.gc.duration record: GC notification carried no info payload");
+        return;
+      }
       recordGcDuration(storage, info, captureGcCause);
     }
   }
@@ -391,15 +544,17 @@ public final class JvmOtlpRuntimeMetrics {
    * spec.
    */
   private static void registerSystemCpuMetrics() {
-    OperatingSystemMXBean osBean = sunOsBean();
-    if (osBean != null) {
+    java.lang.management.OperatingSystemMXBean rawOsBean =
+        ManagementFactory.getOperatingSystemMXBean();
+    if (rawOsBean instanceof OperatingSystemMXBean) {
+      OperatingSystemMXBean sunOsBean = (OperatingSystemMXBean) rawOsBean;
       registerDoubleObservable(
           "jvm.system.cpu.utilization",
           "Recent CPU utilization for the whole system as reported by the JVM.",
           "1",
           GAUGE,
           storage -> {
-            double load = osBean.getSystemCpuLoad();
+            double load = sunOsBean.getSystemCpuLoad();
             if (load >= 0) {
               storage.recordDouble(load, Attributes.empty());
             }
@@ -409,15 +564,13 @@ public final class JvmOtlpRuntimeMetrics {
           "com.sun.management.OperatingSystemMXBean not available; skipping jvm.system.cpu.utilization");
     }
 
-    java.lang.management.OperatingSystemMXBean stdOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
     registerDoubleObservable(
         "jvm.system.cpu.load_1m",
         "Average CPU load of the whole system for the last minute as reported by the JVM.",
         "{run_queue_item}",
         GAUGE,
         storage -> {
-          double load = stdOsBean.getSystemLoadAverage();
+          double load = rawOsBean.getSystemLoadAverage();
           if (load >= 0) {
             storage.recordDouble(load, Attributes.empty());
           }
@@ -462,13 +615,6 @@ public final class JvmOtlpRuntimeMetrics {
             storage.recordLong(limit, Attributes.empty());
           }
         });
-  }
-
-  /** Returns the {@code com.sun.management} OS bean if available on this JVM, else {@code null}. */
-  private static OperatingSystemMXBean sunOsBean() {
-    java.lang.management.OperatingSystemMXBean rawOsBean =
-        ManagementFactory.getOperatingSystemMXBean();
-    return rawOsBean instanceof OperatingSystemMXBean ? (OperatingSystemMXBean) rawOsBean : null;
   }
 
   /**
