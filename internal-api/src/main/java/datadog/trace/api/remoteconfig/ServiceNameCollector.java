@@ -72,4 +72,9 @@ public class ServiceNameCollector {
   public void clear() {
     services.clear();
   }
+
+  // Visible for testing
+  static void setInstance(ServiceNameCollector instance) {
+    INSTANCE = instance;
+  }
 }
