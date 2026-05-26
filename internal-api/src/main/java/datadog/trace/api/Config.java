@@ -1790,7 +1790,9 @@ public class Config {
         configProvider.getBoolean(
             DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
-    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
+    dbmInjectSqlBaseHash =
+        configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
+            || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -5681,6 +5683,7 @@ public class Config {
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
+  public static final String DBM_PROPAGATION_MODE_DYNAMIC_SERVICE = "dynamic_service";
 
   // Helper method to check if comment injection is enabled
   public boolean isDbmCommentInjectionEnabled() {
@@ -5688,7 +5691,8 @@ public class Config {
       return false;
     }
     return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
-        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC)
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   }
 
   private void logIgnoredSettingWarning(
