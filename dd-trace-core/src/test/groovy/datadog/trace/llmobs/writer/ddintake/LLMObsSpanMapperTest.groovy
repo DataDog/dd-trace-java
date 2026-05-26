@@ -36,6 +36,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
       .withTag("_ml_obs_metric.input_tokens", 50)
       .withTag("_ml_obs_metric.output_tokens", 25)
       .withTag("_ml_obs_metric.total_tokens", 75)
+      .withTag("_ml_obs_tag.session_id", "abc-123-session")
       .start()
 
     llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
@@ -132,6 +133,10 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanData["_dd"]["trace_id"] == spanData["trace_id"]
     spanData["_dd"]["apm_trace_id"] == spanData["trace_id"]
 
+    // Top-level session_id field — what the LLM Trace Explorer's Sessions filter queries.
+    spanData.containsKey("session_id")
+    spanData["session_id"] == "abc-123-session"
+
     spanData.containsKey("meta")
     spanData["meta"]["span.kind"] == "llm"
     spanData["meta"].containsKey("error")
@@ -176,6 +181,7 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
 
     spanData.containsKey("tags")
     spanData["tags"].contains("language:jvm")
+    spanData["tags"].contains("session_id:abc-123-session")
   }
 
   def "test LLMObsSpanMapper writes no spans when none are LLMObs spans"() {
@@ -295,6 +301,63 @@ class LLMObsSpanMapperTest extends DDCoreSpecification {
     spanNames.contains("chat-completion-1")
     spanNames.contains("chat-completion-2")
     spanNames.contains("chat-completion-3")
+  }
+
+  def "test LLMObsSpanMapper omits top-level session_id when not set"() {
+    setup:
+    def mapper = new LLMObsSpanMapper()
+    def tracer = tracerBuilder().writer(new ListWriter()).build()
+
+    def llmSpan = tracer.buildSpan("datadog", "openai.request")
+      .withResourceName("createCompletion")
+      .withTag("_ml_obs_tag.span.kind", Tags.LLMOBS_LLM_SPAN_KIND)
+      .withTag("_ml_obs_tag.model_name", "gpt-4")
+      .withTag("_ml_obs_tag.model_provider", "openai")
+      .start()
+    llmSpan.setSpanType(InternalSpanTypes.LLMOBS)
+    llmSpan.finish()
+
+    def trace = [llmSpan]
+    CapturingByteBufferConsumer sink = new CapturingByteBufferConsumer()
+    MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(16 * 1024, sink))
+
+    when:
+    packer.format(trace, mapper)
+    packer.flush()
+
+    then:
+    sink.captured != null
+    def payload = mapper.newPayload()
+    payload.withBody(1, sink.captured)
+
+    def channel = new ByteArrayOutputStream()
+    payload.writeTo(new WritableByteChannel() {
+        @Override
+        int write(ByteBuffer src) throws IOException {
+          def bytes = new byte[src.remaining()]
+          src.get(bytes)
+          channel.write(bytes)
+          return bytes.length
+        }
+
+        @Override
+        boolean isOpen() {
+          return true
+        }
+
+        @Override
+        void close() throws IOException { }
+      })
+
+    def result = objectMapper.readValue(channel.toByteArray(), Map)
+    def spanData = result["spans"][0]
+
+    then:
+    // No top-level session_id field when the tag was never set.
+    !spanData.containsKey("session_id")
+
+    // And no session_id entry leaks into tags[] either.
+    spanData["tags"].every { !it.startsWith("session_id:") }
   }
 
   static class CapturingByteBufferConsumer implements ByteBufferConsumer {
