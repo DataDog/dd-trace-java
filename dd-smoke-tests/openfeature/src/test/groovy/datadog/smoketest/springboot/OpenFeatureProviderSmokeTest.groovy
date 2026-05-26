@@ -170,8 +170,7 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
   private List<Map<String, String>> uniqueExpectedExposures(final List<Map<String, Object>> results) {
     final expected = []
     final seen = [] as Set<String>
-    results.each {
-      result ->
+    results.each { result ->
       final testCase = result.testCase as Map<String, Object>
       final body = result.body as Map<String, Object>
       final flag = testCase.flag as String
@@ -201,10 +200,8 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
 
   private static Map<String, Boolean> buildLoggedAllocations(final Map<String, Object> config) {
     final logged = [:]
-    (config.flags as Map<String, Object>).each {
-      flag, definition ->
-      (definition.allocations ?: []).each {
-        allocation ->
+    (config.flags as Map<String, Object>).each { flag, definition ->
+      (definition.allocations ?: []).each { allocation ->
         logged["${flag}\u0000${allocation.key}"] = allocation.doLog == true
       }
     }
