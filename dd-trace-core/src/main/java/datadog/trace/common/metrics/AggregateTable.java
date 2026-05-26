@@ -16,8 +16,12 @@ import java.util.function.Consumer;
  * (formerly held on {@code AggregateMetric}) both live on the {@link AggregateEntry} now, built
  * once per unique key at insert time.
  *
- * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer; {@link #clear()} must be
- * routed through the inbox rather than called from arbitrary threads.
+ * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
+ * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
+ * {@link ConflatingMetricsAggregator#disable()} -- must funnel onto the aggregator thread via the
+ * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
+ * bucket chains silently.
  */
 final class AggregateTable {
 
