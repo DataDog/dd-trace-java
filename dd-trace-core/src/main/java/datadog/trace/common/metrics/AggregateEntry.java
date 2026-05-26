@@ -157,7 +157,20 @@ final class AggregateEntry extends Hashtable.Entry {
     this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
   }
 
-  /** Construct from a snapshot at consumer-thread miss time. */
+  /**
+   * Construct from a snapshot at consumer-thread miss time, using the {@code keyHash} the caller
+   * (typically {@link AggregateTable#findOrInsert}) already computed for the lookup. Avoids a
+   * second pass over the snapshot's fields just to re-hash them.
+   */
+  static AggregateEntry forSnapshot(SpanSnapshot s, long keyHash) {
+    return new AggregateEntry(s, keyHash);
+  }
+
+  /**
+   * Convenience overload that computes the hash itself. For test callers that don't have a
+   * precomputed hash on hand; the production path goes through {@link #forSnapshot(SpanSnapshot,
+   * long)} from {@link AggregateTable#findOrInsert}.
+   */
   static AggregateEntry forSnapshot(SpanSnapshot s) {
     return new AggregateEntry(s, hashOf(s));
   }
