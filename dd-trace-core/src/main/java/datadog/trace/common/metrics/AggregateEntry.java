@@ -14,7 +14,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Objects;
 import java.util.function.Function;
 import javax.annotation.Nullable;
 
@@ -94,8 +93,11 @@ final class AggregateEntry extends Hashtable.Entry {
   // values) shape for matches(), and pre-encoded List<UTF8BytesString> ("name:value") for the
   // serializer. peerTagNames is the schema's names array (shared by-reference when the schema
   // hasn't been replaced); peerTagValues is the per-span String[] parallel to it.
-  @Nullable private final String[] peerTagNames;
-  @Nullable private final String[] peerTagValues;
+  //
+  // Package-private rather than private so test-only helpers (e.g. argument-matcher classes in
+  // the same package) can compare them without going through the encoded list.
+  @Nullable final String[] peerTagNames;
+  @Nullable final String[] peerTagValues;
   private final List<UTF8BytesString> peerTags;
 
   // Mutable aggregate state -- single-thread (consumer/aggregator) writer.
@@ -315,45 +317,10 @@ final class AggregateEntry extends Hashtable.Entry {
     return peerTags;
   }
 
-  /**
-   * Equality on the 13 label fields (not on the aggregate). Used only by test mock matchers; the
-   * {@link Hashtable} does its own bucketing via {@link #keyHash} + {@link #matches(SpanSnapshot)}
-   * and never calls {@code equals}.
-   *
-   * <p>Peer tags are compared via the raw parallel arrays ({@code peerTagNames} and {@code
-   * peerTagValues}) rather than the pre-encoded {@code peerTags} list, so the equality contract
-   * stays consistent with {@link #hashCode()} (which goes through {@link #hashOf} -- driven off the
-   * raw arrays via {@link PeerTagSchema#hashCode} and {@link java.util.Arrays#hashCode}). Comparing
-   * the encoded list would let two entries with different raw layouts collapse to the same encoded
-   * form (e.g. tag {@code "b"} at index 1 in schema A vs index 0 in schema B, with matching values)
-   * and produce {@code equals=true} alongside different {@code hashCode}s -- violating the hashCode
-   * contract.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) return true;
-    if (!(o instanceof AggregateEntry)) return false;
-    AggregateEntry that = (AggregateEntry) o;
-    return httpStatusCode == that.httpStatusCode
-        && synthetic == that.synthetic
-        && traceRoot == that.traceRoot
-        && Objects.equals(resource, that.resource)
-        && Objects.equals(service, that.service)
-        && Objects.equals(operationName, that.operationName)
-        && Objects.equals(serviceSource, that.serviceSource)
-        && Objects.equals(type, that.type)
-        && Objects.equals(spanKind, that.spanKind)
-        && Arrays.equals(peerTagNames, that.peerTagNames)
-        && Arrays.equals(peerTagValues, that.peerTagValues)
-        && Objects.equals(httpMethod, that.httpMethod)
-        && Objects.equals(httpEndpoint, that.httpEndpoint)
-        && Objects.equals(grpcStatusCode, that.grpcStatusCode);
-  }
-
-  @Override
-  public int hashCode() {
-    return (int) keyHash;
-  }
+  // Production AggregateEntry intentionally has no equals/hashCode override -- AggregateTable
+  // bucketing uses keyHash + matches(SpanSnapshot) directly and never invokes Object.equals.
+  // For tests that need value-equality (Spock argument matchers), use the TestAggregateEntry
+  // subclass in src/test, which adds the contract back without exposing it in production.
 
   // ----- helpers -----
 
