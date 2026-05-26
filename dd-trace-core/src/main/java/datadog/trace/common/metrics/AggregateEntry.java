@@ -204,16 +204,16 @@ final class AggregateEntry extends Hashtable.Entry {
         && synthetic == s.synthetic
         && traceRoot == s.traceRoot
         && contentEquals(resource, s.resourceName)
-        && stringContentEquals(service, s.serviceName)
+        && contentEquals(service, s.serviceName)
         && contentEquals(operationName, s.operationName)
         && contentEquals(serviceSource, s.serviceNameSource)
         && contentEquals(type, s.spanType)
-        && stringContentEquals(spanKind, s.spanKind)
+        && contentEquals(spanKind, s.spanKind)
         && Arrays.equals(peerTagNames, snapshotNames)
         && Arrays.equals(peerTagValues, s.peerTagValues)
-        && stringContentEquals(httpMethod, s.httpMethod)
-        && stringContentEquals(httpEndpoint, s.httpEndpoint)
-        && stringContentEquals(grpcStatusCode, s.grpcStatusCode);
+        && contentEquals(httpMethod, s.httpMethod)
+        && contentEquals(httpEndpoint, s.httpEndpoint)
+        && contentEquals(grpcStatusCode, s.grpcStatusCode);
   }
 
   /**
@@ -378,31 +378,11 @@ final class AggregateEntry extends Hashtable.Entry {
    * the hash already agrees with this view.
    */
   private static boolean contentEquals(UTF8BytesString a, CharSequence b) {
-    if (a == null) {
+    if (a == null || a.length() == 0) {
       return b == null || b.length() == 0;
     }
-    if (b == null) {
-      return a.length() == 0;
-    }
     // UTF8BytesString.toString() returns the underlying String -- O(1), no allocation.
-    String aStr = a.toString();
-    if (b instanceof String) {
-      return aStr.equals(b);
-    }
-    if (b instanceof UTF8BytesString) {
-      return aStr.equals(b.toString());
-    }
-    return aStr.contentEquals(b);
-  }
-
-  private static boolean stringContentEquals(UTF8BytesString a, String b) {
-    if (a == null) {
-      return b == null || b.isEmpty();
-    }
-    if (b == null) {
-      return a.length() == 0;
-    }
-    return a.toString().equals(b);
+    return b != null && a.toString().contentEquals(b);
   }
 
   /**
