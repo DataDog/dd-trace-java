@@ -1,21 +1,63 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.util.List;
 import java.util.Objects;
+import javax.annotation.Nullable;
 
 /**
- * Field-wise equality helper for {@link AggregateEntry}, used by Spock mock argument matchers and
- * JUnit assertions. Production {@code AggregateEntry} intentionally has no {@code equals}/{@code
- * hashCode} override -- {@link AggregateTable} bucketing goes through the {@code Canonical} scratch
- * buffer keyed on {@link AggregateEntry#keyHash}, and no production code path invokes {@link
+ * Test-side helpers for {@link AggregateEntry}: a positional-args fixture factory plus a field-wise
+ * equality contract for use with Spock mock argument matchers and JUnit assertions. Lives in {@code
+ * src/test} so the production class stays free of test-only API; same {@code
+ * datadog.trace.common.metrics} package so this helper can reach package-private members.
+ *
+ * <p>Production {@code AggregateEntry} intentionally has no {@code equals}/{@code hashCode}
+ * override -- {@link AggregateTable} bucketing goes through the {@code Canonical} scratch buffer
+ * keyed on {@link AggregateEntry#keyHash}, and no production code path invokes {@link
  * Object#equals}.
  *
  * <p>On this branch, peer tags live as a single pre-encoded {@code List<UTF8BytesString>} on the
  * entry (canonicalization through {@link PeerTagSchema#register} already collapsed identical
  * values), so equality compares the list directly. The hash side (computed in {@link
- * AggregateEntry#hashOf}) also folds in the encoded list, so the contract is consistent.
+ * AggregateEntry#hashOf}) folds in the encoded list, so the contract stays consistent.
  */
 public final class AggregateEntryTestUtils {
   private AggregateEntryTestUtils() {}
+
+  /**
+   * Builds an {@link AggregateEntry} from the same positional shape the prior {@code new
+   * MetricKey(...)} took. Passes through to {@link AggregateEntry#of} without touching the
+   * cardinality handlers.
+   */
+  public static AggregateEntry of(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      @Nullable CharSequence serviceSource,
+      CharSequence type,
+      int httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      CharSequence spanKind,
+      @Nullable List<UTF8BytesString> peerTags,
+      @Nullable CharSequence httpMethod,
+      @Nullable CharSequence httpEndpoint,
+      @Nullable CharSequence grpcStatusCode) {
+    return AggregateEntry.of(
+        resource,
+        service,
+        operationName,
+        serviceSource,
+        type,
+        httpStatusCode,
+        synthetic,
+        traceRoot,
+        spanKind,
+        peerTags,
+        httpMethod,
+        httpEndpoint,
+        grpcStatusCode);
+  }
 
   /**
    * Whether {@code a} and {@code b} carry identical label fields. Counter and histogram state is
