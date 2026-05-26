@@ -10,8 +10,8 @@ import javax.annotation.Nullable;
  * reach {@link AggregateEntry#forSnapshot(SpanSnapshot)} and the package-private {@link
  * SpanSnapshot} constructor.
  */
-public final class AggregateEntries {
-  private AggregateEntries() {}
+public final class AggregateEntryFixtures {
+  private AggregateEntryFixtures() {}
 
   /**
    * Builds an {@link AggregateEntry} from the same positional shape the prior {@code new
