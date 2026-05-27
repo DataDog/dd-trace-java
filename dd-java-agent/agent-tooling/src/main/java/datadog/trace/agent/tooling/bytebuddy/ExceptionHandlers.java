@@ -106,19 +106,19 @@ public class ExceptionHandlers {
           // Build the log message:
           //   "Failed to handle exception in instrumentation for <type> (" + adviceName + ")"
           // <type> is a generation-time constant baked into the prefix LDC.
-          // stack: (top) throwable, adviceName
+          // stack: (top) adviceName, throwable
           mv.visitLdcInsn(
               "Failed to handle exception in instrumentation for " + instrumentedTypeName + " (");
-          // stack: throwable, adviceName, prefix
+          // stack: prefix (top), adviceName, throwable
           mv.visitInsn(Opcodes.SWAP);
-          // stack: throwable, prefix, adviceName
+          // stack: adviceName (top), prefix, throwable
           mv.visitMethodInsn(
               Opcodes.INVOKEVIRTUAL,
               "java/lang/String",
               "concat",
               "(Ljava/lang/String;)Ljava/lang/String;",
               false);
-          // stack: throwable, "Failed to ... (<adviceName>"
+          // stack: "Failed to ... (<adviceName>" (top), throwable
           mv.visitLdcInsn(")");
           mv.visitMethodInsn(
               Opcodes.INVOKEVIRTUAL,
@@ -126,9 +126,9 @@ public class ExceptionHandlers {
               "concat",
               "(Ljava/lang/String;)Ljava/lang/String;",
               false);
-          // stack: throwable, message
+          // stack: message (top), throwable
           mv.visitInsn(Opcodes.SWAP);
-          // stack: message, throwable
+          // stack: throwable(top), message
 
           mv.visitLdcInsn(Type.getType("L" + HANDLER_NAME + ";"));
           mv.visitMethodInsn(
@@ -137,11 +137,11 @@ public class ExceptionHandlers {
               "getLogger",
               "(Ljava/lang/Class;)L" + LOGGER_NAME + ";",
               false);
-          // stack: message, throwable, logger
+          // stack: logger (top), throwable, message
           mv.visitInsn(Opcodes.DUP_X2);
-          // stack: logger, message, throwable, logger
+          // stack: logger (top), throwable, message, logger
           mv.visitInsn(Opcodes.POP);
-          // stack: logger, message, throwable
+          // stack: throwable (top), message, logger
           mv.visitMethodInsn(
               Opcodes.INVOKEINTERFACE,
               LOGGER_NAME,
