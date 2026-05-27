@@ -66,7 +66,7 @@ final class AggregateTable {
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = AggregateEntry.forSnapshot(snapshot, keyHash);
+    AggregateEntry entry = new AggregateEntry(snapshot, keyHash);
     Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;

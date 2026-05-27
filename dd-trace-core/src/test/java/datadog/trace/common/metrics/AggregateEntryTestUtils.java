@@ -90,13 +90,12 @@ public final class AggregateEntryTestUtils {
 
   /**
    * Builds an {@link AggregateEntry} from {@code s} by computing its lookup hash via {@link
-   * AggregateEntry#hashOf(SpanSnapshot)} and delegating to {@link
-   * AggregateEntry#forSnapshot(SpanSnapshot, long)}. Production callers route through {@link
-   * AggregateTable#findOrInsert} which already has the {@code keyHash} on hand; tests rarely do, so
-   * this helper hides the second argument.
+   * AggregateEntry#hashOf(SpanSnapshot)} and calling the package-private constructor directly.
+   * Production callers route through {@link AggregateTable#findOrInsert} which already has the
+   * {@code keyHash} on hand; tests rarely do, so this helper hides the second argument.
    */
   public static AggregateEntry forSnapshot(SpanSnapshot s) {
-    return AggregateEntry.forSnapshot(s, AggregateEntry.hashOf(s));
+    return new AggregateEntry(s, AggregateEntry.hashOf(s));
   }
 
   /**

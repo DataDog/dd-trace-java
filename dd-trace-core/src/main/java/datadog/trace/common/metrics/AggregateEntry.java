@@ -37,6 +37,15 @@ import javax.annotation.Nullable;
  * key. The class is wider than its predecessors as a result, but that's the trade we explicitly
  * chose.
  *
+ * <p><b>Required vs optional field absence.</b> Required label fields ({@code resource}, {@code
+ * service}, {@code operationName}, {@code type}, {@code spanKind}) canonicalize a {@code null}
+ * snapshot value into {@link UTF8BytesString#EMPTY} via {@link #canonicalize} -- they are never
+ * {@code null} on a constructed entry. Optional label fields ({@code serviceSource}, {@code
+ * httpMethod}, {@code httpEndpoint}, {@code grpcStatusCode}) stay {@code null} on the entry when
+ * the snapshot value was {@code null}; the serializer uses {@code != null} to decide whether to
+ * emit them on the wire. {@link #contentEquals} treats {@code null} and length-0 as equivalent so
+ * {@link #matches} works against either form.
+ *
  * <p><b>Not thread-safe.</b> Counter and histogram updates are performed by the single aggregator
  * thread; producer threads tag durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and
  * hand them off through the snapshot inbox.
@@ -98,7 +107,11 @@ final class AggregateEntry extends Hashtable.Entry {
   @Nullable private final UTF8BytesString httpEndpoint;
   @Nullable private final UTF8BytesString grpcStatusCode;
   private final short httpStatusCode;
+
+  /** Whether the root span carried the {@code synthetics} origin tag (synthetic-monitoring run). */
   private final boolean synthetic;
+
+  /** Whether this span is the trace root ({@code parentId == 0}). */
   private final boolean traceRoot;
 
   // Peer tags carried in two forms: parallel String[] arrays mirroring the snapshot's (schema +
@@ -106,8 +119,8 @@ final class AggregateEntry extends Hashtable.Entry {
   // serializer. peerTagNames is the schema's names array (shared by-reference when the schema
   // hasn't been replaced); peerTagValues is the per-span String[] parallel to it.
   //
-  // Package-private rather than private so test-only helpers (e.g. argument-matcher classes in
-  // the same package) can compare them without going through the encoded list.
+  // Package-private so the in-package test helper (AggregateEntryTestUtils) can compare entries
+  // by raw layout; production access comes from this class's own matches() + constructor.
   @Nullable final String[] peerTagNames;
   @Nullable final String[] peerTagValues;
   private final List<UTF8BytesString> peerTags;
@@ -121,44 +134,23 @@ final class AggregateEntry extends Hashtable.Entry {
   private long duration;
 
   /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
-  private AggregateEntry(SpanSnapshot s, long keyHash) {
+  AggregateEntry(SpanSnapshot s, long keyHash) {
     super(keyHash);
     this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
     this.service = canonicalize(SERVICE_CACHE, s.serviceName);
     this.operationName = canonicalize(OPERATION_CACHE, s.operationName);
-    this.serviceSource =
-        s.serviceNameSource == null
-            ? null
-            : canonicalize(SERVICE_SOURCE_CACHE, s.serviceNameSource);
+    this.serviceSource = canonicalizeOptional(SERVICE_SOURCE_CACHE, s.serviceNameSource);
     this.type = canonicalize(TYPE_CACHE, s.spanType);
     this.spanKind = canonicalize(SPAN_KIND_CACHE, s.spanKind);
-    this.httpMethod =
-        s.httpMethod == null
-            ? null
-            : HTTP_METHOD_CACHE.computeIfAbsent(s.httpMethod, UTF8BytesString::create);
-    this.httpEndpoint =
-        s.httpEndpoint == null
-            ? null
-            : HTTP_ENDPOINT_CACHE.computeIfAbsent(s.httpEndpoint, UTF8BytesString::create);
-    this.grpcStatusCode =
-        s.grpcStatusCode == null
-            ? null
-            : GRPC_STATUS_CODE_CACHE.computeIfAbsent(s.grpcStatusCode, UTF8BytesString::create);
+    this.httpMethod = canonicalizeOptional(HTTP_METHOD_CACHE, s.httpMethod);
+    this.httpEndpoint = canonicalizeOptional(HTTP_ENDPOINT_CACHE, s.httpEndpoint);
+    this.grpcStatusCode = canonicalizeOptional(GRPC_STATUS_CODE_CACHE, s.grpcStatusCode);
     this.httpStatusCode = s.httpStatusCode;
     this.synthetic = s.synthetic;
     this.traceRoot = s.traceRoot;
     this.peerTagNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
     this.peerTagValues = s.peerTagValues;
     this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
-  }
-
-  /**
-   * Construct from a snapshot at consumer-thread miss time, using the {@code keyHash} the caller
-   * (typically {@link AggregateTable#findOrInsert}) already computed for the lookup. Avoids a
-   * second pass over the snapshot's fields just to re-hash them.
-   */
-  static AggregateEntry forSnapshot(SpanSnapshot s, long keyHash) {
-    return new AggregateEntry(s, keyHash);
   }
 
   /**
@@ -351,6 +343,28 @@ final class AggregateEntry extends Hashtable.Entry {
       DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
     if (charSeq == null) {
       return EMPTY;
+    }
+    if (charSeq instanceof UTF8BytesString) {
+      return (UTF8BytesString) charSeq;
+    }
+    return cache.computeIfAbsent(charSeq.toString(), UTF8BytesString::create);
+  }
+
+  /**
+   * Like {@link #canonicalize} but returns {@code null} for a {@code null} input (rather than
+   * {@link UTF8BytesString#EMPTY}). Used for the four optional fields so the serializer can
+   * distinguish "absent" via a {@code != null} check and elide the field on the wire.
+   *
+   * <p>The {@code instanceof UTF8BytesString} short-circuit is dead code for {@link
+   * SpanSnapshot#httpMethod}/{@code httpEndpoint}/{@code grpcStatusCode} (statically {@code
+   * String}) but live for {@link SpanSnapshot#serviceNameSource} ({@link CharSequence}); keeping a
+   * single helper keeps the constructor consistent.
+   */
+  @Nullable
+  private static UTF8BytesString canonicalizeOptional(
+      DDCache<String, UTF8BytesString> cache, @Nullable CharSequence charSeq) {
+    if (charSeq == null) {
+      return null;
     }
     if (charSeq instanceof UTF8BytesString) {
       return (UTF8BytesString) charSeq;

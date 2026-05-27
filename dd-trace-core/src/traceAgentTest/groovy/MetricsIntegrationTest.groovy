@@ -46,13 +46,13 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
     SpanSnapshot snap1 = new SpanSnapshot(
       "resource1", "service1", "operation1", null, "sql", (short) 0,
       false, true, "xyzzy", schema, ["quux"] as String[], null, null, null, 0L)
-    def entry1 = AggregateEntry.forSnapshot(snap1, AggregateEntry.hashOf(snap1))
+    def entry1 = new AggregateEntry(snap1, AggregateEntry.hashOf(snap1))
     [2, 1, 2, 250, 4].each { entry1.recordOneDuration(it as long) }
     writer.add(entry1)
     SpanSnapshot snap2 = new SpanSnapshot(
       "resource2", "service2", "operation2", null, "web", (short) 200,
       false, true, "xyzzy", schema, ["quux"] as String[], null, null, null, 0L)
-    def entry2 = AggregateEntry.forSnapshot(snap2, AggregateEntry.hashOf(snap2))
+    def entry2 = new AggregateEntry(snap2, AggregateEntry.hashOf(snap2))
     [1, 1, 200, 2, 3, 4, 5, 6, 7, 8].each { entry2.recordOneDuration(it as long) }
     writer.add(entry2)
     writer.finishBucket()
