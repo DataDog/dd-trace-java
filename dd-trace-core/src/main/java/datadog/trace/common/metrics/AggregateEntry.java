@@ -7,6 +7,7 @@ import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import java.util.Arrays;
 import java.util.List;
+import javax.annotation.Nullable;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -147,11 +148,11 @@ final class AggregateEntry extends Hashtable.Entry {
 
   /**
    * Lazily allocated on the first recorded error. Most entries never see an error and keep this
-   * field {@code null} forever; {@link #getErrorLatencies()} returns a shared empty histogram in
-   * that case. Once allocated, {@link #clear()} just clears it (does not null) since an entry that
-   * errored once tends to error again.
+   * null for life; {@link SerializingMetricWriter} writes a cached empty-histogram form when null
+   * to keep the wire payload identical. Once allocated, it survives {@link #clear()} (cleared, not
+   * nulled) since an entry that errored once tends to error again.
    */
-  private Histogram errorLatencies;
+  @Nullable private Histogram errorLatencies;
 
   private int errorCount;
   private int hitCount;
@@ -242,10 +243,11 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Returns the error histogram if any error was recorded, or {@code null} otherwise. Callers (only
-   * {@link SerializingMetricWriter}) treat null as "no errors this cycle" -- it serializes an empty
-   * histogram in that case.
+   * Returns the entry's error-latency histogram, or {@code null} if no error has been recorded.
+   * Callers serializing this should treat {@code null} as "emit a cached empty histogram"; see
+   * {@link SerializingMetricWriter}.
    */
+  @Nullable
   Histogram getErrorLatencies() {
     return errorLatencies;
   }
@@ -263,6 +265,7 @@ final class AggregateEntry extends Hashtable.Entry {
     this.topLevelCount = 0;
     this.duration = 0;
     this.okLatencies.clear();
+    // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
     if (this.errorLatencies != null) {
       this.errorLatencies.clear();
     }
