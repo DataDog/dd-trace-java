@@ -6,6 +6,7 @@ import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.regex.Pattern;
 import javax.xml.XMLConstants;
 import javax.xml.parsers.DocumentBuilderFactory;
@@ -114,32 +115,6 @@ final class JUnitReport {
     }
   }
 
-  /// Tags non-final attempts of a retried test so Test Optimization does not surface them as
-  /// real failures. The Develocity testRetry plugin re-runs failed tests and emits one
-  /// `<testcase>` per attempt sharing the same `(classname, name)`; CI ignores all but the
-  /// final attempt, so this method does the same by marking earlier attempts as `skip`.
-  ///
-  /// Must run before [#tagFinalStatuses] so the existing per-testcase tagger does not
-  /// overwrite `skip` with `fail`.
-  ///
-  /// See https://docs.gradle.com/develocity/gradle-plugin/current/#test_retry
-  void tagRetriedTests() {
-    var all = testcases();
-    for (var i = 0; i < all.size(); i++) {
-      var current = all.get(i);
-      var classname = current.getAttribute("classname");
-      var name = current.getAttribute("name");
-      for (var j = i + 1; j < all.size(); j++) {
-        var later = all.get(j);
-        if (classname.equals(later.getAttribute("classname"))
-            && name.equals(later.getAttribute("name"))) {
-          addFinalStatusProperty(current, "skip", MissingPropertiesPlacement.APPEND_TO_TESTCASE);
-          break;
-        }
-      }
-    }
-  }
-
   void tagFinalStatuses() {
     for (var testcase : testcases()) {
       if (hasFinalStatusProperty(testcase)) {
@@ -147,6 +122,32 @@ final class JUnitReport {
       }
       addFinalStatusProperty(
           testcase, finalStatus(testcase), MissingPropertiesPlacement.FIRST_CHILD);
+    }
+  }
+
+  Set<String> testcaseKeys() {
+    var keys = new LinkedHashSet<String>();
+    for (var testcase : testcases()) {
+      keys.add(testcase.getAttribute("classname") + "#" + testcase.getAttribute("name"));
+    }
+    return keys;
+  }
+
+  // Tags all <testcase> elements except the last for each retried key as skip.
+  // Must be called before tagFinalStatuses() so hasFinalStatusProperty() skips tagged entries.
+  void tagRetriedTests(Set<String> retriedTestKeys) {
+    if (retriedTestKeys.isEmpty()) return;
+    var testcasesByKey = new LinkedHashMap<String, List<Element>>();
+    for (var testcase : testcases()) {
+      var key = testcase.getAttribute("classname") + "#" + testcase.getAttribute("name");
+      if (retriedTestKeys.contains(key)) {
+        testcasesByKey.computeIfAbsent(key, k -> new ArrayList<>()).add(testcase);
+      }
+    }
+    for (var attempts : testcasesByKey.values()) {
+      for (var i = 0; i < attempts.size() - 1; i++) {
+        addFinalStatusProperty(attempts.get(i), "skip", MissingPropertiesPlacement.FIRST_CHILD);
+      }
     }
   }
 
