@@ -721,6 +721,48 @@ abstract class AbstractSparkListenerTest extends InstrumentationSpecification {
     .getOption("spark.openlineage.circuitBreaker.timeoutInSeconds") == Option.apply("120")
   }
 
+  def "sets spark.openlineage.appName tag when configured"() {
+    setup:
+    def conf = new SparkConf()
+    conf.set("spark.openlineage.appName", "my-ol-app-name")
+    def listener = getTestDatadogSparkListener(conf)
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert span.tags["spark.openlineage.appName"] == "my-ol-app-name"
+        }
+      }
+    }
+  }
+
+  def "does not set spark.openlineage.appName tag when not configured"() {
+    setup:
+    def listener = getTestDatadogSparkListener()
+
+    when:
+    listener.onApplicationStart(applicationStartEvent(1000L))
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L))
+
+    then:
+    assertTraces(1) {
+      trace(1) {
+        span {
+          operationName "spark.application"
+          spanType "spark"
+          assert !span.tags.containsKey("spark.openlineage.appName")
+        }
+      }
+    }
+  }
+
   protected validateRelativeError(double value, double expected, double relativeAccuracy) {
     double relativeError = Math.abs(value - expected) / expected
     assert relativeError < relativeAccuracy

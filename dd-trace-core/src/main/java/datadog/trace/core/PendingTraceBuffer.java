@@ -54,7 +54,7 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
     boolean writeOnBufferFull();
   }
 
-  private static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
+  static class DelayingPendingTraceBuffer extends PendingTraceBuffer {
     private static final long FORCE_SEND_DELAY_MS = TimeUnit.SECONDS.toMillis(5);
     private static final long SEND_DELAY_NS = TimeUnit.MILLISECONDS.toNanos(500);
     private static final long SLEEP_TIME_MS = 100;
@@ -302,6 +302,21 @@ public abstract class PendingTraceBuffer implements AutoCloseable {
               ? new LongRunningTracesTracker(
                   config, bufferSize, sharedCommunicationObjects, healthMetrics)
               : null;
+    }
+
+    // @VisibleForTesting
+    LongRunningTracesTracker getRunningTracesTracker() {
+      return runningTracesTracker;
+    }
+
+    // @VisibleForTesting
+    Thread getWorker() {
+      return worker;
+    }
+
+    // @VisibleForTesting
+    MessagePassingBlockingQueue<Element> getQueue() {
+      return queue;
     }
   }
 

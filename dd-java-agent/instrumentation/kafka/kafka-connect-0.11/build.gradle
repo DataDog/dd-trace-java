@@ -9,16 +9,28 @@ muzzle {
     skipVersions += [
       '7.4.14-ce',
       '7.4.14-ccs',
+      '7.4.15-ce',
+      '7.4.15-ccs',
       '7.5.13-ce',
       '7.5.13-ccs',
+      '7.5.14-ce',
+      '7.5.14-ccs',
       '7.6.10-ce',
       '7.6.10-ccs',
+      '7.6.11-ce',
+      '7.6.11-ccs',
       '7.7.8-ce',
       '7.7.8-ccs',
+      '7.7.9-ce',
+      '7.7.9-ccs',
       '7.8.7-ce',
       '7.8.7-ccs',
+      '7.8.8-ce',
+      '7.8.8-ccs',
       '7.9.6-ce',
-      '7.9.6-ccs'
+      '7.9.6-ccs',
+      '7.9.7-ce',
+      '7.9.7-ccs'
     ]
     excludeDependency "io.confluent.cloud:*"
     excludeDependency "io.confluent.observability:*"

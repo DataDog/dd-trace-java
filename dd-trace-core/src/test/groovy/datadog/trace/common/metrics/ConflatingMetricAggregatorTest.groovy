@@ -255,29 +255,44 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
   def "should create bucket for each set of peer tags"() {
     setup:
+    // Peer-tag schema is reconciled with feature discovery once per reporting cycle (on the
+    // aggregator thread, in the post-report hook), not per-span on the producer. Drive two
+    // reporting cycles with different peerTags() configurations to verify the aggregator buckets
+    // each cycle by the schema that was current at publish time.
     MetricWriter writer = Mock(MetricWriter)
     Sink sink = Stub(Sink)
     DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
     features.supportsMetrics() >> true
-    features.peerTags() >>> [["country"], ["country", "georegion"],]
+    features.peerTags() >>> [["country"], ["country", "georegion"]]
+    // Bump the discovered state hash so reconcile during report cycle 1 sees a mismatch and
+    // rebuilds the schema for span 2. Three calls: bootstrap (span1's publish), reconcile-during-
+    // report-1 (mismatch -> rebuild + 2nd peerTags() call), reconcile-during-report-2 (no change).
+    features.state() >>> ["state-1", "state-2", "state-2"]
     ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
       features, HealthMetrics.NO_OP, sink, writer, 10, queueSize, reportingInterval, SECONDS, false)
     aggregator.start()
 
-    when:
-    CountDownLatch latch = new CountDownLatch(1)
+    when: "cycle 1 -- peerTags=[country]"
+    CountDownLatch latch1 = new CountDownLatch(1)
     aggregator.publish([
-      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
-      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe"),
       new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
       .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
     ])
     aggregator.report()
-    def latchTriggered = latch.await(2, SECONDS)
+    def cycle1Triggered = latch1.await(2, SECONDS)
+
+    and: "cycle 2 -- reconcile picks up peerTags=[country, georegion]"
+    CountDownLatch latch2 = new CountDownLatch(1)
+    aggregator.publish([
+      new SimpleSpan("service", "operation", "resource", "type", true, false, false, 0, 100, HTTP_OK)
+      .setTag(SPAN_KIND, "client").setTag("country", "france").setTag("georegion", "europe")
+    ])
+    aggregator.report()
+    def cycle2Triggered = latch2.await(2, SECONDS)
 
     then:
-    latchTriggered
-    1 * writer.startBucket(2, _, _)
+    cycle1Triggered
+    cycle2Triggered
     1 * writer.add(
       new MetricKey(
       "resource",
@@ -314,7 +329,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       ), { AggregateMetric aggregateMetric ->
         aggregateMetric.getHitCount() == 1 && aggregateMetric.getTopLevelCount() == 0 && aggregateMetric.getDuration() == 100
       })
-    1 * writer.finishBucket() >> { latch.countDown() }
+    2 * writer.finishBucket() >> { latch1.countDown(); latch2.countDown() }
 
     cleanup:
     aggregator.close()
@@ -939,6 +954,86 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
       null
       ), _)
     1 * writer.finishBucket() >> { latch.countDown() }
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should report dropped aggregate to health metrics on LRU eviction"() {
+    setup:
+    int maxAggregates = 10
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
+    long duration = 100
+    aggregator.start()
+
+    when:
+    CountDownLatch latch = new CountDownLatch(1)
+    for (int i = 0; i < maxAggregates + 1; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, duration, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    def latchTriggered = latch.await(2, SECONDS)
+
+    then:
+    latchTriggered
+    1 * writer.finishBucket() >> { latch.countDown() }
+    1 * healthMetrics.onStatsAggregateDropped()
+
+    cleanup:
+    aggregator.close()
+  }
+
+  def "should not report dropped aggregate when evicted entry was already flushed"() {
+    setup:
+    int maxAggregates = 5
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    HealthMetrics healthMetrics = Mock(HealthMetrics)
+    ConflatingMetricsAggregator aggregator = new ConflatingMetricsAggregator(empty,
+      features, healthMetrics, sink, writer, maxAggregates, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when: "fill cache and flush — entries are cleared (hitCount=0) but stay in the LRU"
+    CountDownLatch latch1 = new CountDownLatch(1)
+    for (int i = 0; i < maxAggregates; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    latch1.await(2, SECONDS)
+
+    then:
+    1 * writer.finishBucket() >> { latch1.countDown() }
+
+    when: "publish new distinct spans — LRU evicts the cleared entries before the next report"
+    CountDownLatch latch2 = new CountDownLatch(1)
+    for (int i = maxAggregates; i < maxAggregates * 2; ++i) {
+      aggregator.publish([
+        new SimpleSpan("service" + i, "operation", "resource", "type", false, true, false, 0, 100, HTTP_OK)
+        .setTag(SPAN_KIND, "baz")
+      ])
+    }
+    aggregator.report()
+    latch2.await(2, SECONDS)
+
+    then: "no drop metric because all evicted entries had hitCount=0 (already reported)"
+    1 * writer.finishBucket() >> { latch2.countDown() }
+    0 * healthMetrics.onStatsAggregateDropped()
 
     cleanup:
     aggregator.close()

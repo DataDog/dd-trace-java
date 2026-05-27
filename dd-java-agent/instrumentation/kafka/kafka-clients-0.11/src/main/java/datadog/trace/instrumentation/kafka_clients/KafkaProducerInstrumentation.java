@@ -12,6 +12,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentPropagation.extra
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
+import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.JAVA_KAFKA;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.KAFKA_PRODUCE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.PRODUCER_DECORATE;
 import static datadog.trace.instrumentation.kafka_clients.KafkaDecorator.TIME_IN_QUEUE_ENABLED;
@@ -160,14 +161,14 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
       final AgentSpan callbackParentSpan;
 
       if (extractedContext != null) {
-        span = startSpan(KAFKA_PRODUCE, extractedContext);
+        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE, extractedContext);
         callbackParentSpan = span;
       } else {
-        span = startSpan(KAFKA_PRODUCE);
+        span = startSpan(JAVA_KAFKA.toString(), KAFKA_PRODUCE);
         callbackParentSpan = localActiveSpan;
       }
       PRODUCER_DECORATE.afterStart(span);
-      PRODUCER_DECORATE.onProduce(span, record, producerConfig);
+      PRODUCER_DECORATE.onProduce(span, record, producerConfig, clusterId);
 
       callback = new KafkaProducerCallback(callback, callbackParentSpan, span, clusterId);
 
@@ -267,10 +268,10 @@ public final class KafkaProducerInstrumentation extends InstrumenterModule.Traci
     public static void captureConfiguration(
         @Advice.FieldValue("metadata") Metadata metadata,
         @Advice.Argument(0) ProducerConfig producerConfig) {
+      MetadataState state =
+          InstrumentationContext.get(Metadata.class, MetadataState.class)
+              .putIfAbsent(metadata, MetadataState::new);
       if (Config.get().isDataStreamsEnabled()) {
-        MetadataState state =
-            InstrumentationContext.get(Metadata.class, MetadataState.class)
-                .putIfAbsent(metadata, MetadataState::new);
         KafkaConfigHelper.storePendingProducerConfig(
             state, KafkaConfigHelper.extractProducerConfig(producerConfig));
       }

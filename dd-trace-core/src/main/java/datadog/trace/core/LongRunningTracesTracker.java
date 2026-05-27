@@ -139,4 +139,14 @@ public class LongRunningTracesTracker {
     write = 0;
     expired = 0;
   }
+
+  // @VisibleForTesting
+  int trackedCount() {
+    return traceArray.size();
+  }
+
+  // @VisibleForTesting
+  int getDropped() {
+    return dropped;
+  }
 }

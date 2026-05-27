@@ -115,22 +115,19 @@ jobs:
           fi
       
       - name: Commit changes
-        id: create-commit
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git commit -m "chore: Pin system-tests for release branch" .github/workflows/run-system-tests.yaml .gitlab-ci.yml
-          echo "commit=$(git rev-parse HEAD)" >> $GITHUB_OUTPUT
       
       - name: Push changes
-        uses: DataDog/commit-headless@05d7b7ee023e2c7d01c47832d420c2503cd416f3 # action/v2.0.3
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-pin-branch.outputs.branch }}"
           head-sha: "${{ steps.get-latest-commit-sha.outputs.sha }}"
           create-branch: true
           command: push
-          commits: "${{ steps.create-commit.outputs.commit }}"
 
       - name: Create pull request
         env:

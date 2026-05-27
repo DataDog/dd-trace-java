@@ -91,6 +91,13 @@ public abstract class HealthMetrics implements AutoCloseable {
 
   public void onClientStatDowngraded() {}
 
+  public void onStatsAggregateDropped() {}
+
+  /**
+   * Reports a single span whose stats snapshot was dropped because the aggregator inbox was full.
+   */
+  public void onStatsInboxFull() {}
+
   /**
    * @return Human-readable summary of the current health metrics.
    */

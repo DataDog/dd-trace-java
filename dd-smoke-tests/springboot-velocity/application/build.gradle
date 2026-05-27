@@ -1,0 +1,31 @@
+plugins {
+  id 'java'
+  id 'org.springframework.boot' version '2.7.15'
+  id 'io.spring.dependency-management' version '1.0.15.RELEASE'
+}
+
+def sharedRootDir = "$rootDir/../../../"
+def sharedConfigDirectory = "$sharedRootDir/gradle"
+rootProject.ext.sharedConfigDirectory = sharedConfigDirectory
+
+apply from: "$sharedConfigDirectory/repositories.gradle"
+
+if (hasProperty('appBuildDir')) {
+  buildDir = property('appBuildDir')
+}
+
+version = ""
+
+// Pin bytecode target: the nested daemon now runs on JDK 21, but the smoke test launches
+// the produced jar on Java 8.
+java {
+  sourceCompatibility = JavaVersion.VERSION_1_8
+}
+
+dependencies {
+  implementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '1.5.18.RELEASE'
+  implementation group: 'org.apache.velocity', name: 'velocity', version: '1.5'
+  implementation(group: 'org.apache.velocity', name: 'velocity-tools', version: '1.3') {
+    exclude group: 'javax.servlet', module: 'servlet-api'
+  }
+}

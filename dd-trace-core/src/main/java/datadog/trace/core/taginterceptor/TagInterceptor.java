@@ -123,6 +123,7 @@ public class TagInterceptor {
       case HTTP_URL:
       case ORIGIN_KEY:
       case MEASURED:
+      case Tags.SPAN_KIND:
         return true;
 
       default:
@@ -193,6 +194,11 @@ public class TagInterceptor {
         return interceptOrigin(span, value);
       case MEASURED:
         return interceptMeasured(span, value);
+      case Tags.SPAN_KIND:
+        // Cache the ordinal for fast isOutbound() checks.
+        // Return false so the value is still stored in unsafeTags for serialization.
+        span.setSpanKindOrdinal(String.valueOf(value));
+        return false;
       default:
         return intercept(span, tag, value);
     }
@@ -223,7 +229,7 @@ public class TagInterceptor {
       path = uri == null ? null : uri.getPath();
     }
     if (path != null) {
-      final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.unsafeGetTag(Tags.SPAN_KIND));
+      final boolean isClient = Tags.SPAN_KIND_CLIENT.equals(span.getSpanKindString());
       Pair<CharSequence, Byte> normalized =
           isClient
               ? HttpResourceNames.computeForClient(method, path, false)
@@ -292,8 +298,7 @@ public class TagInterceptor {
     return true;
   }
 
-  private boolean interceptServiceName(
-      RuleFlags.Feature feature, DDSpanContext span, Object value) {
+  boolean interceptServiceName(RuleFlags.Feature feature, DDSpanContext span, Object value) {
     if (ruleFlags.isEnabled(feature)) {
       String serviceName = String.valueOf(value);
       span.setServiceName(serviceName);
@@ -330,7 +335,7 @@ public class TagInterceptor {
     return false;
   }
 
-  private boolean interceptServletContext(DDSpanContext span, Object value) {
+  boolean interceptServletContext(DDSpanContext span, Object value) {
     // even though this tag is sometimes used to set the service name
     // (which has the side effect of marking the span as eligible for metrics
     // in the trace agent) we also want to store it in the tags no matter what,

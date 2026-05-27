@@ -47,7 +47,6 @@ public final class ConfigDefaults {
   public static final boolean DEFAULT_STARTUP_LOGS_ENABLED = true;
 
   static final boolean DEFAULT_INJECT_DATADOG_ATTRIBUTE = true;
-  static final boolean DEFAULT_WRITER_BAGGAGE_INJECT = true;
   static final String DEFAULT_SITE = "datadoghq.com";
 
   static final boolean DEFAULT_CODE_ORIGIN_FOR_SPANS_INTERFACE_SUPPORT = false;
@@ -88,7 +87,8 @@ public final class ConfigDefaults {
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
       Arrays.asList("user.id", "session.id", "account.id");
   static final boolean DEFAULT_JMX_FETCH_ENABLED = true;
-  static final boolean DEFAULT_TRACE_AGENT_V05_ENABLED = false;
+
+  static final String DEFAULT_TRACE_AGENT_PROTOCOL_VERSION = ProtocolVersion.V0_4.asConfigValue();
 
   static final boolean DEFAULT_CLIENT_IP_ENABLED = false;
 
@@ -101,6 +101,12 @@ public final class ConfigDefaults {
   static final boolean DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_ENABLED = false;
   static final int DEFAULT_JMX_FETCH_MULTIPLE_RUNTIME_SERVICES_LIMIT = 10;
 
+  public static final boolean DEFAULT_LOGS_OTEL_ENABLED = false;
+  static final int DEFAULT_LOGS_OTEL_INTERVAL = 1_000; // ms
+  static final int DEFAULT_LOGS_OTEL_TIMEOUT = 30_000; // ms
+  static final int DEFAULT_LOGS_OTEL_QUEUE_SIZE = 2048;
+  static final int DEFAULT_LOGS_OTEL_BATCH_SIZE = 512;
+
   public static final boolean DEFAULT_METRICS_OTEL_ENABLED = false;
   // Default recommended by Datadog; it differs from Otel’s default of 60000 (60s)
   static final int DEFAULT_METRICS_OTEL_INTERVAL = 10_000; // ms
@@ -108,12 +114,15 @@ public final class ConfigDefaults {
   static final int DEFAULT_METRICS_OTEL_TIMEOUT = 7_500; // ms
   static final int DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT = 2_000;
 
-  static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
+  public static final int DEFAULT_OTLP_TRACES_TIMEOUT = 10_000; // ms
 
+  static final String DEFAULT_OTLP_HTTP_LOGS_ENDPOINT = "v1/logs";
   static final String DEFAULT_OTLP_HTTP_METRICS_ENDPOINT = "v1/metrics";
-  static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
-  static final String DEFAULT_OTLP_HTTP_PORT = "4318";
-  static final String DEFAULT_OTLP_GRPC_PORT = "4317";
+  public static final String DEFAULT_OTLP_HTTP_TRACES_ENDPOINT = "v1/traces";
+  public static final String DEFAULT_OTLP_GRPC_TRACES_ENDPOINT =
+      "opentelemetry.proto.collector.trace.v1.TraceService/Export";
+  public static final String DEFAULT_OTLP_HTTP_PORT = "4318";
+  public static final String DEFAULT_OTLP_GRPC_PORT = "4317";
 
   static final int DEFAULT_DOGSTATSD_START_DELAY = 15; // seconds
 
@@ -144,6 +153,8 @@ public final class ConfigDefaults {
   static final int DEFAULT_APPSEC_MAX_STACK_TRACE_DEPTH = 32;
   static final int DEFAULT_APPSEC_MAX_COLLECTED_HEADERS = 50;
   static final int DEFAULT_APPSEC_BODY_PARSING_SIZE_LIMIT = 10_000_000;
+  static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_BYTES = 4096;
+  static final int DEFAULT_APPSEC_MAX_FILE_CONTENT_COUNT = 25;
   static final String DEFAULT_IAST_ENABLED = "false";
   static final boolean DEFAULT_IAST_DEBUG_ENABLED = false;
   public static final int DEFAULT_IAST_MAX_CONCURRENT_REQUESTS = 4;

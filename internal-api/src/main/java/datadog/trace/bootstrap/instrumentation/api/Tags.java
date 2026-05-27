@@ -26,7 +26,12 @@ public class Tags {
   public static final String HTTP_FORWARDED_IP = "http.forwarded.ip";
   public static final String HTTP_FORWARDED_PORT = "http.forwarded.port";
   public static final String HTTP_USER_AGENT = "http.useragent";
+  public static final String HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN =
+      "http.request.headers.x-datadog-endpoint-scan";
+  public static final String HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST =
+      "http.request.headers.x-datadog-security-test";
   public static final String HTTP_CLIENT_IP = "http.client_ip";
+  public static final String NETWORK_CLIENT_IP = "network.client.ip";
   public static final String HTTP_REQUEST_CONTENT_LENGTH = "http.request_content_length";
   public static final String HTTP_RESPONSE_CONTENT_LENGTH = "http.response_content_length";
   public static final String PEER_HOST_IPV4 = "peer.ipv4";

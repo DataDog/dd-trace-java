@@ -5,49 +5,82 @@ import org.gradle.api.Task
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.testing.Test
 import org.gradle.kotlin.dsl.extra
-import kotlin.math.abs
 
-private fun selectedSlotFor(
-  rootProject: Project,
-  identityPath: String,
-  kind: String,
-): Provider<Boolean> =
-  rootProject.providers.gradleProperty("slot").map { slot ->
-    val parts = slot.split("/")
-    if (parts.size != 2) {
-      rootProject.logger.warn("Invalid slot format '{}', expected 'X/Y'. Treating all {}s as selected.", slot, kind)
-      return@map true
-    }
+private sealed class SlotSelection {
+  object All : SlotSelection()
+  data class Active(val index: Int, val total: Int) : SlotSelection()
+}
 
-    val selectedSlot = parts[0].toIntOrNull()
-    val totalSlots = parts[1].toIntOrNull()
-
-    if (selectedSlot == null || totalSlots == null || totalSlots <= 0) {
-      rootProject.logger.warn(
-        "Invalid slot values '{}', expected numeric 'X/Y' with Y > 0. Treating all {}s as selected.",
-        slot,
-        kind,
-      )
-      return@map true
-    }
-
-    val slotForIdentity = abs(identityPath.hashCode() % totalSlots) + 1 // Convert to 1-based
-    slotForIdentity == selectedSlot
-  }.orElse(true)
+private const val SLOT_CACHE_KEY = "datadog.ci.slotSelection"
 
 /**
- * Determines if the current project is in the selected slot.
+ * Parsed -Pslot=X/Y, cached on the root project so we parse + warn at most once per build.
+ */
+private fun Project.slotSelection(): SlotSelection {
+  val root = rootProject
+  if (root.extra.has(SLOT_CACHE_KEY)) {
+    return root.extra.get(SLOT_CACHE_KEY) as SlotSelection
+  }
+  val raw = root.providers.gradleProperty("slot").orNull
+  val parsed = parseSlot(raw, root)
+  root.extra.set(SLOT_CACHE_KEY, parsed)
+  if (parsed is SlotSelection.Active) {
+    root.logger.lifecycle("CI slot sharding active: {}/{}", parsed.index, parsed.total)
+  }
+  return parsed
+}
+
+private fun parseSlot(raw: String?, root: Project): SlotSelection {
+  if (raw.isNullOrBlank()) return SlotSelection.All
+  val parts = raw.split("/")
+  if (parts.size != 2 || parts[0].isBlank() || parts[1].isBlank()) {
+    root.logger.warn("Invalid -Pslot='{}', expected 'X/Y'. Disabling slot sharding.", raw)
+    return SlotSelection.All
+  }
+  val index = parts[0].toIntOrNull()
+  val total = parts[1].toIntOrNull()
+  if (index == null || total == null || total <= 0 || index < 1 || index > total) {
+    root.logger.warn("Invalid -Pslot='{}', expected 'X/Y' with 1 <= X <= Y. Disabling slot sharding.", raw)
+    return SlotSelection.All
+  }
+  return SlotSelection.Active(index, total)
+}
+
+/**
+ * Murmur3 32-bit finalizer. Avalanches bits so similar inputs (paths sharing a long common
+ * prefix like `:dd-java-agent:instrumentation:...`) land in different slots.
+ */
+private fun avalanche(hash: Int): Int {
+  var h = hash
+  h = h xor (h ushr 16)
+  h *= 0x85ebca6b.toInt()
+  h = h xor (h ushr 13)
+  h *= 0xc2b2ae35.toInt()
+  h = h xor (h ushr 16)
+  return h
+}
+
+/** 1-based slot index this identityPath hashes to, given a total of `total` slots. */
+private fun slotOf(identityPath: String, total: Int): Int =
+  Math.floorMod(avalanche(identityPath.hashCode()), total) + 1
+
+private fun selectedSlotFor(project: Project, identityPath: String): Boolean =
+  when (val s = project.slotSelection()) {
+    SlotSelection.All -> true
+    is SlotSelection.Active -> slotOf(identityPath, s.total) == s.index
+  }
+
+/**
+ * Whether this project (or task) belongs in the currently selected slot.
  *
- * The "slot" property should be provided in the format "X/Y", where X is the selected slot (1-based)
- * and Y is the total number of slots.
- *
- * If the "slot" property is not provided, all projects are considered to be in the selected slot.
+ * The "slot" property should be provided as "X/Y" where X is the 1-based selected slot and Y is
+ * the total number of slots. If unset, everything is in-slot.
  */
 val Project.isInSelectedSlot: Provider<Boolean>
-  get() = selectedSlotFor(rootProject, path, "project")
+  get() = providers.provider { selectedSlotFor(this, path) }
 
 val Task.isInSelectedSlot: Provider<Boolean>
-  get() = selectedSlotFor(project.rootProject, path, "task")
+  get() = project.providers.provider { selectedSlotFor(project, path) }
 
 private fun Project.aggregateTestTasksFor(subproject: Project, aggregateTaskName: String): List<Test> =
   when (aggregateTaskName) {
@@ -102,6 +135,8 @@ private fun Project.createRootTask(
   val coverage = forceCoverage || rootProject.providers.gradleProperty("checkCoverage").isPresent
   val taskLevelSlotting = !coverage && (subProjTaskName == "allTests" || subProjTaskName == "allLatestDepTests")
   tasks.register(rootTaskName) {
+    var consideredTestTasks = 0
+    var selectedTestTasks = 0
     subprojects.forEach { subproject ->
       if (
         includePrefixes.any { subproject.path.startsWith(it) } &&
@@ -129,9 +164,11 @@ private fun Project.createRootTask(
           }
           if (isAffected) {
             if (taskLevelSlotting) {
-              dependsOn(aggregateTestTasksFor(subproject, subProjTaskName).filter { testTask ->
-                testTask.isInSelectedSlot.get()
-              })
+              val candidates = aggregateTestTasksFor(subproject, subProjTaskName)
+              val selected = candidates.filter { it.isInSelectedSlot.get() }
+              consideredTestTasks += candidates.size
+              selectedTestTasks += selected.size
+              dependsOn(selected)
             } else {
               dependsOn(aggregateTask)
             }
@@ -149,6 +186,11 @@ private fun Project.createRootTask(
           }
         }
       }
+    }
+    if (taskLevelSlotting && consideredTestTasks > 0) {
+      logger.lifecycle(
+        "$rootTaskName: slot selected $selectedTestTasks of $consideredTestTasks Test tasks ($subProjTaskName)"
+      )
     }
   }
 }

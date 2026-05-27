@@ -10,6 +10,7 @@ import datadog.metrics.api.Monitoring;
 import datadog.remoteconfig.ConfigurationPoller;
 import datadog.remoteconfig.DefaultConfigurationPoller;
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.config.BazelMode;
 import datadog.trace.util.AgentTaskScheduler;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.security.Security;
@@ -167,23 +168,29 @@ public class SharedCommunicationObjects {
     if (ret == null) {
       synchronized (this) {
         if ((ret = featuresDiscovery) == null) {
-          createRemaining(config);
-          ret =
-              new DDAgentFeaturesDiscovery(
-                  agentHttpClient,
-                  monitoring,
-                  agentUrl,
-                  config.isTraceAgentV05Enabled(),
-                  config.isTracerMetricsEnabled());
-
-          if (paused) {
-            // defer remote discovery until remote I/O is allowed
+          if (config.isCiVisibilityEnabled() && BazelMode.get().isPayloadFilesEnabled()) {
+            // Hermetic Bazel runs write payloads to local files; don't probe the agent.
+            ret = NoopFeaturesDiscovery.INSTANCE;
           } else {
-            if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
-              ret.discover(); // safe to run on same thread
+            createRemaining(config);
+            ret =
+                new DDAgentFeaturesDiscovery(
+                    agentHttpClient,
+                    monitoring,
+                    agentUrl,
+                    config.getProtocolVersion(),
+                    config.isTracerMetricsEnabled(),
+                    config.isTracerMetricsIgnoreAgentVersion());
+
+            if (paused) {
+              // defer remote discovery until remote I/O is allowed
             } else {
-              // avoid performing blocking I/O operation on application thread
-              AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
+              if (AGENT_THREAD_GROUP.equals(Thread.currentThread().getThreadGroup())) {
+                ret.discover(); // safe to run on same thread
+              } else {
+                // avoid performing blocking I/O operation on application thread
+                AgentTaskScheduler.get().execute(ret::discoverIfOutdated);
+              }
             }
           }
           featuresDiscovery = ret;

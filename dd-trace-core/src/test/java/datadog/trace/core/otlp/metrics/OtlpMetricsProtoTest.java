@@ -1,14 +1,21 @@
 package datadog.trace.core.otlp.metrics;
 
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG;
-import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.GAUGE;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.HISTOGRAM;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_GAUGE;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
+import static datadog.trace.bootstrap.otel.metrics.OtelInstrumentType.UP_DOWN_COUNTER;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.BOOLEAN_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.DOUBLE_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.LONG_ATTRIBUTE;
+import static datadog.trace.bootstrap.otlp.common.OtlpAttributeVisitor.STRING_ATTRIBUTE;
 import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
-import static java.util.stream.Collectors.toList;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import com.google.protobuf.CodedInputStream;
@@ -24,10 +31,11 @@ import datadog.trace.bootstrap.otlp.metrics.OtlpLongPoint;
 import datadog.trace.bootstrap.otlp.metrics.OtlpMetricVisitor;
 import datadog.trace.bootstrap.otlp.metrics.OtlpScopedMetricsVisitor;
 import datadog.trace.core.otlp.common.OtlpPayload;
-import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -77,6 +85,10 @@ class OtlpMetricsProtoTest {
       this.schemaUrl = schemaUrl;
       this.metrics = metrics;
     }
+
+    OtelInstrumentationScope toScope() {
+      return new OtelInstrumentationScope(name, version, schemaUrl);
+    }
   }
 
   static final class MetricSpec {
@@ -104,6 +116,10 @@ class OtlpMetricsProtoTest {
       this.point = point;
       this.attrs = attrs;
     }
+
+    OtelInstrumentDescriptor toDescriptor() {
+      return new OtelInstrumentDescriptor(name, type, longValues, description, unit);
+    }
   }
 
   static final class AttrSpec {
@@ -115,6 +131,20 @@ class OtlpMetricsProtoTest {
       this.type = type;
       this.key = key;
       this.value = value;
+    }
+  }
+
+  private static final class ParsedScopeMetrics {
+    final String name;
+    final String version;
+    final String schemaUrl;
+    final List<byte[]> metricBlobs;
+
+    ParsedScopeMetrics(String name, String version, String schemaUrl, List<byte[]> metricBlobs) {
+      this.name = name;
+      this.version = version;
+      this.schemaUrl = schemaUrl;
+      this.metricBlobs = metricBlobs;
     }
   }
 
@@ -130,111 +160,62 @@ class OtlpMetricsProtoTest {
   }
 
   private static MetricSpec counterLong(String name, long value, AttrSpec... attrs) {
-    return new MetricSpec(
-        name, null, null, OtelInstrumentType.COUNTER, true, longPoint(value), asList(attrs));
+    return new MetricSpec(name, null, null, COUNTER, true, longPoint(value), asList(attrs));
   }
 
   private static MetricSpec counterLongFull(
       String name, String desc, String unit, long value, AttrSpec... attrs) {
-    return new MetricSpec(
-        name, desc, unit, OtelInstrumentType.COUNTER, true, longPoint(value), asList(attrs));
+    return new MetricSpec(name, desc, unit, COUNTER, true, longPoint(value), asList(attrs));
   }
 
   private static MetricSpec counterDouble(String name, double value, AttrSpec... attrs) {
-    return new MetricSpec(
-        name, null, null, OtelInstrumentType.COUNTER, false, doublePoint(value), asList(attrs));
+    return new MetricSpec(name, null, null, COUNTER, false, doublePoint(value), asList(attrs));
   }
 
   private static MetricSpec gaugeLong(String name, long value) {
-    return new MetricSpec(
-        name, null, null, OtelInstrumentType.GAUGE, true, longPoint(value), emptyList());
+    return new MetricSpec(name, null, null, GAUGE, true, longPoint(value), emptyList());
   }
 
   private static MetricSpec gaugeDouble(String name, double value) {
-    return new MetricSpec(
-        name, null, null, OtelInstrumentType.GAUGE, false, doublePoint(value), emptyList());
+    return new MetricSpec(name, null, null, GAUGE, false, doublePoint(value), emptyList());
   }
 
   private static MetricSpec upDownLong(String name, long value, AttrSpec... attrs) {
-    return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.UP_DOWN_COUNTER,
-        true,
-        longPoint(value),
-        asList(attrs));
+    return new MetricSpec(name, null, null, UP_DOWN_COUNTER, true, longPoint(value), asList(attrs));
   }
 
   private static MetricSpec upDownDouble(String name, double value, AttrSpec... attrs) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.UP_DOWN_COUNTER,
-        false,
-        doublePoint(value),
-        asList(attrs));
+        name, null, null, UP_DOWN_COUNTER, false, doublePoint(value), asList(attrs));
   }
 
   private static MetricSpec observableGaugeLong(String name, long value) {
-    return new MetricSpec(
-        name, null, null, OtelInstrumentType.OBSERVABLE_GAUGE, true, longPoint(value), emptyList());
+    return new MetricSpec(name, null, null, OBSERVABLE_GAUGE, true, longPoint(value), emptyList());
   }
 
   private static MetricSpec observableGaugeDouble(String name, double value) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.OBSERVABLE_GAUGE,
-        false,
-        doublePoint(value),
-        emptyList());
+        name, null, null, OBSERVABLE_GAUGE, false, doublePoint(value), emptyList());
   }
 
   private static MetricSpec observableCounterLong(String name, long value) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.OBSERVABLE_COUNTER,
-        true,
-        longPoint(value),
-        emptyList());
+        name, null, null, OBSERVABLE_COUNTER, true, longPoint(value), emptyList());
   }
 
   private static MetricSpec observableCounterDouble(String name, double value) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.OBSERVABLE_COUNTER,
-        false,
-        doublePoint(value),
-        emptyList());
+        name, null, null, OBSERVABLE_COUNTER, false, doublePoint(value), emptyList());
   }
 
   private static MetricSpec observableUpDownCounterLong(String name, long value) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER,
-        true,
-        longPoint(value),
-        emptyList());
+        name, null, null, OBSERVABLE_UP_DOWN_COUNTER, true, longPoint(value), emptyList());
   }
 
   private static MetricSpec observableUpDownCounterDouble(String name, double value) {
     return new MetricSpec(
-        name,
-        null,
-        null,
-        OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER,
-        false,
-        doublePoint(value),
-        emptyList());
+        name, null, null, OBSERVABLE_UP_DOWN_COUNTER, false, doublePoint(value), emptyList());
   }
 
   private static MetricSpec histogram(
@@ -250,26 +231,26 @@ class OtlpMetricsProtoTest {
         name,
         null,
         null,
-        OtelInstrumentType.HISTOGRAM,
+        HISTOGRAM,
         false,
         histogramPoint(count, bounds, counts, sum, min, max),
         asList(attrs));
   }
 
   private static AttrSpec strAttr(String key, String value) {
-    return new AttrSpec(STRING, key, value);
+    return new AttrSpec(STRING_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec longAttr(String key, long value) {
-    return new AttrSpec(LONG, key, value);
+    return new AttrSpec(LONG_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec boolAttr(String key, boolean value) {
-    return new AttrSpec(BOOLEAN, key, value);
+    return new AttrSpec(BOOLEAN_ATTRIBUTE, key, value);
   }
 
   private static AttrSpec dblAttr(String key, double value) {
-    return new AttrSpec(DOUBLE, key, value);
+    return new AttrSpec(DOUBLE_ATTRIBUTE, key, value);
   }
 
   // ── test cases ─────────────────────────────────────────────────────────────
@@ -357,63 +338,92 @@ class OtlpMetricsProtoTest {
                         boolAttr("success", true),
                         dblAttr("rate", 0.5))))),
 
-        // ── histogram — no buckets ────────────────────────────────────────────
+        // ── histogram — overflow only (no explicit bounds) ────────────────────
         Arguments.of(
-            "histogram no buckets",
+            "histogram no explicit bounds — overflow bucket only",
             asList(
                 scope(
                     "io.hist",
-                    histogram("response.time", 1.0, emptyList(), asList(1.0), 0.5, 0.5, 0.5)))),
+                    histogram(
+                        "response.time",
+                        1.0,
+                        asList(Double.POSITIVE_INFINITY),
+                        asList(1.0),
+                        0.5,
+                        0.5,
+                        0.5)))),
 
-        // ── histogram — zero count and sum ────────────────────────────────────
+        // ── histogram — zero count and sum with overflow bucket ───────────────
         Arguments.of(
             "histogram zero count and sum",
             asList(
                 scope(
                     "io.hist",
-                    histogram("idle.time", 0.0, emptyList(), asList(0.0), 0.0, 0.0, 0.0)))),
+                    histogram(
+                        "idle.time",
+                        0.0,
+                        asList(Double.POSITIVE_INFINITY),
+                        asList(0.0),
+                        0.0,
+                        0.0,
+                        0.0)))),
 
-        // ── histogram — single explicit bound ─────────────────────────────────
+        // ── histogram — single explicit bound with overflow ───────────────────
         Arguments.of(
-            "histogram single bound",
+            "histogram single bound with overflow",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "request.size",
                         5.0,
-                        asList(100.0),
+                        asList(100.0, Double.POSITIVE_INFINITY),
                         asList(4.0, 1.0),
                         280.0,
                         20.0,
                         200.0)))),
 
-        // ── histogram — with explicit bounds and attrs ────────────────────────
+        // ── histogram — finite bounds only (no overflow) — extra zero appended ─
         Arguments.of(
-            "histogram with bounds and string attr",
+            "histogram finite bounds — no overflow — extra zero bucket appended",
+            asList(
+                scope(
+                    "io.hist",
+                    histogram(
+                        "queue.size",
+                        8.0,
+                        asList(50.0, 100.0),
+                        asList(3.0, 5.0),
+                        750.0,
+                        10.0,
+                        95.0)))),
+
+        // ── histogram — with explicit bounds, overflow, and attrs ─────────────
+        Arguments.of(
+            "histogram with bounds, overflow, and string attr",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "response.time",
                         10.0,
-                        asList(1.0, 5.0, 10.0),
+                        asList(1.0, 5.0, 10.0, Double.POSITIVE_INFINITY),
                         asList(2.0, 3.0, 4.0, 1.0),
                         45.5,
                         0.5,
                         12.0,
                         strAttr("region", "us-east"))))),
 
-        // ── histogram — many buckets with multiple attrs ───────────────────────
+        // ── histogram — many buckets with overflow and multiple attrs ──────────
         Arguments.of(
-            "histogram many buckets with long and bool attrs",
+            "histogram many buckets with overflow, long and bool attrs",
             asList(
                 scope(
                     "io.hist",
                     histogram(
                         "latency.ms",
                         100.0,
-                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0),
+                        asList(1.0, 2.0, 5.0, 10.0, 25.0, 50.0, 100.0, Double.POSITIVE_INFINITY),
                         asList(5.0, 10.0, 20.0, 30.0, 15.0, 12.0, 6.0, 2.0),
                         4321.0,
                         0.5,
@@ -534,64 +544,93 @@ class OtlpMetricsProtoTest {
     OtlpPayload payload =
         collector.collectMetrics(
             visitor -> {
-              for (ScopeSpec s : expectedScopes) {
-                OtlpScopedMetricsVisitor sv =
-                    visitor.visitScopedMetrics(
-                        new OtelInstrumentationScope(s.name, s.version, s.schemaUrl));
-                for (MetricSpec m : s.metrics) {
-                  OtlpMetricVisitor mv =
-                      sv.visitMetric(
-                          descriptor(m.name, m.type, m.longValues, m.description, m.unit));
-                  for (AttrSpec a : m.attrs) {
-                    mv.visitAttribute(a.type, a.key, a.value);
+              for (ScopeSpec scope : expectedScopes) {
+                OtlpScopedMetricsVisitor sv = visitor.visitScopedMetrics(scope.toScope());
+                for (MetricSpec metric : scope.metrics) {
+                  OtlpMetricVisitor mv = sv.visitMetric(metric.toDescriptor());
+                  for (AttrSpec attr : metric.attrs) {
+                    mv.visitAttribute(attr.type, attr.key, attr.value);
                   }
-                  mv.visitDataPoint(m.point);
+                  mv.visitDataPoint(metric.point);
                 }
               }
             });
 
     // Scopes with no metrics produce no wire output — filter them for verification
-    List<ScopeSpec> nonEmptyScopes =
-        expectedScopes.stream().filter(s -> !s.metrics.isEmpty()).collect(toList());
+    List<ScopeSpec> nonEmptyScopes = new ArrayList<>();
+    for (ScopeSpec scope : expectedScopes) {
+      if (!scope.metrics.isEmpty()) nonEmptyScopes.add(scope);
+    }
 
     if (nonEmptyScopes.isEmpty()) {
       assertEquals(0, payload.getContentLength(), "empty registry must produce empty payload");
       return;
     }
 
-    // drain all chunks into a single contiguous byte array
-    ByteArrayOutputStream baos = new ByteArrayOutputStream(payload.getContentLength());
-    payload.drain(baos::write);
-    byte[] bytes = baos.toByteArray();
-    assertTrue(bytes.length > 0, "non-empty registry must produce bytes");
+    assertTrue(payload.getContentLength() > 0, "non-empty registry must produce bytes");
 
     // ── parse MetricsData ──────────────────────────────────────────────────
     // The full payload encodes a single MetricsData.resource_metrics (field 1, LEN).
-    CodedInputStream md = CodedInputStream.newInstance(bytes);
-    int mdTag = md.readTag();
-    assertEquals(1, WireFormat.getTagFieldNumber(mdTag), "MetricsData.resource_metrics is field 1");
-    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(mdTag));
-    CodedInputStream rm = md.readBytes().newCodedInput();
-    assertTrue(md.isAtEnd(), "expected exactly one ResourceMetrics");
+    CodedInputStream metricsData = CodedInputStream.newInstance(payload.getContent());
+    int metricsTag = metricsData.readTag();
+    assertEquals(
+        1, WireFormat.getTagFieldNumber(metricsTag), "MetricsData.resource_metrics is field 1");
+    assertEquals(WireFormat.WIRETYPE_LENGTH_DELIMITED, WireFormat.getTagWireType(metricsTag));
+    CodedInputStream resourceMetrics = metricsData.readBytes().newCodedInput();
+    assertTrue(metricsData.isAtEnd(), "expected exactly one ResourceMetrics");
 
-    // ── parse ResourceMetrics ──────────────────────────────────────────────
+    // ── parse ResourceMetrics (order-insensitive) ──────────────────────────
     // Fields: resource=1, scope_metrics=2 (repeated)
     boolean resourceFound = false;
-    int scopeIdx = 0;
-    while (!rm.isAtEnd()) {
-      int rmTag = rm.readTag();
-      int rmField = WireFormat.getTagFieldNumber(rmTag);
+    Map<String, ParsedScopeMetrics> parsedScopes = new HashMap<>();
+    while (!resourceMetrics.isAtEnd()) {
+      int tag = resourceMetrics.readTag();
+      int rmField = WireFormat.getTagFieldNumber(tag);
       if (rmField == 1) {
-        verifyResource(rm.readBytes().newCodedInput());
+        verifyResource(resourceMetrics.readBytes().newCodedInput());
         resourceFound = true;
         continue;
       }
       assertEquals(2, rmField, "ResourceMetrics.scope_metrics is field 2");
-      assertTrue(scopeIdx < nonEmptyScopes.size(), "more ScopeMetrics than expected");
-      verifyScopeMetrics(rm.readBytes().newCodedInput(), nonEmptyScopes.get(scopeIdx++));
+      ParsedScopeMetrics parsedScope =
+          parseScopeMetrics(resourceMetrics.readBytes().newCodedInput());
+      parsedScopes.put(parsedScope.name, parsedScope);
     }
     assertTrue(resourceFound, "Resource message must be present in ResourceMetrics");
-    assertEquals(nonEmptyScopes.size(), scopeIdx, "scope count mismatch in case: " + caseName);
+    assertEquals(
+        nonEmptyScopes.size(), parsedScopes.size(), "scope count mismatch in case: " + caseName);
+
+    for (ScopeSpec expected : nonEmptyScopes) {
+      ParsedScopeMetrics parsedScope = parsedScopes.get(expected.name);
+      assertNotNull(
+          parsedScope,
+          "no ScopeMetrics found for scope '" + expected.name + "' [" + caseName + "]");
+      assertEquals(expected.version, parsedScope.version, "scope version");
+      assertEquals(expected.schemaUrl, parsedScope.schemaUrl, "scope schemaUrl");
+      assertEquals(
+          expected.metrics.size(),
+          parsedScope.metricBlobs.size(),
+          "metric count in scope " + expected.name);
+
+      Map<String, MetricSpec> expectedMetricsByName = new HashMap<>();
+      for (MetricSpec metricSpec : expected.metrics) {
+        expectedMetricsByName.put(metricSpec.name, metricSpec);
+      }
+      for (byte[] metricBlob : parsedScope.metricBlobs) {
+        String metricName = parseMetricName(metricBlob);
+        MetricSpec metricSpec = expectedMetricsByName.get(metricName);
+        assertNotNull(
+            metricSpec,
+            "unexpected metric '"
+                + metricName
+                + "' in scope "
+                + expected.name
+                + " ["
+                + caseName
+                + "]");
+        verifyMetric(CodedInputStream.newInstance(metricBlob), metricSpec);
+      }
+    }
   }
 
   // ── verification helpers ──────────────────────────────────────────────────
@@ -604,73 +643,78 @@ class OtlpMetricsProtoTest {
    *   Resource { repeated KeyValue attributes = 1; }
    * </pre>
    */
-  private static void verifyResource(CodedInputStream res) throws IOException {
+  private static void verifyResource(CodedInputStream resource) throws IOException {
     boolean foundServiceName = false;
-    while (!res.isAtEnd()) {
-      int tag = res.readTag();
+    while (!resource.isAtEnd()) {
+      int tag = resource.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) { // attributes (repeated KeyValue)
-        String key = readKeyValueKey(res.readBytes().newCodedInput());
+        String key = readKeyValueKey(resource.readBytes().newCodedInput());
         if ("service.name".equals(key)) {
           foundServiceName = true;
         }
       } else {
-        res.skipField(tag);
+        resource.skipField(tag);
       }
     }
     assertTrue(foundServiceName, "Resource must contain a 'service.name' attribute");
   }
 
   /**
-   * Parses a {@code ScopeMetrics} message body and asserts its content matches {@code expected}.
+   * Parses a {@code ScopeMetrics} message body into a {@link ParsedScopeMetrics} containing the
+   * scope identity and raw bytes of each {@code metrics} entry.
    *
    * <pre>
    *   ScopeMetrics { scope=1, metrics=2, schema_url=3 }
    * </pre>
    */
-  private static void verifyScopeMetrics(CodedInputStream sm, ScopeSpec expected)
+  private static ParsedScopeMetrics parseScopeMetrics(CodedInputStream scopeMetrics)
       throws IOException {
-    String parsedName = null;
-    String parsedVersion = null;
-    String parsedSchemaUrl = null;
-    int metricIdx = 0;
-
-    while (!sm.isAtEnd()) {
-      int tag = sm.readTag();
+    String name = null;
+    String version = null;
+    String schemaUrl = null;
+    List<byte[]> metricBlobs = new ArrayList<>();
+    while (!scopeMetrics.isAtEnd()) {
+      int tag = scopeMetrics.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1: // InstrumentationScope
-          CodedInputStream scope = sm.readBytes().newCodedInput();
-          while (!scope.isAtEnd()) {
-            int st = scope.readTag();
-            switch (WireFormat.getTagFieldNumber(st)) {
+          CodedInputStream scopeStream = scopeMetrics.readBytes().newCodedInput();
+          while (!scopeStream.isAtEnd()) {
+            int scopeTag = scopeStream.readTag();
+            switch (WireFormat.getTagFieldNumber(scopeTag)) {
               case 1:
-                parsedName = scope.readString();
+                name = scopeStream.readString();
                 break;
               case 2:
-                parsedVersion = scope.readString();
+                version = scopeStream.readString();
                 break;
               default:
-                scope.skipField(st);
+                scopeStream.skipField(scopeTag);
             }
           }
           break;
         case 2: // Metric (repeated)
-          assertTrue(
-              metricIdx < expected.metrics.size(),
-              "more metrics than expected in scope " + expected.name);
-          verifyMetric(sm.readBytes().newCodedInput(), expected.metrics.get(metricIdx++));
+          metricBlobs.add(scopeMetrics.readBytes().toByteArray());
           break;
         case 3: // schema_url
-          parsedSchemaUrl = sm.readString();
+          schemaUrl = scopeMetrics.readString();
           break;
         default:
-          sm.skipField(tag);
+          scopeMetrics.skipField(tag);
       }
     }
+    return new ParsedScopeMetrics(name, version, schemaUrl, metricBlobs);
+  }
 
-    assertEquals(expected.name, parsedName, "scope name");
-    assertEquals(expected.version, parsedVersion, "scope version");
-    assertEquals(expected.schemaUrl, parsedSchemaUrl, "scope schemaUrl");
-    assertEquals(expected.metrics.size(), metricIdx, "metric count in scope " + expected.name);
+  private static String parseMetricName(byte[] blob) throws IOException {
+    CodedInputStream metricStream = CodedInputStream.newInstance(blob);
+    while (!metricStream.isAtEnd()) {
+      int tag = metricStream.readTag();
+      if (WireFormat.getTagFieldNumber(tag) == 1) {
+        return metricStream.readString();
+      }
+      metricStream.skipField(tag);
+    }
+    return null;
   }
 
   /**
@@ -680,44 +724,42 @@ class OtlpMetricsProtoTest {
    *   Metric { name=1, description=2, unit=3, gauge=5, sum=7, histogram=9 }
    * </pre>
    */
-  private static void verifyMetric(CodedInputStream m, MetricSpec expected) throws IOException {
+  private static void verifyMetric(CodedInputStream metric, MetricSpec expected)
+      throws IOException {
     String parsedName = null;
     String parsedDesc = null;
     String parsedUnit = null;
     boolean dataFound = false;
 
-    while (!m.isAtEnd()) {
-      int tag = m.readTag();
+    while (!metric.isAtEnd()) {
+      int tag = metric.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1:
-          parsedName = m.readString();
+          parsedName = metric.readString();
           break;
         case 2:
-          parsedDesc = m.readString();
+          parsedDesc = metric.readString();
           break;
         case 3:
-          parsedUnit = m.readString();
+          parsedUnit = metric.readString();
           break;
         case 5: // Gauge
           assertTrue(isGaugeType(expected.type), "unexpected gauge for " + expected.name);
-          verifyGauge(m.readBytes().newCodedInput(), expected);
+          verifyGauge(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
           break;
         case 7: // Sum
           assertTrue(isSumType(expected.type), "unexpected sum for " + expected.name);
-          verifySum(m.readBytes().newCodedInput(), expected);
+          verifySum(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
           break;
         case 9: // Histogram
-          assertEquals(
-              OtelInstrumentType.HISTOGRAM,
-              expected.type,
-              "unexpected histogram for " + expected.name);
-          verifyHistogram(m.readBytes().newCodedInput(), expected);
+          assertEquals(HISTOGRAM, expected.type, "unexpected histogram for " + expected.name);
+          verifyHistogram(metric.readBytes().newCodedInput(), expected);
           dataFound = true;
           break;
         default:
-          m.skipField(tag);
+          metric.skipField(tag);
       }
     }
 
@@ -728,14 +770,14 @@ class OtlpMetricsProtoTest {
   }
 
   private static boolean isGaugeType(OtelInstrumentType type) {
-    return type == OtelInstrumentType.GAUGE || type == OtelInstrumentType.OBSERVABLE_GAUGE;
+    return type == GAUGE || type == OBSERVABLE_GAUGE;
   }
 
   private static boolean isSumType(OtelInstrumentType type) {
-    return type == OtelInstrumentType.COUNTER
-        || type == OtelInstrumentType.OBSERVABLE_COUNTER
-        || type == OtelInstrumentType.UP_DOWN_COUNTER
-        || type == OtelInstrumentType.OBSERVABLE_UP_DOWN_COUNTER;
+    return type == COUNTER
+        || type == OBSERVABLE_COUNTER
+        || type == UP_DOWN_COUNTER
+        || type == OBSERVABLE_UP_DOWN_COUNTER;
   }
 
   /**
@@ -745,16 +787,17 @@ class OtlpMetricsProtoTest {
    *   Gauge { data_points=1 }
    * </pre>
    */
-  private static void verifyGauge(CodedInputStream g, MetricSpec expected) throws IOException {
+  private static void verifyGauge(CodedInputStream gauge, MetricSpec expected) throws IOException {
     boolean foundDataPoint = false;
-    while (!g.isAtEnd()) {
-      int tag = g.readTag();
+    while (!gauge.isAtEnd()) {
+      int tag = gauge.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
         assertFalse(foundDataPoint, "expected exactly one data point in gauge " + expected.name);
-        verifyNumberDataPoint(g.readBytes().newCodedInput(), expected, /* hasStartTime= */ false);
+        verifyNumberDataPoint(
+            gauge.readBytes().newCodedInput(), expected, /* hasStartTime= */ false);
         foundDataPoint = true;
       } else {
-        g.skipField(tag);
+        gauge.skipField(tag);
       }
     }
     assertTrue(foundDataPoint, "no data point found in gauge " + expected.name);
@@ -767,34 +810,34 @@ class OtlpMetricsProtoTest {
    *   Sum { data_points=1, aggregation_temporality=2, is_monotonic=3 }
    * </pre>
    */
-  private static void verifySum(CodedInputStream s, MetricSpec expected) throws IOException {
+  private static void verifySum(CodedInputStream sum, MetricSpec expected) throws IOException {
     boolean foundDataPoint = false;
     boolean foundTemporality = false;
 
-    while (!s.isAtEnd()) {
-      int tag = s.readTag();
+    while (!sum.isAtEnd()) {
+      int tag = sum.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1: // NumberDataPoint
           assertFalse(foundDataPoint, "expected exactly one data point in sum " + expected.name);
-          verifyNumberDataPoint(s.readBytes().newCodedInput(), expected, /* hasStartTime= */ true);
+          verifyNumberDataPoint(
+              sum.readBytes().newCodedInput(), expected, /* hasStartTime= */ true);
           foundDataPoint = true;
           break;
         case 2: // AggregationTemporality (1=DELTA, 2=CUMULATIVE)
-          int temporality = s.readEnum();
+          int temporality = sum.readEnum();
           assertTrue(
               temporality == 1 || temporality == 2,
               "aggregation_temporality must be DELTA(1) or CUMULATIVE(2)");
           foundTemporality = true;
           break;
         case 3: // is_monotonic
-          boolean isMonotonic = s.readBool();
+          boolean isMonotonic = sum.readBool();
           boolean expectedMonotonic =
-              expected.type == OtelInstrumentType.COUNTER
-                  || expected.type == OtelInstrumentType.OBSERVABLE_COUNTER;
+              expected.type == COUNTER || expected.type == OBSERVABLE_COUNTER;
           assertEquals(expectedMonotonic, isMonotonic, "is_monotonic for " + expected.name);
           break;
         default:
-          s.skipField(tag);
+          sum.skipField(tag);
       }
     }
 
@@ -809,28 +852,29 @@ class OtlpMetricsProtoTest {
    *   Histogram { data_points=1, aggregation_temporality=2 }
    * </pre>
    */
-  private static void verifyHistogram(CodedInputStream h, MetricSpec expected) throws IOException {
+  private static void verifyHistogram(CodedInputStream histogram, MetricSpec expected)
+      throws IOException {
     boolean foundDataPoint = false;
     boolean foundTemporality = false;
 
-    while (!h.isAtEnd()) {
-      int tag = h.readTag();
+    while (!histogram.isAtEnd()) {
+      int tag = histogram.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 1: // HistogramDataPoint
           assertFalse(
               foundDataPoint, "expected exactly one data point in histogram " + expected.name);
-          verifyHistogramDataPoint(h.readBytes().newCodedInput(), expected);
+          verifyHistogramDataPoint(histogram.readBytes().newCodedInput(), expected);
           foundDataPoint = true;
           break;
         case 2: // AggregationTemporality
-          int temporality = h.readEnum();
+          int temporality = histogram.readEnum();
           assertTrue(
               temporality == 1 || temporality == 2,
               "aggregation_temporality must be DELTA(1) or CUMULATIVE(2)");
           foundTemporality = true;
           break;
         default:
-          h.skipField(tag);
+          histogram.skipField(tag);
       }
     }
 
@@ -849,26 +893,27 @@ class OtlpMetricsProtoTest {
    * @param hasStartTime true for non-gauge types; gauges omit {@code start_time_unix_nano}
    */
   private static void verifyNumberDataPoint(
-      CodedInputStream dp, MetricSpec expected, boolean hasStartTime) throws IOException {
+      CodedInputStream dataPoint, MetricSpec expected, boolean hasStartTime) throws IOException {
     boolean foundStartTime = false;
     boolean foundEndTime = false;
     boolean foundValue = false;
     List<String> parsedAttrKeys = new ArrayList<>();
 
-    while (!dp.isAtEnd()) {
-      int tag = dp.readTag();
+    while (!dataPoint.isAtEnd()) {
+      int tag = dataPoint.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 2: // start_time_unix_nano (fixed64)
           assertEquals(
-              START_EPOCH_NS, dp.readFixed64(), "start_time_unix_nano for " + expected.name);
+              START_EPOCH_NS, dataPoint.readFixed64(), "start_time_unix_nano for " + expected.name);
           foundStartTime = true;
           break;
         case 3: // time_unix_nano (fixed64)
-          assertEquals(END_EPOCH_NS, dp.readFixed64(), "time_unix_nano for " + expected.name);
+          assertEquals(
+              END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for " + expected.name);
           foundEndTime = true;
           break;
         case 4: // as_double (double via fixed64 wire type)
-          double parsedDouble = dp.readDouble();
+          double parsedDouble = dataPoint.readDouble();
           OtlpDoublePoint expectedDouble = (OtlpDoublePoint) expected.point;
           assertEquals(
               Double.doubleToRawLongBits(expectedDouble.value),
@@ -877,16 +922,16 @@ class OtlpMetricsProtoTest {
           foundValue = true;
           break;
         case 6: // as_int (sfixed64)
-          long parsedLong = dp.readSFixed64();
+          long parsedLong = dataPoint.readSFixed64();
           OtlpLongPoint expectedLong = (OtlpLongPoint) expected.point;
           assertEquals(expectedLong.value, parsedLong, "as_int for " + expected.name);
           foundValue = true;
           break;
         case 7: // attributes (repeated KeyValue)
-          parsedAttrKeys.add(readKeyValueKey(dp.readBytes().newCodedInput()));
+          parsedAttrKeys.add(readKeyValueKey(dataPoint.readBytes().newCodedInput()));
           break;
         default:
-          dp.skipField(tag);
+          dataPoint.skipField(tag);
       }
     }
 
@@ -914,7 +959,7 @@ class OtlpMetricsProtoTest {
    *                        min=11, max=12 }
    * </pre>
    */
-  private static void verifyHistogramDataPoint(CodedInputStream dp, MetricSpec expected)
+  private static void verifyHistogramDataPoint(CodedInputStream dataPoint, MetricSpec expected)
       throws IOException {
     OtlpHistogramPoint hp = (OtlpHistogramPoint) expected.point;
     boolean foundStartTime = false;
@@ -927,54 +972,55 @@ class OtlpMetricsProtoTest {
     List<Double> parsedBounds = new ArrayList<>();
     List<String> parsedAttrKeys = new ArrayList<>();
 
-    while (!dp.isAtEnd()) {
-      int tag = dp.readTag();
+    while (!dataPoint.isAtEnd()) {
+      int tag = dataPoint.readTag();
       switch (WireFormat.getTagFieldNumber(tag)) {
         case 2: // start_time_unix_nano
           assertEquals(
-              START_EPOCH_NS, dp.readFixed64(), "start_time_unix_nano for " + expected.name);
+              START_EPOCH_NS, dataPoint.readFixed64(), "start_time_unix_nano for " + expected.name);
           foundStartTime = true;
           break;
         case 3: // time_unix_nano
-          assertEquals(END_EPOCH_NS, dp.readFixed64(), "time_unix_nano for " + expected.name);
+          assertEquals(
+              END_EPOCH_NS, dataPoint.readFixed64(), "time_unix_nano for " + expected.name);
           foundEndTime = true;
           break;
         case 4: // count (fixed64)
-          assertEquals((long) hp.count, dp.readFixed64(), "histogram count");
+          assertEquals((long) hp.count, dataPoint.readFixed64(), "histogram count");
           foundCount = true;
           break;
         case 5: // sum (double via fixed64)
           assertEquals(
               Double.doubleToRawLongBits(hp.sum),
-              Double.doubleToRawLongBits(dp.readDouble()),
+              Double.doubleToRawLongBits(dataPoint.readDouble()),
               "histogram sum");
           foundSum = true;
           break;
         case 6: // bucket_counts (repeated fixed64)
-          parsedBucketCounts.add(dp.readFixed64());
+          parsedBucketCounts.add(dataPoint.readFixed64());
           break;
         case 7: // explicit_bounds (repeated double)
-          parsedBounds.add(dp.readDouble());
+          parsedBounds.add(dataPoint.readDouble());
           break;
         case 9: // attributes (repeated KeyValue)
-          parsedAttrKeys.add(readKeyValueKey(dp.readBytes().newCodedInput()));
+          parsedAttrKeys.add(readKeyValueKey(dataPoint.readBytes().newCodedInput()));
           break;
         case 11: // min (double via fixed64)
           assertEquals(
               Double.doubleToRawLongBits(hp.min),
-              Double.doubleToRawLongBits(dp.readDouble()),
+              Double.doubleToRawLongBits(dataPoint.readDouble()),
               "histogram min");
           foundMin = true;
           break;
         case 12: // max (double via fixed64)
           assertEquals(
               Double.doubleToRawLongBits(hp.max),
-              Double.doubleToRawLongBits(dp.readDouble()),
+              Double.doubleToRawLongBits(dataPoint.readDouble()),
               "histogram max");
           foundMax = true;
           break;
         default:
-          dp.skipField(tag);
+          dataPoint.skipField(tag);
       }
     }
 
@@ -985,26 +1031,67 @@ class OtlpMetricsProtoTest {
     assertTrue(foundMin, "min required for histogram " + expected.name);
     assertTrue(foundMax, "max required for histogram " + expected.name);
 
-    assertEquals(
-        hp.bucketCounts.size(),
-        parsedBucketCounts.size(),
-        "bucket_counts size for " + expected.name);
-    for (int i = 0; i < hp.bucketCounts.size(); i++) {
+    // Input uses equal counts and boundaries; derive the expected OTLP wire output:
+    // - finite boundaries are written as explicit_bounds (+Infinity overflow marker is dropped)
+    // - when there is no overflow boundary, one extra zero count is appended so that
+    //   bucket_counts.size() == explicit_bounds.size() + 1, as required by the OTLP spec
+    List<Double> expectedBounds = new ArrayList<>();
+    boolean hasOverflow = false;
+    for (double boundary : hp.bucketBoundaries) {
+      if (Double.isInfinite(boundary)) {
+        hasOverflow = true;
+      } else {
+        expectedBounds.add(boundary);
+      }
+    }
+    List<Long> expectedCounts = new ArrayList<>();
+    for (double count : hp.bucketCounts) {
+      expectedCounts.add((long) count);
+    }
+    if (!expectedCounts.isEmpty() && !hasOverflow) {
+      expectedCounts.add(0L);
+    }
+
+    // OTLP spec: bucket_counts.size() == explicit_bounds.size() + 1, or both 0
+    if (expectedCounts.isEmpty()) {
       assertEquals(
-          (long) hp.bucketCounts.get(i).doubleValue(),
-          (long) parsedBucketCounts.get(i),
-          "bucket_counts[" + i + "] for " + expected.name);
+          0,
+          parsedBounds.size(),
+          "explicit_bounds must be 0 when bucket_counts is 0 for " + expected.name);
+      assertEquals(
+          0,
+          parsedBucketCounts.size(),
+          "bucket_counts must be 0 when explicit_bounds is 0 for " + expected.name);
+    } else {
+      assertEquals(
+          parsedBounds.size() + 1,
+          parsedBucketCounts.size(),
+          "OTLP spec: bucket_counts must be explicit_bounds + 1 for " + expected.name);
+    }
+
+    // +Infinity must never appear as an explicit bound on the wire
+    assertFalse(
+        parsedBounds.stream().anyMatch(b -> Double.isInfinite(b)),
+        "+Infinity must not appear in explicit_bounds for " + expected.name);
+
+    assertEquals(
+        expectedBounds.size(), parsedBounds.size(), "explicit_bounds size for " + expected.name);
+    for (int i = 0; i < expectedBounds.size(); i++) {
+      assertEquals(
+          Double.doubleToRawLongBits(expectedBounds.get(i)),
+          Double.doubleToRawLongBits(parsedBounds.get(i)),
+          "explicit_bounds[" + i + "] for " + expected.name);
     }
 
     assertEquals(
-        hp.bucketBoundaries.size(),
-        parsedBounds.size(),
-        "explicit_bounds size for " + expected.name);
-    for (int i = 0; i < hp.bucketBoundaries.size(); i++) {
+        expectedCounts.size(),
+        parsedBucketCounts.size(),
+        "bucket_counts size for " + expected.name);
+    for (int i = 0; i < expectedCounts.size(); i++) {
       assertEquals(
-          Double.doubleToRawLongBits(hp.bucketBoundaries.get(i)),
-          Double.doubleToRawLongBits(parsedBounds.get(i)),
-          "explicit_bounds[" + i + "] for " + expected.name);
+          (long) expectedCounts.get(i),
+          (long) parsedBucketCounts.get(i),
+          "bucket_counts[" + i + "] for " + expected.name);
     }
 
     assertEquals(
@@ -1023,22 +1110,15 @@ class OtlpMetricsProtoTest {
    * Reads a {@code KeyValue} body and returns the key (field 1). The value field is skipped; its
    * encoding is covered by {@code OtlpCommonProtoTest}.
    */
-  private static String readKeyValueKey(CodedInputStream kv) throws IOException {
-    String key = null;
-    while (!kv.isAtEnd()) {
-      int tag = kv.readTag();
+  private static String readKeyValueKey(CodedInputStream keyValue) throws IOException {
+    while (!keyValue.isAtEnd()) {
+      int tag = keyValue.readTag();
       if (WireFormat.getTagFieldNumber(tag) == 1) {
-        key = kv.readString();
-      } else {
-        kv.skipField(tag);
+        return keyValue.readString();
       }
+      keyValue.skipField(tag);
     }
-    return key;
-  }
-
-  static OtelInstrumentDescriptor descriptor(
-      String name, OtelInstrumentType type, boolean longValues, String description, String unit) {
-    return new OtelInstrumentDescriptor(name, type, longValues, description, unit);
+    return null;
   }
 
   static OtlpLongPoint longPoint(long value) {

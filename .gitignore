@@ -8,7 +8,7 @@ target
 #########
 !**/gradle/wrapper/*
 /.gradle
-*/.gradle
+**/.gradle
 **/build/
 examples/**/build/
 

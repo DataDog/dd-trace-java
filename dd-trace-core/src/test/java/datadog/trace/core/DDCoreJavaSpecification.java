@@ -124,6 +124,7 @@ public abstract class DDCoreJavaSpecification extends DDJavaSpecification {
             false,
             propagationTags,
             ProfilingContextIntegration.NoOp.INSTANCE,
+            true,
             true);
 
     DDSpan span = DDSpan.create("test", timestamp, context, null);

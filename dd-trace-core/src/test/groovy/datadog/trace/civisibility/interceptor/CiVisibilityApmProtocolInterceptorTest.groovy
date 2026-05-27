@@ -20,9 +20,9 @@ class CiVisibilityApmProtocolInterceptorTest extends DDCoreSpecification {
     setup:
     tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE)
 
-    tracer.buildSpan("test-module").withSpanType(DDSpanTypes.TEST_MODULE_END).start().finish()
-    tracer.buildSpan("test-suite").withSpanType(DDSpanTypes.TEST_SUITE_END).start().finish()
-    tracer.buildSpan("test").withSpanType(DDSpanTypes.TEST).start().finish()
+    tracer.buildSpan("datadog", "test-module").withSpanType(DDSpanTypes.TEST_MODULE_END).start().finish()
+    tracer.buildSpan("datadog", "test-suite").withSpanType(DDSpanTypes.TEST_SUITE_END).start().finish()
+    tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start().finish()
 
     writer.waitForTraces(1)
 
@@ -38,7 +38,7 @@ class CiVisibilityApmProtocolInterceptorTest extends DDCoreSpecification {
     setup:
     tracer.addTraceInterceptor(CiVisibilityApmProtocolInterceptor.INSTANCE)
 
-    def testSpan = tracer.buildSpan("test").withSpanType(DDSpanTypes.TEST).start()
+    def testSpan = tracer.buildSpan("datadog", "test").withSpanType(DDSpanTypes.TEST).start()
     testSpan.setTag(Tags.TEST_SESSION_ID, "session ID")
     testSpan.setTag(Tags.TEST_MODULE_ID, "module ID")
     testSpan.setTag(Tags.TEST_SUITE_ID, "suite ID")

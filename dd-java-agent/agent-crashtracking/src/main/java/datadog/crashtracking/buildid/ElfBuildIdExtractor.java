@@ -4,6 +4,7 @@ import java.io.IOException;
 import java.io.RandomAccessFile;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Path;
 import java.util.Arrays;
 import org.slf4j.Logger;
@@ -31,7 +32,7 @@ public class ElfBuildIdExtractor implements BuildIdExtractor {
 
   // Note header constants
   private static final int NT_GNU_BUILD_ID = 3;
-  private static final byte[] GNU_NOTE_NAME = "GNU\0".getBytes();
+  private static final byte[] GNU_NOTE_NAME = "GNU\0".getBytes(StandardCharsets.UTF_8);
 
   @Override
   public String extractBuildId(Path file) {

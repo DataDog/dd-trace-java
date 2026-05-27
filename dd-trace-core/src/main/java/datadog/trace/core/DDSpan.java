@@ -30,7 +30,6 @@ import datadog.trace.bootstrap.instrumentation.api.AttachableWrapper;
 import datadog.trace.bootstrap.instrumentation.api.ErrorPriorities;
 import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.SpanWrapper;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.util.StackTraces;
 import edu.umd.cs.findbugs.annotations.NonNull;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -126,7 +125,8 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  private DDSpan(
+  // @VisibleForTesting
+  DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
       @Nonnull DDSpanContext context,
@@ -354,10 +354,10 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public DDSpan addThrowable(Throwable error, byte errorPriority) {
     if (null != error) {
-      String message = error.getMessage();
+      String message = StackTraces.safeGetMessage(error);
       if (!"broken pipe".equalsIgnoreCase(message)
           && (error.getCause() == null
-              || !"broken pipe".equalsIgnoreCase(error.getCause().getMessage()))) {
+              || !"broken pipe".equalsIgnoreCase(StackTraces.safeGetMessage(error.getCause())))) {
         // broken pipes happen when clients abort connections,
         // which might happen because the application is overloaded
         // or warming up - capturing the stack trace and keeping
@@ -681,6 +681,11 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return durationNano;
   }
 
+  // @VisibleForTesting
+  void setDurationNano(long duration) {
+    DURATION_NANO_UPDATER.set(this, duration);
+  }
+
   @Override
   public String getServiceName() {
     return context.getServiceName();
@@ -771,6 +776,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   @Override
   public void processTagsAndBaggage(final MetadataConsumer consumer) {
     context.processTagsAndBaggage(consumer, longRunningVersion, this);
+  }
+
+  @Override
+  public void processTagsAndBaggage(
+      final MetadataConsumer consumer, boolean injectLinksAsTags, boolean injectBaggageAsTags) {
+    context.processTagsAndBaggage(
+        consumer, longRunningVersion, this, injectLinksAsTags, injectBaggageAsTags);
   }
 
   @Override
@@ -884,7 +896,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return context.getTraceCollector().getTraceConfig();
   }
 
-  List<? extends AgentSpanLink> getLinks() {
+  public List<? extends AgentSpanLink> getLinks() {
     return this.links;
   }
 
@@ -895,7 +907,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     }
 
     // If links are initially null / empty, then the shared placeholder List EMPTY is used.
-    // Bacause EMPTY is shared, EMPTY is safe for reading, but not for writing.
+    // Because EMPTY is shared, EMPTY is safe for reading, but not for writing.
     // On write - if links is the EMPTY placeholder, then need to create a CopyOnWriteArrayList
     // owned by this DDSpan
 
@@ -943,8 +955,13 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
 
   @Override
   public boolean isOutbound() {
-    Object spanKind = context.getTag(Tags.SPAN_KIND);
-    return Tags.SPAN_KIND_CLIENT.equals(spanKind) || Tags.SPAN_KIND_PRODUCER.equals(spanKind);
+    byte ordinal = context.getSpanKindOrdinal();
+    return ordinal == DDSpanContext.SPAN_KIND_CLIENT || ordinal == DDSpanContext.SPAN_KIND_PRODUCER;
+  }
+
+  @Override
+  public boolean isKind(SpanKindFilter filter) {
+    return filter.matches(context.getSpanKindOrdinal());
   }
 
   @Override

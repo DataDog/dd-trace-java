@@ -1,15 +1,26 @@
 package datadog.trace.common.metrics;
 
+import static datadog.trace.api.Functions.UTF8_ENCODE;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.PEER_TAGS_CACHE_ADDER;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SERVICE_NAMES;
+import static datadog.trace.common.metrics.ConflatingMetricsAggregator.SPAN_KINDS;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
 
+import datadog.trace.api.Pair;
+import datadog.trace.api.cache.DDCache;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.util.LRUCache;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.TimeUnit;
+import java.util.function.Function;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -20,11 +31,8 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<Batch> batchPool;
   private final MessagePassingQueue<InboxItem> inbox;
   private final LRUCache<MetricKey, AggregateMetric> aggregates;
-  private final ConcurrentMap<MetricKey, Batch> pending;
-  private final Set<MetricKey> commonKeys;
   private final MetricWriter writer;
   // the reporting interval controls how much history will be buffered
   // when the agent is unresponsive (only 10 pending requests will be
@@ -33,6 +41,15 @@ final class Aggregator implements Runnable {
 
   private final long sleepMillis;
 
+  /**
+   * Per-cycle hook run on the aggregator thread at the start of each report cycle, before the
+   * flush. Used by {@link ConflatingMetricsAggregator} to reconcile its cached peer-tag schema
+   * against {@link datadog.communication.ddagent.DDAgentFeaturesDiscovery}; running before the
+   * flush guarantees that any test awaiting {@code writer.finishBucket()} observes the schema in
+   * its post-reconcile state. May be {@code null}.
+   */
+  private final Runnable onReportCycle;
+
   @SuppressFBWarnings(
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
@@ -40,45 +57,56 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit) {
+      TimeUnit reportingIntervalTimeUnit,
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this(
         writer,
-        batchPool,
         inbox,
-        pending,
-        commonKeys,
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS);
+        DEFAULT_SLEEP_MILLIS,
+        healthMetrics,
+        onReportCycle);
   }
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<Batch> batchPool,
       MessagePassingQueue<InboxItem> inbox,
-      ConcurrentMap<MetricKey, Batch> pending,
-      final Set<MetricKey> commonKeys,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
-      long sleepMillis) {
+      long sleepMillis,
+      HealthMetrics healthMetrics,
+      Runnable onReportCycle) {
     this.writer = writer;
-    this.batchPool = batchPool;
     this.inbox = inbox;
-    this.commonKeys = commonKeys;
     this.aggregates =
         new LRUCache<>(
-            new CommonKeyCleaner(commonKeys), maxAggregates * 4 / 3, 0.75f, maxAggregates);
-    this.pending = pending;
+            new AggregateExpiry(healthMetrics), maxAggregates * 4 / 3, 0.75f, maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
+    this.onReportCycle = onReportCycle;
+  }
+
+  private static final class AggregateExpiry
+      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
+    private final HealthMetrics healthMetrics;
+
+    AggregateExpiry(HealthMetrics healthMetrics) {
+      this.healthMetrics = healthMetrics;
+    }
+
+    @Override
+    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
+      if (expired.getValue().getHitCount() > 0) {
+        healthMetrics.onStatsAggregateDropped();
+      }
+    }
   }
 
   public void clearAggregates() {
@@ -122,21 +150,87 @@ final class Aggregator implements Runnable {
         } else {
           signal.ignore();
         }
-      } else if (item instanceof Batch && !stopped) {
-        Batch batch = (Batch) item;
-        MetricKey key = batch.getKey();
-        // important that it is still *this* batch pending, must not remove otherwise
-        pending.remove(key, batch);
+      } else if (item instanceof SpanSnapshot && !stopped) {
+        SpanSnapshot snapshot = (SpanSnapshot) item;
+        MetricKey key = buildMetricKey(snapshot);
         AggregateMetric aggregate = aggregates.computeIfAbsent(key, k -> new AggregateMetric());
-        batch.contributeTo(aggregate);
+        aggregate.recordOneDuration(snapshot.tagAndDuration);
         dirty = true;
-        // return the batch for reuse
-        batchPool.offer(batch);
       }
     }
   }
 
+  private static MetricKey buildMetricKey(SpanSnapshot s) {
+    return new MetricKey(
+        s.resourceName,
+        SERVICE_NAMES.computeIfAbsent(s.serviceName, UTF8_ENCODE),
+        s.operationName,
+        s.serviceNameSource,
+        s.spanType,
+        s.httpStatusCode,
+        s.synthetic,
+        s.traceRoot,
+        SPAN_KINDS.computeIfAbsent(s.spanKind, UTF8BytesString::create),
+        materializePeerTags(s.peerTagSchema, s.peerTagValues),
+        s.httpMethod,
+        s.httpEndpoint,
+        s.grpcStatusCode);
+  }
+
+  /**
+   * Encodes the per-span peer-tag values into the {@code List<UTF8BytesString>} the {@link
+   * MetricKey} consumes. Reads name/value pairs at the same index from the schema's names and the
+   * snapshot's values; null value slots are skipped (the span didn't set that peer tag).
+   */
+  private static List<UTF8BytesString> materializePeerTags(PeerTagSchema schema, String[] values) {
+    if (schema == null || values == null) {
+      return Collections.emptyList();
+    }
+    String[] names = schema.names;
+    int n = names.length;
+    // First pass: count how many tags fired and remember the first index. The single-entry case
+    // is common (e.g. INTERNAL spans only emit base.service) and gets a singletonList to avoid an
+    // ArrayList allocation on the hot path.
+    int firstHit = -1;
+    int hitCount = 0;
+    for (int i = 0; i < n; i++) {
+      if (values[i] != null) {
+        if (hitCount == 0) {
+          firstHit = i;
+        }
+        hitCount++;
+      }
+    }
+    if (hitCount == 0) {
+      return Collections.emptyList();
+    }
+    if (hitCount == 1) {
+      return Collections.singletonList(encodePeerTag(names[firstHit], values[firstHit]));
+    }
+    List<UTF8BytesString> tags = new ArrayList<>(hitCount);
+    for (int i = firstHit; i < n; i++) {
+      if (values[i] != null) {
+        tags.add(encodePeerTag(names[i], values[i]));
+      }
+    }
+    return tags;
+  }
+
+  private static UTF8BytesString encodePeerTag(String name, String value) {
+    final Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>
+        cacheAndCreator = PEER_TAGS_CACHE.computeIfAbsent(name, PEER_TAGS_CACHE_ADDER);
+    return cacheAndCreator.getLeft().computeIfAbsent(value, cacheAndCreator.getRight());
+  }
+
   private void report(long when, SignalItem signal) {
+    // Per-cycle hook on the aggregator thread -- used by ClientStatsAggregator to reconcile the
+    // cached peer-tag schema against feature discovery. Runs before the flush so any test that
+    // awaits writer.finishBucket() observes the schema in its post-reconcile state, and so
+    // subsequent producer publishes (which may happen as soon as the flush completes) see the new
+    // schema without an additional handoff.
+    if (onReportCycle != null) {
+      onReportCycle.run();
+    }
     boolean skipped = true;
     if (dirty) {
       try {
@@ -170,27 +264,11 @@ final class Aggregator implements Runnable {
       AggregateMetric metric = pair.getValue();
       if (metric.getHitCount() == 0) {
         it.remove();
-        commonKeys.remove(pair.getKey());
       }
     }
   }
 
   private long wallClockTime() {
     return MILLISECONDS.toNanos(System.currentTimeMillis());
-  }
-
-  private static final class CommonKeyCleaner
-      implements LRUCache.ExpiryListener<MetricKey, AggregateMetric> {
-
-    private final Set<MetricKey> commonKeys;
-
-    private CommonKeyCleaner(Set<MetricKey> commonKeys) {
-      this.commonKeys = commonKeys;
-    }
-
-    @Override
-    public void accept(Map.Entry<MetricKey, AggregateMetric> expired) {
-      commonKeys.remove(expired.getKey());
-    }
   }
 }
