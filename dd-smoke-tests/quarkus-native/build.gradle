@@ -14,13 +14,14 @@ dependencies {
   testImplementation libs.bundles.jmc
 }
 
-// Quarkus 3.12.1 requires Mandrel/GraalVM 23.1.0 (JDK 21-based) — the native-image step
-// rejects older distributions with "You are using an older version of GraalVM or Mandrel".
-// Pin the constraint to JDK 21 and a native-image-capable launcher so unsupported slots
-// skip at the constraint layer rather than failing inside the nested build.
+// Quarkus 3.12.1's native-image step requires at least Mandrel/GraalVM 23.1 (JDK 21-based)
+// and rejects the JDK-17 distribution with "You are using an older version of GraalVM or
+// Mandrel". Cap to a native-image-capable JDK 21..25 launcher so unsupported slots skip at
+// the constraint layer rather than failing inside the nested build. Verified locally on
+// `graalvm21` and `graalvm25` — both produce a working native binary.
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
-  maxJavaVersion = JavaVersion.VERSION_21
+  maxJavaVersion = JavaVersion.VERSION_25
   nativeImageCapable = true
 }
 
@@ -31,10 +32,10 @@ testJvmConstraints {
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
-def isSupportedGraalvm = testGraalvmVersion == 21
+def isSupportedGraalvm = testGraalvmVersion in 21..25
 Provider<String> graalvmHome = providers.provider({
   if (!isSupportedGraalvm) {
-    throw new GradleException("Set -PtestJvm=graalvm21 to build the native image for this smoke test.")
+    throw new GradleException("Set -PtestJvm=graalvm<N> (N in [21, 25]) to build the native image for this smoke test.")
   }
   getLazyJavaHomeFor(testGraalvmVersion, true).toString()
 } as Callable<String>)
@@ -57,8 +58,7 @@ smokeTestApp {
 }
 
 tasks.named('quarkusNativeBuild') {
-  // quarkus 3.12.1 only supports Mandrel/GraalVM 23.1.0 (JDK 21)
-  onlyIf("Requires -PtestJvm=graalvm21") { isSupportedGraalvm }
+  onlyIf("Requires -PtestJvm=graalvm<N> (N in [21, 25])") { isSupportedGraalvm }
 }
 
 tasks.named('compileTestGroovy', GroovyCompile) {
@@ -73,7 +73,7 @@ tasks.withType(Test).configureEach {
   // Skip when no supported GraalVM was selected — `testJvmConstraints` only checks for a
   // native-image-capable launcher, so a daemon JVM that happens to be GraalVM 21 would
   // otherwise let the Test task run against stale or missing artifacts.
-  onlyIf("Requires -PtestJvm=graalvm21") { isSupportedGraalvm }
+  onlyIf("Requires -PtestJvm=graalvm<N> (N in [21, 25])") { isSupportedGraalvm }
   // These smoke tests don't need to be launched from the test, since what is exercised is a native binary
   // This resets the launcher to the daemon JDK
   javaLauncher = javaToolchains.launcherFor(java.toolchain)
