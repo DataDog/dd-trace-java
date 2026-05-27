@@ -51,25 +51,38 @@ final class TagCardinalityHandler {
   /**
    * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
    * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   *
+   * <p>Hash is computed once and reused as the probe start for both the current-cycle table and (on
+   * miss-with-budget) the prior-cycle table; mixing with the upper half ({@code h ^ (h >>> 16)})
+   * keeps inputs sharing a low-bit pattern off the same probe chain.
    */
   UTF8BytesString register(String value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
-    final int slot = probe(this.curKeys, value);
-    if (this.curKeys[slot] != null) {
+    int h = value.hashCode();
+    int start = (h ^ (h >>> 16)) & this.capacityMask;
+
+    int slot = start;
+    String curKey;
+    while ((curKey = this.curKeys[slot]) != null && !curKey.equals(value)) {
+      slot = (slot + 1) & this.capacityMask;
+    }
+    if (curKey != null) {
       return this.curValues[slot];
     }
     if (this.curSize >= this.cardinalityLimit) {
       return this.blockedByTracer();
     }
-    UTF8BytesString utf8;
-    final int priorSlot = probe(this.priorKeys, value);
-    if (this.priorKeys[priorSlot] != null) {
-      utf8 = this.priorValues[priorSlot];
-    } else {
-      utf8 = UTF8BytesString.create(this.tag + ":" + value);
+    int priorSlot = start;
+    String priorKey;
+    while ((priorKey = this.priorKeys[priorSlot]) != null && !priorKey.equals(value)) {
+      priorSlot = (priorSlot + 1) & this.capacityMask;
     }
+    UTF8BytesString utf8 =
+        priorKey != null
+            ? this.priorValues[priorSlot]
+            : UTF8BytesString.create(this.tag + ":" + value);
     this.curKeys[slot] = value;
     this.curValues[slot] = utf8;
     this.curSize += 1;
@@ -77,23 +90,11 @@ final class TagCardinalityHandler {
   }
 
   /**
-   * Mixes the input hash with its upper half ({@code h ^ (h >>> 16)}) before masking so that inputs
-   * sharing a low-bit pattern don't collapse onto the same probe chain. Same trick {@code
-   * HashMap.hash} uses.
-   */
-  private int probe(String[] keys, String value) {
-    int h = value.hashCode();
-    int idx = (h ^ (h >>> 16)) & this.capacityMask;
-    while (keys[idx] != null && !keys[idx].equals(value)) {
-      idx = (idx + 1) & this.capacityMask;
-    }
-    return idx;
-  }
-
-  /**
    * Whether {@code result} (returned from a prior {@link #register} call) is this handler's blocked
-   * sentinel. The size check short-circuits the hot path so the sentinel is never materialized
-   * before any value has actually been blocked this cycle.
+   * sentinel. The size check is load-bearing: {@link #blockedByTracer()} materializes the sentinel
+   * lazily on first call, so guarding by {@code curSize >= cardinalityLimit} ensures we never
+   * allocate the {@code "<tag>:blocked_by_tracer"} string for handlers whose budget has not yet
+   * been exhausted this cycle.
    */
   boolean isBlockedResult(UTF8BytesString result) {
     return this.curSize >= this.cardinalityLimit && result == blockedByTracer();

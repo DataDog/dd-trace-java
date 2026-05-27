@@ -76,13 +76,25 @@ final class PropertyCardinalityHandler {
   /**
    * Canonicalizes {@code value} through the cardinality budget and per-cycle reuse cache. Null
    * inputs map to {@link UTF8BytesString#EMPTY} -- callers don't need to pre-check.
+   *
+   * <p>Hash is computed once and reused as the probe start for both the current-cycle table and (on
+   * miss-with-budget) the prior-cycle table; mixing with the upper half ({@code h ^ (h >>> 16)})
+   * keeps inputs sharing a low-bit pattern off the same probe chain. {@link
+   * UTF8BytesString#hashCode} is content-stable with the underlying String, so a String input and a
+   * UTF8BytesString input carrying the same content map to the same slot.
    */
   UTF8BytesString register(CharSequence value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
     }
-    final int slot = probe(this.curValues, value);
-    final UTF8BytesString existing = this.curValues[slot];
+    int h = value.hashCode();
+    int start = (h ^ (h >>> 16)) & this.capacityMask;
+
+    int slot = start;
+    UTF8BytesString existing;
+    while ((existing = this.curValues[slot]) != null && !existing.toString().contentEquals(value)) {
+      slot = (slot + 1) & this.capacityMask;
+    }
     if (existing != null) {
       // Already seen this cycle -- consumed a budget slot earlier; reuse the cached UTF8.
       return existing;
@@ -91,36 +103,16 @@ final class PropertyCardinalityHandler {
       return this.blockedByTracer();
     }
     // First-time-this-cycle value. Reuse from the prior cycle if possible to avoid re-allocation.
-    UTF8BytesString utf8;
-    final int priorSlot = probe(this.priorValues, value);
-    final UTF8BytesString priorMatch = this.priorValues[priorSlot];
-    if (priorMatch != null) {
-      utf8 = priorMatch;
-    } else {
-      utf8 = UTF8BytesString.create(value);
+    int priorSlot = start;
+    UTF8BytesString priorMatch;
+    while ((priorMatch = this.priorValues[priorSlot]) != null
+        && !priorMatch.toString().contentEquals(value)) {
+      priorSlot = (priorSlot + 1) & this.capacityMask;
     }
+    UTF8BytesString utf8 = priorMatch != null ? priorMatch : UTF8BytesString.create(value);
     this.curValues[slot] = utf8;
     this.curSize += 1;
     return utf8;
-  }
-
-  /**
-   * Linear-probe to find {@code value}'s slot: either the slot occupied by a content-equal
-   * UTF8BytesString, or the first empty slot in the probe chain. {@link UTF8BytesString#hashCode}
-   * is content-stable with the underlying String, so the same content hashes to the same slot
-   * regardless of whether the input is a String or UTF8BytesString.
-   *
-   * <p>Mixes the input hash with its upper half ({@code h ^ (h >>> 16)}) before masking so that
-   * inputs sharing a low-bit pattern (e.g. URL templates with a common prefix) don't collapse onto
-   * the same probe chain. Same trick {@code HashMap.hash} uses.
-   */
-  private int probe(UTF8BytesString[] values, CharSequence value) {
-    int h = value.hashCode();
-    int idx = (h ^ (h >>> 16)) & this.capacityMask;
-    while (values[idx] != null && !values[idx].toString().contentEquals(value)) {
-      idx = (idx + 1) & this.capacityMask;
-    }
-    return idx;
   }
 
   private UTF8BytesString blockedByTracer() {
