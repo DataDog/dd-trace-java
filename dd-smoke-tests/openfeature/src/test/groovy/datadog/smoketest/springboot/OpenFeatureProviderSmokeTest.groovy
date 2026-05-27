@@ -51,13 +51,15 @@ class OpenFeatureProviderSmokeTest extends AbstractServerSmokeTest {
     }
   }
 
-  void 'test remote config'() {
+  void 'test remote config includes feature flags on first poll'() {
     when:
     final rcRequest = waitForRcClientRequest { req ->
-      decodeProducts(req).find { it == Product.FFE_FLAGS } != null
+      return true
     }
 
     then:
+    rcRequest == rcClientMessages.first()
+    decodeProducts(rcRequest).find { it == Product.FFE_FLAGS } != null
     final capabilities = decodeCapabilities(rcRequest)
     hasCapability(capabilities, Capabilities.CAPABILITY_FFE_FLAG_CONFIGURATION_RULES)
   }
