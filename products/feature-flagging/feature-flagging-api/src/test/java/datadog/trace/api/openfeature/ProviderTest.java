@@ -9,7 +9,6 @@ import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -140,7 +139,6 @@ public class ProviderTest {
   @Test
   public void testShutdownCleansUpMetrics() throws Exception {
     Evaluator evaluator = mock(Evaluator.class);
-    when(evaluator.initialize(anyLong(), any(), any())).thenReturn(true);
     Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
     provider.initialize(null);
     provider.shutdown();
@@ -170,7 +168,6 @@ public class ProviderTest {
       final String flag, final E defaultValue, final EvaluateMethod<E> method) throws Exception {
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     final Evaluator evaluator = mock(Evaluator.class);
-    when(evaluator.initialize(anyLong(), any(), any())).thenReturn(true);
     when(evaluator.evaluate(any(), any(), any(), any()))
         .thenAnswer(
             invocation ->

@@ -17,7 +17,6 @@ import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
-import java.util.concurrent.atomic.AtomicBoolean;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -29,7 +28,6 @@ public class Provider extends EventProvider implements Metadata {
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
-  private final AtomicBoolean initialized = new AtomicBoolean(false);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalHook flagEvalHook;
 
@@ -62,7 +60,6 @@ public class Provider extends EventProvider implements Metadata {
   public void initialize(final EvaluationContext context) throws Exception {
     try {
       evaluator = buildEvaluator();
-      initialized.set(true);
       evaluator.initialize(options.getTimeout(), options.getUnit(), context);
     } catch (final OpenFeatureError e) {
       throw e;
@@ -72,15 +69,9 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   private void onConfigurationChange() {
-    if (initialized.getAndSet(true)) {
-      emit(
-          ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
-          ProviderEventDetails.builder().message("New configuration received").build());
-    } else {
-      emit(
-          ProviderEvent.PROVIDER_READY,
-          ProviderEventDetails.builder().message("Provider ready").build());
-    }
+    emit(
+        ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
+        ProviderEventDetails.builder().message("New configuration received").build());
   }
 
   private Evaluator buildEvaluator() throws Exception {

@@ -35,7 +35,6 @@ import java.util.LinkedList;
 import java.util.List;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.regex.Pattern;
@@ -48,17 +47,15 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
 
   private final Runnable configCallback;
   private final AtomicReference<ServerConfiguration> configuration = new AtomicReference<>();
-  private final CountDownLatch initializationLatch = new CountDownLatch(1);
 
   public DDEvaluator(final Runnable configCallback) {
     this.configCallback = configCallback;
   }
 
   @Override
-  public boolean initialize(
-      final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
+  public void initialize(final long timeout, final TimeUnit unit, final EvaluationContext context)
+      throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.getCount() == 0;
   }
 
   @Override
@@ -69,7 +66,6 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   @Override
   public void accept(final ServerConfiguration config) {
     configuration.set(config);
-    initializationLatch.countDown();
     configCallback.run();
   }
 
