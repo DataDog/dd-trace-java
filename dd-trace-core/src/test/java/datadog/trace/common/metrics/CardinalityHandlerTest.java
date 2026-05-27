@@ -165,4 +165,67 @@ class CardinalityHandlerTest {
     // every handler returns for null input).
     assertSame(UTF8BytesString.EMPTY, h.register(null));
   }
+
+  // ---- limits-disabled mode (Config flag off): cache size still capped, but over-cap values
+  // get freshly-allocated UTF8 rather than the blocked sentinel.
+
+  @Test
+  void propertyOverLimitWithSentinelDisabledReturnsFreshUtf8() {
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2, false);
+    UTF8BytesString a = h.register("a");
+    UTF8BytesString b = h.register("b");
+    UTF8BytesString c = h.register("c");
+    UTF8BytesString d = h.register("d");
+
+    // Real values (not the "blocked_by_tracer" sentinel) so the wire format carries them.
+    assertEquals("c", c.toString());
+    assertEquals("d", d.toString());
+    // The first two stay cached and identity-stable.
+    assertSame(a, h.register("a"));
+    assertSame(b, h.register("b"));
+    // Over-cap values are NOT cached -- a second call allocates a fresh instance.
+    assertNotSame(c, h.register("c"));
+    assertEquals("c", h.register("c").toString());
+  }
+
+  @Test
+  void propertyOverLimitWithSentinelDisabledReusesPriorCycleInstances() {
+    // Prior-cycle reuse runs in disabled mode too: a value that was seen last cycle but is now
+    // over-budget still gets its prior-cycle UTF8BytesString back instead of an allocation.
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2, false);
+    UTF8BytesString cBeforeReset = h.register("c");
+
+    h.reset();
+
+    // Fill the budget with two different values so "c" lands over-cap.
+    h.register("x");
+    h.register("y");
+    UTF8BytesString cAfterReset = h.register("c");
+    assertSame(cBeforeReset, cAfterReset);
+  }
+
+  @Test
+  void tagOverLimitWithSentinelDisabledReturnsFreshUtf8() {
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.hostname", 1, false);
+    h.register("host-a");
+    UTF8BytesString hostB = h.register("host-b");
+    UTF8BytesString hostC = h.register("host-c");
+
+    assertEquals("peer.hostname:host-b", hostB.toString());
+    assertEquals("peer.hostname:host-c", hostC.toString());
+    // Over-cap values are not cached -- isBlockedResult never reports true in disabled mode.
+    assertEquals(false, h.isBlockedResult(hostB));
+    assertEquals(false, h.isBlockedResult(hostC));
+  }
+
+  @Test
+  void tagIsBlockedResultStaysFalseInDisabledModeEvenAtCap() {
+    // The sentinel should never materialize in disabled mode -- isBlockedResult reads cacheBlocked
+    // directly, so no allocation is forced.
+    TagCardinalityHandler h = new TagCardinalityHandler("peer.service", 1, false);
+    h.register("svc-1");
+    UTF8BytesString overCap = h.register("svc-2");
+    assertEquals(false, h.isBlockedResult(overCap));
+    assertEquals("peer.service:svc-2", overCap.toString());
+  }
 }

@@ -21,6 +21,9 @@ final class TagCardinalityHandler {
   private final int cardinalityLimit;
   private final int capacityMask;
 
+  /** See {@link PropertyCardinalityHandler}'s field of the same name. */
+  private final boolean useBlockedSentinel;
+
   private String[] curKeys;
   private UTF8BytesString[] curValues;
   private String[] priorKeys;
@@ -29,7 +32,15 @@ final class TagCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
+  /**
+   * Test convenience: limits-enabled mode. Production uses the three-argument constructor with the
+   * flag from {@code Config}.
+   */
   TagCardinalityHandler(String tag, int cardinalityLimit) {
+    this(tag, cardinalityLimit, true);
+  }
+
+  TagCardinalityHandler(String tag, int cardinalityLimit, boolean useBlockedSentinel) {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -40,6 +51,7 @@ final class TagCardinalityHandler {
     }
     this.tag = tag;
     this.cardinalityLimit = cardinalityLimit;
+    this.useBlockedSentinel = useBlockedSentinel;
     final int capacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
     this.capacityMask = capacity - 1;
     this.curKeys = new String[capacity];
@@ -71,7 +83,8 @@ final class TagCardinalityHandler {
     if (curKey != null) {
       return this.curValues[slot];
     }
-    if (this.curSize >= this.cardinalityLimit) {
+    boolean capExhausted = this.curSize >= this.cardinalityLimit;
+    if (capExhausted && this.useBlockedSentinel) {
       return this.blockedByTracer();
     }
     int priorSlot = start;
@@ -83,21 +96,22 @@ final class TagCardinalityHandler {
         priorKey != null
             ? this.priorValues[priorSlot]
             : UTF8BytesString.create(this.tag + ":" + value);
-    this.curKeys[slot] = value;
-    this.curValues[slot] = utf8;
-    this.curSize += 1;
+    if (!capExhausted) {
+      this.curKeys[slot] = value;
+      this.curValues[slot] = utf8;
+      this.curSize += 1;
+    }
     return utf8;
   }
 
   /**
    * Whether {@code result} (returned from a prior {@link #register} call) is this handler's blocked
-   * sentinel. The size check is load-bearing: {@link #blockedByTracer()} materializes the sentinel
-   * lazily on first call, so guarding by {@code curSize >= cardinalityLimit} ensures we never
-   * allocate the {@code "<tag>:blocked_by_tracer"} string for handlers whose budget has not yet
-   * been exhausted this cycle.
+   * sentinel. Reads {@link #cacheBlocked} directly so callers can safely query without forcing the
+   * sentinel to materialize -- when limits are disabled the sentinel is never built and this method
+   * returns {@code false} for every input.
    */
   boolean isBlockedResult(UTF8BytesString result) {
-    return this.curSize >= this.cardinalityLimit && result == blockedByTracer();
+    return result == this.cacheBlocked;
   }
 
   private UTF8BytesString blockedByTracer() {

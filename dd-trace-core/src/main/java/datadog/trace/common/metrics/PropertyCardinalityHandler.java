@@ -46,6 +46,15 @@ final class PropertyCardinalityHandler {
   private final int cardinalityLimit;
   private final int capacityMask;
 
+  /**
+   * Whether to substitute the {@code blocked_by_tracer} sentinel when the per-cycle budget is
+   * exhausted. With limits enabled (sentinel mode), overflow values collapse to one bucket; with
+   * limits disabled, the cache size is still bounded by {@link #cardinalityLimit} but over-budget
+   * values get freshly-allocated {@link UTF8BytesString}s instead, so the wire format carries the
+   * real value and entries don't collapse. Prior-cycle reuse runs in either mode.
+   */
+  private final boolean useBlockedSentinel;
+
   // Single open-addressed table per cycle. The stored UTF8BytesString IS the slot identity --
   // equality is checked by comparing its underlying String against the incoming CharSequence.
   private UTF8BytesString[] curValues;
@@ -54,7 +63,15 @@ final class PropertyCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
+  /**
+   * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
+   * the two-argument constructor with the flag from {@code Config}.
+   */
   PropertyCardinalityHandler(int cardinalityLimit) {
+    this(cardinalityLimit, true);
+  }
+
+  PropertyCardinalityHandler(int cardinalityLimit, boolean useBlockedSentinel) {
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -65,6 +82,7 @@ final class PropertyCardinalityHandler {
           "cardinalityLimit must be at most 2^29: " + cardinalityLimit);
     }
     this.cardinalityLimit = cardinalityLimit;
+    this.useBlockedSentinel = useBlockedSentinel;
     // Capacity = next power of two >= 2 * cardinalityLimit. Linear-probing load factor stays
     // <= 0.5 even when the budget is full, which keeps probe chains short.
     final int capacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
@@ -99,10 +117,12 @@ final class PropertyCardinalityHandler {
       // Already seen this cycle -- consumed a budget slot earlier; reuse the cached UTF8.
       return existing;
     }
-    if (this.curSize >= this.cardinalityLimit) {
+    boolean capExhausted = this.curSize >= this.cardinalityLimit;
+    if (capExhausted && this.useBlockedSentinel) {
       return this.blockedByTracer();
     }
-    // First-time-this-cycle value. Reuse from the prior cycle if possible to avoid re-allocation.
+    // Reuse from the prior cycle if possible to avoid re-allocation -- runs whether or not the
+    // current budget is exhausted, so persistent values keep their UTF8 instance across cycles.
     int priorSlot = start;
     UTF8BytesString priorMatch;
     while ((priorMatch = this.priorValues[priorSlot]) != null
@@ -110,8 +130,14 @@ final class PropertyCardinalityHandler {
       priorSlot = (priorSlot + 1) & this.capacityMask;
     }
     UTF8BytesString utf8 = priorMatch != null ? priorMatch : UTF8BytesString.create(value);
-    this.curValues[slot] = utf8;
-    this.curSize += 1;
+    if (!capExhausted) {
+      // Budget remaining: claim a slot for future hits this cycle.
+      this.curValues[slot] = utf8;
+      this.curSize += 1;
+    }
+    // capExhausted && !useBlockedSentinel: return the value without caching (cache is full).
+    // Repeat over-budget values pay the prior-cycle probe each call but skip allocation as long
+    // as the prior table still holds them.
     return utf8;
   }
 

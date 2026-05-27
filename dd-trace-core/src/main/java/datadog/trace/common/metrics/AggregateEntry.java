@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
+import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
@@ -15,11 +16,13 @@ import java.util.List;
  * for the key.
  *
  * <p>UTF8 canonicalization runs through per-field {@link PropertyCardinalityHandler}s (and {@link
- * TagCardinalityHandler}s for peer tags), so cardinality is capped per reporting interval. The
- * critical property: hashing and matching happen <b>after</b> canonicalization, so when a field's
- * cardinality budget is exhausted and overflow values collapse to a {@code blocked_by_tracer}
- * sentinel, those values land in the same bucket and merge into a single entry rather than
- * fragmenting.
+ * TagCardinalityHandler}s for peer tags), which combine a UTF8 reuse cache with an optional
+ * per-cycle cardinality limit (see {@link #LIMITS_ENABLED}). The critical property: hashing and
+ * matching happen <b>after</b> canonicalization, so when limits are enabled and a field's budget is
+ * exhausted, overflow values collapse to a {@code blocked_by_tracer} sentinel and land in the same
+ * bucket rather than fragmenting. When limits are disabled (the default), the cache size is still
+ * capped at the same budget but over-cap values get freshly-allocated {@link UTF8BytesString}s and
+ * flow to distinct buckets.
  *
  * <p>The aggregator thread is the sole writer. {@link AggregateTable} holds a reusable {@link
  * Canonical} scratch buffer so the canonicalization itself doesn't allocate per lookup; on a miss
@@ -66,26 +69,38 @@ final class AggregateEntry extends Hashtable.Entry {
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
+  /**
+   * Whether cardinality limits substitute the {@code blocked_by_tracer} sentinel when a per-field
+   * budget is exhausted. Read once at class init from {@link
+   * Config#isTraceStatsCardinalityLimitsEnabled()} ({@code trace.stats.cardinality.limits.enabled},
+   * default {@code false}) and threaded through every {@link PropertyCardinalityHandler} and {@link
+   * TagCardinalityHandler} the class owns. With the flag off, the per-field tables still cap their
+   * cache size at the same budget but over-cap values get freshly-allocated {@link
+   * UTF8BytesString}s instead of the sentinel -- so the wire format never carries a {@code
+   * blocked_by_tracer} value and entries don't collapse into a shared bucket.
+   */
+  static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
+
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.RESOURCE);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler OPERATION_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.OPERATION);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE_SOURCE);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.TYPE);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SPAN_KIND);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_METHOD);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_ENDPOINT);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.GRPC_STATUS_CODE);
+      new PropertyCardinalityHandler(MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
