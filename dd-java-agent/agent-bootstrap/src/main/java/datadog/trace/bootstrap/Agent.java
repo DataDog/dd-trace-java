@@ -678,11 +678,12 @@ public class Agent {
       maybeStartAppSec(scoClass, sco);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
-      // start debugger before remote config to subscribe to it before starting to poll
+      // Start RC-backed products before remote config so their products and capabilities are
+      // included in the first poll.
       maybeStartDebugger(instrumentation, scoClass, sco);
+      maybeStartFeatureFlagging(scoClass, sco);
       maybeStartRemoteConfig(scoClass, sco);
       maybeStartAiGuard();
-      maybeStartFeatureFlagging(scoClass, sco);
 
       if (telemetryEnabled) {
         startTelemetry(instrumentation, scoClass, sco);
