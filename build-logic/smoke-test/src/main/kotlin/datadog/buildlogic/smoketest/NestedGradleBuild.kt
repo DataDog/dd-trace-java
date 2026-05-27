@@ -14,6 +14,7 @@ import org.gradle.api.tasks.IgnoreEmptyDirectories
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
@@ -38,6 +39,7 @@ import javax.inject.Inject
  * `-P<propertyName>=<absolute-path>` and tracked as a task input so the nested build re-runs
  * when the upstream jar changes.
  */
+@CacheableTask
 abstract class NestedGradleBuild @Inject constructor(
   private val objects: ObjectFactory,
   javaToolchains: JavaToolchainService,
