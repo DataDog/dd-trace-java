@@ -53,9 +53,10 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   }
 
   @Override
-  public void initialize(final long timeout, final TimeUnit unit, final EvaluationContext context)
-      throws Exception {
+  public boolean initialize(
+      final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
+    return configuration.get() != null;
   }
 
   @Override

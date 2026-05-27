@@ -60,7 +60,9 @@ public class Provider extends EventProvider implements Metadata {
   public void initialize(final EvaluationContext context) throws Exception {
     try {
       evaluator = buildEvaluator();
-      evaluator.initialize(options.getTimeout(), options.getUnit(), context);
+      if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
+        log.debug("OpenFeature provider initialized before initial remote configuration");
+      }
     } catch (final OpenFeatureError e) {
       throw e;
     } catch (final Throwable e) {

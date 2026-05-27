@@ -6,7 +6,7 @@ import java.util.concurrent.TimeUnit;
 
 interface Evaluator {
 
-  void initialize(long timeout, TimeUnit timeUnit, EvaluationContext context) throws Exception;
+  boolean initialize(long timeout, TimeUnit timeUnit, EvaluationContext context) throws Exception;
 
   void shutdown();
 
