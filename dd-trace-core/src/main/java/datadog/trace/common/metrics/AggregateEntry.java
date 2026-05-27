@@ -78,6 +78,25 @@ final class AggregateEntry extends Hashtable.Entry {
    * cache size at the same budget but over-cap values get freshly-allocated {@link
    * UTF8BytesString}s instead of the sentinel -- so the wire format never carries a {@code
    * blocked_by_tracer} value and entries don't collapse into a shared bucket.
+   *
+   * <p><b>Over-cap repeat tradeoff in disabled mode.</b> When the cap is exhausted and the flag is
+   * off, over-cap values are not written into the current-cycle cache (it's full). A repeat of the
+   * same over-cap value within the same cycle therefore re-walks both probe chains and allocates a
+   * fresh {@code UTF8BytesString} -- it cannot promote into the cache to amortize subsequent calls.
+   * The typical "stable working set + occasional outliers" workload is unaffected (working set fits
+   * in the cap and stays cached); a workload with repeating over-cap values pays one allocation per
+   * repeat. The prior cap sizing in {@link MetricCardinalityLimits} was chosen for the limiter role
+   * and is appropriately conservative; if production shows cache thrashing in disabled mode, widen
+   * the limits via a follow-up rather than changing the eviction strategy here.
+   *
+   * <p><b>Class-init caveat.</b> This field is {@code static final}, so its value is frozen for the
+   * JVM at the first reference to {@code AggregateEntry}. Tests that want to exercise the
+   * limits-enabled code path through {@link #RESOURCE_HANDLER} / {@link #SERVICE_HANDLER} / etc.
+   * can't simply set Config and reload -- the static field captures whatever Config returned the
+   * first time the class loaded. Construct {@link PropertyCardinalityHandler} or {@link
+   * TagCardinalityHandler} directly with explicit {@code useBlockedSentinel} args (the convenience
+   * constructors default to {@code true} for this reason) when targeted limits-on testing is
+   * needed.
    */
   static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
 
