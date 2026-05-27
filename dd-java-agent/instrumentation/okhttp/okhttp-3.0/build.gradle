@@ -8,8 +8,29 @@ muzzle {
 }
 
 apply from: "$rootDir/gradle/java.gradle"
+// Use slf4j-simple for tests; logback's synchronized appenders can pin virtual-thread carriers
+// when many vthreads log concurrently, which deadlocks this module's vthread21Test suite.
+apply from: "$rootDir/gradle/slf4j-simple.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+// Separate suite for tests that need the JDK 21+ virtual-thread API. Kept apart from the
+// default test suite so that the existing OkHttp 3.0 tests keep their Java 1.8 baseline.
+addTestSuite('vthread21Test')
+
+tasks.named("compileVthread21TestJava", JavaCompile) {
+  configureCompiler(it, 21)
+}
+
+tasks.named("vthread21Test", Test) {
+  javaLauncher = javaToolchains.launcherFor {
+    languageVersion = JavaLanguageVersion.of(21)
+  }
+}
+
+tasks.named("check") {
+  dependsOn "vthread21Test"
+}
 
 dependencies {
   compileOnly(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.0.0')
@@ -38,4 +59,14 @@ dependencies {
 
   testRuntimeOnly(project(':dd-java-agent:instrumentation:datadog:asm:iast-instrumenter'))
   testRuntimeOnly(project(':dd-java-agent:instrumentation:java:java-net:java-net-1.8'))
+
+  // vthread21Test inherits testImplementation via addTestSuite's extendsFrom wiring.
+  vthread21TestImplementation(group: 'com.squareup.okhttp3', name: 'okhttp', version: '3.11.0')
+  vthread21TestImplementation(group: 'com.squareup.okio', name: 'okio', version: '1.14.0')
+
+  // Pull in the JDK-21+ concurrent / lang instrumentations so the test installs the same
+  // TaskRunnerInstrumentation + VirtualThreadInstrumentation chain that profiling-backend
+  // exercises in production.
+  vthread21TestRuntimeOnly project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-21.0')
+  vthread21TestRuntimeOnly project(':dd-java-agent:instrumentation:java:java-lang:java-lang-21.0')
 }
