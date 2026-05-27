@@ -39,6 +39,8 @@ final class ResultCollector {
   }
 
   private void collect(Path sourceXml) throws Exception {
+    if (fileName(sourceXml).startsWith("TEST-retried-")) return;
+
     var aggregatedName = aggregatedFileName(sourceXml);
     var targetXml = resultsDir.resolve(aggregatedName);
     System.out.print("- " + toUnixString(sourceXml) + " as " + aggregatedName);
@@ -46,9 +48,9 @@ final class ResultCollector {
     var sourceFile = sourceFileResolver.resolve(sourceXml);
     var report = JUnitReport.parse(sourceXml);
     var reportChangedBeforeFinalStatus = report.addFileAttribute(sourceFile);
+    applyRetryMarkers(sourceXml.getParent(), report);  // before normalizeStableTestNames
     reportChangedBeforeFinalStatus |= report.normalizeStableTestNames();
     report.tagSyntheticFailures();
-    report.tagRetriedTests();
     report.tagFinalStatuses();
     report.write(targetXml);
 
@@ -56,6 +58,26 @@ final class ResultCollector {
       System.out.print(" (non-stable test names detected)");
     }
     System.out.println();
+  }
+
+  private static void applyRetryMarkers(Path dir, JUnitReport report) {
+    if (dir == null) return;
+    try (var paths = Files.list(dir)) {
+      paths
+          .filter(p -> fileName(p).startsWith("TEST-retried-") && fileName(p).endsWith(".xml"))
+          .forEach(markerFile -> {
+            try {
+              report.tagRetriedTests(JUnitReport.parse(markerFile).testcaseKeys());
+            } catch (Exception e) {
+              System.err.println(
+                  "[ResultCollector] Failed to apply retry markers from "
+                      + markerFile.getFileName() + ": " + e.getMessage());
+            }
+          });
+    } catch (IOException e) {
+      System.err.println(
+          "[ResultCollector] Failed to scan for retry markers in " + dir + ": " + e.getMessage());
+    }
   }
 
   private List<Path> findTestResultDirs() throws IOException {
