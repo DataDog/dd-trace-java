@@ -12,6 +12,7 @@ import static java.util.Arrays.asList;
 import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -79,6 +80,7 @@ public class DDEvaluatorTest {
   @AfterEach
   public void tearDown() {
     FeatureFlaggingGateway.removeExposureListener(exposureListener);
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
 
   private static Arguments[] valueMappingTestCases() {
@@ -146,6 +148,32 @@ public class DDEvaluatorTest {
     assertThat(details.getValue(), equalTo(23));
     assertThat(details.getReason(), equalTo(ERROR.name()));
     assertThat(details.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+  }
+
+  @Test
+  public void testInitializeTimesOutWithoutConfig() throws Exception {
+    final Runnable configCallback = mock(Runnable.class);
+    final DDEvaluator evaluator = new DDEvaluator(configCallback);
+    evaluator.accept(null);
+    try {
+      assertThat(
+          evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(false));
+      verify(configCallback, times(0)).run();
+    } finally {
+      evaluator.shutdown();
+    }
+  }
+
+  @Test
+  public void testInitializeWaitsForNonNullConfig() throws Exception {
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    try {
+      assertThat(
+          evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(true));
+    } finally {
+      evaluator.shutdown();
+    }
   }
 
   @Test

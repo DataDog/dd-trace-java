@@ -13,10 +13,12 @@ import dev.openfeature.sdk.ProviderEventDetails;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
+import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +30,8 @@ public class Provider extends EventProvider implements Metadata {
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
+  private final AtomicReference<InitializationState> initializationState =
+      new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalHook flagEvalHook;
 
@@ -58,19 +62,40 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public void initialize(final EvaluationContext context) throws Exception {
+    initializationState.set(InitializationState.INITIALIZING);
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
-        log.debug("OpenFeature provider initialized before initial remote configuration");
+        initializationState.set(InitializationState.ERROR);
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration");
       }
+      initializationState.set(InitializationState.READY);
     } catch (final OpenFeatureError e) {
+      initializationState.set(InitializationState.ERROR);
       throw e;
     } catch (final Throwable e) {
+      initializationState.set(InitializationState.ERROR);
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
   }
 
   private void onConfigurationChange() {
+    final InitializationState state = initializationState.get();
+    if (state == InitializationState.INITIALIZING) {
+      return;
+    }
+    if (state == InitializationState.ERROR
+        && initializationState.compareAndSet(
+            InitializationState.ERROR, InitializationState.READY)) {
+      emit(
+          ProviderEvent.PROVIDER_READY,
+          ProviderEventDetails.builder().message("Provider ready").build());
+      return;
+    }
+    if (initializationState.get() != InitializationState.READY) {
+      return;
+    }
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
@@ -146,6 +171,13 @@ public class Provider extends EventProvider implements Metadata {
   @SuppressForbidden // Class#forName(String) used to lazy load internal-api dependencies
   protected Class<?> loadEvaluatorClass() throws ClassNotFoundException {
     return Class.forName(EVALUATOR_IMPL);
+  }
+
+  private enum InitializationState {
+    NOT_STARTED,
+    INITIALIZING,
+    READY,
+    ERROR
   }
 
   public static class Options {
