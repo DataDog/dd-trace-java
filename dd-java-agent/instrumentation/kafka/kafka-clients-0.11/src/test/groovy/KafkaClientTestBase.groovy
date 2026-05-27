@@ -1,6 +1,7 @@
 import datadog.trace.api.datastreams.DataStreamsTags
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor
 import datadog.trace.api.config.TraceInstrumentationConfig
+import datadog.trace.api.config.TracerConfig
 import datadog.trace.instrumentation.kafka_common.ClusterIdHolder
 
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
@@ -1544,9 +1545,32 @@ class KafkaClientDataStreamsDisabledForkedTest extends KafkaClientTestBase {
 }
 
 class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
-  @Override
   void configurePreAgent() {
     super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
+  }
+}
+
+class KafkaClientBadBase64HeaderForkedTest extends KafkaClientV0ForkedTest {
+  def "producer span is created when message carries non-Base64 headers and base64 decoding is enabled"() {
+    setup:
+    injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED, "true")
+    injectSysConfig(TracerConfig.HEADER_TAGS, "x-custom-header:my.custom.tag")
+    def senderProps = KafkaTestUtils.senderProps(embeddedKafka.getBrokersAsString())
+    def producer = new KafkaProducer<String, String>(senderProps, new StringSerializer(), new StringSerializer())
+
+    when:
+    def headers = new RecordHeaders([
+      new RecordHeader("x-custom-header", "not-valid-base64!@#".getBytes(StandardCharsets.UTF_8)),
+      new RecordHeader("x-another-header", "also-not-base64!!".getBytes(StandardCharsets.UTF_8))
+    ])
+    producer.send(new ProducerRecord<>(SHARED_TOPIC, 0, null, "hello", headers)).get()
+
+    then:
+    TEST_WRITER.waitForTraces(1)
+    !TEST_WRITER.isEmpty()
+
+    cleanup:
+    producer.close()
   }
 }
