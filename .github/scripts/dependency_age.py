@@ -454,7 +454,8 @@ def build_validation_summary(
                 if new_gav in baseline_coords:
                     lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
                 else:
-                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_gav}`")
+                    new_version = new_gav.rsplit(":", 1)[1]
+                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_version}`")
     for entries in violations_by_file.values():
         for gav, kind, hours_remaining in entries:
             if gav not in seen:
