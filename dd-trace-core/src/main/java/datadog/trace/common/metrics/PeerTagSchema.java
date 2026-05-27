@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.Arrays;
 import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -63,15 +62,6 @@ final class PeerTagSchema {
    * response.
    */
   String state;
-
-  /**
-   * Lazily computed content hash of {@link #names}, used as the bucket-distinguishing contribution
-   * when {@link AggregateEntry#hashOf} hashes a snapshot's peer-tag schema. Benign race pattern: a
-   * concurrent first-time read may recompute the value, but {@link Arrays#hashCode(Object[])} on
-   * the same content array is deterministic so the recomputed value matches. {@code int} writes are
-   * atomic per JLS.
-   */
-  private int cachedHashCode;
 
   private final HealthMetrics healthMetrics;
 
@@ -180,37 +170,5 @@ final class PeerTagSchema {
 
   String name(int i) {
     return names[i];
-  }
-
-  /**
-   * Content-based hash of {@link #names}. Used by {@link AggregateEntry#hashOf} to incorporate the
-   * schema identity into a snapshot's lookup hash. Distinct schemas with the same names hash to the
-   * same value so an entry built under one schema instance still matches a snapshot pinned to a
-   * content-equal replacement (e.g. after reconcile rebuilds the schema).
-   */
-  @Override
-  public int hashCode() {
-    int h = cachedHashCode;
-    if (h == 0) {
-      h = Arrays.hashCode(names);
-      cachedHashCode = h;
-    }
-    return h;
-  }
-
-  /**
-   * Content equality on {@link #names}. {@link #state} is intentionally excluded: it is a
-   * reconcile-bookkeeping field, not part of the schema's identity. Two schemas built from the same
-   * tag list at different discovery snapshots represent the same schema.
-   */
-  @Override
-  public boolean equals(Object o) {
-    if (this == o) {
-      return true;
-    }
-    if (!(o instanceof PeerTagSchema)) {
-      return false;
-    }
-    return Arrays.equals(names, ((PeerTagSchema) o).names);
   }
 }

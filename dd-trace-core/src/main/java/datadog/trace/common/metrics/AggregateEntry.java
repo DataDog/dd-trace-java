@@ -7,7 +7,6 @@ import datadog.trace.util.LongHashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
 
 /**
  * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
@@ -56,6 +55,13 @@ import java.util.Objects;
  * silently. The {@code ClearSignal} routing in {@link Aggregator} is the explicit mechanism for
  * funneling cross-thread requests (e.g. {@code disable()}) back onto the aggregator thread; any new
  * entry point that mutates aggregate state must do the same.
+ *
+ * <p><b>One {@link ClientStatsAggregator} per JVM.</b> The {@code RESOURCE_HANDLER}/{@code
+ * SERVICE_HANDLER}/... fields and {@link PeerTagSchema#INTERNAL} are {@code static}, so all
+ * aggregator instances in a JVM share the same per-field cardinality budgets and {@code
+ * blocked_by_tracer} sentinels. Production wires up exactly one aggregator (see {@link
+ * MetricsAggregatorFactory}); tests that exercise this class must call {@link
+ * #resetCardinalityHandlers()} in their setup to avoid cross-test pollution.
  */
 @SuppressFBWarnings(
     value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
@@ -214,6 +220,13 @@ final class AggregateEntry extends Hashtable.Entry {
     return errorLatencies;
   }
 
+  /**
+   * Resets the per-cycle counters and histograms. Label fields ({@code resource}, {@code service},
+   * ..., {@code peerTags}) are deliberately left intact -- they're the entry's bucket identity and
+   * must persist so a subsequent snapshot with the same key reuses this entry instead of allocating
+   * a fresh one. Entries that stay at {@code hitCount == 0} across a cycle are reaped by {@link
+   * AggregateTable#expungeStaleAggregates}.
+   */
   @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   void clear() {
     this.errorCount = 0;
@@ -482,10 +495,10 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Fills {@link #peerTagsBuffer} with canonical UTF8 forms, applying the schema's per-tag
-     * handler + warn-once notification at the same index. Returns {@code EMPTY} for null inputs; we
-     * elide those from the buffer so the wire-format list-of-pairs only contains present peer tags.
-     * No allocation when the schema/values are absent or all values are null (buffer is just
-     * cleared).
+     * handler + warn-once notification at the same index. Skips null values rather than round-
+     * tripping them through the handler (which would return EMPTY and be filtered out anyway).
+     * Producer-side {@code capturePeerTagValues} produces sparse-null arrays, so the skip pays off
+     * whenever a span carries only a subset of the configured peer tags.
      */
     private void populatePeerTags(PeerTagSchema schema, String[] values) {
       peerTagsCount = 0;
@@ -494,13 +507,15 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       int n = schema.size();
       for (int i = 0; i < n; i++) {
-        UTF8BytesString utf8 = schema.register(i, values[i]);
-        if (utf8 != UTF8BytesString.EMPTY) {
-          if (peerTagsCount == peerTagsBuffer.length) {
-            peerTagsBuffer = Arrays.copyOf(peerTagsBuffer, peerTagsBuffer.length * 2);
-          }
-          peerTagsBuffer[peerTagsCount++] = utf8;
+        String value = values[i];
+        if (value == null) {
+          continue;
         }
+        UTF8BytesString utf8 = schema.register(i, value);
+        if (peerTagsCount == peerTagsBuffer.length) {
+          peerTagsBuffer = Arrays.copyOf(peerTagsBuffer, peerTagsBuffer.length * 2);
+        }
+        peerTagsBuffer[peerTagsCount++] = utf8;
       }
     }
 
@@ -508,21 +523,26 @@ final class AggregateEntry extends Hashtable.Entry {
      * Whether this canonicalized snapshot matches the given entry. Compares UTF8 fields via
      * content-equality (so an entry surviving a handler reset still matches a freshly-canonicalized
      * snapshot of the same content).
+     *
+     * <p>Field order is cardinality-tuned: resource / service / operationName first because they
+     * vary most across collisions, then the remaining UTF8 fields, then the peer-tag list
+     * comparison (slowest), then the primitives. All UTF8 fields are non-null by the EMPTY-
+     * sentinel invariant (see field comments above), so direct {@code a.equals(b)} is safe.
      */
     boolean matches(AggregateEntry e) {
-      return httpStatusCode == e.httpStatusCode
-          && synthetic == e.synthetic
-          && traceRoot == e.traceRoot
-          && Objects.equals(resource, e.resource)
-          && Objects.equals(service, e.service)
-          && Objects.equals(operationName, e.operationName)
-          && Objects.equals(serviceSource, e.serviceSource)
-          && Objects.equals(type, e.type)
-          && Objects.equals(spanKind, e.spanKind)
+      return resource.equals(e.resource)
+          && service.equals(e.service)
+          && operationName.equals(e.operationName)
+          && serviceSource.equals(e.serviceSource)
+          && type.equals(e.type)
+          && spanKind.equals(e.spanKind)
+          && httpMethod.equals(e.httpMethod)
+          && httpEndpoint.equals(e.httpEndpoint)
+          && grpcStatusCode.equals(e.grpcStatusCode)
           && peerTagsEqual(peerTagsBuffer, peerTagsCount, e.peerTags)
-          && Objects.equals(httpMethod, e.httpMethod)
-          && Objects.equals(httpEndpoint, e.httpEndpoint)
-          && Objects.equals(grpcStatusCode, e.grpcStatusCode);
+          && httpStatusCode == e.httpStatusCode
+          && synthetic == e.synthetic
+          && traceRoot == e.traceRoot;
     }
 
     /**
