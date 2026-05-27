@@ -452,8 +452,9 @@ def build_validation_summary(
             if old_gav not in seen:
                 seen.add(old_gav)
                 if new_gav in baseline_coords:
-                    continue  # no-op downgrade — replacement matches baseline
-                lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_gav}`")
+                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
+                else:
+                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_gav}`")
     for entries in violations_by_file.values():
         for gav, kind, hours_remaining in entries:
             if gav not in seen:
@@ -462,8 +463,6 @@ def build_validation_summary(
                     lines.append(f"- `{gav}` — cannot verify age, reverted")
                 else:
                     lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
-    if len(lines) == 2:
-        return "" # only header, no entries after filtering
     return "\n".join(lines)
 
 
