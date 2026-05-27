@@ -13,4 +13,5 @@ dependencies {
 
   compileOnly(libs.junit.jupiter)
   compileOnly(libs.tabletest)
+  compileOnly(libs.junit.platform.launcher)
 }
