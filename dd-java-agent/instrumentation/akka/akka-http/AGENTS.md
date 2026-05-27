@@ -18,8 +18,11 @@ silently miss the WAF event.
 
 ## Do not extract filenames callback dispatch into `UnmarshallerHelpers`
 
-Extracting the `requestFilesFilenames` callback dispatch into a shared helper method in
-`UnmarshallerHelpers` is known to cause problems. Keep dispatch inline in each advice class.
+Keep the `requestFilesFilenames` callback dispatch inline in each advice class. The two routes
+obtain `reqCtx` differently and handle the `pendingBlock` state separately. When the dispatch was
+previously extracted into a shared helper, the filenames callback was silently skipped on Route 2
+when the body had already triggered blocking, because the helper did not propagate the pending
+`BlockingException` correctly across the two call sites.
 
 ## No `effectivelyBlocked()` in Akka advice
 

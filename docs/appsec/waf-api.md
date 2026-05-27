@@ -1,6 +1,6 @@
 # WAF API Reference — libddwaf-java
 
-Reference for the `libddwaf-java` binding used by the AppSec module. Based on libddwaf-java v1.30.0 / libddwaf v1.30.0.
+Reference for the [`libddwaf-java`](https://github.com/DataDog/libddwaf-java) binding used by the AppSec module. Based on libddwaf-java v1.30.0 / libddwaf v1.30.0.
 
 ## Lifecycle
 
@@ -71,11 +71,7 @@ Waf.Limits limits = new Waf.Limits(
 );
 ```
 
-**Values used in dd-trace-java** (see `AppSecSystem` / `WafInitialization`):
-- `maxDepth = 20`
-- `maxElements = 150` or `255` (version-dependent)
-- `maxStringSize = 4096`
-- `generalBudgetInUs`: configurable via `DD_APPSEC_WAF_TIMEOUT` (default: 10 000 µs)
+**Values used in dd-trace-java:** see `WafInitialization.java` and `AppSecSystem.java` for current values.
 
 **Truncation behavior** (tracked in `WafMetrics`):
 

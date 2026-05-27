@@ -6,20 +6,9 @@ How to add a new WAF address exposed through the Instrumentation Gateway (IG), a
 
 ### 1. `Events.java` — declare the event type
 
-```java
-static final int REQUEST_FILES_CONTENT_ID = 31;  // unique, increment from last used
-
-@SuppressWarnings("rawtypes")
-private static final EventType REQUEST_FILES_CONTENT =
-    new ET<>("request.body.files.content", REQUEST_FILES_CONTENT_ID);
-
-@SuppressWarnings("unchecked")
-public EventType<BiFunction<RequestContext, List<String>, Flow<Void>>> requestFilesContent() {
-    return (EventType<BiFunction<RequestContext, List<String>, Flow<Void>>>) REQUEST_FILES_CONTENT;
-}
-```
-
-The ID must be unique and sequential. Check the last used ID before assigning.
+Add the event type, unique integer ID, and accessor method in
+`dd-java-agent/src/main/java/datadog/trace/api/gateway/Events.java`.
+The ID must be unique and sequential — check the last used ID before assigning.
 
 ### 2. `InstrumentationGateway.java` — register the callback type
 
@@ -27,12 +16,8 @@ Add the new event ID to the appropriate case in `getCallback()` for the matching
 
 ### 3. `KnownAddresses.java` — declare the WAF address
 
-```java
-Address<List<String>> REQUEST_FILES_CONTENT =
-    new Address<>("server.request.body.files_content");
-```
-
-Also add it to the `fromString()` switch.
+Declare the `Address<T>` constant and add it to the `fromString()` switch in
+`dd-java-agent/src/main/java/datadog/trace/api/gateway/KnownAddresses.java`.
 
 ### 4. `GatewayBridge.java` — wire the callback
 
@@ -53,49 +38,8 @@ Four changes needed:
 
 ### Handler pattern in `GatewayBridge`
 
-All handlers follow the same retry-on-expiry pattern:
-
-```java
-private Flow<Void> onRequestFilesContent(RequestContext ctx_, List<String> filesContent) {
-    AppSecRequestContext ctx = ctx_.getData(RequestContextSlot.APPSEC);
-    if (ctx == null || filesContent == null || filesContent.isEmpty()) {
-        return NoopFlow.INSTANCE;
-    }
-    while (true) {
-        DataSubscriberInfo subInfo = requestFilesContentSubInfo;
-        if (subInfo == null) {
-            subInfo = producerService.getDataSubscribers(KnownAddresses.REQUEST_FILES_CONTENT);
-            requestFilesContentSubInfo = subInfo;
-        }
-        if (subInfo == null || subInfo.isEmpty()) {
-            return NoopFlow.INSTANCE;
-        }
-        DataBundle bundle =
-            new SingletonDataBundle<>(KnownAddresses.REQUEST_FILES_CONTENT, filesContent);
-        try {
-            GatewayContext gwCtx = new GatewayContext(false);  // transient=false for request data; RASP uses true
-            return producerService.publishDataEvent(subInfo, ctx, bundle, gwCtx);
-        } catch (ExpiredSubscriberInfoException e) {
-            requestFilesContentSubInfo = null;
-        }
-    }
-}
-```
-
----
-
-## `KnownAddressesSpecificationForkedTest` — update instance count
-
-Every new `Address<?>` declared in `KnownAddresses.java` must be accompanied by incrementing the expected count in:
-
-```groovy
-void 'number of known addresses is expected number'() {
-    expect:
-    Address.instanceCount() == 47  // increment by 1 for each new Address
-}
-```
-
-The test will fail if the count is not updated.
+All handlers follow the same retry-on-expiry pattern. See existing handlers in `GatewayBridge.java`
+for the full template (`onRequestBodyProcessed`, `onRequestFilesFilenames`, etc.).
 
 ---
 
@@ -135,39 +79,6 @@ The correct pattern: fetch all callbacks at the top of the method, then referenc
 
 Do **not** place `static final` constants initialized from `Config.get()` in advice inner classes annotated with `@RequiresRequestContext`.
 
-Muzzle treats `@RequiresRequestContext`-annotated classes as user classes and tries to validate `Config` against the instrumented library's classpath (e.g., Netty, commons-fileupload) — where `Config` does not exist. This causes a `MuzzleValidationException` in CI even though the code compiles.
+Muzzle treats `@RequiresRequestContext`-annotated classes as user classes and validates all referenced types against the instrumented library's classpath (e.g., Netty, commons-fileupload), where `Config` does not exist. This causes a `MuzzleValidationException` in CI even though the code compiles.
 
-```java
-// Wrong — Config.get() in @RequiresRequestContext advice inner class
-@RequiresRequestContext(RequestContextSlot.APPSEC)
-static class ParseBodyAdvice {
-    private static final int MAX_FILES = Config.get().getAppSecMaxFileContentCount();  // breaks muzzle
-}
-
-// Correct — constant in helper class declared in helperClassNames()
-public class NettyMultipartHelper {
-    static final int MAX_FILES_TO_INSPECT = Config.get().getAppSecMaxFileContentCount();
-}
-```
-
----
-
-## Undertow: `tryCommitBlockingResponse` is not idempotent
-
-See [blocking-patterns.md](blocking-patterns.md#undertow) for the full explanation. Summary: when an advice has two blocking paths (body + filenames), the guard `t == null` must appear **before** the call to `tryCommitBlockingResponse`, not after.
-
----
-
-## Akka HTTP: two multipart routes
-
-Any new WAF address that captures multipart body data must instrument **both** routes in Akka HTTP:
-
-| Route | Entry point | Notes |
-|---|---|---|
-| Route 1 | `handleMultipartStrictFormData(Multipart$FormData$Strict)` | Has `reqCtx` as local variable; iterates via Java API `getStrictParts()` |
-| Route 2 | `handleStrictFormData(StrictForm)` | No `reqCtx` in scope; must obtain via `activeSpan()` |
-
-If only one route is instrumented, multipart requests processed via `formFieldMultiMap` (Route 2) silently miss the WAF event.
-
-Do **not** extract the filenames callback dispatch into a separate helper method in `UnmarshallerHelpers`. This is known to cause problems.
-
+Put any `Config.get()` constants in a helper class declared in `helperClassNames()` instead.
