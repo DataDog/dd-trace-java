@@ -223,17 +223,3 @@ return true;
 
 **`Collections.emptyList()` instead of `BlockingException`** in the GlassFish advice return: propagating `BlockingException` through the Grizzly/Payara pipeline causes an uncontrolled shutdown. Returning an empty list is equivalent — the controller receives zero parts to process.
 
----
-
-## Vert.x
-
-No AppSec advice in Vert.x calls `effectivelyBlocked()`. The blocking pattern is:
-
-```java
-blockResponseFunction.tryCommitBlockingResponse(reqCtx.getTraceSegment(), rba);
-if (throwable == null) {
-    throwable = new BlockingException("Blocked request (for ...)");
-}
-```
-
-Verify with grep before adding `effectivelyBlocked()` to any Vert.x advice — there are currently no calls to it in `dd-java-agent/instrumentation/vertx/`.

@@ -171,14 +171,3 @@ If only one route is instrumented, multipart requests processed via `formFieldMu
 
 Do **not** extract the filenames callback dispatch into a separate helper method in `UnmarshallerHelpers`. This is known to cause problems.
 
----
-
-## Vert.x: advice classes vs. helper classes
-
-`RoutingContextImplInstrumentation` has no `helperClassNames()` override — it uses the empty default. Advice classes (`RoutingContextJsonAdvice`, `RoutingContextFilenamesAdvice`, etc.) are inlined by ByteBuddy, not injected. Only runtime-instantiated handlers go in `helperClassNames()` (e.g. `WafPublishingBodyHandler`).
-
-New `@RequiresRequestContext` classes for `RoutingContextImplInstrumentation` must **not** be added to `helperClassNames()`.
-
-`RoutingContext.fileUploads()` returns an empty set unless `BodyHandler` has previously parsed the body. `setExpectMultipart(true)` + `endHandler` populates `formAttributes()` but **not** file uploads.
-
-Use a distinct `CallDepthThreadLocalMap` key per advice class to avoid interference between the filenames advice and the existing JSON advice.

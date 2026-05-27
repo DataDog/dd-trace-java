@@ -147,16 +147,6 @@ if (t == null && contentCallback != null) {
 
 Body and filenames are independent WAF addresses — a WAF config with only filenames rules will have `bodyCallback == null`. Silencing filenames because body already blocked deprives the WAF of information.
 
-## Jetty 8.x: manual `Content-Disposition` parsing
-
-`getSubmittedFileName()` (Servlet 3.1) is not available in Jetty 8.x (Servlet 3.0). Filenames must be extracted by manually parsing the `Content-Disposition` header from each `Part`.
-
-Exit advice on `getParts()` is the correct instrumentation point for Jetty 8.x — there is no `parseParts()` equivalent to intercept.
-
-## Jetty 9.4 / 10: muzzle discriminator
-
-The field `_dispatcherType: Ljavax/servlet/DispatcherType;` distinguishes Jetty 9.4/10.x (javax namespace) from Jetty 11+ (jakarta namespace). Use it as the muzzle reference rather than trying to match on API version alone.
-
 ## GlassFish / Payara: no reflection via `ParameterCollector`
 
 The Java 11+ module system blocks reflective access from unnamed modules (agent helpers) to named modules (GlassFish's `PartItem`). `Method.invoke()` and `setAccessible(true)` fail silently — `IllegalAccessException` is swallowed by `catch (Exception)` in the helper, and data never reaches the WAF.
