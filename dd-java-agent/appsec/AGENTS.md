@@ -11,6 +11,13 @@ Every new WAF address requires changes in exactly 4 files. Missing any one cause
 3. `KnownAddresses.java` -- declare the `Address<T>` constant and add to `fromString()` switch
 4. `GatewayBridge.java` -- subscriber field, `init()` registration, `reset()` null, handler method, `DATA_DEPENDENCIES` entry
 
+`GatewayBridgeIGRegistrationSpecification` verifies that every `DATA_DEPENDENCIES` entry registers
+its events in `init()`. If you add a `DATA_DEPENDENCIES` entry but forget the `registerCallback()`
+call, that test fails with an explanation.
+
+`KnownAddressesSpecificationForkedTest` verifies that every address is in `fromString()` and that
+the total count is up to date.
+
 See [docs/appsec/ig-events.md](../../docs/appsec/ig-events.md) for the full handler pattern including the retry-on-expiry loop.
 
 ## `KnownAddressesSpecificationForkedTest` instance count
