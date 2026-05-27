@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -90,45 +89,5 @@ class PeerTagSchemaTest {
 
     assertTrue(empty.hasSameTagsAs(Collections.<String>emptySet()));
     assertFalse(empty.hasSameTagsAs(Collections.<String>singleton("peer.hostname")));
-  }
-
-  @Test
-  void equalsIsContentBasedOnNames() {
-    PeerTagSchema a = PeerTagSchema.testSchema(new String[] {"peer.hostname", "peer.service"});
-    PeerTagSchema b = PeerTagSchema.testSchema(new String[] {"peer.hostname", "peer.service"});
-
-    assertEquals(a, b);
-    assertEquals(b, a);
-    assertEquals(a.hashCode(), b.hashCode());
-  }
-
-  @Test
-  void equalsIgnoresState() {
-    // state is a reconcile-bookkeeping field, not part of schema identity.
-    PeerTagSchema early =
-        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), "state-1");
-    PeerTagSchema late =
-        PeerTagSchema.of(Collections.<String>singleton("peer.hostname"), "state-2");
-
-    assertEquals(early, late);
-    assertEquals(early.hashCode(), late.hashCode());
-  }
-
-  @Test
-  void equalsDistinguishesByOrder() {
-    // names is positional -- the array index pairs with SpanSnapshot.peerTagValues. Schemas with
-    // the same tags in different positions are NOT interchangeable.
-    PeerTagSchema ab = PeerTagSchema.testSchema(new String[] {"a", "b"});
-    PeerTagSchema ba = PeerTagSchema.testSchema(new String[] {"b", "a"});
-
-    assertNotEquals(ab, ba);
-  }
-
-  @Test
-  void equalsHandlesNullAndOtherTypes() {
-    PeerTagSchema schema = PeerTagSchema.testSchema(new String[] {"peer.hostname"});
-
-    assertNotEquals(schema, null);
-    assertNotEquals(schema, "peer.hostname");
   }
 }

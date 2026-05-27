@@ -95,10 +95,10 @@ class AggregateEntryTest {
     //   A: schema ["a","b"], values [null,"x"] -> encoded ["b:x"]
     //   B: schema ["b","c"], values ["x",null] -> encoded ["b:x"]
     AggregateEntry a =
-        AggregateEntry.forSnapshot(
+        AggregateEntryTestUtils.forSnapshot(
             snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
     AggregateEntry b =
-        AggregateEntry.forSnapshot(
+        AggregateEntryTestUtils.forSnapshot(
             snapshotWithPeerTags(new String[] {"b", "c"}, new String[] {"x", null}));
 
     // Sanity: same encoded peer tags, despite different raw layout.
@@ -113,10 +113,10 @@ class AggregateEntryTest {
   @Test
   void testUtilsEqualEntriesHaveEqualHashCodes() {
     AggregateEntry a =
-        AggregateEntry.forSnapshot(
+        AggregateEntryTestUtils.forSnapshot(
             snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
     AggregateEntry b =
-        AggregateEntry.forSnapshot(
+        AggregateEntryTestUtils.forSnapshot(
             snapshotWithPeerTags(new String[] {"a", "b"}, new String[] {null, "x"}));
 
     assertTrue(AggregateEntryTestUtils.equals(a, b));
@@ -160,6 +160,6 @@ class AggregateEntryTest {
             null,
             null,
             0L);
-    return AggregateEntry.forSnapshot(snapshot);
+    return AggregateEntryTestUtils.forSnapshot(snapshot);
   }
 }

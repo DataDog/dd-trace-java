@@ -162,19 +162,10 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Convenience overload that computes the hash itself. For test callers that don't have a
-   * precomputed hash on hand; the production path goes through {@link #forSnapshot(SpanSnapshot,
-   * long)} from {@link AggregateTable#findOrInsert}.
-   */
-  static AggregateEntry forSnapshot(SpanSnapshot s) {
-    return new AggregateEntry(s, hashOf(s));
-  }
-
-  /**
    * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
    * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
    */
-  AggregateEntry recordOneDuration(long tagAndDuration) {
+  void recordOneDuration(long tagAndDuration) {
     ++hitCount;
     if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
       tagAndDuration ^= TOP_LEVEL_TAG;
@@ -188,7 +179,6 @@ final class AggregateEntry extends Hashtable.Entry {
       okLatencies.accept(tagAndDuration);
     }
     duration += tagAndDuration;
-    return this;
   }
 
   int getErrorCount() {
@@ -279,11 +269,13 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, s.traceRoot);
     h = LongHashingUtils.addToHash(h, s.spanKind);
     // Always mix in both the schema's content hash and the values' content hash, unconditionally
-    // (no null-skip). PeerTagSchema overrides hashCode() to be content-based on names; we use
-    // Arrays.hashCode for the String[] values since the default Object[].hashCode is identity-
-    // based, not content-based. Null inputs hash to 0 for both, distinct from any real schema's
-    // hash or any non-empty values array.
-    h = LongHashingUtils.addToHash(h, s.peerTagSchema);
+    // (no null-skip). Arrays.hashCode is content-based for both String[]s; the default
+    // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
+    // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
+    // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
+    h =
+        LongHashingUtils.addToHash(
+            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagSchema.names));
     h = LongHashingUtils.addToHash(h, Arrays.hashCode(s.peerTagValues));
     h = LongHashingUtils.addToHash(h, s.httpMethod);
     h = LongHashingUtils.addToHash(h, s.httpEndpoint);

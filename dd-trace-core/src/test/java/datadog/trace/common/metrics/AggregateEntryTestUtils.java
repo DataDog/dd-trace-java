@@ -36,8 +36,8 @@ public final class AggregateEntryTestUtils {
    * <p><b>Test-only.</b> The split is at the <em>first</em> {@code ':'}, so peer-tag values
    * containing a colon (URLs, IPv6 addresses, {@code service:env} patterns) will be silently
    * misparsed and the recovered (name, value) pair will be wrong. Keep test data colon-free in
-   * peer-tag values, or wire a production-style snapshot through {@link
-   * AggregateEntry#forSnapshot(SpanSnapshot)} directly instead.
+   * peer-tag values, or wire a production-style snapshot through {@link #forSnapshot(SpanSnapshot)}
+   * directly instead.
    */
   public static AggregateEntry of(
       CharSequence resource,
@@ -85,7 +85,18 @@ public final class AggregateEntryTestUtils {
             httpEndpoint == null ? null : httpEndpoint.toString(),
             grpcStatusCode == null ? null : grpcStatusCode.toString(),
             0L);
-    return AggregateEntry.forSnapshot(syntheticSnapshot);
+    return forSnapshot(syntheticSnapshot);
+  }
+
+  /**
+   * Builds an {@link AggregateEntry} from {@code s} by computing its lookup hash via {@link
+   * AggregateEntry#hashOf(SpanSnapshot)} and delegating to {@link
+   * AggregateEntry#forSnapshot(SpanSnapshot, long)}. Production callers route through {@link
+   * AggregateTable#findOrInsert} which already has the {@code keyHash} on hand; tests rarely do, so
+   * this helper hides the second argument.
+   */
+  public static AggregateEntry forSnapshot(SpanSnapshot s) {
+    return AggregateEntry.forSnapshot(s, AggregateEntry.hashOf(s));
   }
 
   /**
