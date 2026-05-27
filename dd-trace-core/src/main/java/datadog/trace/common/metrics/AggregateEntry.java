@@ -5,7 +5,6 @@ import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -47,12 +46,12 @@ import java.util.List;
  * cardinality handlers.
  *
  * <p><b>Single-writer invariant relies on convention.</b> The aggregator thread is the only mutator
- * of this class and of {@link AggregateTable}. The {@code SuppressFBWarnings} below documents this
- * assumption but nothing enforces it at runtime -- a stray mutation from a different thread (e.g.
- * an HTTP-client callback) would corrupt counters, cardinality-handler state, or hashtable chains
- * silently. The {@code ClearSignal} routing in {@link Aggregator} is the explicit mechanism for
- * funneling cross-thread requests (e.g. {@code disable()}) back onto the aggregator thread; any new
- * entry point that mutates aggregate state must do the same.
+ * of this class and of {@link AggregateTable}. Nothing enforces this at runtime -- a stray mutation
+ * from a different thread (e.g. an HTTP-client callback) would corrupt counters, cardinality-
+ * handler state, or hashtable chains silently. The {@code ClearSignal} routing in {@link
+ * Aggregator} is the explicit mechanism for funneling cross-thread requests (e.g. {@code
+ * disable()}) back onto the aggregator thread; any new entry point that mutates aggregate state
+ * must do the same.
  *
  * <p><b>One {@link ClientStatsAggregator} per JVM.</b> The {@code RESOURCE_HANDLER}/{@code
  * SERVICE_HANDLER}/... fields and {@link PeerTagSchema#INTERNAL} are {@code static}, so all
@@ -61,9 +60,6 @@ import java.util.List;
  * MetricsAggregatorFactory}); tests that exercise this class must call {@link
  * #resetCardinalityHandlers()} in their setup to avoid cross-test pollution.
  */
-@SuppressFBWarnings(
-    value = {"AT_NONATOMIC_OPERATIONS_ON_SHARED_VARIABLE", "AT_STALE_THREAD_WRITE_OF_PRIMITIVE"},
-    justification = "Explicitly not thread-safe. Accumulates counts and durations.")
 final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
@@ -230,7 +226,6 @@ final class AggregateEntry extends Hashtable.Entry {
    * a fresh one. Entries that stay at {@code hitCount == 0} across a cycle are reaped by {@link
    * AggregateTable#expungeStaleAggregates}.
    */
-  @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   void clear() {
     this.errorCount = 0;
     this.hitCount = 0;
