@@ -3,6 +3,7 @@ package datadog.trace.api.civisibility.config;
 import static java.nio.charset.StandardCharsets.UTF_8;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.config.inversion.ConfigHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
@@ -51,7 +52,7 @@ public class BazelMode {
     return INSTANCE;
   }
 
-  // visible for testing
+  @VisibleForTesting
   BazelMode(Config config) {
     String manifestRloc = config.getTestOptimizationManifestFile();
     if (Strings.isNotBlank(manifestRloc)) {
@@ -331,7 +332,7 @@ public class BazelMode {
     return null;
   }
 
-  // visible for testing
+  @VisibleForTesting
   static void reset() {
     INSTANCE = null;
   }

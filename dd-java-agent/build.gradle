@@ -60,6 +60,7 @@ tasks.named("compileJava") {
 dependencies {
   implementation sourceSets.main_java11.output
   main_java11CompileOnly libs.forbiddenapis
+  main_java6CompileOnly project(':components:annotations')
   main_java6CompileOnly libs.forbiddenapis
   testImplementation sourceSets.main_java6.output
 }
