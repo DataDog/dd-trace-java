@@ -70,6 +70,10 @@ tasks.named('compileTestGroovy', GroovyCompile) {
 }
 
 tasks.withType(Test).configureEach {
+  // Skip when no supported GraalVM was selected — `testJvmConstraints` only checks for a
+  // native-image-capable launcher, so a daemon JVM that happens to be GraalVM 21 would
+  // otherwise let the Test task run against stale or missing artifacts.
+  onlyIf("Requires -PtestJvm=graalvm21") { isSupportedGraalvm }
   // These smoke tests don't need to be launched from the test, since what is exercised is a native binary
   // This resets the launcher to the daemon JDK
   javaLauncher = javaToolchains.launcherFor(java.toolchain)
