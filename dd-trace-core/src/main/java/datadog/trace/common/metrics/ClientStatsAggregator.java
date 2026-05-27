@@ -438,10 +438,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     if (cached.hasSameTagsAs(normalized)) {
       cached.state = latestState;
     } else {
-      // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
-      // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      cached.resetCardinalityHandlers();
-      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState, healthMetrics);
+      // Tags actually changed. Flush the outgoing schema's accumulated block telemetry before
+      // discard (so partial-cycle blockedCounts reach HealthMetrics), then build the replacement
+      // schema while transferring per-tag handlers for names that persist across the rebuild. The
+      // handlers carry their warm prior-cycle UTF8 caches into the new schema; the end-of-cycle
+      // reset that runs after this reconcile rotates those caches in the normal way.
+      cached.flushBlockedCounts();
+      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState, healthMetrics, cached);
     }
   }
 

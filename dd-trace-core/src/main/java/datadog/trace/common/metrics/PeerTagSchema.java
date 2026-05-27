@@ -49,7 +49,7 @@ final class PeerTagSchema {
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
   static final PeerTagSchema INTERNAL =
       // INTERNAL is never reconciled, so the state value is irrelevant.
-      new PeerTagSchema(new String[] {BASE_SERVICE}, null, HealthMetrics.NO_OP);
+      new PeerTagSchema(new String[] {BASE_SERVICE}, null, HealthMetrics.NO_OP, null);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
@@ -82,7 +82,23 @@ final class PeerTagSchema {
 
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
   static PeerTagSchema of(Set<String> names, String state, HealthMetrics healthMetrics) {
-    return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics);
+    return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics, null);
+  }
+
+  /**
+   * Builds a replacement schema, donating {@link TagCardinalityHandler}s from {@code previous} for
+   * any tag name that survives the rebuild. Carrying handlers forward preserves their warm
+   * prior-cycle UTF8 caches so persisting peer tags don't re-allocate {@code UTF8BytesString}s for
+   * values that were already canonicalized under the prior schema. Used by the aggregator's
+   * reconcile path; the caller must first call {@link #flushBlockedCounts()} on the outgoing schema
+   * so its accumulated block telemetry reaches {@link HealthMetrics} before discard.
+   *
+   * <p>Handlers are matched by tag name. New names in the rebuilt schema get fresh handlers; names
+   * that were in the old schema but aren't in the new one are dropped along with the old schema.
+   */
+  static PeerTagSchema of(
+      Set<String> names, String state, HealthMetrics healthMetrics, PeerTagSchema previous) {
+    return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics, previous);
   }
 
   /**
@@ -92,19 +108,36 @@ final class PeerTagSchema {
    * HealthMetrics)} instead.
    */
   static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, null, HealthMetrics.NO_OP);
+    return new PeerTagSchema(names, null, HealthMetrics.NO_OP, null);
   }
 
-  private PeerTagSchema(String[] names, String state, HealthMetrics healthMetrics) {
+  private PeerTagSchema(
+      String[] names, String state, HealthMetrics healthMetrics, PeerTagSchema previous) {
     this.names = names;
     this.state = state;
     this.healthMetrics = healthMetrics;
     this.handlers = new TagCardinalityHandler[names.length];
     this.blockedCounts = new long[names.length];
     for (int i = 0; i < names.length; i++) {
+      TagCardinalityHandler donated = previous == null ? null : previous.handlerFor(names[i]);
       this.handlers[i] =
-          new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
+          donated != null
+              ? donated
+              : new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
     }
+  }
+
+  /**
+   * Returns the {@link TagCardinalityHandler} for {@code name}, or {@code null} if this schema
+   * doesn't carry that tag. Used only by the donor constructor above; not on any hot path.
+   */
+  private TagCardinalityHandler handlerFor(String name) {
+    for (int i = 0; i < names.length; i++) {
+      if (names[i].equals(name)) {
+        return handlers[i];
+      }
+    }
+    return null;
   }
 
   /**
@@ -149,13 +182,28 @@ final class PeerTagSchema {
   }
 
   /**
-   * Resets every {@link TagCardinalityHandler}'s working set, flushes accumulated per-tag block
-   * counts to {@link HealthMetrics}, and clears the per-cycle warn-once tracking. Must be called on
-   * the aggregator thread; handlers are not thread-safe.
+   * Resets every {@link TagCardinalityHandler}'s working set and flushes the per-cycle telemetry
+   * via {@link #flushBlockedCounts()}. Must be called on the aggregator thread; handlers are not
+   * thread-safe.
    */
   void resetCardinalityHandlers() {
-    for (int i = 0; i < handlers.length; i++) {
-      handlers[i].reset();
+    for (TagCardinalityHandler handler : handlers) {
+      handler.reset();
+    }
+    flushBlockedCounts();
+  }
+
+  /**
+   * Flushes accumulated per-tag block counts to {@link HealthMetrics} and clears the per-cycle
+   * warn-once tracking, without rotating the cardinality handlers' current/prior tables. Used by
+   * the aggregator's reconcile path: when a tag-set change forces the schema to be replaced, the
+   * outgoing schema's block telemetry must still reach {@code HealthMetrics}, but the per-tag
+   * handlers themselves are transferred into the replacement schema (see the donor overload of
+   * {@link #of(Set, String, HealthMetrics, PeerTagSchema)}) so their warm prior-cycle caches
+   * survive the rebuild.
+   */
+  void flushBlockedCounts() {
+    for (int i = 0; i < blockedCounts.length; i++) {
       if (blockedCounts[i] > 0) {
         healthMetrics.onTagCardinalityBlocked(names[i], blockedCounts[i]);
         blockedCounts[i] = 0;
