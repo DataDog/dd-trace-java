@@ -189,6 +189,13 @@ final class AggregateEntry extends Hashtable.Entry {
     return errorLatencies;
   }
 
+  /**
+   * Resets the per-cycle counters and histograms. Label fields ({@code resource}, {@code service},
+   * ..., {@code peerTags}) are deliberately left intact -- they're the entry's bucket identity and
+   * must persist so a subsequent snapshot with the same key reuses this entry instead of allocating
+   * a fresh one. Entries that stay at {@code hitCount == 0} across a cycle are reaped by {@link
+   * AggregateTable#expungeStaleAggregates}.
+   */
   @SuppressFBWarnings("AT_NONATOMIC_64BIT_PRIMITIVE")
   void clear() {
     this.errorCount = 0;
