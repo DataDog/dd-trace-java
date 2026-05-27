@@ -103,7 +103,8 @@ final class PeerTagSchema {
     this.blockedCounts = new long[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
-          new TagCardinalityHandler(names[i], MetricCardinalityLimits.PEER_TAG_VALUE);
+          new TagCardinalityHandler(
+              names[i], MetricCardinalityLimits.PEER_TAG_VALUE, AggregateEntry.LIMITS_ENABLED);
     }
   }
 

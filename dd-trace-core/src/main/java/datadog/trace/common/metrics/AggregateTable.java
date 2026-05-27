@@ -82,8 +82,13 @@ final class AggregateTable {
    *
    * <p>The semantic intent: at cap with all entries live, drop the new key (reported via {@code
    * onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
-   * steady-state working set, so eviction is rare; this cursor optimization handles the
-   * pathological "persistently at cap" case.
+   * steady-state working set, so eviction is rare in the common case.
+   *
+   * <p>How often this fires depends on {@link AggregateEntry#LIMITS_ENABLED}. With limits enabled,
+   * over-cap values for a given field collapse into a shared {@code blocked_by_tracer} bucket, so
+   * the table itself rarely reaches {@code maxAggregates}. With limits disabled (the default),
+   * over-cap values flow to distinct buckets and {@code maxAggregates} becomes the load-bearing
+   * backstop -- the cursor-resumed scan was added specifically for this regime.
    */
   private boolean evictOneStale() {
     // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The

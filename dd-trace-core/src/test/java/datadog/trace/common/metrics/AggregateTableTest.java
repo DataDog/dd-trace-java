@@ -8,6 +8,7 @@ import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assumptions.assumeTrue;
 
 import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
@@ -102,6 +103,14 @@ class AggregateTableTest {
     // 129+ canonicalize to the "blocked_by_tracer" sentinel. Because the table hashes from the
     // canonical (post-handler) form, all blocked services land in the same bucket and merge into
     // a single entry rather than fragmenting.
+    //
+    // Sentinel substitution is gated on AggregateEntry#LIMITS_ENABLED. With the flag off (the
+    // default), over-cap values get fresh UTF8BytesStrings and flow to distinct buckets, so this
+    // test only meaningfully runs in limits-on mode.
+    assumeTrue(
+        AggregateEntry.LIMITS_ENABLED,
+        "cardinality collapse only fires when the limits flag is enabled");
+
     AggregateEntry.resetCardinalityHandlers();
     AggregateTable table = new AggregateTable(256);
 

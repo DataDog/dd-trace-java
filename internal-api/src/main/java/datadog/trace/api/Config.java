@@ -415,6 +415,7 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMITS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
@@ -1005,6 +1006,7 @@ public class Config {
   private final boolean tracerMetricsBufferingEnabled;
   private final int tracerMetricsMaxAggregates;
   private final int tracerMetricsMaxPending;
+  private final boolean traceStatsCardinalityLimitsEnabled;
 
   private final boolean reportHostName;
 
@@ -2201,6 +2203,8 @@ public class Config {
     long requestedMaxPending =
         (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
+    traceStatsCardinalityLimitsEnabled =
+        configProvider.getBoolean(TRACE_STATS_CARDINALITY_LIMITS_ENABLED, false);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -3784,6 +3788,10 @@ public class Config {
 
   public int getTracerMetricsMaxPending() {
     return tracerMetricsMaxPending;
+  }
+
+  public boolean isTraceStatsCardinalityLimitsEnabled() {
+    return traceStatsCardinalityLimitsEnabled;
   }
 
   public boolean isLogsInjectionEnabled() {
