@@ -227,7 +227,32 @@ public final class SerializingMetricWriter implements MetricWriter {
     writer.writeBinary(entry.getOkLatencies().serialize());
 
     writer.writeUTF8(ERROR_SUMMARY);
-    writer.writeBinary(entry.getErrorLatencies().serialize());
+    final datadog.metrics.api.Histogram errorLatencies = entry.getErrorLatencies();
+    if (errorLatencies != null) {
+      writer.writeBinary(errorLatencies.serialize());
+    } else {
+      // Entry never saw an error; emit a cached empty-histogram payload so the wire format is
+      // unchanged without allocating a histogram per entry.
+      writer.writeBinary(emptyErrorHistogramBytes());
+    }
+  }
+
+  private byte[] emptyHistogramBytesCache;
+
+  /**
+   * Returns the cached serialized form of an empty histogram. Computed lazily on first call so the
+   * {@link datadog.metrics.api.Histograms} factory has been registered (by the producer-side tracer
+   * startup or test setup) before we sample its output.
+   */
+  private byte[] emptyErrorHistogramBytes() {
+    byte[] cached = emptyHistogramBytesCache;
+    if (cached == null) {
+      java.nio.ByteBuffer buf = datadog.metrics.api.Histogram.newHistogram().serialize();
+      cached = new byte[buf.remaining()];
+      buf.get(cached);
+      emptyHistogramBytesCache = cached;
+    }
+    return cached;
   }
 
   @Override
