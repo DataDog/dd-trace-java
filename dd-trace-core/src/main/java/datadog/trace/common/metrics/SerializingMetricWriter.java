@@ -143,14 +143,12 @@ public final class SerializingMetricWriter implements MetricWriter {
 
   @Override
   public void add(AggregateEntry entry) {
-    // Calculate dynamic map size based on optional fields. AggregateEntry uses
-    // UTF8BytesString.EMPTY
-    // as the "absent" sentinel for these optional fields (see AggregateEntry); identity comparison
-    // against the singleton.
-    final boolean hasHttpMethod = entry.getHttpMethod() != EMPTY;
-    final boolean hasHttpEndpoint = entry.getHttpEndpoint() != EMPTY;
-    final boolean hasServiceSource = entry.getServiceSource() != EMPTY;
-    final boolean hasGrpcStatusCode = entry.getGrpcStatusCode() != EMPTY;
+    // Dynamic map size based on optional fields; AggregateEntry encapsulates the EMPTY-as-absent
+    // sentinel via its hasFoo() predicates so the serializer doesn't depend on the storage choice.
+    final boolean hasHttpMethod = entry.hasHttpMethod();
+    final boolean hasHttpEndpoint = entry.hasHttpEndpoint();
+    final boolean hasServiceSource = entry.hasServiceSource();
+    final boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)

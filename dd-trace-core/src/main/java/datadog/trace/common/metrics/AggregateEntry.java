@@ -292,6 +292,11 @@ final class AggregateEntry extends Hashtable.Entry {
    * all canonicalize to the same sentinel {@link UTF8BytesString}) collide in the same bucket.
    * {@link UTF8BytesString#hashCode()} returns the underlying String hash, so entries built via
    * {@link #of} produce the same hash as entries built from a snapshot with matching content.
+   *
+   * <p>Field order intentionally mirrors {@link Canonical#matches} -- UTF8 fields first (highest
+   * cardinality first for matches' short-circuit benefit), then the peer-tag list, then the
+   * primitives. The hash itself is order-stable across all callers; the lockstep ordering is purely
+   * for readability when reasoning about lookup and equality in tandem.
    */
   static long hashOf(
       UTF8BytesString resource,
@@ -313,18 +318,18 @@ final class AggregateEntry extends Hashtable.Entry {
     h = LongHashingUtils.addToHash(h, operationName);
     h = LongHashingUtils.addToHash(h, serviceSource);
     h = LongHashingUtils.addToHash(h, type);
-    h = LongHashingUtils.addToHash(h, httpStatusCode);
-    h = LongHashingUtils.addToHash(h, synthetic);
-    h = LongHashingUtils.addToHash(h, traceRoot);
     h = LongHashingUtils.addToHash(h, spanKind);
+    h = LongHashingUtils.addToHash(h, httpMethod);
+    h = LongHashingUtils.addToHash(h, httpEndpoint);
+    h = LongHashingUtils.addToHash(h, grpcStatusCode);
     // indexed iteration -- avoids the iterator allocation a for-each over a List would do
     int peerTagCount = peerTags.size();
     for (int i = 0; i < peerTagCount; i++) {
       h = LongHashingUtils.addToHash(h, peerTags.get(i));
     }
-    h = LongHashingUtils.addToHash(h, httpMethod);
-    h = LongHashingUtils.addToHash(h, httpEndpoint);
-    h = LongHashingUtils.addToHash(h, grpcStatusCode);
+    h = LongHashingUtils.addToHash(h, httpStatusCode);
+    h = LongHashingUtils.addToHash(h, synthetic);
+    h = LongHashingUtils.addToHash(h, traceRoot);
     return h;
   }
 
@@ -345,6 +350,16 @@ final class AggregateEntry extends Hashtable.Entry {
     return serviceSource;
   }
 
+  /**
+   * Whether the snapshot carried a service-source value. Encapsulates the EMPTY-as-absent
+   * convention: optional fields use {@link UTF8BytesString#EMPTY} as the sentinel for "no value
+   * captured" (see field comment) -- callers that need a presence check should go through this
+   * predicate rather than comparing against {@code EMPTY} directly.
+   */
+  boolean hasServiceSource() {
+    return serviceSource != UTF8BytesString.EMPTY;
+  }
+
   UTF8BytesString getType() {
     return type;
   }
@@ -357,12 +372,34 @@ final class AggregateEntry extends Hashtable.Entry {
     return httpMethod;
   }
 
+  /**
+   * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
+   */
+  boolean hasHttpMethod() {
+    return httpMethod != UTF8BytesString.EMPTY;
+  }
+
   UTF8BytesString getHttpEndpoint() {
     return httpEndpoint;
   }
 
+  /**
+   * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
+   */
+  boolean hasHttpEndpoint() {
+    return httpEndpoint != UTF8BytesString.EMPTY;
+  }
+
   UTF8BytesString getGrpcStatusCode() {
     return grpcStatusCode;
+  }
+
+  /**
+   * Whether the snapshot carried a gRPC status code. See {@link #hasServiceSource} for the
+   * contract.
+   */
+  boolean hasGrpcStatusCode() {
+    return grpcStatusCode != UTF8BytesString.EMPTY;
   }
 
   int getHttpStatusCode() {
