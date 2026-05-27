@@ -20,6 +20,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
@@ -31,13 +32,9 @@ import dev.openfeature.sdk.ProviderEvent;
 import dev.openfeature.sdk.ProviderState;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
-import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -52,16 +49,8 @@ public class ProviderTest {
 
   @Captor private ArgumentCaptor<EventDetails> eventDetailsCaptor;
 
-  private ExecutorService executor;
-
-  @BeforeEach
-  public void setup() {
-    executor = Executors.newSingleThreadExecutor();
-  }
-
   @AfterEach
   public void tearDown() {
-    executor.shutdownNow();
     OpenFeatureAPI.getInstance().shutdown();
     FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
   }
@@ -72,7 +61,7 @@ public class ProviderTest {
     api.setProvider(new Provider());
 
     final Client client = api.getClient();
-    assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
+    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
@@ -81,41 +70,40 @@ public class ProviderTest {
   @Test
   public void testSetProviderAndWait() {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
-    executor.submit(() -> api.setProviderAndWait(new Provider()));
+    api.setProviderAndWait(new Provider());
 
     final Client client = api.getClient();
-    assertThat(client.getProviderState(), equalTo(ProviderState.NOT_READY));
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
 
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
   }
 
   @Test
-  public void testSetProviderAndWaitTimeout() {
-    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
+  public void testSetProviderAndWaitWithoutInitialConfiguration() {
+    final Consumer<EventDetails> configChangedEvent = mock(Consumer.class);
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     final Client client = api.getClient();
-    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent);
 
-    // we time out after 10 millis without receiving the initial config
-    assertThrows(
-        ProviderNotReadyError.class,
-        () -> api.setProviderAndWait(new Provider(new Options().initTimeout(10, MILLISECONDS))));
+    api.setProviderAndWait(new Provider(new Options().initTimeout(10, MILLISECONDS)));
 
-    // ready has not yet been called
-    verify(readyEvent, times(0)).accept(any());
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+    final FlagEvaluationDetails<String> evalDetails = client.getStringDetails("missing", "default");
+    assertThat(evalDetails.getValue(), equalTo("default"));
+    assertThat(evalDetails.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
 
     // dispatch an initial configuration
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
 
-    // ready is called after receiving the configuration
+    // config changed is called after receiving the configuration
     await()
         .atMost(ofSeconds(1))
         .untilAsserted(
             () -> {
-              verify(readyEvent, times(1)).accept(eventDetailsCaptor.capture());
-              final EventDetails details = eventDetailsCaptor.getValue();
-              assertThat(details.getProviderName(), equalTo(METADATA));
+              verify(configChangedEvent, times(1)).accept(eventDetailsCaptor.capture());
+              final EventDetails eventDetails = eventDetailsCaptor.getValue();
+              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
             });
   }
 

@@ -13,7 +13,6 @@ import dev.openfeature.sdk.ProviderEventDetails;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
-import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
 import java.util.Collections;
 import java.util.List;
@@ -63,12 +62,8 @@ public class Provider extends EventProvider implements Metadata {
   public void initialize(final EvaluationContext context) throws Exception {
     try {
       evaluator = buildEvaluator();
-      final boolean init = evaluator.initialize(options.getTimeout(), options.getUnit(), context);
-      initialized.set(init);
-      if (!init) {
-        throw new ProviderNotReadyError(
-            "Provider timed-out while waiting for initial configuration");
-      }
+      initialized.set(true);
+      evaluator.initialize(options.getTimeout(), options.getUnit(), context);
     } catch (final OpenFeatureError e) {
       throw e;
     } catch (final Throwable e) {
