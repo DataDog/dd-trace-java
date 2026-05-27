@@ -7,6 +7,7 @@ import org.gradle.api.file.FileTree
 import org.gradle.api.file.RegularFile
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.IgnoreEmptyDirectories
@@ -74,6 +75,14 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val buildArguments: ListProperty<String>
 
+  /**
+   * Extra environment variables for the nested Gradle daemon. Merged on top of the outer
+   * process environment — set a key to override an inherited value. The nested build script
+   * sees these via `System.getenv()` like any normal environment variable.
+   */
+  @get:Input
+  abstract val environment: MapProperty<String, String>
+
   @get:Nested
   abstract val projectJars: ListProperty<NestedBuildProjectJar>
 
@@ -115,11 +124,16 @@ abstract class NestedGradleBuild @Inject constructor(
       .useGradleVersion(gradleVersion.get())
       .forProjectDirectory(appDir)
 
+    val extraEnv = environment.get()
+    val mergedEnv: Map<String, String>? =
+      if (extraEnv.isEmpty()) null else System.getenv() + extraEnv
+
     connector.connect().use { connection ->
       connection.newBuild()
         .forTasks(*tasksToRun.get().toTypedArray())
         .withArguments(args)
         .setJavaHome(daemonJavaHome)
+        .apply { if (mergedEnv != null) setEnvironmentVariables(mergedEnv) }
         .setStandardOutput(System.out)
         .setStandardError(System.err)
         .run()

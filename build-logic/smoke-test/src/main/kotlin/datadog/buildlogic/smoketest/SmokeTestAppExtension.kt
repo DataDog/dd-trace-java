@@ -97,6 +97,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
+        environment.set(spec.environment)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
@@ -117,16 +118,36 @@ abstract class SmokeTestAppExtension @Inject constructor(
    * lazily — no `evaluationDependsOn` is needed.
    */
   fun projectJar(propertyName: String, sourceProject: Project) {
+    val cfg = createExtraJarConfiguration(propertyName)
+    project.dependencies.add(cfg.name, sourceProject)
+    addProjectJarFromConfiguration(propertyName, cfg)
+  }
+
+  /**
+   * Forward a non-default artifact configuration from [sourceProject]. Use this when the
+   * upstream project exposes its build output under a configuration other than the default
+   * (e.g. `shadowJar`).
+   */
+  fun projectJar(propertyName: String, sourceProject: Project, configuration: String) {
+    val cfg = createExtraJarConfiguration(propertyName)
+    project.dependencies.add(
+      cfg.name,
+      project.dependencies.project(
+        mapOf("path" to sourceProject.path, "configuration" to configuration),
+      ),
+    )
+    addProjectJarFromConfiguration(propertyName, cfg)
+  }
+
+  private fun createExtraJarConfiguration(propertyName: String): Configuration {
     val configurationName = "smokeTestAppExtraJar" +
       propertyName.replaceFirstChar { it.titlecase(Locale.ROOT) }
-    val cfg = project.configurations.maybeCreate(configurationName).apply {
+    return project.configurations.maybeCreate(configurationName).apply {
       isCanBeConsumed = false
       isCanBeResolved = true
       isTransitive = false
       description = "Jar artifact forwarded as -P$propertyName into the smoke-test nested build"
     }
-    project.dependencies.add(configurationName, sourceProject)
-    addProjectJarFromConfiguration(propertyName, cfg)
   }
 
   /**
@@ -175,6 +196,13 @@ abstract class ApplicationSpec @Inject constructor() {
 
   /** Extra arguments passed to the nested Gradle invocation. */
   abstract val buildArguments: ListProperty<String>
+
+  /**
+   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the
+   * outer process environment — entries here override any inherited values with the same key.
+   * Use this for nested tooling that reads `JAVA_HOME`, `GRAALVM_HOME`, etc. from the env.
+   */
+  abstract val environment: MapProperty<String, String>
 
   /**
    * Additional system properties to forward to every `Test` task, keyed by property name with
