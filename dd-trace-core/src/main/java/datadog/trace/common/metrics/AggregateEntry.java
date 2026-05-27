@@ -350,8 +350,8 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // Production AggregateEntry intentionally has no equals/hashCode override -- AggregateTable
   // bucketing uses keyHash + matches(SpanSnapshot) directly and never invokes Object.equals.
-  // For tests that need value-equality (Spock argument matchers), use the TestAggregateEntry
-  // subclass in src/test, which adds the contract back without exposing it in production.
+  // For tests that need value-equality (Spock argument matchers), use AggregateEntryTestUtils in
+  // src/test, which provides equals/hashCode helpers without exposing the contract in production.
 
   // ----- helpers -----
 
