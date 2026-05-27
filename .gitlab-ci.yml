@@ -230,7 +230,10 @@ default:
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
     # Route Gradle distribution download through MASS pull-through cache
-    - sed -i "s|distributionUrl=https\\\\://services.gradle.org/|distributionUrl=https\\\\://${MASS_READ_URL#https://}/internal/artifact/services.gradle.org/|" gradle/wrapper/gradle-wrapper.properties
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - mkdir -p .mvn/caches
     # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
     # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
