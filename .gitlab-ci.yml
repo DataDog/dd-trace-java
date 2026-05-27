@@ -49,7 +49,8 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.5" # must match gradle-wrapper.properties
+  MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
@@ -228,6 +229,11 @@ default:
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - mkdir -p .mvn/caches
     # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
     # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
