@@ -7,7 +7,6 @@ import datadog.metrics.api.Histograms
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
 import datadog.trace.common.metrics.AggregateEntry
 import datadog.trace.common.metrics.EventListener
 import datadog.trace.common.metrics.OkHttpSink

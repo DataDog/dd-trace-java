@@ -8,6 +8,7 @@ import sys
 import urllib.error
 import urllib.parse
 import urllib.request
+import xml.etree.ElementTree as ET
 from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
@@ -372,71 +373,130 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": 0}, args.github_output)
         return 0
 
+    baseline_lockfiles = collect_lockfiles(baseline_dir)
+
     changed_by_file: dict[str, list[str]] = {}
     for relative_path, gav in changed:
         changed_by_file.setdefault(relative_path, []).append(gav)
 
     timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
-    too_new = "too_new"
-    unverified = "unverified"
-    violations_by_file: dict[str, list[tuple[str, str]]] = {}
+    # replacement value: (new_gav, hours_remaining)
+    replacements_by_file: dict[str, dict[str, tuple[str, int]]] = {}
+    # violation value: (gav, kind, hours_remaining or 0)
+    violations_by_file: dict[str, list[tuple[str, str, int]]] = {}
     for relative_path, gavs in sorted(changed_by_file.items()):
+        baseline_coords = baseline_lockfiles.get(relative_path, set())
         for gav in gavs:
             if gav not in timestamp_cache:
                 timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, repo_urls=repo_urls)
             published_at, reason = timestamp_cache[gav]
             if published_at is None:
-                violations_by_file.setdefault(relative_path, []).append((gav, unverified))
+                violations_by_file.setdefault(relative_path, []).append((gav, "unverified", 0))
             elif published_at > cutoff:
-                violations_by_file.setdefault(relative_path, []).append((gav, too_new))
+                hours_remaining = int((published_at - cutoff).total_seconds() / 3600) + 1
+                group_id, artifact_id, version = gav.split(":", 2)
+                baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
+                eligible = find_eligible_version(
+                    group_id=group_id, artifact_id=artifact_id,
+                    too_new_version=version, baseline_version=baseline_version,
+                    cutoff=cutoff, repo_urls=repo_urls,
+                )
+                if eligible:
+                    replacement_gav = f"{group_id}:{artifact_id}:{eligible[0]}"
+                    replacements_by_file.setdefault(relative_path, {})[gav] = (replacement_gav, hours_remaining)
+                    print(f"Latest version {gav} did not meet 48h cooldown requirement, updating to {replacement_gav} instead.")
+                else:
+                    violations_by_file.setdefault(relative_path, []).append((gav, "too_new", hours_remaining))
             else:
                 print(f"Verified {gav} (published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})")
 
+    if replacements_by_file:
+        # build the gav->gav map for apply_lockfile_replacements, skipping no-op downgrades
+        effective_replacements: dict[str, dict[str, str]] = {}
+        for relative_path, replacements in replacements_by_file.items():
+            baseline_coords = baseline_lockfiles.get(relative_path, set())
+            for old_gav, (new_gav, _) in replacements.items():
+                if new_gav not in baseline_coords:
+                    effective_replacements.setdefault(relative_path, {})[old_gav] = new_gav
+        if effective_replacements:
+            apply_lockfile_replacements(replacements_by_file=effective_replacements, current_dir=current_dir)
+
     if violations_by_file:
-        revert_lockfiles_to_baseline(violations_by_file=violations_by_file, baseline_dir=baseline_dir, current_dir=current_dir)
+        revert_lockfiles_to_baseline(lockfile_paths=list(violations_by_file.keys()), baseline_dir=baseline_dir, current_dir=current_dir)
         for relative_path, entries in sorted(violations_by_file.items()):
-            for gav, kind in entries:
-                print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == unverified else 'Too new'}. Reverted lockfile to baseline.")
+            for gav, kind, _ in entries:
+                print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == 'unverified' else 'Too new'}. Reverted lockfile to baseline.")
 
     reverted_files = len(violations_by_file)
-    summary = build_validation_summary(violations_by_file=violations_by_file, min_age_hours=args.min_age_hours)
+    summary = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours)
     emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": reverted_files, "summary": summary}, args.github_output)
     print(f"Validated {len(changed)} changed coordinate(s) across {len(changed_by_file)} lockfile(s). {reverted_files} lockfile(s) reverted.")
     return 0
 
 
-# build summary of reverted dependencies for PR descriptions
-def build_validation_summary(*, violations_by_file: dict[str, list[tuple[str, str]]], min_age_hours: int) -> str:
-    if not violations_by_file:
+# build summary of reverted/downgraded dependencies for PR descriptions
+def build_validation_summary(
+    *,
+    violations_by_file: dict[str, list[tuple[str, str, int]]],
+    replacements_by_file: dict[str, dict[str, tuple[str, int]]],
+    baseline_lockfiles: dict[str, set[str]],
+    min_age_hours: int,
+) -> str:
+    if not violations_by_file and not replacements_by_file:
         return ""
-    summary_messages = {
-        "too_new": f"Did not meet {min_age_hours}h dependency age requirement",
-        "unverified": "Cannot verify age in Maven Central",
-    }
-    lines = [
-        f"## Dependency age policy",
-        f"",
-        f"The following dependencies were reverted:",
-        f"",
-    ]
-    # deduplicate
+    lines = [f"## Dependency age policy", ""]
     seen: set[str] = set()
+    for relative_path, replacements in replacements_by_file.items():
+        baseline_coords = baseline_lockfiles.get(relative_path, set())
+        for old_gav, (new_gav, hours_remaining) in replacements.items():
+            if old_gav not in seen:
+                seen.add(old_gav)
+                if new_gav in baseline_coords:
+                    continue  # no-op downgrade — replacement matches baseline
+                lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_gav}`")
     for entries in violations_by_file.values():
-        for gav, kind in entries:
+        for gav, kind, hours_remaining in entries:
             if gav not in seen:
                 seen.add(gav)
-                lines.append(f"- `{gav}` — {summary_messages[kind]}")
+                if kind == "unverified":
+                    lines.append(f"- `{gav}` — cannot verify age, reverted")
+                else:
+                    lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
+    if len(lines) == 2:
+        return "" # only header, no entries after filtering
     return "\n".join(lines)
+
+
+# replace specific coordinates in lockfiles (for version downgrades)
+def apply_lockfile_replacements(
+    *,
+    replacements_by_file: dict[str, dict[str, str]],
+    current_dir: Path,
+) -> None:
+    for relative_path, replacements in sorted(replacements_by_file.items()):
+        lockfile_path = current_dir / relative_path
+        lines = lockfile_path.read_text(encoding="utf-8").splitlines(keepends=True)
+        new_lines = []
+        for line in lines:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                coordinate = stripped.split("=", 1)[0]
+                if coordinate in replacements:
+                    configs = stripped.split("=", 1)[1] if "=" in stripped else ""
+                    new_coord = replacements[coordinate]
+                    line = f"{new_coord}={configs}\n"
+            new_lines.append(line)
+        lockfile_path.write_text("".join(new_lines), encoding="utf-8")
 
 
 # restore each violating lockfile to its baseline copy to keep the file consistent
 def revert_lockfiles_to_baseline(
     *,
-    violations_by_file: dict[str, list[tuple[str, str]]],
+    lockfile_paths: list[str],
     baseline_dir: Path,
     current_dir: Path,
 ) -> None:
-    for relative_path in sorted(violations_by_file):
+    for relative_path in sorted(lockfile_paths):
         current_path = current_dir / relative_path
         baseline_path = baseline_dir / relative_path
         if baseline_path.exists():
@@ -490,6 +550,60 @@ def _head_pom_timestamp(pom_url: str) -> datetime | None:
         except (urllib.error.URLError, TimeoutError, OSError):
             if attempt == 1:
                 return None
+    return None
+
+
+# fetch the list of available versions for a group:artifact from maven-metadata.xml
+# tries each repo URL in order; returns versions sorted newest-first using _version_sort_key
+def fetch_available_versions(group_id: str, artifact_id: str, repo_urls: list[str]) -> list[str]:
+    group_path = group_id.replace(".", "/")
+    metadata_path = f"{group_path}/{artifact_id}/maven-metadata.xml"
+    for repo_url in repo_urls:
+        url = f"{repo_url}/{metadata_path}"
+        try:
+            with urllib.request.urlopen(url, timeout=30) as response:
+                tree = ET.parse(response)
+            versions = [v.text for v in tree.findall(".//version") if v.text]
+            if versions:
+                versions.sort(key=_version_sort_key, reverse=True)
+                return versions
+        except (urllib.error.URLError, ET.ParseError, TimeoutError, OSError):
+            continue
+    return []
+
+
+# for a too-new coordinate, walk backward through available versions to find the newest one
+# that meets the age cutoff and is newer than the baseline version
+def find_eligible_version(
+    *,
+    group_id: str,
+    artifact_id: str,
+    too_new_version: str,
+    baseline_version: str | None,
+    cutoff: datetime,
+    repo_urls: list[str],
+) -> tuple[str, datetime] | None:
+    versions = fetch_available_versions(group_id, artifact_id, repo_urls)
+    too_new_key = _version_sort_key(too_new_version)
+    too_new_is_ga = too_new_key[1]  # True if no prerelease segments
+    baseline_key = _version_sort_key(baseline_version) if baseline_version else None
+    group_path = group_id.replace(".", "/")
+
+    for version in versions:
+        key = _version_sort_key(version)
+        if key >= too_new_key:
+            continue # skip the too-new version and anything newer
+        if baseline_key is not None and key <= baseline_key:
+            break # no point checking versions older than or equal to baseline
+        if too_new_is_ga and not key[1]:
+            continue # don't downgrade a GA release to a pre-release
+        pom_path = f"{group_path}/{artifact_id}/{version}/{artifact_id}-{version}.pom"
+        for repo_url in repo_urls:
+            published_at = _head_pom_timestamp(f"{repo_url}/{pom_path}")
+            if published_at is not None:
+                if published_at <= cutoff:
+                    return version, published_at
+                break # version found but too new, try the next older one
     return None
 
 
