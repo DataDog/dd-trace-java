@@ -247,6 +247,40 @@ public final class MpscRingBuffer<T> extends MpscRingBufferPad2 {
     return count;
   }
 
+  /**
+   * Try to claim a contiguous range of {@code n} sequences in a single CAS. Returns {@code null} if
+   * the ring doesn't have room for the whole batch -- the caller treats that as "drop all {@code
+   * n}", which is the natural shape for callers that batch by a higher-level unit (e.g. one CSS
+   * publish per completed trace). When the caller has a list of N items to write, this amortizes
+   * producer-cursor contention from O(N) CASes to O(1) per call.
+   *
+   * <p>The returned {@link Batch} must be filled via {@link Batch#fillAndPublish} exactly {@code n}
+   * times. Under-publishing leaves the ring stuck at the unfilled sequence -- the consumer waits
+   * there forever. Over-publishing throws {@link IllegalStateException}.
+   *
+   * @throws IllegalArgumentException if {@code n &lt; 1}
+   */
+  public Batch tryClaim(final int n) {
+    if (n < 1) {
+      throw new IllegalArgumentException("n must be >= 1, got " + n);
+    }
+    while (true) {
+      final long current = producerCursor;
+      // Stale read of consumerCursor is fine: a false "full" reading just causes a drop, and a
+      // real one is correctly identified because consumerCursor only advances.
+      final long consumed = consumerCursor;
+      final long next = current + n;
+      if (next - consumed > capacity) {
+        return null;
+      }
+      if (PRODUCER_CURSOR.compareAndSet(this, current, next)) {
+        // Claimed sequences [current + 1, next] inclusive (== n sequences total).
+        return new Batch(current + 1L, n);
+      }
+      // CAS failure -> another producer claimed; retry.
+    }
+  }
+
   /** CAS-claim the next sequence, or return {@code -1} if the ring is full. */
   private long claim() {
     while (true) {
@@ -262,6 +296,78 @@ public final class MpscRingBuffer<T> extends MpscRingBufferPad2 {
         return next;
       }
       // CAS failure -> another producer claimed; retry.
+    }
+  }
+
+  /**
+   * Handle returned by {@link MpscRingBuffer#tryClaim}. Holds a contiguous range of pre-claimed
+   * sequences belonging to the producer thread that called {@code tryClaim}; the caller must fill
+   * and publish each via {@link #fillAndPublish}.
+   *
+   * <p><b>Not thread-safe</b> -- the producer thread owns it for the lifetime of the call. Do not
+   * share across threads.
+   */
+  public final class Batch {
+    private final long startSeq;
+    private final int size;
+    private int published;
+
+    Batch(final long startSeq, final int size) {
+      this.startSeq = startSeq;
+      this.size = size;
+    }
+
+    /** Total slots in this batch (the {@code n} passed to {@code tryClaim}). */
+    public int size() {
+      return size;
+    }
+
+    /** Slots not yet filled. */
+    public int remaining() {
+      return size - published;
+    }
+
+    public void fillAndPublish(final Consumer<? super T> filler) {
+      final long seq = nextSeq();
+      final int idx = (int) (seq & mask);
+      try {
+        filler.accept(slots[idx]);
+      } finally {
+        publishedSequences.set(idx * CACHE_LINE_LONGS, seq);
+      }
+    }
+
+    public <C> void fillAndPublish(final C context, final BiConsumer<? super C, ? super T> filler) {
+      final long seq = nextSeq();
+      final int idx = (int) (seq & mask);
+      try {
+        filler.accept(context, slots[idx]);
+      } finally {
+        publishedSequences.set(idx * CACHE_LINE_LONGS, seq);
+      }
+    }
+
+    public <C1, C2> void fillAndPublish(
+        final C1 context1,
+        final C2 context2,
+        final TriConsumer<? super C1, ? super C2, ? super T> filler) {
+      final long seq = nextSeq();
+      final int idx = (int) (seq & mask);
+      try {
+        filler.accept(context1, context2, slots[idx]);
+      } finally {
+        publishedSequences.set(idx * CACHE_LINE_LONGS, seq);
+      }
+    }
+
+    private long nextSeq() {
+      if (published >= size) {
+        throw new IllegalStateException(
+            "Batch over-published: size=" + size + " published=" + published);
+      }
+      final long seq = startSeq + published;
+      published++;
+      return seq;
     }
   }
 
