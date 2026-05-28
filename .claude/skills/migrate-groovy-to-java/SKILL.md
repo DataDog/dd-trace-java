@@ -31,6 +31,7 @@ When converting Groovy code to Java code, make sure that:
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
 - Replace `injectSysConfig(key, value)` calls with `@WithConfig` when the key and value are static literals. Put it on the test method for per-test config, or on the class when every test needs it. The `dd.` prefix is added automatically — use the bare key (e.g. `"trace.scope.strict.mode"`, not `"dd.trace.scope.strict.mode"`). For dynamic or parameterized values, keep the imperative `WithConfigExtension.injectSysConfig(key, value)` call.
+- When `@BeforeEach` registers a mock with a production object (e.g. `tracer.addTraceInterceptor(mockInterceptor)`), that call may invoke methods on the mock. End `@BeforeEach` with `clearInvocations(mock1, mock2)` so those incidental calls don't bleed into per-test `verify()` checks. Spock's `N * mock.method()` pattern only counts interactions inside the `when:` block, so the original test never saw the problem.
 - Keep inline comments
 - Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 

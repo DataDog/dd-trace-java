@@ -66,7 +66,11 @@ dependencies {
   implementation(project(":dd-trace-ot:correlation-id-injection"))
 
   testImplementation(project(":dd-java-agent:testing"))
+  testImplementation(project(":utils:junit-utils"))
   testImplementation(libs.bundles.mockito)
+
+  add("ot31CompatibilityTestImplementation", project(":utils:junit-utils"))
+  add("ot33CompatibilityTestImplementation", project(":utils:junit-utils"))
 
   // Kotlin accessors not generated if not coming from plugin
   add("ot33CompatibilityTestImplementation", "io.opentracing:opentracing-api") {

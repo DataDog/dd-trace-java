@@ -1,22 +1,17 @@
 package datadog.opentracing;
 
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
-import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
-import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.AGENT_RATE;
-import static datadog.trace.api.sampling.SamplingMechanism.DEFAULT;
-import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import io.opentracing.Tracer;
@@ -26,11 +21,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.Map;
-import java.util.stream.Stream;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.MethodSource;
+import org.junit.jupiter.params.converter.ConvertWith;
+import org.tabletest.junit.TableTest;
 
 // This test focuses on things that are different between OpenTracing API 0.32.0 and 0.33.0
 class OT33ApiTest extends DDJavaSpecification {
@@ -76,19 +71,20 @@ class OT33ApiTest extends DDJavaSpecification {
     span.finish();
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments> testInjectExtractArguments() {
-    return Stream.of(
-        arguments("sampler drop", SAMPLER_DROP, DEFAULT, SAMPLER_DROP),
-        arguments("sampler keep", SAMPLER_KEEP, DEFAULT, SAMPLER_KEEP),
-        arguments("unset", UNSET, DEFAULT, SAMPLER_KEEP),
-        arguments("user keep", USER_KEEP, MANUAL, USER_KEEP),
-        arguments("user drop", USER_DROP, MANUAL, USER_DROP));
-  }
-
   @ParameterizedTest
-  @MethodSource("testInjectExtractArguments")
+  @TableTest({
+    "scenario     | contextPriority               | samplingMechanism           | propagatedPriority           ",
+    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_DROP",
+    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
+    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
+    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_KEEP   ",
+    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_DROP   "
+  })
   void testInjectExtract(
-      String scenario, int contextPriority, int samplingMechanism, int propagatedPriority)
+      String scenario,
+      @ConvertWith(PrioritySamplingConverter.class) int contextPriority,
+      @ConvertWith(SamplingMechanismConverter.class) int samplingMechanism,
+      @ConvertWith(PrioritySamplingConverter.class) int propagatedPriority)
       throws Exception {
     io.opentracing.Span span = tracer.buildSpan("some name").start();
     io.opentracing.SpanContext context = span.context();
