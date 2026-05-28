@@ -11500,8 +11500,8 @@
     "OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_METRICS": [
       {
         "version": "A",
-        "type": "string",
-        "default": null,
+        "type": "boolean",
+        "default": true,
         "aliases": []
       }
     ],
