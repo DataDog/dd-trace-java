@@ -26,6 +26,7 @@ import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.SpanKindFilter;
+import datadog.trace.core.SpanList;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
 import datadog.trace.util.concurrent.MpscRingBuffer;
@@ -293,38 +294,41 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       return false;
     }
 
-    // Overclaim the worst case: assume every span in the trace is metrics-eligible and claim
-    // that many ring slots in a single CAS. Non-eligible spans get a "skip" sentinel
-    // (tagAndDuration = 0L); the aggregator recognises this and bypasses findOrInsert for those
-    // slots. We expect most spans in a typical trace to be eligible (top-level / measured /
-    // server-client-producer-consumer kinds), so the slot waste is small in exchange for a
-    // single-pass producer loop. Indexed iteration (vs. enhanced-for) avoids per-call Iterator
-    // allocation -- trace is typically a SpanList, but even Collections.singletonList's
-    // iterator() allocates.
-    final long startSeq = dataInbox.tryClaimRange(traceSize);
+    // Claim ring slots in a single CAS. When PendingTrace assembled this SpanList it counted
+    // the eligible spans during its own iteration (free, no extra pass), and we use that exact
+    // number here -- no overclaim, no skip-sentinel writes for ineligible slots. If the count
+    // is -1 (unknown -- e.g. a TraceInterceptor rebuilt the list, or the caller isn't a
+    // SpanList) we fall back to overclaiming traceSize and marking non-eligible slots with the
+    // skip-sentinel as we iterate.
+    final int hintedEligibleCount =
+        trace instanceof SpanList ? ((SpanList) trace).getMetricEligibleCount() : -1;
+    final boolean precounted = hintedEligibleCount >= 0;
+    if (precounted && hintedEligibleCount == 0) {
+      // PendingTrace told us nothing in this trace would be aggregated. Nothing to claim.
+      healthMetrics.onClientStatTraceComputed(0, traceSize, true);
+      return false;
+    }
+    final int claimCount = precounted ? hintedEligibleCount : traceSize;
+    final long startSeq = dataInbox.tryClaimRange(claimCount);
     if (startSeq < 0L) {
       healthMetrics.onStatsInboxFull();
       return false;
     }
 
     boolean forceKeep = false;
-    int filled = 0;
+    int nextSlot = 0; // index into the claimed range; sequence = startSeq + nextSlot
+    int filledMetrics = 0;
 
     for (int i = 0; i < traceSize; i++) {
       final CoreSpan<?> span = trace.get(i);
-      final long seq = startSeq + i;
-      final SpanSnapshot slot = dataInbox.slotAt(seq);
       final boolean isTopLevel = span.isTopLevel();
 
       if (shouldComputeMetric(span, isTopLevel)) {
         final CharSequence resourceName = span.getResourceName();
         if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
-          // Ignored resource: drop metrics for the whole trace. Mark this slot AND every
-          // remaining slot in the claimed range as skip-sentinel so the aggregator advances past
-          // them.
-          slot.tagAndDuration = 0L;
-          dataInbox.publish(seq);
-          for (int j = i + 1; j < traceSize; j++) {
+          // Ignored resource: drop metrics for the whole trace. Mark every still-claimed-but-
+          // unpublished slot as skip-sentinel so the aggregator advances past them.
+          for (int j = nextSlot; j < claimCount; j++) {
             final long skipSeq = startSeq + j;
             dataInbox.slotAt(skipSeq).tagAndDuration = 0L;
             dataInbox.publish(skipSeq);
@@ -332,27 +336,37 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
           healthMetrics.onClientStatTraceComputed(0, traceSize, true);
           return false;
         }
+        final long seq = startSeq + nextSlot;
         try {
-          fillSlot(span, isTopLevel, slot);
+          fillSlot(span, isTopLevel, dataInbox.slotAt(seq));
         } finally {
           // Publish in finally so a throwing fillSlot can't strand the consumer at this
           // sequence -- matches the publish-on-throw guarantee in MpscRingBuffer.tryWrite.
           dataInbox.publish(seq);
         }
         forceKeep |= span.getError() > 0;
-        filled++;
-      } else {
-        // Non-eligible span: mark slot as skip-sentinel and publish so the aggregator advances.
-        slot.tagAndDuration = 0L;
+        nextSlot++;
+        filledMetrics++;
+      } else if (!precounted) {
+        // Overclaim path: this span has a claimed slot we need to publish as skip-sentinel so
+        // the aggregator advances. In the precounted path this slot was never claimed.
+        final long seq = startSeq + nextSlot;
+        dataInbox.slotAt(seq).tagAndDuration = 0L;
         dataInbox.publish(seq);
+        nextSlot++;
       }
     }
 
-    healthMetrics.onClientStatTraceComputed(filled, traceSize, !forceKeep);
+    healthMetrics.onClientStatTraceComputed(filledMetrics, traceSize, !forceKeep);
     return forceKeep;
   }
 
-  private boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
+  /**
+   * Whether a span's metrics should be aggregated. Exposed as static so {@code PendingTrace} can
+   * pre-compute the count of eligible spans during list assembly and pass it to the CSS publish
+   * path via {@code SpanList#getMetricEligibleCount()}, letting CSS size its ring claim exactly.
+   */
+  public static boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
     return (span.isMeasured() || isTopLevel || span.isKind(METRICS_ELIGIBLE_KINDS))
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
