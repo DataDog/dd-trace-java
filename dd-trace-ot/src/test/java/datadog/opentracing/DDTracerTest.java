@@ -9,7 +9,6 @@ import datadog.trace.common.writer.DDAgentWriter;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.common.writer.Writer;
 import datadog.trace.context.TraceScope;
-import datadog.trace.core.DDSpan;
 import datadog.trace.test.util.DDJavaSpecification;
 import io.opentracing.Scope;
 import java.util.HashMap;
@@ -86,10 +85,9 @@ class DDTracerTest extends DDJavaSpecification {
     assertEquals(1, writer.size());
     assertEquals(2, writer.firstTrace().size());
     assertEquals(
-        Long.toString(((DDSpan) span.getDelegate()).context().getSpanId()),
-        span.context().toSpanId());
+        Long.toString(writer.firstTrace().get(0).context().getSpanId()), span.context().toSpanId());
     assertEquals(
-        Long.toString(((DDSpan) ((OTSpan) visibleSpan).getDelegate()).context().getSpanId()),
+        Long.toString(writer.firstTrace().get(1).context().getSpanId()),
         visibleSpan.context().toSpanId());
 
     tracer.close();

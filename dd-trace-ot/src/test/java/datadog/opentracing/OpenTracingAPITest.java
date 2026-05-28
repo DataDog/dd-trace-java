@@ -211,8 +211,10 @@ class OpenTracingAPITest extends DDJavaSpecification {
     DDSpan childSpan = trace.get(1);
     assertEquals("someService", parentSpan.getServiceName());
     assertEquals("someOperation", parentSpan.getOperationName().toString());
+    assertEquals("someOperation", parentSpan.getResourceName().toString());
     assertEquals("someService", childSpan.getServiceName());
     assertEquals("someOperation2", childSpan.getOperationName().toString());
+    assertEquals("someOperation2", childSpan.getResourceName().toString());
     assertEquals(parentSpan.getSpanId(), childSpan.getParentId());
   }
 
@@ -248,6 +250,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     DDSpan span = trace.get(0);
     assertEquals("someService", span.getServiceName());
     assertEquals("someOperation", span.getOperationName().toString());
+    assertEquals("someOperation", span.getResourceName().toString());
   }
 
   @Test
@@ -281,6 +284,14 @@ class OpenTracingAPITest extends DDJavaSpecification {
     assertEquals(1, writer.size());
     List<DDSpan> trace = writer.get(0);
     assertEquals(2, trace.size());
+    DDSpan outerSpan = trace.get(0);
+    DDSpan innerSpan = trace.get(1);
+    assertEquals("someService", outerSpan.getServiceName());
+    assertEquals("someOperation", outerSpan.getOperationName().toString());
+    assertEquals("someOperation", outerSpan.getResourceName().toString());
+    assertEquals("otherService", innerSpan.getServiceName());
+    assertEquals("otherOperation", innerSpan.getOperationName().toString());
+    assertEquals("otherOperation", innerSpan.getResourceName().toString());
   }
 
   @Test
@@ -308,6 +319,7 @@ class OpenTracingAPITest extends DDJavaSpecification {
     DDSpan span = trace.get(0);
     assertEquals("someService", span.getServiceName());
     assertEquals("someOperation", span.getOperationName().toString());
+    assertEquals("someOperation", span.getResourceName().toString());
   }
 
   @Test
@@ -331,6 +343,8 @@ class OpenTracingAPITest extends DDJavaSpecification {
     // then: 2 * scopeListener.afterScopeClosed(), 1 * traceInterceptor.onTraceComplete(...)
     verify(scopeListener, times(2)).afterScopeClosed();
     verify(traceInterceptor).onTraceComplete(any());
+    assertEquals(1, writer.size());
+    assertEquals(2, writer.get(0).size());
     verifyNoMoreInteractions(scopeListener, traceInterceptor);
     clearInvocations(scopeListener, traceInterceptor);
 
@@ -374,6 +388,8 @@ class OpenTracingAPITest extends DDJavaSpecification {
     // 1 * scopeListener.afterScopeActivated() (scope restoration after strict mode exception)
     verify(scopeListener).afterScopeClosed();
     verify(traceInterceptor).onTraceComplete(any());
+    assertEquals(1, writer.size());
+    assertEquals(2, writer.get(0).size());
     verify(scopeListener).afterScopeActivated();
     verifyNoMoreInteractions(scopeListener, traceInterceptor);
     clearInvocations(scopeListener, traceInterceptor);
@@ -422,8 +438,10 @@ class OpenTracingAPITest extends DDJavaSpecification {
     DDSpan serverSpanDD = sortedTraces.get(1).get(0);
     assertEquals("someClientService", clientSpan.getServiceName());
     assertEquals("clientOperation", clientSpan.getOperationName().toString());
+    assertEquals("clientOperation", clientSpan.getResourceName().toString());
     assertEquals("someService", serverSpanDD.getServiceName());
     assertEquals("serverOperation", serverSpanDD.getOperationName().toString());
+    assertEquals("serverOperation", serverSpanDD.getResourceName().toString());
     assertEquals(clientSpan.context().getSpanId(), serverSpanDD.getParentId());
   }
 
@@ -456,5 +474,6 @@ class OpenTracingAPITest extends DDJavaSpecification {
     DDSpan span = trace.get(0);
     assertEquals("someService", span.getServiceName());
     assertEquals("someOperation", span.getOperationName().toString());
+    assertEquals("someOperation", span.getResourceName().toString());
   }
 }
