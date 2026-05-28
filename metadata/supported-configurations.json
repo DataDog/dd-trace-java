@@ -2985,6 +2985,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_DDPROF_WALL_PRECHECK": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_DDPROF_WALL_INTERVAL_MS": [
       {
         "version": "A",
@@ -8295,6 +8303,14 @@
         "type": "boolean",
         "default": "false",
         "aliases": ["DD_TRACE_INTEGRATION_NING_ENABLED", "DD_INTEGRATION_NING_ENABLED"]
+      }
+    ],
+    "DD_TRACE_NIO_CHANNEL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_NIO_CHANNEL_ENABLED", "DD_INTEGRATION_NIO_CHANNEL_ENABLED"]
       }
     ],
     "DD_TRACE_NIO_SELECTOR_ENABLED": [

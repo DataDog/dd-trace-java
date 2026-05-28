@@ -20,6 +20,8 @@ class TaskBlockHelperTest {
 
   private static final long START_TICKS = 42_000_000L;
   private static final long BLOCKER = 1234L;
+  private static final long SPAN_ID = 5678L;
+  private static final long ROOT_SPAN_ID = 9012L;
 
   private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
 
@@ -118,6 +120,23 @@ class TaskBlockHelperTest {
 
     // Span ids are no longer passed across JNI; the native side reads them from OTEP TLS.
     verify(profiling).recordTaskBlock(START_TICKS, BLOCKER, 0L);
+  }
+
+  @Test
+  void finish_emitsVirtualTaskBlockWithSpanRootOnlyContext() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    TaskBlockHelper.State state =
+        new TaskBlockHelper.State(
+            profiling,
+            START_TICKS,
+            System.nanoTime() - 2 * TaskBlockHelper.MIN_TASK_BLOCK_NANOS,
+            BLOCKER,
+            SPAN_ID,
+            ROOT_SPAN_ID);
+
+    TaskBlockHelper.finish(state);
+
+    verify(profiling).recordTaskBlockWithContext(START_TICKS, BLOCKER, 0L, SPAN_ID, ROOT_SPAN_ID);
   }
 
   @Test

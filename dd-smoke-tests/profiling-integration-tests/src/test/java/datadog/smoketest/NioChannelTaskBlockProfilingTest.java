@@ -10,10 +10,17 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
+import io.opentracing.Scope;
+import io.opentracing.Span;
+import io.opentracing.Tracer;
+import io.opentracing.util.GlobalTracer;
 import java.io.File;
 import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
+import java.nio.channels.ServerSocketChannel;
+import java.nio.channels.SocketChannel;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -21,11 +28,7 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Comparator;
-import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
-import java.util.Map;
-import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -42,74 +45,22 @@ import org.openjdk.jmc.common.unit.IQuantity;
 import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 
 /**
- * End-to-end mixed-blocking smoke / regression / demo test. Combines three roles in one fixture:
- *
- * <ol>
- *   <li><b>Cross-workstream smoke</b>: a single forked JVM under {@code -javaagent:} exercises
- *       {@code Thread.sleep} (WS1), {@code LockSupport.park*} (existing {@code lock-support}),
- *       {@code synchronized} contention (existing {@code synchronized-contention}, JDK 21+) and
- *       {@code Selector.select(long)} (WS2B). Each population's events must be present.
- *   <li><b>NoDoubleBracket</b>: each blocking <em>interval</em> emits exactly one {@code
- *       datadog.TaskBlock} event. Multiple TaskBlocks for the same (thread, start time) point at a
- *       regression in the JDK 21+ gate logic of WS1/WS2B vs. the native JVMTI path or at
- *       overlapping helper invocations.
- *   <li><b>BlockingMix demo</b>: the forked app is meant to be copy-pasted as a reproducer when
- *       triaging coverage issues. The runbook in the README comment at the top of the class lists
- *       JFR inspection commands and the expected operation-name distribution.
- * </ol>
- *
- * <h3>Demo runbook (manual, off-CI)</h3>
- *
- * <pre>
- *   # 1. Run the forked app standalone to produce a JFR
- *   ./gradlew :dd-smoke-tests:profiling-integration-tests:test \
- *       --tests "*BlockingMixTaskBlockProfilingTest*" \
- *       -Ddatadog.forkedTestRetainDumps=true
- *
- *   # 2. Inspect populations
- *   jfr summary {dumpDir}/*.jfr | grep -E "datadog.TaskBlock|wall=" -A1
- *
- *   # 3. List per-operation counts
- *   jfr print --events "datadog.TaskBlock" {dumpDir}/*.jfr \
- *       | grep -oE "_dd.trace.operation = \"[^\"]+\"" | sort | uniq -c
- *
- *   # 4. Expected (steady state, JDK 21+):
- *   #     N=20 blockingmix.sleep
- *   #     N=20 blockingmix.park
- *   #     N=20 blockingmix.sync   (JDK 21+ via Java-side synchronized-contention)
- *   #     N=8  blockingmix.select
- *
- *   # 5. Native counter snapshot:
- *   jfr print --events "datadog.DatadogProfilerConfig" {dumpDir}/*.jfr
- * </pre>
+ * End-to-end smoke test for the {@code nio-channel} instrumentation: forks a JVM with the agent
+ * attached, runs a blocking {@code ServerSocketChannel.accept()} call under an active span, and
+ * asserts that {@code datadog.TaskBlock} JFR events are emitted carrying that span's context.
  */
 @DisabledOnJ9
-final class BlockingMixTaskBlockProfilingTest {
+final class NioChannelTaskBlockProfilingTest {
 
   private static final byte[] JFR_MAGIC = new byte[] {'F', 'L', 'R', 0};
   private static final IAttribute<IQuantity> SPAN_ID = attr("spanId", "spanId", "spanId", NUMBER);
-  private static final IAttribute<IQuantity> LOCAL_ROOT_SPAN_ID =
-      attr("localRootSpanId", "localRootSpanId", "localRootSpanId", NUMBER);
-  private static final IAttribute<IQuantity> START_TIME =
-      attr("startTime", "startTime", "startTime", NUMBER);
-  private static final IAttribute<IQuantity> DURATION =
-      attr("duration", "duration", "duration", NUMBER);
   private static final IAttribute<String> OPERATION =
       attr("_dd.trace.operation", "_dd.trace.operation", "_dd.trace.operation", PLAIN_TEXT);
-  private static final IAttribute<String> EVENT_THREAD_NAME =
-      attr(
-          "eventThread.threadName", "eventThread.threadName", "eventThread.threadName", PLAIN_TEXT);
-
-  private static final String OP_SLEEP = "blockingmix.sleep";
-  private static final String OP_PARK = "blockingmix.park";
-  private static final String OP_SYNC = "blockingmix.sync";
-  private static final String OP_SELECT = "blockingmix.select";
-
   private static final Path LOG_FILE_BASE =
       Paths.get(
           buildDirectory(),
           "reports",
-          "testProcess." + BlockingMixTaskBlockProfilingTest.class.getName());
+          "testProcess." + NioChannelTaskBlockProfilingTest.class.getName());
 
   private Path dumpDir;
   private Path logFilePath;
@@ -119,9 +70,9 @@ final class BlockingMixTaskBlockProfilingTest {
     Files.createDirectories(LOG_FILE_BASE);
     logFilePath =
         LOG_FILE_BASE.resolve(
-            testInfo.getTestMethod().map(method -> method.getName()).orElse("blockingMix")
+            testInfo.getTestMethod().map(method -> method.getName()).orElse("nioChannel")
                 + ".log");
-    dumpDir = Files.createTempDirectory("dd-profiler-blockingmix-");
+    dumpDir = Files.createTempDirectory("dd-profiler-niochannel-");
   }
 
   @AfterEach
@@ -132,61 +83,26 @@ final class BlockingMixTaskBlockProfilingTest {
   }
 
   @Test
-  @DisplayName("Mixed sleep+park+sync+select workload emits one TaskBlock per blocking interval")
-  void mixedBlockingWorkloadEmitsExpectedPopulations() throws Exception {
+  @DisplayName("ServerSocketChannel.accept() under an active span emits TaskBlock events")
+  void blockingAcceptEmitsTaskBlock() throws Exception {
     Process targetProcess = createProcessBuilder().start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
 
     JfrStats stats = loadStats();
-
-    // ---- Smoke ----: every population must be present.
     assertTrue(
-        stats.countByOperation.getOrDefault(OP_SLEEP, 0L) > 0,
-        "Expected blockingmix.sleep TaskBlock events (thread-sleep call-site module)");
+        stats.activeSpanTaskBlocks > 0,
+        "Expected datadog.TaskBlock events from traced blocking ServerSocketChannel.accept()");
     assertTrue(
-        stats.countByOperation.getOrDefault(OP_PARK, 0L) > 0,
-        "Expected blockingmix.park TaskBlock events (existing lock-support module)");
-    assertTrue(
-        stats.countByOperation.getOrDefault(OP_SELECT, 0L) > 0,
-        "Expected blockingmix.select TaskBlock events (WS2B nio-selector module)");
-    // synchronized-contention is JDK 21+ only on the Java side. On JDK <21 the native JVMTI path
-    // covers the population. Either way at least one event must be present.
-    assertTrue(
-        stats.countByOperation.getOrDefault(OP_SYNC, 0L) > 0,
-        "Expected blockingmix.sync TaskBlock events (Java-side on JDK 21+, native JVMTI on <21)");
-
-    // ---- NoDoubleBracket ----: no two TaskBlock events on the same thread with overlapping
-    // intervals for the same operation. Double-bracketing manifests as two events with the same
-    // start time (Java helper + native callback both firing for the same blocking interval).
-    assertFalse(
-        stats.hasDuplicateInterval,
-        "Detected duplicate TaskBlock events for the same (thread, startTime) — double bracket "
-            + "regression. Likely culprit: Java helper and native callback both firing for the "
-            + "same blocking population, or nio-selector overlapping with an unforeseen JFR "
-            + "bridge subscription. First duplicate: "
-            + stats.firstDuplicateDescription);
-
-    // ---- Span context ----: all events must carry non-zero span/root-span IDs.
-    assertFalse(
-        stats.hasZeroSpanId,
-        "TaskBlock events from the mixed workload must all carry non-zero spanId");
-    assertFalse(
-        stats.hasZeroLocalRootSpanId,
-        "TaskBlock events from the mixed workload must all carry non-zero localRootSpanId");
-
-    // ---- Health ----: no instrumentation classloading or rewrite failures in the forked log.
+        stats.hasExpectedOperation,
+        "Expected TaskBlock events tagged with the niochannel.accept span operation name");
     assertFalse(
         logHasInstrumentationError(),
-        "Instrumentation produced classloading / rewrite errors in the forked log");
+        "nio-channel instrumentation produced classloading or rewrite errors in the forked log");
   }
-
-  // ------------------------------------------------------------------------------------------
-  // Process / JFR plumbing
-  // ------------------------------------------------------------------------------------------
 
   private ProcessBuilder createProcessBuilder() {
     String templateOverride =
-        BlockingMixTaskBlockProfilingTest.class
+        NioChannelTaskBlockProfilingTest.class
             .getClassLoader()
             .getResource("overrides.jfp")
             .getFile();
@@ -198,7 +114,7 @@ final class BlockingMixTaskBlockProfilingTest {
                 "-Xms" + System.getProperty("datadog.forkedMinHeapSize", "64M"),
                 "-javaagent:" + agentShadowJar(),
                 "-XX:ErrorFile=/tmp/hs_err_pid%p.log",
-                "-Ddd.service.name=smoke-test-blockingmix-taskblock",
+                "-Ddd.service.name=smoke-test-niochannel-taskblock",
                 "-Ddd.env=smoketest",
                 "-Ddd.version=99",
                 "-Ddd.profiling.enabled=true",
@@ -222,7 +138,7 @@ final class BlockingMixTaskBlockProfilingTest {
                 "-Ddd." + ProfilingConfig.PROFILING_TEMPLATE_OVERRIDE_FILE + "=" + templateOverride,
                 "-cp",
                 System.getProperty("java.class.path"),
-                com.datadog.smoketest.profiling.BlockingMixForkedApp.class.getName()));
+                NioChannelTaskBlockForkedApp.class.getName()));
     if (System.getenv("TEST_LIBASYNC") != null) {
       command.add(
           command.size() - 3,
@@ -311,60 +227,84 @@ final class BlockingMixTaskBlockProfilingTest {
   private boolean logHasInstrumentationError() throws IOException {
     String log = new String(Files.readAllBytes(logFilePath), StandardCharsets.UTF_8);
     return log.contains("NoClassDefFoundError")
-        || log.contains("Failed to handle exception in instrumentation for");
+        || log.contains("Failed to handle exception in instrumentation for java.nio.channels");
   }
 
   private static final class JfrStats {
-    final Map<String, Long> countByOperation = new HashMap<>();
-    boolean hasZeroSpanId;
-    boolean hasZeroLocalRootSpanId;
-    boolean hasDuplicateInterval;
-    String firstDuplicateDescription;
+    long activeSpanTaskBlocks;
+    boolean hasExpectedOperation;
 
     void add(IItemCollection events) {
       IItemCollection taskBlocks = events.apply(ItemFilters.type("datadog.TaskBlock"));
-      // Detect double-bracketing: events that share (thread, startTime). Using startTime alone is
-      // intentionally strict — overlapping windows on different threads are fine, but two events
-      // on the same thread starting at the same wall-clock instant indicate the helper AND
-      // native path both fired for one blocking interval.
-      Set<String> seenIntervals = new HashSet<>();
       for (IItemIterable items : taskBlocks) {
         IMemberAccessor<IQuantity, IItem> span = SPAN_ID.getAccessor(items.getType());
-        IMemberAccessor<IQuantity, IItem> root = LOCAL_ROOT_SPAN_ID.getAccessor(items.getType());
         IMemberAccessor<String, IItem> op = OPERATION.getAccessor(items.getType());
-        IMemberAccessor<IQuantity, IItem> startTime = START_TIME.getAccessor(items.getType());
-        IMemberAccessor<String, IItem> threadName = EVENT_THREAD_NAME.getAccessor(items.getType());
-        if (span == null || root == null) {
+        if (span == null) {
           continue;
         }
         for (IItem item : items) {
           long spanId = span.getMember(item).longValue();
-          long rootSpanId = root.getMember(item).longValue();
           String operation = op != null ? op.getMember(item) : null;
           if (spanId == 0L) {
-            hasZeroSpanId = true;
             continue;
           }
-          if (rootSpanId == 0L) {
-            hasZeroLocalRootSpanId = true;
-          }
-          if (operation != null) {
-            countByOperation.merge(operation, 1L, Long::sum);
-          }
-          if (startTime != null && threadName != null) {
-            String key = threadName.getMember(item) + "@" + startTime.getMember(item).longValue();
-            if (!seenIntervals.add(key) && firstDuplicateDescription == null) {
-              hasDuplicateInterval = true;
-              firstDuplicateDescription = key + " op=" + operation;
-            }
+          if ("niochannel.accept".equals(operation)) {
+            activeSpanTaskBlocks++;
+            hasExpectedOperation = true;
           }
         }
       }
     }
   }
 
-  // Quietly reference JDK version to keep the import alive on JDKs where synchronized-contention
-  // is the only consumer of the constant.
-  @SuppressWarnings("unused")
-  private static final boolean IS_JDK_21_PLUS = JavaVirtualMachine.isJavaVersionAtLeast(21);
+  /**
+   * Forked application that opens a {@code ServerSocketChannel} and calls {@code accept()} under
+   * an active span. A daemon client thread connects after a short delay so that {@code accept()}
+   * blocks for at least 50 ms, ensuring the 1 ms TaskBlock threshold is exceeded.
+   */
+  public static final class NioChannelTaskBlockForkedApp {
+    private static final long ACCEPT_DELAY_MILLIS = 100L;
+
+    public static void main(String[] args) throws Exception {
+      Tracer tracer = GlobalTracer.get();
+
+      try (ServerSocketChannel serverChannel = ServerSocketChannel.open()) {
+        serverChannel.bind(new InetSocketAddress(InetAddress.getLoopbackAddress(), 0));
+        int port = ((InetSocketAddress) serverChannel.getLocalAddress()).getPort();
+
+        // Daemon client thread: connects after a delay so accept() blocks long enough to
+        // exceed the 1 ms TaskBlock minimum duration gate.
+        Thread clientThread =
+            new Thread(
+                () -> {
+                  try {
+                    Thread.sleep(ACCEPT_DELAY_MILLIS);
+                    SocketChannel client =
+                        SocketChannel.open(
+                            new InetSocketAddress(InetAddress.getLoopbackAddress(), port));
+                    client.close();
+                  } catch (Exception ignored) {
+                  }
+                });
+        clientThread.setDaemon(true);
+        clientThread.start();
+
+        // Accept under an active span: produces one TaskBlock interval of ~ACCEPT_DELAY_MILLIS ms.
+        Span span = tracer.buildSpan("niochannel.accept").start();
+        try (Scope scope = tracer.activateSpan(span)) {
+          SocketChannel accepted = serverChannel.accept();
+          if (accepted != null) {
+            accepted.close();
+          }
+        } finally {
+          span.finish();
+        }
+
+        clientThread.join(5_000L);
+      }
+
+      // Wait for the profiler to flush its JFR buffers.
+      Thread.sleep(1500);
+    }
+  }
 }

@@ -1,6 +1,8 @@
 package datadog.trace.instrumentation.locksupport;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.isStatic;
@@ -10,6 +12,8 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.LockSupportHelper;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.method.MethodDescription;
@@ -18,16 +22,18 @@ import net.bytebuddy.matcher.ElementMatchers;
 
 /**
  * Instruments {@link java.util.concurrent.locks.LockSupport#park} variants as the Java entry point
- * for native parked-state tracking. The native profiler uses this state to suppress wall-clock
- * signals while the thread is parked and, when the interval belongs to an active span, to emit a
- * replacement {@code datadog.TaskBlock} event on {@code parkExit}.
+ * for native parked-state tracking. On platform threads, {@code parkEnter} snapshots the OTEP TLS
+ * span context; on {@code parkExit} it emits a {@code datadog.TaskBlock} JFR event if the park
+ * interval exceeded 1 ms and a span was active at entry. Virtual threads use the explicit
+ * span/root-only path in {@link LockSupportHelper} instead of native carrier-thread TLS.
  *
  * <p>Also instruments {@link java.util.concurrent.locks.LockSupport#unpark} to capture the span ID
  * of the unblocking thread, which is then recorded in the native TaskBlock event.
  *
- * <p>{@code parkEnter} runs even without an active span (span id 0) so the native wall-clock
- * precheck can suppress {@code SIGVTALRM} for the whole park interval. TaskBlock JFR emission is
- * gated by the profiler on duration and span context.
+ * <p>{@code parkEnter} is called unconditionally (even without an active span) so the native side
+ * always has a valid start tick for duration accounting. {@code SIGVTALRM} suppression for parked
+ * threads is provided by the {@code wallprecheck} OS-state filter (a parked thread typically shows
+ * as {@code CONDVAR_WAIT}), not by the park flag itself.
  */
 @AutoService(InstrumenterModule.class)
 public class LockSupportProfilingInstrumentation extends InstrumenterModule.Profiling
@@ -35,6 +41,16 @@ public class LockSupportProfilingInstrumentation extends InstrumenterModule.Prof
 
   public LockSupportProfilingInstrumentation() {
     super("lock-support");
+  }
+
+  @Override
+  public boolean isEnabled() {
+    return super.isEnabled()
+        && Config.get().isDatadogProfilerEnabled()
+        && ConfigProvider.getInstance()
+            .getBoolean(
+                PROFILING_DATADOG_PROFILER_WALL_PRECHECK,
+                PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
   }
 
   @Override

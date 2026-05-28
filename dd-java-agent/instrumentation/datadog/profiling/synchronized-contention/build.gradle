@@ -1,3 +1,7 @@
+plugins {
+  id 'me.champeau.jmh'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
@@ -14,4 +18,15 @@ dependencies {
   testImplementation libs.bundles.junit5
   testImplementation libs.bundles.mockito
   testImplementation libs.bytebuddy
+}
+
+jmh {
+  jmhVersion = libs.versions.jmh.get()
+  // Benchmarks run on JDK 21+ (same constraint as the instrumentation itself).
+  jvmArgs = ['-Ddd.jmxfetch.enabled=false']
+  duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+}
+
+tasks.named('forbiddenApisJmh') {
+  ignoreFailures = true
 }

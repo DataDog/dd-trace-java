@@ -42,10 +42,12 @@ import net.bytebuddy.utility.OpenedClassReader;
  *   INVOKESTATIC finish
  * </pre>
  *
- * Each return opcode is preceded with {@code ALOAD &lt;lock&gt;; MONITOREXIT}. Before {@link
- * #visitMaxs(int, int)} the visitor emits {@code tryEnd:} and the synthetic handler {@code
- * handler:} block ({@code ALOAD &lt;lock&gt;; MONITOREXIT; ATHROW}) and registers a single
- * try-catch block covering the original body.
+ * Each return opcode is preceded with {@code ALOAD &lt;lock&gt;; MONITOREXIT}. In {@link
+ * #visitMaxs(int, int)} the visitor first registers the synthetic catch-all try-catch block, then
+ * emits {@code tryEnd:} and the {@code handler:} block ({@code ALOAD &lt;lock&gt;; MONITOREXIT;
+ * ATHROW}). The catch-all is registered in {@code visitMaxs} (not {@code visitCode}) so it appears
+ * LAST in the JVM exception table — after the original method's own handlers — ensuring
+ * user-defined {@code catch} blocks take priority.
  */
 final class SynchronizedMethodVisitor extends LocalVariablesSorter {
 
@@ -98,8 +100,11 @@ final class SynchronizedMethodVisitor extends LocalVariablesSorter {
     lockLocal = newLocal(OBJECT_TYPE);
     final int stateLocal = newLocal(STATE_TYPE);
 
-    // Try-catch block must be declared before the labels are visited.
-    super.visitTryCatchBlock(tryStart, tryEnd, handler, null);
+    // NOTE: visitTryCatchBlock for the catch-all handler is intentionally deferred to
+    // visitMaxs(). ASM's ClassReader emits the original exception table via visitTryCatchBlock
+    // calls that arrive after visitCode() but before any instructions. Registering our
+    // catch-all here would place it FIRST in the output table, causing the JVM to take our
+    // MONITOREXIT+ATHROW path before any user-defined catch blocks can run.
 
     // Load lock target.
     if (isStatic) {
@@ -160,6 +165,13 @@ final class SynchronizedMethodVisitor extends LocalVariablesSorter {
   @Override
   public void visitMaxs(final int maxStack, final int maxLocals) {
     if (wasSynchronized) {
+      // Register our catch-all LAST — after all original exception table entries that
+      // ClassReader emitted via visitTryCatchBlock() between visitCode() and the first
+      // instruction. The JVM checks exception handlers in table order (first match wins);
+      // registering last ensures user-defined catch blocks are checked first, matching
+      // javac's own synchronized-block handler placement.
+      // ASM constraint: visitTryCatchBlock must be called before visitLabel(handler).
+      super.visitTryCatchBlock(tryStart, tryEnd, handler, null);
       // Close the protected region and emit the synthetic handler.
       super.visitLabel(tryEnd);
       super.visitLabel(handler);

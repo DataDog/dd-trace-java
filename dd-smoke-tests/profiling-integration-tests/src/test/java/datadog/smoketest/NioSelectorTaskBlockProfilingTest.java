@@ -137,6 +137,7 @@ final class NioSelectorTaskBlockProfilingTest {
                 "-Ddd.profiling.hotspots.enabled=true",
                 "-Ddd." + ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED + "=true",
                 "-Ddd.profiling.debug.dump_path=" + dumpDir,
+                "-Ddd." + ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK + "=true",
                 "-Ddatadog.slf4j.simpleLogger.defaultLogLevel=debug",
                 "-Dorg.slf4j.simpleLogger.defaultLogLevel=debug",
                 "-XX:+IgnoreUnrecognizedVMOptions",

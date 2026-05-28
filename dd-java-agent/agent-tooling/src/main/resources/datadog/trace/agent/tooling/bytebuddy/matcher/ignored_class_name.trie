@@ -110,6 +110,9 @@
 0 sun.rmi.transport.*
 0 sun.nio.ch.FileChannelImpl
 0 sun.nio.ch.SelectorImpl
+# allow NIO channel profiling instrumentation (ServerSocketChannel.accept, SocketChannel.read/write)
+0 sun.nio.ch.ServerSocketChannelImpl
+0 sun.nio.ch.SocketChannelImpl
 # USM needs it
 0 sun.security.ssl.*
 0 javax.net.ssl.SSLSocket

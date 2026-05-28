@@ -51,9 +51,32 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   default void recordTaskBlock(long startTicks, long blocker, long unblockingSpanId) {}
 
   /**
-   * Called when the current thread is about to enter {@code LockSupport.park*}. Native code can
-   * suppress wall-clock signals for the park interval and record the start tick for off-CPU
-   * analysis. Span context is captured natively from the OTEP TLS sidecar.
+   * Variant of {@link #recordTaskBlock} for virtual threads.
+   *
+   * <p>Virtual threads are multiplexed on OS carrier threads; the native OTEP TLS sidecar is
+   * carrier-scoped and cannot be trusted between capture (block entry) and emit (block exit). Java
+   * call sites that detect a virtual thread must capture span/root ids at block entry and pass them
+   * here explicitly so the native deferred-capture path can use them instead of the TLS sidecar.
+   * This virtual-thread path intentionally carries span/root ids only, not custom profiling context
+   * attributes.
+   *
+   * @param startTicks TSC tick captured at block entry
+   * @param blocker identity hash code of the blocking object, or 0 if none
+   * @param unblockingSpanId the span ID of the thread that unblocked this thread, or 0 if unknown
+   * @param spanId span ID captured at block-entry time
+   * @param rootSpanId root span ID captured at block-entry time
+   */
+  default void recordTaskBlockWithContext(
+      long startTicks, long blocker, long unblockingSpanId, long spanId, long rootSpanId) {}
+
+  /**
+   * Called when the current thread is about to enter {@code LockSupport.park*}. The native profiler
+   * snapshots the OTEP TLS span context and records the start tick for {@code datadog.TaskBlock}
+   * emission on unpark. {@code SIGVTALRM} suppression for parked threads is provided by the {@code
+   * wallprecheck} OS-state filter (opt-in, disabled by default), not by the park flag itself. When
+   * {@code wallprecheck} is disabled (the default), wall-clock signals are still delivered to
+   * parked threads; suppression only occurs when {@code wallprecheck=true} is explicitly
+   * configured.
    */
   default void parkEnter() {}
 

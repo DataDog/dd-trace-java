@@ -93,6 +93,9 @@ class DatadogProfilerTest {
       return;
     }
 
+    // The native TaskBlock gate filters events when span_id == 0 (reads from OTEP TLS).
+    // Set a non-zero span context so both the recordTaskBlock and park paths actually emit.
+    profiler.setSpanContext(1L /* rootSpanId */, 42L /* spanId */, 0L, 0L);
     try {
       // Direct bridge path (recordTaskBlock -> JavaProfiler.recordTaskBlock0). Span ids are no
       // longer passed across JNI; the native side reads them from OTEP TLS.
@@ -115,6 +118,7 @@ class DatadogProfilerTest {
 
       assertTrue(taskBlockCount > 0, "Expected datadog.TaskBlock events from bridge methods");
     } finally {
+      profiler.clearSpanContext();
       recording.stop();
     }
   }
@@ -148,7 +152,7 @@ class DatadogProfilerTest {
     return IntStream.range(0, 1 << 4)
         .mapToObj(
             x ->
-                Arguments.of((x & 0x1000) != 0, (x & 0x100) != 0, (x & 0x10) != 0, (x & 0x1) != 0));
+                Arguments.of((x & 0x8) != 0, (x & 0x4) != 0, (x & 0x2) != 0, (x & 0x1) != 0));
   }
 
   @ParameterizedTest

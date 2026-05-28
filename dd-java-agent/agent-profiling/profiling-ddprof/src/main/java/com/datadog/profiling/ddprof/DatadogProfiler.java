@@ -13,6 +13,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getStackDepth;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsing;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallPrecheck;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
@@ -266,7 +267,6 @@ public final class DatadogProfiler {
     }
     StringBuilder cmd = new StringBuilder("start,jfr");
     cmd.append(",file=").append(file.toAbsolutePath());
-    cmd.append(",loglevel=").append(getLogLevel(configProvider));
     cmd.append(",jstackdepth=").append(getStackDepth(configProvider));
     cmd.append(",cstack=").append(getCStack(configProvider));
     cmd.append(",safemode=").append(getSafeMode(configProvider));
@@ -311,6 +311,9 @@ public final class DatadogProfiler {
         cmd.append(",filter=0");
       } else {
         cmd.append(",filter=");
+      }
+      if (getWallPrecheck(configProvider)) {
+        cmd.append(",wallprecheck=true");
       }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
@@ -467,20 +470,32 @@ public final class DatadogProfiler {
   }
 
   void recordTaskBlockEvent(long startTicks, long blocker, long unblockingSpanId) {
-    if (profiler != null) {
+    if (profiler != null && recordingFlag.get()) {
       long endTicks = profiler.getCurrentTicks();
       profiler.recordTaskBlock(startTicks, endTicks, blocker, unblockingSpanId);
     }
   }
 
+  void recordTaskBlockWithContextEvent(
+      long startTicks, long blocker, long unblockingSpanId, long spanId, long rootSpanId) {
+    if (profiler != null && recordingFlag.get()) {
+      long endTicks = profiler.getCurrentTicks();
+      profiler.recordTaskBlockWithContext(
+          startTicks, endTicks, blocker, unblockingSpanId, spanId, rootSpanId);
+    }
+  }
+
   void parkEnter() {
-    if (profiler != null) {
+    // Guard with recordingFlag: stopProfiler() calls LockSupport.parkNanos while waiting for
+    // the profiler to stop, and LockSupportHelper calls parkEnter unconditionally. Without this
+    // guard the native parkEnter0 would be called on a stopping/stopped profiler.
+    if (profiler != null && recordingFlag.get()) {
       profiler.parkEnter();
     }
   }
 
   void parkExit(long blocker, long unblockingSpanId) {
-    if (profiler != null) {
+    if (profiler != null && recordingFlag.get()) {
       profiler.parkExit(blocker, unblockingSpanId);
     }
   }

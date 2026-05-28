@@ -520,4 +520,48 @@ class SynchronizedRewritingVisitorTest {
   abstract static class AbstractFixture {
     abstract void doWork();
   }
+
+  /**
+   * Regression fixture for the exception-handler ordering bug: a synchronized method whose body
+   * contains an internal try-catch. After instrumentation the user's catch block must still run —
+   * our synthetic catch-all must not shadow it by appearing first in the JVM exception table.
+   */
+  static class SynchronizedWithCatchFixture {
+    static volatile boolean caughtByUserHandler = false;
+
+    synchronized void doWork() {
+      try {
+        throw new RuntimeException("test");
+      } catch (RuntimeException e) {
+        caughtByUserHandler = true;
+      }
+    }
+  }
+
+  @Test
+  void synchronizedMethodWithInternalCatch_userHandlerRuns() throws Exception {
+    byte[] rewritten = rewrite(loadBytes(SynchronizedWithCatchFixture.class));
+    Class<?> c = defineAndLoad(rewritten, binaryName(SynchronizedWithCatchFixture.class));
+    java.lang.reflect.Method doWork = c.getDeclaredMethod("doWork");
+    doWork.setAccessible(true);
+    java.lang.reflect.Constructor<?> ctor = c.getDeclaredConstructor();
+    ctor.setAccessible(true);
+    Object instance = ctor.newInstance();
+    // Must not throw — the RuntimeException must be caught by the user's catch block, not by our
+    // synthetic catch-all.
+    assertDoesNotThrow(
+        () -> {
+          try {
+            doWork.invoke(instance);
+          } catch (java.lang.reflect.InvocationTargetException e) {
+            throw e.getCause();
+          }
+        },
+        "RuntimeException should be caught by the user handler, not propagate out");
+    java.lang.reflect.Field field = c.getDeclaredField("caughtByUserHandler");
+    field.setAccessible(true);
+    assertTrue(
+        (boolean) field.get(null),
+        "user catch block must execute inside instrumented synchronized method");
+  }
 }

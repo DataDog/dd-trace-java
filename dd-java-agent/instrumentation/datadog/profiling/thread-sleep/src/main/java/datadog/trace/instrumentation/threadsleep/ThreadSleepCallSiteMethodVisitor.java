@@ -37,9 +37,12 @@ import net.bytebuddy.utility.OpenedClassReader;
  * <p>For {@code Thread.sleep(JI)V} the incoming stack is {@code [..., millis, nanos]} (int on top);
  * ISTORE pops first, LSTORE second, and the load sequence mirrors that.
  *
- * <p>{@code Thread.sleep(java.time.Duration)V} (JDK 19+) is intentionally <em>not</em> rewritten:
- * the Duration overload internally calls {@code Thread.sleep(J,I)V} which we already cover, so a
- * second wrap would create a double-bracket. {@link NoDoubleBracketTest} guards against this.
+ * <p>For {@code Thread.sleep(java.time.Duration)V} (JDK 19+) the incoming stack is {@code [...,
+ * duration]} (one object reference on top); ASTORE pops the reference and ALOAD re-pushes it before
+ * the original call. The {@code Duration} overload <em>cannot</em> be relied upon to delegate to
+ * {@code sleep(J,I)V} at the bytecode level — the internal delegation call lives inside {@code
+ * java.lang.Thread} which is excluded from instrumentation. Each {@code Thread.sleep(Duration)}
+ * call site in user code is therefore wrapped directly.
  */
 final class ThreadSleepCallSiteMethodVisitor extends LocalVariablesSorter {
 
@@ -54,9 +57,11 @@ final class ThreadSleepCallSiteMethodVisitor extends LocalVariablesSorter {
 
   static final String SLEEP_J_DESC = "(J)V";
   static final String SLEEP_JI_DESC = "(JI)V";
+  static final String SLEEP_DURATION_DESC = "(Ljava/time/Duration;)V";
 
   private static final Type LONG_TYPE = Type.LONG_TYPE;
   private static final Type INT_TYPE = Type.INT_TYPE;
+  private static final Type DURATION_TYPE = Type.getObjectType("java/time/Duration");
   private static final Type STATE_TYPE = Type.getObjectType(STATE_INTERNAL);
   private static final Type THROWABLE_TYPE = Type.getObjectType("java/lang/Throwable");
 
@@ -75,8 +80,14 @@ final class ThreadSleepCallSiteMethodVisitor extends LocalVariablesSorter {
     if (opcode == Opcodes.INVOKESTATIC
         && THREAD_INTERNAL.equals(owner)
         && "sleep".equals(name)
-        && (SLEEP_J_DESC.equals(descriptor) || SLEEP_JI_DESC.equals(descriptor))) {
-      emitWrappedSleepCall(owner, name, descriptor, isInterface);
+        && (SLEEP_J_DESC.equals(descriptor)
+            || SLEEP_JI_DESC.equals(descriptor)
+            || SLEEP_DURATION_DESC.equals(descriptor))) {
+      if (SLEEP_DURATION_DESC.equals(descriptor)) {
+        emitWrappedDurationSleepCall(owner, name, isInterface);
+      } else {
+        emitWrappedSleepCall(owner, name, descriptor, isInterface);
+      }
       return;
     }
     super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
@@ -121,6 +132,52 @@ final class ThreadSleepCallSiteMethodVisitor extends LocalVariablesSorter {
 
     // Exception handler: finish first, then rethrow. finish() tolerates null State, so the no-op
     // case (no active span at capture) is harmless.
+    super.visitLabel(tryEnd);
+    super.visitLabel(handler);
+    visitNewLocalVarInsn(Opcodes.ASTORE, throwableLocal);
+    visitNewLocalVarInsn(Opcodes.ALOAD, stateLocal);
+    super.visitMethodInsn(Opcodes.INVOKESTATIC, TASK_BLOCK_HELPER, "finish", FINISH_DESC, false);
+    visitNewLocalVarInsn(Opcodes.ALOAD, throwableLocal);
+    super.visitInsn(Opcodes.ATHROW);
+
+    super.visitLabel(end);
+  }
+
+  /**
+   * Emits the wrapped form for {@code Thread.sleep(java.time.Duration)V}. The incoming stack has
+   * one object reference (the {@code Duration}); we ASTORE it, call captureForSleep, then ALOAD
+   * before the original call, mirroring the LSTORE/LLOAD pattern used for primitive overloads.
+   */
+  private void emitWrappedDurationSleepCall(
+      final String owner, final String name, final boolean isInterface) {
+    final int tmpDuration = newLocal(DURATION_TYPE);
+    final int stateLocal = newLocal(STATE_TYPE);
+    final int throwableLocal = newLocal(THROWABLE_TYPE);
+
+    final Label tryStart = new Label();
+    final Label tryEnd = new Label();
+    final Label handler = new Label();
+    final Label end = new Label();
+
+    super.visitTryCatchBlock(tryStart, tryEnd, handler, null);
+
+    // Pop the Duration reference into a local.
+    visitNewLocalVarInsn(Opcodes.ASTORE, tmpDuration);
+
+    // captureForSleep() — null when no active span (TaskBlockHelper fast-path).
+    super.visitMethodInsn(
+        Opcodes.INVOKESTATIC, TASK_BLOCK_HELPER, "captureForSleep", CAPTURE_FOR_SLEEP_DESC, false);
+    visitNewLocalVarInsn(Opcodes.ASTORE, stateLocal);
+
+    // Protected region: the original Thread.sleep(Duration) call.
+    super.visitLabel(tryStart);
+    visitNewLocalVarInsn(Opcodes.ALOAD, tmpDuration);
+    super.visitMethodInsn(Opcodes.INVOKESTATIC, owner, name, SLEEP_DURATION_DESC, isInterface);
+    visitNewLocalVarInsn(Opcodes.ALOAD, stateLocal);
+    super.visitMethodInsn(Opcodes.INVOKESTATIC, TASK_BLOCK_HELPER, "finish", FINISH_DESC, false);
+    super.visitJumpInsn(Opcodes.GOTO, end);
+
+    // Exception handler: finish first, then rethrow.
     super.visitLabel(tryEnd);
     super.visitLabel(handler);
     visitNewLocalVarInsn(Opcodes.ASTORE, throwableLocal);

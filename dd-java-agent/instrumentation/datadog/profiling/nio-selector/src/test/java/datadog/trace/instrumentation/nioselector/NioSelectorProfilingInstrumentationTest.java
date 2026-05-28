@@ -9,7 +9,7 @@ import org.junit.jupiter.api.Test;
 class NioSelectorProfilingInstrumentationTest {
 
   @Test
-  void selectorImplIsKnownMatchingType() {
+  void knownMatchingTypesIncludesSelectorImpl() {
     NioSelectorProfilingInstrumentation instrumentation = new NioSelectorProfilingInstrumentation();
 
     assertArrayEquals(

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.threadsleep;
 
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.CAPTURE_FOR_SLEEP_DESC;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.FINISH_DESC;
+import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.SLEEP_DURATION_DESC;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.SLEEP_JI_DESC;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.SLEEP_J_DESC;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.TASK_BLOCK_HELPER;
@@ -111,6 +112,42 @@ class ThreadSleepRewritingVisitorTest {
         "non-Thread.sleep INVOKESTATIC sites must be left alone");
   }
 
+  @Test
+  void singleSleepDuration_isWrappedWithCaptureAndFinish() {
+    // The fixture bytecode is generated with ASM directly rather than compiled from a Java
+    // source inner class because Thread.sleep(Duration) was introduced in JDK 19; compiling a
+    // source reference to it would break builds on JDK 8/11/17.
+    List<InstructionRecord> insns = rewriteAndScan(sleepDurationFixtureBytes(), "doSleep");
+
+    int sleepIdx = indexOfThreadSleep(insns, SLEEP_DURATION_DESC);
+    assertTrue(sleepIdx >= 0, "expected INVOKESTATIC Thread.sleep(Duration)V to be present");
+
+    int captureIdx = indexOfInvokeStatic(insns, "captureForSleep", CAPTURE_FOR_SLEEP_DESC);
+    assertTrue(
+        captureIdx >= 0 && captureIdx < sleepIdx, "captureForSleep must precede Thread.sleep");
+
+    int finishAfterSleep = nextInvokeStatic(insns, sleepIdx + 1, "finish", FINISH_DESC);
+    assertTrue(
+        finishAfterSleep > sleepIdx,
+        "finish call must follow Thread.sleep on the normal exit path");
+
+    int finishCount = countInvokeStatic(insns, "finish", FINISH_DESC);
+    assertEquals(
+        2,
+        finishCount,
+        "expected two finish calls (normal exit + exception handler) per sleep site");
+
+    // The Duration reference must be stashed in a local (ASTORE) and reloaded (ALOAD) so the
+    // captureForSleep call does not drop it from the stack.
+    assertTrue(countOpcode(insns, Opcodes.ASTORE) >= 1, "expected ASTORE for cached Duration ref");
+    assertTrue(countOpcode(insns, Opcodes.ALOAD) >= 1, "expected ALOAD to re-push Duration ref");
+
+    int aThrowCount = countOpcode(insns, Opcodes.ATHROW);
+    assertTrue(
+        aThrowCount >= 1,
+        "expected ATHROW in synthetic exception handler to rethrow the caught Throwable");
+  }
+
   // ------------------------------------------------------------------------------------------
   // Fixtures
   // ------------------------------------------------------------------------------------------
@@ -151,9 +188,65 @@ class ThreadSleepRewritingVisitorTest {
   // Helpers (mirroring SynchronizedRewritingVisitorTest)
   // ------------------------------------------------------------------------------------------
 
+  /**
+   * Generates the bytecode for a class equivalent to:
+   *
+   * <pre>
+   *   static void doSleep(java.time.Duration d) throws InterruptedException {
+   *     Thread.sleep(d);
+   *   }
+   * </pre>
+   *
+   * using ASM directly so that the test compiles on JDK 8/11/17 even though {@code
+   * Thread.sleep(Duration)} was only introduced in JDK 19.
+   */
+  private static byte[] sleepDurationFixtureBytes() {
+    ClassWriter cw =
+        new ClassWriter(ClassWriter.COMPUTE_FRAMES) {
+          @Override
+          protected String getCommonSuperClass(final String type1, final String type2) {
+            if (type1.equals(type2)) return type1;
+            try {
+              return super.getCommonSuperClass(type1, type2);
+            } catch (Exception ignored) {
+              return "java/lang/Object";
+            }
+          }
+        };
+    cw.visit(
+        Opcodes.V11,
+        Opcodes.ACC_FINAL | Opcodes.ACC_SUPER,
+        "datadog/trace/instrumentation/threadsleep/SleepDurationFixture",
+        null,
+        "java/lang/Object",
+        null);
+    MethodVisitor mv =
+        cw.visitMethod(
+            Opcodes.ACC_STATIC,
+            "doSleep",
+            "(Ljava/time/Duration;)V",
+            null,
+            new String[] {"java/lang/InterruptedException"});
+    mv.visitCode();
+    mv.visitVarInsn(Opcodes.ALOAD, 0);
+    mv.visitMethodInsn(
+        Opcodes.INVOKESTATIC, "java/lang/Thread", "sleep", "(Ljava/time/Duration;)V", false);
+    mv.visitInsn(Opcodes.RETURN);
+    mv.visitMaxs(1, 1);
+    mv.visitEnd();
+    cw.visitEnd();
+    return cw.toByteArray();
+  }
+
   private static List<InstructionRecord> rewriteAndScan(final Class<?> cls, final String method)
       throws IOException {
     byte[] rewritten = rewrite(classBytes(cls));
+    return scanMethod(rewritten, method);
+  }
+
+  private static List<InstructionRecord> rewriteAndScan(
+      final byte[] classBytes, final String method) {
+    byte[] rewritten = rewrite(classBytes);
     return scanMethod(rewritten, method);
   }
 
@@ -263,7 +356,8 @@ class ThreadSleepRewritingVisitorTest {
           && THREAD_INTERNAL.equals(r.methodOwner)
           && "sleep".equals(r.methodName)
           && (SLEEP_J_DESC.equals(r.methodDescriptor)
-              || SLEEP_JI_DESC.equals(r.methodDescriptor))) {
+              || SLEEP_JI_DESC.equals(r.methodDescriptor)
+              || SLEEP_DURATION_DESC.equals(r.methodDescriptor))) {
         n++;
       }
     }

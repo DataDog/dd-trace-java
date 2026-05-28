@@ -42,22 +42,22 @@ class LockSupportProfilingInstrumentationTest {
 
   @Test
   void state_put_and_remove() {
-    long tid = Thread.currentThread().getId();
+    Thread current = Thread.currentThread();
     long spanId = 12345L;
 
-    LockSupportHelper.UNPARKING_SPAN.put(tid, spanId);
-    Long retrieved = LockSupportHelper.UNPARKING_SPAN.remove(tid);
+    LockSupportHelper.UNPARKING_SPAN.put(current, spanId);
+    Long retrieved = LockSupportHelper.UNPARKING_SPAN.remove(current);
 
     assertNotNull(retrieved);
     assertEquals(spanId, (long) retrieved);
     // After removal the entry should be gone
-    assertNull(LockSupportHelper.UNPARKING_SPAN.get(tid));
+    assertNull(LockSupportHelper.UNPARKING_SPAN.get(current));
   }
 
   @Test
   void state_remove_returns_null_when_absent() {
     Thread t = new Thread(() -> {});
-    assertNull(LockSupportHelper.UNPARKING_SPAN.remove(t.getId()));
+    assertNull(LockSupportHelper.UNPARKING_SPAN.remove(t));
   }
 
   @Test
@@ -100,8 +100,7 @@ class LockSupportProfilingInstrumentationTest {
               }
 
               // Simulate what ParkAdvice.after does: read and remove unblocking span id
-              Long unblockingId =
-                  LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread().getId());
+              Long unblockingId = LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread());
               capturedSpanId.set(unblockingId != null ? unblockingId : 0L);
             });
 
@@ -109,7 +108,7 @@ class LockSupportProfilingInstrumentationTest {
     ready.await(); // wait for parked thread to register itself
 
     // Simulate what UnparkAdvice.before does: record unparking span id
-    LockSupportHelper.UNPARKING_SPAN.put(parkedThread.getId(), unparkingSpanId);
+    LockSupportHelper.UNPARKING_SPAN.put(parkedThread, unparkingSpanId);
     go.countDown(); // unblock parked thread
 
     parkedThread.join(2_000);
@@ -131,8 +130,7 @@ class LockSupportProfilingInstrumentationTest {
     Thread parkedThread =
         new Thread(
             () -> {
-              Long unblockingId =
-                  LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread().getId());
+              Long unblockingId = LockSupportHelper.UNPARKING_SPAN.remove(Thread.currentThread());
               capturedSpanId.set(unblockingId != null ? unblockingId : 0L);
             });
     parkedThread.start();
@@ -217,14 +215,14 @@ class LockSupportProfilingInstrumentationTest {
    */
   @Test
   void stale_entry_is_drained_when_park_fires_without_active_span() {
-    long tid = Thread.currentThread().getId();
-    LockSupportHelper.UNPARKING_SPAN.put(tid, 99L);
+    Thread current = Thread.currentThread();
+    LockSupportHelper.UNPARKING_SPAN.put(current, 99L);
 
     // Simulate park() returning with no active span (state == null)
     LockSupportHelper.finish(null);
 
     assertNull(
-        LockSupportHelper.UNPARKING_SPAN.get(tid),
+        LockSupportHelper.UNPARKING_SPAN.get(current),
         "Stale UNPARKING_SPAN entry must be drained even when state is null");
   }
 
@@ -234,14 +232,14 @@ class LockSupportProfilingInstrumentationTest {
    */
   @Test
   void latest_unparking_span_wins_and_entry_is_drained() {
-    long tid = Thread.currentThread().getId();
-    LockSupportHelper.UNPARKING_SPAN.put(tid, 101L);
-    LockSupportHelper.UNPARKING_SPAN.put(tid, 202L);
+    Thread current = Thread.currentThread();
+    LockSupportHelper.UNPARKING_SPAN.put(current, 101L);
+    LockSupportHelper.UNPARKING_SPAN.put(current, 202L);
 
-    Long consumed = LockSupportHelper.UNPARKING_SPAN.remove(tid);
+    Long consumed = LockSupportHelper.UNPARKING_SPAN.remove(current);
     assertNotNull(consumed);
     assertEquals(202L, consumed.longValue());
     assertNull(
-        LockSupportHelper.UNPARKING_SPAN.get(tid), "Entry must be removed after consumption");
+        LockSupportHelper.UNPARKING_SPAN.get(current), "Entry must be removed after consumption");
   }
 }

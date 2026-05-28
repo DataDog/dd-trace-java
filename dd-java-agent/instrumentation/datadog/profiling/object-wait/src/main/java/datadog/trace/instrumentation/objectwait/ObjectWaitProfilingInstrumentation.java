@@ -10,6 +10,10 @@ import com.google.auto.service.AutoService;
 import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
+import datadog.trace.api.Config;
+import datadog.trace.api.InstrumenterConfig;
+import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
+import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskBlockHelper;
 import net.bytebuddy.asm.Advice;
 
@@ -20,6 +24,9 @@ import net.bytebuddy.asm.Advice;
  * so ByteBuddy can add advice to it. In JDK 8-20 the method is declared {@code native} and is not
  * instrumented by this class; the native profiler's JVMTI {@code MonitorWait}/{@code MonitorWaited}
  * callbacks cover that population instead.
+ *
+ * <p>On JDK 21+, object-wait and synchronized-contention TaskBlock ownership is all-or-native: both
+ * Java modules must be enabled together, otherwise native JVMTI owns both monitor populations.
  *
  * <p>Only {@code wait(long)} is instrumented: {@code wait()} delegates to {@code wait(0L)} and
  * {@code wait(long, int)} delegates to {@code wait(long)}, so all wait variants are covered.
@@ -37,7 +44,11 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
 
   @Override
   public boolean isEnabled() {
-    return JavaVirtualMachine.isJavaVersionAtLeast(21) && super.isEnabled();
+    return JavaVirtualMachine.isJavaVersionAtLeast(21)
+        && super.isEnabled()
+        && Config.get().isDatadogProfilerEnabled()
+        && TaskBlockInstrumentationConfig.shouldUseJavaMonitorTaskBlockInstrumentation(
+            ConfigProvider.getInstance(), InstrumenterConfig.get());
   }
 
   @Override
@@ -68,7 +79,7 @@ public class ObjectWaitProfilingInstrumentation extends InstrumenterModule.Profi
      */
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static TaskBlockHelper.State before(@Advice.This Object monitor) {
-      return TaskBlockHelper.capture(System.identityHashCode(monitor));
+      return TaskBlockHelper.captureForMonitor(monitor);
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

@@ -108,6 +108,12 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public void recordTaskBlockWithContext(
+      long startTicks, long blocker, long unblockingSpanId, long spanId, long rootSpanId) {
+    DDPROF.recordTaskBlockWithContextEvent(startTicks, blocker, unblockingSpanId, spanId, rootSpanId);
+  }
+
+  @Override
   public void parkEnter() {
     DDPROF.parkEnter();
   }
