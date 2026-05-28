@@ -163,7 +163,8 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       executionSettingsFactory.create(JvmInfo.CURRENT_JVM, ""),
       sourcePathResolver,
       linesResolver),
-      capabilities
+      capabilities,
+      component
       )
     }
 

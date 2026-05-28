@@ -80,7 +80,8 @@ class HeadlessTestSessionTest extends SpanWriterTest {
       Stub(LinesResolver),
       Stub(CoverageStore.Factory),
       executionStrategy,
-      []
+      [],
+      "junit"
       )
   }
 }

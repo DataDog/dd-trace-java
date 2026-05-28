@@ -332,7 +332,8 @@ public class CiVisibilitySystem {
           services.linesResolver,
           coverageServices.coverageStoreFactory,
           executionStrategy,
-          capabilities);
+          capabilities,
+          component);
     };
   }
 

@@ -3,6 +3,9 @@ package datadog.trace.api.civisibility;
 import datadog.trace.api.civisibility.noop.NoOpDDTestSession;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.Collections;
+import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nullable;
 
 public class CIVisibility {
@@ -10,8 +13,10 @@ public class CIVisibility {
   private static volatile SessionFactory SESSION_FACTORY =
       (projectName, projectRoot, component, startTime) -> NoOpDDTestSession.INSTANCE;
 
-  @Nullable private static volatile CIVisibilityEvent ACTIVE_TEST_SESSION = null;
-  @Nullable private static volatile CIVisibilityEvent ACTIVE_TEST_MODULE = null;
+  private static final Map<String, CIVisibilityEvent> ACTIVE_TEST_SESSIONS =
+      new ConcurrentHashMap<>();
+  private static final Map<String, CIVisibilityEvent> ACTIVE_TEST_MODULES =
+      new ConcurrentHashMap<>();
 
   /**
    * This a hook for injecting SessionFactory implementation. It should only be used internally by
@@ -24,39 +29,44 @@ public class CIVisibility {
   }
 
   /**
-   * Hook for the tracer to expose the currently active test session. Pass {@code null} when the
-   * session ends.
+   * Hook for the tracer to expose an active test session keyed by component. Only used in headless
+   * mode (one session per component).
    */
-  public static void registerActiveTestSession(@Nullable CIVisibilityEvent session) {
-    ACTIVE_TEST_SESSION = session;
+  public static void registerActiveTestSession(String component, CIVisibilityEvent session) {
+    ACTIVE_TEST_SESSIONS.put(component, session);
+  }
+
+  /** Removes a previously registered active test session. */
+  public static void unregisterActiveTestSession(String component, CIVisibilityEvent session) {
+    ACTIVE_TEST_SESSIONS.remove(component, session);
   }
 
   /**
-   * Hook for the tracer to expose the currently active test module. Pass {@code null} when the
-   * module ends.
+   * Hook for the tracer to expose an active test module keyed by component. Only used in headless
+   * mode (one module per component).
    */
-  public static void registerActiveTestModule(@Nullable CIVisibilityEvent module) {
-    ACTIVE_TEST_MODULE = module;
+  public static void registerActiveTestModule(String component, CIVisibilityEvent module) {
+    ACTIVE_TEST_MODULES.put(component, module);
+  }
+
+  /** Removes a previously registered active test module. */
+  public static void unregisterActiveTestModule(String component, CIVisibilityEvent module) {
+    ACTIVE_TEST_MODULES.remove(component, module);
   }
 
   /**
-   * Returns a handle to the currently active test session (limited to headless and manual API) so
-   * users can attach custom tags, or {@code null} when no test session is being managed by the
-   * tracer.
+   * Returns an unmodifiable view of the currently active headless test sessions, keyed by
+   * component.
    */
-  @Nullable
-  public static CIVisibilityEvent activeTestSession() {
-    return ACTIVE_TEST_SESSION;
+  public static Map<String, CIVisibilityEvent> activeTestSessions() {
+    return Collections.unmodifiableMap(ACTIVE_TEST_SESSIONS);
   }
 
   /**
-   * Returns a handle to the currently active test module (limited to headless and manual API) so
-   * users can attach custom tags, or {@code null} when no test module is being managed by the
-   * tracer.
+   * Returns an unmodifiable view of the currently active headless test modules, keyed by component.
    */
-  @Nullable
-  public static CIVisibilityEvent activeTestModule() {
-    return ACTIVE_TEST_MODULE;
+  public static Map<String, CIVisibilityEvent> activeTestModules() {
+    return Collections.unmodifiableMap(ACTIVE_TEST_MODULES);
   }
 
   /**

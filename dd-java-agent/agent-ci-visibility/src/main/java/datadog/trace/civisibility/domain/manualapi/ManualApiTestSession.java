@@ -1,7 +1,6 @@
 package datadog.trace.civisibility.domain.manualapi;
 
 import datadog.trace.api.Config;
-import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -46,17 +45,6 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         codeowners,
         linesResolver);
     this.coverageStoreFactory = coverageStoreFactory;
-
-    CIVisibility.registerActiveTestSession(this);
-  }
-
-  @Override
-  public void end(@Nullable Long endTime) {
-    try {
-      super.end(endTime);
-    } finally {
-      CIVisibility.registerActiveTestSession(null);
-    }
   }
 
   @Override

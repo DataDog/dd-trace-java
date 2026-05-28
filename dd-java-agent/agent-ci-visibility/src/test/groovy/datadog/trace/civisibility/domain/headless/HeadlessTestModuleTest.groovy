@@ -74,6 +74,7 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     Stub(CoverageStore.Factory),
     executionStrategy,
     [],
+    "junit",
     (span) -> { }
     )
   }

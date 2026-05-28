@@ -48,6 +48,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
   private final ExecutionStrategy executionStrategy;
   private final ExecutionResults executionResults;
   private final Collection<LibraryCapability> capabilities;
+  private final String component;
 
   public HeadlessTestModule(
       AgentSpanContext sessionSpanContext,
@@ -63,6 +64,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
       Collection<LibraryCapability> capabilities,
+      String component,
       Consumer<AgentSpan> onSpanFinish) {
     super(
         sessionSpanContext,
@@ -81,8 +83,9 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
     this.capabilities = capabilities;
+    this.component = component;
 
-    CIVisibility.registerActiveTestModule(this);
+    CIVisibility.registerActiveTestModule(component, this);
   }
 
   @Override
@@ -169,7 +172,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     try {
       super.end(endTime);
     } finally {
-      CIVisibility.registerActiveTestModule(null);
+      CIVisibility.unregisterActiveTestModule(component, this);
     }
   }
 

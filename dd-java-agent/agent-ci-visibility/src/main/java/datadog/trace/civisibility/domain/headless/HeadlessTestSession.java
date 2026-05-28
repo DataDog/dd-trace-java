@@ -36,6 +36,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
   private final ExecutionStrategy executionStrategy;
   private final CoverageStore.Factory coverageStoreFactory;
   private final Collection<LibraryCapability> capabilities;
+  private final String component;
 
   public HeadlessTestSession(
       String projectName,
@@ -49,7 +50,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
       LinesResolver linesResolver,
       CoverageStore.Factory coverageStoreFactory,
       ExecutionStrategy executionStrategy,
-      @Nonnull Collection<LibraryCapability> capabilities) {
+      @Nonnull Collection<LibraryCapability> capabilities,
+      String component) {
     super(
         projectName,
         startTime,
@@ -64,8 +66,9 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
     this.capabilities = capabilities;
+    this.component = component;
 
-    CIVisibility.registerActiveTestSession(this);
+    CIVisibility.registerActiveTestSession(component, this);
   }
 
   @Override
@@ -84,6 +87,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         coverageStoreFactory,
         executionStrategy,
         capabilities,
+        component,
         this::onModuleFinish);
   }
 
@@ -113,7 +117,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     try {
       super.end(endTime);
     } finally {
-      CIVisibility.registerActiveTestSession(null);
+      CIVisibility.unregisterActiveTestSession(component, this);
     }
   }
 }
