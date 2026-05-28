@@ -10,6 +10,9 @@ public class CIVisibility {
   private static volatile SessionFactory SESSION_FACTORY =
       (projectName, projectRoot, component, startTime) -> NoOpDDTestSession.INSTANCE;
 
+  @Nullable private static volatile CIVisibilityEvent ACTIVE_TEST_SESSION = null;
+  @Nullable private static volatile CIVisibilityEvent ACTIVE_TEST_MODULE = null;
+
   /**
    * This a hook for injecting SessionFactory implementation. It should only be used internally by
    * the tracer logic
@@ -18,6 +21,42 @@ public class CIVisibility {
    */
   public static void registerSessionFactory(SessionFactory sessionFactory) {
     SESSION_FACTORY = sessionFactory;
+  }
+
+  /**
+   * Hook for the tracer to expose the currently active test session. Pass {@code null} when the
+   * session ends.
+   */
+  public static void registerActiveTestSession(@Nullable CIVisibilityEvent session) {
+    ACTIVE_TEST_SESSION = session;
+  }
+
+  /**
+   * Hook for the tracer to expose the currently active test module. Pass {@code null} when the
+   * module ends.
+   */
+  public static void registerActiveTestModule(@Nullable CIVisibilityEvent module) {
+    ACTIVE_TEST_MODULE = module;
+  }
+
+  /**
+   * Returns a handle to the currently active test session (limited to headless and manual API) so
+   * users can attach custom tags, or {@code null} when no test session is being managed by the
+   * tracer.
+   */
+  @Nullable
+  public static CIVisibilityEvent activeTestSession() {
+    return ACTIVE_TEST_SESSION;
+  }
+
+  /**
+   * Returns a handle to the currently active test module (limited to headless and manual API) so
+   * users can attach custom tags, or {@code null} when no test module is being managed by the
+   * tracer.
+   */
+  @Nullable
+  public static CIVisibilityEvent activeTestModule() {
+    return ACTIVE_TEST_MODULE;
   }
 
   /**

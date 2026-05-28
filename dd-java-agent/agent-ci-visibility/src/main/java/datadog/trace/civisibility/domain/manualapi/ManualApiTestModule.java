@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.manualapi;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestModule;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -13,11 +14,13 @@ import datadog.trace.civisibility.config.ConfigurationErrors;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
+import datadog.trace.civisibility.domain.SpanTagsPropagator;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.util.Collections;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
@@ -34,6 +37,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
       AgentSpanContext sessionSpanContext,
       String moduleName,
       @Nullable Long startTime,
+      Map<String, Object> inheritedTags,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -47,6 +51,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         moduleName,
         startTime,
         InstrumentationType.MANUAL_API,
+        inheritedTags,
         config,
         metricCollector,
         testDecorator,
@@ -55,6 +60,17 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
         linesResolver,
         onSpanFinish);
     this.coverageStoreFactory = coverageStoreFactory;
+
+    CIVisibility.registerActiveTestModule(this);
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    try {
+      super.end(endTime);
+    } finally {
+      CIVisibility.registerActiveTestModule(null);
+    }
   }
 
   @Override
@@ -74,6 +90,7 @@ public class ManualApiTestModule extends AbstractTestModule implements DDTestMod
             startTime,
             parallelized,
             InstrumentationType.MANUAL_API,
+            SpanTagsPropagator.snapshotTags(span, config.getCiVisibilityPropagatedTagKeys()),
             TestFrameworkInstrumentation.OTHER, // for metric purposes, framework is OTHER
             config,
             metricCollector,

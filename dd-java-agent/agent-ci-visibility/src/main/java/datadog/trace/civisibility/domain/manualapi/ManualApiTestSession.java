@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.domain.manualapi;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.DDTestSession;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -9,6 +10,7 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
+import datadog.trace.civisibility.domain.SpanTagsPropagator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
 import javax.annotation.Nullable;
@@ -44,6 +46,17 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         codeowners,
         linesResolver);
     this.coverageStoreFactory = coverageStoreFactory;
+
+    CIVisibility.registerActiveTestSession(this);
+  }
+
+  @Override
+  public void end(@Nullable Long endTime) {
+    try {
+      super.end(endTime);
+    } finally {
+      CIVisibility.registerActiveTestSession(null);
+    }
   }
 
   @Override
@@ -52,6 +65,7 @@ public class ManualApiTestSession extends AbstractTestSession implements DDTestS
         span.context(),
         moduleName,
         startTime,
+        SpanTagsPropagator.snapshotTags(span, config.getCiVisibilityPropagatedTagKeys()),
         config,
         metricCollector,
         testDecorator,

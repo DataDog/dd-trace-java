@@ -134,6 +134,7 @@ class TestImplTest extends SpanWriterTest {
       null,
       null,
       InstrumentationType.BUILD,
+      [:],
       testFramework,
       config,
       metricCollector,

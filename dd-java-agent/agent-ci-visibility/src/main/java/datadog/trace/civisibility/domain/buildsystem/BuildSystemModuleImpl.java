@@ -35,6 +35,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import java.net.InetSocketAddress;
 import java.nio.file.Path;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -79,6 +80,7 @@ public class BuildSystemModuleImpl extends AbstractTestModule implements BuildSy
         moduleName,
         startTime,
         InstrumentationType.BUILD,
+        Collections.emptyMap(),
         config,
         metricCollector,
         testDecorator,

@@ -77,6 +77,7 @@ class TestSuiteImplTest extends SpanWriterTest {
       null,
       false,
       InstrumentationType.BUILD,
+      [:],
       testFramework,
       config,
       metricCollector,

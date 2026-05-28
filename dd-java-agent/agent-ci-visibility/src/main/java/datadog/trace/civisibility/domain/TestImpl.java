@@ -47,6 +47,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
@@ -82,6 +83,7 @@ public class TestImpl implements DDTest {
       @Nullable Class<?> testClass,
       @Nullable Method testMethod,
       InstrumentationType instrumentationType,
+      Map<String, Object> inheritedTags,
       TestFrameworkInstrumentation instrumentation,
       Config config,
       CiVisibilityMetricCollector metricCollector,
@@ -155,6 +157,10 @@ public class TestImpl implements DDTest {
 
     for (LibraryCapability capability : capabilities) {
       span.setTag(capability.asTag(), capability.getVersion());
+    }
+
+    if (!inheritedTags.isEmpty()) {
+      span.setAllTags(inheritedTags);
     }
 
     testDecorator.afterStart(span);

@@ -31,6 +31,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.TreeSet;
 import java.util.concurrent.ConcurrentHashMap;
 import javax.annotation.Nonnull;
@@ -204,6 +205,7 @@ public class ProxyTestModule implements TestFrameworkModule {
         startTime,
         parallelized,
         InstrumentationType.BUILD,
+        Collections.emptyMap(),
         instrumentation,
         config,
         metricCollector,

@@ -64,6 +64,7 @@ class HeadlessTestModuleTest extends SpanWriterTest {
     Stub(AgentSpanContext),
     "test-module",
     null,
+    [:],
     config,
     Stub(CiVisibilityMetricCollector),
     Stub(TestDecorator),

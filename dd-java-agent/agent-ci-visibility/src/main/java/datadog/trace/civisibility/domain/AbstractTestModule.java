@@ -3,6 +3,7 @@ package datadog.trace.civisibility.domain;
 import static datadog.trace.civisibility.Constants.CI_VISIBILITY_INSTRUMENTATION_NAME;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.civisibility.CIVisibilityEvent;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -16,10 +17,11 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nullable;
 
-public abstract class AbstractTestModule {
+public abstract class AbstractTestModule implements CIVisibilityEvent {
 
   protected final AgentSpan span;
   protected final String moduleName;
@@ -37,6 +39,7 @@ public abstract class AbstractTestModule {
       String moduleName,
       @Nullable Long startTime,
       InstrumentationType instrumentationType,
+      Map<String, Object> inheritedTags,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -79,6 +82,10 @@ public abstract class AbstractTestModule {
     // as we do not know in advance whether the module will have any children
     span.setTag(Tags.TEST_STATUS, TestStatus.skip);
 
+    if (!inheritedTags.isEmpty()) {
+      span.setAllTags(inheritedTags);
+    }
+
     testDecorator.afterStart(span);
 
     metricCollector.add(CiVisibilityCountMetric.EVENT_CREATED, 1, EventType.MODULE);
@@ -88,6 +95,7 @@ public abstract class AbstractTestModule {
     }
   }
 
+  @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
   }

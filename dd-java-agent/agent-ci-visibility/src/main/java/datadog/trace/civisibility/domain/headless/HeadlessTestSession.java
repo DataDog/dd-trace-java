@@ -4,6 +4,7 @@ import static datadog.trace.civisibility.domain.SpanTagsPropagator.TagMergeSpec;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.coverage.CoverageStore;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -14,6 +15,7 @@ import datadog.trace.civisibility.codeowners.Codeowners;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestSession;
 import datadog.trace.civisibility.domain.InstrumentationType;
+import datadog.trace.civisibility.domain.SpanTagsPropagator;
 import datadog.trace.civisibility.domain.TestFrameworkSession;
 import datadog.trace.civisibility.source.LinesResolver;
 import datadog.trace.civisibility.source.SourcePathResolver;
@@ -62,6 +64,8 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
     this.executionStrategy = executionStrategy;
     this.coverageStoreFactory = coverageStoreFactory;
     this.capabilities = capabilities;
+
+    CIVisibility.registerActiveTestSession(this);
   }
 
   @Override
@@ -70,6 +74,7 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
         span.context(),
         moduleName,
         startTime,
+        SpanTagsPropagator.snapshotTags(span, config.getCiVisibilityPropagatedTagKeys()),
         config,
         metricCollector,
         testDecorator,
@@ -105,6 +110,10 @@ public class HeadlessTestSession extends AbstractTestSession implements TestFram
 
   @Override
   public void end(@Nullable Long endTime) {
-    super.end(endTime);
+    try {
+      super.end(endTime);
+    } finally {
+      CIVisibility.registerActiveTestSession(null);
+    }
   }
 }

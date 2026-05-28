@@ -24,6 +24,25 @@ public class SpanTagsPropagator {
     this.parentSpan = parentSpan;
   }
 
+  /**
+   * Snapshots the currently-set values for the given tag keys from {@code source}. Tags that are
+   * not present on {@code source} are omitted from the result. The snapshot reflects the state at
+   * the time of the call; tags set on {@code source} later will not be reflected.
+   */
+  public static Map<String, Object> snapshotTags(AgentSpan source, Collection<String> keys) {
+    if (keys.isEmpty()) {
+      return Collections.emptyMap();
+    }
+    Map<String, Object> snapshot = new HashMap<>();
+    for (String key : keys) {
+      Object value = source.getTag(key);
+      if (value != null) {
+        snapshot.put(key, value);
+      }
+    }
+    return snapshot;
+  }
+
   public void propagateCiVisibilityTags(AgentSpan childSpan) {
     mergeTestFrameworks(getFrameworks(childSpan));
     propagateStatus(childSpan);

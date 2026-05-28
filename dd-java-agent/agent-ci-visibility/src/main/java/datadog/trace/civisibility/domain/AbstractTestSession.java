@@ -8,6 +8,7 @@ import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.IdGenerationStrategy;
 import datadog.trace.api.civisibility.CIConstants;
+import datadog.trace.api.civisibility.CIVisibilityEvent;
 import datadog.trace.api.civisibility.execution.TestStatus;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -40,7 +41,7 @@ import java.util.HashSet;
 import java.util.Set;
 import javax.annotation.Nullable;
 
-public abstract class AbstractTestSession {
+public abstract class AbstractTestSession implements CIVisibilityEvent {
 
   protected final Provider ciProvider;
   protected final InstrumentationType instrumentationType;
@@ -144,6 +145,7 @@ public abstract class AbstractTestSession {
     }
   }
 
+  @Override
   public void setTag(String key, Object value) {
     span.setTag(key, value);
   }

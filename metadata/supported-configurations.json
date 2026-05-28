@@ -777,6 +777,14 @@
         "aliases": []
       }
     ],
+    "DD_CIVISIBILITY_PROPAGATED_TAGS": [
+      {
+        "version": "A",
+        "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_CIVISIBILITY_REMOTE_ENV_VARS_PROVIDER_KEY": [
       {
         "version": "A",

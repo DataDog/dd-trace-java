@@ -26,6 +26,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import java.lang.reflect.Method;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -69,6 +70,7 @@ public class TestSuiteImpl implements DDTestSuite {
       @Nullable Long startTime,
       boolean parallelized,
       InstrumentationType instrumentationType,
+      Map<String, Object> inheritedTags,
       TestFrameworkInstrumentation instrumentation,
       Config config,
       CiVisibilityMetricCollector metricCollector,
@@ -133,6 +135,10 @@ public class TestSuiteImpl implements DDTestSuite {
 
     if (config.isCiVisibilitySourceDataEnabled()) {
       populateSourceDataTags(span, testClass, sourcePathResolver, codeowners);
+    }
+
+    if (!inheritedTags.isEmpty()) {
+      span.setAllTags(inheritedTags);
     }
 
     testDecorator.afterStart(span);
@@ -251,6 +257,8 @@ public class TestSuiteImpl implements DDTestSuite {
       @Nullable String testParameters,
       @Nullable Method testMethod,
       @Nullable Long startTime) {
+    Map<String, Object> testInheritedTags =
+        SpanTagsPropagator.snapshotTags(span, config.getCiVisibilityPropagatedTagKeys());
     return new TestImpl(
         moduleSpanContext,
         span.getSpanId(),
@@ -264,6 +272,7 @@ public class TestSuiteImpl implements DDTestSuite {
         testClass,
         testMethod,
         instrumentationType,
+        testInheritedTags,
         instrumentation,
         config,
         metricCollector,

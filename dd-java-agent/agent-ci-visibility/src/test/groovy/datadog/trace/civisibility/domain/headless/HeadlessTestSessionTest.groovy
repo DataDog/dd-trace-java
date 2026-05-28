@@ -20,7 +20,7 @@ class HeadlessTestSessionTest extends SpanWriterTest {
 
   def "test tags are propagated correctly"() {
     setup:
-    def session = givenAHeadlessTestSession()
+    def session = givenAHeadlessTestSession(Stub(Config))
     def module = session.testModuleStart("module-name", null)
 
     when:
@@ -43,17 +43,36 @@ class HeadlessTestSessionTest extends SpanWriterTest {
     })
   }
 
-  private HeadlessTestSession givenAHeadlessTestSession() {
+  def "session tags configured to propagate are inherited by modules"() {
+    setup:
+    def config = Stub(Config) {
+      getCiVisibilityPropagatedTagKeys() >> (["custom.tag"] as Set)
+    }
+    def session = givenAHeadlessTestSession(config)
+    session.setTag("custom.tag", "custom-value")
+    def module = session.testModuleStart("module-name", null)
+
+    when:
+    module.end(null)
+    session.end(null)
+
+    then:
+    def allSpans = TEST_WRITER.toList().flatten()
+    def moduleSpan = allSpans.find { it.spanType == DDSpanTypes.TEST_MODULE_END }
+    moduleSpan.tags["custom.tag"] == "custom-value"
+  }
+
+  private HeadlessTestSession givenAHeadlessTestSession(Config config) {
     def executionSettings = Stub(ExecutionSettings)
     executionSettings.getTestManagementSettings() >> new TestManagementSettings(true, 10)
 
-    def executionStrategy = new ExecutionStrategy(Stub(Config), executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
+    def executionStrategy = new ExecutionStrategy(config, executionSettings, Stub(SourcePathResolver), Stub(LinesResolver))
 
     new HeadlessTestSession(
       "project-name",
       null,
       Provider.UNSUPPORTED,
-      Stub(Config),
+      config,
       Stub(CiVisibilityMetricCollector),
       Stub(TestDecorator),
       Stub(SourcePathResolver),

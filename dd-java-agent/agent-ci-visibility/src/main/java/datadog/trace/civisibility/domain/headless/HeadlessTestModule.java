@@ -2,6 +2,7 @@ package datadog.trace.civisibility.domain.headless;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.civisibility.CIVisibility;
 import datadog.trace.api.civisibility.config.LibraryCapability;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestSourceData;
@@ -21,6 +22,7 @@ import datadog.trace.civisibility.config.TestManagementSettings;
 import datadog.trace.civisibility.decorator.TestDecorator;
 import datadog.trace.civisibility.domain.AbstractTestModule;
 import datadog.trace.civisibility.domain.InstrumentationType;
+import datadog.trace.civisibility.domain.SpanTagsPropagator;
 import datadog.trace.civisibility.domain.TestFrameworkModule;
 import datadog.trace.civisibility.domain.TestSuiteImpl;
 import datadog.trace.civisibility.source.LinesResolver;
@@ -28,6 +30,7 @@ import datadog.trace.civisibility.source.SourcePathResolver;
 import datadog.trace.civisibility.test.ExecutionResults;
 import datadog.trace.civisibility.test.ExecutionStrategy;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Consumer;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
@@ -50,6 +53,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       AgentSpanContext sessionSpanContext,
       String moduleName,
       @Nullable Long startTime,
+      Map<String, Object> inheritedTags,
       Config config,
       CiVisibilityMetricCollector metricCollector,
       TestDecorator testDecorator,
@@ -65,6 +69,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         moduleName,
         startTime,
         InstrumentationType.HEADLESS,
+        inheritedTags,
         config,
         metricCollector,
         testDecorator,
@@ -76,6 +81,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
     this.executionStrategy = executionStrategy;
     this.executionResults = new ExecutionResults();
     this.capabilities = capabilities;
+
+    CIVisibility.registerActiveTestModule(this);
   }
 
   @Override
@@ -159,7 +166,11 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       setTag(DDTags.TEST_HAS_FAILED_TEST_REPLAY, true);
     }
 
-    super.end(endTime);
+    try {
+      super.end(endTime);
+    } finally {
+      CIVisibility.registerActiveTestModule(null);
+    }
   }
 
   @Override
@@ -169,6 +180,8 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
       @Nullable Long startTime,
       boolean parallelized,
       TestFrameworkInstrumentation instrumentation) {
+    Map<String, Object> suiteInheritedTags =
+        SpanTagsPropagator.snapshotTags(span, config.getCiVisibilityPropagatedTagKeys());
     return new TestSuiteImpl(
         span.context(),
         moduleName,
@@ -179,6 +192,7 @@ public class HeadlessTestModule extends AbstractTestModule implements TestFramew
         startTime,
         parallelized,
         InstrumentationType.HEADLESS,
+        suiteInheritedTags,
         instrumentation,
         config,
         metricCollector,
