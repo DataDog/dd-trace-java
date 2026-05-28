@@ -10,6 +10,7 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_MECHANISM_TAG;
 import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -33,6 +34,7 @@ import datadog.trace.common.sampling.RateByServiceTraceSampler;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
+import datadog.trace.core.util.TestThrowables;
 import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Field;
@@ -445,6 +447,39 @@ public class DDSpanTest extends DDCoreJavaSpecification {
     span.addThrowable(null);
     assertFalse(span.isError());
     assertNull(span.getTag(DDTags.ERROR_STACK));
+  }
+
+  @Test
+  void addThrowableDoesNotFailWhenGetMessageThrows() {
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
+
+    span.addThrowable(TestThrowables.throwingGetMessage());
+
+    assertTrue(span.isError());
+    assertNotNull(span.getTag(DDTags.ERROR_TYPE));
+    assertNotNull(
+        span.getTag(DDTags.ERROR_STACK),
+        "stack trace must be captured even when getMessage() throws");
+    assertTrue(((String) span.getTag(DDTags.ERROR_MSG)).contains("Exception message unavailable"));
+  }
+
+  @Test
+  void addThrowableDoesNotFailWhenGetCauseMessageThrows() {
+    // Outer exception has a normal message, so the broken-pipe check reaches
+    // getCause().getMessage()
+    RuntimeException error =
+        new RuntimeException("outer message", TestThrowables.throwingGetMessage());
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "root").start();
+
+    span.addThrowable(error);
+
+    assertTrue(span.isError());
+    assertNotNull(span.getTag(DDTags.ERROR_TYPE));
+    assertNotNull(
+        span.getTag(DDTags.ERROR_STACK),
+        "stack trace must be captured even when cause's getMessage() throws");
+    // Outer getMessage() works normally — message must be recorded
+    assertEquals("outer message", span.getTag(DDTags.ERROR_MSG));
   }
 
   @TableTest({

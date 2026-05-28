@@ -1,6 +1,7 @@
 package datadog.trace.civisibility.config;
 
 import datadog.trace.api.civisibility.config.TestFQN;
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
 import java.io.IOException;
 import java.util.Collection;
 import java.util.Collections;

@@ -46,6 +46,27 @@ public final class AggregateMetric {
     return this;
   }
 
+  /**
+   * Records a single hit. {@code tagAndDuration} carries the duration nanos with optional {@link
+   * #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits OR-ed in.
+   */
+  public AggregateMetric recordOneDuration(long tagAndDuration) {
+    ++hitCount;
+    if ((tagAndDuration & TOP_LEVEL_TAG) == TOP_LEVEL_TAG) {
+      tagAndDuration ^= TOP_LEVEL_TAG;
+      ++topLevelCount;
+    }
+    if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
+      tagAndDuration ^= ERROR_TAG;
+      errorLatencies.accept(tagAndDuration);
+      ++errorCount;
+    } else {
+      okLatencies.accept(tagAndDuration);
+    }
+    duration += tagAndDuration;
+    return this;
+  }
+
   public int getErrorCount() {
     return errorCount;
   }
