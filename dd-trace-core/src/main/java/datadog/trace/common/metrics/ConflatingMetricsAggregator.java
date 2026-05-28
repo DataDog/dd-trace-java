@@ -72,7 +72,8 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   /**
    * Producer/consumer data channel: a {@link MpscRingBuffer} of pre-allocated, recyclable {@link
-   * SpanSnapshot} slots. Producers mutate slots in place via {@link #slotFiller} -- no per-publish
+   * SpanSnapshot} slots. {@link #publish(List)} claims a range of slots in one CAS via {@link
+   * MpscRingBuffer#tryClaimRange} and fills each in place via {@link #fillSlot} -- no per-publish
    * allocation.
    */
   private final MpscRingBuffer<SpanSnapshot> dataInbox;
