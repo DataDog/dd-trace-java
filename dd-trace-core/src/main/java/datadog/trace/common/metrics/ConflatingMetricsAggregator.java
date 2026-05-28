@@ -84,15 +84,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
    */
   private final MessagePassingQueue<SignalItem> signalInbox;
 
-  /**
-   * Slot filler captured as an instance field so the lambda is allocated once at construction. The
-   * method reference closes over {@code this}, but the field is per-aggregator so context lives in
-   * the {@code (CoreSpan, isTopLevel)} arguments passed by the producer at each call -- no
-   * per-publish capture.
-   */
-  private final datadog.trace.api.function.TriConsumer<CoreSpan<?>, Boolean, SpanSnapshot>
-      slotFiller = this::fillSlot;
-
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -297,12 +288,18 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       return false;
     }
 
+    // Indexed iteration (vs. enhanced-for) avoids per-call Iterator allocation. trace is
+    // typically an ArrayList-shaped structure (SpanList) so get(i) is O(1); even
+    // Collections.singletonList wins here because its iterator() allocates.
+    final int traceSize = trace.size();
+
     // First pass: count metrics-eligible spans, detect the ignored-resource short-circuit, and
     // compute forceKeep (any-error). Doing this pre-claim lets us claim the whole trace's slots
-    // in a single CAS instead of one per span.
+    // in a single CAS via tryClaimRange instead of one per span.
     boolean forceKeep = false;
     int eligibleCount = 0;
-    for (CoreSpan<?> span : trace) {
+    for (int i = 0; i < traceSize; i++) {
+      CoreSpan<?> span = trace.get(i);
       boolean isTopLevel = span.isTopLevel();
       if (shouldComputeMetric(span, isTopLevel)) {
         final CharSequence resourceName = span.getResourceName();
@@ -320,19 +317,28 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (eligibleCount > 0) {
       // All-or-nothing claim. If the ring can't fit the whole trace's worth of slots, we drop
       // all of them rather than partially publish -- partial-trace metrics would be misleading
-      // anyway, and atomic claim cuts producer-cursor contention from O(eligibleCount) to O(1).
-      final MpscRingBuffer<SpanSnapshot>.Batch batch = dataInbox.tryClaim(eligibleCount);
-      if (batch == null) {
+      // anyway, and the atomic range claim cuts producer-cursor contention from O(eligibleCount)
+      // CASes to one CAS per trace. Uses the low-level primitives so escape analysis isn't
+      // relied on to elide a per-publish Batch handle.
+      final long startSeq = dataInbox.tryClaimRange(eligibleCount);
+      if (startSeq < 0L) {
         healthMetrics.onStatsInboxFull();
       } else {
-        // Second pass: fill the claimed batch. Same filter conditions as the first pass.
-        for (CoreSpan<?> span : trace) {
+        // Second pass: fill each claimed slot. Same filter conditions as the first pass.
+        int filled = 0;
+        for (int i = 0; i < traceSize; i++) {
+          CoreSpan<?> span = trace.get(i);
           boolean isTopLevel = span.isTopLevel();
           if (shouldComputeMetric(span, isTopLevel)) {
-            batch.fillAndPublish(span, isTopLevel, slotFiller);
-            if (batch.remaining() == 0) {
-              // Stop early in the unusual case that the second pass would see more eligible
-              // spans than the first (e.g. if shouldComputeMetric changed semantics mid-trace).
+            long seq = startSeq + filled;
+            try {
+              fillSlot(span, isTopLevel, dataInbox.slotAt(seq));
+            } finally {
+              // Always publish so a throwing fillSlot can't strand the consumer; matches the
+              // try/finally publish-on-throw guarantee in MpscRingBuffer.tryWrite.
+              dataInbox.publish(seq);
+            }
+            if (++filled == eligibleCount) {
               break;
             }
           }
@@ -352,13 +358,12 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   }
 
   /**
-   * Producer-side slot fill. Runs inside {@link MpscRingBuffer#tryWrite} after the producer has
-   * claimed a sequence but before the slot is visible to the aggregator. Reads from {@code span}
-   * and instance state, writes every field on {@code slot} (including {@code null} where
-   * applicable) so stale values from a prior occupant of this slot don't bleed through.
+   * Producer-side slot fill. Called between a {@link MpscRingBuffer#tryClaimRange} and the matching
+   * {@link MpscRingBuffer#publish}: reads from {@code span} and instance state, writes every field
+   * on {@code slot} (including {@code null} where applicable) so stale values from a prior occupant
+   * of this slot don't bleed through.
    */
-  private void fillSlot(CoreSpan<?> span, Boolean isTopLevelBoxed, SpanSnapshot slot) {
-    final boolean isTopLevel = isTopLevelBoxed;
+  private void fillSlot(CoreSpan<?> span, boolean isTopLevel, SpanSnapshot slot) {
     final boolean error = span.getError() > 0;
 
     // Extract HTTP method and endpoint only if the feature is enabled.
