@@ -63,6 +63,7 @@
 /remote-config/                         @DataDog/apm-lang-platform-java
 /telemetry/                             @DataDog/apm-lang-platform-java
 /test-published-dependencies/           @DataDog/apm-lang-platform-java
+/repository.datadog.yaml                @DataDog/apm-lang-platform-java
 
 # @DataDog/asm-java (AppSec/IAST)
 /buildSrc/call-site-instrumentation-plugin/                     @DataDog/asm-java

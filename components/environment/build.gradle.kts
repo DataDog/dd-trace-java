@@ -5,6 +5,10 @@ plugins {
 
 apply(from = "$rootDir/gradle/java.gradle")
 
+dependencies {
+  compileOnly(project(":components:annotations"))
+}
+
 /*
  * Add an addition gradle configuration to be consumed by bootstrap only.
  * "datadog.trace." prefix is required to be excluded from Jacoco instrumentation.

@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.internal.VisibleForTesting;
+
 /**
  * Weak {@link ContextStore} that acts as a fall-back when field-injection isn't possible.
  *
@@ -85,7 +87,7 @@ final class WeakMapContextStore<K, V> implements ContextStore<K, V> {
     return (V) map.remove(key);
   }
 
-  // Package reachable for testing
+  @VisibleForTesting
   int size() {
     return map.size();
   }

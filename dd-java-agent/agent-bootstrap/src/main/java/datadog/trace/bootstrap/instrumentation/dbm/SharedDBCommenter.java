@@ -4,6 +4,7 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan
 
 import datadog.trace.api.BaseHash;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import java.io.UnsupportedEncodingException;
@@ -88,7 +89,7 @@ public class SharedDBCommenter {
     staticPrefixComputed = true;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   public static void resetStaticPrefixForTesting() {
     staticPrefixComputed = false;
   }

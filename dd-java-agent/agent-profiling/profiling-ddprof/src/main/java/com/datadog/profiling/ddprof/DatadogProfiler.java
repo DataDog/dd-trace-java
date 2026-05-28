@@ -38,6 +38,7 @@ import com.datadoghq.profiler.JavaProfiler;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
@@ -115,7 +116,7 @@ public final class DatadogProfiler {
     this(configProvider, getContextAttributes(configProvider));
   }
 
-  // visible for testing
+  @VisibleForTesting
   DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
