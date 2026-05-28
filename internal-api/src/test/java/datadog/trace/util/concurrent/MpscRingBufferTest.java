@@ -2,6 +2,7 @@ package datadog.trace.util.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -243,5 +244,36 @@ class MpscRingBufferTest {
     assertEquals(2, ring.size());
     ring.drain(s -> {});
     assertEquals(0, ring.size());
+  }
+
+  @Test
+  void throwingFillerStillPublishesSoConsumerDoesntHang() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 4);
+
+    // First write succeeds.
+    assertTrue(ring.tryWrite(s -> s.value = 1));
+
+    // Second write throws midway through filling. Slot must still be published so the consumer's
+    // drain can advance past it.
+    RuntimeException boom = new RuntimeException("boom");
+    RuntimeException thrown =
+        assertThrows(
+            RuntimeException.class,
+            () ->
+                ring.tryWrite(
+                    s -> {
+                      s.value = 2;
+                      throw boom;
+                    }));
+    assertSame(boom, thrown);
+
+    // Third write proves the ring's cursors are still healthy after the throw.
+    assertTrue(ring.tryWrite(s -> s.value = 3));
+
+    // Consumer drains all three: it must not hang on the partially-filled slot.
+    List<Integer> seen = new ArrayList<>();
+    int drained = ring.drain(s -> seen.add(s.value));
+    assertEquals(3, drained, "consumer must advance past the throwing slot");
+    assertEquals(Arrays.asList(1, 2, 3), seen, "throwing slot keeps whatever filler had written");
   }
 }
