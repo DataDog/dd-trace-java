@@ -31,6 +31,10 @@ if (hasProperty('agentJar')) {
   // evaluation time is equivalent to passing `-Dquarkus.native.additional-build-args=...`
   // on the gradle invocation, but keeps the agent jar path resolution inside this
   // script (where `agentJar` is forwarded by the outer smoke-test plugin).
+  //
+  // Note, however, the way these system properties are set in this nested project
+  // are not properly tracked by this nested gradle build cache, it needs to be tracked
+  // from the outside (see smokeTestApp).
   final agentJar = property('agentJar')
   System.setProperty(
     'quarkus.native.additional-build-args',

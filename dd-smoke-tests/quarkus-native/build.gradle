@@ -15,19 +15,13 @@ dependencies {
 }
 
 // Quarkus 3.12.1's native-image step requires at least Mandrel/GraalVM 23.1 (JDK 21-based)
-// and rejects the JDK-17 distribution with "You are using an older version of GraalVM or
-// Mandrel". Cap to a native-image-capable JDK 21+ launcher so unsupported slots skip at
-// the constraint layer rather than failing inside the nested build. Verified locally on
-// `graalvm21` and `graalvm25` — both produce a working native binary.
+// No `maxJavaVersion` as it currently runs on GraalVM25
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_21
   nativeImageCapable = true
 }
 
-// `quarkusNativeBuild` requires an explicit `-PtestJvm=graalvm21`. Parsed once, then used
-// both as the GRAALVM_HOME env var for the nested build (via `getLazyJavaHomeFor` — defers
-// toolchain provisioning + applies the native-image symlink fix) and to gate the native
-// build / test compile tasks so they skip gracefully when no supported GraalVM was selected.
+// The following makes `quarkusNativeBuild` only run when Gradle is passed `-PtestJvm=graalvm21` or later.
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
@@ -71,10 +65,12 @@ tasks.named('compileTestGroovy', GroovyCompile) {
 tasks.withType(Test).configureEach {
   // Skip when no supported GraalVM was selected — `testJvmConstraints` only checks for a
   // native-image-capable launcher, so a daemon JVM that happens to be GraalVM 21 would
-  // otherwise let the Test task run against stale or missing artifacts.
+  // Keep the tests tied to the explicit GraalVM selection used to build the native
+  // executable. Without this, `testJvmConstraints` may allow the `Test` task when the
+  // daemon itself is native-image capable, even though `quarkusNativeBuild` was skipped.
   onlyIf("Requires -PtestJvm=graalvm<N> (N >= 21)") { isSupportedGraalvm }
-  // These smoke tests don't need to be launched from the test, since what is exercised is a native binary
-  // This resets the launcher to the daemon JDK
+  // The test JVM is only a harness that starts the native executable, so run it with
+  // the default project toolchain instead of the selected GraalVM.
   javaLauncher = javaToolchains.launcherFor(java.toolchain)
   jvmArgs "-Ddd.profiling.enabled=true"
 }

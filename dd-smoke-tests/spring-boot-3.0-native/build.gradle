@@ -14,27 +14,24 @@ dependencies {
   testImplementation libs.bundles.jmc
 }
 
-// Spring Boot 3.0's Gradle plugin (and its bundled ASM) can only parse class files up to
-// Java 21 (major 65). Cap the range at 21 so newer GraalVM distributions are skipped at the
-// constraint level rather than failing inside the nested build.
+// The nested build compiles the application with `--release 17`, so Spring Boot 3.0's
+// build-time classpath scanners don't see class files from the selected GraalVM release.
 testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
-  maxJavaVersion = JavaVersion.VERSION_21
   nativeImageCapable = true
 }
 
-// `springNativeBuild` requires an explicit `-PtestJvm=graalvm<N>` with N in [17, 21]. Parsed
-// once, then used both as the GRAALVM_HOME env var for the nested build (via
-// `getLazyJavaHomeFor` — defers toolchain provisioning + applies the native-image symlink fix)
-// and to gate the native build / test compile tasks so they skip gracefully when no
-// supported GraalVM was selected.
+// The following makes `springNativeBuild` only run when Gradle is passed `-PtestJvm=graalvm17` or later.
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
 def isSupportedGraalvm = testGraalvmVersion in 17..21
 Provider<String> graalvmHome = providers.provider({
   if (!isSupportedGraalvm) {
-    throw new GradleException("Set -PtestJvm=graalvm<N> (N in [17, 21]) to build the native image for this smoke test.")
+def isSupportedGraalvm = testGraalvmVersion >= 17
+Provider<String> graalvmHome = providers.provider({
+  if (!isSupportedGraalvm) {
+    throw new GradleException("Set -PtestJvm=graalvm<N> (N >= 17) to build the native image for this smoke test.")
   }
   getLazyJavaHomeFor(testGraalvmVersion, true).toString()
 } as Callable<String>)
@@ -56,7 +53,7 @@ smokeTestApp {
 
 tasks.named('springNativeBuild') {
   // spring-boot native 3.0 don't work on later JVM feature version
-  onlyIf("Requires -PtestJvm=graalvm<N> (N in [17, 21])") { isSupportedGraalvm }
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 17)") { isSupportedGraalvm }
 }
 
 tasks.named('compileTestGroovy', GroovyCompile) {
@@ -68,12 +65,12 @@ tasks.named('compileTestGroovy', GroovyCompile) {
 }
 
 tasks.withType(Test).configureEach {
-  // Skip when no supported GraalVM was selected — `testJvmConstraints` only checks for a
-  // native-image-capable launcher, so a daemon JVM that happens to be GraalVM 21 would
-  // otherwise let the Test task run against stale or missing artifacts.
-  onlyIf("Requires -PtestJvm=graalvm<N> (N in [17, 21])") { isSupportedGraalvm }
-  // These smoke tests don't need to be launched from the test, since what is exercised is a native binary
-  // This resets the launcher to the daemon JDK
+  // Keep the tests tied to the explicit GraalVM selection used to build the native
+  // executable. Without this, `testJvmConstraints` may allow the Test task when the
+  // daemon itself is native-image capable, even though `springNativeBuild` was skipped.
+  onlyIf("Requires -PtestJvm=graalvm<N> (N >= 17)") { isSupportedGraalvm }
+  // The test JVM is only a harness that starts the native executable, so run it with
+  // the default project toolchain instead of the selected GraalVM.
   javaLauncher = javaToolchains.launcherFor(java.toolchain)
   jvmArgs "-Ddd.profiling.enabled=true"
 }
