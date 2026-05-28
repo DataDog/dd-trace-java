@@ -371,8 +371,56 @@ public final class MpscRingBuffer<T> extends MpscRingBufferPad2 {
     }
   }
 
-  /** Mark sequence {@code seq} as published. Release semantics via {@link AtomicLongArray#set}. */
-  private void publish(final long seq) {
+  // ============ Low-level primitives ============
+  //
+  // These three methods (tryClaimRange / slotAt / publish) expose the producer-side machinery
+  // directly. Callers manage the claimed sequence range themselves -- no per-call handle
+  // allocated, no callback dispatched. This is intended for hot paths where the higher-level
+  // tryWrite/tryClaim+Batch APIs would allocate per call (Iterator on the iterable being
+  // batched, or the Batch object itself) that escape analysis doesn't eliminate.
+  //
+  // Misuse hazards: every claimed sequence MUST be published exactly once; sequences must be
+  // published in [start, start+n) range only; the slot returned by slotAt() must not escape past
+  // the next publish() of any sequence (the producer "owns" the slot until publish).
+
+  /**
+   * Try to claim a contiguous range of {@code n} sequences in a single CAS. Returns the
+   * <i>start</i> sequence on success (a non-negative long) or {@code -1L} if the ring doesn't have
+   * room for the whole batch. The caller must publish each sequence in {@code [start, start + n)}
+   * exactly once via {@link #publish(long)}.
+   *
+   * @throws IllegalArgumentException if {@code n &lt; 1}
+   */
+  public long tryClaimRange(final int n) {
+    if (n < 1) {
+      throw new IllegalArgumentException("n must be >= 1, got " + n);
+    }
+    while (true) {
+      final long current = producerCursor;
+      final long consumed = consumerCursor;
+      final long next = current + n;
+      if (next - consumed > capacity) {
+        return -1L;
+      }
+      if (PRODUCER_CURSOR.compareAndSet(this, current, next)) {
+        return current + 1L;
+      }
+    }
+  }
+
+  /**
+   * Slot for sequence {@code seq}. Only safe when {@code seq} is in a range currently owned by the
+   * caller (claimed via {@link #tryClaimRange} and not yet published).
+   */
+  public T slotAt(final long seq) {
+    return slots[(int) (seq & mask)];
+  }
+
+  /**
+   * Publish sequence {@code seq}, making the slot at {@code slotAt(seq)} visible to the consumer.
+   * Release semantics via {@link AtomicLongArray#set}.
+   */
+  public void publish(final long seq) {
     publishedSequences.set(((int) (seq & mask)) * CACHE_LINE_LONGS, seq);
   }
 
