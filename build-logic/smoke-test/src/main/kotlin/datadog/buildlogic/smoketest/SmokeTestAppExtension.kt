@@ -98,6 +98,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
         environment.set(spec.environment)
+        buildCacheEnabled.set(spec.buildCacheEnabled)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
@@ -182,6 +183,11 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
 /** DSL describing the nested-build invocation for one smoke-test application. */
 abstract class ApplicationSpec @Inject constructor() {
+
+  init {
+    buildCacheEnabled.convention(false)
+  }
+
   /** Outer task name; the nested daemon runs the same task by default. */
   abstract val taskName: Property<String>
 
@@ -210,6 +216,17 @@ abstract class ApplicationSpec @Inject constructor() {
    * than the single primary artifact path (e.g. a separately unpacked server install).
    */
   abstract val additionalSystemProperties: MapProperty<String, String>
+
+  /**
+   * Whether to enable the build cache in the nested Gradle invocation. 
+   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
+   * init, gradle user home, environment, command line) and any of them silently 
+   * enables the build cache for nested builds. For this reasons it defaults to `false`.
+   * Opt in only when the inner plugin chain keys its cached outputs on everything that
+   * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
+   * `--build-cache` / `--no-build-cache` is passed explicitly either way.
+   */
+  abstract val buildCacheEnabled: Property<Boolean>
 }
 
 /**

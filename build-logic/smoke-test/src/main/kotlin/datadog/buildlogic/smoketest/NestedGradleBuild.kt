@@ -52,6 +52,7 @@ abstract class NestedGradleBuild @Inject constructor(
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
       },
     )
+    buildCacheEnabled.convention(false)
   }
 
   @get:Internal
@@ -76,6 +77,18 @@ abstract class NestedGradleBuild @Inject constructor(
 
   @get:Input
   abstract val buildArguments: ListProperty<String>
+
+  /**
+   * Whether to enable the build cache in the nested Gradle invocation.
+   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
+   * init, gradle user home, environment, command line) and any of them silently 
+   * enables the build cache for nested builds. For this reasons it defaults to `false`.
+   * Opt in only when the inner plugin chain keys its cached outputs on everything that
+   * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
+   * `--build-cache` / `--no-build-cache` is passed explicitly either way.
+   */
+  @get:Input
+  abstract val buildCacheEnabled: Property<Boolean>
 
   /**
    * Extra environment variables for the nested Gradle daemon. Merged on top of the outer
@@ -115,6 +128,7 @@ abstract class NestedGradleBuild @Inject constructor(
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
 
     val args = buildList {
+      add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
       projectJars.get().forEach { entry ->
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
