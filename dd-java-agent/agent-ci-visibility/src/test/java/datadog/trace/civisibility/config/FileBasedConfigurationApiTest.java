@@ -9,6 +9,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
 import freemarker.template.Configuration;
 import freemarker.template.Template;
 import java.io.IOException;

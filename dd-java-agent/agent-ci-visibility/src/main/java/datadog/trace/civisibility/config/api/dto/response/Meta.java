@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.config;
+package datadog.trace.civisibility.config.api.dto.response;
 
 import com.squareup.moshi.FromJson;
 import com.squareup.moshi.ToJson;
@@ -9,23 +9,23 @@ import java.util.HashMap;
 import java.util.Map;
 import javax.annotation.Nullable;
 
-final class MetaDto {
+public final class Meta {
 
-  @Nullable final String correlationId;
-  @Nullable final Map<String, BitSet> coverage;
+  @Nullable public final String correlationId;
+  @Nullable public final Map<String, BitSet> coverage;
 
-  MetaDto(@Nullable String correlationId, @Nullable Map<String, BitSet> coverage) {
+  public Meta(@Nullable String correlationId, @Nullable Map<String, BitSet> coverage) {
     this.correlationId = correlationId;
     this.coverage = coverage;
   }
 
-  static final class JsonAdapter {
+  public static final class JsonAdapter {
 
-    static final JsonAdapter INSTANCE = new JsonAdapter();
+    public static final JsonAdapter INSTANCE = new JsonAdapter();
 
     @SuppressWarnings("unchecked")
     @FromJson
-    public MetaDto fromJson(Map<String, Object> json) {
+    public Meta fromJson(Map<String, Object> json) {
       if (json == null) {
         return null;
       }
@@ -47,11 +47,11 @@ final class MetaDto {
         coverage = null;
       }
 
-      return new MetaDto((String) json.get("correlation_id"), coverage);
+      return new Meta((String) json.get("correlation_id"), coverage);
     }
 
     @ToJson
-    public Map<String, Object> toJson(MetaDto metaDto) {
+    public Map<String, Object> toJson(Meta meta) {
       throw new UnsupportedOperationException();
     }
   }
