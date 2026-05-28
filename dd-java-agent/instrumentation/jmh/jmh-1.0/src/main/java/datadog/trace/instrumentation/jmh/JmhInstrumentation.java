@@ -20,7 +20,10 @@ public class JmhInstrumentation extends InstrumenterModule.CiVisibility
 
   @Override
   public String instrumentedType() {
-    return "org.openjdk.jmh.runner.Runner";
+    // Instrument BaseRunner (where the 'out' field is declared) so that the final-field write
+    // in RunnerConstructorAdvice is legal: JDK 17+ rejects writing a final field declared in a
+    // superclass from advice injected into the subclass (Runner).
+    return "org.openjdk.jmh.runner.BaseRunner";
   }
 
   @Override
@@ -46,13 +49,12 @@ public class JmhInstrumentation extends InstrumenterModule.CiVisibility
       if (out instanceof DDOutputFormat) {
         return;
       }
-      String version;
+      String version = null;
       try {
         version = org.openjdk.jmh.Main.class.getPackage().getImplementationVersion();
-      } catch (Throwable t) {
-        version = null;
+      } catch (Throwable ignored) {
       }
-      out = new DDOutputFormat(out, version != null ? version : "unknown");
+      out = new DDOutputFormat(out, version);
     }
   }
 }
