@@ -10,8 +10,4 @@ public final class Data<T> {
     this.type = type;
     this.attributes = attributes;
   }
-
-  public T getAttributes() {
-    return attributes;
-  }
 }

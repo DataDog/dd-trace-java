@@ -5,10 +5,7 @@ import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
 import datadog.communication.BackendApi;
 import datadog.communication.http.OkHttpUtils;
-import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.TestFQN;
-import datadog.trace.api.civisibility.config.TestIdentifier;
-import datadog.trace.api.civisibility.config.TestMetadata;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityCountMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityDistributionMetric;
 import datadog.trace.api.civisibility.telemetry.CiVisibilityMetricCollector;
@@ -23,6 +20,7 @@ import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import datadog.trace.civisibility.config.api.dto.ConfigurationApiMoshi;
 import datadog.trace.civisibility.config.api.dto.Data;
 import datadog.trace.civisibility.config.api.dto.Envelope;
 import datadog.trace.civisibility.config.api.dto.MultiEnvelope;
@@ -30,17 +28,13 @@ import datadog.trace.civisibility.config.api.dto.request.KnownTestsRequest;
 import datadog.trace.civisibility.config.api.dto.request.TestManagementRequest;
 import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
 import datadog.trace.civisibility.config.api.dto.response.KnownTestsResponse;
-import datadog.trace.civisibility.config.api.dto.response.Meta;
 import datadog.trace.civisibility.config.api.dto.response.TestIdentifierJson;
 import datadog.trace.civisibility.config.api.dto.response.TestManagementTestsResponse;
 import datadog.trace.util.RandomUtils;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
-import java.util.BitSet;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
@@ -88,41 +82,23 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     this.metricCollector = metricCollector;
     this.uuidGenerator = uuidGenerator;
 
-    Moshi moshi =
-        new Moshi.Builder()
-            .add(ConfigurationsJsonAdapter.INSTANCE)
-            .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
-            .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
-            .add(Meta.JsonAdapter.INSTANCE)
-            .build();
+    Moshi moshi = ConfigurationApiMoshi.create();
+    requestAdapter = moshi.adapter(envelopeOf(TracerEnvironment.class));
+    settingsResponseAdapter = moshi.adapter(envelopeOf(CiVisibilitySettings.class));
+    testIdentifiersResponseAdapter = moshi.adapter(multiEnvelopeOf(TestIdentifierJson.class));
+    knownTestsRequestAdapter = moshi.adapter(envelopeOf(KnownTestsRequest.class));
+    testFullNamesResponseAdapter = moshi.adapter(envelopeOf(KnownTestsResponse.class));
+    testManagementRequestAdapter = moshi.adapter(envelopeOf(TestManagementRequest.class));
+    testManagementTestsResponseAdapter =
+        moshi.adapter(envelopeOf(TestManagementTestsResponse.class));
+  }
 
-    ParameterizedType requestType =
-        Types.newParameterizedType(Envelope.class, TracerEnvironment.class);
-    requestAdapter = moshi.adapter(requestType);
+  private static ParameterizedType envelopeOf(Class<?> attributesType) {
+    return Types.newParameterizedType(Envelope.class, attributesType);
+  }
 
-    ParameterizedType settingsResponseType =
-        Types.newParameterizedType(Envelope.class, CiVisibilitySettings.class);
-    settingsResponseAdapter = moshi.adapter(settingsResponseType);
-
-    ParameterizedType testIdentifiersResponseType =
-        Types.newParameterizedType(MultiEnvelope.class, TestIdentifierJson.class);
-    testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
-
-    ParameterizedType knownTestsRequestType =
-        Types.newParameterizedType(Envelope.class, KnownTestsRequest.class);
-    knownTestsRequestAdapter = moshi.adapter(knownTestsRequestType);
-
-    ParameterizedType testFullNamesResponseType =
-        Types.newParameterizedType(Envelope.class, KnownTestsResponse.class);
-    testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
-
-    ParameterizedType testManagementRequestType =
-        Types.newParameterizedType(Envelope.class, TestManagementRequest.class);
-    testManagementRequestAdapter = moshi.adapter(testManagementRequestType);
-
-    ParameterizedType testManagementTestsResponseType =
-        Types.newParameterizedType(Envelope.class, TestManagementTestsResponse.class);
-    testManagementTestsResponseAdapter = moshi.adapter(testManagementTestsResponseType);
+  private static ParameterizedType multiEnvelopeOf(Class<?> attributesType) {
+    return Types.newParameterizedType(MultiEnvelope.class, attributesType);
   }
 
   @Override
@@ -191,29 +167,10 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             telemetryListener,
             false);
 
-    Configurations requestConf = tracerEnvironment.getConfigurations();
-
-    Map<String, Map<TestIdentifier, TestMetadata>> testIdentifiersByModule = new HashMap<>();
-    for (Data<TestIdentifierJson> dataDto : response.data) {
-      TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
-      Configurations conf = testIdentifierJson.getConfigurations();
-      String moduleName =
-          (conf != null && conf.getTestBundle() != null ? conf : requestConf).getTestBundle();
-      testIdentifiersByModule
-          .computeIfAbsent(moduleName, k -> new HashMap<>())
-          .put(testIdentifierJson.toTestIdentifier(), testIdentifierJson.toTestMetadata());
-    }
-
     metricCollector.add(
         CiVisibilityCountMetric.ITR_SKIPPABLE_TESTS_RESPONSE_TESTS, response.data.size());
 
-    String correlationId = response.meta != null ? response.meta.correlationId : null;
-    Map<String, BitSet> coveredLinesByRelativeSourcePath =
-        response.meta != null && response.meta.coverage != null
-            ? response.meta.coverage
-            : Collections.emptyMap();
-    return new SkippableTests(
-        correlationId, testIdentifiersByModule, coveredLinesByRelativeSourcePath);
+    return SkippableTests.from(response, tracerEnvironment);
   }
 
   @Override
@@ -242,23 +199,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     LOGGER.debug("Received {} flaky tests in total", response.size());
 
-    Configurations requestConf = tracerEnvironment.getConfigurations();
-
-    int flakyTestsCount = 0;
-    Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
-    for (Data<TestIdentifierJson> dataDto : response) {
-      TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
-      Configurations conf = testIdentifierJson.getConfigurations();
-      String moduleName =
-          (conf != null && conf.getTestBundle() != null ? conf : requestConf).getTestBundle();
-      testIdentifiers
-          .computeIfAbsent(moduleName, k -> new HashSet<>())
-          .add(testIdentifierJson.toTestIdentifier().toFQN());
-      flakyTestsCount++;
-    }
-
+    Map<String, Collection<TestFQN>> testsByModule =
+        TestIdentifierJson.toTestFQNsByModule(response, tracerEnvironment);
+    int flakyTestsCount = testsByModule.values().stream().mapToInt(Collection::size).sum();
     metricCollector.add(CiVisibilityDistributionMetric.FLAKY_TESTS_RESPONSE_TESTS, flakyTestsCount);
-    return testIdentifiers;
+    return testsByModule;
   }
 
   @Nullable
@@ -299,7 +244,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
               telemetryListener,
               false);
 
-      // Merge page's tests into aggregate
       mergeKnownTests(aggregateTests, knownTests.tests);
 
       Integer pageSize = knownTests.getPageSize();
@@ -309,17 +253,22 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         LOGGER.debug("Received page #{} for known tests", pageNumber);
       }
 
-      // Get cursor for next page (if any)
-      if (knownTests.hasNextPage()) {
-        pageState = knownTests.getNextPageCursor();
-      } else {
-        pageState = null;
-      }
+      pageState = knownTests.hasNextPage() ? knownTests.getNextPageCursor() : null;
     } while (pageState != null);
 
     LOGGER.debug("Finished fetching known tests after {} page(s)", pageNumber);
 
-    return parseTestIdentifiers(aggregateTests);
+    Map<String, Collection<TestFQN>> testsByModule =
+        KnownTestsResponse.toTestFQNsByModule(aggregateTests);
+    int knownTestsCount =
+        testsByModule != null
+            ? testsByModule.values().stream().mapToInt(Collection::size).sum()
+            : 0;
+    LOGGER.debug("Received {} known tests in total", knownTestsCount);
+    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
+    // returning null disables features that rely on known tests; this is intentional on the very
+    // first execution for a repository, when we want to seed the backend with the initial set.
+    return testsByModule;
   }
 
   private void mergeKnownTests(
@@ -350,40 +299,6 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     }
   }
 
-  private Map<String, Collection<TestFQN>> parseTestIdentifiers(
-      Map<String, Map<String, List<String>>> testsMap) {
-    int knownTestsCount = 0;
-
-    Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
-    for (Map.Entry<String, Map<String, List<String>>> e : testsMap.entrySet()) {
-      String moduleName = e.getKey();
-      Map<String, List<String>> testsBySuiteName = e.getValue();
-
-      for (Map.Entry<String, List<String>> se : testsBySuiteName.entrySet()) {
-        String suiteName = se.getKey();
-        List<String> testNames = se.getValue();
-        knownTestsCount += testNames.size();
-
-        for (String testName : testNames) {
-          testIdentifiers
-              .computeIfAbsent(moduleName, k -> new HashSet<>())
-              .add(new TestFQN(suiteName, testName));
-        }
-      }
-    }
-
-    LOGGER.debug("Received {} known tests in total", knownTestsCount);
-    metricCollector.add(CiVisibilityDistributionMetric.KNOWN_TESTS_RESPONSE_TESTS, knownTestsCount);
-    return knownTestsCount > 0
-        ? testIdentifiers
-        // returning null if there are no known tests:
-        // this will disable the features that are reliant on known tests
-        // and is done on purpose:
-        // if no tests are known, this is likely the first execution for this repository,
-        // and we want to fill the backend with the initial set of tests
-        : null;
-  }
-
   @Override
   public Map<TestSetting, Map<String, Collection<TestFQN>>> getTestManagementTestsByModule(
       TracerEnvironment tracerEnvironment, String commitSha, String commitMessage)
@@ -410,7 +325,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                     tracerEnvironment.getBranch())));
     String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    TestManagementTestsResponse testManagementTestsResponse =
+    TestManagementTestsResponse response =
         backendApi.post(
             TEST_MANAGEMENT_TESTS_URI,
             requestBody,
@@ -421,60 +336,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             telemetryListener,
             false);
 
-    return parseTestManagementTests(testManagementTestsResponse);
-  }
-
-  private Map<TestSetting, Map<String, Collection<TestFQN>>> parseTestManagementTests(
-      TestManagementTestsResponse testsManagementTestsResponse) {
-    int testManagementTestsCount = 0;
-
-    Map<String, Collection<TestFQN>> quarantinedTestsByModule = new HashMap<>();
-    Map<String, Collection<TestFQN>> disabledTestsByModule = new HashMap<>();
-    Map<String, Collection<TestFQN>> attemptToFixTestsByModule = new HashMap<>();
-
-    for (Map.Entry<String, TestManagementTestsResponse.Suites> e :
-        testsManagementTestsResponse.getModules().entrySet()) {
-      String moduleName = e.getKey();
-      Map<String, TestManagementTestsResponse.Tests> testsBySuiteName = e.getValue().getSuites();
-
-      for (Map.Entry<String, TestManagementTestsResponse.Tests> se : testsBySuiteName.entrySet()) {
-        String suiteName = se.getKey();
-        Map<String, TestManagementTestsResponse.Properties> tests = se.getValue().getTests();
-
-        testManagementTestsCount += tests.size();
-
-        for (Map.Entry<String, TestManagementTestsResponse.Properties> te : tests.entrySet()) {
-          String testName = te.getKey();
-          TestManagementTestsResponse.Properties properties = te.getValue();
-          if (properties.isQuarantined()) {
-            quarantinedTestsByModule
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestFQN(suiteName, testName));
-          }
-          if (properties.isDisabled()) {
-            disabledTestsByModule
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestFQN(suiteName, testName));
-          }
-          if (properties.isAttemptToFix()) {
-            attemptToFixTestsByModule
-                .computeIfAbsent(moduleName, k -> new HashSet<>())
-                .add(new TestFQN(suiteName, testName));
-          }
-        }
-      }
-    }
-
-    Map<TestSetting, Map<String, Collection<TestFQN>>> testsByTypeByModule = new HashMap<>();
-    testsByTypeByModule.put(TestSetting.QUARANTINED, quarantinedTestsByModule);
-    testsByTypeByModule.put(TestSetting.DISABLED, disabledTestsByModule);
-    testsByTypeByModule.put(TestSetting.ATTEMPT_TO_FIX, attemptToFixTestsByModule);
-
-    LOGGER.debug("Received {} test management tests in total", testManagementTestsCount);
+    int testsCount = response.totalTestsCount();
+    LOGGER.debug("Received {} test management tests in total", testsCount);
     metricCollector.add(
-        CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_TESTS,
-        testManagementTestsCount);
+        CiVisibilityDistributionMetric.TEST_MANAGEMENT_TESTS_RESPONSE_TESTS, testsCount);
 
-    return testsByTypeByModule;
+    return response.toTestFQNsBySetting();
   }
 }
