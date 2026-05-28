@@ -383,6 +383,63 @@ class MpscRingBufferTest {
     assertEquals(Arrays.asList(1, 2, 3), seen);
   }
 
+  // ============ Low-level primitives (tryClaimRange / slotAt / publish) ============
+
+  @Test
+  void tryClaimRangeReturnsStartSequence() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    long start1 = ring.tryClaimRange(3);
+    long start2 = ring.tryClaimRange(2);
+
+    assertEquals(0L, start1, "first range starts at sequence 0");
+    assertEquals(3L, start2, "second range begins immediately after the first");
+  }
+
+  @Test
+  void tryClaimRangeRejectsZeroOrNegative() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    assertThrows(IllegalArgumentException.class, () -> ring.tryClaimRange(0));
+    assertThrows(IllegalArgumentException.class, () -> ring.tryClaimRange(-1));
+  }
+
+  @Test
+  void tryClaimRangeReturnsMinusOneWhenFull() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 4);
+    assertTrue(ring.tryClaimRange(3) >= 0);
+    assertEquals(-1L, ring.tryClaimRange(2), "all-or-nothing");
+    assertTrue(ring.tryClaimRange(1) >= 0);
+    assertEquals(-1L, ring.tryClaimRange(1));
+  }
+
+  @Test
+  void slotAtAndPublishRoundTrip() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    long start = ring.tryClaimRange(3);
+    assertTrue(start >= 0);
+
+    for (int i = 0; i < 3; i++) {
+      long seq = start + i;
+      Slot slot = ring.slotAt(seq);
+      slot.value = (int) (seq + 100);
+      ring.publish(seq);
+    }
+
+    List<Integer> seen = new ArrayList<>();
+    int drained = ring.drain(s -> seen.add(s.value));
+    assertEquals(3, drained);
+    assertEquals(Arrays.asList(100, 101, 102), seen);
+  }
+
+  @Test
+  void slotAtReturnsSameInstanceForSameModuloPosition() {
+    // After publish+drain wraps around, the slot at sequence N and sequence N+capacity are the
+    // same physical object (this is the whole point of the ring).
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 4);
+    Slot firstSlot = ring.slotAt(0L);
+    Slot wrappedSlot = ring.slotAt(4L); // 4 & mask(3) == 0
+    assertSame(firstSlot, wrappedSlot);
+  }
+
   @Test
   void concurrentBatchClaimsAreOrderedAndDontInterleave() throws InterruptedException {
     final int producers = 8;
