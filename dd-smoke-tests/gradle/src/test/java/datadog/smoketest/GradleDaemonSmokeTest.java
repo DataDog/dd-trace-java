@@ -22,6 +22,7 @@ import org.gradle.testkit.runner.BuildResult;
 import org.gradle.testkit.runner.BuildTask;
 import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
+import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
 import org.gradle.util.internal.DistributionLocator;
 import org.gradle.wrapper.Download;
@@ -147,6 +148,17 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     return "latest".equals(gradleVersion) ? LATEST_GRADLE_VERSION : gradleVersion;
   }
 
+  private static void givenGradleVersionIsSupportedByCurrentGradleTestKit(String gradleVersion) {
+    // These smoke tests cover the earliest legacy Gradle version that the current Gradle
+    // TestKit can still run. When Gradle raises TestKit's minimum supported version, older
+    // rows are skipped as a best-effort compatibility boundary rather than a product signal.
+    Assumptions.assumeTrue(
+        GradleVersion.version(gradleVersion)
+                .compareTo(DefaultGradleConnector.MINIMUM_SUPPORTED_GRADLE_VERSION)
+            >= 0,
+        "Current Gradle TestKit does not support Gradle version " + gradleVersion);
+  }
+
   private void runGradleTest(
       String gradleVersion,
       String projectName,
@@ -157,6 +169,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       int expectedCoverages)
       throws IOException {
     givenGradleVersionIsCompatibleWithCurrentJvm(gradleVersion);
+    givenGradleVersionIsSupportedByCurrentGradleTestKit(gradleVersion);
     givenConfigurationCacheIsCompatibleWithCurrentPlatform(configurationCache);
     givenGradleProjectFiles(projectName);
     givenGradleProjectProperties();
@@ -297,11 +310,14 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     try {
       return successExpected ? gradleRunner.build() : gradleRunner.buildAndFail();
     } catch (Exception e) {
+      Path daemonLogDir = testKitFolder.resolve("test-kit-daemon/" + gradleVersion);
       Path daemonLog =
-          Files.list(testKitFolder.resolve("test-kit-daemon/" + gradleVersion))
-              .filter(p -> p.toString().endsWith("log"))
-              .findAny()
-              .orElse(null);
+          Files.exists(daemonLogDir)
+              ? Files.list(daemonLogDir)
+                  .filter(p -> p.toString().endsWith("log"))
+                  .findAny()
+                  .orElse(null)
+              : null;
       if (daemonLog != null) {
         System.out.println("==============================================================");
         System.out.println("Gradle Daemon log:\n" + new String(Files.readAllBytes(daemonLog)));

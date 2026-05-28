@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.List;
@@ -30,7 +31,7 @@ public class InstrumentationErrors {
     return error; // keep throwable at top of the stack
   }
 
-  // Visible for testing
+  @VisibleForTesting
   public static void resetErrors() {
     COUNTER.set(0);
     if (detailed) {

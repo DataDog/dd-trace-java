@@ -50,7 +50,8 @@ variables:
   BUILD_JOB_NAME: "build"
   DEPENDENCY_CACHE_POLICY: pull
   BUILD_CACHE_POLICY: pull
-  GRADLE_VERSION: "8.14.4" # must match gradle-wrapper.properties
+  GRADLE_VERSION: "8.14.5" # must match gradle-wrapper.properties
+  MASS_READ_URL: "https://mass-read.us1.ddbuild.io"
   MAVEN_REPOSITORY_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   GRADLE_PLUGIN_PROXY: "https://depot-read-api-java.us1.ddbuild.io/magicmirror/magicmirror/@current/"
   BUILDER_IMAGE_REPO: "registry.ddbuild.io/images/mirror/dd-trace-java-docker-build" # images are pinned in images/mirror.lock.yaml in the DataDog/images repo
@@ -161,8 +162,8 @@ default:
     fi
 
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
-    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
-    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
 .tier_m:
   variables: &tier_m_variables
@@ -242,6 +243,11 @@ default:
     - export GRADLE_USER_HOME=$(pwd)/.gradle
     # replace maven central part by MAVEN_REPOSITORY_PROXY in .mvn/wrapper/maven-wrapper.properties
     - sed -i "s|https://repo.maven.apache.org/maven2/|$MAVEN_REPOSITORY_PROXY|g" .mvn/wrapper/maven-wrapper.properties
+    # Route Gradle distribution download through MASS pull-through cache
+    - |
+      mass_read_host="${MASS_READ_URL#https://}"
+      mass_read_host="${mass_read_host%/}"
+      sed -i "/^distributionUrl=/ s|services.gradle.org|${mass_read_host}/internal/artifact/services.gradle.org|" gradle/wrapper/gradle-wrapper.properties
     - mkdir -p .mvn/caches
     # Redirect Spotless's Equo/Solstice P2 cache into the project tree so it is captured by the GitLab cache.
     # Solstice (https://github.com/equodev/equo-ide) defaults to ~/.m2/repository/dev/equo/p2-data, which is outside $CI_PROJECT_DIR.
@@ -556,7 +562,15 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
-  needs: [ build_tests ]
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs: &needs_build_tests_inst
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":instrumentationTest"
+            CACHE_TYPE: "inst"
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -594,7 +608,7 @@ muzzle:
 
 muzzle-dep-report:
   extends: .gradle_build
-  needs: [ build_tests ]
+  needs: *needs_build_tests_inst
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -862,6 +876,15 @@ agent_integration_tests:
 
 test_base:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":baseTest"
+            CACHE_TYPE: "base"
   variables:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
@@ -881,6 +904,7 @@ test_base_arm64:
 
 test_inst:
   extends: .test_job_with_test_agent
+  needs: *needs_build_tests_inst
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationTest"
@@ -899,6 +923,15 @@ test_inst_arm64:
 
 test_inst_latest:
   extends: .test_job_with_test_agent
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":instrumentationLatestDepTest"
+            CACHE_TYPE: "latestdep"
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: ":instrumentationLatestDepTest"
@@ -943,6 +976,7 @@ test_flaky:
 
 test_flaky_inst:
   extends: .test_job
+  needs: *needs_build_tests_inst
   variables:
     GRADLE_TARGET: ":instrumentationTest"
     GRADLE_PARAMS: "-PrunFlakyTests"
@@ -957,6 +991,15 @@ test_flaky_inst:
 
 test_profiling:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":profilingTest"
+            CACHE_TYPE: "profiling"
   variables:
     GRADLE_TARGET: ":profilingTest"
     CACHE_TYPE: "profiling"
@@ -992,6 +1035,16 @@ test_debugger_arm64:
 
 test_smoke:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs: &needs_build_tests_smoke
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":smokeTest"
+            CACHE_TYPE: "smoke"
+            MAVEN_OPTS: "-Xms256M -Xmx1024M"
   variables:
     <<: *tier_l_variables
     GRADLE_TARGET: "stageMainDist :smokeTest"
@@ -1012,6 +1065,7 @@ test_smoke_arm64:
 
 test_ssi_smoke:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
@@ -1041,6 +1095,7 @@ test_ssi_smoke_arm64:
 
 test_smoke_graalvm:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
     <<: *tier_l_variables
@@ -1067,6 +1122,7 @@ test_smoke_graalvm_arm64:
 
 test_smoke_semeru8_debugger:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
