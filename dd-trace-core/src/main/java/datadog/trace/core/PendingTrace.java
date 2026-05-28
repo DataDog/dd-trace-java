@@ -5,7 +5,6 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.common.metrics.ConflatingMetricsAggregator;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
@@ -409,7 +408,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
 
   int enqueueSpansToWrite(List<DDSpan> trace, boolean writeRunningSpans) {
     int completedSpans = 0;
-    int eligibleForCss = 0;
     boolean runningSpanSeen = false;
     long firstRunningSpanID = 0;
     long nowNano = 0;
@@ -428,12 +426,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
       if (span.isFinished()) {
         trace.add(span);
         completedSpans++;
-        // Count CSS-eligible spans during the same iteration the list is built. The CSS
-        // aggregator reads this via SpanList#getEligibleCount() to size its ring claim exactly,
-        // avoiding both the overclaim-then-skip waste and a second pass to count.
-        if (ConflatingMetricsAggregator.shouldComputeMetric(span, span.isTopLevel())) {
-          eligibleForCss++;
-        }
       } else {
         // keep the running span in the list
         spans.add(span);
@@ -445,14 +437,9 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
           span.setLongRunningVersion(
               (int) TimeUnit.NANOSECONDS.toMillis(nowNano - span.getStartTime()));
           trace.add(span);
-          // Long-running unfinished spans never pass shouldComputeMetric (longRunningVersion>0
-          // and duration not yet set), so they don't contribute to eligibleForCss.
         }
       }
       span = spans.pollFirst();
-    }
-    if (trace instanceof SpanList) {
-      ((SpanList) trace).setMetricEligibleCount(eligibleForCss);
     }
     return completedSpans;
   }
