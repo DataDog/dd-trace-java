@@ -161,8 +161,8 @@ default:
     fi
 
     echo -e "${TEXT_BOLD}${TEXT_YELLOW}Runner dashboard, these are live (limited to a 1-hour window, and expire after 36 hours)${TEXT_CLEAR}"
-    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
-    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdatadog%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Containers:${TEXT_CLEAR} https://app.datadoghq.com/containers?${TIME_PARAMS}query=image_name%3A%2A%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
+    echo -e "${TEXT_BOLD}${TEXT_YELLOW}   Processes:${TEXT_CLEAR} https://app.datadoghq.com/process?${TIME_PARAMS}query=image_name%3A%2A%2Fdd-trace-java-docker-build%20AND%20pod_name%3A${POD_NAME}&live=false"
 
 .gitlab_base_ref_params: &gitlab_base_ref_params
   - |
@@ -548,7 +548,15 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
-  needs: [ build_tests ]
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs: &needs_build_tests_inst
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":instrumentationTest"
+            CACHE_TYPE: "inst"
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -586,7 +594,7 @@ muzzle:
 
 muzzle-dep-report:
   extends: .gradle_build
-  needs: [ build_tests ]
+  needs: *needs_build_tests_inst
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'
@@ -737,6 +745,15 @@ agent_integration_tests:
 
 test_base:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":baseTest"
+            CACHE_TYPE: "base"
   variables:
     GRADLE_TARGET: ":baseTest"
     CACHE_TYPE: "base"
@@ -748,6 +765,7 @@ test_base:
 
 test_inst:
   extends: .test_job_with_test_agent
+  needs: *needs_build_tests_inst
   variables:
     GRADLE_TARGET: ":instrumentationTest"
     CACHE_TYPE: "inst"
@@ -756,6 +774,15 @@ test_inst:
 
 test_inst_latest:
   extends: .test_job_with_test_agent
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":instrumentationLatestDepTest"
+            CACHE_TYPE: "latestdep"
   variables:
     GRADLE_TARGET: ":instrumentationLatestDepTest"
     CACHE_TYPE: "latestdep"
@@ -786,6 +813,7 @@ test_flaky:
 
 test_flaky_inst:
   extends: .test_job
+  needs: *needs_build_tests_inst
   variables:
     GRADLE_TARGET: ":instrumentationTest"
     GRADLE_PARAMS: "-PrunFlakyTests"
@@ -800,6 +828,15 @@ test_flaky_inst:
 
 test_profiling:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":profilingTest"
+            CACHE_TYPE: "profiling"
   variables:
     GRADLE_TARGET: ":profilingTest"
     CACHE_TYPE: "profiling"
@@ -819,6 +856,16 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs: &needs_build_tests_smoke
+    - job: build_tests
+      parallel:
+        matrix:
+          - GRADLE_TARGET: ":smokeTest"
+            CACHE_TYPE: "smoke"
+            MAVEN_OPTS: "-Xms256M -Xmx1024M"
   variables:
     GRADLE_TARGET: "stageMainDist :smokeTest"
     GRADLE_PARAMS: "-PskipFlakyTests"
@@ -828,6 +875,7 @@ test_smoke:
 
 test_ssi_smoke:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   rules:
     - if: $CI_COMMIT_BRANCH == "master"
       when: on_success
@@ -845,6 +893,7 @@ test_ssi_smoke:
 
 test_smoke_graalvm:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
@@ -857,6 +906,7 @@ test_smoke_graalvm:
 
 test_smoke_semeru8_debugger:
   extends: .test_job
+  needs: *needs_build_tests_smoke
   tags: [ "arch:amd64" ]
   variables:
     GRADLE_TARGET: "stageMainDist dd-smoke-tests:debugger-integration-tests:test"
