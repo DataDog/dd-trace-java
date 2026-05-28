@@ -384,7 +384,10 @@ class SmokeTestAppEndToEndTest {
         // flows into `providers.provider(Callable { … })` before being put into the
         // `environment` MapProperty.
         "Provider-Callable env change misses the cache",
-        "import java.util.concurrent.Callable\nimport org.gradle.api.provider.Provider",
+        """
+        import java.util.concurrent.Callable
+        import org.gradle.api.provider.Provider
+        """.trimIndent(),
         """
         val envValue: String = (project.findProperty("envValue") as String?) ?: "default"
         val markerProvider: Provider<String> = providers.provider(Callable { "resolved-${'$'}envValue" })
