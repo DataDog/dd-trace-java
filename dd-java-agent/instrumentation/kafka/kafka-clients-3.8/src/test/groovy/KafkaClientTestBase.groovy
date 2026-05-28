@@ -1218,10 +1218,15 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
 }
 
 class KafkaClientBadBase64HeaderForkedTest extends KafkaClientV0ForkedTest {
-  def "producer span is created when message carries non-Base64 headers and base64 decoding is enabled"() {
-    setup:
+  @Override
+  void configurePreAgent() {
+    super.configurePreAgent()
     injectSysConfig(TraceInstrumentationConfig.KAFKA_CLIENT_BASE64_DECODING_ENABLED, "true")
     injectSysConfig(TracerConfig.HEADER_TAGS, "x-custom-header:my.custom.tag")
+  }
+
+  def "producer span is created when message carries non-Base64 headers and base64 decoding is enabled"() {
+    setup:
     def producerProps = KafkaTestUtils.producerProps(embeddedKafka.getBrokersAsString())
     def producer = new KafkaProducer<String, String>(producerProps, new StringSerializer(), new StringSerializer())
 
@@ -1237,6 +1242,6 @@ class KafkaClientBadBase64HeaderForkedTest extends KafkaClientV0ForkedTest {
     !TEST_WRITER.isEmpty()
 
     cleanup:
-    producer.close()
+    producer?.close()
   }
 }
