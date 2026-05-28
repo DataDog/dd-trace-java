@@ -68,7 +68,11 @@ object GhsaEnrichmentParser {
         val name = symbol.path("name").asText().takeIf { it.isNotEmpty() } ?: continue
 
         // JVM internal format (slashes) — avoids per-class conversion in the
-        // ClassFileTransformer hot path at runtime
+        // ClassFileTransformer hot path at runtime.
+        // TODO(APPSEC-62260): verify inner-class format when database adds method-level symbols.
+        // If GHSA uses dot notation for inner classes (e.g. name="Outer.Inner"), the replace below
+        // produces com/example/Outer/Inner instead of the correct com/example/Outer$Inner.
+        // When the database team defines the format, update this to handle the $ separator.
         val internalName = "$pkg.$name".replace('.', '/')
         symbols += mapOf("class" to internalName, "method" to null)
       }
