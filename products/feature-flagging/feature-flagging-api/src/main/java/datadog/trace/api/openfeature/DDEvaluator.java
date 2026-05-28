@@ -58,7 +58,12 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   public boolean initialize(
       final long timeout, final TimeUnit unit, final EvaluationContext context) throws Exception {
     FeatureFlaggingGateway.addConfigListener(this);
-    return initializationLatch.await(timeout, unit);
+    return initializationLatch.await(timeout, unit) || hasConfiguration();
+  }
+
+  @Override
+  public boolean hasConfiguration() {
+    return configuration.get() != null;
   }
 
   @Override
@@ -70,12 +75,8 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
   public void accept(final ServerConfiguration config) {
     configuration.set(config);
     if (config != null) {
-      try {
-        configCallback.run();
-      } finally {
-        // Let OpenFeature emit READY when blocking initialization returns successfully.
-        initializationLatch.countDown();
-      }
+      initializationLatch.countDown();
+      configCallback.run();
     } else if (initializationLatch.getCount() == 0) {
       configCallback.run();
     }

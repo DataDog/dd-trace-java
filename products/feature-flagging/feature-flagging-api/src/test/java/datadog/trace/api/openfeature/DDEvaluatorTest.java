@@ -13,6 +13,7 @@ import static java.util.Collections.emptyList;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.hamcrest.CoreMatchers.equalTo;
 import static org.hamcrest.CoreMatchers.nullValue;
 import static org.hamcrest.MatcherAssert.assertThat;
@@ -53,6 +54,9 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.TimeZone;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -166,12 +170,19 @@ public class DDEvaluatorTest {
 
   @Test
   public void testInitializeWaitsForNonNullConfig() throws Exception {
-    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     final DDEvaluator evaluator = new DDEvaluator(mock(Runnable.class));
+    final ExecutorService executor = Executors.newSingleThreadExecutor();
     try {
-      assertThat(
-          evaluator.initialize(10, MILLISECONDS, mock(EvaluationContext.class)), equalTo(true));
+      final Future<Boolean> initialized =
+          executor.submit(() -> evaluator.initialize(1, SECONDS, mock(EvaluationContext.class)));
+
+      evaluator.accept(null);
+      assertThat(initialized.isDone(), equalTo(false));
+
+      evaluator.accept(mock(ServerConfiguration.class));
+      assertThat(initialized.get(1, SECONDS), equalTo(true));
     } finally {
+      executor.shutdownNow();
       evaluator.shutdown();
     }
   }

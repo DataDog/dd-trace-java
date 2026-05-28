@@ -3,6 +3,7 @@ package datadog.trace.api.openfeature;
 import static java.util.concurrent.TimeUnit.SECONDS;
 
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventProvider;
 import dev.openfeature.sdk.Hook;
@@ -66,6 +67,21 @@ public class Provider extends EventProvider implements Metadata {
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
+        final InitializationState state = initializationState.get();
+        if (state == InitializationState.READY
+            || initializationState.compareAndSet(
+                InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY)) {
+          return;
+        }
+        if (initializationState.compareAndSet(
+            InitializationState.INITIALIZING, InitializationState.ERROR)) {
+          throw new ProviderNotReadyError(
+              "Provider timed-out while waiting for initial configuration");
+        }
+        if (initializationState.compareAndSet(
+            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY)) {
+          return;
+        }
         initializationState.set(InitializationState.ERROR);
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
@@ -80,9 +96,19 @@ public class Provider extends EventProvider implements Metadata {
     }
   }
 
-  private void onConfigurationChange() {
+  void onConfigurationChange() {
+    if (evaluator == null || !evaluator.hasConfiguration()) {
+      onConfigurationUnavailable();
+      return;
+    }
+
     final InitializationState state = initializationState.get();
     if (state == InitializationState.INITIALIZING) {
+      initializationState.compareAndSet(
+          InitializationState.INITIALIZING, InitializationState.INITIAL_CONFIG_RECEIVED);
+      return;
+    }
+    if (state == InitializationState.INITIAL_CONFIG_RECEIVED) {
       return;
     }
     if (state == InitializationState.ERROR
@@ -99,6 +125,22 @@ public class Provider extends EventProvider implements Metadata {
     emit(
         ProviderEvent.PROVIDER_CONFIGURATION_CHANGED,
         ProviderEventDetails.builder().message("New configuration received").build());
+  }
+
+  private void onConfigurationUnavailable() {
+    final InitializationState state = initializationState.get();
+    if (state != InitializationState.READY) {
+      return;
+    }
+    if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
+      return;
+    }
+    emit(
+        ProviderEvent.PROVIDER_ERROR,
+        ProviderEventDetails.builder()
+            .message("Configuration unavailable")
+            .errorCode(ErrorCode.PROVIDER_NOT_READY)
+            .build());
   }
 
   private Evaluator buildEvaluator() throws Exception {
@@ -176,6 +218,7 @@ public class Provider extends EventProvider implements Metadata {
   private enum InitializationState {
     NOT_STARTED,
     INITIALIZING,
+    INITIAL_CONFIG_RECEIVED,
     READY,
     ERROR
   }

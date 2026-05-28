@@ -19,6 +19,7 @@ import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import datadog.trace.api.openfeature.Provider.Options;
 import dev.openfeature.sdk.Client;
+import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.EventDetails;
 import dev.openfeature.sdk.Features;
@@ -116,6 +117,96 @@ public class ProviderTest {
               final EventDetails eventDetails = eventDetailsCaptor.getValue();
               assertThat(eventDetails.getProviderName(), equalTo(METADATA));
             });
+  }
+
+  @Test
+  public void testSetProviderAndWaitCompletesWhenConfigurationArrivesAtTimeoutBoundary()
+      throws Exception {
+    final Provider[] providerRef = new Provider[1];
+    final Evaluator evaluator =
+        new Evaluator() {
+          private boolean hasConfiguration;
+
+          @Override
+          public boolean initialize(
+              final long timeout,
+              final java.util.concurrent.TimeUnit timeUnit,
+              final EvaluationContext context) {
+            hasConfiguration = true;
+            providerRef[0].onConfigurationChange();
+            return false;
+          }
+
+          @Override
+          public boolean hasConfiguration() {
+            return hasConfiguration;
+          }
+
+          @Override
+          public void shutdown() {}
+
+          @Override
+          public <T> ProviderEvaluation<T> evaluate(
+              final Class<T> target,
+              final String key,
+              final T defaultValue,
+              final EvaluationContext context) {
+            return ProviderEvaluation.<T>builder().value(defaultValue).build();
+          }
+        };
+
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+    api.setProviderAndWait(providerRef[0]);
+
+    final Client client = api.getClient();
+    assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+  }
+
+  @Test
+  public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() {
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    api.setProvider(new Provider());
+    final Client client = api.getClient();
+
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    await().atMost(ofSeconds(1)).until(() -> client.getProviderState() == ProviderState.READY);
+
+    final Consumer<EventDetails> errorEvent = mock(Consumer.class);
+    final Consumer<EventDetails> readyEvent = mock(Consumer.class);
+    final Consumer<EventDetails> configChangedEvent = mock(Consumer.class);
+    client.on(ProviderEvent.PROVIDER_ERROR, errorEvent);
+    client.on(ProviderEvent.PROVIDER_CONFIGURATION_CHANGED, configChangedEvent);
+
+    FeatureFlaggingGateway.dispatch((ServerConfiguration) null);
+    await()
+        .atMost(ofSeconds(1))
+        .untilAsserted(
+            () -> {
+              assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
+              verify(errorEvent, times(1)).accept(eventDetailsCaptor.capture());
+              final EventDetails eventDetails = eventDetailsCaptor.getValue();
+              assertThat(eventDetails.getProviderName(), equalTo(METADATA));
+            });
+
+    final FlagEvaluationDetails<String> evalDetails = client.getStringDetails("missing", "default");
+    assertThat(evalDetails.getValue(), equalTo("default"));
+    assertThat(evalDetails.getErrorCode(), equalTo(ErrorCode.PROVIDER_NOT_READY));
+
+    client.on(ProviderEvent.PROVIDER_READY, readyEvent);
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    await()
+        .atMost(ofSeconds(1))
+        .untilAsserted(
+            () -> {
+              assertThat(client.getProviderState(), equalTo(ProviderState.READY));
+              verify(readyEvent, times(1)).accept(any());
+            });
+
+    FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
+    await()
+        .atMost(ofSeconds(1))
+        .untilAsserted(() -> verify(configChangedEvent, times(1)).accept(any()));
   }
 
   @Test
