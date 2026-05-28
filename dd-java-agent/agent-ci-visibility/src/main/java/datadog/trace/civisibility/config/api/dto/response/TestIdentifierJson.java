@@ -1,4 +1,4 @@
-package datadog.trace.civisibility.config;
+package datadog.trace.civisibility.config.api.dto.response;
 
 import com.squareup.moshi.Json;
 import datadog.trace.api.civisibility.config.Configurations;

@@ -2,11 +2,21 @@ package datadog.trace.civisibility.config;
 
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
+import com.squareup.moshi.Types;
 import datadog.trace.api.civisibility.config.Configurations;
 import datadog.trace.api.civisibility.config.TestFQN;
 import datadog.trace.api.civisibility.config.TestIdentifier;
 import datadog.trace.api.civisibility.config.TestMetadata;
+import datadog.trace.civisibility.config.api.dto.Data;
+import datadog.trace.civisibility.config.api.dto.Envelope;
+import datadog.trace.civisibility.config.api.dto.MultiEnvelope;
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
+import datadog.trace.civisibility.config.api.dto.response.KnownTestsResponse;
+import datadog.trace.civisibility.config.api.dto.response.Meta;
+import datadog.trace.civisibility.config.api.dto.response.TestIdentifierJson;
+import datadog.trace.civisibility.config.api.dto.response.TestManagementTestsResponse;
 import java.io.IOException;
+import java.lang.reflect.ParameterizedType;
 import java.nio.file.Path;
 import java.util.BitSet;
 import java.util.Collection;
@@ -36,10 +46,10 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
   @Nullable private final Path knownTestsPath;
   @Nullable private final Path testManagementPath;
 
-  private final JsonAdapter<SettingsEnvelope> settingsAdapter;
-  private final JsonAdapter<KnownTestsEnvelope> knownTestsAdapter;
-  private final JsonAdapter<TestManagementEnvelope> testManagementAdapter;
-  private final JsonAdapter<TestIdentifiersEnvelope> testIdentifiersAdapter;
+  private final JsonAdapter<Envelope<CiVisibilitySettings>> settingsAdapter;
+  private final JsonAdapter<Envelope<KnownTestsResponse>> knownTestsAdapter;
+  private final JsonAdapter<Envelope<TestManagementTestsResponse>> testManagementAdapter;
+  private final JsonAdapter<MultiEnvelope<TestIdentifierJson>> testIdentifiersAdapter;
 
   public FileBasedConfigurationApi(
       @Nullable Path settingsPath,
@@ -59,13 +69,24 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
             .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
             .add(TestManagementSettings.JsonAdapter.INSTANCE)
-            .add(MetaDto.JsonAdapter.INSTANCE)
+            .add(Meta.JsonAdapter.INSTANCE)
             .build();
 
-    settingsAdapter = moshi.adapter(SettingsEnvelope.class);
-    knownTestsAdapter = moshi.adapter(KnownTestsEnvelope.class);
-    testManagementAdapter = moshi.adapter(TestManagementEnvelope.class);
-    testIdentifiersAdapter = moshi.adapter(TestIdentifiersEnvelope.class);
+    ParameterizedType settingsType =
+        Types.newParameterizedType(Envelope.class, CiVisibilitySettings.class);
+    settingsAdapter = moshi.adapter(settingsType);
+
+    ParameterizedType knownTestsType =
+        Types.newParameterizedType(Envelope.class, KnownTestsResponse.class);
+    knownTestsAdapter = moshi.adapter(knownTestsType);
+
+    ParameterizedType testManagementType =
+        Types.newParameterizedType(Envelope.class, TestManagementTestsResponse.class);
+    testManagementAdapter = moshi.adapter(testManagementType);
+
+    ParameterizedType testIdentifiersType =
+        Types.newParameterizedType(MultiEnvelope.class, TestIdentifierJson.class);
+    testIdentifiersAdapter = moshi.adapter(testIdentifiersType);
   }
 
   @Override
@@ -77,7 +98,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
     LOGGER.debug("Reading settings from {}", settingsPath);
     try (BufferedSource source = Okio.buffer(Okio.source(settingsPath))) {
-      SettingsEnvelope envelope = settingsAdapter.fromJson(source);
+      Envelope<CiVisibilitySettings> envelope = settingsAdapter.fromJson(source);
       if (envelope != null && envelope.data != null && envelope.data.attributes != null) {
         return envelope.data.attributes;
       }
@@ -94,7 +115,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
     LOGGER.debug("Reading skippable tests from {}", skippableTestsPath);
     try (BufferedSource source = Okio.buffer(Okio.source(skippableTestsPath))) {
-      TestIdentifiersEnvelope envelope = testIdentifiersAdapter.fromJson(source);
+      MultiEnvelope<TestIdentifierJson> envelope = testIdentifiersAdapter.fromJson(source);
       if (envelope != null && envelope.data != null) {
         return toSkippableTests(envelope, tracerEnvironment);
       }
@@ -103,11 +124,11 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
   }
 
   private SkippableTests toSkippableTests(
-      TestIdentifiersEnvelope envelope, TracerEnvironment tracerEnvironment) {
+      MultiEnvelope<TestIdentifierJson> envelope, TracerEnvironment tracerEnvironment) {
     Configurations requestConf = tracerEnvironment.getConfigurations();
 
     Map<String, Map<TestIdentifier, TestMetadata>> identifiersByModule = new HashMap<>();
-    for (TestIdentifierDataDto dataDto : envelope.data) {
+    for (Data<TestIdentifierJson> dataDto : envelope.data) {
       TestIdentifierJson testIdJson = dataDto.attributes;
       if (testIdJson == null) {
         continue;
@@ -138,7 +159,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
     LOGGER.debug("Reading flaky tests from {}", flakyTestsPath);
     try (BufferedSource source = Okio.buffer(Okio.source(flakyTestsPath))) {
-      TestIdentifiersEnvelope envelope = testIdentifiersAdapter.fromJson(source);
+      MultiEnvelope<TestIdentifierJson> envelope = testIdentifiersAdapter.fromJson(source);
       if (envelope != null && envelope.data != null) {
         return toFlakyTestsByModule(envelope, tracerEnvironment);
       }
@@ -147,11 +168,11 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
   }
 
   private Map<String, Collection<TestFQN>> toFlakyTestsByModule(
-      TestIdentifiersEnvelope envelope, TracerEnvironment tracerEnvironment) {
+      MultiEnvelope<TestIdentifierJson> envelope, TracerEnvironment tracerEnvironment) {
     Configurations requestConf = tracerEnvironment.getConfigurations();
 
     Map<String, Collection<TestFQN>> result = new HashMap<>();
-    for (TestIdentifierDataDto dataDto : envelope.data) {
+    for (Data<TestIdentifierJson> dataDto : envelope.data) {
       TestIdentifierJson testIdJson = dataDto.attributes;
       if (testIdJson == null) {
         continue;
@@ -179,7 +200,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
     LOGGER.debug("Reading known tests from {}", knownTestsPath);
     try (BufferedSource source = Okio.buffer(Okio.source(knownTestsPath))) {
-      KnownTestsEnvelope envelope = knownTestsAdapter.fromJson(source);
+      Envelope<KnownTestsResponse> envelope = knownTestsAdapter.fromJson(source);
       if (envelope != null
           && envelope.data != null
           && envelope.data.attributes != null
@@ -221,7 +242,7 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
 
     LOGGER.debug("Reading test management data from {}", testManagementPath);
     try (BufferedSource source = Okio.buffer(Okio.source(testManagementPath))) {
-      TestManagementEnvelope envelope = testManagementAdapter.fromJson(source);
+      Envelope<TestManagementTestsResponse> envelope = testManagementAdapter.fromJson(source);
       if (envelope != null && envelope.data != null && envelope.data.attributes != null) {
         return parseTestManagementTests(envelope.data.attributes);
       }
@@ -230,23 +251,25 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
   }
 
   private Map<TestSetting, Map<String, Collection<TestFQN>>> parseTestManagementTests(
-      TestManagementTestsDto dto) {
+      TestManagementTestsResponse dto) {
     Map<String, Collection<TestFQN>> quarantined = new HashMap<>();
     Map<String, Collection<TestFQN>> disabled = new HashMap<>();
     Map<String, Collection<TestFQN>> attemptToFix = new HashMap<>();
 
-    for (Map.Entry<String, TestManagementTestsDto.Suites> moduleEntry :
+    for (Map.Entry<String, TestManagementTestsResponse.Suites> moduleEntry :
         dto.getModules().entrySet()) {
       String moduleName = moduleEntry.getKey();
-      Map<String, TestManagementTestsDto.Tests> suites = moduleEntry.getValue().getSuites();
+      Map<String, TestManagementTestsResponse.Tests> suites = moduleEntry.getValue().getSuites();
 
-      for (Map.Entry<String, TestManagementTestsDto.Tests> suiteEntry : suites.entrySet()) {
+      for (Map.Entry<String, TestManagementTestsResponse.Tests> suiteEntry : suites.entrySet()) {
         String suiteName = suiteEntry.getKey();
-        Map<String, TestManagementTestsDto.Properties> tests = suiteEntry.getValue().getTests();
+        Map<String, TestManagementTestsResponse.Properties> tests =
+            suiteEntry.getValue().getTests();
 
-        for (Map.Entry<String, TestManagementTestsDto.Properties> testEntry : tests.entrySet()) {
+        for (Map.Entry<String, TestManagementTestsResponse.Properties> testEntry :
+            tests.entrySet()) {
           String testName = testEntry.getKey();
-          TestManagementTestsDto.Properties props = testEntry.getValue();
+          TestManagementTestsResponse.Properties props = testEntry.getValue();
           TestFQN fqn = new TestFQN(suiteName, testName);
 
           if (props.isQuarantined()) {
@@ -267,42 +290,5 @@ public class FileBasedConfigurationApi implements ConfigurationApi {
     result.put(TestSetting.DISABLED, disabled);
     result.put(TestSetting.ATTEMPT_TO_FIX, attemptToFix);
     return result;
-  }
-
-  // Settings envelope: { "data": { "attributes": CiVisibilitySettings } }
-  static final class SettingsEnvelope {
-    DataDto<CiVisibilitySettings> data;
-  }
-
-  // Known tests envelope: { "data": { "attributes": { "tests": ... } } }
-  static final class KnownTestsEnvelope {
-    DataDto<KnownTestsAttributes> data;
-  }
-
-  // Test management envelope: { "data": { "attributes": TestManagementTestsDto } }
-  static final class TestManagementEnvelope {
-    DataDto<TestManagementTestsDto> data;
-  }
-
-  static final class DataDto<T> {
-    String id;
-    String type;
-    T attributes;
-  }
-
-  static final class KnownTestsAttributes {
-    Map<String, Map<String, List<String>>> tests;
-  }
-
-  // Skippable/flaky tests envelope: { "data": [...], "meta": { ... } }
-  static final class TestIdentifiersEnvelope {
-    Collection<TestIdentifierDataDto> data;
-    @Nullable MetaDto meta;
-  }
-
-  static final class TestIdentifierDataDto {
-    String id;
-    String type;
-    TestIdentifierJson attributes;
   }
 }

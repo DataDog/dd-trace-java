@@ -1,6 +1,5 @@
 package datadog.trace.civisibility.config;
 
-import com.squareup.moshi.Json;
 import com.squareup.moshi.JsonAdapter;
 import com.squareup.moshi.Moshi;
 import com.squareup.moshi.Types;
@@ -24,6 +23,16 @@ import datadog.trace.api.civisibility.telemetry.tag.KnownTestsEnabled;
 import datadog.trace.api.civisibility.telemetry.tag.RequireGit;
 import datadog.trace.api.civisibility.telemetry.tag.TestManagementEnabled;
 import datadog.trace.civisibility.communication.TelemetryListener;
+import datadog.trace.civisibility.config.api.dto.Data;
+import datadog.trace.civisibility.config.api.dto.Envelope;
+import datadog.trace.civisibility.config.api.dto.MultiEnvelope;
+import datadog.trace.civisibility.config.api.dto.request.KnownTestsRequest;
+import datadog.trace.civisibility.config.api.dto.request.TestManagementRequest;
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment;
+import datadog.trace.civisibility.config.api.dto.response.KnownTestsResponse;
+import datadog.trace.civisibility.config.api.dto.response.Meta;
+import datadog.trace.civisibility.config.api.dto.response.TestIdentifierJson;
+import datadog.trace.civisibility.config.api.dto.response.TestManagementTestsResponse;
 import datadog.trace.util.RandomUtils;
 import java.io.IOException;
 import java.lang.reflect.ParameterizedType;
@@ -58,13 +67,14 @@ public class ConfigurationApiImpl implements ConfigurationApi {
   private final CiVisibilityMetricCollector metricCollector;
   private final Supplier<String> uuidGenerator;
 
-  private final JsonAdapter<EnvelopeDto<TracerEnvironment>> requestAdapter;
-  private final JsonAdapter<EnvelopeDto<CiVisibilitySettings>> settingsResponseAdapter;
-  private final JsonAdapter<MultiEnvelopeDto<TestIdentifierJson>> testIdentifiersResponseAdapter;
-  private final JsonAdapter<EnvelopeDto<KnownTestsRequestDto>> knownTestsRequestAdapter;
-  private final JsonAdapter<EnvelopeDto<KnownTestsDto>> testFullNamesResponseAdapter;
-  private final JsonAdapter<EnvelopeDto<TestManagementDto>> testManagementRequestAdapter;
-  private final JsonAdapter<EnvelopeDto<TestManagementTestsDto>> testManagementTestsResponseAdapter;
+  private final JsonAdapter<Envelope<TracerEnvironment>> requestAdapter;
+  private final JsonAdapter<Envelope<CiVisibilitySettings>> settingsResponseAdapter;
+  private final JsonAdapter<MultiEnvelope<TestIdentifierJson>> testIdentifiersResponseAdapter;
+  private final JsonAdapter<Envelope<KnownTestsRequest>> knownTestsRequestAdapter;
+  private final JsonAdapter<Envelope<KnownTestsResponse>> testFullNamesResponseAdapter;
+  private final JsonAdapter<Envelope<TestManagementRequest>> testManagementRequestAdapter;
+  private final JsonAdapter<Envelope<TestManagementTestsResponse>>
+      testManagementTestsResponseAdapter;
 
   public ConfigurationApiImpl(BackendApi backendApi, CiVisibilityMetricCollector metricCollector) {
     this(backendApi, metricCollector, () -> RandomUtils.randomUUID().toString());
@@ -83,51 +93,44 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .add(ConfigurationsJsonAdapter.INSTANCE)
             .add(CiVisibilitySettings.JsonAdapter.INSTANCE)
             .add(EarlyFlakeDetectionSettings.JsonAdapter.INSTANCE)
-            .add(MetaDto.JsonAdapter.INSTANCE)
+            .add(Meta.JsonAdapter.INSTANCE)
             .build();
 
     ParameterizedType requestType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, TracerEnvironment.class);
+        Types.newParameterizedType(Envelope.class, TracerEnvironment.class);
     requestAdapter = moshi.adapter(requestType);
 
     ParameterizedType settingsResponseType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, CiVisibilitySettings.class);
+        Types.newParameterizedType(Envelope.class, CiVisibilitySettings.class);
     settingsResponseAdapter = moshi.adapter(settingsResponseType);
 
     ParameterizedType testIdentifiersResponseType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, MultiEnvelopeDto.class, TestIdentifierJson.class);
+        Types.newParameterizedType(MultiEnvelope.class, TestIdentifierJson.class);
     testIdentifiersResponseAdapter = moshi.adapter(testIdentifiersResponseType);
 
     ParameterizedType knownTestsRequestType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsRequestDto.class);
+        Types.newParameterizedType(Envelope.class, KnownTestsRequest.class);
     knownTestsRequestAdapter = moshi.adapter(knownTestsRequestType);
 
     ParameterizedType testFullNamesResponseType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, KnownTestsDto.class);
+        Types.newParameterizedType(Envelope.class, KnownTestsResponse.class);
     testFullNamesResponseAdapter = moshi.adapter(testFullNamesResponseType);
 
     ParameterizedType testManagementRequestType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, TestManagementDto.class);
+        Types.newParameterizedType(Envelope.class, TestManagementRequest.class);
     testManagementRequestAdapter = moshi.adapter(testManagementRequestType);
 
     ParameterizedType testManagementTestsResponseType =
-        Types.newParameterizedTypeWithOwner(
-            ConfigurationApiImpl.class, EnvelopeDto.class, TestManagementTestsDto.class);
+        Types.newParameterizedType(Envelope.class, TestManagementTestsResponse.class);
     testManagementTestsResponseAdapter = moshi.adapter(testManagementTestsResponseType);
   }
 
   @Override
   public CiVisibilitySettings getSettings(TracerEnvironment tracerEnvironment) throws IOException {
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> settingsRequest =
-        new EnvelopeDto<>(
-            new DataDto<>(uuid, "ci_app_test_service_libraries_settings", tracerEnvironment));
+    Envelope<TracerEnvironment> settingsRequest =
+        new Envelope<>(
+            new Data<>(uuid, "ci_app_test_service_libraries_settings", tracerEnvironment));
     String json = requestAdapter.toJson(settingsRequest);
     RequestBody requestBody = RequestBody.create(JSON, json);
 
@@ -176,11 +179,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .build();
 
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(new DataDto<>(uuid, "test_params", tracerEnvironment));
+    Envelope<TracerEnvironment> request =
+        new Envelope<>(new Data<>(uuid, "test_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    MultiEnvelopeDto<TestIdentifierJson> response =
+    MultiEnvelope<TestIdentifierJson> response =
         backendApi.post(
             SKIPPABLE_TESTS_URI,
             requestBody,
@@ -191,7 +194,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
     Configurations requestConf = tracerEnvironment.getConfigurations();
 
     Map<String, Map<TestIdentifier, TestMetadata>> testIdentifiersByModule = new HashMap<>();
-    for (DataDto<TestIdentifierJson> dataDto : response.data) {
+    for (Data<TestIdentifierJson> dataDto : response.data) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
       Configurations conf = testIdentifierJson.getConfigurations();
       String moduleName =
@@ -225,12 +228,11 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .build();
 
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TracerEnvironment> request =
-        new EnvelopeDto<>(
-            new DataDto<>(uuid, "flaky_test_from_libraries_params", tracerEnvironment));
+    Envelope<TracerEnvironment> request =
+        new Envelope<>(new Data<>(uuid, "flaky_test_from_libraries_params", tracerEnvironment));
     String json = requestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    Collection<DataDto<TestIdentifierJson>> response =
+    Collection<Data<TestIdentifierJson>> response =
         backendApi.post(
             FLAKY_TESTS_URI,
             requestBody,
@@ -244,7 +246,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
 
     int flakyTestsCount = 0;
     Map<String, Collection<TestFQN>> testIdentifiers = new HashMap<>();
-    for (DataDto<TestIdentifierJson> dataDto : response) {
+    for (Data<TestIdentifierJson> dataDto : response) {
       TestIdentifierJson testIdentifierJson = dataDto.getAttributes();
       Configurations conf = testIdentifierJson.getConfigurations();
       String moduleName =
@@ -281,12 +283,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
       LOGGER.debug(
           "Fetching known tests page #{}{}", pageNumber, pageState != null ? " with cursor" : "");
       String uuid = uuidGenerator.get();
-      KnownTestsRequestDto requestDto = new KnownTestsRequestDto(tracerEnvironment, pageState);
-      EnvelopeDto<KnownTestsRequestDto> request =
-          new EnvelopeDto<>(new DataDto<>(uuid, "ci_app_libraries_tests_request", requestDto));
+      KnownTestsRequest requestDto = new KnownTestsRequest(tracerEnvironment, pageState);
+      Envelope<KnownTestsRequest> request =
+          new Envelope<>(new Data<>(uuid, "ci_app_libraries_tests_request", requestDto));
       String json = knownTestsRequestAdapter.toJson(request);
       RequestBody requestBody = RequestBody.create(JSON, json);
-      KnownTestsDto knownTests =
+      KnownTestsResponse knownTests =
           backendApi.post(
               KNOWN_TESTS_URI,
               requestBody,
@@ -395,12 +397,12 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             .build();
 
     String uuid = uuidGenerator.get();
-    EnvelopeDto<TestManagementDto> request =
-        new EnvelopeDto<>(
-            new DataDto<>(
+    Envelope<TestManagementRequest> request =
+        new Envelope<>(
+            new Data<>(
                 uuid,
                 "ci_app_libraries_tests_request",
-                new TestManagementDto(
+                new TestManagementRequest(
                     tracerEnvironment.getRepositoryUrl(),
                     commitMessage,
                     tracerEnvironment.getConfigurations().getTestBundle(),
@@ -408,7 +410,7 @@ public class ConfigurationApiImpl implements ConfigurationApi {
                     tracerEnvironment.getBranch())));
     String json = testManagementRequestAdapter.toJson(request);
     RequestBody requestBody = RequestBody.create(JSON, json);
-    TestManagementTestsDto testManagementTestsDto =
+    TestManagementTestsResponse testManagementTestsResponse =
         backendApi.post(
             TEST_MANAGEMENT_TESTS_URI,
             requestBody,
@@ -419,31 +421,31 @@ public class ConfigurationApiImpl implements ConfigurationApi {
             telemetryListener,
             false);
 
-    return parseTestManagementTests(testManagementTestsDto);
+    return parseTestManagementTests(testManagementTestsResponse);
   }
 
   private Map<TestSetting, Map<String, Collection<TestFQN>>> parseTestManagementTests(
-      TestManagementTestsDto testsManagementTestsDto) {
+      TestManagementTestsResponse testsManagementTestsResponse) {
     int testManagementTestsCount = 0;
 
     Map<String, Collection<TestFQN>> quarantinedTestsByModule = new HashMap<>();
     Map<String, Collection<TestFQN>> disabledTestsByModule = new HashMap<>();
     Map<String, Collection<TestFQN>> attemptToFixTestsByModule = new HashMap<>();
 
-    for (Map.Entry<String, TestManagementTestsDto.Suites> e :
-        testsManagementTestsDto.getModules().entrySet()) {
+    for (Map.Entry<String, TestManagementTestsResponse.Suites> e :
+        testsManagementTestsResponse.getModules().entrySet()) {
       String moduleName = e.getKey();
-      Map<String, TestManagementTestsDto.Tests> testsBySuiteName = e.getValue().getSuites();
+      Map<String, TestManagementTestsResponse.Tests> testsBySuiteName = e.getValue().getSuites();
 
-      for (Map.Entry<String, TestManagementTestsDto.Tests> se : testsBySuiteName.entrySet()) {
+      for (Map.Entry<String, TestManagementTestsResponse.Tests> se : testsBySuiteName.entrySet()) {
         String suiteName = se.getKey();
-        Map<String, TestManagementTestsDto.Properties> tests = se.getValue().getTests();
+        Map<String, TestManagementTestsResponse.Properties> tests = se.getValue().getTests();
 
         testManagementTestsCount += tests.size();
 
-        for (Map.Entry<String, TestManagementTestsDto.Properties> te : tests.entrySet()) {
+        for (Map.Entry<String, TestManagementTestsResponse.Properties> te : tests.entrySet()) {
           String testName = te.getKey();
-          TestManagementTestsDto.Properties properties = te.getValue();
+          TestManagementTestsResponse.Properties properties = te.getValue();
           if (properties.isQuarantined()) {
             quarantinedTestsByModule
                 .computeIfAbsent(moduleName, k -> new HashSet<>())
@@ -474,129 +476,5 @@ public class ConfigurationApiImpl implements ConfigurationApi {
         testManagementTestsCount);
 
     return testsByTypeByModule;
-  }
-
-  private static final class EnvelopeDto<T> {
-    private final DataDto<T> data;
-
-    private EnvelopeDto(DataDto<T> data) {
-      this.data = data;
-    }
-  }
-
-  private static final class MultiEnvelopeDto<T> {
-    private final Collection<DataDto<T>> data;
-    private final @Nullable MetaDto meta;
-
-    private MultiEnvelopeDto(Collection<DataDto<T>> data, MetaDto meta) {
-      this.data = data;
-      this.meta = meta;
-    }
-  }
-
-  private static final class DataDto<T> {
-    // TODO: extract all DTO logic to common utilities
-    private final String id;
-    private final String type;
-    private final T attributes;
-
-    private DataDto(String id, String type, T attributes) {
-      this.id = id;
-      this.type = type;
-      this.attributes = attributes;
-    }
-
-    public T getAttributes() {
-      return attributes;
-    }
-  }
-
-  private static final class KnownTestsDto {
-    private final Map<String, Map<String, List<String>>> tests;
-
-    @Json(name = "page_info")
-    private final PageInfoResponse pageInfo;
-
-    private KnownTestsDto(Map<String, Map<String, List<String>>> tests, PageInfoResponse pageInfo) {
-      this.tests = tests;
-      this.pageInfo = pageInfo;
-    }
-
-    public boolean hasNextPage() {
-      return pageInfo != null && pageInfo.hasNext;
-    }
-
-    @Nullable
-    public Integer getPageSize() {
-      return pageInfo != null ? pageInfo.size : null;
-    }
-
-    @Nullable
-    public String getNextPageCursor() {
-      return pageInfo != null ? pageInfo.cursor : null;
-    }
-  }
-
-  private static final class PageInfoResponse {
-    private final String cursor;
-    private final int size;
-
-    @Json(name = "has_next")
-    private final boolean hasNext;
-
-    private PageInfoResponse(String cursor, int size, boolean hasNext) {
-      this.cursor = cursor;
-      this.size = size;
-      this.hasNext = hasNext;
-    }
-  }
-
-  private static final class KnownTestsRequestDto {
-    @Json(name = "repository_url")
-    private final String repositoryUrl;
-
-    private final String service;
-    private final String env;
-
-    @Json(name = "page_info")
-    private final PageInfoRequest pageInfo;
-
-    private KnownTestsRequestDto(TracerEnvironment tracerEnvironment, @Nullable String pageState) {
-      this.repositoryUrl = tracerEnvironment.getRepositoryUrl();
-      this.service = tracerEnvironment.getService();
-      this.env = tracerEnvironment.getEnv();
-      this.pageInfo = new PageInfoRequest(pageState);
-    }
-
-    private static final class PageInfoRequest {
-      @Json(name = "page_state")
-      @Nullable
-      private final String pageState;
-
-      private PageInfoRequest(@Nullable String pageState) {
-        this.pageState = pageState;
-      }
-    }
-  }
-
-  private static final class TestManagementDto {
-    @Json(name = "repository_url")
-    private final String repositoryUrl;
-
-    @Json(name = "commit_message")
-    private final String commitMessage;
-
-    private final String module;
-    private final String sha;
-    private final String branch;
-
-    private TestManagementDto(
-        String repositoryUrl, String commitMessage, String module, String sha, String branch) {
-      this.repositoryUrl = repositoryUrl;
-      this.commitMessage = commitMessage;
-      this.module = module;
-      this.sha = sha;
-      this.branch = branch;
-    }
   }
 }
