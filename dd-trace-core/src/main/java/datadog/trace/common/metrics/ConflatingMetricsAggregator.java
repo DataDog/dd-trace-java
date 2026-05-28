@@ -28,6 +28,7 @@ import datadog.trace.core.DDTraceCoreInfo;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.AgentTaskScheduler;
+import datadog.trace.util.concurrent.MpscRingBuffer;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -63,9 +64,35 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final SpanKindFilter INTERNAL_KIND =
       SpanKindFilter.builder().includeInternal().build();
 
+  /** Capacity of the small MPSC queue carrying control signals (REPORT / STOP / CLEAR). */
+  private static final int SIGNAL_INBOX_CAPACITY = 16;
+
   private final Set<String> ignoredResources;
   private final Thread thread;
-  private final MessagePassingQueue<InboxItem> inbox;
+
+  /**
+   * Producer/consumer data channel: a {@link MpscRingBuffer} of pre-allocated, recyclable {@link
+   * SpanSnapshot} slots. Producers mutate slots in place via {@link #slotFiller} -- no per-publish
+   * allocation.
+   */
+  private final MpscRingBuffer<SpanSnapshot> dataInbox;
+
+  /**
+   * Separate small queue for control signals. Kept off the data ring because the ring only holds
+   * one element type (the slot), and routing signals through a side channel lets the aggregator
+   * service them ahead of the data backlog each loop iteration.
+   */
+  private final MessagePassingQueue<SignalItem> signalInbox;
+
+  /**
+   * Slot filler captured as an instance field so the lambda is allocated once at construction. The
+   * method reference closes over {@code this}, but the field is per-aggregator so context lives in
+   * the {@code (CoreSpan, isTopLevel)} arguments passed by the producer at each call -- no
+   * per-publish capture.
+   */
+  private final datadog.trace.api.function.TriConsumer<CoreSpan<?>, Boolean, SpanSnapshot>
+      slotFiller = this::fillSlot;
+
   private final Sink sink;
   private final Aggregator aggregator;
   private final long reportingInterval;
@@ -173,14 +200,16 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       boolean includeEndpointInMetrics) {
     this.ignoredResources = ignoredResources;
     this.includeEndpointInMetrics = includeEndpointInMetrics;
-    this.inbox = Queues.mpscArrayQueue(queueSize);
+    this.dataInbox = new MpscRingBuffer<>(SpanSnapshot::new, queueSize);
+    this.signalInbox = Queues.mpscArrayQueue(SIGNAL_INBOX_CAPACITY);
     this.features = features;
     this.healthMetrics = healthMetric;
     this.sink = sink;
     this.aggregator =
         new Aggregator(
             metricWriter,
-            inbox,
+            dataInbox,
+            signalInbox,
             maxAggregates,
             reportingInterval,
             timeUnit,
@@ -218,11 +247,11 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     boolean published;
     int attempts = 0;
     do {
-      published = inbox.offer(REPORT);
+      published = signalInbox.offer(REPORT);
       ++attempts;
     } while (!published && attempts < 10);
     if (!published) {
-      log.debug("Skipped metrics reporting because the queue is full");
+      log.debug("Skipped metrics reporting because the signal queue is full");
     }
     return published;
   }
@@ -245,7 +274,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     ReportSignal reportSignal = new ReportSignal();
     boolean published = false;
     while (thread.isAlive() && !published) {
-      published = inbox.offer(reportSignal);
+      published = signalInbox.offer(reportSignal);
       if (!published) {
         try {
           Thread.sleep(10);
@@ -296,17 +325,32 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     // Error decision drives force-keep sampling regardless of whether the snapshot gets queued.
     boolean error = span.getError() > 0;
 
-    // Fast-path the inbox-full case before any tag extraction or snapshot allocation. size() is
-    // approximate on jctools' MPSC queue but that's fine: if we under-estimate, we fall through
-    // and let inbox.offer be the source of truth (existing behavior); if we over-estimate, we
-    // drop a snapshot that would have fit -- acceptable, onStatsInboxFull was going to fire
-    // imminently anyway.
-    if (inbox.size() >= inbox.capacity()) {
+    // Fast-path the inbox-full case before tag extraction. size() is approximate but that's fine:
+    // a false "full" reading just causes a drop, and a real one is correctly identified.
+    if (dataInbox.size() >= dataInbox.capacity()) {
       healthMetrics.onStatsInboxFull();
       return error;
     }
 
-    // Extract HTTP method and endpoint only if the feature is enabled
+    // tryWrite claims a slot, runs slotFiller to populate it in place, and publishes. No
+    // SpanSnapshot is allocated -- the slot is one of the ring's pre-allocated instances.
+    if (!dataInbox.tryWrite(span, isTopLevel, slotFiller)) {
+      healthMetrics.onStatsInboxFull();
+    }
+    return error;
+  }
+
+  /**
+   * Producer-side slot fill. Runs inside {@link MpscRingBuffer#tryWrite} after the producer has
+   * claimed a sequence but before the slot is visible to the aggregator. Reads from {@code span}
+   * and instance state, writes every field on {@code slot} (including {@code null} where
+   * applicable) so stale values from a prior occupant of this slot don't bleed through.
+   */
+  private void fillSlot(CoreSpan<?> span, Boolean isTopLevelBoxed, SpanSnapshot slot) {
+    final boolean isTopLevel = isTopLevelBoxed;
+    final boolean error = span.getError() > 0;
+
+    // Extract HTTP method and endpoint only if the feature is enabled.
     String httpMethod = null;
     String httpEndpoint = null;
     if (includeEndpointInMetrics) {
@@ -338,28 +382,21 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       peerTagSchema = null;
     }
 
-    SpanSnapshot snapshot =
-        new SpanSnapshot(
-            span.getResourceName(),
-            span.getServiceName(),
-            span.getOperationName(),
-            span.getServiceNameSource(),
-            spanType,
-            span.getHttpStatusCode(),
-            isSynthetic(span),
-            span.getParentId() == 0,
-            spanKind,
-            peerTagSchema,
-            peerTagValues,
-            httpMethod,
-            httpEndpoint,
-            grpcStatusCode,
-            tagAndDuration);
-    if (!inbox.offer(snapshot)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    // force keep keys if there are errors
-    return error;
+    slot.resourceName = span.getResourceName();
+    slot.serviceName = span.getServiceName();
+    slot.operationName = span.getOperationName();
+    slot.serviceNameSource = span.getServiceNameSource();
+    slot.spanType = spanType;
+    slot.httpStatusCode = span.getHttpStatusCode();
+    slot.synthetic = isSynthetic(span);
+    slot.traceRoot = span.getParentId() == 0;
+    slot.spanKind = spanKind;
+    slot.peerTagSchema = peerTagSchema;
+    slot.peerTagValues = peerTagValues;
+    slot.httpMethod = httpMethod;
+    slot.httpEndpoint = httpEndpoint;
+    slot.grpcStatusCode = grpcStatusCode;
+    slot.tagAndDuration = tagAndDuration;
   }
 
   /**
@@ -474,7 +511,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (null != cancellation) {
       cancellation.cancel();
     }
-    inbox.offer(STOP);
+    signalInbox.offer(STOP);
   }
 
   @Override
@@ -512,17 +549,18 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      // Route the clear through the inbox so the aggregator thread is the only writer.
+      // Route the clear through the signal channel so the aggregator thread is the only writer.
       // AggregateTable is not thread-safe; mutating it directly from this thread would race
-      // with Drainer.accept on the aggregator thread.
+      // with snapshot processing on the aggregator thread.
       //
-      // Best-effort single offer rather than the retry-loop pattern in report(). If the inbox is
-      // full at downgrade time the clear is dropped, but the system self-heals: features.discover()
-      // already flipped supportsMetrics() false, so producer publish() calls now skip the inbox;
-      // the aggregator drains existing snapshots and ships them on the next report cycle; the
-      // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
-      // now-empty inbox. Worst case: one extra reporting cycle of stale data.
-      inbox.offer(CLEAR);
+      // Best-effort single offer rather than the retry-loop pattern in report(). If the signal
+      // queue is full at downgrade time the clear is dropped, but the system self-heals:
+      // features.discover() already flipped supportsMetrics() false, so producer publish() calls
+      // now skip the data ring; the aggregator drains existing snapshots and ships them on the
+      // next report cycle; the sink rejects that payload and fires DOWNGRADED again, which
+      // retries disable() against a now-empty signal queue. Worst case: one extra reporting
+      // cycle of stale data.
+      signalInbox.offer(CLEAR);
     }
   }
 

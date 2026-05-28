@@ -5,8 +5,10 @@ import static java.util.concurrent.TimeUnit.MILLISECONDS;
 import datadog.trace.common.metrics.SignalItem.ClearSignal;
 import datadog.trace.common.metrics.SignalItem.StopSignal;
 import datadog.trace.core.monitor.HealthMetrics;
+import datadog.trace.util.concurrent.MpscRingBuffer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
+import java.util.function.BiConsumer;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -17,7 +19,8 @@ final class Aggregator implements Runnable {
 
   private static final Logger log = LoggerFactory.getLogger(Aggregator.class);
 
-  private final MessagePassingQueue<InboxItem> inbox;
+  private final MpscRingBuffer<SpanSnapshot> dataInbox;
+  private final MessagePassingQueue<SignalItem> signalInbox;
   private final AggregateTable aggregates;
   private final MetricWriter writer;
   private final HealthMetrics healthMetrics;
@@ -42,9 +45,22 @@ final class Aggregator implements Runnable {
       justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
+  @SuppressFBWarnings(
+      value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
+      justification = "the field is confined to the agent thread running the Aggregator")
+  private boolean stopped;
+
+  /**
+   * Static-singleton snapshot handler. Reads from the slot via {@code this} (passed as the context)
+   * and avoids per-drain lambda capture.
+   */
+  private static final BiConsumer<Aggregator, SpanSnapshot> SNAPSHOT_HANDLER =
+      Aggregator::handleSnapshot;
+
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      MpscRingBuffer<SpanSnapshot> dataInbox,
+      MessagePassingQueue<SignalItem> signalInbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -52,7 +68,8 @@ final class Aggregator implements Runnable {
       Runnable onReportCycle) {
     this(
         writer,
-        inbox,
+        dataInbox,
+        signalInbox,
         maxAggregates,
         reportingInterval,
         reportingIntervalTimeUnit,
@@ -63,7 +80,8 @@ final class Aggregator implements Runnable {
 
   Aggregator(
       MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
+      MpscRingBuffer<SpanSnapshot> dataInbox,
+      MessagePassingQueue<SignalItem> signalInbox,
       int maxAggregates,
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
@@ -71,7 +89,8 @@ final class Aggregator implements Runnable {
       HealthMetrics healthMetrics,
       Runnable onReportCycle) {
     this.writer = writer;
-    this.inbox = inbox;
+    this.dataInbox = dataInbox;
+    this.signalInbox = signalInbox;
     this.aggregates = new AggregateTable(maxAggregates);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
@@ -82,12 +101,19 @@ final class Aggregator implements Runnable {
   @Override
   public void run() {
     Thread currentThread = Thread.currentThread();
-    Drainer drainer = new Drainer();
-    while (!currentThread.isInterrupted() && !drainer.stopped) {
+    while (!currentThread.isInterrupted() && !stopped) {
       try {
-        if (!inbox.isEmpty()) {
-          inbox.drain(drainer);
-        } else {
+        int drainedData = dataInbox.drain(this, SNAPSHOT_HANDLER);
+        // Signals are processed after the data drain. REPORT/STOP additionally drain any
+        // snapshots that arrived between the drain above and the signal's enqueue -- the
+        // signal-channel offer happens-before the poll here, so any publish that completed
+        // before report()/stop() is guaranteed visible to the inline drain in handleSignal.
+        SignalItem signal;
+        while (!stopped && (signal = signalInbox.poll()) != null) {
+          handleSignal(signal);
+        }
+        if (stopped) break;
+        if (drainedData == 0 && signalInbox.isEmpty()) {
           Thread.sleep(sleepMillis);
         }
       } catch (InterruptedException e) {
@@ -99,57 +125,45 @@ final class Aggregator implements Runnable {
     log.debug("metrics aggregator exited");
   }
 
-  private final class Drainer implements MessagePassingQueue.Consumer<InboxItem> {
+  private static void handleSnapshot(Aggregator agg, SpanSnapshot snapshot) {
+    AggregateEntry entry = agg.aggregates.findOrInsert(snapshot);
+    if (entry != null) {
+      entry.recordOneDuration(snapshot.tagAndDuration);
+      agg.dirty = true;
+    } else {
+      // table at cap with no stale entry available to evict
+      agg.healthMetrics.onStatsAggregateDropped();
+    }
+  }
 
-    boolean stopped = false;
-
-    @Override
-    public void accept(InboxItem item) {
-      if (item == ClearSignal.CLEAR) {
-        // ClearSignal is routed through the inbox (rather than letting the caller mutate
-        // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
-        // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would
-        // race with Drainer.accept on this thread.
-        //
-        // We deliberately do NOT call inbox.clear() here. Doing so would erase any queued STOP
-        // (or REPORT) signals that happen to sit behind CLEAR -- a real concern when a
-        // downgrade is followed quickly by close(), where the trampled STOP leaves the
-        // aggregator thread spinning until thread.join times out. features.supportsMetrics() is
-        // already false by the time CLEAR was offered, so producers have stopped publishing;
-        // any in-flight snapshots will drain naturally into the just-cleared table, get
-        // re-aggregated, and flushed on the next report -- where the agent rejects them again,
-        // triggering another DOWNGRADED -> disable() -> CLEAR cycle. Worst case: one extra
-        // reporting cycle of wasted work, which we accept for the safety of preserving STOP.
-        if (!stopped) {
-          aggregates.clear();
-          // Clear dirty too -- without this, the next report() would see dirty=true, run
-          // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
-          // the flush anyway. Same observable outcome, but resetting here keeps the invariant
-          // "dirty implies there's data to flush" honest.
-          dirty = false;
-        }
-        ((SignalItem) item).complete();
-      } else if (item instanceof SignalItem) {
-        SignalItem signal = (SignalItem) item;
-        if (!stopped) {
-          report(wallClockTime(), signal);
-          stopped = item instanceof StopSignal;
-          if (stopped) {
-            signal.complete();
-          }
-        } else {
-          signal.ignore();
-        }
-      } else if (item instanceof SpanSnapshot && !stopped) {
-        SpanSnapshot snapshot = (SpanSnapshot) item;
-        AggregateEntry entry = aggregates.findOrInsert(snapshot);
-        if (entry != null) {
-          entry.recordOneDuration(snapshot.tagAndDuration);
-          dirty = true;
-        } else {
-          // table at cap with no stale entry available to evict
-          healthMetrics.onStatsAggregateDropped();
-        }
+  private void handleSignal(SignalItem signal) {
+    if (signal == ClearSignal.CLEAR) {
+      // ClearSignal is routed through the signal channel (rather than letting the caller mutate
+      // AggregateTable directly) so the aggregator thread stays the sole writer. AggregateTable
+      // is not thread-safe; a direct clear() from e.g. the OkHttpSink callback thread would race
+      // with the data-drain on this thread.
+      //
+      // We do NOT clear the snapshot data ring here. Any in-flight snapshots will drain
+      // naturally into the just-cleared table, get re-aggregated, and flushed on the next
+      // report -- where the agent rejects them again, triggering another DOWNGRADED -> disable()
+      // -> CLEAR cycle. Worst case: one extra reporting cycle of wasted work.
+      aggregates.clear();
+      // Clear dirty too -- without this, the next report() would see dirty=true, run
+      // expungeStaleAggregates against the (now-empty) table, find isEmpty()=true, and skip
+      // the flush anyway. Same observable outcome, but resetting here keeps the invariant
+      // "dirty implies there's data to flush" honest.
+      dirty = false;
+      signal.complete();
+    } else {
+      // STOP or REPORT: catch up on any data that arrived between the loop's main drain and the
+      // signal being enqueued. Producer's signalInbox.offer happens-after its dataInbox publish,
+      // so by the time we observe the signal, every snapshot the producer had published is
+      // visible to drain() here. This is what gives report() bucket-boundary determinism.
+      dataInbox.drain(this, SNAPSHOT_HANDLER);
+      report(wallClockTime(), signal);
+      if (signal instanceof StopSignal) {
+        stopped = true;
+        signal.complete();
       }
     }
   }

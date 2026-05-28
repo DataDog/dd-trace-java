@@ -1718,7 +1718,7 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
 
   def waitUntilEmpty(ConflatingMetricsAggregator aggregator) {
     int i = 0
-    while (!aggregator.inbox.isEmpty() && i++ < 100) {
+    while ((!aggregator.dataInbox.isEmpty() || !aggregator.signalInbox.isEmpty()) && i++ < 100) {
       Thread.sleep(10)
     }
   }
