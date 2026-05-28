@@ -80,10 +80,14 @@ public final class ScaReachabilitySystem {
     transformer.checkAlreadyLoadedClasses();
     log.debug("SCA Reachability: startup scan complete");
 
-    // Register the periodic retransform callback so the telemetry heartbeat can retry
-    // method-level instrumentation for classes that could not be processed at load time.
+    // processPendingClassEvents drains the first-load queue (JAR resolution + hit reporting);
+    // performPendingRetransforms then injects method-level callbacks for any classes it queued.
+    // Order matters: process events first so retransforms happen in the same heartbeat.
     ScaReachabilityDependencyRegistry.INSTANCE.setPeriodicWorkCallback(
-        transformer::performPendingRetransforms);
+        () -> {
+          transformer.processPendingClassEvents();
+          transformer.performPendingRetransforms();
+        });
   }
 
   /**

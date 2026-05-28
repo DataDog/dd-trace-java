@@ -220,11 +220,11 @@ class ScaReachabilityMethodLevelTest {
   }
 
   // ---------------------------------------------------------------------------
-  // transform(): class-level symbols still report <clinit> via Path A
+  // transform(): two-phase design — first load enqueues, retransform injects
   // ---------------------------------------------------------------------------
 
   @Test
-  void transformReturnsNullForClassLevelSymbol() throws Exception {
+  void transform_firstLoad_enqueuesAndReturnsNull() throws Exception {
     String json =
         "{\"version\":1,\"entries\":[{"
             + "\"vuln_id\":\"GHSA-cls\",\"artifact\":\"com.example:lib\","
@@ -240,11 +240,42 @@ class ScaReachabilityMethodLevelTest {
         t.transform(
             null,
             TargetClass.class.getName().replace('.', '/'),
-            null,
+            null, // classBeingRedefined == null → first load path
             TargetClass.class.getProtectionDomain(),
             bytecodeOf(TargetClass.class));
 
-    assertNull(result, "transform() must return null (observation only) for class-level symbols");
+    assertNull(result, "First load must return null (processing deferred to periodic task)");
+    assertFalse(
+        t.pendingClassEvents.isEmpty(),
+        "First load must enqueue the class for deferred processing");
+  }
+
+  @Test
+  void transform_retransform_doesNotEnqueueAndProcessesInline() throws Exception {
+    // On retransform (classBeingRedefined != null), transform() must NOT enqueue to
+    // pendingClassEvents. It processes inline (via processClass(4-arg)); version resolution may
+    // fail in a unit-test context without a real JAR, but the structural invariant holds.
+    String json =
+        "{\"version\":1,\"entries\":[{"
+            + "\"vuln_id\":\"GHSA-mth\",\"artifact\":\"com.example:lib\","
+            + "\"version_ranges\":[\"< 999.0.0\"],"
+            + "\"symbols\":[{\"class\":\""
+            + TargetClass.class.getName().replace('.', '/')
+            + "\",\"method\":\"vulnerableMethod\"}]"
+            + "}]}";
+    ScaCveDatabase methodDb = ScaCveDatabase.parse(new StringReader(json));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(methodDb, null);
+
+    t.transform(
+        null,
+        TargetClass.class.getName().replace('.', '/'),
+        TargetClass.class, // classBeingRedefined != null → retransform path
+        TargetClass.class.getProtectionDomain(),
+        bytecodeOf(TargetClass.class));
+
+    assertTrue(
+        t.pendingClassEvents.isEmpty(),
+        "Retransform path must not re-enqueue the class into pendingClassEvents");
   }
 
   // ---------------------------------------------------------------------------

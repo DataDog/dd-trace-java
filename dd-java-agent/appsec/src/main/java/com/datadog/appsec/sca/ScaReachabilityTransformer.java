@@ -4,7 +4,6 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
-import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -34,21 +33,29 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Observation-only {@link ClassFileTransformer} that detects when classes from vulnerable libraries
- * are loaded and reports reachability hits via {@link ScaReachabilityDependencyRegistry}.
+ * {@link ClassFileTransformer} that detects when classes from vulnerable libraries are loaded and
+ * reports reachability hits via {@link ScaReachabilityDependencyRegistry}.
  *
  * <p>Design principles (see APPSEC-62260):
  *
  * <ul>
- *   <li>Always returns {@code null} - never modifies bytecode for class-level symbols.
- *   <li>Never throws - any error in {@link #transform} is caught silently to avoid breaking class
- *       loading.
- *   <li>All shared state uses concurrent collections - {@link #transform} is called from multiple
- *       class-loading threads simultaneously.
- *   <li>Version resolution is cached per JAR URL - each JAR is read at most once.
- *   <li>Each (vulnId, artifact, symbolName) tuple is reported at most once - RFC requires a single
- *       occurrence. Class-level dedup lives in {@link #reportedHits}; method-level dedup lives in
- *       {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across retransforms).
+ *   <li><b>Two-phase processing</b>: on first class load ({@code classBeingRedefined == null}),
+ *       {@link #transform} only enqueues the event and returns {@code null} — no JAR I/O on the
+ *       class-loading thread. {@link #processPendingClassEvents} runs on the telemetry thread each
+ *       heartbeat and performs all heavyweight work (JAR reads, version resolution, hit reporting).
+ *       Method-level bytecode injection is deferred further to {@link #performPendingRetransforms},
+ *       which calls {@link Instrumentation#retransformClasses} and fires {@link #transform} again
+ *       with {@code classBeingRedefined != null}.
+ *   <li><b>Never throws</b>: any error in {@link #transform} is caught silently to avoid breaking
+ *       class loading.
+ *   <li><b>Concurrent</b>: all shared state uses concurrent collections — {@link #transform} is
+ *       called from multiple class-loading threads simultaneously.
+ *   <li><b>Version cache</b>: each JAR is read at most once; non-empty results are cached in {@link
+ *       #jarCache}.
+ *   <li><b>Single occurrence</b>: each (vulnId, artifact, symbolName) tuple is reported at most
+ *       once per RFC requirement. Class-level dedup lives in {@link #reportedHits}; method-level
+ *       dedup lives in {@code ScaReachabilityCallback.reported} (bootstrap-side, persists across
+ *       retransforms).
  * </ul>
  */
 public final class ScaReachabilityTransformer implements ClassFileTransformer {
@@ -93,6 +100,23 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
   private final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
+  /**
+   * Queue of classes detected on first load but not yet processed. Populated by {@link #transform}
+   * (class-loading thread); drained by {@link #processPendingClassEvents} (telemetry thread).
+   */
+  // package-private for testing
+  final ConcurrentLinkedQueue<PendingClass> pendingClassEvents = new ConcurrentLinkedQueue<>();
+
+  static final class PendingClass {
+    final String className;
+    final URL jarUrl;
+
+    PendingClass(String className, URL jarUrl) {
+      this.className = className;
+      this.jarUrl = jarUrl;
+    }
+  }
+
   public ScaReachabilityTransformer(ScaCveDatabase database, Instrumentation instrumentation) {
     this.database = database;
     this.instrumentation = instrumentation;
@@ -135,6 +159,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         return null;
       }
 
+      if (classBeingRedefined == null) {
+        // First load: enqueue for deferred processing on the telemetry thread so that JAR I/O
+        // (DependencyResolver.resolve) does not run on the class-loading thread.
+        // processPendingClassEvents() will handle resolution, reporting, and scheduling
+        // retransformation for method-level symbols on the next telemetry heartbeat.
+        pendingClassEvents.add(new PendingClass(className, location));
+        return null;
+      }
+
+      // Retransform triggered by performPendingRetransforms() after version resolution succeeds:
+      // inject method-level callbacks into the bytecode and return the modified bytes.
       return processClass(className, location, entries, classfileBuffer);
     } catch (Throwable t) {
       // Never propagate from transform() - it would break the class being loaded.
@@ -144,17 +179,14 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   /**
-   * Handles both class-level and method-level symbols for a single class load event.
+   * Injects method-level callbacks into the bytecode of a class being retransformed.
    *
-   * <ul>
-   *   <li>Class-level ({@code symbol.method() == null}): reports a hit immediately via {@link
-   *       ScaReachabilityDependencyRegistry} with symbol {@link
-   *       ScaReachabilityHit#CLASS_LEVEL_SYMBOL}.
-   *   <li>Method-level ({@code symbol.method() != null}): injects a static callback into the method
-   *       bytecode via ASM. The callback is invoked the first time the method is called and reports
-   *       via {@link ScaReachabilityCallback}. Returns modified bytecode; {@code null} if only
-   *       class-level symbols were present.
-   * </ul>
+   * <p>Called only on retransformation ({@code classBeingRedefined != null}), triggered by {@link
+   * #performPendingRetransforms} for classes that have method-level symbols. Class-level hits were
+   * already reported by {@link #reportClassLevelHits} during {@link #processPendingClassEvents}.
+   *
+   * <p>Returns modified bytecode if method-level callbacks were injected, or {@code null} if only
+   * class-level symbols were present (no bytecode change needed).
    */
   private byte[] processClass(
       String className, URL jarUrl, List<ScaEntry> entries, byte[] classfileBuffer) {
@@ -163,7 +195,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
     boolean hasUnresolvedMethodLevelSymbols = false;
-    String dotClassName = className.replace('/', '.');
+    // Computed lazily: only needed for method-level symbol injection.
+    String dotClassName = null;
 
     for (ScaEntry entry : entries) {
       // Resolve version: first check the class's own JAR, then fall back to a full classpath
@@ -199,6 +232,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         // later when the method is actually called (via ScaReachabilityCallback).
         ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
             entry.artifact(), version, entry.vulnId());
+        if (dotClassName == null) {
+          dotClassName = className.replace('/', '.');
+        }
         methodCallbacks
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
             .add(
@@ -251,15 +287,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
       try {
-        processClass(internalName, location, entries);
+        reportClassLevelHits(internalName, location, entries);
         // If any entry for this class has method-level symbols, the class needs retransformation
         // so the bytecode callback can be injected. We can't modify bytecode here (we're just
         // scanning) - retransformation is deferred to performPendingRetransforms().
-        boolean needsMethodLevelInstrumentation =
-            entries.stream()
-                .flatMap(e -> e.symbols().stream())
-                .anyMatch(s -> s.className().equals(internalName) && !s.isClassLevel());
-        if (needsMethodLevelInstrumentation) {
+        if (hasMethodLevelSymbolForClass(entries, internalName)) {
           pendingRetransform.add(clazz);
         }
       } catch (Exception e) {
@@ -270,15 +302,54 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   /**
-   * Retransforms classes that could not be instrumented for method-level detection earlier:
+   * Processes classes enqueued by {@link #transform} on first load.
+   *
+   * <p>Runs on the telemetry thread (heartbeat) so that JAR I/O does not block class loading. For
+   * each pending class:
    *
    * <ol>
-   *   <li>Classes already loaded before the transformer was registered (populated in {@link
-   *       #checkAlreadyLoadedClasses}).
-   *   <li>Classes whose JAR version could not be resolved at load time (populated in {@link
-   *       #processClass} when {@code DependencyResolver} returns an empty list - the version may be
-   *       available by the time this periodic callback fires).
+   *   <li>Resolves the JAR dependencies via {@link DependencyResolver} (I/O, cached after first
+   *       read per JAR).
+   *   <li>Reports class-level hits immediately.
+   *   <li>Schedules retransformation for method-level symbols by adding to {@link
+   *       #pendingRetransformNames}; {@link #performPendingRetransforms} handles the actual {@link
+   *       Instrumentation#retransformClasses} call on the same heartbeat.
    * </ol>
+   *
+   * <p>Must be called <em>before</em> {@link #performPendingRetransforms} so that classes queued
+   * here are retransformed in the same heartbeat.
+   */
+  public void processPendingClassEvents() {
+    PendingClass event;
+    while ((event = pendingClassEvents.poll()) != null) {
+      final String className = event.className;
+      List<ScaEntry> entries = database.entriesForClass(className);
+      if (entries == null || entries.isEmpty()) {
+        continue;
+      }
+      try {
+        reportClassLevelHits(className, event.jarUrl, entries);
+        if (hasMethodLevelSymbolForClass(entries, className)) {
+          pendingRetransformNames.add(className);
+        }
+      } catch (Exception e) {
+        log.debug("SCA Reachability: error processing deferred class {}", className, e);
+      }
+    }
+  }
+
+  /**
+   * Retransforms classes scheduled for method-level bytecode injection:
+   *
+   * <ol>
+   *   <li>Classes detected on first load and queued by {@link #processPendingClassEvents}.
+   *   <li>Classes already loaded before the transformer was registered ({@link
+   *       #checkAlreadyLoadedClasses}).
+   *   <li>Classes whose JAR version could not be resolved (will be retried).
+   * </ol>
+   *
+   * <p>Must be called <em>after</em> {@link #processPendingClassEvents} so that classes queued in
+   * the same heartbeat are retransformed immediately.
    *
    * <p>Called by {@code ScaReachabilityPeriodicAction} on each telemetry heartbeat via the {@code
    * periodicWorkCallback} registered in {@link ScaReachabilityDependencyRegistry}.
@@ -294,14 +365,20 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       toRetransform.add(clazz);
     }
 
-    // Resolve any classes queued by name (from processClass timing failures)
+    // Resolve any classes queued by name (from processClass timing failures).
+    // Use contains+removeAll instead of remove inside the loop: the same class may be loaded
+    // by multiple classloaders (e.g. Spring Boot LaunchedURLClassLoader creates more than one
+    // instance), and we must retransform ALL of them, not just the first one found.
     if (!pendingRetransformNames.isEmpty()) {
+      Set<String> matched = new HashSet<>();
       for (Class<?> loaded : instrumentation.getAllLoadedClasses()) {
         String name = loaded.getName().replace('.', '/');
-        if (pendingRetransformNames.remove(name)) {
+        if (pendingRetransformNames.contains(name)) {
           toRetransform.add(loaded);
+          matched.add(name);
         }
       }
+      pendingRetransformNames.removeAll(matched);
     }
 
     if (toRetransform.isEmpty()) {
@@ -324,17 +401,21 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   // Internal matching logic
   // ---------------------------------------------------------------------------
 
-  private void processClass(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
+  private void reportClassLevelHits(String internalClassName, URL jarUrl, List<ScaEntry> entries) {
     List<Dependency> classJarDeps = resolveDependencies(jarUrl);
     for (ScaEntry entry : entries) {
       String version = resolveVersionForArtifact(entry.artifact(), classJarDeps);
       if (version == null || !entry.isVersionVulnerable(version)) {
         continue;
       }
-      // Only class-level symbols are reported at class load time.
-      // Method-level symbols are handled by processClass() via ASM injection.
       reportClassLevelHitIfPresent(entry, version, internalClassName);
     }
+  }
+
+  private static boolean hasMethodLevelSymbolForClass(List<ScaEntry> entries, String className) {
+    return entries.stream()
+        .flatMap(e -> e.symbols().stream())
+        .anyMatch(s -> s.className().equals(className) && !s.isClassLevel());
   }
 
   /**
@@ -486,7 +567,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         mv.visitLdcInsn(spec.version);
         mv.visitLdcInsn(spec.dotClassName);
         mv.visitLdcInsn(spec.methodName);
-        mv.visitIntInsn(Opcodes.SIPUSH, line);
+        mv.visitLdcInsn(line); // LDC handles the full int range; SIPUSH is limited to -32768..32767
         mv.visitMethodInsn(
             Opcodes.INVOKESTATIC, CALLBACK_OWNER, CALLBACK_METHOD, CALLBACK_DESC, false);
       }
