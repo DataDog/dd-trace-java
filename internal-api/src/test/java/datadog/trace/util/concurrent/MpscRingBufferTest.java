@@ -2,6 +2,8 @@ package datadog.trace.util.concurrent;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -275,5 +277,165 @@ class MpscRingBufferTest {
     int drained = ring.drain(s -> seen.add(s.value));
     assertEquals(3, drained, "consumer must advance past the throwing slot");
     assertEquals(Arrays.asList(1, 2, 3), seen, "throwing slot keeps whatever filler had written");
+  }
+
+  // ============ Batch claim (tryClaim) ============
+
+  @Test
+  void tryClaimReturnsBatchOfRequestedSize() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    MpscRingBuffer<Slot>.Batch batch = ring.tryClaim(3);
+
+    assertNotNull(batch);
+    assertEquals(3, batch.size());
+    assertEquals(3, batch.remaining());
+  }
+
+  @Test
+  void tryClaimRejectsZeroOrNegative() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    assertThrows(IllegalArgumentException.class, () -> ring.tryClaim(0));
+    assertThrows(IllegalArgumentException.class, () -> ring.tryClaim(-1));
+  }
+
+  @Test
+  void tryClaimReturnsNullWhenRingCantFitBatch() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 4);
+    assertNotNull(ring.tryClaim(3));
+    // Only 1 slot left; claiming 2 must fail wholesale.
+    assertNull(ring.tryClaim(2), "all-or-nothing: partial batches are not allowed");
+    // But one more slot does fit.
+    assertNotNull(ring.tryClaim(1));
+    // Now full.
+    assertNull(ring.tryClaim(1));
+  }
+
+  @Test
+  void tryClaimFillAndPublishDeliversAllToDrain() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    MpscRingBuffer<Slot>.Batch batch = ring.tryClaim(5);
+
+    for (int i = 0; i < 5; i++) {
+      final int v = i;
+      batch.fillAndPublish(s -> s.value = v);
+    }
+    assertEquals(0, batch.remaining());
+
+    List<Integer> seen = new ArrayList<>();
+    int drained = ring.drain(s -> seen.add(s.value));
+    assertEquals(5, drained);
+    assertEquals(Arrays.asList(0, 1, 2, 3, 4), seen, "batch publishes in order");
+  }
+
+  @Test
+  void overPublishingBatchThrows() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    MpscRingBuffer<Slot>.Batch batch = ring.tryClaim(2);
+
+    batch.fillAndPublish(s -> s.value = 1);
+    batch.fillAndPublish(s -> s.value = 2);
+    assertThrows(IllegalStateException.class, () -> batch.fillAndPublish(s -> s.value = 3));
+  }
+
+  @Test
+  void batchSupportsContextFillers() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    MpscRingBuffer<Slot>.Batch batch = ring.tryClaim(3);
+
+    BiConsumer<Integer, Slot> oneCtx = (v, s) -> s.value = v;
+    TriConsumer<Integer, String, Slot> twoCtx =
+        (v, t, s) -> {
+          s.value = v;
+          s.tag = t;
+        };
+
+    batch.fillAndPublish(s -> s.value = 1);
+    batch.fillAndPublish(2, oneCtx);
+    batch.fillAndPublish(3, "three", twoCtx);
+
+    List<String> seen = new ArrayList<>();
+    ring.drain(s -> seen.add(s.value + "/" + s.tag));
+    assertEquals(Arrays.asList("1/null", "2/null", "3/three"), seen);
+  }
+
+  @Test
+  void batchFillerThrowStillPublishesAndAdvances() {
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 8);
+    MpscRingBuffer<Slot>.Batch batch = ring.tryClaim(3);
+
+    batch.fillAndPublish(s -> s.value = 1);
+    RuntimeException boom = new RuntimeException("boom");
+    assertThrows(
+        RuntimeException.class,
+        () ->
+            batch.fillAndPublish(
+                s -> {
+                  s.value = 2;
+                  throw boom;
+                }));
+    // The throwing slot's sequence has already been consumed; published counter advanced.
+    assertEquals(1, batch.remaining(), "throwing slot still counts as published");
+    batch.fillAndPublish(s -> s.value = 3);
+
+    List<Integer> seen = new ArrayList<>();
+    int drained = ring.drain(s -> seen.add(s.value));
+    assertEquals(3, drained);
+    assertEquals(Arrays.asList(1, 2, 3), seen);
+  }
+
+  @Test
+  void concurrentBatchClaimsAreOrderedAndDontInterleave() throws InterruptedException {
+    final int producers = 8;
+    final int batchesPerProducer = 200;
+    final int batchSize = 16;
+    final int total = producers * batchesPerProducer * batchSize;
+
+    MpscRingBuffer<Slot> ring = new MpscRingBuffer<>(Slot::new, 256);
+    ExecutorService pool = Executors.newFixedThreadPool(producers);
+    AtomicInteger writes = new AtomicInteger();
+    CountDownLatch start = new CountDownLatch(1);
+
+    for (int p = 0; p < producers; p++) {
+      final int base = p * batchesPerProducer * batchSize;
+      pool.submit(
+          () -> {
+            try {
+              start.await();
+            } catch (InterruptedException ie) {
+              Thread.currentThread().interrupt();
+              return;
+            }
+            for (int b = 0; b < batchesPerProducer; b++) {
+              MpscRingBuffer<Slot>.Batch batch;
+              while ((batch = ring.tryClaim(batchSize)) == null) {
+                Thread.yield();
+              }
+              for (int i = 0; i < batchSize; i++) {
+                final int v = base + b * batchSize + i;
+                batch.fillAndPublish(s -> s.value = v);
+              }
+              writes.addAndGet(batchSize);
+            }
+          });
+    }
+
+    Set<Integer> seen = new HashSet<>(total);
+    Thread consumer =
+        new Thread(
+            () -> {
+              while (seen.size() < total) {
+                if (ring.drain((Slot s) -> seen.add(s.value)) == 0) Thread.yield();
+              }
+            },
+            "ring-batch-consumer");
+    consumer.start();
+
+    start.countDown();
+    pool.shutdown();
+    assertTrue(pool.awaitTermination(30, TimeUnit.SECONDS), "producers timed out");
+    consumer.join(30_000);
+    assertFalse(consumer.isAlive(), "consumer timed out");
+    assertEquals(total, writes.get());
+    assertEquals(total, seen.size(), "consumer must see every value exactly once");
   }
 }
