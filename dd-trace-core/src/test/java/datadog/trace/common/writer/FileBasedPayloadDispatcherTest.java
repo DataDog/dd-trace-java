@@ -144,6 +144,47 @@ class FileBasedPayloadDispatcherTest {
   }
 
   @Test
+  void citestcycleTruncatesMetaValuesAndPreservesMetricsAndTopLevelIds(@TempDir Path outputDir)
+      throws IOException {
+    FileBasedPayloadDispatcher dispatcher =
+        new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
+    String longValue =
+        longString(CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH + 1, 'a');
+    String exactValue = longString(CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH, 'b');
+    Map<String, Object> tags = new HashMap<>();
+    tags.put(Tags.TEST_SESSION_ID, DDTraceId.from(123));
+    tags.put(Tags.TEST_MODULE_ID, 456L);
+    tags.put(Tags.TEST_SUITE_ID, 789L);
+    tags.put("custom.tag", longValue);
+    tags.put("exact.tag", exactValue);
+    tags.put("custom.metric", 42L);
+    CoreSpan<?> span = mockSpan(InternalSpanTypes.TEST, tags);
+
+    dispatcher.addTrace(Collections.singletonList(span));
+    dispatcher.flush();
+
+    JsonNode content =
+        JSON.readTree(listFiles(outputDir).get(0).toFile()).get("events").get(0).get("content");
+    JsonNode meta = content.get("meta");
+    JsonNode metrics = content.get("metrics");
+
+    assertEquals(
+        longValue.substring(0, CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH),
+        meta.get("custom.tag").asText());
+    assertEquals(
+        CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH,
+        meta.get("custom.tag").asText().length());
+    assertEquals(exactValue, meta.get("exact.tag").asText());
+    assertEquals(42L, metrics.get("custom.metric").asLong());
+    assertFalse(meta.has(Tags.TEST_SESSION_ID));
+    assertFalse(meta.has(Tags.TEST_MODULE_ID));
+    assertFalse(meta.has(Tags.TEST_SUITE_ID));
+    assertEquals(123L, content.get(Tags.TEST_SESSION_ID).asLong());
+    assertEquals(456L, content.get(Tags.TEST_MODULE_ID).asLong());
+    assertEquals(789L, content.get(Tags.TEST_SUITE_ID).asLong());
+  }
+
+  @Test
   void citestcycleAssignsEventTypesForSessionModuleSuiteTestSpanSpans(@TempDir Path outputDir)
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
@@ -294,5 +335,11 @@ class FileBasedPayloadDispatcherTest {
       }
     }
     return files;
+  }
+
+  private static String longString(int length, char value) {
+    char[] chars = new char[length];
+    Arrays.fill(chars, value);
+    return new String(chars);
   }
 }
