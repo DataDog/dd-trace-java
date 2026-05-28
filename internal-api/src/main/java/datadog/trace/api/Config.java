@@ -2184,7 +2184,19 @@ public class Config {
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
-    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
+    // The MpscRingBuffer pre-allocates one SpanSnapshot per slot at construction; at the default
+    // pending=2048 (logical) * 64 (LEGACY_BATCH_SIZE) = 131072 slots * ~120 bytes/SpanSnapshot,
+    // that's a ~15 MB resident footprint before any traffic arrives. At Xmx<128 MB this
+    // consumes 25%+ of the heap up front and starves Spring Boot / Tomcat, sending the JVM into
+    // a Full-GC death spiral (observed at Xmx64m petclinic). Shrink the defaults at tight heap
+    // so the upfront ring footprint stays under 1 MB.
+    final boolean tightHeap = Runtime.getRuntime().maxMemory() < 128L * 1024 * 1024;
+    final int defaultMaxAggregates = tightHeap ? 256 : 2048;
+    // 64 logical * 64 LEGACY_BATCH_SIZE = 4096 slots -> ~500 KB upfront SpanSnapshot footprint.
+    final int defaultMaxPending = tightHeap ? 64 : 2048;
+
+    tracerMetricsMaxAggregates =
+        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
@@ -2199,7 +2211,8 @@ public class Config {
      * see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
      */
     long requestedMaxPending =
-        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
+        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
+            * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
 
     reportHostName =
