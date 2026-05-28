@@ -293,24 +293,54 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
 
   @Override
   public boolean publish(List<? extends CoreSpan<?>> trace) {
+    if (!features.supportsMetrics()) {
+      return false;
+    }
+
+    // First pass: count metrics-eligible spans, detect the ignored-resource short-circuit, and
+    // compute forceKeep (any-error). Doing this pre-claim lets us claim the whole trace's slots
+    // in a single CAS instead of one per span.
     boolean forceKeep = false;
-    int counted = 0;
-    if (features.supportsMetrics()) {
-      for (CoreSpan<?> span : trace) {
-        boolean isTopLevel = span.isTopLevel();
-        if (shouldComputeMetric(span, isTopLevel)) {
-          final CharSequence resourceName = span.getResourceName();
-          if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
-            // skip publishing all children
-            forceKeep = false;
-            break;
+    int eligibleCount = 0;
+    for (CoreSpan<?> span : trace) {
+      boolean isTopLevel = span.isTopLevel();
+      if (shouldComputeMetric(span, isTopLevel)) {
+        final CharSequence resourceName = span.getResourceName();
+        if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
+          // Ignored-resource span: drop metrics for the whole trace.
+          forceKeep = false;
+          eligibleCount = 0;
+          break;
+        }
+        eligibleCount++;
+        forceKeep |= span.getError() > 0;
+      }
+    }
+
+    if (eligibleCount > 0) {
+      // All-or-nothing claim. If the ring can't fit the whole trace's worth of slots, we drop
+      // all of them rather than partially publish -- partial-trace metrics would be misleading
+      // anyway, and atomic claim cuts producer-cursor contention from O(eligibleCount) to O(1).
+      final MpscRingBuffer<SpanSnapshot>.Batch batch = dataInbox.tryClaim(eligibleCount);
+      if (batch == null) {
+        healthMetrics.onStatsInboxFull();
+      } else {
+        // Second pass: fill the claimed batch. Same filter conditions as the first pass.
+        for (CoreSpan<?> span : trace) {
+          boolean isTopLevel = span.isTopLevel();
+          if (shouldComputeMetric(span, isTopLevel)) {
+            batch.fillAndPublish(span, isTopLevel, slotFiller);
+            if (batch.remaining() == 0) {
+              // Stop early in the unusual case that the second pass would see more eligible
+              // spans than the first (e.g. if shouldComputeMetric changed semantics mid-trace).
+              break;
+            }
           }
-          counted++;
-          forceKeep |= publish(span, isTopLevel);
         }
       }
-      healthMetrics.onClientStatTraceComputed(counted, trace.size(), !forceKeep);
     }
+
+    healthMetrics.onClientStatTraceComputed(eligibleCount, trace.size(), !forceKeep);
     return forceKeep;
   }
 
@@ -319,25 +349,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
         && span.getLongRunningVersion()
             <= 0 // either not long-running or unpublished long-running span
         && span.getDurationNano() > 0;
-  }
-
-  private boolean publish(CoreSpan<?> span, boolean isTopLevel) {
-    // Error decision drives force-keep sampling regardless of whether the snapshot gets queued.
-    boolean error = span.getError() > 0;
-
-    // Fast-path the inbox-full case before tag extraction. size() is approximate but that's fine:
-    // a false "full" reading just causes a drop, and a real one is correctly identified.
-    if (dataInbox.size() >= dataInbox.capacity()) {
-      healthMetrics.onStatsInboxFull();
-      return error;
-    }
-
-    // tryWrite claims a slot, runs slotFiller to populate it in place, and publishes. No
-    // SpanSnapshot is allocated -- the slot is one of the ring's pre-allocated instances.
-    if (!dataInbox.tryWrite(span, isTopLevel, slotFiller)) {
-      healthMetrics.onStatsInboxFull();
-    }
-    return error;
   }
 
   /**
