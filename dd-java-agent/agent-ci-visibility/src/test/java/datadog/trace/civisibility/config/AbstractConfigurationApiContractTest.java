@@ -197,9 +197,23 @@ abstract class AbstractConfigurationApiContractTest {
     assertEquals("11223344", result.getCorrelationId());
     Map<String, BitSet> coverage = result.getCoveredLinesByRelativeSourcePath();
     assertEquals(3, coverage.size());
-    assertTrue(coverage.containsKey("src/main/java/Calculator.java"));
-    assertTrue(coverage.containsKey("src/main/java/utils/Math.java"));
-    assertTrue(coverage.containsKey("src/test/java/CalculatorTest.java"));
+    assertEquals(
+        bits(0, 1, 2, 3, 4, 5, 6, 7, 14, 15, 24, 25, 26, 27, 28, 29, 30, 31),
+        coverage.get("src/main/java/Calculator.java"));
+    assertEquals(
+        bits(24, 25, 26, 27, 28, 29, 30, 37, 38, 39, 50, 51, 52, 53, 54, 55),
+        coverage.get("src/main/java/utils/Math.java"));
+    assertEquals(
+        bits(0, 1, 2, 3, 4, 5, 6, 7, 12, 13, 14, 15, 27, 28, 29, 30, 50, 51, 52, 53, 54, 55),
+        coverage.get("src/test/java/CalculatorTest.java"));
+  }
+
+  private static BitSet bits(int... positions) {
+    BitSet b = new BitSet();
+    for (int p : positions) {
+      b.set(p);
+    }
+    return b;
   }
 
   static Stream<Arguments> parsesFlakyTestsArguments() {
