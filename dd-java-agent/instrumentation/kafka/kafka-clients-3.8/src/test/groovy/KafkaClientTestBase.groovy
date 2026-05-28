@@ -1,3 +1,4 @@
+import datadog.trace.agent.test.InstrumentationSpecification
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
@@ -1217,7 +1218,18 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
   }
 }
 
-class KafkaClientBadBase64HeaderForkedTest extends KafkaClientV0ForkedTest {
+class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification {
+  EmbeddedKafkaBroker embeddedKafka
+
+  def setup() {
+    embeddedKafka = new EmbeddedKafkaKraftBroker(1, 2, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka.afterPropertiesSet()
+  }
+
+  def cleanup() {
+    embeddedKafka.destroy()
+  }
+
   @Override
   void configurePreAgent() {
     super.configurePreAgent()
@@ -1235,7 +1247,7 @@ class KafkaClientBadBase64HeaderForkedTest extends KafkaClientV0ForkedTest {
       new RecordHeader("x-custom-header", "not-valid-base64!@#".getBytes(StandardCharsets.UTF_8)),
       new RecordHeader("x-another-header", "also-not-base64!!".getBytes(StandardCharsets.UTF_8))
     ])
-    producer.send(new ProducerRecord<>(SHARED_TOPIC, 0, null, "hello", headers)).get()
+    producer.send(new ProducerRecord<>(KafkaClientTestBase.SHARED_TOPIC, 0, null, "hello", headers)).get()
 
     then:
     TEST_WRITER.waitForTraces(1)
