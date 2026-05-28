@@ -542,6 +542,9 @@ check_debugger:
 
 muzzle:
   extends: .gradle_build
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
   needs: &needs_build_tests_inst
     - job: build_tests
       parallel:
@@ -736,7 +739,10 @@ agent_integration_tests:
 
 test_base:
   extends: .test_job
-  needs: &needs_build_tests_base
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
     - job: build_tests
       parallel:
         matrix:
@@ -762,7 +768,10 @@ test_inst:
 
 test_inst_latest:
   extends: .test_job_with_test_agent
-  needs: &needs_build_tests_latestdep
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
     - job: build_tests
       parallel:
         matrix:
@@ -813,7 +822,10 @@ test_flaky_inst:
 
 test_profiling:
   extends: .test_job
-  needs: &needs_build_tests_profiling
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
+  needs:
     - job: build_tests
       parallel:
         matrix:
@@ -838,6 +850,9 @@ test_debugger:
 
 test_smoke:
   extends: .test_job
+  # needs:parallel:matrix limits this job to a specific build_tests combination.
+  # Keep matrix vars exact and in build_tests declaration order:
+  # https://docs.gitlab.com/ci/yaml/#needsparallelmatrix
   needs: &needs_build_tests_smoke
     - job: build_tests
       parallel:
