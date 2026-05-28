@@ -11501,7 +11501,7 @@
       {
         "version": "A",
         "type": "boolean",
-        "default": true,
+        "default": "true",
         "aliases": []
       }
     ],
