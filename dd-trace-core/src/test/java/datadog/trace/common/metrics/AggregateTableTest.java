@@ -266,6 +266,71 @@ class AggregateTableTest {
     assertEquals(0, first.getSpanKind().length(), "null spanKind should canonicalize to EMPTY");
   }
 
+  @Test
+  void noPeerTagSnapshotMatchesEntryEvenWithStaleScratchPeerTagValues() {
+    // Models the ring-buffer slot-reuse pattern: a slot whose previous publish fired peer tags
+    // ends up reused for a span with no peer tags. The producer clears peerTagSchema but leaves
+    // peerTagValues populated (the array is the slot's reusable scratch). The consumer must
+    // gate on peerTagSchema and ignore stale scratch values for both hashOf and matches --
+    // otherwise the slot's stale state would steer the snapshot to a different bucket or fail
+    // the field-by-field comparison, producing a duplicate aggregate.
+    AggregateTable table = new AggregateTable(8);
+    SpanSnapshot cleanNoPeerTags = snapshot("svc", "op", "internal");
+    AggregateEntry inserted = table.findOrInsert(cleanNoPeerTags);
+
+    SpanSnapshot withStaleScratch = snapshot("svc", "op", "internal");
+    // Simulate stale scratch: same logical contents (no peer tags -> schema null), but the
+    // values array carries leftover data the slot's prior tag-firing publish wrote into it.
+    withStaleScratch.peerTagSchema = null;
+    withStaleScratch.peerTagValues = new String[] {"leftover.host", "leftover.service"};
+
+    AggregateEntry hit = table.findOrInsert(withStaleScratch);
+    assertSame(inserted, hit, "stale peerTagValues must be ignored when peerTagSchema is null");
+    assertEquals(1, table.size());
+  }
+
+  @Test
+  void aggregateEntryCopiesPeerTagValuesSoSlotReuseDoesntCorruptIt() {
+    // The AggregateEntry must snapshot peerTagValues by value at insert time -- otherwise
+    // when the producer reuses the slot's array on the next publish, the entry's identity
+    // would silently change. Verify by mutating the source array after insert and confirming
+    // the entry still matches its original-content snapshot.
+    AggregateTable table = new AggregateTable(8);
+    String[] values = new String[] {"host1", "svc1"};
+    SpanSnapshot s1 = snapshotWithPeerTags("svc", "op", "client", values);
+    AggregateEntry inserted = table.findOrInsert(s1);
+
+    // Producer "reuses" the array: same reference, new contents.
+    values[0] = "host2";
+    values[1] = "svc2";
+
+    // A FRESH snapshot with the original peer tag values should still match the entry.
+    SpanSnapshot s2 = snapshotWithPeerTags("svc", "op", "client", new String[] {"host1", "svc1"});
+    AggregateEntry hit = table.findOrInsert(s2);
+    assertSame(inserted, hit, "entry's peer tag values must be a snapshot, not a live ref");
+  }
+
+  private static SpanSnapshot snapshotWithPeerTags(
+      String service, String operation, String spanKind, String[] peerTagValues) {
+    PeerTagSchema schema = PeerTagSchema.testSchema(new String[] {"peer.host", "peer.service"});
+    return new SpanSnapshot(
+        "resource",
+        service,
+        operation,
+        null,
+        "web",
+        (short) 200,
+        false,
+        true,
+        spanKind,
+        schema,
+        peerTagValues,
+        null,
+        null,
+        null,
+        0L);
+  }
+
   private static SpanSnapshot nullServiceKindSnapshot(String service, String spanKind) {
     return new SpanSnapshot(
         "resource",

@@ -373,13 +373,31 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
+    // Fill the slot's reusable peerTagValues scratch in place. The slot owns its array across
+    // publishes; we only allocate when the slot has none or the schema's length changed. When
+    // no tags fire, leave the scratch in place and clear peerTagSchema -- consumers gate on
+    // peerTagSchema (see AggregateEntry.matches / hashOf), so stale scratch contents are inert.
     PeerTagSchema peerTagSchema = peerTagSchemaFor(span);
-    String[] peerTagValues =
-        peerTagSchema == null ? null : capturePeerTagValues(span, peerTagSchema);
-    if (peerTagValues == null) {
-      // No tags fired -- drop the schema reference so the consumer doesn't bother iterating an
-      // all-null array.
-      peerTagSchema = null;
+    if (peerTagSchema != null) {
+      final String[] names = peerTagSchema.names;
+      final int n = names.length;
+      String[] valuesArr = slot.peerTagValues;
+      if (valuesArr == null || valuesArr.length != n) {
+        valuesArr = new String[n];
+        slot.peerTagValues = valuesArr;
+      }
+      boolean anyHit = false;
+      for (int i = 0; i < n; i++) {
+        Object v = span.unsafeGetTag(names[i]);
+        String tag = v == null ? null : v.toString();
+        valuesArr[i] = tag;
+        anyHit |= (tag != null);
+      }
+      if (!anyHit) {
+        // Schema fired no tags -- treat like the no-peer-tag case. Keep valuesArr alive on the
+        // slot for the next publish; nullifying peerTagSchema makes downstream gates skip it.
+        peerTagSchema = null;
+      }
     }
 
     slot.resourceName = span.getResourceName();
@@ -392,7 +410,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     slot.traceRoot = span.getParentId() == 0;
     slot.spanKind = spanKind;
     slot.peerTagSchema = peerTagSchema;
-    slot.peerTagValues = peerTagValues;
     slot.httpMethod = httpMethod;
     slot.httpEndpoint = httpEndpoint;
     slot.grpcStatusCode = grpcStatusCode;
@@ -479,28 +496,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     } else {
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
-  }
-
-  /**
-   * Captures the span's peer-tag values into a {@code String[]} parallel to {@code schema.names}.
-   * Slots remain {@code null} for tags the span didn't set; the array itself is lazily allocated on
-   * the first hit so spans that fire no peer tags pay zero allocation. Returns {@code null} when
-   * none of the configured peer tags are set on the span.
-   */
-  private static String[] capturePeerTagValues(CoreSpan<?> span, PeerTagSchema schema) {
-    String[] names = schema.names;
-    int n = names.length;
-    String[] values = null;
-    for (int i = 0; i < n; i++) {
-      Object v = span.unsafeGetTag(names[i]);
-      if (v != null) {
-        if (values == null) {
-          values = new String[n];
-        }
-        values[i] = v.toString();
-      }
-    }
-    return values;
   }
 
   private static boolean isSynthetic(CoreSpan<?> span) {

@@ -157,7 +157,11 @@ final class AggregateEntry extends Hashtable.Entry {
     this.synthetic = s.synthetic;
     this.traceRoot = s.traceRoot;
     this.peerTagNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
-    this.peerTagValues = s.peerTagValues;
+    // The slot's peerTagValues is a reusable scratch buffer owned by the ring -- the producer
+    // overwrites it on every claim of this slot. Snapshot it here by value so this entry's
+    // identity doesn't drift when the slot is reclaimed.
+    this.peerTagValues =
+        s.peerTagSchema == null ? null : Arrays.copyOf(s.peerTagValues, s.peerTagValues.length);
     this.peerTags = materializePeerTags(this.peerTagNames, this.peerTagValues);
   }
 
@@ -242,6 +246,11 @@ final class AggregateEntry extends Hashtable.Entry {
 
   boolean matches(SpanSnapshot s) {
     String[] snapshotNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
+    // peerTagValues is meaningful only when peerTagNames is non-null. When the snapshot's slot
+    // had no peer tags for this publish (peerTagSchema=null), s.peerTagValues may still hold
+    // stale scratch from a prior tag-firing publish on the same slot -- skip the values check
+    // in that case. The names check above already rejects entries whose peer-tag presence
+    // doesn't match the snapshot.
     return httpStatusCode == s.httpStatusCode
         && synthetic == s.synthetic
         && traceRoot == s.traceRoot
@@ -252,7 +261,7 @@ final class AggregateEntry extends Hashtable.Entry {
         && contentEquals(type, s.spanType)
         && contentEquals(spanKind, s.spanKind)
         && Arrays.equals(peerTagNames, snapshotNames)
-        && Arrays.equals(peerTagValues, s.peerTagValues)
+        && (peerTagNames == null || Arrays.equals(peerTagValues, s.peerTagValues))
         && contentEquals(httpMethod, s.httpMethod)
         && contentEquals(httpEndpoint, s.httpEndpoint)
         && contentEquals(grpcStatusCode, s.grpcStatusCode);
@@ -292,10 +301,17 @@ final class AggregateEntry extends Hashtable.Entry {
     // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
     // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
     // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
+    //
+    // peerTagValues is gated by peerTagSchema: the slot's peerTagValues is a reusable scratch
+    // buffer that may carry stale contents from a prior tag-firing publish when this publish had
+    // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
+    // contract.
     h =
         LongHashingUtils.addToHash(
             h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagSchema.names));
-    h = LongHashingUtils.addToHash(h, Arrays.hashCode(s.peerTagValues));
+    h =
+        LongHashingUtils.addToHash(
+            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));
     h = LongHashingUtils.addToHash(h, s.httpMethod);
     h = LongHashingUtils.addToHash(h, s.httpEndpoint);
     h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
