@@ -98,7 +98,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
-  private final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+  // package-private for testing
+  final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   /**
    * Queue of classes detected on first load but not yet processed. Populated by {@link #transform}
