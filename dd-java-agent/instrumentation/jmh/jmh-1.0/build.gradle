@@ -1,0 +1,16 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+muzzle {
+  pass {
+    group = 'org.openjdk.jmh'
+    module = 'jmh-core'
+    versions = '[1.0,)'
+  }
+}
+
+dependencies {
+  compileOnly group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.0'
+
+  testImplementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.37'
+  testImplementation project(':dd-java-agent:agent-ci-visibility:civisibility-instrumentation-test-fixtures')
+}
