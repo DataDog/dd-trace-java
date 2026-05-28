@@ -112,6 +112,7 @@ include(
 
 include(
   ":communication",
+  ":components:annotations",
   ":components:context",
   ":components:environment",
   ":components:http:http-api",

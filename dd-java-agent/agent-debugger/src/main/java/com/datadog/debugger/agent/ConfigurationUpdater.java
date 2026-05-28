@@ -15,6 +15,7 @@ import com.datadog.debugger.util.SpringHelper;
 import datadog.environment.JavaVirtualMachine;
 import datadog.logging.RatelimitedLogger;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.debugger.DebuggerContext;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.bootstrap.debugger.ProbeImplementation;
@@ -445,7 +446,7 @@ public class ConfigurationUpdater implements DebuggerContext.ProbeResolver, Conf
     currentTransformer = null;
   }
 
-  // only visible for tests
+  @VisibleForTesting
   Map<String, ProbeDefinition> getAppliedDefinitions() {
     if (currentTransformer == null) {
       return Collections.emptyMap();
