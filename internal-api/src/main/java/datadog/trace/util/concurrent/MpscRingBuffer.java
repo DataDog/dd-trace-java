@@ -1,8 +1,8 @@
 package datadog.trace.util.concurrent;
 
 import datadog.trace.api.function.TriConsumer;
-import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicLongArray;
+import java.util.concurrent.atomic.AtomicLongFieldUpdater;
 import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
@@ -77,12 +77,17 @@ public final class MpscRingBuffer<T> {
   private final int capacity;
   private final int mask;
 
-  /** Next sequence to claim. Producers increment via CAS. */
-  private final AtomicLong producerCursor = new AtomicLong(-1L);
+  /** Next sequence to claim. Producers increment via CAS through {@link #PRODUCER_CURSOR}. */
+  @SuppressWarnings("unused") // accessed via PRODUCER_CURSOR field updater
+  private volatile long producerCursor = -1L;
+
+  @SuppressWarnings("rawtypes") // AtomicLongFieldUpdater cannot reference a parameterized type
+  private static final AtomicLongFieldUpdater<MpscRingBuffer> PRODUCER_CURSOR =
+      AtomicLongFieldUpdater.newUpdater(MpscRingBuffer.class, "producerCursor");
 
   /**
    * Highest sequence consumed. Volatile so producers see space freed up; only the consumer thread
-   * writes to it, so a plain field with a manual volatile-store would also work.
+   * writes to it.
    */
   private volatile long consumerCursor = -1L;
 
@@ -112,7 +117,7 @@ public final class MpscRingBuffer<T> {
 
   /** Approximate count of slots holding unread items. May briefly exceed capacity under race. */
   public int size() {
-    final long p = producerCursor.get();
+    final long p = producerCursor;
     final long c = consumerCursor;
     final long diff = p - c;
     if (diff <= 0) return 0;
@@ -121,7 +126,7 @@ public final class MpscRingBuffer<T> {
   }
 
   public boolean isEmpty() {
-    return producerCursor.get() == consumerCursor;
+    return producerCursor == consumerCursor;
   }
 
   /** {@code true} if the slot was filled and published; {@code false} if the ring is full. */
@@ -215,7 +220,7 @@ public final class MpscRingBuffer<T> {
   /** CAS-claim the next sequence, or return {@code -1} if the ring is full. */
   private long claim() {
     while (true) {
-      final long current = producerCursor.get();
+      final long current = producerCursor;
       // Stale read of consumerCursor is fine: a false "full" reading just causes a drop, and
       // a real "full" reading is correctly identified because consumerCursor only advances.
       final long consumed = consumerCursor;
@@ -223,7 +228,7 @@ public final class MpscRingBuffer<T> {
         return -1L;
       }
       final long next = current + 1L;
-      if (producerCursor.compareAndSet(current, next)) {
+      if (PRODUCER_CURSOR.compareAndSet(this, current, next)) {
         return next;
       }
       // CAS failure -> another producer claimed; retry.
