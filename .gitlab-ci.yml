@@ -841,7 +841,7 @@ test_smoke_graalvm:
   extends: .test_job
   tags: [ "arch:amd64" ]
   variables:
-    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test"
+    GRADLE_TARGET: "stageMainDist :dd-smoke-test:spring-boot-3.0-native:test :dd-smoke-test:quarkus-native:test"
     CACHE_TYPE: "smoke"
     CI_NO_SPLIT: "true"
     NON_DEFAULT_JVMS: "true"
