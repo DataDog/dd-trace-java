@@ -25,13 +25,12 @@ When converting Groovy code to Java code, make sure that:
 - When converting tuples, create a light dedicated structure instead to keep the typing system
 - Instead of checking a state and throwing an exception, use JUnit asserts
 - Instead of using `assertTrue(a.equals(b))` or `assertFalse(a.equals(b))`, use `assertEquals(expected, actual)` and `assertNotEquals(unexpected, actual)`
-- Groovy's `==` handles `CharSequence`/`String` comparisons transparently; Java's `assertEquals` does not. If a method returns `CharSequence` (e.g. `getOperationName()`), call `.toString()` on it before asserting, or the test will fail even when the content matches.
 - Import frequently used types rather than using fully-qualified names inline, to improve readability
 - Do not wrap checked exceptions and throw a Runtime exception; prefer adding a throws clause at method declaration
 - Do not mark local variables `final`
 - Ensure variables are human-readable; avoid single-letter names and pre-define variables that are referenced multiple times
 - When translating Spock `Mock(...)` usage, use `libs.bundles.mockito` instead of writing manual recording/stub implementations
-- Replace `injectSysConfig(key, value)` calls with `@WithConfig(key = "...", value = "...")`. Put it on the test method for per-test config, or on the class when every test needs it. The `dd.` prefix is added automatically — use the bare key (e.g. `"trace.scope.strict.mode"`, not `"dd.trace.scope.strict.mode"`).
+- Replace `injectSysConfig(key, value)` calls with `@WithConfig` when the key and value are static literals. Put it on the test method for per-test config, or on the class when every test needs it. The `dd.` prefix is added automatically — use the bare key (e.g. `"trace.scope.strict.mode"`, not `"dd.trace.scope.strict.mode"`). For dynamic or parameterized values, keep the imperative `WithConfigExtension.injectSysConfig(key, value)` call.
 - Keep inline comments
 - Migrate the named Spock clauses if they exist as inline comments in the Java unit test
 
