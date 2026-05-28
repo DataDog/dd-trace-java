@@ -7,6 +7,35 @@ import java.util.function.BiConsumer;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
+// Disruptor-style cache-line padding around the cursors. The two cursors live on different cache
+// lines so consumer-side writes to consumerCursor don't invalidate the line producers read for
+// producerCursor (and vice versa). Each padding class declares 7 longs (56 bytes); combined with
+// the cursor's own 8 bytes plus the JVM object header, each cursor + its surrounding pad fills
+// a 64-byte cache line. The HotSpot field-layout strategy preserves the declaration order across
+// the class hierarchy, so this pattern is reliable on all production JVMs we target.
+
+abstract class MpscRingBufferPad0 {
+  long p01, p02, p03, p04, p05, p06, p07;
+}
+
+abstract class MpscRingBufferProducerCursor extends MpscRingBufferPad0 {
+  /** Next sequence to claim. Producers increment via CAS through {@code PRODUCER_CURSOR}. */
+  volatile long producerCursor = -1L;
+}
+
+abstract class MpscRingBufferPad1 extends MpscRingBufferProducerCursor {
+  long p11, p12, p13, p14, p15, p16, p17;
+}
+
+abstract class MpscRingBufferConsumerCursor extends MpscRingBufferPad1 {
+  /** Highest sequence consumed. Only the consumer thread writes; producers read volatile. */
+  volatile long consumerCursor = -1L;
+}
+
+abstract class MpscRingBufferPad2 extends MpscRingBufferConsumerCursor {
+  long p21, p22, p23, p24, p25, p26, p27;
+}
+
 /**
  * Bounded multi-producer / single-consumer ring buffer of pre-allocated {@code T} instances.
  *
@@ -60,36 +89,37 @@ import java.util.function.Supplier;
  *
  * <p>Producer cursor is CAS-claimed; visibility of a claimed slot to the consumer is gated by a
  * per-slot publication-sequence array. Consumer cursor is updated with a volatile write so
- * producers observe space being freed.
+ * producers observe space being freed. Cursors are cache-line-padded against each other (see the
+ * {@code MpscRingBufferPad*} hierarchy at the top of this file) and the publication-sequence array
+ * is strided so each logical entry occupies a distinct cache line.
  */
-public final class MpscRingBuffer<T> {
+public final class MpscRingBuffer<T> extends MpscRingBufferPad2 {
+
+  /**
+   * Cache line size in {@code long}-units. 64-byte cache lines on every common CPU we ship to (x86,
+   * ARM); 8 bytes per long. Each logical slot in {@link #publishedSequences} is spread out by this
+   * stride so adjacent logical sequences don't share a cache line and don't ping-pong between
+   * producer cores under heavy contention.
+   */
+  private static final int CACHE_LINE_LONGS = 8;
+
+  @SuppressWarnings("rawtypes") // AtomicLongFieldUpdater can't take a parameterized class
+  private static final AtomicLongFieldUpdater<MpscRingBufferProducerCursor> PRODUCER_CURSOR =
+      AtomicLongFieldUpdater.newUpdater(MpscRingBufferProducerCursor.class, "producerCursor");
 
   private final T[] slots;
 
   /**
-   * Per-slot publication sequence. Producers write the claimed sequence here as the last step of a
-   * publish (release write via {@link AtomicLongArray#set}); the consumer reads it (acquire read)
-   * to determine whether the slot at the next position is ready. A slot is considered published for
-   * sequence {@code s} iff {@code sequences[s & mask] == s}.
+   * Per-slot publication sequence, strided by {@link #CACHE_LINE_LONGS} to avoid false sharing.
+   * Producers write the claimed sequence here as the last step of a publish (release write via
+   * {@link AtomicLongArray#set}); the consumer reads it (acquire read) to determine whether the
+   * slot at the next position is ready. A slot is considered published for sequence {@code s} iff
+   * {@code publishedSequences[(s & mask) * CACHE_LINE_LONGS] == s}.
    */
   private final AtomicLongArray publishedSequences;
 
   private final int capacity;
   private final int mask;
-
-  /** Next sequence to claim. Producers increment via CAS through {@link #PRODUCER_CURSOR}. */
-  @SuppressWarnings("unused") // accessed via PRODUCER_CURSOR field updater
-  private volatile long producerCursor = -1L;
-
-  @SuppressWarnings("rawtypes") // AtomicLongFieldUpdater cannot reference a parameterized type
-  private static final AtomicLongFieldUpdater<MpscRingBuffer> PRODUCER_CURSOR =
-      AtomicLongFieldUpdater.newUpdater(MpscRingBuffer.class, "producerCursor");
-
-  /**
-   * Highest sequence consumed. Volatile so producers see space freed up; only the consumer thread
-   * writes to it.
-   */
-  private volatile long consumerCursor = -1L;
 
   @SuppressWarnings("unchecked")
   public MpscRingBuffer(final Supplier<T> factory, final int capacityHint) {
@@ -102,12 +132,12 @@ public final class MpscRingBuffer<T> {
     }
     this.mask = capacity - 1;
     this.slots = (T[]) new Object[capacity];
-    this.publishedSequences = new AtomicLongArray(capacity);
+    this.publishedSequences = new AtomicLongArray(capacity * CACHE_LINE_LONGS);
     for (int i = 0; i < capacity; i++) {
       slots[i] = factory.get();
       // Initial: sentinel "no sequence published here yet" -- anything < 0 works since
       // sequences are 0-based and monotonically increasing.
-      publishedSequences.set(i, Long.MIN_VALUE);
+      publishedSequences.set(i * CACHE_LINE_LONGS, Long.MIN_VALUE);
     }
   }
 
@@ -175,7 +205,7 @@ public final class MpscRingBuffer<T> {
     while (true) {
       final long nextSeq = cursor + 1L;
       final int idx = (int) (nextSeq & mask);
-      if (publishedSequences.get(idx) != nextSeq) break;
+      if (publishedSequences.get(idx * CACHE_LINE_LONGS) != nextSeq) break;
       handler.accept(slots[idx]);
       cursor = nextSeq;
       count++;
@@ -190,7 +220,7 @@ public final class MpscRingBuffer<T> {
     while (true) {
       final long nextSeq = cursor + 1L;
       final int idx = (int) (nextSeq & mask);
-      if (publishedSequences.get(idx) != nextSeq) break;
+      if (publishedSequences.get(idx * CACHE_LINE_LONGS) != nextSeq) break;
       handler.accept(context, slots[idx]);
       cursor = nextSeq;
       count++;
@@ -208,7 +238,7 @@ public final class MpscRingBuffer<T> {
     while (true) {
       final long nextSeq = cursor + 1L;
       final int idx = (int) (nextSeq & mask);
-      if (publishedSequences.get(idx) != nextSeq) break;
+      if (publishedSequences.get(idx * CACHE_LINE_LONGS) != nextSeq) break;
       handler.accept(context1, context2, slots[idx]);
       cursor = nextSeq;
       count++;
@@ -237,7 +267,7 @@ public final class MpscRingBuffer<T> {
 
   /** Mark sequence {@code seq} as published. Release semantics via {@link AtomicLongArray#set}. */
   private void publish(final long seq) {
-    publishedSequences.set((int) (seq & mask), seq);
+    publishedSequences.set(((int) (seq & mask)) * CACHE_LINE_LONGS, seq);
   }
 
   private static int nextPowerOfTwo(final int n) {
