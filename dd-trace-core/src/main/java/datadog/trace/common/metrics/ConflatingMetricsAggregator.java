@@ -288,66 +288,67 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     if (!features.supportsMetrics()) {
       return false;
     }
-
-    // Indexed iteration (vs. enhanced-for) avoids per-call Iterator allocation. trace is
-    // typically an ArrayList-shaped structure (SpanList) so get(i) is O(1); even
-    // Collections.singletonList wins here because its iterator() allocates.
     final int traceSize = trace.size();
+    if (traceSize == 0) {
+      return false;
+    }
 
-    // First pass: count metrics-eligible spans, detect the ignored-resource short-circuit, and
-    // compute forceKeep (any-error). Doing this pre-claim lets us claim the whole trace's slots
-    // in a single CAS via tryClaimRange instead of one per span.
+    // Overclaim the worst case: assume every span in the trace is metrics-eligible and claim
+    // that many ring slots in a single CAS. Non-eligible spans get a "skip" sentinel
+    // (tagAndDuration = 0L); the aggregator recognises this and bypasses findOrInsert for those
+    // slots. We expect most spans in a typical trace to be eligible (top-level / measured /
+    // server-client-producer-consumer kinds), so the slot waste is small in exchange for a
+    // single-pass producer loop. Indexed iteration (vs. enhanced-for) avoids per-call Iterator
+    // allocation -- trace is typically a SpanList, but even Collections.singletonList's
+    // iterator() allocates.
+    final long startSeq = dataInbox.tryClaimRange(traceSize);
+    if (startSeq < 0L) {
+      healthMetrics.onStatsInboxFull();
+      return false;
+    }
+
     boolean forceKeep = false;
-    int eligibleCount = 0;
+    int filled = 0;
+
     for (int i = 0; i < traceSize; i++) {
-      CoreSpan<?> span = trace.get(i);
-      boolean isTopLevel = span.isTopLevel();
+      final CoreSpan<?> span = trace.get(i);
+      final long seq = startSeq + i;
+      final SpanSnapshot slot = dataInbox.slotAt(seq);
+      final boolean isTopLevel = span.isTopLevel();
+
       if (shouldComputeMetric(span, isTopLevel)) {
         final CharSequence resourceName = span.getResourceName();
         if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
-          // Ignored-resource span: drop metrics for the whole trace.
-          forceKeep = false;
-          eligibleCount = 0;
-          break;
-        }
-        eligibleCount++;
-        forceKeep |= span.getError() > 0;
-      }
-    }
-
-    if (eligibleCount > 0) {
-      // All-or-nothing claim. If the ring can't fit the whole trace's worth of slots, we drop
-      // all of them rather than partially publish -- partial-trace metrics would be misleading
-      // anyway, and the atomic range claim cuts producer-cursor contention from O(eligibleCount)
-      // CASes to one CAS per trace. Uses the low-level primitives so escape analysis isn't
-      // relied on to elide a per-publish Batch handle.
-      final long startSeq = dataInbox.tryClaimRange(eligibleCount);
-      if (startSeq < 0L) {
-        healthMetrics.onStatsInboxFull();
-      } else {
-        // Second pass: fill each claimed slot. Same filter conditions as the first pass.
-        int filled = 0;
-        for (int i = 0; i < traceSize; i++) {
-          CoreSpan<?> span = trace.get(i);
-          boolean isTopLevel = span.isTopLevel();
-          if (shouldComputeMetric(span, isTopLevel)) {
-            long seq = startSeq + filled;
-            try {
-              fillSlot(span, isTopLevel, dataInbox.slotAt(seq));
-            } finally {
-              // Always publish so a throwing fillSlot can't strand the consumer; matches the
-              // try/finally publish-on-throw guarantee in MpscRingBuffer.tryWrite.
-              dataInbox.publish(seq);
-            }
-            if (++filled == eligibleCount) {
-              break;
-            }
+          // Ignored resource: drop metrics for the whole trace. Mark this slot AND every
+          // remaining slot in the claimed range as skip-sentinel so the aggregator advances past
+          // them.
+          slot.tagAndDuration = 0L;
+          dataInbox.publish(seq);
+          for (int j = i + 1; j < traceSize; j++) {
+            final long skipSeq = startSeq + j;
+            dataInbox.slotAt(skipSeq).tagAndDuration = 0L;
+            dataInbox.publish(skipSeq);
           }
+          healthMetrics.onClientStatTraceComputed(0, traceSize, true);
+          return false;
         }
+        try {
+          fillSlot(span, isTopLevel, slot);
+        } finally {
+          // Publish in finally so a throwing fillSlot can't strand the consumer at this
+          // sequence -- matches the publish-on-throw guarantee in MpscRingBuffer.tryWrite.
+          dataInbox.publish(seq);
+        }
+        forceKeep |= span.getError() > 0;
+        filled++;
+      } else {
+        // Non-eligible span: mark slot as skip-sentinel and publish so the aggregator advances.
+        slot.tagAndDuration = 0L;
+        dataInbox.publish(seq);
       }
     }
 
-    healthMetrics.onClientStatTraceComputed(eligibleCount, trace.size(), !forceKeep);
+    healthMetrics.onClientStatTraceComputed(filled, traceSize, !forceKeep);
     return forceKeep;
   }
 

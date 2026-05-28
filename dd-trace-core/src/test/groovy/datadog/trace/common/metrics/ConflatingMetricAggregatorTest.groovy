@@ -27,7 +27,12 @@ class ConflatingMetricAggregatorTest extends DDSpecification {
   @Shared
   long reportingInterval = 1
   @Shared
-  int queueSize = 256
+  // The CSS overclaim path claims traceSize slots per publish (not just the eligible count),
+  // so tests with multi-span traces and tight ring sizes can spuriously hit capacity. 1024 leaves
+  // plenty of headroom for the largest test traces (~10 spans) across hundreds of iterations.
+  // ConflatingMetricsAggregatorInboxFullTest deliberately keeps a tiny ring to exercise full-ring
+  // behaviour.
+  int queueSize = 1024
 
   def "should ignore traces with no measured spans"() {
     setup:

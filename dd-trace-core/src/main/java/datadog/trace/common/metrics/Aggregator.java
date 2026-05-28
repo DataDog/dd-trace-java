@@ -126,6 +126,13 @@ final class Aggregator implements Runnable {
   }
 
   private static void handleSnapshot(Aggregator agg, SpanSnapshot snapshot) {
+    // Skip-sentinel from the producer's overclaim path: the producer claimed this slot
+    // speculatively (one slot per span in the trace) but the span turned out to be non-eligible
+    // or the trace hit an ignored-resource. shouldComputeMetric guarantees duration > 0 for any
+    // real publish, so tagAndDuration == 0 uniquely identifies a skip.
+    if (snapshot.tagAndDuration == 0L) {
+      return;
+    }
     AggregateEntry entry = agg.aggregates.findOrInsert(snapshot);
     if (entry != null) {
       entry.recordOneDuration(snapshot.tagAndDuration);
