@@ -26,14 +26,6 @@ public final class ScaReachabilityHit {
   // For method-level hits: line number in the application code of the call
   private final int line;
 
-  /**
-   * Convenience constructor for class-level hits ({@code symbolName = CLASS_LEVEL_SYMBOL}, line =
-   * 1).
-   */
-  public ScaReachabilityHit(String vulnId, String artifact, String version, String className) {
-    this(vulnId, artifact, version, className, CLASS_LEVEL_SYMBOL, 1);
-  }
-
   public ScaReachabilityHit(
       String vulnId,
       String artifact,
