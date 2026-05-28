@@ -20,6 +20,44 @@ import java.util.function.Supplier;
  * Hashtable.forEach}. That ordering lets callers declare the callback as a {@code static final}
  * non-capturing lambda and pass per-call context at the call site without allocating a closure.
  *
+ * <h2>Thread safety contract</h2>
+ *
+ * <p>The ring buffer is thread-safe for any number of producer threads plus exactly one consumer
+ * thread. Calling {@code drain} from multiple threads concurrently is <b>not</b> supported and will
+ * corrupt state.
+ *
+ * <p>For the slot type {@code T}:
+ *
+ * <ul>
+ *   <li><b>Slot fields can be plain</b> ({@code int}, {@code long}, object references) -- they do
+ *       <i>not</i> need to be {@code volatile} or guarded by synchronization. Happens-before
+ *       between the producer's slot mutation and the consumer's slot read is provided by the ring's
+ *       internal publication-sequence machinery: a release write on the per-slot sequence inside
+ *       {@code tryWrite}, paired with an acquire read inside {@code drain}.
+ *   <li><b>Don't retain slot references past your handler's return.</b> Once a {@code tryWrite}
+ *       filler returns, the slot becomes visible to the consumer; once a {@code drain} handler
+ *       returns, the slot may be reclaimed by another producer and its fields overwritten. If the
+ *       consumer needs to keep any state from a slot, it must extract by value (or copy references)
+ *       before returning.
+ *   <li><b>Don't expose slot references outside the ring.</b> Treat {@code T} as ring-buffer-owned;
+ *       sharing a slot reference with code that doesn't follow the same discipline breaks the
+ *       happens-before story.
+ * </ul>
+ *
+ * <p>For producer fillers:
+ *
+ * <ul>
+ *   <li>Filler invocations on the same slot are serialized (one producer wins the sequence CAS), so
+ *       the filler can write fields without synchronization.
+ *   <li><b>If a filler throws, the slot is published anyway</b> (with whatever the filler had
+ *       written so far) and the exception propagates to the caller. This prevents the consumer from
+ *       getting stuck waiting for an unfinished slot; the cost is that the consumer may observe a
+ *       partially-filled or stale-fielded slot. Fillers should be written to either not throw or to
+ *       leave the slot in a state the consumer can recognize and skip.
+ * </ul>
+ *
+ * <h2>Implementation</h2>
+ *
  * <p>Producer cursor is CAS-claimed; visibility of a claimed slot to the consumer is gated by a
  * per-slot publication-sequence array. Consumer cursor is updated with a volatile write so
  * producers observe space being freed.
@@ -90,16 +128,24 @@ public final class MpscRingBuffer<T> {
   public boolean tryWrite(final Consumer<? super T> filler) {
     final long seq = claim();
     if (seq < 0L) return false;
-    filler.accept(slots[(int) (seq & mask)]);
-    publish(seq);
+    // publish in finally so a throwing filler doesn't leave the slot un-published -- the
+    // consumer would otherwise wait at that sequence forever. See class javadoc.
+    try {
+      filler.accept(slots[(int) (seq & mask)]);
+    } finally {
+      publish(seq);
+    }
     return true;
   }
 
   public <C> boolean tryWrite(final C context, final BiConsumer<? super C, ? super T> filler) {
     final long seq = claim();
     if (seq < 0L) return false;
-    filler.accept(context, slots[(int) (seq & mask)]);
-    publish(seq);
+    try {
+      filler.accept(context, slots[(int) (seq & mask)]);
+    } finally {
+      publish(seq);
+    }
     return true;
   }
 
@@ -109,8 +155,11 @@ public final class MpscRingBuffer<T> {
       final TriConsumer<? super C1, ? super C2, ? super T> filler) {
     final long seq = claim();
     if (seq < 0L) return false;
-    filler.accept(context1, context2, slots[(int) (seq & mask)]);
-    publish(seq);
+    try {
+      filler.accept(context1, context2, slots[(int) (seq & mask)]);
+    } finally {
+      publish(seq);
+    }
     return true;
   }
 
