@@ -5,6 +5,7 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.clearInvocations;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
@@ -160,11 +161,14 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     mockedContext.beginEndToEnd();
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
 
+    // 2 calls: CoreTracer constructor + beginEndToEnd()
+    verify(timeSource, times(2)).getCurrentTimeNanos();
+    verify(timeSource, times(2)).getNanoTicks();
     verify(carrier)
         .put(
             "X-Amzn-Trace-Id",
             "Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;t0=1664906869195;k=v");
-    verifyNoMoreInteractions(carrier);
+    verifyNoMoreInteractions(timeSource, carrier);
 
     tracer.close();
   }

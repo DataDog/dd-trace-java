@@ -61,7 +61,7 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
 
     propagator.inject(span, carrier, setter);
 
-    verify(injector).inject(any(DDSpanContext.class), same(carrier), any());
+    verify(injector).inject(same((DDSpanContext) span.context()), same(carrier), any());
 
     span.finish();
     tracer.close();
@@ -175,7 +175,7 @@ class TracingPropagatorTest extends DDCoreJavaSpecification {
 
     propagator.inject(span, carrier, setter);
 
-    verify(injector, times(injected)).inject(any(DDSpanContext.class), same(carrier), any());
+    verify(injector, times(injected)).inject(same((DDSpanContext)span.context()), same(carrier), any());
 
     span.finish();
     tracer.close();
