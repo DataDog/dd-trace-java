@@ -25,9 +25,6 @@ testJvmConstraints {
 def testJvm = gradle.startParameter.projectProperties.getOrDefault('testJvm', '')
 def graalvmMatcher = Pattern.compile("graalvm([0-9]+)").matcher(testJvm?.toLowerCase(Locale.ROOT) ?: '')
 def testGraalvmVersion = graalvmMatcher.find() ? Integer.parseInt(graalvmMatcher.group(1)) : -1
-def isSupportedGraalvm = testGraalvmVersion in 17..21
-Provider<String> graalvmHome = providers.provider({
-  if (!isSupportedGraalvm) {
 def isSupportedGraalvm = testGraalvmVersion >= 17
 Provider<String> graalvmHome = providers.provider({
   if (!isSupportedGraalvm) {
@@ -52,7 +49,6 @@ smokeTestApp {
 }
 
 tasks.named('springNativeBuild') {
-  // spring-boot native 3.0 don't work on later JVM feature version
   onlyIf("Requires -PtestJvm=graalvm<N> (N >= 17)") { isSupportedGraalvm }
 }
 
