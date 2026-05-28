@@ -55,6 +55,7 @@ val excludedClassesInstructionCoverage by extra(
 )
 
 dependencies {
+  compileOnly(project(":components:annotations"))
   implementation(project(":components:environment"))
   implementation(project(":dd-trace-api"))
   api(project(":utils:filesystem-utils"))
