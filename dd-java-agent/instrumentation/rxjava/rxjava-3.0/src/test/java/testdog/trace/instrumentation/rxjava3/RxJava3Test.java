@@ -170,16 +170,23 @@ class RxJava3Test extends AbstractInstrumentationTest {
             new Object[] {4},
             2,
             (Supplier<Object>) () -> Maybe.just(2).map(Worker::addOne).map(Worker::addOne)),
-        // NOTE: the RxJava2 test also exercises delayed Maybe chains
-        // (`Maybe.just(n).delay(100, MILLISECONDS).map(addOne)` and the twice-delayed variant).
-        // With the rxjava-3.0 instrumentation a `Maybe.delay(...)` chain leaks a pending trace
-        // reference: the trace is never reported (it stays pending even after an explicit
-        // `tracer.flush()`), so `assertTraces` times out. The single-delay case fails
-        // deterministically; the twice-delayed case is flaky for the same reason. The
-        // byte-for-byte-equivalent rxjava-2.0 instrumentation handles these chains correctly, so
-        // this is a genuine rxjava-3.0 propagation gap rather than a test artifact. The delayed
-        // Maybe rows are therefore omitted until the instrumentation is fixed (the delayed Flowable
-        // rows below, which use a different operator path, complete reliably).
+        Arguments.of(
+            "delayed maybe",
+            new Object[] {4},
+            1,
+            (Supplier<Object>)
+                () -> Maybe.just(3).delay(100, MILLISECONDS).map(Worker::addOne)),
+        Arguments.of(
+            "delayed twice maybe",
+            new Object[] {6},
+            2,
+            (Supplier<Object>)
+                () ->
+                    Maybe.just(4)
+                        .delay(100, MILLISECONDS)
+                        .map(Worker::addOne)
+                        .delay(100, MILLISECONDS)
+                        .map(Worker::addOne)),
         Arguments.of(
             "basic flowable",
             new Object[] {6, 7},
