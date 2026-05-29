@@ -1,5 +1,6 @@
 package datadog.trace.civisibility.config
 
+import datadog.trace.civisibility.config.api.dto.request.TracerEnvironment
 import spock.lang.Specification
 
 class TracerEnvironmentTest extends Specification {
