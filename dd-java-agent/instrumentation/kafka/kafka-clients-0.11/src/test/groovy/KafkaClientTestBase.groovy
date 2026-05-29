@@ -31,7 +31,6 @@ import org.apache.kafka.common.header.internals.RecordHeaders
 import org.apache.kafka.common.serialization.StringSerializer
 
 import java.nio.charset.StandardCharsets
-import org.junit.Rule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -51,8 +50,7 @@ import java.util.concurrent.TimeUnit
 abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   static final SHARED_TOPIC = "shared.topic"
 
-  @Rule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
+  KafkaEmbedded embeddedKafka
 
   @Override
   void configurePreAgent() {
@@ -138,7 +136,13 @@ abstract class KafkaClientTestBase extends VersionedNamingTestBase {
   }
 
   def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, SHARED_TOPIC)
+    embeddedKafka.before()
     TEST_WRITER.setFilter(DROP_KAFKA_POLL)
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
   }
 
   @Override

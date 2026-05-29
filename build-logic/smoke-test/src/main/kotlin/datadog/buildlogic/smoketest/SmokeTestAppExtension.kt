@@ -41,6 +41,12 @@ abstract class SmokeTestAppExtension @Inject constructor(
   abstract val gradleVersion: Property<String>
 
   /**
+   * Optional base URL for Gradle distribution downloads. Defaults to the CI-provided MASS read
+   * URL when present, so Tooling API downloads go through the pull-through cache.
+   */
+  abstract val gradleDistributionBaseUrl: Property<String>
+
+  /**
    * JDK used by the nested daemon. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
    * override to pin a different JDK if the nested application's plugin chain requires it.
    * The inner build script is responsible for pinning the produced bytecode level (e.g.
@@ -63,6 +69,9 @@ abstract class SmokeTestAppExtension @Inject constructor(
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -94,6 +103,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         applicationDir.set(this@SmokeTestAppExtension.applicationDir)
         applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
         gradleVersion.set(this@SmokeTestAppExtension.gradleVersion)
+        gradleDistributionBaseUrl.set(this@SmokeTestAppExtension.gradleDistributionBaseUrl)
         javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
