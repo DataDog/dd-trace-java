@@ -88,6 +88,10 @@ class SmokeTestAppPluginTest {
 
   @Test
   fun `Gradle distribution URI routes through MASS artifact path`() {
+    assertThat(gradleDistributionUri("https://mass.example", "8.14.5").toString())
+      .isEqualTo(
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      )
     assertThat(gradleDistributionUri("https://mass.example/", "8.14.5").toString())
       .isEqualTo(
         "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
