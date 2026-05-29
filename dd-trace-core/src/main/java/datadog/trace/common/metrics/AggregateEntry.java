@@ -292,10 +292,15 @@ final class AggregateEntry extends Hashtable.Entry {
     // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
     // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
     // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
+    //
+    // peerTagValues is gated by peerTagSchema: the slot's peerTagValues is a reusable scratch
+    // buffer that may carry stale contents from a prior tag-firing publish when this publish had
+    // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
+    // contract.
+    h = LongHashingUtils.addToHash(h, s.peerTagSchema == null ? 0 : s.peerTagSchema.namesHash);
     h =
         LongHashingUtils.addToHash(
-            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagSchema.names));
-    h = LongHashingUtils.addToHash(h, Arrays.hashCode(s.peerTagValues));
+            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));
     h = LongHashingUtils.addToHash(h, s.httpMethod);
     h = LongHashingUtils.addToHash(h, s.httpEndpoint);
     h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
