@@ -69,33 +69,76 @@ public final class AggregateEntryTestUtils {
       schema = PeerTagSchema.testSchema(names);
     }
     SpanSnapshot syntheticSnapshot =
-        new SpanSnapshot(
+        buildSnapshot(
             resource,
-            service == null ? null : service.toString(),
+            service,
             operationName,
             serviceSource,
             type,
             (short) httpStatusCode,
             synthetic,
             traceRoot,
-            spanKind == null ? null : spanKind.toString(),
+            spanKind,
             schema,
             values,
-            httpMethod == null ? null : httpMethod.toString(),
-            httpEndpoint == null ? null : httpEndpoint.toString(),
-            grpcStatusCode == null ? null : grpcStatusCode.toString(),
+            httpMethod,
+            httpEndpoint,
+            grpcStatusCode,
             0L);
     return forSnapshot(syntheticSnapshot);
   }
 
   /**
-   * Builds an {@link AggregateEntry} from {@code s} by computing its lookup hash via {@link
-   * AggregateEntry#hashOf(SpanSnapshot)} and calling the package-private constructor directly.
-   * Production callers route through {@link AggregateTable#findOrInsert} which already has the
-   * {@code keyHash} on hand; tests rarely do, so this helper hides the second argument.
+   * Test-only snapshot builder. Production fillSlot canonicalizes each field via the per-field
+   * DDCaches on {@link AggregateEntry} and precomputes {@link SpanSnapshot#keyHash}; this helper
+   * does the same so tests exercise the production matches/hash path.
+   */
+  static SpanSnapshot buildSnapshot(
+      CharSequence resource,
+      CharSequence service,
+      CharSequence operationName,
+      @Nullable CharSequence serviceSource,
+      CharSequence type,
+      short httpStatusCode,
+      boolean synthetic,
+      boolean traceRoot,
+      CharSequence spanKind,
+      @Nullable PeerTagSchema peerTagSchema,
+      @Nullable String[] peerTagValues,
+      @Nullable CharSequence httpMethod,
+      @Nullable CharSequence httpEndpoint,
+      @Nullable CharSequence grpcStatusCode,
+      long tagAndDuration) {
+    SpanSnapshot s = new SpanSnapshot();
+    s.resourceName = AggregateEntry.canonicalize(AggregateEntry.RESOURCE_CACHE, resource);
+    s.serviceName = AggregateEntry.canonicalize(AggregateEntry.SERVICE_CACHE, service);
+    s.operationName = AggregateEntry.canonicalize(AggregateEntry.OPERATION_CACHE, operationName);
+    s.serviceNameSource =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.SERVICE_SOURCE_CACHE, serviceSource);
+    s.spanType = AggregateEntry.canonicalize(AggregateEntry.TYPE_CACHE, type);
+    s.httpStatusCode = httpStatusCode;
+    s.synthetic = synthetic;
+    s.traceRoot = traceRoot;
+    s.spanKind = AggregateEntry.canonicalize(AggregateEntry.SPAN_KIND_CACHE, spanKind);
+    s.peerTagSchema = peerTagSchema;
+    s.peerTagValues = peerTagValues;
+    s.httpMethod =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.HTTP_METHOD_CACHE, httpMethod);
+    s.httpEndpoint =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.HTTP_ENDPOINT_CACHE, httpEndpoint);
+    s.grpcStatusCode =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.GRPC_STATUS_CODE_CACHE, grpcStatusCode);
+    s.tagAndDuration = tagAndDuration;
+    SpanSnapshot.computeAndSetKeyHash(s);
+    return s;
+  }
+
+  /**
+   * Builds an {@link AggregateEntry} from {@code s}. Production callers route through {@link
+   * AggregateTable#findOrInsert}; tests use this helper for direct construction.
    */
   public static AggregateEntry forSnapshot(SpanSnapshot s) {
-    return new AggregateEntry(s, AggregateEntry.hashOf(s));
+    return new AggregateEntry(s);
   }
 
   /**

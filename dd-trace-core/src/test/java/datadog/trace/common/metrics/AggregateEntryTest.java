@@ -124,7 +124,7 @@ class AggregateEntryTest {
   }
 
   private static SpanSnapshot snapshotWithPeerTags(String[] names, String[] values) {
-    return new SpanSnapshot(
+    return AggregateEntryTestUtils.buildSnapshot(
         "resource",
         "svc",
         "op",
@@ -144,7 +144,7 @@ class AggregateEntryTest {
 
   private static AggregateEntry newEntry() {
     SpanSnapshot snapshot =
-        new SpanSnapshot(
+        AggregateEntryTestUtils.buildSnapshot(
             "resource",
             "svc",
             "op",

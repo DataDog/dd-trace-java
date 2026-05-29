@@ -313,7 +313,7 @@ class AggregateTableTest {
   private static SpanSnapshot snapshotWithPeerTags(
       String service, String operation, String spanKind, String[] peerTagValues) {
     PeerTagSchema schema = PeerTagSchema.testSchema(new String[] {"peer.host", "peer.service"});
-    return new SpanSnapshot(
+    return AggregateEntryTestUtils.buildSnapshot(
         "resource",
         service,
         operation,
@@ -332,7 +332,7 @@ class AggregateTableTest {
   }
 
   private static SpanSnapshot nullServiceKindSnapshot(String service, String spanKind) {
-    return new SpanSnapshot(
+    return AggregateEntryTestUtils.buildSnapshot(
         "resource",
         service,
         "op",
@@ -352,7 +352,7 @@ class AggregateTableTest {
 
   private static SpanSnapshot nullableSnapshot(
       String resource, String operation, String type, String serviceNameSource) {
-    return new SpanSnapshot(
+    return AggregateEntryTestUtils.buildSnapshot(
         resource,
         "svc",
         operation,
@@ -408,7 +408,7 @@ class AggregateTableTest {
     }
 
     SpanSnapshot build() {
-      return new SpanSnapshot(
+      return AggregateEntryTestUtils.buildSnapshot(
           "resource",
           service,
           operation,

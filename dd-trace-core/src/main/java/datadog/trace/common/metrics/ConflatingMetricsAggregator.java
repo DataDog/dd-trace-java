@@ -426,20 +426,36 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
       }
     }
 
-    slot.resourceName = span.getResourceName();
-    slot.serviceName = span.getServiceName();
-    slot.operationName = span.getOperationName();
-    slot.serviceNameSource = span.getServiceNameSource();
-    slot.spanType = spanType;
+    // Canonicalize every string field to UTF8BytesString via the per-field DDCaches on
+    // AggregateEntry. This work used to happen on the aggregator thread; doing it here
+    // distributes the cost across producer threads and gives the aggregator's matches() identity
+    // comparisons instead of contentEquals chains.
+    slot.resourceName =
+        AggregateEntry.canonicalize(AggregateEntry.RESOURCE_CACHE, span.getResourceName());
+    slot.serviceName =
+        AggregateEntry.canonicalize(AggregateEntry.SERVICE_CACHE, span.getServiceName());
+    slot.operationName =
+        AggregateEntry.canonicalize(AggregateEntry.OPERATION_CACHE, span.getOperationName());
+    slot.serviceNameSource =
+        AggregateEntry.canonicalizeOptional(
+            AggregateEntry.SERVICE_SOURCE_CACHE, span.getServiceNameSource());
+    slot.spanType = AggregateEntry.canonicalize(AggregateEntry.TYPE_CACHE, spanType);
     slot.httpStatusCode = span.getHttpStatusCode();
     slot.synthetic = isSynthetic(span);
     slot.traceRoot = span.getParentId() == 0;
-    slot.spanKind = spanKind;
+    slot.spanKind = AggregateEntry.canonicalize(AggregateEntry.SPAN_KIND_CACHE, spanKind);
     slot.peerTagSchema = peerTagSchema;
-    slot.httpMethod = httpMethod;
-    slot.httpEndpoint = httpEndpoint;
-    slot.grpcStatusCode = grpcStatusCode;
+    slot.httpMethod =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.HTTP_METHOD_CACHE, httpMethod);
+    slot.httpEndpoint =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.HTTP_ENDPOINT_CACHE, httpEndpoint);
+    slot.grpcStatusCode =
+        AggregateEntry.canonicalizeOptional(AggregateEntry.GRPC_STATUS_CODE_CACHE, grpcStatusCode);
     slot.tagAndDuration = tagAndDuration;
+
+    // Precompute the table-lookup key hash on the producer side. AggregateTable#findOrInsert
+    // reads this directly instead of running the chained hashOf on the aggregator thread.
+    SpanSnapshot.computeAndSetKeyHash(slot);
   }
 
   /**

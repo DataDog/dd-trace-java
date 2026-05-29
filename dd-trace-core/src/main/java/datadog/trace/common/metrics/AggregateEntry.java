@@ -8,7 +8,6 @@ import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
-import datadog.trace.util.LongHashingUtils;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
@@ -62,23 +61,19 @@ final class AggregateEntry extends Hashtable.Entry {
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  // UTF8 caches consolidated from the previous MetricKey + ConflatingMetricsAggregator split.
-  private static final DDCache<String, UTF8BytesString> RESOURCE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> SERVICE_CACHE =
-      DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> OPERATION_CACHE =
-      DDCaches.newFixedSizeCache(64);
-  private static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
+  // UTF8 caches. Package-private so ConflatingMetricsAggregator's fillSlot can canonicalize
+  // producer-side via the same caches the entry constructor used to consult.
+  static final DDCache<String, UTF8BytesString> RESOURCE_CACHE = DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> SERVICE_CACHE = DDCaches.newFixedSizeCache(32);
+  static final DDCache<String, UTF8BytesString> OPERATION_CACHE = DDCaches.newFixedSizeCache(64);
+  static final DDCache<String, UTF8BytesString> SERVICE_SOURCE_CACHE =
       DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> SPAN_KIND_CACHE =
-      DDCaches.newFixedSizeCache(16);
-  private static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE =
-      DDCaches.newFixedSizeCache(8);
-  private static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
+  static final DDCache<String, UTF8BytesString> TYPE_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> SPAN_KIND_CACHE = DDCaches.newFixedSizeCache(16);
+  static final DDCache<String, UTF8BytesString> HTTP_METHOD_CACHE = DDCaches.newFixedSizeCache(8);
+  static final DDCache<String, UTF8BytesString> HTTP_ENDPOINT_CACHE =
       DDCaches.newFixedSizeCache(32);
-  private static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
+  static final DDCache<String, UTF8BytesString> GRPC_STATUS_CODE_CACHE =
       DDCaches.newFixedSizeCache(32);
 
   /**
@@ -141,18 +136,21 @@ final class AggregateEntry extends Hashtable.Entry {
   private int topLevelCount;
   private long duration;
 
-  /** Hot-path constructor for the producer/consumer flow. Builds UTF8 fields via the caches. */
-  AggregateEntry(SpanSnapshot s, long keyHash) {
-    super(keyHash);
-    this.resource = canonicalize(RESOURCE_CACHE, s.resourceName);
-    this.service = canonicalize(SERVICE_CACHE, s.serviceName);
-    this.operationName = canonicalize(OPERATION_CACHE, s.operationName);
-    this.serviceSource = canonicalizeOptional(SERVICE_SOURCE_CACHE, s.serviceNameSource);
-    this.type = canonicalize(TYPE_CACHE, s.spanType);
-    this.spanKind = canonicalize(SPAN_KIND_CACHE, s.spanKind);
-    this.httpMethod = canonicalizeOptional(HTTP_METHOD_CACHE, s.httpMethod);
-    this.httpEndpoint = canonicalizeOptional(HTTP_ENDPOINT_CACHE, s.httpEndpoint);
-    this.grpcStatusCode = canonicalizeOptional(GRPC_STATUS_CODE_CACHE, s.grpcStatusCode);
+  /** Hot-path constructor for the producer/consumer flow. Slot fields are already canonical. */
+  AggregateEntry(SpanSnapshot s) {
+    super(s.keyHash);
+    // The slot's string fields are already canonical UTF8BytesString instances (canonicalized by
+    // the producer in fillSlot via the same caches we used to consult here). Just copy refs;
+    // matches() can do identity comparison instead of contentEquals.
+    this.resource = s.resourceName;
+    this.service = s.serviceName;
+    this.operationName = s.operationName;
+    this.serviceSource = s.serviceNameSource;
+    this.type = s.spanType;
+    this.spanKind = s.spanKind;
+    this.httpMethod = s.httpMethod;
+    this.httpEndpoint = s.httpEndpoint;
+    this.grpcStatusCode = s.grpcStatusCode;
     this.httpStatusCode = s.httpStatusCode;
     this.synthetic = s.synthetic;
     this.traceRoot = s.traceRoot;
@@ -245,26 +243,29 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   boolean matches(SpanSnapshot s) {
-    String[] snapshotNames = s.peerTagSchema == null ? null : s.peerTagSchema.names;
-    // peerTagValues is meaningful only when peerTagNames is non-null. When the snapshot's slot
-    // had no peer tags for this publish (peerTagSchema=null), s.peerTagValues may still hold
-    // stale scratch from a prior tag-firing publish on the same slot -- skip the values check
-    // in that case. The names check above already rejects entries whose peer-tag presence
-    // doesn't match the snapshot.
+    // All string fields are canonical UTF8BytesString references from the per-field DDCaches.
+    // Same content => same canonical instance => identity comparison suffices.
+    // peerTagSchema is also shared by reference (producer reads cachedPeerTagSchema), so its
+    // names array reference is stable too. peerTagValues stays content-compared since values
+    // vary per publish and aren't canonicalized.
     return httpStatusCode == s.httpStatusCode
         && synthetic == s.synthetic
         && traceRoot == s.traceRoot
-        && contentEquals(resource, s.resourceName)
-        && contentEquals(service, s.serviceName)
-        && contentEquals(operationName, s.operationName)
-        && contentEquals(serviceSource, s.serviceNameSource)
-        && contentEquals(type, s.spanType)
-        && contentEquals(spanKind, s.spanKind)
-        && Arrays.equals(peerTagNames, snapshotNames)
+        && resource == s.resourceName
+        && service == s.serviceName
+        && operationName == s.operationName
+        && serviceSource == s.serviceNameSource
+        && type == s.spanType
+        && spanKind == s.spanKind
+        // PeerTagSchema instances aren't guaranteed to be shared by reference across all
+        // producers (cachedPeerTagSchema can be swapped during reconcile; tests build fresh
+        // instances), so compare names by content. The same-reference case short-circuits to
+        // O(1) via Arrays.equals's a==b fast path.
+        && Arrays.equals(peerTagNames, s.peerTagSchema == null ? null : s.peerTagSchema.names)
         && (peerTagNames == null || Arrays.equals(peerTagValues, s.peerTagValues))
-        && contentEquals(httpMethod, s.httpMethod)
-        && contentEquals(httpEndpoint, s.httpEndpoint)
-        && contentEquals(grpcStatusCode, s.grpcStatusCode);
+        && httpMethod == s.httpMethod
+        && httpEndpoint == s.httpEndpoint
+        && grpcStatusCode == s.grpcStatusCode;
   }
 
   /**
@@ -274,46 +275,6 @@ final class AggregateEntry extends Hashtable.Entry {
    */
   boolean matches(long keyHash, SpanSnapshot s) {
     return this.keyHash == keyHash && matches(s);
-  }
-
-  /**
-   * Computes the 64-bit lookup hash for a {@link SpanSnapshot}. Chained per-field calls -- no
-   * varargs / Object[] allocation, no autoboxing on primitive overloads. The constructor's
-   * super({@code hashOf(s)}) call uses the same function so an entry built from a snapshot hashes
-   * to the same bucket the snapshot itself looks up.
-   *
-   * <p>Hashes are content-stable across {@code String} / {@code UTF8BytesString}: {@link
-   * UTF8BytesString#hashCode()} returns the underlying {@code String}'s hash.
-   */
-  static long hashOf(SpanSnapshot s) {
-    long h = 0;
-    h = LongHashingUtils.addToHash(h, s.resourceName);
-    h = LongHashingUtils.addToHash(h, s.serviceName);
-    h = LongHashingUtils.addToHash(h, s.operationName);
-    h = LongHashingUtils.addToHash(h, s.serviceNameSource);
-    h = LongHashingUtils.addToHash(h, s.spanType);
-    h = LongHashingUtils.addToHash(h, s.httpStatusCode);
-    h = LongHashingUtils.addToHash(h, s.synthetic);
-    h = LongHashingUtils.addToHash(h, s.traceRoot);
-    h = LongHashingUtils.addToHash(h, s.spanKind);
-    // Always mix in both the schema's content hash and the values' content hash, unconditionally
-    // (no null-skip). Arrays.hashCode is content-based for both String[]s; the default
-    // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
-    // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
-    // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
-    //
-    // peerTagValues is gated by peerTagSchema: the slot's peerTagValues is a reusable scratch
-    // buffer that may carry stale contents from a prior tag-firing publish when this publish had
-    // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
-    // contract.
-    h = LongHashingUtils.addToHash(h, s.peerTagSchema == null ? 0 : s.peerTagSchema.namesHash);
-    h =
-        LongHashingUtils.addToHash(
-            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));
-    h = LongHashingUtils.addToHash(h, s.httpMethod);
-    h = LongHashingUtils.addToHash(h, s.httpEndpoint);
-    h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
-    return h;
   }
 
   // Accessors for SerializingMetricWriter.
@@ -380,9 +341,12 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // ----- helpers -----
 
-  private static UTF8BytesString canonicalize(
+  static UTF8BytesString canonicalize(
       DDCache<String, UTF8BytesString> cache, CharSequence charSeq) {
-    if (charSeq == null) {
+    // Treat null and length-zero as the same canonical EMPTY instance so the producer-side
+    // canonicalization produces identity-equal results for null/"" inputs. matches() now uses
+    // identity comparison, so the previous content-equals collapse needs to happen here.
+    if (charSeq == null || charSeq.length() == 0) {
       return EMPTY;
     }
     if (charSeq instanceof UTF8BytesString) {
@@ -402,9 +366,11 @@ final class AggregateEntry extends Hashtable.Entry {
    * single helper keeps the constructor consistent.
    */
   @Nullable
-  private static UTF8BytesString canonicalizeOptional(
+  static UTF8BytesString canonicalizeOptional(
       DDCache<String, UTF8BytesString> cache, @Nullable CharSequence charSeq) {
-    if (charSeq == null) {
+    // Treat null and length-zero the same: both map to null (i.e. "absent"). matches() uses
+    // identity comparison, so the prior content-equals collapse needs to happen here.
+    if (charSeq == null || charSeq.length() == 0) {
       return null;
     }
     if (charSeq instanceof UTF8BytesString) {

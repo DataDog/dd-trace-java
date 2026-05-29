@@ -55,7 +55,9 @@ final class AggregateTable {
    * caller should drop the data point in that case.
    */
   AggregateEntry findOrInsert(SpanSnapshot snapshot) {
-    long keyHash = AggregateEntry.hashOf(snapshot);
+    // keyHash is precomputed by the producer in SpanSnapshot.computeAndSetKeyHash, no
+    // re-hashing on the aggregator thread.
+    final long keyHash = snapshot.keyHash;
     for (AggregateEntry candidate = Support.bucket(buckets, keyHash);
         candidate != null;
         candidate = candidate.next()) {
@@ -66,7 +68,7 @@ final class AggregateTable {
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = new AggregateEntry(snapshot, keyHash);
+    AggregateEntry entry = new AggregateEntry(snapshot);
     Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;
