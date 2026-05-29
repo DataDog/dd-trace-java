@@ -312,6 +312,100 @@ abstract class SqsClientTest extends VersionedNamingTestBase {
     client.close()
   }
 
+  def "sync receive activates consumer span for user handler iteration"() {
+    setup:
+    def client = SqsClient.builder()
+      .region(Region.EU_CENTRAL_1)
+      .endpointOverride(endpoint)
+      .credentialsProvider(credentialsProvider)
+      .build()
+    def queueUrl = client.createQueue(CreateQueueRequest.builder().queueName('somequeue').build()).queueUrl()
+    TEST_WRITER.clear()
+
+    when:
+    TraceUtils.runUnderTrace('parent', {
+      client.sendMessage(SendMessageRequest.builder().queueUrl(queueUrl).messageBody('sometext').build())
+    })
+    // The sync AWS SDK receive pipeline normally rebuilds the immutable response before user code
+    // sees it. If receive context stays only on the original response, the copied messages lose it
+    // and the handler span disconnects from the consumer span.
+    def messages = client.receiveMessage(ReceiveMessageRequest.builder().queueUrl(queueUrl).build()).messages()
+    messages.forEach {
+      TraceUtils.runUnderTrace('handler') {
+        null
+      }
+    }
+
+    then:
+    messages.size() == 1
+
+    def sendSpan
+    assertTraces(2) {
+      trace(2) {
+        basicSpan(it, 'parent')
+        span {
+          serviceName expectedService("Sqs", "SendMessage")
+          operationName expectedOperation("Sqs", "SendMessage")
+          resourceName "Sqs.SendMessage"
+          spanType DDSpanTypes.HTTP_CLIENT
+          errored false
+          measured true
+          childOf(span(0))
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CLIENT
+            "$Tags.HTTP_METHOD" "POST"
+            "$Tags.HTTP_STATUS" 200
+            "$Tags.PEER_PORT" address.port
+            "$Tags.PEER_HOSTNAME" "localhost"
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "SendMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            urlTags("http://localhost:${address.port}/", ExpectedQueryParams.getExpectedQueryParams("SendMessage"))
+            serviceNameSource("java-aws-sdk")
+            defaultTags()
+          }
+        }
+        sendSpan = span(1)
+      }
+      trace(2) {
+        span {
+          serviceName expectedService("Sqs", "ReceiveMessage")
+          operationName expectedOperation("Sqs", "ReceiveMessage")
+          resourceName "Sqs.ReceiveMessage"
+          spanType DDSpanTypes.MESSAGE_CONSUMER
+          errored false
+          measured true
+          childOf(sendSpan)
+          tags {
+            "$Tags.COMPONENT" "java-aws-sdk"
+            "$Tags.SPAN_KIND" Tags.SPAN_KIND_CONSUMER
+            "aws.service" "Sqs"
+            "aws_service" "Sqs"
+            "aws.operation" "ReceiveMessage"
+            "aws.agent" "java-aws-sdk"
+            "aws.queue.url" "http://localhost:${address.port}/000000000000/somequeue"
+            "aws.requestId" "00000000-0000-0000-0000-000000000000"
+            if ({ isDataStreamsEnabled() }) {
+              "$DDTags.PATHWAY_HASH" { String }
+            }
+            defaultTags(true)
+          }
+        }
+        basicSpan(it, "handler", span(0))
+      }
+    }
+
+    cleanup:
+    client.close()
+  }
+
   @IgnoreIf({instance.isDataStreamsEnabled()})
   def "trace details propagated via embedded SQS message attribute (string)"() {
     setup:
@@ -679,5 +773,3 @@ class SqsClientV0ContextSwapForkedTest extends SqsClientV0Test {
     injectSysConfig(TraceInstrumentationConfig.LEGACY_CONTEXT_MANAGER_ENABLED, "false")
   }
 }
-
-
