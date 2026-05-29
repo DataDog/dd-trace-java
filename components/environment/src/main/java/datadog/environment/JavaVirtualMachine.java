@@ -1,5 +1,6 @@
 package datadog.environment;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.List;
 import java.util.Locale;
 import javax.annotation.Nullable;
@@ -212,7 +213,7 @@ public final class JavaVirtualMachine {
           SystemProperties.get("java.vendor.version"));
     }
 
-    // Only visible for testing
+    @VisibleForTesting
     Runtime(String javaVer, String rtVer, String name, String vendor, String vendorVersion) {
       this.name = name == null ? "" : name;
       this.vendor = vendor == null ? "" : vendor;

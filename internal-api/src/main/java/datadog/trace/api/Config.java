@@ -118,6 +118,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
@@ -466,6 +467,7 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -809,6 +811,16 @@ public class Config {
 
   private static final Pattern COLON = Pattern.compile(":");
 
+  // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
+  // legacy batch units) into the new per-SpanSnapshot inbox capacity.
+  private static final int LEGACY_BATCH_SIZE = 64;
+
+  // Practical upper bound on Object[] allocations. Sits a few bytes below Integer.MAX_VALUE
+  // because the JVM reserves header slack on array allocations; matches the JDK's own
+  // {@code java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH} convention. Used to clamp computed
+  // capacities that feed into array-backed collections.
+  private static final int MAX_SAFE_ARRAY_SIZE = Integer.MAX_VALUE - 8;
+
   private final InstrumenterConfig instrumenterConfig;
 
   private final long startTimeMillis = System.currentTimeMillis();
@@ -970,6 +982,7 @@ public class Config {
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
+  private final boolean metricsOtelExperimentalEnabled;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -1780,7 +1793,9 @@ public class Config {
         configProvider.getBoolean(
             DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
-    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
+    dbmInjectSqlBaseHash =
+        configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
+            || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -2054,6 +2069,10 @@ public class Config {
     }
     metricsOtelTimeout = otelTimeout;
 
+    metricsOtelExperimentalEnabled =
+        configProvider.getBoolean(
+            METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
+
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
     otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
@@ -2173,7 +2192,22 @@ public class Config {
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
     tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
-    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+    /*
+     * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
+     * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
+     * we multiply the configured value by the legacy batch size to preserve the effective
+     * span-throughput capacity of the prior default *and* of any existing customer override
+     * (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
+     * per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
+     *
+     * Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
+     * override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
+     * bytes below Integer.MAX_VALUE because the JVM reserves header slack on array allocations;
+     * see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
+     */
+    long requestedMaxPending =
+        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
+    tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -5479,6 +5513,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
   }
 
+  public boolean isMetricsOtelExperimentalEnabled() {
+    return metricsOtelExperimentalEnabled;
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -5638,7 +5676,7 @@ public class Config {
   }
 
   public boolean isDbmInjectSqlBaseHash() {
-    return dbmInjectSqlBaseHash || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
+    return dbmInjectSqlBaseHash;
   }
 
   public boolean isDbmTracePreparedStatements() {
@@ -6603,6 +6641,8 @@ public class Config {
         + metricsOtelTimeout
         + ", metricsOtelCardinalityLimit="
         + metricsOtelCardinalityLimit
+        + ", metricsOtelExperimentalEnabled="
+        + metricsOtelExperimentalEnabled
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="

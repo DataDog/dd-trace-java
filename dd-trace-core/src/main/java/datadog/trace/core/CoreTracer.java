@@ -53,6 +53,7 @@ import datadog.trace.api.gateway.SubscriptionService;
 import datadog.trace.api.interceptor.MutableSpan;
 import datadog.trace.api.interceptor.TraceInterceptor;
 import datadog.trace.api.internal.TraceSegment;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
@@ -1391,7 +1392,7 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
     return "0";
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   TraceInterceptors getInterceptors() {
     return interceptors;
   }
