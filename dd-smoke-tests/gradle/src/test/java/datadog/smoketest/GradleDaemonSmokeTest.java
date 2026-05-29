@@ -30,6 +30,7 @@ import org.gradle.wrapper.GradleUserHomeLookup;
 import org.gradle.wrapper.Install;
 import org.gradle.wrapper.PathAssembler;
 import org.gradle.wrapper.WrapperConfiguration;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -45,6 +46,19 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private static final int GRADLE_DISTRIBUTION_NETWORK_TIMEOUT = 30_000;
 
   @TempDir static Path testKitFolder;
+
+  /**
+   * Stops the Gradle TestKit daemons before JUnit deletes the shared (static) {@link
+   * #testKitFolder} at class teardown.
+   */
+  @AfterAll
+  void stopGradleTestKitDaemons() {
+    try {
+      DefaultGradleConnector.close();
+    } catch (Exception e) {
+      System.out.println("Failed to stop Gradle TestKit daemons during cleanup: " + e);
+    }
+  }
 
   @TableTest({
     "scenario                    | gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
