@@ -73,12 +73,12 @@ class OT33ApiTest extends DDJavaSpecification {
 
   @ParameterizedTest
   @TableTest({
-    "scenario     | contextPriority               | samplingMechanism           | propagatedPriority           ",
-    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_DROP",
-    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
-    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
-    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_KEEP   ",
-    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_DROP   "
+    "scenario     | contextPriority               | samplingMechanism         | propagatedPriority           ",
+    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_DROP",
+    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
+    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
+    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_KEEP   ",
+    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_DROP   "
   })
   void testInjectExtract(
       String scenario,

@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
 
-  String logPattern =
+  protected String logPattern =
       "TRACE_ID=%X{"
           + CorrelationIdentifier.getTraceIdKey()
           + "} SPAN_ID=%X{"
@@ -31,37 +31,19 @@ abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
     Scope rootScope = tracer.activateSpan(rootSpan);
     logger.log("Event with root span context");
 
-    assertEquals(
-        "TRACE_ID="
-            + CorrelationIdentifier.getTraceId()
-            + " SPAN_ID="
-            + CorrelationIdentifier.getSpanId()
-            + " Event with root span context",
-        journal.nextLog());
+    assertEquals(expectedLog("Event with root span context"), journal.nextLog());
 
     Span childSpan = tracer.buildSpan("operation1").asChildOf(rootSpan).start();
     Scope childScope = tracer.activateSpan(childSpan);
     logger.log("Event with child span context");
 
-    assertEquals(
-        "TRACE_ID="
-            + CorrelationIdentifier.getTraceId()
-            + " SPAN_ID="
-            + CorrelationIdentifier.getSpanId()
-            + " Event with child span context",
-        journal.nextLog());
+    assertEquals(expectedLog("Event with child span context"), journal.nextLog());
 
     childScope.close();
     childSpan.finish();
     logger.log("Event with root span context");
 
-    assertEquals(
-        "TRACE_ID="
-            + CorrelationIdentifier.getTraceId()
-            + " SPAN_ID="
-            + CorrelationIdentifier.getSpanId()
-            + " Event with root span context",
-        journal.nextLog());
+    assertEquals(expectedLog("Event with root span context"), journal.nextLog());
 
     rootScope.close();
     rootSpan.finish();
@@ -70,6 +52,12 @@ abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
     assertEquals("TRACE_ID= SPAN_ID= Event without context", journal.nextLog());
 
     tracer.close();
+  }
+
+  private static String expectedLog(String message) {
+    return String.format(
+        "TRACE_ID=%s SPAN_ID=%s %s",
+        CorrelationIdentifier.getTraceId(), CorrelationIdentifier.getSpanId(), message);
   }
 
   DDTracer buildTracer() {

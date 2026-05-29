@@ -2,6 +2,7 @@ import java.util.ArrayList;
 import java.util.List;
 import org.apache.logging.log4j.Level;
 import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.Logger;
 import org.apache.logging.log4j.core.Appender;
 import org.apache.logging.log4j.core.Filter;
 import org.apache.logging.log4j.core.LogEvent;
@@ -28,7 +29,7 @@ class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
 
   @Override
   TestLogger buildLogger() {
-    org.apache.logging.log4j.Logger logger = LogManager.getLogger("TestLogger");
+    Logger logger = LogManager.getLogger("TestLogger");
     return message -> logger.error(message);
   }
 

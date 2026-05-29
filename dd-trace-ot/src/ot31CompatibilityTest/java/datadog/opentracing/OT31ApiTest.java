@@ -32,8 +32,8 @@ import org.tabletest.junit.TableTest;
 // This test focuses on things that are different between OpenTracing API 0.31.0 and 0.32.0
 class OT31ApiTest extends DDJavaSpecification {
 
-  ListWriter writer = new ListWriter();
-  Tracer tracer = DDTracer.builder().writer(writer).build();
+  private final ListWriter writer = new ListWriter();
+  private final Tracer tracer = DDTracer.builder().writer(writer).build();
 
   @AfterEach
   void cleanup() throws Exception {
@@ -87,12 +87,12 @@ class OT31ApiTest extends DDJavaSpecification {
 
   @ParameterizedTest
   @TableTest({
-    "scenario     | contextPriority               | samplingMechanism           | propagatedPriority           ",
-    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_DROP",
-    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
-    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT   | PrioritySampling.SAMPLER_KEEP",
-    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_KEEP   ",
-    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL    | PrioritySampling.USER_DROP   "
+    "scenario     | contextPriority               | samplingMechanism         | propagatedPriority           ",
+    "sampler drop | PrioritySampling.SAMPLER_DROP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_DROP",
+    "sampler keep | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
+    "unset        | PrioritySampling.UNSET        | SamplingMechanism.DEFAULT | PrioritySampling.SAMPLER_KEEP",
+    "user keep    | PrioritySampling.USER_KEEP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_KEEP   ",
+    "user drop    | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL  | PrioritySampling.USER_DROP   "
   })
   void testInjectExtract(
       String scenario,
