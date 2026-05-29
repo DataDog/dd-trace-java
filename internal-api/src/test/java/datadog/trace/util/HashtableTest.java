@@ -349,5 +349,64 @@ class HashtableTest {
       it.remove();
       assertThrows(IllegalStateException.class, it::remove);
     }
+
+    @Test
+    void halfOpenRangeOmitsBucketsOutsideTheRange() {
+      // CollidingKey lets us pin entries to specific buckets via controlled hashCode. 16-slot
+      // table -> bucketIndex = hash & 15. Place entries in buckets 0, 5, and 10; iterate
+      // [5, 10) -- should see only bucket 5.
+      Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(16);
+      table.insert(new CollidingKeyEntry(new CollidingKey("b0", 0), 1));
+      table.insert(new CollidingKeyEntry(new CollidingKey("b5", 5), 2));
+      table.insert(new CollidingKeyEntry(new CollidingKey("b10", 10), 3));
+
+      Set<String> seen = new HashSet<>();
+      for (MutatingTableIterator<CollidingKeyEntry> it =
+              Support.mutatingTableIterator(table.buckets, 5, 10);
+          it.hasNext(); ) {
+        seen.add(it.next().key.label);
+      }
+      assertEquals(1, seen.size());
+      assertTrue(seen.contains("b5"));
+    }
+
+    @Test
+    void emptyHalfOpenRangeIsExhausted() {
+      // start == end -> immediately-exhausted iterator. Important: this is the wrap-around
+      // pass [0, cursor) when cursor == 0 in resumable sweeps.
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+      table.insert(new StringIntEntry("a", 1));
+      MutatingTableIterator<StringIntEntry> it = Support.mutatingTableIterator(table.buckets, 0, 0);
+      assertFalse(it.hasNext());
+    }
+
+    @Test
+    void rangeBoundsOutOfOrderThrows() {
+      Hashtable.D1<String, StringIntEntry> table = new Hashtable.D1<>(8);
+      assertThrows(
+          IndexOutOfBoundsException.class,
+          () -> Support.mutatingTableIterator(table.buckets, -1, 4));
+      assertThrows(
+          IndexOutOfBoundsException.class,
+          () -> Support.mutatingTableIterator(table.buckets, 4, 2)); // end < start
+      assertThrows(
+          IndexOutOfBoundsException.class,
+          () ->
+              Support.mutatingTableIterator(
+                  table.buckets, 0, table.buckets.length + 1)); // end > len
+    }
+
+    @Test
+    void currentBucketReportsLandingIndex() {
+      // Pin one entry to a known bucket and check currentBucket() after next() reports that
+      // bucket. Before any next() (or after remove()), currentBucket() returns -1.
+      Hashtable.D1<CollidingKey, CollidingKeyEntry> table = new Hashtable.D1<>(16);
+      table.insert(new CollidingKeyEntry(new CollidingKey("b3", 3), 1));
+
+      MutatingTableIterator<CollidingKeyEntry> it = Support.mutatingTableIterator(table.buckets);
+      assertEquals(-1, it.currentBucket(), "before any next() currentBucket should be -1");
+      it.next();
+      assertEquals(3, it.currentBucket(), "currentBucket should report the entry's bucket");
+    }
   }
 }
