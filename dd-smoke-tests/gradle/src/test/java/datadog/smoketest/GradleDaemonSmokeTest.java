@@ -57,7 +57,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
     try {
       DefaultGradleConnector.close();
     } catch (Exception e) {
-      System.out.println("Failed to stop Gradle TestKit daemons during cleanup: " + e);
+      System.err.println("Failed to stop Gradle TestKit daemons during cleanup: " + e);
     }
     killGradleDaemonsIn(testKitFolder);
     deleteTempDirectoryQuietly(testKitFolder);

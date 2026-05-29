@@ -1,6 +1,7 @@
 package datadog.smoketest;
 
 import datadog.environment.JavaVirtualMachine;
+import datadog.environment.OperatingSystem;
 import datadog.trace.civisibility.CiVisibilitySmokeTest;
 import datadog.trace.util.ComparableVersion;
 import java.io.IOException;
@@ -13,7 +14,6 @@ import java.nio.file.Paths;
 import java.nio.file.SimpleFileVisitor;
 import java.nio.file.attribute.BasicFileAttributes;
 import java.util.Collections;
-import java.util.Locale;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
@@ -83,7 +83,7 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
       }
     }
     if (Files.exists(directory)) {
-      System.out.println(
+      System.err.println(
           "WARNING: could not fully delete temp directory "
               + directory
               + " after stopping Gradle daemons; leaving it for the OS to reap. "
@@ -96,7 +96,7 @@ public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
     if (testKitDir == null || !Files.exists(testKitDir)) {
       return;
     }
-    boolean windows = System.getProperty("os.name").toLowerCase(Locale.ROOT).contains("win");
+    boolean windows = OperatingSystem.isWindows();
     try (Stream<Path> files = Files.walk(testKitDir)) {
       files
           .filter(Files::isRegularFile)
