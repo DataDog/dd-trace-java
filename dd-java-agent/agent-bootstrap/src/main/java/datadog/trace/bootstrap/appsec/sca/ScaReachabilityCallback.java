@@ -1,5 +1,8 @@
 package datadog.trace.bootstrap.appsec.sca;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 /**
  * Bootstrap-classloader callback for SCA Reachability method-level detection.
  *
@@ -10,6 +13,8 @@ package datadog.trace.bootstrap.appsec.sca;
  * <p>The actual handler is registered at agent startup by {@code ScaReachabilitySystem.start()}.
  */
 public final class ScaReachabilityCallback {
+
+  private static final Logger log = LoggerFactory.getLogger(ScaReachabilityCallback.class);
 
   /** Receives method-level reachability hits from instrumented application code. */
   public interface Handler {
@@ -68,6 +73,7 @@ public final class ScaReachabilityCallback {
       }
     } catch (Throwable t) {
       // Never propagate to application code — SCA detection is observation-only
+      log.debug("SCA Reachability: error in onMethodHit for {}#{}", dotClassName, methodName, t);
     }
   }
 
