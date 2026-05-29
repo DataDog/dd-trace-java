@@ -3,6 +3,7 @@ package datadog.opentelemetry.shim.logs;
 import static datadog.opentelemetry.shim.trace.OtelExtractedContext.extract;
 import static io.opentelemetry.api.common.AttributeKey.stringKey;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.otel.logs.data.OtelLogRecordProcessor;
@@ -23,8 +24,7 @@ import javax.annotation.ParametersAreNonnullByDefault;
 
 @ParametersAreNonnullByDefault
 final class OtelLogRecordBuilder implements LogRecordBuilder {
-  // package-visible for testing
-  static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
+  @VisibleForTesting static TimeSource TIME_SOURCE = SystemTimeSource.INSTANCE;
 
   private static final AttributeKey<String> EXCEPTION_TYPE_KEY = stringKey("exception.type");
   private static final AttributeKey<String> EXCEPTION_MESSAGE_KEY = stringKey("exception.message");

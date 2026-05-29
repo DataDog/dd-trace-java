@@ -260,6 +260,7 @@ dependencies {
   // references TraceScope and Continuation from public api
   api(project(":dd-trace-api"))
   api(libs.slf4j)
+  compileOnlyApi(project(":components:annotations"))
   api(project(":components:context"))
   api(project(":components:environment"))
   api(project(":components:json"))

@@ -1,6 +1,7 @@
 package datadog.trace.logging;
 
 import datadog.environment.OperatingSystem;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.OutputStream;
@@ -17,7 +18,7 @@ public class PrintStreamWrapper extends PrintStream {
     super(ps);
   }
 
-  // use for tests only
+  @VisibleForTesting
   public OutputStream getOriginalPrintStream() {
     return super.out;
   }
