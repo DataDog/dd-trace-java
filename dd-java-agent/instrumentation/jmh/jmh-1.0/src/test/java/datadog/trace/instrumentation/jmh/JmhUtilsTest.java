@@ -18,8 +18,7 @@ class JmhUtilsTest {
   void splitBenchmarkName_withParams() {
     String[] parts =
         JmhUtils.splitBenchmarkName("com.example.MyBenchmark.myMethod:size=1000,threads=4");
-    assertArrayEquals(
-        new String[] {"com.example.MyBenchmark", "myMethod:size=1000,threads=4"}, parts);
+    assertArrayEquals(new String[] {"com.example.MyBenchmark", "myMethod"}, parts);
   }
 
   @Test

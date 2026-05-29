@@ -97,13 +97,18 @@ public class DDOutputFormat implements OutputFormat {
   public void endBenchmark(BenchmarkResult result) {
     String suiteKey = currentSuiteKey;
     String testKey = currentTestKey;
+    if (suiteKey == null || testKey == null) {
+      delegate.endBenchmark(result);
+      return;
+    }
 
-    tagBenchmarkMetrics(result);
-
-    handler.onTestFinish(testKey, null, null);
-    handler.onTestSuiteFinish(suiteKey, null);
-
-    delegate.endBenchmark(result);
+    try {
+      tagBenchmarkMetrics(result);
+      handler.onTestFinish(testKey, null, null);
+      handler.onTestSuiteFinish(suiteKey, null);
+    } finally {
+      delegate.endBenchmark(result);
+    }
   }
 
   private void tagBenchmarkMetrics(BenchmarkResult result) {
@@ -165,8 +170,11 @@ public class DDOutputFormat implements OutputFormat {
 
   @Override
   public void endRun(java.util.Collection<RunResult> result) {
-    handler.close();
-    delegate.endRun(result);
+    try {
+      handler.close();
+    } finally {
+      delegate.endRun(result);
+    }
   }
 
   @Override

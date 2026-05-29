@@ -21,7 +21,7 @@ public final class JmhUtils {
     if (lastDot < 0) {
       return new String[] {"", fullName};
     }
-    return new String[] {baseName.substring(0, lastDot), fullName.substring(lastDot + 1)};
+    return new String[] {baseName.substring(0, lastDot), baseName.substring(lastDot + 1)};
   }
 
   /**
