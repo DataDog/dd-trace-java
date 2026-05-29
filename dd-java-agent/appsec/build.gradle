@@ -1,6 +1,4 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
-import groovy.json.JsonOutput
-import groovy.json.JsonSlurper
 
 plugins {
   id 'com.gradleup.shadow'
@@ -49,99 +47,9 @@ tasks.named("jar", Jar) {
   archiveClassifier = 'unbundled'
 }
 
-// ---------------------------------------------------------------------------
-// SCA Reachability: downloads GHSA enrichments and generates sca_cves.json
-// ---------------------------------------------------------------------------
-
-def SCA_ENRICHMENTS_API =
-  'https://api.github.com/repos/DataDog/sca-reachability-database/contents/enrichments'
-
-// Opens an authenticated connection to a GitHub URL with consistent headers and timeouts.
-// Throws GradleException on non-200 response — no fallback by design.
-// Set GITHUB_TOKEN to raise the unauthenticated rate limit (60 req/hr → 5000 req/hr).
-def githubConnect = { String url, String token ->
-  def connection = (HttpURLConnection) new URL(url).openConnection()
-  connection.setRequestProperty('Accept', 'application/vnd.github+json')
-  connection.setRequestProperty('X-GitHub-Api-Version', '2022-11-28')
-  if (token) {
-    connection.setRequestProperty('Authorization', "Bearer ${token}")
-  }
-  connection.connectTimeout = 10_000
-  connection.readTimeout = 30_000
-  int code = connection.responseCode
-  if (code != 200) {
-    throw new GradleException(
-    "GitHub API returned HTTP ${code} for ${url}.\n" +
-    "Unauthenticated rate limit is 60 req/hr. Set GITHUB_TOKEN to raise it.")
-  }
-  connection
-}
-
-// Fetches a GitHub URL and parses the response body as JSON.
-def githubFetch = { String url, String token ->
-  def conn = githubConnect(url, token)
-  try {
-    new JsonSlurper().parse(conn.inputStream)
-  } finally {
-    conn.disconnect()
-  }
-}
-
-// Fetches a GitHub URL and returns the raw response body as a String.
-def githubFetchRaw = { String url, String token ->
-  def conn = githubConnect(url, token)
-  try {
-    conn.inputStream.text
-  } finally {
-    conn.disconnect()
-  }
-}
-
-tasks.register('generateScaCvesJson') {
-  description = 'Downloads GHSA enrichments from sca-reachability-database and updates src/main/resources/sca_cves.json. ' +
-    'Run with -PrefreshSca to force a refresh. ' +
-    'sca_cves.json is committed to the repo so CI does not need network access to this private repo.'
-  group = 'build'
-
-  // Output lives in src/main/resources so it is versioned and picked up by processResources
-  // without any extra wiring. CI builds use the committed copy; only maintainers who need
-  // to update the database run this task (with -PrefreshSca or when the file is absent).
-  def outputFile = file('src/main/resources/sca_cves.json')
-
-  outputs.file(outputFile)
-  onlyIf {
-    project.hasProperty('refreshSca') || !outputFile.exists()
-  }
-
-  doLast {
-    def token = System.getenv('GITHUB_TOKEN')
-
-    logger.lifecycle('Fetching GHSA enrichment index from GitHub...')
-    def fileList = githubFetch(SCA_ENRICHMENTS_API, token) as List
-    def ghsaFiles = fileList.findAll { it.name?.endsWith('.json') && it.type == 'file' }
-    logger.lifecycle("Found ${ghsaFiles.size()} enrichment files")
-
-    def entries = []
-    ghsaFiles.each { fileInfo ->
-      def ghsaId = (fileInfo.name as String).replace('.json', '')
-      def rawContent = githubFetchRaw(fileInfo.download_url as String, token)
-      // Transformation is handled by GhsaEnrichmentParser (tested separately in buildSrc)
-      entries.addAll(datadog.gradle.sca.GhsaEnrichmentParser.INSTANCE.parse(ghsaId, rawContent))
-    }
-
-    outputFile.text = JsonOutput.toJson([version: 1, entries: entries])
-    logger.lifecycle("sca_cves.json: ${entries.size()} entries from ${ghsaFiles.size()} GHSA files")
-    logger.lifecycle("Remember to commit src/main/resources/sca_cves.json after updating the database.")
-  }
-}
-
-tasks.named("processResources", ProcessResources) {
-  doLast {
-    fileTree(dir: outputs.files.asPath, includes: ['**/*.json']).each {
-      it.text = JsonOutput.toJson(new JsonSlurper().parse(it))
-    }
-  }
-}
+// SCA Reachability: symbol database download is handled by the sca-enrichments plugin.
+// This is a temporary approach; symbols will be delivered via Remote Config in the future.
+apply plugin: 'dd-trace-java.sca-enrichments'
 
 jmh {
   jmhVersion = libs.versions.jmh.get()
