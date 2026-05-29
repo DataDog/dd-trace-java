@@ -306,9 +306,7 @@ final class AggregateEntry extends Hashtable.Entry {
     // buffer that may carry stale contents from a prior tag-firing publish when this publish had
     // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
     // contract.
-    h =
-        LongHashingUtils.addToHash(
-            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagSchema.names));
+    h = LongHashingUtils.addToHash(h, s.peerTagSchema == null ? 0 : s.peerTagSchema.namesHash);
     h =
         LongHashingUtils.addToHash(
             h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));

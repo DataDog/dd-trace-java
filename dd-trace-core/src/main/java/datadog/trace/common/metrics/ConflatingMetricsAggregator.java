@@ -330,6 +330,7 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
             dataInbox.publish(skipSeq);
           }
           healthMetrics.onClientStatTraceComputed(0, traceSize, true);
+          aggregator.unparkIfWaiting();
           return false;
         }
         try {
@@ -349,8 +350,15 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     }
 
     healthMetrics.onClientStatTraceComputed(filled, traceSize, !forceKeep);
+    // Wake the aggregator if it parked while we were filling. Producer-side cost is one volatile
+    // read when the aggregator isn't parked.
+    aggregator.unparkIfWaiting();
     return forceKeep;
   }
+
+  // Other site that posts work the aggregator needs to see: ignored-resource short-circuit
+  // returns above before reaching unparkIfWaiting. Mirror that wake-up there too so the
+  // aggregator picks up the skip-sentinel slots quickly.
 
   private boolean shouldComputeMetric(CoreSpan<?> span, boolean isTopLevel) {
     return (span.isMeasured() || isTopLevel || span.isKind(METRICS_ELIGIBLE_KINDS))

@@ -8,6 +8,7 @@ import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.concurrent.MpscRingBuffer;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.locks.LockSupport;
 import java.util.function.BiConsumer;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
@@ -49,6 +50,20 @@ final class Aggregator implements Runnable {
       value = "AT_STALE_THREAD_WRITE_OF_PRIMITIVE",
       justification = "the field is confined to the agent thread running the Aggregator")
   private boolean stopped;
+
+  /**
+   * True iff the aggregator thread is currently parked (or about to park) waiting for new work.
+   * Producers volatile-read this after publishing; on true they call {@link #unparkIfWaiting()} to
+   * wake the aggregator without paying the {@code sleepMillis} latency.
+   *
+   * <p>Volatile so the producer side sees the latest value. Set true before park, false on wake.
+   * The aggregator re-checks the inbox after setting this true (see {@link #run}) to close the race
+   * window: if a producer published just before the aggregator set the flag, the aggregator would
+   * have missed the unpark; the re-check catches that work and skips the park.
+   */
+  private volatile boolean waiting;
+
+  private volatile Thread aggregatorThread;
 
   /**
    * Static-singleton snapshot handler. Reads from the slot via {@code this} (passed as the context)
@@ -100,7 +115,9 @@ final class Aggregator implements Runnable {
 
   @Override
   public void run() {
-    Thread currentThread = Thread.currentThread();
+    final Thread currentThread = Thread.currentThread();
+    aggregatorThread = currentThread;
+    final long parkNanos = TimeUnit.MILLISECONDS.toNanos(sleepMillis);
     while (!currentThread.isInterrupted() && !stopped) {
       try {
         int drainedData = dataInbox.drain(this, SNAPSHOT_HANDLER);
@@ -114,15 +131,39 @@ final class Aggregator implements Runnable {
         }
         if (stopped) break;
         if (drainedData == 0 && signalInbox.isEmpty()) {
-          Thread.sleep(sleepMillis);
+          waiting = true;
+          try {
+            // Re-check after publishing the waiting flag. A producer that published just before
+            // we set waiting=true won't have unparked us (they read waiting=false); the re-check
+            // catches that work via the volatile producerCursor.
+            if (dataInbox.isEmpty() && signalInbox.isEmpty()) {
+              LockSupport.parkNanos(this, parkNanos);
+            }
+          } finally {
+            waiting = false;
+          }
         }
-      } catch (InterruptedException e) {
-        currentThread.interrupt();
       } catch (Throwable error) {
         log.debug("error aggregating metrics", error);
       }
     }
     log.debug("metrics aggregator exited");
+  }
+
+  /**
+   * Wake the aggregator if it's currently parked. Called from producer threads after publishing.
+   *
+   * <p>Cost on the producer hot path is one volatile read; only on a {@code true} read does the
+   * producer pay an {@code unpark} (cheap idempotent atomic). At saturating workloads where the
+   * aggregator is never parked, the volatile read is the only cost.
+   */
+  void unparkIfWaiting() {
+    if (waiting) {
+      final Thread t = aggregatorThread;
+      if (t != null) {
+        LockSupport.unpark(t);
+      }
+    }
   }
 
   private static void handleSnapshot(Aggregator agg, SpanSnapshot snapshot) {
