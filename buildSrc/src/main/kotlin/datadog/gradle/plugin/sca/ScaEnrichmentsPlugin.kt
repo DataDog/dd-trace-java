@@ -73,8 +73,9 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
       project.tasks.named("processResources") {
         dependsOn(generateTask)
         doLast {
+          // Minify only sca_cves.json — not all JSON files in the module output.
           project
-              .fileTree(mapOf("dir" to outputs.files.asPath, "includes" to listOf("**/*.json")))
+              .fileTree(mapOf("dir" to outputs.files.asPath, "includes" to listOf("**/sca_cves.json")))
               .forEach { f -> f.writeText(JsonOutput.toJson(JsonSlurper().parse(f))) }
         }
       }
