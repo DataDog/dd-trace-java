@@ -68,12 +68,15 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
           }
         }
 
-    project.tasks.named("processResources") {
-      dependsOn(generateTask)
-      doLast {
-        project
-            .fileTree(mapOf("dir" to outputs.files.asPath, "includes" to listOf("**/*.json")))
-            .forEach { f -> f.writeText(JsonOutput.toJson(JsonSlurper().parse(f))) }
+    // Defer wiring until after the java plugin adds processResources.
+    project.pluginManager.withPlugin("java") {
+      project.tasks.named("processResources") {
+        dependsOn(generateTask)
+        doLast {
+          project
+              .fileTree(mapOf("dir" to outputs.files.asPath, "includes" to listOf("**/*.json")))
+              .forEach { f -> f.writeText(JsonOutput.toJson(JsonSlurper().parse(f))) }
+        }
       }
     }
   }
