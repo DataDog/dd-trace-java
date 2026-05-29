@@ -22,7 +22,10 @@ import org.junit.platform.launcher.TestPlan;
 
 public class RetryMarkerListener implements TestExecutionListener {
 
-  static final String OUTPUT_DIR_PROP = "dd.test.results.dir";
+  // Not in the `dd.` namespace on purpose: that prefix is the agent's product-config namespace and
+  // is policed by DDSpecification's strict system-property hygiene check. Keep in sync with the
+  // `systemProperty(...)` set in dd-trace-java.configure-tests.gradle.kts.
+  static final String OUTPUT_DIR_PROP = "datadog.test.results.dir";
 
   private final Map<String, Integer> executionCounts = new ConcurrentHashMap<>();
   private final Map<String, TestIdentifier> identifiers = new ConcurrentHashMap<>();
@@ -48,7 +51,10 @@ public class RetryMarkerListener implements TestExecutionListener {
         writeMarkerFile(outputDir, entry.getKey(), entry.getValue());
       }
     } catch (Exception ex) {
-      System.err.println("[RetryMarkerListener] Failed to write retry markers: " + ex.getMessage());
+      // Best-effort: a failed marker write only means a retried attempt may not be tagged as
+      // `skip`;
+      // never fail the test run over it. System.out/err is banned here by forbiddenApis, and the
+      // JUnit Platform launcher has no logger on this path, so swallow rather than log.
     }
   }
 

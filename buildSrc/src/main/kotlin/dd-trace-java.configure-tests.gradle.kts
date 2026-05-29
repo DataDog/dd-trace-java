@@ -49,7 +49,10 @@ tasks.withType<Test>().configureEach {
   // Trick to avoid on CI: "Couldn't flush user prefs: java.util.prefs.BackingStoreException: Couldn't get file lock."
   // Use a task-specific user prefs directory
   systemProperty("java.util.prefs.userRoot", layout.buildDirectory.dir("tmp/userPrefs/$name").get().asFile.absolutePath)
-  systemProperty("dd.test.results.dir", reports.junitXml.outputLocation.get().asFile.absolutePath)
+  // Test-infrastructure metadata for RetryMarkerListener. Deliberately NOT in the `dd.` namespace:
+  // that prefix is the agent's product-config namespace and is policed by DDSpecification's strict
+  // system-property hygiene check (setupSpec asserts no non-allow-listed `dd.*` property).
+  systemProperty("datadog.test.results.dir", reports.junitXml.outputLocation.get().asFile.absolutePath)
 
   // Enable JUnit 5 auto-detection so ConfigInversionExtension (STRICT mode) is loaded automatically
   systemProperty("junit.jupiter.extensions.autodetection.enabled", "true")
