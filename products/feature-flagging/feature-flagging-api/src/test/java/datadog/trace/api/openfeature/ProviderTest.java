@@ -32,10 +32,12 @@ import dev.openfeature.sdk.ProviderState;
 import dev.openfeature.sdk.Value;
 import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
+import java.lang.reflect.Field;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Consumer;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -164,6 +166,99 @@ public class ProviderTest {
   }
 
   @Test
+  public void testSetProviderAndWaitFailsWhenConfigurationIsRemovedBeforeInitializationCompletes() {
+    final Provider[] providerRef = new Provider[1];
+    final Evaluator evaluator =
+        new Evaluator() {
+          private boolean hasConfiguration;
+
+          @Override
+          public boolean initialize(
+              final long timeout,
+              final java.util.concurrent.TimeUnit timeUnit,
+              final EvaluationContext context) {
+            hasConfiguration = true;
+            providerRef[0].onConfigurationChange();
+            hasConfiguration = false;
+            providerRef[0].onConfigurationChange();
+            return true;
+          }
+
+          @Override
+          public boolean hasConfiguration() {
+            return hasConfiguration;
+          }
+
+          @Override
+          public void shutdown() {}
+
+          @Override
+          public <T> ProviderEvaluation<T> evaluate(
+              final Class<T> target,
+              final String key,
+              final T defaultValue,
+              final EvaluationContext context) {
+            return ProviderEvaluation.<T>builder().value(defaultValue).build();
+          }
+        };
+
+    final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
+    providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+
+    assertThrows(ProviderNotReadyError.class, () -> api.setProviderAndWait(providerRef[0]));
+
+    final Client client = api.getClient();
+    assertThat(client.getProviderState(), equalTo(ProviderState.ERROR));
+  }
+
+  @Test
+  public void testInitializationErrorDoesNotOverwriteRecoveredReadyState() throws Exception {
+    final Provider[] providerRef = new Provider[1];
+    final Evaluator evaluator =
+        new Evaluator() {
+          private boolean hasConfiguration;
+
+          @Override
+          public boolean initialize(
+              final long timeout,
+              final java.util.concurrent.TimeUnit timeUnit,
+              final EvaluationContext context) {
+            hasConfiguration = true;
+            providerRef[0].onConfigurationChange();
+            hasConfiguration = false;
+            providerRef[0].onConfigurationChange();
+            hasConfiguration = true;
+            providerRef[0].onConfigurationChange();
+            throw new ProviderNotReadyError(
+                "Provider timed-out while waiting for initial configuration");
+          }
+
+          @Override
+          public boolean hasConfiguration() {
+            return hasConfiguration;
+          }
+
+          @Override
+          public void shutdown() {}
+
+          @Override
+          public <T> ProviderEvaluation<T> evaluate(
+              final Class<T> target,
+              final String key,
+              final T defaultValue,
+              final EvaluationContext context) {
+            return ProviderEvaluation.<T>builder().value(defaultValue).build();
+          }
+        };
+
+    providerRef[0] = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
+
+    assertThrows(ProviderNotReadyError.class, () -> providerRef[0].initialize(null));
+
+    assertThat(initializationState(providerRef[0]), equalTo("READY"));
+  }
+
+  @Test
   public void testNullConfigurationAfterReadyTransitionsToErrorAndRecovers() {
     final OpenFeatureAPI api = OpenFeatureAPI.getInstance();
     api.setProvider(new Provider());
@@ -243,6 +338,7 @@ public class ProviderTest {
   public void testShutdownCleansUpMetrics() throws Exception {
     Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(MILLISECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
     Provider provider = new Provider(new Options().initTimeout(10, MILLISECONDS), evaluator);
     provider.initialize(null);
     provider.shutdown();
@@ -273,6 +369,7 @@ public class ProviderTest {
     FeatureFlaggingGateway.dispatch(mock(ServerConfiguration.class));
     final Evaluator evaluator = mock(Evaluator.class);
     when(evaluator.initialize(eq(10L), eq(SECONDS), any())).thenReturn(true);
+    when(evaluator.hasConfiguration()).thenReturn(true);
     when(evaluator.evaluate(any(), any(), any(), any()))
         .thenAnswer(
             invocation ->
@@ -289,5 +386,12 @@ public class ProviderTest {
     verify(evaluator, times(1)).initialize(eq(10L), eq(SECONDS), any());
     verify(evaluator, times(1))
         .evaluate(any(), eq(flag), eq(defaultValue), any(EvaluationContext.class));
+  }
+
+  private static String initializationState(final Provider provider) throws Exception {
+    final Field stateField = Provider.class.getDeclaredField("initializationState");
+    stateField.setAccessible(true);
+    final AtomicReference<?> state = (AtomicReference<?>) stateField.get(provider);
+    return state.get().toString();
   }
 }

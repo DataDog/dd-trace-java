@@ -67,31 +67,23 @@ public class Provider extends EventProvider implements Metadata {
     try {
       evaluator = buildEvaluator();
       if (!evaluator.initialize(options.getTimeout(), options.getUnit(), context)) {
-        final InitializationState state = initializationState.get();
-        if (state == InitializationState.READY
-            || initializationState.compareAndSet(
-                InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY)) {
+        if (markInitialConfigReceivedReady()) {
           return;
         }
-        if (initializationState.compareAndSet(
-            InitializationState.INITIALIZING, InitializationState.ERROR)) {
-          throw new ProviderNotReadyError(
-              "Provider timed-out while waiting for initial configuration");
-        }
-        if (initializationState.compareAndSet(
-            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY)) {
-          return;
-        }
-        initializationState.set(InitializationState.ERROR);
+        markInitializationError();
         throw new ProviderNotReadyError(
             "Provider timed-out while waiting for initial configuration");
       }
-      initializationState.set(InitializationState.READY);
+      if (!evaluator.hasConfiguration() || !markSuccessfulInitializationReady()) {
+        markInitializationError();
+        throw new ProviderNotReadyError(
+            "Provider timed-out while waiting for initial configuration");
+      }
     } catch (final OpenFeatureError e) {
-      initializationState.set(InitializationState.ERROR);
+      markInitializationError();
       throw e;
     } catch (final Throwable e) {
-      initializationState.set(InitializationState.ERROR);
+      markInitializationError();
       throw new FatalError("Failed to initialize provider, is the tracer configured?", e);
     }
   }
@@ -128,8 +120,8 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   private void onConfigurationUnavailable() {
-    final InitializationState state = initializationState.get();
-    if (state != InitializationState.READY) {
+    if (initializationState.compareAndSet(
+        InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.ERROR)) {
       return;
     }
     if (!initializationState.compareAndSet(InitializationState.READY, InitializationState.ERROR)) {
@@ -141,6 +133,28 @@ public class Provider extends EventProvider implements Metadata {
             .message("Configuration unavailable")
             .errorCode(ErrorCode.PROVIDER_NOT_READY)
             .build());
+  }
+
+  private boolean markInitialConfigReceivedReady() {
+    return initializationState.get() == InitializationState.READY
+        || initializationState.compareAndSet(
+            InitializationState.INITIAL_CONFIG_RECEIVED, InitializationState.READY);
+  }
+
+  private boolean markSuccessfulInitializationReady() {
+    return markInitialConfigReceivedReady()
+        || initializationState.compareAndSet(
+            InitializationState.INITIALIZING, InitializationState.READY);
+  }
+
+  private void markInitializationError() {
+    InitializationState state = initializationState.get();
+    while (state != InitializationState.READY && state != InitializationState.ERROR) {
+      if (initializationState.compareAndSet(state, InitializationState.ERROR)) {
+        return;
+      }
+      state = initializationState.get();
+    }
   }
 
   private Evaluator buildEvaluator() throws Exception {
