@@ -174,8 +174,7 @@ class RxJava3Test extends AbstractInstrumentationTest {
             "delayed maybe",
             new Object[] {4},
             1,
-            (Supplier<Object>)
-                () -> Maybe.just(3).delay(100, MILLISECONDS).map(Worker::addOne)),
+            (Supplier<Object>) () -> Maybe.just(3).delay(100, MILLISECONDS).map(Worker::addOne)),
         Arguments.of(
             "delayed twice maybe",
             new Object[] {6},
