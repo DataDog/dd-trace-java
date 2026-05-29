@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.rxjava3;
+package testdog.trace.instrumentation.rxjava3;
 
 import static datadog.trace.agent.test.assertions.Matchers.validates;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;

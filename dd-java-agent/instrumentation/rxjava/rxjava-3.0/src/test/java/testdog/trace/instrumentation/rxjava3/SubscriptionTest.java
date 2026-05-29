@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.rxjava3;
+package testdog.trace.instrumentation.rxjava3;
 
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
