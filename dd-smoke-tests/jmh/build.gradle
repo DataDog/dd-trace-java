@@ -1,0 +1,30 @@
+apply from: "$rootDir/gradle/java.gradle"
+description = 'JMH CI Visibility Smoke Tests.'
+
+dependencies {
+  implementation group: 'org.openjdk.jmh', name: 'jmh-core', version: '1.37'
+  annotationProcessor group: 'org.openjdk.jmh', name: 'jmh-generator-annprocess', version: '1.37'
+
+  testImplementation project(':dd-smoke-tests:backend-mock')
+}
+
+tasks.withType(Test).configureEach {
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def jmhJar = configurations.named("runtimeClasspath")
+          .get()
+          .find { it.name.contains("jmh-core") }
+        return ["-Ddatadog.smoketest.jmh.core.jar.path=${jmhJar}"]
+      }
+    })
+  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
+      @Override
+      Iterable<String> asArguments() {
+        def annprocJar = configurations.named("annotationProcessor")
+          .get()
+          .find { it.name.contains("jmh-generator-annprocess") }
+        return ["-Ddatadog.smoketest.jmh.annproc.jar.path=${annprocJar}"]
+      }
+    })
+}
