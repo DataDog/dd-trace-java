@@ -1,4 +1,4 @@
-import static datadog.trace.agent.test.assertions.Matchers.is;
+import static datadog.trace.agent.test.assertions.Matchers.matches;
 import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TagsMatcher.defaultTags;
 import static datadog.trace.agent.test.assertions.TagsMatcher.error;
@@ -20,6 +20,7 @@ import io.reactivex.rxjava3.core.Observable;
 import io.reactivex.rxjava3.core.Single;
 import io.reactivex.rxjava3.disposables.Disposable;
 import java.util.concurrent.CountDownLatch;
+import java.util.regex.Pattern;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
@@ -58,12 +59,12 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
         trace(
             span()
                 .root()
-                .operationName("RxJava3TracedMethods." + method)
-                .resourceName("RxJava3TracedMethods." + method)
+                .operationName(Pattern.compile(Pattern.quote("RxJava3TracedMethods." + method)))
+                .resourceName(cs -> ("RxJava3TracedMethods." + method).contentEquals(cs))
                 .tags(
                     defaultTags(),
-                    tag(COMPONENT, is("opentelemetry")),
-                    tag(SPAN_KIND, is("internal")))));
+                    tag(COMPONENT, matches("opentelemetry")),
+                    tag(SPAN_KIND, matches("internal")))));
   }
 
   @ParameterizedTest(name = "WithSpan annotated async method failing ''{0}''")
@@ -84,13 +85,13 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
         trace(
             span()
                 .root()
-                .operationName("RxJava3TracedMethods." + method)
-                .resourceName("RxJava3TracedMethods." + method)
+                .operationName(Pattern.compile(Pattern.quote("RxJava3TracedMethods." + method)))
+                .resourceName(cs -> ("RxJava3TracedMethods." + method).contentEquals(cs))
                 .error()
                 .tags(
                     defaultTags(),
-                    tag(COMPONENT, is("opentelemetry")),
-                    tag(SPAN_KIND, is("internal")),
+                    tag(COMPONENT, matches("opentelemetry")),
+                    tag(SPAN_KIND, matches("internal")),
                     error(IllegalStateException.class, "Test exception"))));
   }
 
@@ -112,12 +113,12 @@ class RxJava3ResultExtensionTest extends AbstractInstrumentationTest {
         trace(
             span()
                 .root()
-                .operationName("RxJava3TracedMethods." + method)
-                .resourceName("RxJava3TracedMethods." + method)
+                .operationName(Pattern.compile(Pattern.quote("RxJava3TracedMethods." + method)))
+                .resourceName(cs -> ("RxJava3TracedMethods." + method).contentEquals(cs))
                 .tags(
                     defaultTags(),
-                    tag(COMPONENT, is("opentelemetry")),
-                    tag(SPAN_KIND, is("internal")))));
+                    tag(COMPONENT, matches("opentelemetry")),
+                    tag(SPAN_KIND, matches("internal")))));
   }
 
   private static Object invokeFactory(String method, CountDownLatch latch, Exception ex) {
