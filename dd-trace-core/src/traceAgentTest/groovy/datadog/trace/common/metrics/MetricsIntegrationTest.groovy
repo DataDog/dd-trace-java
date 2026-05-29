@@ -1,3 +1,5 @@
+package datadog.trace.common.metrics
+
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static java.util.concurrent.TimeUnit.SECONDS
@@ -7,15 +9,8 @@ import datadog.metrics.api.Histograms
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString
-import datadog.trace.common.metrics.AggregateMetric
-import datadog.trace.common.metrics.EventListener
-import datadog.trace.common.metrics.MetricKey
-import datadog.trace.common.metrics.OkHttpSink
-import datadog.trace.common.metrics.SerializingMetricWriter
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
-import java.util.concurrent.atomic.AtomicLongArray
 import okhttp3.HttpUrl
 
 class MetricsIntegrationTest extends AbstractTraceAgentTest {
@@ -39,14 +34,22 @@ class MetricsIntegrationTest extends AbstractTraceAgentTest {
       sink
       )
     writer.startBucket(2, System.nanoTime(), SECONDS.toNanos(10))
-    writer.add(
-      new MetricKey("resource1", "service1", "operation1", null, "sql", 0, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null),
-      new AggregateMetric().recordDurations(5, new AtomicLongArray(2, 1, 2, 250, 4, 5))
-      )
-    writer.add(
-      new MetricKey("resource2", "service2", "operation2", null, "web", 200, false, true, "xyzzy", [UTF8BytesString.create("grault:quux")], null, null, null),
-      new AggregateMetric().recordDurations(10, new AtomicLongArray(1, 1, 200, 2, 3, 4, 5, 6, 7, 8, 9))
-      )
+    // Build entries via the production AggregateEntry.forSnapshot(snap, keyHash) path -- same
+    // construction as AggregateTable.findOrInsert. Both entries use one peer tag (grault:quux)
+    // -> schema names=["grault"], values=["quux"].
+    PeerTagSchema schema = PeerTagSchema.testSchema(["grault"] as String[])
+    SpanSnapshot snap1 = new SpanSnapshot(
+      "resource1", "service1", "operation1", null, "sql", (short) 0,
+      false, true, "xyzzy", schema, ["quux"] as String[], null, null, null, 0L)
+    def entry1 = new AggregateEntry(snap1, AggregateEntry.hashOf(snap1))
+    [2, 1, 2, 250, 4].each { entry1.recordOneDuration(it as long) }
+    writer.add(entry1)
+    SpanSnapshot snap2 = new SpanSnapshot(
+      "resource2", "service2", "operation2", null, "web", (short) 200,
+      false, true, "xyzzy", schema, ["quux"] as String[], null, null, null, 0L)
+    def entry2 = new AggregateEntry(snap2, AggregateEntry.hashOf(snap2))
+    [1, 1, 200, 2, 3, 4, 5, 6, 7, 8].each { entry2.recordOneDuration(it as long) }
+    writer.add(entry2)
     writer.finishBucket()
 
     then:
