@@ -7,6 +7,7 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.opentest4j.AssertionFailedError;
@@ -23,6 +24,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest.class);
 
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000;
+  private static final int GRADLE_STOP_TIMEOUT_MILLIS = 30_000;
   private static final int GRADLE_WRAPPER_RETRIES = 3;
 
   private static final String JAVA_HOME = buildJavaHome();
@@ -69,6 +71,29 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
         // on the command line (if present), otherwise org.gradle.jvmargs from gradle.properties.
         // "user.country" is used, as Gradle will filter out properties it is not aware of.
         cmdLineParams != null ? cmdLineParams : "-Duser.country=VALUE_FROM_GRADLE_PROPERTIES_FILE");
+  }
+
+  /**
+   * Stops the Gradle build daemon spawned by the launcher before JUnit deletes the {@link
+   * #gradleUserHome} temp directory. The launcher starts a single-use build daemon that writes into
+   * {@code $GRADLE_USER_HOME/daemon/<version>/}; if that process has not fully released its file
+   * handles by the time the {@code @TempDir} cleanup runs, the recursive delete fails with a {@code
+   * DirectoryNotEmptyException}.
+   */
+  @AfterAll
+  void stopGradleBuildDaemon() {
+    Map<String, String> env = new HashMap<>();
+    env.put("JAVA_HOME", JAVA_HOME);
+    env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    env.put("GRADLE_OPTS", "");
+    ShellCommandExecutor shellCommandExecutor =
+        new ShellCommandExecutor(projectFolder.toFile(), GRADLE_STOP_TIMEOUT_MILLIS, env);
+    try {
+      shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "--stop");
+    } catch (Exception e) {
+      // Best-effort: a failure here should not fail the test run.
+      LOGGER.warn("Failed to stop Gradle daemon during cleanup", e);
+    }
   }
 
   private void givenGradleWrapper(String gradleVersion) throws Exception {
