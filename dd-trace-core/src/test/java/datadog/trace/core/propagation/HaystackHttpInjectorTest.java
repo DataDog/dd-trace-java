@@ -12,6 +12,7 @@ import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoMoreInteractions;
 
 import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.DDSpanId;
@@ -81,6 +82,9 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
     verify(carrier).put(OT_BAGGAGE_PREFIX + "k2", "v2");
     verify(carrier).put("SOME_CUSTOM_HEADER", "some-value");
     verify(carrier).put(DD_PARENT_ID_BAGGAGE_KEY, "0");
+    verifyNoMoreInteractions(carrier);
+
+    tracer.close();
   }
 
   @TableTest({
@@ -130,5 +134,8 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
     verify(carrier).put(DD_SPAN_ID_BAGGAGE_KEY, spanId);
     verify(carrier).put(OT_BAGGAGE_PREFIX + "k1", "v1");
     verify(carrier).put(OT_BAGGAGE_PREFIX + "k2", "v2");
+    verifyNoMoreInteractions(carrier);
+
+    tracer.close();
   }
 }
