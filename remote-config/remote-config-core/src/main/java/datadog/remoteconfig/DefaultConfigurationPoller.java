@@ -76,6 +76,7 @@ public class DefaultConfigurationPoller
   private final Map<Product, ProductState> productStates = new EnumMap<>(Product.class);
   private final Map<File, ConfigurationChangesListener> fileListeners = new HashMap<>();
   private final List<ConfigurationEndListener> configurationEndListeners = new ArrayList<>();
+  private final List<NonRetryableErrorListener> nonRetryableErrorListeners = new ArrayList<>();
 
   private final ClientState nextClientState = new ClientState();
   private final AtomicInteger startCount = new AtomicInteger(0);
@@ -192,6 +193,16 @@ public class DefaultConfigurationPoller
   @Override
   public synchronized void removeConfigurationEndListener(ConfigurationEndListener listener) {
     this.configurationEndListeners.removeIf(l -> l == listener);
+  }
+
+  @Override
+  public synchronized void addNonRetryableErrorListener(NonRetryableErrorListener listener) {
+    this.nonRetryableErrorListeners.add(listener);
+  }
+
+  @Override
+  public synchronized void removeNonRetryableErrorListener(NonRetryableErrorListener listener) {
+    this.nonRetryableErrorListeners.removeIf(l -> l == listener);
   }
 
   @Override
@@ -326,10 +337,6 @@ public class DefaultConfigurationPoller
 
   void sendRequest(Consumer<ResponseBody> responseBodyConsumer) throws IOException {
     try (Response response = fetchConfiguration()) {
-      if (response.code() == 404) {
-        log.debug("Remote configuration endpoint is disabled");
-        return;
-      }
       if (response.code() == 204) {
         log.debug("No configuration changes (HTTP 204 No Content)");
         return;
@@ -344,13 +351,15 @@ public class DefaultConfigurationPoller
         return;
       }
       // Retrieve body content for detailed error messages
+      String bodyString = null;
       if (body != null) {
         try {
+          bodyString = body.string();
           ratelimitedLogger.warn(
               "Failed to retrieve remote configuration: unexpected response code {} {} {}",
               response.message(),
               response.code(),
-              body.string());
+              bodyString);
         } catch (IOException ex) {
           ExceptionHelper.rateLimitedLogException(
               ratelimitedLogger, log, ex, "Error while getting error message body");
@@ -360,6 +369,31 @@ public class DefaultConfigurationPoller
             "Failed to retrieve remote configuration: unexpected response code {} {}",
             response.message(),
             response.code());
+      }
+      // Non-retryable 4xx responses (e.g. 401 Unauthorized, 403 Forbidden) indicate a permanent
+      // configuration error. Notify listeners so they can transition to a fatal state.
+      if (isNonRetryableError(response.code())) {
+        final String message =
+            "Remote configuration rejected with HTTP "
+                + response.code()
+                + " "
+                + response.message()
+                + (bodyString != null ? ": " + bodyString : "");
+        notifyNonRetryableErrorListeners(response.code(), message);
+      }
+    }
+  }
+
+  private static boolean isNonRetryableError(int code) {
+    return code == 400 || code == 401 || code == 403 || code == 404;
+  }
+
+  private synchronized void notifyNonRetryableErrorListeners(int code, String message) {
+    for (NonRetryableErrorListener listener : nonRetryableErrorListeners) {
+      try {
+        listener.onNonRetryableError(code, message);
+      } catch (RuntimeException ex) {
+        log.warn("Error notifying non-retryable error listener", ex);
       }
     }
   }

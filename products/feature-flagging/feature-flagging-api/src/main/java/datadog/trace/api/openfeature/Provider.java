@@ -88,13 +88,22 @@ public class Provider extends EventProvider implements Metadata {
     }
   }
 
+  private void onProviderFatal() {
+    emit(
+        ProviderEvent.PROVIDER_ERROR,
+        ProviderEventDetails.builder()
+            .message("Remote configuration permanently rejected")
+            .build());
+  }
+
   private Evaluator buildEvaluator() throws Exception {
     if (evaluator != null) {
       return evaluator;
     }
     final Class<?> evaluatorClass = loadEvaluatorClass();
-    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class);
-    return (Evaluator) ctor.newInstance((Runnable) this::onConfigurationChange);
+    final Constructor<?> ctor = evaluatorClass.getConstructor(Runnable.class, Runnable.class);
+    return (Evaluator)
+        ctor.newInstance((Runnable) this::onConfigurationChange, (Runnable) this::onProviderFatal);
   }
 
   @Override
