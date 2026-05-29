@@ -391,8 +391,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       log.debug(
           "SCA Reachability: retransformed {} class(es) for method-level detection",
           toRetransform.size());
-    } catch (Exception e) {
-      log.debug("SCA Reachability: retransformClasses failed", e);
+    } catch (Throwable t) {
+      log.debug("SCA Reachability: retransformClasses failed", t);
       // Re-queue on failure so the next heartbeat can retry
       pendingRetransform.addAll(toRetransform);
     }
