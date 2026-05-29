@@ -174,7 +174,10 @@ class RxJava3Test extends AbstractInstrumentationTest {
                 .operationName("trace-parent")
                 .resourceName("trace-parent")
                 .error()
-                .tags(defaultTags(), tag(COMPONENT, matches("trace")), error(RuntimeException.class, EXCEPTION_MESSAGE)),
+                .tags(
+                    defaultTags(),
+                    tag(COMPONENT, matches("trace")),
+                    error(RuntimeException.class, EXCEPTION_MESSAGE)),
             span()
                 .operationName("publisher-parent")
                 .resourceName("publisher-parent")
