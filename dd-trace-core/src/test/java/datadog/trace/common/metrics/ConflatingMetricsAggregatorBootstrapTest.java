@@ -217,9 +217,9 @@ class ConflatingMetricsAggregatorBootstrapTest {
   void reconcileSwapsSchemaWhenTagSetChanges() throws Exception {
     // The reconcile slow-path's swap branch: discovery refreshes the state AND the tag set
     // grows. Cached schema is rebuilt and the volatile reference points at the new schema.
-    // Verification is end-to-end -- we look at the MetricKey the writer receives. Pre-swap the
-    // span snapshot was pinned to the old schema so only peer.hostname appears; post-swap a new
-    // publish reads the new schema and the next flush carries both peer tags.
+    // Verification is end-to-end -- we look at the AggregateEntry the writer receives. Pre-swap
+    // the span snapshot was pinned to the old schema so only peer.hostname appears; post-swap a
+    // new publish reads the new schema and the next flush carries both peer tags.
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
     MetricWriter writer = mock(MetricWriter.class);
     Sink sink = mock(Sink.class);
@@ -266,8 +266,8 @@ class ConflatingMetricsAggregatorBootstrapTest {
           .finishBucket();
 
       // Publish 1: snapshot pinned to the original {peer.hostname} schema. cycle 1's reconcile
-      // will swap the cached schema BEFORE the flush, but this snapshot is already pinned so its
-      // MetricKey will still carry only peer.hostname.
+      // will swap the cached schema BEFORE the flush, but this snapshot is already pinned so the
+      // resulting AggregateEntry will still carry only peer.hostname.
       aggregator.publish(
           Collections.<CoreSpan<?>>singletonList(peerAggregationSpanWithBothPeerTags()));
       aggregator.report();
@@ -280,20 +280,20 @@ class ConflatingMetricsAggregatorBootstrapTest {
       aggregator.report();
       assertTrue(cycle2.await(2, SECONDS));
 
-      // Capture every (MetricKey, AggregateMetric) the writer saw across both cycles. Pre-swap
-      // snapshot has 1 peer tag, post-swap has 2.
-      ArgumentCaptor<MetricKey> keyCaptor = ArgumentCaptor.forClass(MetricKey.class);
-      verify(writer, times(2)).add(keyCaptor.capture(), any(AggregateMetric.class));
-      List<MetricKey> keys = keyCaptor.getAllValues();
+      // Capture every AggregateEntry the writer saw across both cycles. Pre-swap snapshot has 1
+      // peer tag, post-swap has 2.
+      ArgumentCaptor<AggregateEntry> entryCaptor = ArgumentCaptor.forClass(AggregateEntry.class);
+      verify(writer, times(2)).add(entryCaptor.capture());
+      List<AggregateEntry> entries = entryCaptor.getAllValues();
       assertEquals(
           Collections.singletonList(UTF8BytesString.create("peer.hostname:localhost")),
-          keys.get(0).getPeerTags(),
+          entries.get(0).getPeerTags(),
           "pre-swap snapshot should encode only peer.hostname");
       assertEquals(
           Arrays.asList(
               UTF8BytesString.create("peer.hostname:localhost"),
               UTF8BytesString.create("peer.service:billing")),
-          keys.get(1).getPeerTags(),
+          entries.get(1).getPeerTags(),
           "post-swap snapshot should encode both peer.hostname and peer.service");
 
       // Bootstrap (1) + cycle 1 slow-path (1) -- cycle 2 is fast-path so doesn't reach peerTags().

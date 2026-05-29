@@ -57,6 +57,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, Map<String, String>> replacements = new HashMap<>();
     Map<String, String> versionMap = new HashMap<>();
     versionMap.put("gradle-version", resolvedGradleVersion);
+    versionMap.put(
+        "gradle-distribution-url", GradleDistribution.uriPropertiesValueFor(resolvedGradleVersion));
     replacements.put("gradle-wrapper.properties", versionMap);
     givenGradleProjectFiles("test-gradle-wrapper", replacements);
     // we want to check that instrumentation works with different wrapper versions too
@@ -121,6 +123,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       try {
         shellCommandExecutor.executeCommand(
             IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion);
+        GradleDistribution.rewriteWrapperDistributionUrl(projectFolder, gradleVersion);
         return;
       } catch (ShellCommandExecutor.ShellCommandFailedException e) {
         LOGGER.warn("Failed gradle wrapper resolution with exception: ", e);

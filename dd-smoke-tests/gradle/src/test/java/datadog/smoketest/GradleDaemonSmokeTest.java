@@ -24,7 +24,6 @@ import org.gradle.testkit.runner.GradleRunner;
 import org.gradle.testkit.runner.TaskOutcome;
 import org.gradle.tooling.internal.consumer.DefaultGradleConnector;
 import org.gradle.util.GradleVersion;
-import org.gradle.util.internal.DistributionLocator;
 import org.gradle.wrapper.Download;
 import org.gradle.wrapper.GradleUserHomeLookup;
 import org.gradle.wrapper.Install;
@@ -292,8 +291,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       Install install = new Install(logger, download, new PathAssembler(userHomeDir, projectDir));
 
       WrapperConfiguration configuration = new WrapperConfiguration();
-      configuration.setDistribution(
-          new DistributionLocator().getDistributionFor(GradleVersion.version(gradleVersion)));
+      configuration.setDistribution(GradleDistribution.uriFor(gradleVersion));
       configuration.setNetworkTimeout(GRADLE_DISTRIBUTION_NETWORK_TIMEOUT);
 
       // This will download distribution (if not downloaded yet to userHomeDir) and verify its SHA.
@@ -309,17 +307,22 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
     buildEnv.put("GRADLE_VERSION", gradleVersion);
+    buildEnv.put(
+        GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,
+        GradleDistribution.uriFor(gradleVersion).toString());
 
     String mavenRepositoryProxy = System.getenv("MAVEN_REPOSITORY_PROXY");
     if (mavenRepositoryProxy != null) {
       buildEnv.put("MAVEN_REPOSITORY_PROXY", mavenRepositoryProxy);
     }
+    GradleDistribution.propagateMassReadUrl(buildEnv);
 
     GradleRunner gradleRunner =
-        GradleRunner.create()
-            .withTestKitDir(testKitFolder.toFile())
-            .withProjectDir(projectFolder.toFile())
-            .withGradleVersion(gradleVersion)
+        GradleDistribution.withDistribution(
+                GradleRunner.create()
+                    .withTestKitDir(testKitFolder.toFile())
+                    .withProjectDir(projectFolder.toFile()),
+                gradleVersion)
             .withArguments(arguments)
             .withEnvironment(buildEnv)
             .forwardOutput();
