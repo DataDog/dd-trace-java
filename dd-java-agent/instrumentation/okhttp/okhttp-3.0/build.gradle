@@ -23,8 +23,8 @@ tasks.named("compileVthread21TestJava", JavaCompile) {
 }
 
 tasks.named("vthread21Test", Test) {
-  javaLauncher = javaToolchains.launcherFor {
-    languageVersion = JavaLanguageVersion.of(21)
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_21
   }
 }
 

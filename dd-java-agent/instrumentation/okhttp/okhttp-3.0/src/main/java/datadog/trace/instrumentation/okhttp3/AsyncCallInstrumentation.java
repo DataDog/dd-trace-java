@@ -27,14 +27,8 @@ import net.bytebuddy.asm.Advice;
  * caller who actually enqueued this AsyncCall. Result: under concurrent OkHttp load, {@code
  * okhttp.request} spans cross-contaminate between traces.
  *
- * <p>The class moved between OkHttp 3.x and 4.x:
- *
- * <ul>
- *   <li>OkHttp 3.x &mdash; {@code okhttp3.RealCall$AsyncCall}
- *   <li>OkHttp 4.x &mdash; {@code okhttp3.internal.connection.RealCall$AsyncCall}
- * </ul>
- *
- * Both are inner classes of {@code RealCall} and both transitively implement {@link Runnable}.
+ * <p>{@code AsyncCall} is an inner class of {@code RealCall} and transitively implements {@link
+ * Runnable}.
  */
 @AutoService(InstrumenterModule.class)
 public final class AsyncCallInstrumentation extends InstrumenterModule.Tracing
@@ -51,8 +45,7 @@ public final class AsyncCallInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] knownMatchingTypes() {
     return new String[] {
-      "okhttp3.RealCall$AsyncCall", // OkHttp 3.x
-      "okhttp3.internal.connection.RealCall$AsyncCall", // OkHttp 4.x
+      "okhttp3.RealCall$AsyncCall",
     };
   }
 
