@@ -10925,7 +10925,7 @@
       {
         "version": "A",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],
