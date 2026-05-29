@@ -34,19 +34,44 @@ public final class TaskBlockHelper {
     /** {@code true} when the blocking thread is a virtual thread. */
     final boolean isVirtual;
 
+    /**
+     * {@code true} for the {@code Thread.sleep} path: {@link #finish} enqueues the event to a
+     * background ring buffer instead of making a synchronous JNI call. This removes the JFR write
+     * from the critical request path while keeping data collection intact.
+     */
+    final boolean deferred;
+
     /** Span ID captured at block entry; only meaningful when {@code isVirtual == true}. */
     final long spanId;
 
     /** Root span ID captured at block entry; only meaningful when {@code isVirtual == true}. */
     final long rootSpanId;
 
-    /** Constructor for platform threads. */
+    /** Constructor for platform threads (non-deferred synchronous recording). */
     State(ProfilingContextIntegration profiling, long startTicks, long startNanos, long blocker) {
       this.profiling = profiling;
       this.startTicks = startTicks;
       this.startNanos = startNanos;
       this.blocker = blocker;
       this.isVirtual = false;
+      this.deferred = false;
+      this.spanId = 0L;
+      this.rootSpanId = 0L;
+    }
+
+    /** Constructor for platform threads with optional deferred (async) recording. */
+    State(
+        ProfilingContextIntegration profiling,
+        long startTicks,
+        long startNanos,
+        long blocker,
+        boolean deferred) {
+      this.profiling = profiling;
+      this.startTicks = startTicks;
+      this.startNanos = startNanos;
+      this.blocker = blocker;
+      this.isVirtual = false;
+      this.deferred = deferred;
       this.spanId = 0L;
       this.rootSpanId = 0L;
     }
@@ -64,6 +89,7 @@ public final class TaskBlockHelper {
       this.startNanos = startNanos;
       this.blocker = blocker;
       this.isVirtual = true;
+      this.deferred = false;
       this.spanId = spanId;
       this.rootSpanId = rootSpanId;
     }
@@ -92,15 +118,15 @@ public final class TaskBlockHelper {
   }
 
   /**
-   * Capture entry-point for {@code Thread.sleep} bracketing. The blocker key is {@code 0} because a
-   * sleep has no associated monitor identity; consumers distinguishing sleep from other populations
-   * should rely on the call-site context (or future helper-specific marker) rather than on {@code
-   * State.blocker}. Returns {@code null} (so {@link #finish(State)} is a no-op) when no profiling
-   * context is active - matches the fast-path of {@link #capture(long)} so sleep sites in untraced
-   * code carry zero allocation cost.
+   * Capture entry-point for {@code Thread.sleep} bracketing. Returns a deferred {@link State}: when
+   * {@link #finish} is called, the TaskBlock event is enqueued to a background ring buffer instead
+   * of making a synchronous JNI call, removing the JFR write from the critical request path.
+   *
+   * <p>The blocker key is {@code 0} (sleep has no monitor identity). Returns {@code null} when no
+   * profiling context is active — sleep sites in untraced code carry zero allocation cost.
    */
   public static State captureForSleep() {
-    return captureSafely(0L);
+    return captureSafely(0L, true);
   }
 
   /**
@@ -113,8 +139,13 @@ public final class TaskBlockHelper {
   }
 
   static State captureSafely(long blocker) {
+    return captureSafely(blocker, false);
+  }
+
+  static State captureSafely(long blocker, boolean deferred) {
     try {
-      return capture(blocker);
+      return capture(
+          blocker, AgentTracer.get().getProfilingContext(), AgentTracer.activeSpan(), deferred);
     } catch (Throwable ignored) {
       return null;
     }
@@ -122,32 +153,38 @@ public final class TaskBlockHelper {
 
   static State captureSafely(long blocker, ProfilingContextIntegration profiling, AgentSpan span) {
     try {
-      return capture(blocker, profiling, span);
+      return capture(blocker, profiling, span, false);
     } catch (Throwable ignored) {
       return null;
     }
   }
 
   static State capture(long blocker, ProfilingContextIntegration profiling, AgentSpan span) {
+    return capture(blocker, profiling, span, false);
+  }
+
+  static State capture(
+      long blocker, ProfilingContextIntegration profiling, AgentSpan span, boolean deferred) {
     if (profiling == null) {
       return null;
     }
     // Keep the no-active-span early-out: avoids the JNI hop when the native side would only
     // count the call as a span-zero skip. The span itself is no longer read here for platform
-    // threads (context is read from OTEP TLS at JNI boundary).
+    // threads (context is read from OTEP TLS at JNI boundary, or from active span at finish time
+    // for the deferred path).
     ProfilerContext context = ProfilerContexts.of(span);
     if (context == null) {
       return null;
     }
     long startTicks = profiling.getCurrentTicks();
     long startNanos = System.nanoTime();
-    if (VirtualThreads.isCurrent()) {
-      // Virtual thread: capture span/root ids now so they can be passed explicitly to the native
-      // deferred-capture path, which bypasses the carrier-scoped OTEP TLS sidecar.
+    if (!deferred && VirtualThreads.isCurrent()) {
+      // Virtual thread (non-deferred): capture span/root ids now so they can be passed explicitly
+      // to the native deferred-capture path, which bypasses the carrier-scoped OTEP TLS sidecar.
       return new State(
           profiling, startTicks, startNanos, blocker, context.getSpanId(), context.getRootSpanId());
     }
-    return new State(profiling, startTicks, startNanos, blocker);
+    return new State(profiling, startTicks, startNanos, blocker, deferred);
   }
 
   public static void finish(State state) {
@@ -160,7 +197,19 @@ public final class TaskBlockHelper {
       return;
     }
     try {
-      if (state.isVirtual) {
+      if (state.deferred) {
+        // Deferred async path (Thread.sleep on platform threads): enqueue to ring buffer so the
+        // JFR write happens off the critical request path. Re-read the active span at finish time —
+        // it should match the span at capture (sleep is within a span boundary); if the span ended
+        // during the sleep, ctx is null and we skip recording (same as the synchronous path).
+        ProfilerContext ctx = ProfilerContexts.of(AgentTracer.activeSpan());
+        if (ctx == null) {
+          return;
+        }
+        long durationNanos = System.nanoTime() - state.startNanos;
+        state.profiling.enqueueTaskBlock(
+            state.startTicks, durationNanos, state.blocker, ctx.getSpanId(), ctx.getRootSpanId());
+      } else if (state.isVirtual) {
         // Virtual thread: pass the entry-time span/root ids explicitly to bypass OTEP TLS.
         state.profiling.recordTaskBlockWithContext(
             state.startTicks, state.blocker, 0L, state.spanId, state.rootSpanId);

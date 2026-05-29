@@ -17,10 +17,10 @@ import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskBlockHelper;
 import net.bytebuddy.asm.Advice;
 
 /**
- * Brackets all blocking {@link java.nio.channels.Selector#select() Selector.select()} variants
- * with a {@code datadog.TaskBlock} interval. Mirrors {@code lock-support} and {@code object-wait}
- * but for NIO multiplexed I/O, which is the dominant blocking pattern in reactive frameworks
- * (Netty event loops, Vert.x, Reactor-Netty, etc.).
+ * Brackets all blocking {@link java.nio.channels.Selector#select() Selector.select()} variants with
+ * a {@code datadog.TaskBlock} interval. Mirrors {@code lock-support} and {@code object-wait} but
+ * for NIO multiplexed I/O, which is the dominant blocking pattern in reactive frameworks (Netty
+ * event loops, Vert.x, Reactor-Netty, etc.).
  *
  * <p><b>Covered overloads:</b>
  *
@@ -35,22 +35,21 @@ import net.bytebuddy.asm.Advice;
  * </ul>
  *
  * <p><b>Excluded overloads:</b> {@code selectNow()} and {@code selectNow(Consumer)} are
- * non-blocking by contract — instrumenting them would add a capture/finish pair to every
- * event-loop tick in reactive frameworks (potentially 10^5/s), a meaningful overhead even though
- * {@code TaskBlockHelper}'s fast-path skips the JFR emit when no span is active.
+ * non-blocking by contract — instrumenting them would add a capture/finish pair to every event-loop
+ * tick in reactive frameworks (potentially 10^5/s), a meaningful overhead even though {@code
+ * TaskBlockHelper}'s fast-path skips the JFR emit when no span is active.
  *
  * <p>The {@code TaskBlockHelper} short-circuits when no active span is present, so untraced event
  * loops carry only the ~20 ns TLS lookup and {@code activeSpan() == null} check per call.
  *
- * <p><b>Target class.</b> {@code sun.nio.ch.SelectorImpl} overrides <em>all</em> {@code
- * select*} variants — including the consumer-based {@code select(Consumer)} and {@code
- * select(Consumer, long)} added in JDK 11 — as {@code final} methods that each call
- * {@code lockAndDoSelect(Consumer, long)} directly. The platform-specific impls
- * ({@code KQueueSelectorImpl}, {@code EPollSelectorImpl}, {@code WindowsSelectorImpl},
- * {@code WEPollSelectorImpl}) extend {@code SelectorImpl} and inherit these overrides.
- * A single {@code SelectorImpl} target therefore covers all blocking overloads.
- * {@code SelectorImpl} is loaded into the bootstrap class loader before the Java agent
- * attaches, so {@link Instrumenter.ForKnownTypes} (retransformation at agent attach) is
+ * <p><b>Target class.</b> {@code sun.nio.ch.SelectorImpl} overrides <em>all</em> {@code select*}
+ * variants — including the consumer-based {@code select(Consumer)} and {@code select(Consumer,
+ * long)} added in JDK 11 — as {@code final} methods that each call {@code lockAndDoSelect(Consumer,
+ * long)} directly. The platform-specific impls ({@code KQueueSelectorImpl}, {@code
+ * EPollSelectorImpl}, {@code WindowsSelectorImpl}, {@code WEPollSelectorImpl}) extend {@code
+ * SelectorImpl} and inherit these overrides. A single {@code SelectorImpl} target therefore covers
+ * all blocking overloads. {@code SelectorImpl} is loaded into the bootstrap class loader before the
+ * Java agent attaches, so {@link Instrumenter.ForKnownTypes} (retransformation at agent attach) is
  * used rather than {@code ForTypeHierarchy} (which only fires on subsequent class-load events).
  */
 @AutoService(InstrumenterModule.class)
@@ -70,7 +69,8 @@ public class NioSelectorProfilingInstrumentation extends InstrumenterModule.Prof
         && Config.get().isDatadogProfilerEnabled()
         && ConfigProvider.getInstance()
             .getBoolean(
-                PROFILING_DATADOG_PROFILER_WALL_PRECHECK, PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
+                PROFILING_DATADOG_PROFILER_WALL_PRECHECK,
+                PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
   }
 
   @Override

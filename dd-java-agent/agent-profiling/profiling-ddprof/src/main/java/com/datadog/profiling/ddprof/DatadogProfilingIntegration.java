@@ -8,6 +8,8 @@ import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.util.concurrent.ArrayBlockingQueue;
+import java.util.concurrent.TimeUnit;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -27,6 +29,23 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   // don't use Config because it may use ThreadPoolExecutor to initialize itself
   private static final boolean IS_PROFILING_QUEUEING_TIME_ENABLED =
       DatadogProfilerConfig.isQueueTimeEnabled();
+
+  // --- Async TaskBlock recording infrastructure (Thread.sleep deferred path) ---
+
+  // Pre-cached native tid per traced thread; populated in onAttach() to avoid repeated JNI on
+  // the hot path. Reading a ThreadLocal is pure Java once the value is set.
+  private static final ThreadLocal<Integer> NATIVE_TID = new ThreadLocal<>();
+
+  // Ring buffer for deferred TaskBlock events. offer() is non-blocking; full queue drops events
+  // silently — acceptable for profiling data (not a correctness concern).
+  // Entry layout: [tid, startTicks, durationNanos, blocker, spanId, rootSpanId]
+  private static final ArrayBlockingQueue<long[]> TASK_BLOCK_QUEUE = new ArrayBlockingQueue<>(2048);
+
+  // TSC frequency used by the drain thread to convert durationNanos → endTicks.
+  // Initialised in onStart(); default is 1e9 Hz (safe no-op: 1 ns per tick).
+  private static volatile long TSC_FREQUENCY = 1_000_000_000L;
+
+  private static volatile Thread drainThread;
 
   private final Stateful contextManager =
       new Stateful() {
@@ -58,9 +77,61 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public void onStart() {
+    TSC_FREQUENCY = DDPROF.getTscFrequency();
+    if (drainThread == null || !drainThread.isAlive()) {
+      drainThread =
+          new Thread(DatadogProfilingIntegration::drainLoop, "dd-profiling-taskblock-drain");
+      drainThread.setDaemon(true);
+      drainThread.start();
+    }
+  }
+
+  @Override
   public void onAttach() {
     if (WALLCLOCK_ENABLED) {
       DDPROF.addThread();
+    }
+    NATIVE_TID.set(DDPROF.getCurrentThreadId());
+  }
+
+  @Override
+  public int getCurrentThreadId() {
+    Integer tid = NATIVE_TID.get();
+    return tid != null ? tid : -1;
+  }
+
+  @Override
+  public void enqueueTaskBlock(
+      long startTicks, long durationNanos, long blocker, long spanId, long rootSpanId) {
+    int tid = getCurrentThreadId();
+    if (tid < 0) {
+      return;
+    }
+    TASK_BLOCK_QUEUE.offer(
+        new long[] {tid, startTicks, durationNanos, blocker, spanId, rootSpanId});
+  }
+
+  private static void drainLoop() {
+    while (!Thread.currentThread().isInterrupted()) {
+      try {
+        long[] entry = TASK_BLOCK_QUEUE.poll(100, TimeUnit.MILLISECONDS);
+        if (entry == null) {
+          continue;
+        }
+        int tid = (int) entry[0];
+        long startTicks = entry[1];
+        long durationNanos = entry[2];
+        long blocker = entry[3];
+        long spanId = entry[4];
+        long rootSpanId = entry[5];
+        long freq = TSC_FREQUENCY;
+        long endTicks = startTicks + durationNanos * freq / 1_000_000_000L;
+        DDPROF.recordTaskBlockFromContextEvent(
+            tid, startTicks, endTicks, blocker, 0L, spanId, rootSpanId);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+      }
     }
   }
 
@@ -110,7 +181,8 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   @Override
   public void recordTaskBlockWithContext(
       long startTicks, long blocker, long unblockingSpanId, long spanId, long rootSpanId) {
-    DDPROF.recordTaskBlockWithContextEvent(startTicks, blocker, unblockingSpanId, spanId, rootSpanId);
+    DDPROF.recordTaskBlockWithContextEvent(
+        startTicks, blocker, unblockingSpanId, spanId, rootSpanId);
   }
 
   @Override

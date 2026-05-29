@@ -129,11 +129,14 @@ public final class LockSupportHelper {
           profiling, blockerHash, startTicks, ctx.getSpanId(), ctx.getRootSpanId());
     }
 
-    // Platform thread: use the existing native park entry.
-    // Always call parkEnter even without an active span: the native side records the start
-    // tick and snapshots the OTEP TLS context at entry. If no span is active, parkExit
-    // filters the interval out at the zero-span eligibility check. Signal suppression for
-    // parked threads is provided by the wallprecheck OS-state filter, not by FLAG_PARKED.
+    // Platform thread: skip parkEnter() JNI when no span is active — native would discard
+    // the interval at parkExit() anyway (zero-span eligibility check). Mirrors the guard
+    // already present on the virtual thread path above.
+    ProfilerContext ctx = ProfilerContexts.of(AgentTracer.activeSpan());
+    if (ctx == null) {
+      UNPARKING_SPAN.remove(Thread.currentThread());
+      return null;
+    }
     try {
       profiling.parkEnter();
     } catch (Throwable ignored) {

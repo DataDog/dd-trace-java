@@ -14,6 +14,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallCollapsi
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallContextFilter;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallInterval;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallPrecheck;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.getWallThreadsPerTick;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationProfilingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
@@ -315,6 +316,10 @@ public final class DatadogProfiler {
       if (getWallPrecheck(configProvider)) {
         cmd.append(",wallprecheck=true");
       }
+      int walltpt = getWallThreadsPerTick(configProvider);
+      if (walltpt > 0) {
+        cmd.append(",walltpt=").append(walltpt);
+      }
     }
     cmd.append(",loglevel=").append(getLogLevel(configProvider));
     if (profilingModes.contains(ALLOCATION) || profilingModes.contains(MEMLEAK)) {
@@ -469,6 +474,14 @@ public final class DatadogProfiler {
     }
   }
 
+  public int getCurrentThreadId() {
+    return profiler != null ? profiler.getCurrentThreadId() : -1;
+  }
+
+  public long getTscFrequency() {
+    return profiler != null ? profiler.getTscFrequency() : 1_000_000_000L;
+  }
+
   void recordTaskBlockEvent(long startTicks, long blocker, long unblockingSpanId) {
     if (profiler != null && recordingFlag.get()) {
       long endTicks = profiler.getCurrentTicks();
@@ -482,6 +495,20 @@ public final class DatadogProfiler {
       long endTicks = profiler.getCurrentTicks();
       profiler.recordTaskBlockWithContext(
           startTicks, endTicks, blocker, unblockingSpanId, spanId, rootSpanId);
+    }
+  }
+
+  void recordTaskBlockFromContextEvent(
+      int tid,
+      long startTicks,
+      long endTicks,
+      long blocker,
+      long unblockingSpanId,
+      long spanId,
+      long rootSpanId) {
+    if (profiler != null && recordingFlag.get()) {
+      profiler.recordTaskBlockFromContext(
+          tid, startTicks, endTicks, blocker, unblockingSpanId, spanId, rootSpanId);
     }
   }
 

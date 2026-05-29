@@ -70,6 +70,33 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
       long startTicks, long blocker, long unblockingSpanId, long spanId, long rootSpanId) {}
 
   /**
+   * Returns the OS-level native thread ID for the calling thread, or {@code -1} if unavailable.
+   * Implementations may pre-cache this value in thread-local storage on {@link #onAttach()} to
+   * avoid repeated JNI round-trips on the hot path.
+   */
+  default int getCurrentThreadId() {
+    return -1;
+  }
+
+  /**
+   * Enqueues a TaskBlock interval for asynchronous recording off the critical request path. The
+   * actual JFR write is performed by a background drain thread; the calling thread only pays the
+   * cost of a non-blocking queue offer.
+   *
+   * <p>Called from the {@code Thread.sleep} instrumentation finish path for platform threads.
+   * Non-sleep paths (LockSupport, NIO, monitor) use the synchronous {@link #recordTaskBlock} /
+   * {@link #recordTaskBlockWithContext} methods instead.
+   *
+   * @param startTicks TSC tick captured at sleep entry
+   * @param durationNanos wall-clock duration of the sleep in nanoseconds
+   * @param blocker identity hash of the blocking object, or 0 for sleeps
+   * @param spanId span ID active at sleep exit
+   * @param rootSpanId root span ID active at sleep exit
+   */
+  default void enqueueTaskBlock(
+      long startTicks, long durationNanos, long blocker, long spanId, long rootSpanId) {}
+
+  /**
    * Called when the current thread is about to enter {@code LockSupport.park*}. The native profiler
    * snapshots the OTEP TLS span context and records the start tick for {@code datadog.TaskBlock}
    * emission on unpark. {@code SIGVTALRM} suppression for parked threads is provided by the {@code

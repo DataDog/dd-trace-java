@@ -70,8 +70,7 @@ final class NioChannelTaskBlockProfilingTest {
     Files.createDirectories(LOG_FILE_BASE);
     logFilePath =
         LOG_FILE_BASE.resolve(
-            testInfo.getTestMethod().map(method -> method.getName()).orElse("nioChannel")
-                + ".log");
+            testInfo.getTestMethod().map(method -> method.getName()).orElse("nioChannel") + ".log");
     dumpDir = Files.createTempDirectory("dd-profiler-niochannel-");
   }
 
@@ -258,8 +257,8 @@ final class NioChannelTaskBlockProfilingTest {
   }
 
   /**
-   * Forked application that opens a {@code ServerSocketChannel} and calls {@code accept()} under
-   * an active span. A daemon client thread connects after a short delay so that {@code accept()}
+   * Forked application that opens a {@code ServerSocketChannel} and calls {@code accept()} under an
+   * active span. A daemon client thread connects after a short delay so that {@code accept()}
    * blocks for at least 50 ms, ensuring the 1 ms TaskBlock threshold is exceeded.
    */
   public static final class NioChannelTaskBlockForkedApp {

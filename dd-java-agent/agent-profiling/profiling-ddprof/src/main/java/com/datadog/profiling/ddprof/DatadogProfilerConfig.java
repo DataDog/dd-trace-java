@@ -45,6 +45,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_HEAP_TRACK_GENERATIONS_DEFAULT;
@@ -174,6 +176,13 @@ public class DatadogProfilerConfig {
         configProvider,
         PROFILING_DATADOG_PROFILER_WALL_PRECHECK,
         PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT);
+  }
+
+  public static int getWallThreadsPerTick(ConfigProvider configProvider) {
+    return getInteger(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK,
+        PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK_DEFAULT);
   }
 
   static boolean isJmethodIDSafe() {

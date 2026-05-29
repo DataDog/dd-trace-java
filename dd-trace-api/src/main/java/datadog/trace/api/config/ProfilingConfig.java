@@ -137,6 +137,11 @@ public final class ProfilingConfig {
       "profiling.ddprof.wall.precheck";
   public static final boolean PROFILING_DATADOG_PROFILER_WALL_PRECHECK_DEFAULT = false;
 
+  public static final String PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK =
+      "profiling.ddprof.wall.threads.per.tick";
+  // 0 means omit the parameter and let the native profiler use its built-in default (16).
+  public static final int PROFILING_DATADOG_PROFILER_WALL_THREADS_PER_TICK_DEFAULT = 0;
+
   public static final String PROFILING_DATADOG_PROFILER_SCHEDULING_EVENT =
       "profiling.experimental.ddprof.scheduling.event";
 
