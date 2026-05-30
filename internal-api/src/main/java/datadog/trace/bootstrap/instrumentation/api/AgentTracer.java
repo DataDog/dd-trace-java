@@ -1,5 +1,6 @@
 package datadog.trace.bootstrap.instrumentation.api;
 
+import datadog.context.Context;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.EndpointCheckpointer;
@@ -102,6 +103,23 @@ public class AgentTracer {
   @Nonnull
   public static AgentScope.Continuation captureSpan(final AgentSpan span) {
     return get().captureSpan(span);
+  }
+
+  /**
+   * Like {@link #captureSpan(AgentSpan)} but uses an explicitly supplied context instead of the
+   * current thread's scope-stack context. Use this when the context with baggage was captured on a
+   * different thread (e.g. a Reactor subscription thread) and needs to be carried into the
+   * continuation created on an I/O thread that has no active scope.
+   *
+   * @param span the span to include in the continuation
+   * @param capturedContext the context (e.g. containing baggage) captured from the originating
+   *     thread
+   * @return Continuation with the supplied context, no-op continuation if the span is null.
+   */
+  @Nonnull
+  public static AgentScope.Continuation captureSpan(
+      final AgentSpan span, final Context capturedContext) {
+    return get().captureSpan(span, capturedContext);
   }
 
   /**
@@ -329,6 +347,8 @@ public class AgentTracer {
 
     AgentScope.Continuation captureSpan(AgentSpan span);
 
+    AgentScope.Continuation captureSpan(AgentSpan span, Context capturedContext);
+
     void checkpointActiveForRollback();
 
     void rollbackActiveToCheckpoint();
@@ -485,6 +505,12 @@ public class AgentTracer {
 
     @Override
     public AgentScope.Continuation captureSpan(final AgentSpan span) {
+      return NoopContinuation.INSTANCE;
+    }
+
+    @Override
+    public AgentScope.Continuation captureSpan(
+        final AgentSpan span, final Context capturedContext) {
       return NoopContinuation.INSTANCE;
     }
 

@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.reactor.netty;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 
+import datadog.context.Context;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.function.Function;
 import reactor.core.publisher.Mono;
@@ -11,6 +12,7 @@ public class CaptureConnectSpan
     implements Function<Mono<? extends Connection>, Mono<? extends Connection>> {
 
   static final String CONNECT_SPAN = "datadog.connect.span";
+  static final String CONNECT_CONTEXT = "datadog.connect.context";
 
   @Override
   public Mono<? extends Connection> apply(Mono<? extends Connection> mono) {
@@ -18,7 +20,7 @@ public class CaptureConnectSpan
         context -> {
           final AgentSpan span = activeSpan();
           if (null != span) {
-            return context.put(CONNECT_SPAN, span);
+            return context.put(CONNECT_SPAN, span).put(CONNECT_CONTEXT, Context.current());
           } else {
             return context;
           }

@@ -121,6 +121,13 @@ public final class ContinuableScopeManager implements ContextManager {
     return captureSpan(context, INSTRUMENTATION, span);
   }
 
+  public AgentScope.Continuation captureSpan(final AgentSpan span, final Context capturedContext) {
+    if (span == null) {
+      return AgentTracer.noopContinuation();
+    }
+    return captureSpan(capturedContext.with(span), INSTRUMENTATION, span);
+  }
+
   private AgentScope.Continuation captureSpan(Context context, byte source, AgentSpan span) {
     AgentTraceCollector traceCollector = span.context().getTraceCollector();
     return new ScopeContinuation(this, context, source, traceCollector).register();

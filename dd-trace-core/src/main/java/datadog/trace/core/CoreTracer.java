@@ -22,6 +22,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.ExternalAgentLauncher;
 import datadog.communication.ddagent.SharedCommunicationObjects;
+import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.environment.ThreadSupport;
 import datadog.logging.RatelimitedLogger;
@@ -1161,6 +1162,11 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   @Override
   public AgentScope.Continuation captureSpan(final AgentSpan span) {
     return scopeManager.captureSpan(span);
+  }
+
+  @Override
+  public AgentScope.Continuation captureSpan(final AgentSpan span, final Context capturedContext) {
+    return scopeManager.captureSpan(span, capturedContext);
   }
 
   @Override
