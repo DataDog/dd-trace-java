@@ -187,6 +187,12 @@ default:
     CACHE_TYPE: "lib" #default
     FF_USE_FASTZIP: "true"
     CACHE_COMPRESSION_LEVEL: "slowest"
+    # Large multi-GB caches intermittently truncate during S3 transfer, surfacing as
+    # "FATAL: unexpected EOF" / "Failed to extract cache" on the consumer. Give transfers more
+    # headroom and parallelize cache downloads to reduce it. See docs.gitlab.com/runner/configuration/speed_up_job_execution.
+    CACHE_REQUEST_TIMEOUT: "15"     # minutes (default 10); covers slow large cache transfers
+    CACHE_CONCURRENCY: "8"          # >1 enables parallel cache download (presigned, no RoleARN needed)
+    CACHE_CHUNK_SIZE: "16777216"    # 16 MiB chunks for the parallel download
 
     RUNTIME_AVAILABLE_PROCESSORS_OVERRIDE: 4 # Runtime.getRuntime().availableProcessors() returns incorrect or very high values in Kubernetes
     GIT_SUBMODULE_STRATEGY: normal
