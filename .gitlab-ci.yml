@@ -254,9 +254,9 @@ default:
     # (dependencies-accessors, groovy-dsl, kotlin-dsl, transforms) whose metadata.bin is either
     # TRUNCATED (EOFException) or entirely MISSING (FileNotFoundException). Either way Gradle
     # hard-fails during configuration with "Could not read workspace metadata" and does NOT
-    # self-heal. A valid metadata.bin is ~110 bytes. Capture evidence (good + damaged) for
-    # diagnosis, then drop only the damaged workspace dirs so Gradle regenerates them (only the
-    # entries that would fail anyway are removed). See gradle/gradle#28974.
+    # self-heal. Capture evidence (good + damaged) for diagnosis, then use Gradle's own metadata
+    # reader to identify and drop only the damaged workspace dirs so Gradle regenerates them (only
+    # the entries that would fail anyway are removed). See gradle/gradle#28974.
     - |
       GRADLE_METADATA_EVIDENCE_DIR="gradle-cache-metadata"
       mkdir -p "$GRADLE_METADATA_EVIDENCE_DIR"
@@ -264,30 +264,59 @@ default:
       find .gradle/caches -type f -name metadata.bin -printf '%10s  %p\n' 2>/dev/null \
         | sort -n > "$GRADLE_METADATA_EVIDENCE_DIR/metadata-manifest.txt" || true
       damaged=""
+      workspace_list="$GRADLE_METADATA_EVIDENCE_DIR/workspaces.nul"
+      : > "$workspace_list"
+      candidate_count=0
       # kotlin-dsl nests workspaces one level deeper than the others: its metadata.bin lives at
       # kotlin-dsl/{accessors,scripts}/<hash>/metadata.bin, so it needs an extra glob level. The
       # category dirs (kotlin-dsl/accessors/, kotlin-dsl/scripts/) never hold a metadata.bin and
       # would otherwise be false-flagged as damaged (size=0) on every run.
-      for ws in .gradle/caches/*/dependencies-accessors/*/ \
-                .gradle/caches/*/groovy-dsl/*/ \
-                .gradle/caches/*/kotlin-dsl/*/*/ \
-                .gradle/caches/*/transforms/*/; do
+      metadata_cache_version="${GRADLE_VERSION:-*}"
+      uuid_suffix='[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}'
+      uuid_suffix="$uuid_suffix-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}"
+      temporary_workspace_suffix="-$uuid_suffix$"
+      for ws in .gradle/caches/${metadata_cache_version}/dependencies-accessors/*/ \
+                .gradle/caches/${metadata_cache_version}/groovy-dsl/*/ \
+                .gradle/caches/${metadata_cache_version}/kotlin-dsl/*/*/ \
+                .gradle/caches/${metadata_cache_version}/transforms/*/; do
         [ -d "$ws" ] || continue
-        meta="${ws}metadata.bin"
-        size=$(stat -c%s "$meta" 2>/dev/null || echo 0)
-        if [ ! -f "$meta" ] || [ "$size" -lt 32 ]; then
-          if [ -z "$damaged" ]; then
-            echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: damaged Gradle immutable-workspace metadata (truncated/missing metadata.bin from a partial cache extraction); preserving evidence and clearing so Gradle regenerates:${TEXT_CLEAR}"
-            damaged="yes"
-          fi
-          dest="$GRADLE_METADATA_EVIDENCE_DIR/corrupt/${ws}"
-          mkdir -p "$dest" || true
-          if [ -f "$meta" ]; then cp -p "$meta" "$dest/metadata.bin" 2>/dev/null || true; fi
-          ls -la "$ws" > "$dest/dir-listing.txt" 2>/dev/null || true
-          echo "  - ${ws} (metadata.bin size=${size})"
-          rm -rf "$ws" || true
+        # Gradle temporary workspaces are named <immutable-workspace>-<uuid> and intentionally
+        # may not have metadata.bin until Gradle moves them into their immutable location.
+        ws_name="${ws%/}"
+        ws_name="${ws_name##*/}"
+        if [[ "$ws_name" =~ $temporary_workspace_suffix ]]; then
+          continue
         fi
+        printf '%s\0' "$ws" >> "$workspace_list"
+        candidate_count=$((candidate_count + 1))
       done
+      if [ "$candidate_count" -gt 0 ]; then
+        validator_output="$GRADLE_METADATA_EVIDENCE_DIR/validator-output.txt"
+        validator_error="$GRADLE_METADATA_EVIDENCE_DIR/validator-error.txt"
+        validator_status=0
+        .gitlab/validate_gradle_metadata.sh --workspace-list "$workspace_list" \
+          > "$validator_output" 2> "$validator_error" || validator_status=$?
+        if [ "$validator_status" -eq 1 ]; then
+          while IFS=$'\t' read -r size reason ws; do
+            [ -n "$ws" ] || continue
+            [ -d "$ws" ] || continue
+            meta="${ws}metadata.bin"
+            if [ -z "$damaged" ]; then
+              echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: damaged Gradle immutable-workspace metadata (truncated/missing metadata.bin from a partial cache extraction); preserving evidence and clearing so Gradle regenerates:${TEXT_CLEAR}"
+              damaged="yes"
+            fi
+            dest="$GRADLE_METADATA_EVIDENCE_DIR/corrupt/${ws}"
+            mkdir -p "$dest" || true
+            if [ -f "$meta" ]; then cp -p "$meta" "$dest/metadata.bin" 2>/dev/null || true; fi
+            ls -la "$ws" > "$dest/dir-listing.txt" 2>/dev/null || true
+            echo "  - ${ws} (metadata.bin size=${size}; ${reason})"
+            rm -rf "$ws" || true
+          done < "$validator_output"
+        elif [ "$validator_status" -ne 0 ]; then
+          echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: Gradle metadata validator was unavailable; leaving cache unchanged to avoid false positives.${TEXT_CLEAR}"
+          cat "$validator_error" || true
+        fi
+      fi
       if [ -z "$damaged" ]; then echo "No damaged Gradle immutable-workspace metadata detected."; fi
       # Keep a few intact metadata.bin files for byte-level comparison with the damaged ones.
       # `find | head` makes find die with SIGPIPE once head closes the pipe after 10 lines; under
