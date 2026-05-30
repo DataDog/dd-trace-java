@@ -277,7 +277,7 @@ default:
           [ -d "$ws" ] || continue
           meta="${ws}/metadata.bin"
           if [ -z "$damaged" ]; then
-            echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: damaged Gradle immutable-workspace metadata (truncated/missing metadata.bin from a partial cache extraction); preserving evidence and clearing so Gradle regenerates:${TEXT_CLEAR}"
+            echo -e "${TEXT_BOLD}${TEXT_YELLOW}[WARNING] Damaged Gradle metadata found, fixed:${TEXT_CLEAR}"
             damaged="yes"
           fi
           dest="$GRADLE_METADATA_EVIDENCE_DIR/corrupt/${ws}"
@@ -288,7 +288,7 @@ default:
           rm -rf "$ws" || true
         done < "$validator_output"
       elif [ "$validator_status" -ne 0 ]; then
-        echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: Gradle metadata validator was unavailable; leaving cache unchanged to avoid false positives.${TEXT_CLEAR}"
+        echo -e "${TEXT_BOLD}${TEXT_YELLOW}[WARNING] Gradle metadata validator unavailable; leaving cache unchanged.${TEXT_CLEAR}"
         cat "$validator_error" || true
       fi
       if [ -z "$damaged" ]; then echo "No damaged Gradle immutable-workspace metadata detected."; fi
