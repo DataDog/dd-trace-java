@@ -59,11 +59,10 @@ public class DD64bTraceId extends DDTraceId {
   }
 
   static DD64bTraceId create(long id, String str) {
-    // ZERO constant is created and stored by the parent class as part of its API contract
-    // But initialized by this 64-bit child class. Ensures uniqueness of ZERO once created.
-    if (id == 0 && ZERO != null) {
-      return (DD64bTraceId) ZERO;
-    } else if (id == -1) {
+    // -1 (all bits set) reuses the MAX singleton. 0 is not special-cased: DDTraceId.ZERO is a
+    // sibling type (not a DD64bTraceId), so it cannot be returned here; a zero 64-bit id is simply
+    // a DD64bTraceId(0), and callers detect zero via DDTraceId.isZero() rather than by identity.
+    if (id == -1) {
       return MAX;
     } else {
       return new DD64bTraceId(id, str);

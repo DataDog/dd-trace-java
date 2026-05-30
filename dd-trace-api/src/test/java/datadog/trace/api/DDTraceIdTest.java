@@ -2,8 +2,8 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -175,10 +175,11 @@ class DDTraceIdTest {
   @Test
   void checkZeroConstantInitialization() {
     DDTraceId zero = DDTraceId.ZERO;
-    DDTraceId fromZero = DDTraceId.from(0);
 
     assertNotNull(zero);
-    assertSame(fromZero, zero);
+    assertTrue(zero.isZero());
+    // from(0) is a zero-valued id but, by design, no longer the ZERO singleton; use isZero().
+    assertTrue(DDTraceId.from(0).isZero());
   }
 
   private static String leftPadWithZeros(String value, int size) {

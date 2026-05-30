@@ -62,7 +62,7 @@ public interface AgentSpan
    * @return {@code true} if the span is considered valid, {@code false} otherwise.
    */
   default boolean isValid() {
-    return getTraceId() != DDTraceId.ZERO && getSpanId() != DDSpanId.ZERO;
+    return !getTraceId().isZero() && getSpanId() != DDSpanId.ZERO;
   }
 
   @Override

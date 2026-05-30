@@ -12,7 +12,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
-import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -212,7 +211,10 @@ class XRayHttpCodec {
           }
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
-            if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
+            // isZero() (not == DDTraceId.ZERO): DD64bTraceId.fromHex below returns a non-singleton
+            // zero-valued id, so a zero Root must still be treated as "unset" and overwritten by a
+            // later valid Root in the same header.
+            if (interpreter.traceId == null || interpreter.traceId.isZero()) {
               interpreter.traceId =
                   DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
