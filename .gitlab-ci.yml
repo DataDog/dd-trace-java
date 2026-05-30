@@ -249,6 +249,48 @@ default:
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
     - sudo chown -R 1001:1001 .gradle
+    # A partial/aborted GitLab cache extraction (the runner logs "FATAL: unexpected EOF" /
+    # "Failed to extract cache" then continues anyway) can leave a Gradle immutable-workspace
+    # (dependencies-accessors, groovy-dsl, kotlin-dsl, transforms) whose metadata.bin is either
+    # TRUNCATED (EOFException) or entirely MISSING (FileNotFoundException). Either way Gradle
+    # hard-fails during configuration with "Could not read workspace metadata" and does NOT
+    # self-heal. A valid metadata.bin is ~110 bytes. Capture evidence (good + damaged) for
+    # diagnosis, then drop only the damaged workspace dirs so Gradle regenerates them (only the
+    # entries that would fail anyway are removed). See gradle/gradle#28974.
+    - |
+      GRADLE_METADATA_EVIDENCE_DIR="gradle-cache-metadata"
+      mkdir -p "$GRADLE_METADATA_EVIDENCE_DIR"
+      # Manifest of every metadata.bin with its byte size (damaged ones sort to the top at 0/near-0).
+      find .gradle/caches -type f -name metadata.bin -printf '%10s  %p\n' 2>/dev/null \
+        | sort -n > "$GRADLE_METADATA_EVIDENCE_DIR/metadata-manifest.txt" || true
+      damaged=""
+      for ws in .gradle/caches/*/dependencies-accessors/*/ \
+                .gradle/caches/*/groovy-dsl/*/ \
+                .gradle/caches/*/kotlin-dsl/*/ \
+                .gradle/caches/*/transforms/*/; do
+        [ -d "$ws" ] || continue
+        meta="${ws}metadata.bin"
+        size=$(stat -c%s "$meta" 2>/dev/null || echo 0)
+        if [ ! -f "$meta" ] || [ "$size" -lt 32 ]; then
+          if [ -z "$damaged" ]; then
+            echo -e "${TEXT_BOLD}${TEXT_YELLOW}WARNING: damaged Gradle immutable-workspace metadata (truncated/missing metadata.bin from a partial cache extraction); preserving evidence and clearing so Gradle regenerates:${TEXT_CLEAR}"
+            damaged="yes"
+          fi
+          dest="$GRADLE_METADATA_EVIDENCE_DIR/corrupt/${ws}"
+          mkdir -p "$dest" || true
+          if [ -f "$meta" ]; then cp -p "$meta" "$dest/metadata.bin" 2>/dev/null || true; fi
+          ls -la "$ws" > "$dest/dir-listing.txt" 2>/dev/null || true
+          echo "  - ${ws} (metadata.bin size=${size})"
+          rm -rf "$ws" || true
+        fi
+      done
+      if [ -z "$damaged" ]; then echo "No damaged Gradle immutable-workspace metadata detected."; fi
+      # Keep a few intact metadata.bin files for byte-level comparison with the damaged ones.
+      find .gradle/caches -type f -name metadata.bin -size +32c 2>/dev/null | head -n 10 | while IFS= read -r f; do
+        dest="$GRADLE_METADATA_EVIDENCE_DIR/good/$(dirname "$f")"
+        mkdir -p "$dest" || true
+        cp -p "$f" "$dest/metadata.bin" 2>/dev/null || true
+      done
   after_script:
     - *cgroup_info
     - *container_info
