@@ -286,11 +286,15 @@ default:
       done
       if [ -z "$damaged" ]; then echo "No damaged Gradle immutable-workspace metadata detected."; fi
       # Keep a few intact metadata.bin files for byte-level comparison with the damaged ones.
+      # `find | head` makes find die with SIGPIPE once head closes the pipe after 10 lines; under
+      # `set -o pipefail` (GitLab's bash default) that non-zero would propagate as this block's exit
+      # code and, being the shared default before_script, fail every build job. This is best-effort
+      # diagnostics and must never fail the job, so guard the pipeline with `|| true` like the rest.
       find .gradle/caches -type f -name metadata.bin -size +32c 2>/dev/null | head -n 10 | while IFS= read -r f; do
         dest="$GRADLE_METADATA_EVIDENCE_DIR/good/$(dirname "$f")"
         mkdir -p "$dest" || true
         cp -p "$f" "$dest/metadata.bin" 2>/dev/null || true
-      done
+      done || true
   after_script:
     - *cgroup_info
     - *container_info
