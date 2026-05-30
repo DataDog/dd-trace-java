@@ -2,14 +2,16 @@
 
 set -euo pipefail
 
-java_bin="${JAVA_25_HOME:-}"
-if [[ -n "$java_bin" ]]; then
-  java_bin="$java_bin/bin/java"
+java_home="${JAVA_25_HOME:-}"
+if [[ -n "$java_home" ]]; then
+  java_bin="$java_home/bin/java"
+  javac_bin="$java_home/bin/javac"
 else
   java_bin="java"
+  javac_bin="javac"
 fi
 
-if [[ ! -x "$java_bin" && "$java_bin" != "java" ]]; then
+if [[ "$java_bin" != "java" && ! -x "$java_bin" ]]; then
   echo "Gradle metadata validator could not find Java executable: $java_bin" >&2
   exit 2
 fi
@@ -51,25 +53,26 @@ if [[ -z "$gradle_lib" ]]; then
   exit 2
 fi
 
+# Pre-compile with -proc:none rather than using the `java <file>.java` source launcher: the launcher
+# would otherwise discover and run annotation processors bundled in the Gradle jars on the classpath.
+build_dir="$(mktemp -d)"
+trap 'rm -rf "$build_dir"' EXIT
+
+if ! "$javac_bin" -proc:none -classpath "$gradle_lib/*" -d "$build_dir" \
+    "$script_dir/gradle-cache/ValidateGradleMetadata.java"; then
+  echo "Gradle metadata validator could not compile ValidateGradleMetadata" >&2
+  exit 2
+fi
+
 set +e
-"$java_bin" --class-path "$gradle_lib/*" \
-  "$script_dir/gradle-cache/ValidateGradleMetadata.java" "$@"
+"$java_bin" -classpath "$build_dir:$gradle_lib/*" ValidateGradleMetadata "$@"
 status=$?
 set -e
 
-# The Java program uses 42 for damaged metadata so Java source-launcher failures, which commonly
-# exit 1 before main() runs, are treated as validator-unavailable instead of cache corruption.
+# ValidateGradleMetadata exits 65 (EX_DATAERR) for damaged metadata so that a JVM that exits 1
+# before main() runs is treated as validator-unavailable instead of as cache corruption.
 case "$status" in
-  0)
-    exit 0
-    ;;
-  42)
-    exit 1
-    ;;
-  2)
-    exit 2
-    ;;
-  *)
-    exit 2
-    ;;
+  0) exit 0 ;;
+  65) exit 1 ;;
+  *) exit 2 ;;
 esac
