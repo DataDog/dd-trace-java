@@ -264,9 +264,13 @@ default:
       find .gradle/caches -type f -name metadata.bin -printf '%10s  %p\n' 2>/dev/null \
         | sort -n > "$GRADLE_METADATA_EVIDENCE_DIR/metadata-manifest.txt" || true
       damaged=""
+      # kotlin-dsl nests workspaces one level deeper than the others: its metadata.bin lives at
+      # kotlin-dsl/{accessors,scripts}/<hash>/metadata.bin, so it needs an extra glob level. The
+      # category dirs (kotlin-dsl/accessors/, kotlin-dsl/scripts/) never hold a metadata.bin and
+      # would otherwise be false-flagged as damaged (size=0) on every run.
       for ws in .gradle/caches/*/dependencies-accessors/*/ \
                 .gradle/caches/*/groovy-dsl/*/ \
-                .gradle/caches/*/kotlin-dsl/*/ \
+                .gradle/caches/*/kotlin-dsl/*/*/ \
                 .gradle/caches/*/transforms/*/; do
         [ -d "$ws" ] || continue
         meta="${ws}metadata.bin"
