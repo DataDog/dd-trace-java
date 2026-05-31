@@ -13,6 +13,7 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.TaskBlockHelper;
+import java.nio.ByteBuffer;
 import java.nio.channels.SelectableChannel;
 import net.bytebuddy.asm.Advice;
 
@@ -21,8 +22,8 @@ import net.bytebuddy.asm.Advice;
  *
  * <p><b>Activation.</b> This instrumentation is opt-in: it is active only when the Datadog wall
  * clock profiler pre-check is enabled ({@code profiling.ddprof.wall.precheck=true}, default {@code
- * false}). This matches the activation contract of all sibling TaskBlock instrumentations
- * (lock-support, thread-sleep, object-wait, synchronized-contention, nio-selector).
+ * false}). This matches the activation contract of all sibling Java TaskBlock instrumentations
+ * (lock-support, thread-sleep, nio-selector).
  *
  * <p><b>Covered operations:</b>
  *
@@ -34,9 +35,13 @@ import net.bytebuddy.asm.Advice;
  *   <li>{@link java.nio.channels.SocketChannel#read(java.nio.ByteBuffer)
  *       SocketChannel.read(ByteBuffer)} - blocks until data is available on a blocking-mode socket
  *       channel.
+ *   <li>{@link java.nio.channels.SocketChannel#read(java.nio.ByteBuffer[], int, int)
+ *       SocketChannel.read(ByteBuffer[], int, int)} - scattering read variant.
  *   <li>{@link java.nio.channels.SocketChannel#write(java.nio.ByteBuffer)
  *       SocketChannel.write(ByteBuffer)} - blocks until data can be written on a blocking-mode
  *       socket channel.
+ *   <li>{@link java.nio.channels.SocketChannel#write(java.nio.ByteBuffer[], int, int)
+ *       SocketChannel.write(ByteBuffer[], int, int)} - gathering write variant.
  * </ul>
  *
  * <p><b>Target classes.</b> {@code sun.nio.ch.ServerSocketChannelImpl} and {@code
@@ -84,12 +89,18 @@ public class NioChannelProfilingInstrumentation extends InstrumenterModule.Profi
         getClass().getName() + "$AcceptAdvice");
 
     // ReadWriteAdvice fires only on SocketChannelImpl (the only knownMatchingType with
-    // read/write(ByteBuffer) methods). Scatter-gather variants (read/write with ByteBuffer[])
-    // are not covered here; they are less common and can be added independently if demand arises.
+    // read/write methods).
     transformer.applyAdvice(
         isMethod()
             .and(named("read").or(named("write")))
-            .and(takesArguments(1).and(takesArgument(0, named("java.nio.ByteBuffer")))),
+            .and(
+                takesArguments(1)
+                    .and(takesArgument(0, named("java.nio.ByteBuffer")))
+                    .or(
+                        takesArguments(3)
+                            .and(takesArgument(0, ByteBuffer[].class))
+                            .and(takesArgument(1, int.class))
+                            .and(takesArgument(2, int.class)))),
         getClass().getName() + "$ReadWriteAdvice");
   }
 
@@ -109,7 +120,7 @@ public class NioChannelProfilingInstrumentation extends InstrumenterModule.Profi
     }
   }
 
-  /** Advice for {@code SocketChannelImpl.read(ByteBuffer)} and {@code write(ByteBuffer)}. */
+  /** Advice for {@code SocketChannelImpl.read(...)} and {@code write(...)}. */
   public static final class ReadWriteAdvice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)

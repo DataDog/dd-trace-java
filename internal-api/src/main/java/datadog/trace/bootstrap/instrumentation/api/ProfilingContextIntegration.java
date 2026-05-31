@@ -90,8 +90,8 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
    * @param startTicks TSC tick captured at sleep entry
    * @param durationNanos wall-clock duration of the sleep in nanoseconds
    * @param blocker identity hash of the blocking object, or 0 for sleeps
-   * @param spanId span ID active at sleep exit
-   * @param rootSpanId root span ID active at sleep exit
+   * @param spanId span ID captured at sleep entry
+   * @param rootSpanId root span ID captured at sleep entry
    */
   default void enqueueTaskBlock(
       long startTicks, long durationNanos, long blocker, long spanId, long rootSpanId) {}

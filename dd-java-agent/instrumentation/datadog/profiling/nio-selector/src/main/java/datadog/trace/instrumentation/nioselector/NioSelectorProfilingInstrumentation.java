@@ -8,7 +8,6 @@ import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.api.Config;
@@ -18,9 +17,8 @@ import net.bytebuddy.asm.Advice;
 
 /**
  * Brackets all blocking {@link java.nio.channels.Selector#select() Selector.select()} variants with
- * a {@code datadog.TaskBlock} interval. Mirrors {@code lock-support} and {@code object-wait} but
- * for NIO multiplexed I/O, which is the dominant blocking pattern in reactive frameworks (Netty
- * event loops, Vert.x, Reactor-Netty, etc.).
+ * a {@code datadog.TaskBlock} interval for NIO multiplexed I/O, which is the dominant blocking
+ * pattern in reactive frameworks (Netty event loops, Vert.x, Reactor-Netty, etc.).
  *
  * <p><b>Covered overloads:</b>
  *
@@ -62,10 +60,7 @@ public class NioSelectorProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public boolean isEnabled() {
-    // No JDK-version-specific behaviour, but pin to JDK 11+ to keep the surface aligned with the
-    // rest of the wall-clock-supplement modules and avoid muzzle differences on JDK 8.
-    return JavaVirtualMachine.isJavaVersionAtLeast(11)
-        && super.isEnabled()
+    return super.isEnabled()
         && Config.get().isDatadogProfilerEnabled()
         && ConfigProvider.getInstance()
             .getBoolean(

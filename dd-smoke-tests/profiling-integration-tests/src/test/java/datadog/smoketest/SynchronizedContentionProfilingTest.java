@@ -10,7 +10,6 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import java.io.File;
 import java.io.IOException;
@@ -26,7 +25,6 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -42,13 +40,10 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 
 /**
- * Smoke test for the {@code synchronized-contention} ByteBuddy instrumentation module. Asserts that
- * block-level {@code synchronized(obj){}} and method-level {@code synchronized} contention emit
- * {@code datadog.TaskBlock} events with a non-zero {@code blocker} field on JDK 21+, where the
- * native JVMTI {@code MonitorContendedEnter}/{@code Entered} path is not active.
- *
- * <p>Gated on JDK 21+ because the native JVMTI path covers JDK &lt; 21 (verified by {@code
- * MonitorContendedTaskBlockTest} in {@code ddprof-test}).
+ * Smoke test for native synchronized-contention TaskBlock coverage. Asserts that block-level {@code
+ * synchronized(obj){}} and method-level {@code synchronized} contention emit {@code
+ * datadog.TaskBlock} events with a non-zero {@code blocker} field through the native JVMTI {@code
+ * MonitorContendedEnter}/{@code MonitorContendedEntered} path.
  */
 @DisabledOnJ9
 final class SynchronizedContentionProfilingTest {
@@ -71,9 +66,6 @@ final class SynchronizedContentionProfilingTest {
 
   @BeforeEach
   void setup(TestInfo testInfo) throws IOException {
-    Assumptions.assumeTrue(
-        JavaVirtualMachine.isJavaVersionAtLeast(21),
-        "synchronized-contention ByteBuddy instrumentation requires JDK 21+");
     Files.createDirectories(LOG_FILE_BASE);
     logFilePath =
         LOG_FILE_BASE.resolve(
@@ -90,7 +82,7 @@ final class SynchronizedContentionProfilingTest {
 
   @Test
   @DisplayName(
-      "synchronized block and method contention emit span-attributed TaskBlock events on JDK 21+")
+      "synchronized block and method contention emit span-attributed native TaskBlock events")
   void synchronizedContentionEmitsTaskBlockEvents() throws Exception {
     Process targetProcess = createProcessBuilder().start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
@@ -125,7 +117,7 @@ final class SynchronizedContentionProfilingTest {
 
     assertFalse(
         logHasSynchronizedContentionError(),
-        "synchronized-contention instrumentation must not produce errors");
+        "native synchronized-contention TaskBlock path must not produce errors");
   }
 
   private ProcessBuilder createProcessBuilder() {

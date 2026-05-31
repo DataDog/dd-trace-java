@@ -29,8 +29,8 @@ class NioChannelProfilingInstrumentationTest {
 
   /**
    * Without {@code profiling.ddprof.wall.precheck=true} the instrumentation must stay disabled,
-   * matching the activation contract of all other TaskBlock modules (lock-support, thread-sleep,
-   * object-wait, synchronized-contention, nio-selector).
+   * matching the activation contract of all other Java TaskBlock modules (lock-support,
+   * thread-sleep, nio-selector).
    */
   @Test
   void isDisabledByDefaultWithoutWallPrecheck() {

@@ -331,8 +331,6 @@ include(
   ":dd-java-agent:instrumentation:datadog:profiling:lock-support",
   ":dd-java-agent:instrumentation:datadog:profiling:nio-channel",
   ":dd-java-agent:instrumentation:datadog:profiling:nio-selector",
-  ":dd-java-agent:instrumentation:datadog:profiling:object-wait",
-  ":dd-java-agent:instrumentation:datadog:profiling:synchronized-contention",
   ":dd-java-agent:instrumentation:datadog:profiling:thread-sleep",
   ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation",
   ":dd-java-agent:instrumentation:datanucleus-4.0.5",

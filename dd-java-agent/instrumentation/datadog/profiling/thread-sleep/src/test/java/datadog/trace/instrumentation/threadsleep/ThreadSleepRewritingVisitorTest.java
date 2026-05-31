@@ -7,7 +7,9 @@ import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMetho
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.SLEEP_J_DESC;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.TASK_BLOCK_HELPER;
 import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.THREAD_INTERNAL;
+import static datadog.trace.instrumentation.threadsleep.ThreadSleepCallSiteMethodVisitor.TIME_UNIT_INTERNAL;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import java.io.ByteArrayOutputStream;
@@ -15,6 +17,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 import net.bytebuddy.jar.asm.ClassReader;
 import net.bytebuddy.jar.asm.ClassVisitor;
 import net.bytebuddy.jar.asm.ClassWriter;
@@ -148,6 +151,35 @@ class ThreadSleepRewritingVisitorTest {
         "expected ATHROW in synthetic exception handler to rethrow the caught Throwable");
   }
 
+  @Test
+  void classWithoutSleepCall_scanReturnsFalse() throws IOException {
+    assertFalse(
+        ThreadSleepScanner.scan(new ClassReader(classBytes(OtherInvokeFixture.class))),
+        "scanner must not flag a class with no Thread.sleep call sites");
+  }
+
+  @Test
+  void timeUnitSleep_isWrappedWithCaptureAndFinishAndPreservesReceiverAndArg() throws IOException {
+    List<InstructionRecord> insns = rewriteAndScan(TimeUnitSleepFixture.class, "doSleep");
+
+    int sleepIdx = indexOfTimeUnitSleep(insns);
+    assertTrue(sleepIdx >= 0, "expected INVOKEVIRTUAL TimeUnit.sleep(J)V to be present");
+
+    int captureIdx = indexOfInvokeStatic(insns, "captureForSleep", CAPTURE_FOR_SLEEP_DESC);
+    assertTrue(
+        captureIdx >= 0 && captureIdx < sleepIdx, "captureForSleep must precede TimeUnit.sleep");
+
+    int aloadIdx = previousOpcode(insns, sleepIdx, Opcodes.ALOAD);
+    int lloadIdx = previousOpcode(insns, sleepIdx, Opcodes.LLOAD);
+    assertTrue(aloadIdx >= 0 && lloadIdx >= 0 && aloadIdx < lloadIdx);
+
+    int finishCount = countInvokeStatic(insns, "finish", FINISH_DESC);
+    assertEquals(
+        2,
+        finishCount,
+        "expected two finish calls (normal exit + exception handler) per sleep site");
+  }
+
   // ------------------------------------------------------------------------------------------
   // Fixtures
   // ------------------------------------------------------------------------------------------
@@ -181,6 +213,13 @@ class ThreadSleepRewritingVisitorTest {
       // Same shape (INVOKESTATIC with a long arg) as Thread.sleep but different owner/name —
       // must not be rewritten.
       return Math.abs(-42L);
+    }
+  }
+
+  @SuppressWarnings("unused")
+  static final class TimeUnitSleepFixture {
+    static void doSleep(long timeout) throws InterruptedException {
+      TimeUnit.MILLISECONDS.sleep(timeout);
     }
   }
 
@@ -343,6 +382,19 @@ class ThreadSleepRewritingVisitorTest {
           && THREAD_INTERNAL.equals(r.methodOwner)
           && "sleep".equals(r.methodName)
           && desc.equals(r.methodDescriptor)) {
+        return i;
+      }
+    }
+    return -1;
+  }
+
+  private static int indexOfTimeUnitSleep(final List<InstructionRecord> insns) {
+    for (int i = 0; i < insns.size(); i++) {
+      InstructionRecord r = insns.get(i);
+      if (r.opcode == Opcodes.INVOKEVIRTUAL
+          && TIME_UNIT_INTERNAL.equals(r.methodOwner)
+          && "sleep".equals(r.methodName)
+          && SLEEP_J_DESC.equals(r.methodDescriptor)) {
         return i;
       }
     }

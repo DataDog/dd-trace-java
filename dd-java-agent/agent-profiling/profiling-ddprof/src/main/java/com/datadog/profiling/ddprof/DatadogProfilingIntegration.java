@@ -8,8 +8,10 @@ import datadog.trace.api.profiling.Timing;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
+import java.math.BigInteger;
 import java.util.concurrent.ArrayBlockingQueue;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicLong;
 
 /**
  * This class must be installed early to be able to see all scope initialisations, which means it
@@ -36,10 +38,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   // the hot path. Reading a ThreadLocal is pure Java once the value is set.
   private static final ThreadLocal<Integer> NATIVE_TID = new ThreadLocal<>();
 
-  // Ring buffer for deferred TaskBlock events. offer() is non-blocking; full queue drops events
-  // silently — acceptable for profiling data (not a correctness concern).
+  private static final BigInteger NANOS_PER_SECOND = BigInteger.valueOf(1_000_000_000L);
+  private static final BigInteger LONG_MAX_VALUE = BigInteger.valueOf(Long.MAX_VALUE);
+
+  // Bounded queue for deferred TaskBlock events. offer() is non-blocking; a full queue drops events
+  // and increments DROPPED_TASK_BLOCKS for diagnostics.
   // Entry layout: [tid, startTicks, durationNanos, blocker, spanId, rootSpanId]
   private static final ArrayBlockingQueue<long[]> TASK_BLOCK_QUEUE = new ArrayBlockingQueue<>(2048);
+  private static final AtomicLong DROPPED_TASK_BLOCKS = new AtomicLong();
 
   // TSC frequency used by the drain thread to convert durationNanos → endTicks.
   // Initialised in onStart(); default is 1e9 Hz (safe no-op: 1 ns per tick).
@@ -108,8 +114,10 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     if (tid < 0) {
       return;
     }
-    TASK_BLOCK_QUEUE.offer(
-        new long[] {tid, startTicks, durationNanos, blocker, spanId, rootSpanId});
+    if (!TASK_BLOCK_QUEUE.offer(
+        new long[] {tid, startTicks, durationNanos, blocker, spanId, rootSpanId})) {
+      DROPPED_TASK_BLOCKS.incrementAndGet();
+    }
   }
 
   private static void drainLoop() {
@@ -126,7 +134,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
         long spanId = entry[4];
         long rootSpanId = entry[5];
         long freq = TSC_FREQUENCY;
-        long endTicks = startTicks + durationNanos * freq / 1_000_000_000L;
+        long endTicks = saturatingAdd(startTicks, nanosToTicks(durationNanos, freq));
         DDPROF.recordTaskBlockFromContextEvent(
             tid, startTicks, endTicks, blocker, 0L, spanId, rootSpanId);
       } catch (InterruptedException e) {
@@ -140,6 +148,7 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     if (WALLCLOCK_ENABLED) {
       DDPROF.removeThread();
     }
+    NATIVE_TID.remove();
   }
 
   @Override
@@ -246,5 +255,46 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
 
     @Override
     public void endpointWritten(AgentSpan span) {}
+  }
+
+  static long droppedTaskBlocks() {
+    return DROPPED_TASK_BLOCKS.get();
+  }
+
+  private static long nanosToTicks(long durationNanos, long frequency) {
+    if (durationNanos <= 0L || frequency <= 0L) {
+      return 0L;
+    }
+    long seconds = durationNanos / 1_000_000_000L;
+    long nanos = durationNanos % 1_000_000_000L;
+    return saturatingAdd(
+        saturatingMultiply(seconds, frequency), fractionalNanosToTicks(nanos, frequency));
+  }
+
+  private static long fractionalNanosToTicks(long nanos, long frequency) {
+    if (nanos == 0L) {
+      return 0L;
+    }
+    return BigInteger.valueOf(nanos)
+        .multiply(BigInteger.valueOf(frequency))
+        .divide(NANOS_PER_SECOND)
+        .min(LONG_MAX_VALUE)
+        .longValue();
+  }
+
+  private static long saturatingMultiply(long left, long right) {
+    try {
+      return Math.multiplyExact(left, right);
+    } catch (ArithmeticException ignored) {
+      return Long.MAX_VALUE;
+    }
+  }
+
+  private static long saturatingAdd(long left, long right) {
+    long result = left + right;
+    if (((left ^ result) & (right ^ result)) < 0L) {
+      return Long.MAX_VALUE;
+    }
+    return result;
   }
 }

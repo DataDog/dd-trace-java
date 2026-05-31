@@ -2,7 +2,7 @@ apply from: "$rootDir/gradle/java.gradle"
 
 muzzle {
   pass {
-    coreJdk('11')
+    coreJdk()
   }
 }
 

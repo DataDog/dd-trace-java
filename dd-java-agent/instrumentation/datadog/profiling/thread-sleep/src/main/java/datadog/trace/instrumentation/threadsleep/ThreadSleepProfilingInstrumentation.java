@@ -23,27 +23,21 @@ import net.bytebuddy.matcher.ElementMatcher;
  * JDK. The native wallprecheck OS-thread-state filter can suppress {@code SIGVTALRM} for sleeping
  * threads (when {@code wallprecheck=true}), but it does not emit a {@code datadog.TaskBlock} event.
  * Caller-site rewriting is the only way to bracket {@code Thread.sleep} with a TaskBlock interval.
- * The approach mirrors how the {@code synchronized-contention} module ({@link
- * datadog.trace.instrumentation.synccontention.SynchronizedContentionInstrumentation}) wraps {@code
- * MONITORENTER} sites.
  *
- * <p>Coverage is purely opt-in by the user's bytecode: any {@code INVOKESTATIC
- * java/lang/Thread.sleep(J)V}, {@code (JI)V}, or {@code (Ljava/time/Duration;)V} in a non-JDK class
- * is wrapped. Reflection-driven sleeps and JNI-driven sleeps remain uncovered (intentional:
- * out-of-band call paths).
+ * <p>Coverage is purely opt-in by the user's bytecode: any supported {@code Thread.sleep(...)} or
+ * {@code TimeUnit.sleep(long)} call site in a non-JDK class is wrapped. Reflection-driven sleeps
+ * and JNI-driven sleeps remain uncovered (intentional: out-of-band call paths).
  *
  * <p>Active on every JDK when enabled via {@code profiling.ddprof.wall.precheck=true} (opt-in;
  * default is off). The native JVMTI monitor callbacks cover {@code Object.wait()} and synchronized
  * contention but not {@code Thread.sleep}, so sleep coverage is provided exclusively by this
- * call-site instrumentation.
+ * call-site instrumentation. Platform-thread sleeps are queued for async native emission; virtual
+ * thread sleeps bypass that platform-thread queue and pass span/root context directly.
  *
- * <p><b>Performance note:</b> like the {@code synchronized-contention} module, this module uses a
- * {@link net.bytebuddy.asm.AsmVisitorWrapper} applied to every non-JDK class at load time. {@code
- * COMPUTE_FRAMES} triggers a full bytecode analysis pass per instrumented class. The overhead is
- * proportional to the number of classes loaded. The JMH benchmark in {@code
- * synchronized-contention/src/jmh/.../SynchronizedInstrumentationBenchmark} measures the identical
- * cost model (baseline vs. {@code COMPUTE_FRAMES} vs. full ASM rewriting visitor) and applies
- * directly to this module.
+ * <p><b>Performance note:</b> this module uses a {@link net.bytebuddy.asm.AsmVisitorWrapper}
+ * applied to every non-JDK class at load time. {@code COMPUTE_FRAMES} triggers a full bytecode
+ * analysis pass per instrumented class. The overhead is proportional to the number of classes
+ * loaded.
  */
 @AutoService(InstrumenterModule.class)
 public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Profiling
@@ -71,18 +65,16 @@ public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    // Match every loaded class - Thread.sleep call sites can appear anywhere. The per-method
-    // visitor is a pass-through for methods without Thread.sleep INVOKESTATIC, so cost of
+    // Match every loaded class - sleep call sites can appear anywhere. The per-method
+    // visitor is a pass-through for methods without supported sleep calls, so cost of
     // inspecting irrelevant classes is bounded.
     //
     // JDK / agent / bytebuddy internals are excluded to avoid bootstrap re-entry and
     // self-instrumentation; in particular Thread.sleep's own callers inside java.lang.* would
     // create a class-load loop because TaskBlockHelper itself sits in agent-bootstrap.
     //
-    // Unlike synchronized-contention (which keeps jdk.proxy* to cover reflective proxies with
-    // synchronized blocks), the full jdk.* prefix is excluded here: JDK-generated dynamic proxy
-    // classes do not contain Thread.sleep INVOKESTATIC call sites, so retaining jdk.proxy* would
-    // add class-load overhead with zero coverage benefit.
+    // JDK-generated dynamic proxy classes do not contain Thread.sleep INVOKESTATIC call sites, so
+    // retaining jdk.proxy* would add class-load overhead with zero coverage benefit.
     return not(
         nameStartsWith("java.")
             .or(nameStartsWith("javax."))
@@ -95,6 +87,10 @@ public class ThreadSleepProfilingInstrumentation extends InstrumenterModule.Prof
 
   @Override
   public void typeAdvice(TypeTransformer transformer) {
-    transformer.applyAdvice(new ThreadSleepRewritingVisitor());
+    transformer.applyAdvice(
+        (builder, typeDescription, classLoader, module, pd) ->
+            ThreadSleepScanner.containsThreadSleepCallSite(classLoader, typeDescription)
+                ? builder.visit(new ThreadSleepRewritingVisitor())
+                : builder);
   }
 }

@@ -3,13 +3,13 @@ package datadog.libs.ddprof;
 import com.datadoghq.profiler.JVMAccess;
 import com.datadoghq.profiler.JavaProfiler;
 import com.datadoghq.profiler.OTelContext;
-import datadog.environment.JavaVirtualMachine;
-import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.profiling.TaskBlockInstrumentationConfig;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.TempLocationManager;
 import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermissions;
@@ -129,12 +129,11 @@ public final class DdprofLibraryLoader {
       ConfigProvider configProvider = ConfigProvider.getInstance();
       String scratch = getScratchDir(configProvider);
       boolean wallPrecheck = TaskBlockInstrumentationConfig.isWallPrecheckEnabled(configProvider);
-      boolean delegateMonitorEvents = shouldDelegateMonitorEvents(configProvider);
       profiler =
-          JavaProfiler.getInstance(
+          createJavaProfiler(
               configProvider.getString(ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH),
               scratch,
-              delegateMonitorEvents,
+              false,
               wallPrecheck);
       // sanity test - force load Datadog profiler to catch it not being available early
       profiler.execute("status");
@@ -145,28 +144,29 @@ public final class DdprofLibraryLoader {
     return new JavaProfilerHolder(profiler, reasonNotLoaded);
   }
 
-  private static boolean shouldDelegateMonitorEvents(ConfigProvider configProvider) {
-    boolean requested =
-        TaskBlockInstrumentationConfig.isMonitorEventDelegationRequested(configProvider);
-    boolean wallPrecheck = TaskBlockInstrumentationConfig.isWallPrecheckEnabled(configProvider);
-
-    if (!requested) {
-      return false;
+  private static JavaProfiler createJavaProfiler(
+      String libPath, String scratch, boolean delegateMonitorEvents, boolean wallPrecheck)
+      throws Exception {
+    try {
+      Method getInstance =
+          JavaProfiler.class.getMethod(
+              "getInstance", String.class, String.class, boolean.class, boolean.class);
+      return (JavaProfiler)
+          getInstance.invoke(null, libPath, scratch, delegateMonitorEvents, wallPrecheck);
+    } catch (InvocationTargetException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof Error) {
+        throw (Error) cause;
+      }
+      if (cause instanceof Exception) {
+        throw (Exception) cause;
+      }
+      throw e;
+    } catch (NoSuchMethodException ignored) {
+      // Older ddprof artifacts do not support the explicit wallprecheck init flag. Keep the agent
+      // buildable and fall back to the legacy constructor.
+      return JavaProfiler.getInstance(libPath, scratch);
     }
-
-    // wallprecheck=false must be transparent: no Java monitor modules and no wallprecheck
-    // TaskBlock monitor callbacks. The wallPrecheck value is passed separately into
-    // JavaProfiler.getInstance(...), so there is no delegation handshake to request here.
-    if (!wallPrecheck) {
-      return false;
-    }
-
-    // JDK < 21 has no Java fallback for both monitor populations, so native owns them. On JDK 21+
-    // Java ownership is all-or-native: both object-wait and synchronized-contention must be active
-    // together, otherwise native JVMTI owns both populations and both Java modules stay disabled.
-    return JavaVirtualMachine.isJavaVersionAtLeast(21)
-        && TaskBlockInstrumentationConfig.shouldUseJavaMonitorTaskBlockInstrumentation(
-            configProvider, InstrumenterConfig.get());
   }
 
   private static JVMAccessHolder initJVMAccess() {

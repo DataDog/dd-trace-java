@@ -10,7 +10,6 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import java.io.File;
 import java.io.IOException;
@@ -47,12 +46,12 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
  * <ol>
  *   <li><b>Cross-workstream smoke</b>: a single forked JVM under {@code -javaagent:} exercises
  *       {@code Thread.sleep} (WS1), {@code LockSupport.park*} (existing {@code lock-support}),
- *       {@code synchronized} contention (existing {@code synchronized-contention}, JDK 21+) and
- *       {@code Selector.select(long)} (WS2B). Each population's events must be present.
+ *       native {@code synchronized} contention and {@code Selector.select(long)} (WS2B). Each
+ *       population's events must be present.
  *   <li><b>NoDoubleBracket</b>: each blocking <em>interval</em> emits exactly one {@code
  *       datadog.TaskBlock} event. Multiple TaskBlocks for the same (thread, start time) point at a
- *       regression in the JDK 21+ gate logic of WS1/WS2B vs. the native JVMTI path or at
- *       overlapping helper invocations.
+ *       regression in the Java helper paths vs. the native JVMTI path or at overlapping helper
+ *       invocations.
  *   <li><b>BlockingMix demo</b>: the forked app is meant to be copy-pasted as a reproducer when
  *       triaging coverage issues. The runbook in the README comment at the top of the class lists
  *       JFR inspection commands and the expected operation-name distribution.
@@ -73,10 +72,10 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
  *   jfr print --events "datadog.TaskBlock" {dumpDir}/*.jfr \
  *       | grep -oE "_dd.trace.operation = \"[^\"]+\"" | sort | uniq -c
  *
- *   # 4. Expected (steady state, JDK 21+):
+ *   # 4. Expected (steady state):
  *   #     N=20 blockingmix.sleep
  *   #     N=20 blockingmix.park
- *   #     N=20 blockingmix.sync   (JDK 21+ via Java-side synchronized-contention)
+ *   #     N=20 blockingmix.sync   (native JVMTI monitor callbacks)
  *   #     N=8  blockingmix.select
  *
  *   # 5. Native counter snapshot:
@@ -149,11 +148,9 @@ final class BlockingMixTaskBlockProfilingTest {
     assertTrue(
         stats.countByOperation.getOrDefault(OP_SELECT, 0L) > 0,
         "Expected blockingmix.select TaskBlock events (WS2B nio-selector module)");
-    // synchronized-contention is JDK 21+ only on the Java side. On JDK <21 the native JVMTI path
-    // covers the population. Either way at least one event must be present.
     assertTrue(
         stats.countByOperation.getOrDefault(OP_SYNC, 0L) > 0,
-        "Expected blockingmix.sync TaskBlock events (Java-side on JDK 21+, native JVMTI on <21)");
+        "Expected blockingmix.sync TaskBlock events (native JVMTI monitor callbacks)");
 
     // ---- NoDoubleBracket ----: no two TaskBlock events on the same thread with overlapping
     // intervals for the same operation. Double-bracketing manifests as two events with the same
@@ -362,9 +359,4 @@ final class BlockingMixTaskBlockProfilingTest {
       }
     }
   }
-
-  // Quietly reference JDK version to keep the import alive on JDKs where synchronized-contention
-  // is the only consumer of the constant.
-  @SuppressWarnings("unused")
-  private static final boolean IS_JDK_21_PLUS = JavaVirtualMachine.isJavaVersionAtLeast(21);
 }

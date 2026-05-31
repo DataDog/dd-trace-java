@@ -14,8 +14,8 @@ import net.bytebuddy.pool.TypePool;
 import net.bytebuddy.utility.OpenedClassReader;
 
 /**
- * ASM visitor wrapper that wraps each {@code INVOKESTATIC java/lang/Thread.sleep(J)V} and {@code
- * java/lang/Thread.sleep(JI)V} call site in a TaskBlock capture/finish pair.
+ * ASM visitor wrapper that wraps each supported {@code Thread.sleep(...)} and {@code
+ * TimeUnit.sleep(long)} call site in a TaskBlock capture/finish pair.
  *
  * <p>{@code COMPUTE_FRAMES} is requested via {@link #mergeWriter} so ASM recomputes stack-map
  * frames after the added synthetic locals and try-finally handler. We pair it with {@code

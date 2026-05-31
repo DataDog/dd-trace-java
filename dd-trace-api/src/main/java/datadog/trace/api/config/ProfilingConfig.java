@@ -93,12 +93,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
 
   /**
-   * When {@code true} (the default), dd-trace-java may ask the native profiler to skip requesting
-   * the JVMTI {@code can_generate_monitor_events} capability on JDK 21+ when the matching Java-side
-   * {@code object-wait} and {@code synchronized-contention} instrumentation modules are also
-   * enabled. Set to {@code false} to force the native callbacks even when the Java agent is
-   * present; useful for A/B comparisons and as an escape hatch. Ignored on JDK &lt; 21 (no
-   * Java-side fallback yet — native always engages).
+   * Compatibility no-op. Monitor TaskBlock events for {@code Object.wait} and synchronized
+   * contention are owned by the native profiler's JVMTI monitor callbacks when wall-clock precheck
+   * support is enabled and the JVM exposes {@code can_generate_monitor_events}.
    */
   public static final String PROFILING_DELEGATE_MONITOR_EVENTS_TO_AGENT =
       "profiling.ddprof.delegate-monitor-events";

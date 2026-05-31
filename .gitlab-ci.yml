@@ -68,7 +68,7 @@ variables:
 
   JAVA_PROFILER_REF:
     description: "When non-empty, clone DataDog/java-profiler at this Git ref (branch or tag), build ddprof, and use it as ddprof.jar for Gradle jobs instead of the Maven dependency."
-    value: "paul.fournillon/wallclock_precheck"
+    value: ""
 
   # One pipeline injection package size ratchet
   OCI_PACKAGE_MAX_SIZE_BYTES: 40_000_000
