@@ -63,13 +63,14 @@ pattern before writing new code. Use it as a template.
    - `testImplementation` dependencies for tests
    - `muzzle { pass { } }` directives (see Step 9)
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
-5. Register the integration name in `metadata/supported-configurations.json`. The name you pass to
-   the `InstrumenterModule` `super(...)` constructor maps to env var `DD_TRACE_<NAME>_ENABLED`
-   (`.` and `-` become `_`, then uppercased — e.g. `couchbase-3` → `DD_TRACE_COUCHBASE_3_ENABLED`).
-   Add a `boolean`/`default: "true"` entry with the two standard aliases
-   `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`, keeping the key in
-   alphabetical order. A module declaring multiple names (`super("a", "b")`) needs **one entry per
-   name**. Omitting this fails the `checkInstrumenterModuleConfigurations` Gradle task.
+5. Register the integration name in `metadata/supported-configurations.json`, or
+   `checkInstrumenterModuleConfigurations` fails. The name in `super(...)` maps to env var
+   `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, uppercased — `couchbase-3` →
+   `DD_TRACE_COUCHBASE_3_ENABLED`). Add a `"type": "boolean"` entry, in alphabetical order, with
+   aliases `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`. Set `default`
+   to the module's real default — `"true"`, or `"false"` if it overrides `defaultEnabled()` (e.g.
+   OpenTelemetry, Hazelcast); the task won't catch a wrong default, but it ships misleading
+   metadata. Declaring several names (`super("a", "b")`) means one entry each.
 
 ## Step 5 – Write the InstrumenterModule
 
