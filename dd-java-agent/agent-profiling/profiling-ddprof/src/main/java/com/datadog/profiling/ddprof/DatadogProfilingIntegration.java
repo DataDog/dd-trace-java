@@ -108,6 +108,16 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
   }
 
   @Override
+  public long blockEnter(int state) {
+    return DDPROF.blockEnter(state);
+  }
+
+  @Override
+  public void blockExit(long token) {
+    DDPROF.blockExit(token);
+  }
+
+  @Override
   public void enqueueTaskBlock(
       long startTicks, long durationNanos, long blocker, long spanId, long rootSpanId) {
     int tid = getCurrentThreadId();

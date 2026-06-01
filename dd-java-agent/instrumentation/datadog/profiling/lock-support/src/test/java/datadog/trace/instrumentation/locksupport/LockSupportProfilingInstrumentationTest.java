@@ -6,9 +6,15 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoInteractions;
+import static org.mockito.Mockito.when;
 
+import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
+import datadog.trace.bootstrap.instrumentation.api.ProfilerContext;
 import datadog.trace.bootstrap.instrumentation.api.ProfilingContextIntegration;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.LockSupportHelper;
 import java.util.concurrent.CountDownLatch;
@@ -26,14 +32,21 @@ import org.junit.jupiter.api.Test;
  */
 class LockSupportProfilingInstrumentationTest {
 
+  private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
+
+  private AgentTracer.TracerAPI previousTracer;
+
   @BeforeEach
   void clearState() {
+    previousTracer = AgentTracer.get();
+    AgentTracer.forceRegister(mockTracerWithActiveSpan(null));
     LockSupportHelper.UNPARKING_SPAN.clear();
   }
 
   @AfterEach
   void cleanupState() {
     LockSupportHelper.UNPARKING_SPAN.clear();
+    AgentTracer.forceRegister(previousTracer);
   }
 
   // -------------------------------------------------------------------------
@@ -166,6 +179,7 @@ class LockSupportProfilingInstrumentationTest {
     // TLS sidecar inside ProfiledThread::parkEnter. The Java-side ParkState only needs to retain
     // the blocker hash so parkExit can pair the eventual TaskBlock with the right monitor.
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    installActiveProfilerSpan();
     Object blocker = new Object();
 
     LockSupportHelper.ParkState state = LockSupportHelper.captureState(blocker, profiling);
@@ -178,12 +192,23 @@ class LockSupportProfilingInstrumentationTest {
   @Test
   void parkAdvice_captureState_nullBlocker_recordsZeroHash() {
     ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    installActiveProfilerSpan();
 
     LockSupportHelper.ParkState state = LockSupportHelper.captureState(null, profiling);
 
     assertNotNull(state);
     assertEquals(0L, state.blockerHash);
     verify(profiling).parkEnter();
+  }
+
+  @Test
+  void parkAdvice_captureState_withoutActiveSpan_doesNotCallParkEnter() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+
+    LockSupportHelper.ParkState state = LockSupportHelper.captureState(new Object(), profiling);
+
+    assertNull(state);
+    verify(profiling, never()).parkEnter();
   }
 
   @Test
@@ -241,5 +266,18 @@ class LockSupportProfilingInstrumentationTest {
     assertEquals(202L, consumed.longValue());
     assertNull(
         LockSupportHelper.UNPARKING_SPAN.get(current), "Entry must be removed after consumption");
+  }
+
+  private static void installActiveProfilerSpan() {
+    AgentSpan span = mock(AgentSpan.class);
+    ProfilerSpanContext context = mock(ProfilerSpanContext.class);
+    when(span.context()).thenReturn(context);
+    AgentTracer.forceRegister(mockTracerWithActiveSpan(span));
+  }
+
+  private static AgentTracer.TracerAPI mockTracerWithActiveSpan(AgentSpan span) {
+    AgentTracer.TracerAPI tracer = mock(AgentTracer.TracerAPI.class);
+    when(tracer.activeSpan()).thenReturn(span);
+    return tracer;
   }
 }

@@ -31,8 +31,9 @@ import net.bytebuddy.matcher.ElementMatcher;
  * <p>Active on every JDK when enabled via {@code profiling.ddprof.wall.precheck=true} (opt-in;
  * default is off). The native JVMTI monitor callbacks cover {@code Object.wait()} and synchronized
  * contention but not {@code Thread.sleep}, so sleep coverage is provided exclusively by this
- * call-site instrumentation. Platform-thread sleeps are queued for async native emission; virtual
- * thread sleeps bypass that platform-thread queue and pass span/root context directly.
+ * call-site instrumentation. Platform-thread sleeps are queued for async native emission and arm
+ * native span-scoped blocked-run state; virtual thread sleeps bypass the platform-thread queue and
+ * native carrier-thread blocked state, and pass span/root context directly.
  *
  * <p><b>Performance note:</b> this module uses a {@link net.bytebuddy.asm.AsmVisitorWrapper}
  * applied to every non-JDK class at load time. {@code COMPUTE_FRAMES} triggers a full bytecode

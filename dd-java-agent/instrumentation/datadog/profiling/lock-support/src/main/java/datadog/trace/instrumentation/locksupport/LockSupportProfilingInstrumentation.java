@@ -30,10 +30,10 @@ import net.bytebuddy.matcher.ElementMatchers;
  * <p>Also instruments {@link java.util.concurrent.locks.LockSupport#unpark} to capture the span ID
  * of the unblocking thread, which is then recorded in the native TaskBlock event.
  *
- * <p>{@code parkEnter} is called unconditionally (even without an active span) so the native side
- * always has a valid start tick for duration accounting. {@code SIGVTALRM} suppression for parked
- * threads is provided by the {@code wallprecheck} OS-state filter (a parked thread typically shows
- * as {@code CONDVAR_WAIT}), not by the park flag itself.
+ * <p>The instrumentation is span-scoped: {@code parkEnter} is called only when a profiling span is
+ * active at park entry. {@code SIGVTALRM} suppression for parked threads is provided by the {@code
+ * wallprecheck} blocked-run filter after the first useful MethodSample in that span-scoped park
+ * interval.
  */
 @AutoService(InstrumenterModule.class)
 public class LockSupportProfilingInstrumentation extends InstrumenterModule.Profiling

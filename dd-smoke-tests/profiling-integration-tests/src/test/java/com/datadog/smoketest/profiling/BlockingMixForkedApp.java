@@ -4,7 +4,6 @@ import io.opentracing.Scope;
 import io.opentracing.Span;
 import io.opentracing.Tracer;
 import io.opentracing.util.GlobalTracer;
-import java.nio.channels.Selector;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.locks.LockSupport;
@@ -13,14 +12,11 @@ public final class BlockingMixForkedApp {
   private static final String OP_SLEEP = "blockingmix.sleep";
   private static final String OP_PARK = "blockingmix.park";
   private static final String OP_SYNC = "blockingmix.sync";
-  private static final String OP_SELECT = "blockingmix.select";
 
   private static final int SLEEP_ITERATIONS = 20;
   private static final int PARK_ITERATIONS = 20;
   private static final int SYNC_ITERATIONS = 20;
-  private static final int SELECT_ITERATIONS = 8;
   private static final long PARK_NANOS = 50_000_000L;
-  private static final long SELECT_MILLIS = 100L;
   private static final long SLEEP_MILLIS = 50L;
   private static final long SYNC_HOLD_MILLIS = 50L;
 
@@ -29,7 +25,6 @@ public final class BlockingMixForkedApp {
     app.runSleeps();
     app.runParks();
     app.runSyncContention();
-    app.runSelects();
     Thread.sleep(1500);
   }
 
@@ -107,18 +102,6 @@ public final class BlockingMixForkedApp {
         span.finish();
       }
       holder.join();
-    }
-  }
-
-  private void runSelects() throws Exception {
-    for (int i = 0; i < SELECT_ITERATIONS; i++) {
-      Span span = tracer.buildSpan(OP_SELECT).start();
-      try (Scope scope = tracer.activateSpan(span);
-          Selector selector = Selector.open()) {
-        selector.select(SELECT_MILLIS);
-      } finally {
-        span.finish();
-      }
     }
   }
 }

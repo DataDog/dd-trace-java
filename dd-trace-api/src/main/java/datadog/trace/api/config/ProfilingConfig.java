@@ -92,16 +92,6 @@ public final class ProfilingConfig {
 
   public static final String PROFILING_DATADOG_PROFILER_LIBPATH = "profiling.ddprof.debug.lib";
 
-  /**
-   * Compatibility no-op. Monitor TaskBlock events for {@code Object.wait} and synchronized
-   * contention are owned by the native profiler's JVMTI monitor callbacks when wall-clock precheck
-   * support is enabled and the JVM exposes {@code can_generate_monitor_events}.
-   */
-  public static final String PROFILING_DELEGATE_MONITOR_EVENTS_TO_AGENT =
-      "profiling.ddprof.delegate-monitor-events";
-
-  public static final boolean PROFILING_DELEGATE_MONITOR_EVENTS_TO_AGENT_DEFAULT = true;
-
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_ENABLED =
       "profiling.ddprof.alloc.enabled";
   public static final String PROFILING_DATADOG_PROFILER_ALLOC_INTERVAL =

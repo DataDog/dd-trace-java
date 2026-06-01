@@ -26,7 +26,7 @@ jobs:
     # we clone DataDog/java-profiler at this ref, build :ddprof-lib:assembleReleaseJar
     # and inject it via -Pddprof.jar=<path> instead of the published Maven artifact.
     env:
-      JAVA_PROFILER_REF: ""
+      JAVA_PROFILER_REF: "paul.fournillon/wallclock_precheck"
     steps:
       - name: Checkout repository
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2

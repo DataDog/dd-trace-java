@@ -329,8 +329,6 @@ include(
   ":dd-java-agent:instrumentation:datadog:profiling:enable-wallclock-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:exception-profiling",
   ":dd-java-agent:instrumentation:datadog:profiling:lock-support",
-  ":dd-java-agent:instrumentation:datadog:profiling:nio-channel",
-  ":dd-java-agent:instrumentation:datadog:profiling:nio-selector",
   ":dd-java-agent:instrumentation:datadog:profiling:thread-sleep",
   ":dd-java-agent:instrumentation:datadog:tracing:trace-annotation",
   ":dd-java-agent:instrumentation:datanucleus-4.0.5",

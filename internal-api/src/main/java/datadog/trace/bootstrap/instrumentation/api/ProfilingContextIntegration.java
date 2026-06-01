@@ -6,6 +6,9 @@ import datadog.trace.api.Stateful;
 import datadog.trace.api.profiling.*;
 
 public interface ProfilingContextIntegration extends Profiling, EndpointCheckpointer, Timer {
+  /** Native {@code OSThreadState::SLEEPING}; used for span-scoped Thread.sleep precheck state. */
+  int BLOCKING_STATE_SLEEPING = 7;
+
   /**
    * invoked when the profiler is started, implementations must not initialise JFR before this is
    * called.
@@ -79,13 +82,27 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
   }
 
   /**
+   * Marks the current platform thread as entering a span-scoped blocking interval that may be used
+   * by the native wall-clock timer to skip later signals after the first MethodSample in the run.
+   *
+   * @return an opaque token to pass to {@link #blockExit(long)}, or {@code 0} when no native state
+   *     was armed
+   */
+  default long blockEnter(int state) {
+    return 0L;
+  }
+
+  /** Clears a native blocked interval previously armed by {@link #blockEnter(int)}. */
+  default void blockExit(long token) {}
+
+  /**
    * Enqueues a TaskBlock interval for asynchronous recording off the critical request path. The
    * actual JFR write is performed by a background drain thread; the calling thread only pays the
    * cost of a non-blocking queue offer.
    *
-   * <p>Called from the {@code Thread.sleep} instrumentation finish path for platform threads.
-   * Non-sleep paths (LockSupport, NIO, monitor) use the synchronous {@link #recordTaskBlock} /
-   * {@link #recordTaskBlockWithContext} methods instead.
+   * <p>Called from the {@code Thread.sleep} instrumentation finish path for platform threads. Other
+   * paths use the synchronous {@link #recordTaskBlock} / {@link #recordTaskBlockWithContext}
+   * methods instead.
    *
    * @param startTicks TSC tick captured at sleep entry
    * @param durationNanos wall-clock duration of the sleep in nanoseconds
@@ -98,12 +115,10 @@ public interface ProfilingContextIntegration extends Profiling, EndpointCheckpoi
 
   /**
    * Called when the current thread is about to enter {@code LockSupport.park*}. The native profiler
-   * snapshots the OTEP TLS span context and records the start tick for {@code datadog.TaskBlock}
-   * emission on unpark. {@code SIGVTALRM} suppression for parked threads is provided by the {@code
-   * wallprecheck} OS-state filter (opt-in, disabled by default), not by the park flag itself. When
-   * {@code wallprecheck} is disabled (the default), wall-clock signals are still delivered to
-   * parked threads; suppression only occurs when {@code wallprecheck=true} is explicitly
-   * configured.
+   * snapshots the OTEP TLS span context, records the start tick for {@code datadog.TaskBlock}
+   * emission on unpark, and arms native blocked-run state for wall-clock pre-send suppression after
+   * the first MethodSample in the park run. When {@code wallprecheck} is disabled (the default),
+   * wall-clock signals are still delivered to parked threads.
    */
   default void parkEnter() {}
 

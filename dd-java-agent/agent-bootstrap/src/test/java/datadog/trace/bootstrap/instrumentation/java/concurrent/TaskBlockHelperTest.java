@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
+import static org.mockito.Mockito.anyInt;
 import static org.mockito.Mockito.anyLong;
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -29,6 +30,7 @@ class TaskBlockHelperTest {
   private static final long BLOCKER = 1234L;
   private static final long SPAN_ID = 5678L;
   private static final long ROOT_SPAN_ID = 9012L;
+  private static final long BLOCK_TOKEN = 313L;
 
   private interface ProfilerSpanContext extends AgentSpanContext, ProfilerContext {}
 
@@ -91,6 +93,8 @@ class TaskBlockHelperTest {
     when(ctx.getSpanId()).thenReturn(SPAN_ID);
     when(ctx.getRootSpanId()).thenReturn(ROOT_SPAN_ID);
     when(profiling.getCurrentTicks()).thenReturn(START_TICKS);
+    when(profiling.blockEnter(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING))
+        .thenReturn(BLOCK_TOKEN);
 
     TaskBlockHelper.State state = TaskBlockHelper.capture(BLOCKER, profiling, span, true);
 
@@ -99,8 +103,10 @@ class TaskBlockHelperTest {
     assertEquals(BLOCKER, state.blocker);
     assertTrue(state.deferred);
     assertFalse(state.isVirtual);
+    assertEquals(BLOCK_TOKEN, state.blockToken);
     assertEquals(SPAN_ID, state.spanId);
     assertEquals(ROOT_SPAN_ID, state.rootSpanId);
+    verify(profiling).blockEnter(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING);
   }
 
   @Test
@@ -143,6 +149,7 @@ class TaskBlockHelperTest {
     verify(profiling).recordTaskBlockWithContext(START_TICKS, BLOCKER, 0L, SPAN_ID, ROOT_SPAN_ID);
     verify(profiling, never())
         .enqueueTaskBlock(anyLong(), anyLong(), anyLong(), anyLong(), anyLong());
+    verify(profiling, never()).blockEnter(anyInt());
   }
 
   @Test
@@ -176,6 +183,27 @@ class TaskBlockHelperTest {
     TaskBlockHelper.finish(state);
 
     verifyNoInteractions(profiling);
+  }
+
+  @Test
+  void finish_exitsNativeBlockEvenWhenTooShort() {
+    ProfilingContextIntegration profiling = mock(ProfilingContextIntegration.class);
+    TaskBlockHelper.State state =
+        new TaskBlockHelper.State(
+            profiling,
+            START_TICKS,
+            System.nanoTime() + 60_000_000_000L,
+            BLOCKER,
+            true,
+            SPAN_ID,
+            ROOT_SPAN_ID,
+            BLOCK_TOKEN);
+
+    TaskBlockHelper.finish(state);
+
+    verify(profiling).blockExit(BLOCK_TOKEN);
+    verify(profiling, never())
+        .enqueueTaskBlock(anyLong(), anyLong(), anyLong(), anyLong(), anyLong());
   }
 
   @Test
@@ -222,12 +250,14 @@ class TaskBlockHelperTest {
             BLOCKER,
             true,
             SPAN_ID,
-            ROOT_SPAN_ID);
+            ROOT_SPAN_ID,
+            BLOCK_TOKEN);
 
     TaskBlockHelper.finish(state);
 
     verify(profiling)
         .enqueueTaskBlock(eq(START_TICKS), anyLong(), eq(BLOCKER), eq(SPAN_ID), eq(ROOT_SPAN_ID));
+    verify(profiling).blockExit(BLOCK_TOKEN);
   }
 
   @Test

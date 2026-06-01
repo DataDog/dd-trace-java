@@ -45,9 +45,8 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
  *
  * <ol>
  *   <li><b>Cross-workstream smoke</b>: a single forked JVM under {@code -javaagent:} exercises
- *       {@code Thread.sleep} (WS1), {@code LockSupport.park*} (existing {@code lock-support}),
- *       native {@code synchronized} contention and {@code Selector.select(long)} (WS2B). Each
- *       population's events must be present.
+ *       {@code Thread.sleep}, {@code LockSupport.park*}, and native {@code synchronized}
+ *       contention. Each population's events must be present.
  *   <li><b>NoDoubleBracket</b>: each blocking <em>interval</em> emits exactly one {@code
  *       datadog.TaskBlock} event. Multiple TaskBlocks for the same (thread, start time) point at a
  *       regression in the Java helper paths vs. the native JVMTI path or at overlapping helper
@@ -76,7 +75,6 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
  *   #     N=20 blockingmix.sleep
  *   #     N=20 blockingmix.park
  *   #     N=20 blockingmix.sync   (native JVMTI monitor callbacks)
- *   #     N=8  blockingmix.select
  *
  *   # 5. Native counter snapshot:
  *   jfr print --events "datadog.DatadogProfilerConfig" {dumpDir}/*.jfr
@@ -102,7 +100,6 @@ final class BlockingMixTaskBlockProfilingTest {
   private static final String OP_SLEEP = "blockingmix.sleep";
   private static final String OP_PARK = "blockingmix.park";
   private static final String OP_SYNC = "blockingmix.sync";
-  private static final String OP_SELECT = "blockingmix.select";
 
   private static final Path LOG_FILE_BASE =
       Paths.get(
@@ -131,7 +128,7 @@ final class BlockingMixTaskBlockProfilingTest {
   }
 
   @Test
-  @DisplayName("Mixed sleep+park+sync+select workload emits one TaskBlock per blocking interval")
+  @DisplayName("Mixed sleep+park+sync workload emits one TaskBlock per blocking interval")
   void mixedBlockingWorkloadEmitsExpectedPopulations() throws Exception {
     Process targetProcess = createProcessBuilder().start();
     checkProcessSuccessfullyEnd(targetProcess, logFilePath);
@@ -146,9 +143,6 @@ final class BlockingMixTaskBlockProfilingTest {
         stats.countByOperation.getOrDefault(OP_PARK, 0L) > 0,
         "Expected blockingmix.park TaskBlock events (existing lock-support module)");
     assertTrue(
-        stats.countByOperation.getOrDefault(OP_SELECT, 0L) > 0,
-        "Expected blockingmix.select TaskBlock events (WS2B nio-selector module)");
-    assertTrue(
         stats.countByOperation.getOrDefault(OP_SYNC, 0L) > 0,
         "Expected blockingmix.sync TaskBlock events (native JVMTI monitor callbacks)");
 
@@ -159,8 +153,7 @@ final class BlockingMixTaskBlockProfilingTest {
         stats.hasDuplicateInterval,
         "Detected duplicate TaskBlock events for the same (thread, startTime) — double bracket "
             + "regression. Likely culprit: Java helper and native callback both firing for the "
-            + "same blocking population, or nio-selector overlapping with an unforeseen JFR "
-            + "bridge subscription. First duplicate: "
+            + "same blocking population. First duplicate: "
             + stats.firstDuplicateDescription);
 
     // ---- Span context ----: all events must carry non-zero span/root-span IDs.

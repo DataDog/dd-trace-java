@@ -2841,14 +2841,6 @@
         "aliases": []
       }
     ],
-    "DD_PROFILING_DDPROF_DELEGATE_MONITOR_EVENTS": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": []
-      }
-    ],
     "DD_PROFILING_DDPROF_ENABLED": [
       {
         "version": "A",
@@ -8305,22 +8297,6 @@
         "aliases": ["DD_TRACE_INTEGRATION_NING_ENABLED", "DD_INTEGRATION_NING_ENABLED"]
       }
     ],
-    "DD_TRACE_NIO_CHANNEL_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_NIO_CHANNEL_ENABLED", "DD_INTEGRATION_NIO_CHANNEL_ENABLED"]
-      }
-    ],
-    "DD_TRACE_NIO_SELECTOR_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_NIO_SELECTOR_ENABLED", "DD_INTEGRATION_NIO_SELECTOR_ENABLED"]
-      }
-    ],
     "DD_TRACE_NOT_NOT_TRACE_ENABLED": [
       {
         "version": "A",
@@ -8335,14 +8311,6 @@
         "type": "string",
         "default": null,
         "aliases": ["DD_OBFUSCATION_QUERY_STRING_REGEXP"]
-      }
-    ],
-    "DD_TRACE_OBJECT_WAIT_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_OBJECT_WAIT_ENABLED", "DD_INTEGRATION_OBJECT_WAIT_ENABLED"]
       }
     ],
     "DD_TRACE_OGNL_ENABLED": [
@@ -10703,14 +10671,6 @@
         "type": "boolean",
         "default": "true",
         "aliases": ["DD_TRACE_INTEGRATION_SUREFIRE_ENABLED", "DD_INTEGRATION_SUREFIRE_ENABLED"]
-      }
-    ],
-    "DD_TRACE_SYNCHRONIZED_CONTENTION_ENABLED": [
-      {
-        "version": "A",
-        "type": "boolean",
-        "default": "true",
-        "aliases": ["DD_TRACE_INTEGRATION_SYNCHRONIZED_CONTENTION_ENABLED", "DD_INTEGRATION_SYNCHRONIZED_CONTENTION_ENABLED"]
       }
     ],
     "DD_TRACE_SYNAPSE3_ANALYTICS_ENABLED": [

@@ -42,6 +42,9 @@ public final class TaskBlockHelper {
      */
     final boolean deferred;
 
+    /** Opaque native blocked-run token; non-zero only for platform Thread.sleep. */
+    final long blockToken;
+
     /** Span ID captured at block entry; meaningful for virtual or deferred paths. */
     final long spanId;
 
@@ -56,6 +59,7 @@ public final class TaskBlockHelper {
       this.blocker = blocker;
       this.isVirtual = false;
       this.deferred = false;
+      this.blockToken = 0L;
       this.spanId = 0L;
       this.rootSpanId = 0L;
     }
@@ -69,12 +73,26 @@ public final class TaskBlockHelper {
         boolean deferred,
         long spanId,
         long rootSpanId) {
+      this(profiling, startTicks, startNanos, blocker, deferred, spanId, rootSpanId, 0L);
+    }
+
+    /** Constructor for platform threads with optional deferred recording and native block state. */
+    State(
+        ProfilingContextIntegration profiling,
+        long startTicks,
+        long startNanos,
+        long blocker,
+        boolean deferred,
+        long spanId,
+        long rootSpanId,
+        long blockToken) {
       this.profiling = profiling;
       this.startTicks = startTicks;
       this.startNanos = startNanos;
       this.blocker = blocker;
       this.isVirtual = false;
       this.deferred = deferred;
+      this.blockToken = blockToken;
       this.spanId = spanId;
       this.rootSpanId = rootSpanId;
     }
@@ -93,6 +111,7 @@ public final class TaskBlockHelper {
       this.blocker = blocker;
       this.isVirtual = true;
       this.deferred = false;
+      this.blockToken = 0L;
       this.spanId = spanId;
       this.rootSpanId = rootSpanId;
     }
@@ -105,24 +124,16 @@ public final class TaskBlockHelper {
   /**
    * Capture entry-point for {@code Thread.sleep} bracketing. Platform threads return a deferred
    * {@link State}: when {@link #finish} is called, the TaskBlock event is enqueued to a bounded
-   * background queue instead of making a synchronous JNI call, removing the JFR write from the
-   * critical request path. Virtual threads return a virtual {@link State} and bypass the
-   * platform-thread queue.
+   * background queue instead of making a synchronous JNI call. They also arm native blocked-run
+   * state so the wall-clock timer can skip later signals after the first MethodSample in the sleep
+   * run. Virtual threads return a virtual {@link State} and bypass both the platform-thread queue
+   * and native carrier-thread blocked state.
    *
    * <p>The blocker key is {@code 0} (sleep has no monitor identity). Returns {@code null} when no
    * profiling context is active — sleep sites in untraced code carry zero allocation cost.
    */
   public static State captureForSleep() {
     return captureSafely(0L, true);
-  }
-
-  /**
-   * Capture entry-point for blocking I/O bracketing. Used by the {@code nio-selector} module (all
-   * {@code Selector.select*} variants, blocker {@code 0} - no single fd identity). Returns {@code
-   * null} when no profiling context is active.
-   */
-  public static State captureForIo(long fd) {
-    return captureSafely(fd);
   }
 
   static State captureSafely(long blocker) {
@@ -172,7 +183,9 @@ public final class TaskBlockHelper {
     }
     if (deferred) {
       // Deferred platform-thread path: capture span/root ids at entry because the background drain
-      // thread cannot use the request thread's OTEP TLS sidecar.
+      // thread cannot use the request thread's OTEP TLS sidecar. Also arm the native sleep state so
+      // wall-clock can suppress later signals in this span-scoped sleep run.
+      long blockToken = profiling.blockEnter(ProfilingContextIntegration.BLOCKING_STATE_SLEEPING);
       return new State(
           profiling,
           startTicks,
@@ -180,21 +193,25 @@ public final class TaskBlockHelper {
           blocker,
           true,
           context.getSpanId(),
-          context.getRootSpanId());
+          context.getRootSpanId(),
+          blockToken);
     }
     return new State(profiling, startTicks, startNanos, blocker);
   }
 
   public static void finish(State state) {
-    // Java-side pre-check: skip the JNI hop when obviously below the 1 ms minimum.
-    // The native side (recordTaskBlockLiveIfEligible) applies a second gate using TSC
-    // ticks - the authoritative check. Both thresholds are 1 ms; for values well above
-    // that they agree. This pre-check is an optimisation only and is not present on the
-    // LockSupport.park* path, which has a single native gate via parkExit().
-    if (state == null || System.nanoTime() - state.startNanos < MIN_TASK_BLOCK_NANOS) {
+    if (state == null) {
       return;
     }
     try {
+      // Java-side pre-check: skip the JNI hop when obviously below the 1 ms minimum.
+      // The native side (recordTaskBlockLiveIfEligible) applies a second gate using TSC
+      // ticks - the authoritative check. Both thresholds are 1 ms; for values well above
+      // that they agree. This pre-check is an optimisation only and is not present on the
+      // LockSupport.park* path, which has a single native gate via parkExit().
+      if (System.nanoTime() - state.startNanos < MIN_TASK_BLOCK_NANOS) {
+        return;
+      }
       if (state.deferred) {
         // Deferred async path (Thread.sleep on platform threads): enqueue to a bounded queue so the
         // JFR write happens off the critical request path. Use entry-time span/root ids because the
@@ -216,6 +233,13 @@ public final class TaskBlockHelper {
       // Bytecode-injected sites must not propagate exceptions from instrumentation - a throw here
       // could leak a held monitor at a synchronized(obj){} site where the javac-emitted
       // try-region starts only after our injected finish() call.
+    } finally {
+      if (state.blockToken != 0L) {
+        try {
+          state.profiling.blockExit(state.blockToken);
+        } catch (Throwable ignored) {
+        }
+      }
     }
   }
 }

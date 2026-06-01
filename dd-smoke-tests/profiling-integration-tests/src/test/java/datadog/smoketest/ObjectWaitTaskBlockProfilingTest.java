@@ -10,7 +10,6 @@ import static org.openjdk.jmc.common.item.Attribute.attr;
 import static org.openjdk.jmc.common.unit.UnitLookup.NUMBER;
 import static org.openjdk.jmc.common.unit.UnitLookup.PLAIN_TEXT;
 
-import datadog.environment.JavaVirtualMachine;
 import datadog.trace.api.config.ProfilingConfig;
 import io.opentracing.Scope;
 import io.opentracing.Span;
@@ -28,7 +27,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -44,11 +42,8 @@ import org.openjdk.jmc.flightrecorder.JfrLoaderToolkit;
 import org.openjdk.jmc.flightrecorder.jdk.JdkAttributes;
 
 /**
- * Smoke test for {@link
- * datadog.trace.instrumentation.objectwait.ObjectWaitProfilingInstrumentation}. Object.wait is only
- * instrumented on JDK 21+ (pre-21 the method is native, and JVMTI MonitorWait callbacks cover that
- * path natively). This test is therefore gated on JDK 21+ and guards against regressions such as
- * {@code java.lang.Object} being silently excluded from the global ignore trie.
+ * Smoke test for native {@code Object.wait} TaskBlock coverage through the profiler's JVMTI {@code
+ * MonitorWait}/{@code MonitorWaited} callbacks.
  */
 @DisabledOnJ9
 final class ObjectWaitTaskBlockProfilingTest {
@@ -75,10 +70,6 @@ final class ObjectWaitTaskBlockProfilingTest {
 
   @BeforeEach
   void setup(TestInfo testInfo) throws IOException {
-    // Object.wait advice only applies on JDK 21+ (wait(long) is native on JDK 8-20).
-    Assumptions.assumeTrue(
-        JavaVirtualMachine.isJavaVersionAtLeast(21),
-        "Object.wait instrumentation requires JDK 21+");
     Files.createDirectories(LOG_FILE_BASE);
     logFilePath =
         LOG_FILE_BASE.resolve(
@@ -94,7 +85,7 @@ final class ObjectWaitTaskBlockProfilingTest {
   }
 
   @Test
-  @DisplayName("Object.wait emits span-attributed TaskBlock events on JDK 21+")
+  @DisplayName("Object.wait emits span-attributed native TaskBlock events")
   void objectWaitsEmitTaskBlockEvents() throws Exception {
     Process targetProcess = createProcessBuilder().start();
 
@@ -111,8 +102,7 @@ final class ObjectWaitTaskBlockProfilingTest {
     assertTrue(
         stats.hasExpectedOperation,
         "Expected TaskBlock events to include the objectwait.active span operation name");
-    // notify/notifyAll remain native on JDK 21+, so the unblocking thread can never be
-    // identified via BCI; every Object.wait TaskBlock must report unblockingSpanId == 0.
+    // notify/notifyAll are not instrumented, so the unblocking thread is not identified.
     assertFalse(
         stats.hasNonZeroUnblockingSpanId,
         "Object.wait TaskBlocks must report unblockingSpanId == 0 (notify is still native)");
@@ -274,10 +264,10 @@ final class ObjectWaitTaskBlockProfilingTest {
     }
 
     private void runTooShortWaits() throws InterruptedException {
-      // Exercises the wait(long, int) -> wait(long) routing on JDK 21+. The native task-block
-      // threshold is 1 ms, so a 1-ms request typically rounds out just over it, but the path
-      // coverage matters more than the duration here; the assertion focuses on instrumentation
-      // not crashing rather than which side of the threshold the interval lands on.
+      // Exercises the wait(long, int) path. The native task-block threshold is 1 ms, so a 1-ms
+      // request typically rounds out just over it, but path coverage matters more than duration
+      // here; the assertion focuses on callbacks not crashing rather than which side of the
+      // threshold the interval lands on.
       for (int i = 0; i < WAIT_ITERATIONS; i++) {
         Span span = tracer.buildSpan("objectwait.too-short").start();
         try (Scope scope = tracer.activateSpan(span)) {

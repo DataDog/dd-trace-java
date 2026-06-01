@@ -486,6 +486,19 @@ public final class DatadogProfiler {
     return profiler != null ? taskBlockBridge.getTscFrequency() : 1_000_000_000L;
   }
 
+  long blockEnter(int state) {
+    if (profiler != null && recordingFlag.get()) {
+      return taskBlockBridge.blockEnter(state);
+    }
+    return 0L;
+  }
+
+  void blockExit(long token) {
+    if (token != 0L && profiler != null) {
+      taskBlockBridge.blockExit(token);
+    }
+  }
+
   void recordTaskBlockEvent(long startTicks, long blocker, long unblockingSpanId) {
     if (profiler != null && recordingFlag.get()) {
       long endTicks = profiler.getCurrentTicks();
@@ -540,6 +553,8 @@ public final class DatadogProfiler {
     private final Method recordTaskBlock;
     private final Method recordTaskBlockWithContext;
     private final Method recordTaskBlockFromContext;
+    private final Method blockEnter;
+    private final Method blockExit;
     private final Method parkEnter;
     private final Method parkExit;
 
@@ -568,6 +583,8 @@ public final class DatadogProfiler {
               long.class,
               long.class,
               long.class);
+      this.blockEnter = method("blockEnter", int.class);
+      this.blockExit = method("blockExit", long.class);
       this.parkEnter = method("parkEnter");
       this.parkExit = method("parkExit", long.class, long.class);
     }
@@ -625,6 +642,17 @@ public final class DatadogProfiler {
           unblockingSpanId,
           spanId,
           rootSpanId);
+    }
+
+    private long blockEnter(int state) {
+      if (blockEnter == null) {
+        return 0L;
+      }
+      return ((Number) invoke(blockEnter, state)).longValue();
+    }
+
+    private void blockExit(long token) {
+      invokeIfPresent(blockExit, token);
     }
 
     private void parkEnter() {
