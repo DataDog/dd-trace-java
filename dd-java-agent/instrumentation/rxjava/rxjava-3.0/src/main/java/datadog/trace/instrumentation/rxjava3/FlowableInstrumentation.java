@@ -12,8 +12,8 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import io.reactivex.rxjava3.core.Flowable;
+import io.reactivex.rxjava3.core.FlowableSubscriber;
 import net.bytebuddy.asm.Advice;
-import org.reactivestreams.Subscriber;
 
 public final class FlowableInstrumentation
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
@@ -30,7 +30,7 @@ public final class FlowableInstrumentation
         isMethod()
             .and(named("subscribe"))
             .and(takesArguments(1))
-            .and(takesArgument(0, named("org.reactivestreams.Subscriber"))),
+            .and(takesArgument(0, named("io.reactivex.rxjava3.core.FlowableSubscriber"))),
         getClass().getName() + "$PropagateParentSpanAdvice");
   }
 
@@ -48,7 +48,7 @@ public final class FlowableInstrumentation
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ContextScope onSubscribe(
         @Advice.This final Flowable<?> flowable,
-        @Advice.Argument(value = 0, readOnly = false) Subscriber<?> subscriber) {
+        @Advice.Argument(value = 0, readOnly = false) FlowableSubscriber<?> subscriber) {
       if (subscriber != null) {
         Context parentContext =
             InstrumentationContext.get(Flowable.class, Context.class).get(flowable);

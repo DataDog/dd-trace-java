@@ -13,7 +13,7 @@ import java.util.Map;
 @AutoService(InstrumenterModule.class)
 public final class RxJavaModule extends InstrumenterModule.ContextTracking {
   public RxJavaModule() {
-    super("rxjava");
+    super("rxjava", "rxjava-3");
   }
 
   @Override
