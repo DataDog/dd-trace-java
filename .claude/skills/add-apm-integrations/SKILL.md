@@ -63,6 +63,13 @@ pattern before writing new code. Use it as a template.
    - `testImplementation` dependencies for tests
    - `muzzle { pass { } }` directives (see Step 9)
 4. Register the new module in `settings.gradle.kts` in **alphabetical order**
+5. Register the integration name in `metadata/supported-configurations.json`. The name you pass to
+   the `InstrumenterModule` `super(...)` constructor maps to env var `DD_TRACE_<NAME>_ENABLED`
+   (`.` and `-` become `_`, then uppercased — e.g. `couchbase-3` → `DD_TRACE_COUCHBASE_3_ENABLED`).
+   Add a `boolean`/`default: "true"` entry with the two standard aliases
+   `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`, keeping the key in
+   alphabetical order. A module declaring multiple names (`super("a", "b")`) needs **one entry per
+   name**. Omitting this fails the `checkInstrumenterModuleConfigurations` Gradle task.
 
 ## Step 5 – Write the InstrumenterModule
 
@@ -193,10 +200,14 @@ Run these commands in order and fix any failures before proceeding:
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:muzzle
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:test
 ./gradlew :dd-java-agent:instrumentation:$framework-$version:latestDepTest
+./gradlew checkInstrumenterModuleConfigurations
 ./gradlew spotlessCheck
 ```
 
 **If muzzle fails:** check for missing helper class names in `helperClassNames()`.
+
+**If `checkInstrumenterModuleConfigurations` fails:** an integration name from `super(...)` is missing
+(or mismatched) in `metadata/supported-configurations.json` — see Step 4, item 5.
 
 **If tests fail:** verify span lifecycle order (start → activate → error → finish → close), helper registration,
 and `contextStore()` map entries match actual usage.
@@ -208,6 +219,7 @@ and `contextStore()` map entries match actual usage.
 Output this checklist and confirm each item is satisfied:
 
 - [ ] `settings.gradle.kts` entry added in alphabetical order
+- [ ] `metadata/supported-configurations.json` has a `DD_TRACE_<NAME>_ENABLED` entry (+ the two aliases) for every name passed to `super(...)`
 - [ ] `build.gradle` has `compileOnly` deps and `muzzle` directives with `assertInverse = true`
 - [ ] `@AutoService(InstrumenterModule.class)` annotation present on the module class
 - [ ] `helperClassNames()` lists ALL referenced helpers (including inner, anonymous, and enum synthetic classes)
