@@ -30,15 +30,15 @@ class Slf4jCorrelationIdInjectorTest extends CorrelationIdInjectorTest {
 
   class TestAppender extends AppenderBase<ILoggingEvent>
       implements CorrelationIdInjectorTest.LogJournal {
-    List<String> events;
+    private final List<String> events;
     int read;
-    PatternLayoutEncoder encoder;
+    private final PatternLayoutEncoder encoder;
 
     TestAppender(LoggerContext logCtx) {
       name = "TestAppender";
       encoder = new PatternLayoutEncoder();
       encoder.setContext(logCtx);
-      encoder.setPattern(logPattern);
+      encoder.setPattern(LOG_PATTERN);
       events = new ArrayList<>();
       read = 0;
     }

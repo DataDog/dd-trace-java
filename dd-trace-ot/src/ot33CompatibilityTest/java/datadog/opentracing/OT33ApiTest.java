@@ -30,8 +30,8 @@ import org.tabletest.junit.TableTest;
 // This test focuses on things that are different between OpenTracing API 0.32.0 and 0.33.0
 class OT33ApiTest extends DDJavaSpecification {
 
-  ListWriter writer = new ListWriter();
-  Tracer tracer = DDTracer.builder().writer(writer).build();
+  private final ListWriter writer = new ListWriter();
+  private final Tracer tracer = DDTracer.builder().writer(writer).build();
 
   @AfterEach
   void cleanup() throws Exception {

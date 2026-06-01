@@ -20,7 +20,7 @@ class Log4j2CorrelationIdInjectorTest extends CorrelationIdInjectorTest {
     Configuration config = context.getConfiguration();
 
     TestAppender appender =
-        new TestAppender(PatternLayout.newBuilder().withPattern(logPattern).build());
+        new TestAppender(PatternLayout.newBuilder().withPattern(LOG_PATTERN).build());
     appender.start();
     config.addAppender(appender);
     updateLoggers(appender, config);

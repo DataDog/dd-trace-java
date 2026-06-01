@@ -18,8 +18,8 @@ import org.junit.jupiter.api.Test;
 
 class DefaultLogHandlerTest extends DDJavaSpecification {
 
-  ListWriter writer = new ListWriter();
-  CoreTracer tracer = CoreTracer.builder().writer(writer).build();
+  private final ListWriter writer = new ListWriter();
+  private final CoreTracer tracer = CoreTracer.builder().writer(writer).build();
 
   @AfterEach
   void cleanup() throws Exception {

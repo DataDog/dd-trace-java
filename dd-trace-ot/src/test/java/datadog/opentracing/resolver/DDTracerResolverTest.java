@@ -11,7 +11,7 @@ import org.junit.jupiter.api.Test;
 
 class DDTracerResolverTest extends DDJavaSpecification {
 
-  DDTracerResolver resolver = new DDTracerResolver();
+  private final DDTracerResolver resolver = new DDTracerResolver();
 
   @Test
   void testResolveTracer() throws Exception {

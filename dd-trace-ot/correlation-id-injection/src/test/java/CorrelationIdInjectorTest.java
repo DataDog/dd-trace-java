@@ -10,7 +10,7 @@ import org.junit.jupiter.api.Test;
 
 abstract class CorrelationIdInjectorTest extends DDJavaSpecification {
 
-  protected String logPattern =
+  protected static final String LOG_PATTERN =
       "TRACE_ID=%X{"
           + CorrelationIdentifier.getTraceIdKey()
           + "} SPAN_ID=%X{"
