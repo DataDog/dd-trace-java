@@ -87,7 +87,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
 
-  private final int MAX_COLLECTION_SIZE = 5000;
+  private int MAX_COLLECTION_SIZE = 5000;
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
@@ -367,6 +367,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return;
     }
     applicationEnded = true;
+
+    // TODO: per-session app spans are closed here (server shutdown) rather than when the session
+    // actually ends — so their duration is "first job → server shutdown". Spark Connect does emit
+    // a server-side session-close event, but it is not surfaced through SparkListener today.
+    // When that hook becomes available, finish the span there and remove it from the map so that
+    // long-lived servers don't accumulate unbounded open spans.
 
     // Finish per-session application spans before the guard below, because a pure Connect server
     // has applicationSpan == null with jobCount > 0, which would cause the guard to return early
@@ -664,7 +670,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     for (int stageId : getSparkJobStageIds(jobStart)) {
       stageToJob.put(stageId, jobStart.jobId());
     }
-    if (connectSessionId != null) {
+    if (connectSessionId != null && jobToSessionId.size() < MAX_COLLECTION_SIZE) {
       jobToSessionId.put(jobStart.jobId(), connectSessionId);
     }
     jobSpans.put(jobStart.jobId(), jobSpan);

@@ -2,7 +2,9 @@ import static datadog.trace.agent.test.assertions.SpanMatcher.span;
 import static datadog.trace.agent.test.assertions.TraceMatcher.SORT_BY_START_TIME;
 import static datadog.trace.agent.test.assertions.TraceMatcher.trace;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.agent.test.AbstractInstrumentationTest;
@@ -237,6 +239,109 @@ class SparkConnectListenerTest extends AbstractInstrumentationTest {
     assertNotNull(appSpan);
     assertEquals("session-fail", appSpan.getTag("session_id"));
     assertTrue(appSpan.isError(), "Per-session app span should have error set");
+  }
+
+  @Test
+  void sessionCapOverflowFallsBackToGlobalSpan() throws Exception {
+    DatadogSpark213Listener listener =
+        new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0");
+    listener.onApplicationStart(appStartEvent(1000L));
+
+    // Shrink the cap to 1 via reflection so we can overflow with a single extra session.
+    java.lang.reflect.Field capField =
+        listener.getClass().getSuperclass().getDeclaredField("MAX_COLLECTION_SIZE");
+    capField.setAccessible(true);
+    capField.setInt(listener, 1);
+
+    // First session fills the cap.
+    listener.onOtherEvent(sqlStartEvent(1L, 1100L));
+    listener.onJobStart(connectJobStartEvent(1, 1200L, "session-at-cap", 1L));
+    listener.onJobEnd(new SparkListenerJobEnd(1, 1400L, JobSucceeded$.MODULE$));
+    listener.onOtherEvent(sqlEndEvent(1L, 1400L));
+
+    // Second session overflows — must fall back to the global span, not create an orphan.
+    listener.onOtherEvent(sqlStartEvent(2L, 1500L));
+    listener.onJobStart(connectJobStartEvent(2, 1600L, "overflow-session", 2L));
+    listener.onJobEnd(new SparkListenerJobEnd(2, 1800L, JobSucceeded$.MODULE$));
+    listener.onOtherEvent(sqlEndEvent(2L, 1800L));
+
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L));
+
+    boolean hasOverflowSession =
+        writer.stream()
+            .flatMap(List::stream)
+            .anyMatch(s -> "overflow-session".equals(s.getTag("session_id")));
+    assertFalse(
+        hasOverflowSession, "Overflow session must not create an independent per-session trace");
+  }
+
+  @Test
+  void emptySessionIdIsRejected() throws Exception {
+    DatadogSpark213Listener listener =
+        new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0");
+    listener.onApplicationStart(appStartEvent(1000L));
+
+    // spark.jobTags with empty suffix after the prefix should not produce a session span.
+    Properties props = new Properties();
+    props.setProperty("spark.sql.execution.id", "1");
+    props.setProperty("spark.jobTags", "spark-connect-session-");
+    @SuppressWarnings("unchecked")
+    Seq<StageInfo> emptyStages = (Seq<StageInfo>) (Object) Nil$.MODULE$;
+    listener.onOtherEvent(sqlStartEvent(1L, 1100L));
+    listener.onJobStart(new SparkListenerJobStart(1, 1200L, emptyStages, props));
+    listener.onJobEnd(new SparkListenerJobEnd(1, 1400L, JobSucceeded$.MODULE$));
+    listener.onOtherEvent(sqlEndEvent(1L, 1400L));
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L));
+
+    // Should produce the global spark.application trace (no per-session span).
+    assertEquals(1, writer.size(), "Expected exactly one trace (global app span)");
+    DDSpan appSpan = findSpan(writer.get(0), "spark.application");
+    assertNotNull(appSpan);
+    assertNull(appSpan.getTag("session_id"), "Empty session id must not be stored");
+  }
+
+  @Test
+  void connectJobSuccessDoesNotClearGlobalSqlFailure() throws Exception {
+    DatadogSpark213Listener listener =
+        new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0");
+    listener.onApplicationStart(appStartEvent(1000L));
+
+    // A non-Connect job succeeds first — this initializes the global application span.
+    listener.onOtherEvent(sqlStartEvent(1L, 1050L));
+    listener.onJobStart(plainJobStartEvent(1, 1100L, 1L));
+    listener.onJobEnd(new SparkListenerJobEnd(1, 1200L, JobSucceeded$.MODULE$));
+    listener.onOtherEvent(sqlEndEvent(1L, 1200L));
+
+    // A SQL analysis failure fires after the non-Connect job completes.
+    listener.onSqlFailure(new RuntimeException("analysis error"));
+
+    // A Connect job from a different session then succeeds — must not clear the global SQL failure.
+    listener.onOtherEvent(sqlStartEvent(2L, 1300L));
+    listener.onJobStart(connectJobStartEvent(2, 1400L, "session-ok", 2L));
+    listener.onJobEnd(new SparkListenerJobEnd(2, 1500L, JobSucceeded$.MODULE$));
+    listener.onOtherEvent(sqlEndEvent(2L, 1500L));
+    listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L));
+
+    // The per-session span must not be errored (the Connect job succeeded).
+    DDSpan sessionAppSpan =
+        writer.stream()
+            .flatMap(List::stream)
+            .filter(s -> "spark.application".equals(s.getOperationName().toString()))
+            .filter(s -> "session-ok".equals(s.getTag("session_id")))
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No per-session app span found"));
+    assertFalse(
+        sessionAppSpan.isError(), "Connect session span must not carry the global SQL error");
+
+    // The global span must still reflect the SQL failure.
+    DDSpan globalAppSpan =
+        writer.stream()
+            .flatMap(List::stream)
+            .filter(s -> "spark.application".equals(s.getOperationName().toString()))
+            .filter(s -> s.getTag("session_id") == null)
+            .findFirst()
+            .orElseThrow(() -> new AssertionError("No global app span found"));
+    assertTrue(globalAppSpan.isError(), "Global app span must still reflect the SQL failure");
   }
 
   // region Helpers
