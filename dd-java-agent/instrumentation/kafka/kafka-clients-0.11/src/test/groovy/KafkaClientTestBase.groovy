@@ -42,7 +42,6 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
-import org.junit.Rule
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
@@ -1554,8 +1553,16 @@ class KafkaClientContextSwapForkedTest extends KafkaClientV0ForkedTest {
 }
 
 class KafkaClientBadBase64HeaderForkedTest extends InstrumentationSpecification {
-  @Rule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, KafkaClientTestBase.SHARED_TOPIC)
+  KafkaEmbedded embeddedKafka
+
+  def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka.before()
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
+  }
 
   @Override
   void configurePreAgent() {
