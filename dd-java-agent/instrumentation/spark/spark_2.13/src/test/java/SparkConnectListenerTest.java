@@ -243,15 +243,16 @@ class SparkConnectListenerTest extends AbstractInstrumentationTest {
 
   @Test
   void sessionCapOverflowFallsBackToGlobalSpan() throws Exception {
+    // Override maxCollectionSize() to 1 so a second session overflows without creating 5000
+    // entries.
     DatadogSpark213Listener listener =
-        new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0");
+        new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0") {
+          @Override
+          protected int maxCollectionSize() {
+            return 1;
+          }
+        };
     listener.onApplicationStart(appStartEvent(1000L));
-
-    // Shrink the cap to 1 via reflection so we can overflow with a single extra session.
-    java.lang.reflect.Field capField =
-        listener.getClass().getSuperclass().getDeclaredField("MAX_COLLECTION_SIZE");
-    capField.setAccessible(true);
-    capField.setInt(listener, 1);
 
     // First session fills the cap.
     listener.onOtherEvent(sqlStartEvent(1L, 1100L));
@@ -267,12 +268,23 @@ class SparkConnectListenerTest extends AbstractInstrumentationTest {
 
     listener.onApplicationEnd(new SparkListenerApplicationEnd(2000L));
 
+    // No per-session trace for the overflow session.
     boolean hasOverflowSession =
         writer.stream()
             .flatMap(List::stream)
             .anyMatch(s -> "overflow-session".equals(s.getTag("session_id")));
     assertFalse(
         hasOverflowSession, "Overflow session must not create an independent per-session trace");
+
+    // The overflow session's spans are parented under the global spark.application (no session_id).
+    DDSpan globalAppSpan =
+        writer.stream()
+            .flatMap(List::stream)
+            .filter(s -> "spark.application".equals(s.getOperationName().toString()))
+            .filter(s -> s.getTag("session_id") == null)
+            .findFirst()
+            .orElse(null);
+    assertNotNull(globalAppSpan, "Overflow session must fall back to the global application span");
   }
 
   @Test

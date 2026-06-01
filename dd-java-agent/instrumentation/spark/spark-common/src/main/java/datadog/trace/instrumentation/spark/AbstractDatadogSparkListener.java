@@ -87,7 +87,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   public static volatile boolean finishTraceOnApplicationEnd = true;
   public static volatile boolean isPysparkShell = false;
 
-  private int MAX_COLLECTION_SIZE = 5000;
+  private static final int MAX_COLLECTION_SIZE = 5000;
+
+  /** Overridable in tests to exercise collection-cap behaviour without filling 5000 entries. */
+  protected int maxCollectionSize() {
+    return MAX_COLLECTION_SIZE;
+  }
+
   private final int MAX_ACCUMULATOR_SIZE = 50000;
   private final String RUNTIME_TAGS_PREFIX = "spark.datadog.tags.";
   private static final String AGENT_OL_ENDPOINT = "openlineage/api/v1/lineage";
@@ -545,7 +551,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return span;
     }
 
-    if (perSessionApplicationSpans.size() >= MAX_COLLECTION_SIZE) {
+    if (perSessionApplicationSpans.size() >= maxCollectionSize()) {
       // Cap exceeded: fall back to the global application span so this session's children
       // are still parented and the started span is never orphaned.
       initApplicationSpanIfNotInitialized();
@@ -613,7 +619,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   @Override
   public synchronized void onJobStart(SparkListenerJobStart jobStart) {
     jobCount++;
-    if (jobSpans.size() > MAX_COLLECTION_SIZE) {
+    if (jobSpans.size() > maxCollectionSize()) {
       return;
     }
 
@@ -670,7 +676,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     for (int stageId : getSparkJobStageIds(jobStart)) {
       stageToJob.put(stageId, jobStart.jobId());
     }
-    if (connectSessionId != null && jobToSessionId.size() < MAX_COLLECTION_SIZE) {
+    // If the cap is reached the put is dropped; onJobEnd then recovers connectSessionId as null,
+    // so a failure on that job is attributed to the global lastJobFailed instead of the session.
+    // This requires >maxCollectionSize() in-flight Connect jobs concurrently, which is unlikely.
+    if (connectSessionId != null && jobToSessionId.size() < maxCollectionSize()) {
       jobToSessionId.put(jobStart.jobId(), connectSessionId);
     }
     jobSpans.put(jobStart.jobId(), jobSpan);
@@ -730,7 +739,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   @Override
   public synchronized void onStageSubmitted(SparkListenerStageSubmitted stageSubmitted) {
-    if (stageSpans.size() > MAX_COLLECTION_SIZE) {
+    if (stageSpans.size() > maxCollectionSize()) {
       return;
     }
 
@@ -968,7 +977,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     currentExecutorCount += 1;
     maxExecutorCount = Math.max(maxExecutorCount, currentExecutorCount);
 
-    if (liveExecutors.size() <= MAX_COLLECTION_SIZE) {
+    if (liveExecutors.size() <= maxCollectionSize()) {
       liveExecutors.put(executorAdded.executorId(), executorAdded);
     }
   }
@@ -1089,7 +1098,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private synchronized void onStreamingQueryStartedEvent(
       StreamingQueryListener.QueryStartedEvent event) {
-    if (streamingQueries.size() > MAX_COLLECTION_SIZE) {
+    if (streamingQueries.size() > maxCollectionSize()) {
       return;
     }
 
