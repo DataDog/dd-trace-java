@@ -8,6 +8,7 @@ import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
 import datadog.environment.SystemProperties;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import datadog.trace.util.Strings;
 import java.io.BufferedReader;
@@ -25,12 +26,12 @@ public final class CrashUploaderScriptInitializer {
 
   private CrashUploaderScriptInitializer() {}
 
-  // @VisibleForTests
+  @VisibleForTesting
   static void initialize(String onErrorVal, String onErrorFile) {
     initialize(onErrorVal, onErrorFile, null);
   }
 
-  // @VisibleForTests
+  @VisibleForTesting
   static void initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(

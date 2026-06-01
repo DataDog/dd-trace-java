@@ -7,13 +7,16 @@ import org.gradle.api.file.FileTree
 import org.gradle.api.file.RegularFile
 import org.gradle.api.model.ObjectFactory
 import org.gradle.api.provider.ListProperty
+import org.gradle.api.provider.MapProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.Provider
 import org.gradle.api.tasks.IgnoreEmptyDirectories
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -37,6 +40,7 @@ import javax.inject.Inject
  * `-P<propertyName>=<absolute-path>` and tracked as a task input so the nested build re-runs
  * when the upstream jar changes.
  */
+@CacheableTask
 abstract class NestedGradleBuild @Inject constructor(
   private val objects: ObjectFactory,
   javaToolchains: JavaToolchainService,
@@ -44,11 +48,15 @@ abstract class NestedGradleBuild @Inject constructor(
 
   init {
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
       },
     )
+    buildCacheEnabled.convention(false)
   }
 
   @get:Internal
@@ -65,6 +73,14 @@ abstract class NestedGradleBuild @Inject constructor(
   @get:Input
   abstract val gradleVersion: Property<String>
 
+  /**
+   * Optional base URL for Gradle distribution downloads. CI sets this to MASS so nested builds
+   * download through the pull-through cache instead of directly from services.gradle.org.
+   */
+  @get:Input
+  @get:Optional
+  abstract val gradleDistributionBaseUrl: Property<String>
+
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
 
@@ -73,6 +89,26 @@ abstract class NestedGradleBuild @Inject constructor(
 
   @get:Input
   abstract val buildArguments: ListProperty<String>
+
+  /**
+   * Whether to enable the build cache in the nested Gradle invocation.
+   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
+   * init, gradle user home, environment, command line) and any of them silently 
+   * enables the build cache for nested builds. For this reasons it defaults to `false`.
+   * Opt in only when the inner plugin chain keys its cached outputs on everything that
+   * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
+   * `--build-cache` / `--no-build-cache` is passed explicitly either way.
+   */
+  @get:Input
+  abstract val buildCacheEnabled: Property<Boolean>
+
+  /**
+   * Extra environment variables for the nested Gradle daemon. Merged on top of the outer
+   * process environment — set a key to override an inherited value. The nested build script
+   * sees these via `System.getenv()` like any normal environment variable.
+   */
+  @get:Input
+  abstract val environment: MapProperty<String, String>
 
   @get:Nested
   abstract val projectJars: ListProperty<NestedBuildProjectJar>
@@ -104,6 +140,7 @@ abstract class NestedGradleBuild @Inject constructor(
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
 
     val args = buildList {
+      add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
       projectJars.get().forEach { entry ->
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
@@ -112,14 +149,28 @@ abstract class NestedGradleBuild @Inject constructor(
     }
 
     val connector = GradleConnector.newConnector()
-      .useGradleVersion(gradleVersion.get())
       .forProjectDirectory(appDir)
+      .apply {
+        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
+        if (distributionBaseUrl.isNullOrBlank()) {
+          useGradleVersion(gradleVersion.get())
+        } else {
+          useDistribution(
+            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
+          )
+        }
+      }
+
+    val extraEnv = environment.get()
+    val mergedEnv: Map<String, String>? =
+      if (extraEnv.isEmpty()) null else System.getenv() + extraEnv
 
     connector.connect().use { connection ->
       connection.newBuild()
         .forTasks(*tasksToRun.get().toTypedArray())
         .withArguments(args)
         .setJavaHome(daemonJavaHome)
+        .apply { if (mergedEnv != null) setEnvironmentVariables(mergedEnv) }
         .setStandardOutput(System.out)
         .setStandardError(System.err)
         .run()

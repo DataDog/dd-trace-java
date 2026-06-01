@@ -380,8 +380,10 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
         changed_by_file.setdefault(relative_path, []).append(gav)
 
     timestamp_cache: dict[str, tuple[datetime | None, str | None]] = {}
-    replacements_by_file: dict[str, dict[str, str]] = {}
-    violations_by_file: dict[str, list[tuple[str, str]]] = {}
+    # replacement value: (new_gav, hours_remaining)
+    replacements_by_file: dict[str, dict[str, tuple[str, int]]] = {}
+    # violation value: (gav, kind, hours_remaining or 0)
+    violations_by_file: dict[str, list[tuple[str, str, int]]] = {}
     for relative_path, gavs in sorted(changed_by_file.items()):
         baseline_coords = baseline_lockfiles.get(relative_path, set())
         for gav in gavs:
@@ -389,8 +391,9 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 timestamp_cache[gav] = resolve_gav_timestamp(gav=gav, metadata=metadata, repo_urls=repo_urls)
             published_at, reason = timestamp_cache[gav]
             if published_at is None:
-                violations_by_file.setdefault(relative_path, []).append((gav, "unverified"))
+                violations_by_file.setdefault(relative_path, []).append((gav, "unverified", 0))
             elif published_at > cutoff:
+                hours_remaining = int((published_at - cutoff).total_seconds() / 3600) + 1
                 group_id, artifact_id, version = gav.split(":", 2)
                 baseline_version = next((c[len(f"{group_id}:{artifact_id}:"):] for c in baseline_coords if c.startswith(f"{group_id}:{artifact_id}:")), None)
                 eligible = find_eligible_version(
@@ -400,24 +403,32 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 )
                 if eligible:
                     replacement_gav = f"{group_id}:{artifact_id}:{eligible[0]}"
-                    replacements_by_file.setdefault(relative_path, {})[gav] = replacement_gav
+                    replacements_by_file.setdefault(relative_path, {})[gav] = (replacement_gav, hours_remaining)
                     print(f"Latest version {gav} did not meet 48h cooldown requirement, updating to {replacement_gav} instead.")
                 else:
-                    violations_by_file.setdefault(relative_path, []).append((gav, "too_new"))
+                    violations_by_file.setdefault(relative_path, []).append((gav, "too_new", hours_remaining))
             else:
                 print(f"Verified {gav} (published {format_datetime(published_at)}, cutoff {format_datetime(cutoff)})")
 
     if replacements_by_file:
-        apply_lockfile_replacements(replacements_by_file=replacements_by_file, current_dir=current_dir)
+        # build the gav->gav map for apply_lockfile_replacements, skipping no-op downgrades
+        effective_replacements: dict[str, dict[str, str]] = {}
+        for relative_path, replacements in replacements_by_file.items():
+            baseline_coords = baseline_lockfiles.get(relative_path, set())
+            for old_gav, (new_gav, _) in replacements.items():
+                if new_gav not in baseline_coords:
+                    effective_replacements.setdefault(relative_path, {})[old_gav] = new_gav
+        if effective_replacements:
+            apply_lockfile_replacements(replacements_by_file=effective_replacements, current_dir=current_dir)
 
     if violations_by_file:
-        revert_lockfiles_to_baseline(violations_by_file=violations_by_file, baseline_dir=baseline_dir, current_dir=current_dir)
+        revert_lockfiles_to_baseline(lockfile_paths=list(violations_by_file.keys()), baseline_dir=baseline_dir, current_dir=current_dir)
         for relative_path, entries in sorted(violations_by_file.items()):
-            for gav, kind in entries:
+            for gav, kind, _ in entries:
                 print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == 'unverified' else 'Too new'}. Reverted lockfile to baseline.")
 
     reverted_files = len(violations_by_file)
-    summary = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, min_age_hours=args.min_age_hours)
+    summary = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours)
     emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": reverted_files, "summary": summary}, args.github_output)
     print(f"Validated {len(changed)} changed coordinate(s) across {len(changed_by_file)} lockfile(s). {reverted_files} lockfile(s) reverted.")
     return 0
@@ -426,25 +437,33 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
 # build summary of reverted/downgraded dependencies for PR descriptions
 def build_validation_summary(
     *,
-    violations_by_file: dict[str, list[tuple[str, str]]],
-    replacements_by_file: dict[str, dict[str, str]],
+    violations_by_file: dict[str, list[tuple[str, str, int]]],
+    replacements_by_file: dict[str, dict[str, tuple[str, int]]],
+    baseline_lockfiles: dict[str, set[str]],
     min_age_hours: int,
 ) -> str:
     if not violations_by_file and not replacements_by_file:
         return ""
     lines = [f"## Dependency age policy", ""]
     seen: set[str] = set()
-    for replacements in replacements_by_file.values():
-        for old_gav, new_gav in replacements.items():
+    for relative_path, replacements in replacements_by_file.items():
+        baseline_coords = baseline_lockfiles.get(relative_path, set())
+        for old_gav, (new_gav, hours_remaining) in replacements.items():
             if old_gav not in seen:
                 seen.add(old_gav)
-                lines.append(f"- `{old_gav}` -> `{new_gav}` (downgraded to meet {min_age_hours}h cooldown)")
+                if new_gav in baseline_coords:
+                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
+                else:
+                    new_version = new_gav.rsplit(":", 1)[1]
+                    lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_version}`")
     for entries in violations_by_file.values():
-        for gav, kind in entries:
+        for gav, kind, hours_remaining in entries:
             if gav not in seen:
                 seen.add(gav)
-                reason = "Cannot verify age in Maven Central" if kind == "unverified" else f"Did not meet {min_age_hours}h dependency age requirement"
-                lines.append(f"- `{gav}` — {reason} (reverted)")
+                if kind == "unverified":
+                    lines.append(f"- `{gav}` — cannot verify age, reverted")
+                else:
+                    lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
     return "\n".join(lines)
 
 
@@ -473,11 +492,11 @@ def apply_lockfile_replacements(
 # restore each violating lockfile to its baseline copy to keep the file consistent
 def revert_lockfiles_to_baseline(
     *,
-    violations_by_file: dict[str, list[tuple[str, str]]],
+    lockfile_paths: list[str],
     baseline_dir: Path,
     current_dir: Path,
 ) -> None:
-    for relative_path in sorted(violations_by_file):
+    for relative_path in sorted(lockfile_paths):
         current_path = current_dir / relative_path
         baseline_path = baseline_dir / relative_path
         if baseline_path.exists():

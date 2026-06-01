@@ -19,6 +19,7 @@ import datadog.trace.api.TraceConfig;
 import datadog.trace.api.debugger.DebuggerConfigBridge;
 import datadog.trace.api.gateway.Flow;
 import datadog.trace.api.gateway.RequestContext;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.metrics.SpanMetricRegistry;
 import datadog.trace.api.metrics.SpanMetrics;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -125,7 +126,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
    * @param timestampMicro if greater than zero, use this time instead of the current time
    * @param context the context used for the span
    */
-  // @VisibleForTesting
+  @VisibleForTesting
   DDSpan(
       @Nonnull String instrumentationName,
       final long timestampMicro,
@@ -681,7 +682,7 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
     return durationNano;
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void setDurationNano(long duration) {
     DURATION_NANO_UPDATER.set(this, duration);
   }

@@ -71,7 +71,6 @@ public abstract class CiVisibilitySmokeTest {
 
   private static Map<String, String> defaultJvmArguments() {
     Map<String, String> argMap = new HashMap<>();
-    argMap.put(GeneralConfig.TRACE_DEBUG, "true");
     argMap.put(GeneralConfig.ENV, TEST_ENVIRONMENT_NAME);
     argMap.put(CiVisibilityConfig.CIVISIBILITY_ENABLED, "true");
     argMap.put(CiVisibilityConfig.CIVISIBILITY_AGENTLESS_ENABLED, "true");
@@ -101,7 +100,7 @@ public abstract class CiVisibilitySmokeTest {
 
   protected List<String> buildJvmArguments(
       String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
-    List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx256m"));
+    List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
 
     arguments.add(preventJulPrefsFileLock());
 
@@ -116,6 +115,13 @@ public abstract class CiVisibilitySmokeTest {
     }
     if (System.getProperty("datadog.civisibility.smoketest.debug.child") != null) {
       argMap.put(CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT, "5055");
+    }
+
+    // CI-Vis smoke tests produce a lot of logs in debug mode, so it is disabled by default.
+    // Note: GitLab capacity for job logs at 32 MB and truncates the rest, which can fail the job.
+    // Enable full debug via `-Ddatadog.civisibility.smoketest.debug.enabled=true`.
+    if (System.getProperty("datadog.civisibility.smoketest.debug.enabled") != null) {
+      argMap.put(GeneralConfig.TRACE_DEBUG, "true");
     }
 
     String agentArgs =

@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import datadog.environment.SystemProperties;
 import datadog.trace.api.config.ProfilingConfig;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.ProfilerFlareLogger;
 import datadog.trace.api.time.SystemTimeSource;
 import datadog.trace.api.time.TimeSource;
@@ -307,7 +308,7 @@ public final class TempLocationManager {
     createTempDir(tempDir);
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   static String getBaseTempDirName() {
     String userName = SystemProperties.get("user.name");
     // unlikely, but fall-back to system env based user name
@@ -399,7 +400,7 @@ public final class TempLocationManager {
     return false;
   }
 
-  // accessible for tests
+  @VisibleForTesting
   boolean waitForCleanup(long timeout, TimeUnit unit) {
     try {
       return cleanupTask.await(timeout, unit);
@@ -416,7 +417,7 @@ public final class TempLocationManager {
     return false;
   }
 
-  // accessible for tests
+  @VisibleForTesting
   void createDirStructure() throws IOException {
     Files.createDirectories(baseTempDir);
   }
