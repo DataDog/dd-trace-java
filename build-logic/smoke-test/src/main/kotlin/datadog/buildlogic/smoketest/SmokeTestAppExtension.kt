@@ -41,6 +41,12 @@ abstract class SmokeTestAppExtension @Inject constructor(
   abstract val gradleVersion: Property<String>
 
   /**
+   * Optional base URL for Gradle distribution downloads. Defaults to the CI-provided MASS read
+   * URL when present, so Tooling API downloads go through the pull-through cache.
+   */
+  abstract val gradleDistributionBaseUrl: Property<String>
+
+  /**
    * JDK used by the nested daemon. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
    * override to pin a different JDK if the nested application's plugin chain requires it.
    * The inner build script is responsible for pinning the produced bytecode level (e.g.
@@ -63,6 +69,9 @@ abstract class SmokeTestAppExtension @Inject constructor(
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -94,9 +103,12 @@ abstract class SmokeTestAppExtension @Inject constructor(
         applicationDir.set(this@SmokeTestAppExtension.applicationDir)
         applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
         gradleVersion.set(this@SmokeTestAppExtension.gradleVersion)
+        gradleDistributionBaseUrl.set(this@SmokeTestAppExtension.gradleDistributionBaseUrl)
         javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
+        environment.set(spec.environment)
+        buildCacheEnabled.set(spec.buildCacheEnabled)
         projectJars.set(this@SmokeTestAppExtension.projectJars)
       }
 
@@ -117,16 +129,36 @@ abstract class SmokeTestAppExtension @Inject constructor(
    * lazily — no `evaluationDependsOn` is needed.
    */
   fun projectJar(propertyName: String, sourceProject: Project) {
+    val cfg = createExtraJarConfiguration(propertyName)
+    project.dependencies.add(cfg.name, sourceProject)
+    addProjectJarFromConfiguration(propertyName, cfg)
+  }
+
+  /**
+   * Forward a non-default artifact configuration from [sourceProject]. Use this when the
+   * upstream project exposes its build output under a configuration other than the default
+   * (e.g. `shadowJar`).
+   */
+  fun projectJar(propertyName: String, sourceProject: Project, configuration: String) {
+    val cfg = createExtraJarConfiguration(propertyName)
+    project.dependencies.add(
+      cfg.name,
+      project.dependencies.project(
+        mapOf("path" to sourceProject.path, "configuration" to configuration),
+      ),
+    )
+    addProjectJarFromConfiguration(propertyName, cfg)
+  }
+
+  private fun createExtraJarConfiguration(propertyName: String): Configuration {
     val configurationName = "smokeTestAppExtraJar" +
       propertyName.replaceFirstChar { it.titlecase(Locale.ROOT) }
-    val cfg = project.configurations.maybeCreate(configurationName).apply {
+    return project.configurations.maybeCreate(configurationName).apply {
       isCanBeConsumed = false
       isCanBeResolved = true
       isTransitive = false
       description = "Jar artifact forwarded as -P$propertyName into the smoke-test nested build"
     }
-    project.dependencies.add(configurationName, sourceProject)
-    addProjectJarFromConfiguration(propertyName, cfg)
   }
 
   /**
@@ -161,6 +193,11 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
 /** DSL describing the nested-build invocation for one smoke-test application. */
 abstract class ApplicationSpec @Inject constructor() {
+
+  init {
+    buildCacheEnabled.convention(false)
+  }
+
   /** Outer task name; the nested daemon runs the same task by default. */
   abstract val taskName: Property<String>
 
@@ -177,11 +214,29 @@ abstract class ApplicationSpec @Inject constructor() {
   abstract val buildArguments: ListProperty<String>
 
   /**
+   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the
+   * outer process environment — entries here override any inherited values with the same key.
+   * Use this for nested tooling that reads `JAVA_HOME`, `GRAALVM_HOME`, etc. from the env.
+   */
+  abstract val environment: MapProperty<String, String>
+
+  /**
    * Additional system properties to forward to every `Test` task, keyed by property name with
    * values resolved against `applicationBuildDir`. Use this for smoke tests that need more
    * than the single primary artifact path (e.g. a separately unpacked server install).
    */
   abstract val additionalSystemProperties: MapProperty<String, String>
+
+  /**
+   * Whether to enable the build cache in the nested Gradle invocation. 
+   * Gradle's org.gradle.caching flag is resolved from many sources (project, 
+   * init, gradle user home, environment, command line) and any of them silently 
+   * enables the build cache for nested builds. For this reasons it defaults to `false`.
+   * Opt in only when the inner plugin chain keys its cached outputs on everything that
+   * varies between runs (e.g. Quarkus's native-image does not track `GRAALVM_HOME`).
+   * `--build-cache` / `--no-build-cache` is passed explicitly either way.
+   */
+  abstract val buildCacheEnabled: Property<Boolean>
 }
 
 /**

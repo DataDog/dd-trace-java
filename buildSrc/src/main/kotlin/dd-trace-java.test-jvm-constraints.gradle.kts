@@ -3,6 +3,8 @@ import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension
 import datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsExtension.Companion.TEST_JVM_CONSTRAINTS
 import datadog.gradle.plugin.testJvmConstraints.TestJvmSpec
 import datadog.gradle.plugin.testJvmConstraints.isJavaVersionAllowed
+import datadog.gradle.plugin.testJvmConstraints.isNativeImageCapableDaemon
+import datadog.gradle.plugin.testJvmConstraints.isNativeImageCapableTestJvm
 import datadog.gradle.plugin.testJvmConstraints.isTestJvmAllowed
 
 plugins {
@@ -30,6 +32,7 @@ tasks.withType<Test>().configureEach {
   inputs.property("$TEST_JVM_CONSTRAINTS.forceJdk", taskExtension.forceJdk)
   inputs.property("$TEST_JVM_CONSTRAINTS.minJavaVersion", taskExtension.minJavaVersion).optional(true)
   inputs.property("$TEST_JVM_CONSTRAINTS.maxJavaVersion", taskExtension.maxJavaVersion).optional(true)
+  inputs.property("$TEST_JVM_CONSTRAINTS.nativeImageCapable", taskExtension.nativeImageCapable).optional(true)
 
   extensions.add(TEST_JVM_CONSTRAINTS, taskExtension)
 
@@ -61,12 +64,18 @@ fun Test.conditionalJvmArgs(
 private fun Test.configureTestJvm(extension: TestJvmConstraintsExtension) {
   if (testJvmSpec.javaTestLauncher.isPresent) {
     javaLauncher = testJvmSpec.javaTestLauncher
-    onlyIf("Allowed or forced JDK") {
+    onlyIf("Test JDK is allowed or forced JDK") {
       extension.isTestJvmAllowed(testJvmSpec)
     }
+    onlyIf("Test JDK is native-image capable") {
+      extension.isNativeImageCapableTestJvm(testJvmSpec.javaTestLauncher.get())
+    }
   } else {
-    onlyIf("Is current Daemon JVM  allowed") {
+    onlyIf("Current Daemon JVM within allowed version range") {
       extension.isJavaVersionAllowed(JavaVersion.current())
+    }
+    onlyIf("Current Daemon JVM is native-image capable") {
+      extension.isNativeImageCapableDaemon()
     }
   }
 
@@ -125,4 +134,5 @@ private fun Test.configureConventions(
   taskExtension.allowReflectiveAccessToJdk.convention(projectExtension.allowReflectiveAccessToJdk
     .orElse(providers.provider { project.findProperty("allowReflectiveAccessToJdk") as? Boolean })
   )
+  taskExtension.nativeImageCapable.convention(projectExtension.nativeImageCapable)
 }

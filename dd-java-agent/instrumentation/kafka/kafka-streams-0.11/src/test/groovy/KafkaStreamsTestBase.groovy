@@ -10,7 +10,6 @@ import org.apache.kafka.streams.StreamsConfig
 import org.apache.kafka.streams.kstream.KStream
 import org.apache.kafka.streams.kstream.KStreamBuilder
 import org.apache.kafka.streams.kstream.ValueMapper
-import org.junit.ClassRule
 import org.springframework.kafka.core.DefaultKafkaConsumerFactory
 import org.springframework.kafka.core.DefaultKafkaProducerFactory
 import org.springframework.kafka.core.KafkaTemplate
@@ -31,8 +30,16 @@ abstract class KafkaStreamsTestBase extends VersionedNamingTestBase {
   static final STREAM_PROCESSED = "test.processed"
 
   @Shared
-  @ClassRule
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
+  protected KafkaEmbedded embeddedKafka
+
+  def setupSpec() {
+    embeddedKafka = new KafkaEmbedded(1, true, 1, STREAM_PENDING, STREAM_PROCESSED)
+    embeddedKafka.before()
+  }
+
+  def cleanupSpec() {
+    embeddedKafka?.after()
+  }
 
   abstract boolean hasQueueSpan()
 

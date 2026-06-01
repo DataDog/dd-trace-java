@@ -24,6 +24,7 @@ import datadog.crashtracking.dto.OSInfo;
 import datadog.environment.SystemProperties;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.util.AgentThreadFactory;
 import datadog.trace.util.PidHelper;
@@ -187,7 +188,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void sendPingToTelemetry(String error) {
     // send a ping message to the telemetry to notify that the crash report started
     try (Buffer buf = new Buffer();
@@ -207,7 +208,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void sendPingToErrorTracking(String error) {
     try {
       final CrashLog ping =
@@ -253,7 +254,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   void remoteUpload(
       @Nonnull String fileContent, boolean sendToTelemetry, boolean sendToErrorTracking) {
     final String uuid = storedConfig.reportUUID;
@@ -316,7 +317,7 @@ public final class CrashUploader {
     }
   }
 
-  // @VisibleForTesting
+  @VisibleForTesting
   @SuppressForbidden
   static String extractErrorKind(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
@@ -348,7 +349,7 @@ public final class CrashUploader {
               "$"),
           Pattern.DOTALL | Pattern.MULTILINE);
 
-  // @VisibleForTesting
+  @VisibleForTesting
   @SuppressForbidden
   static String extractErrorMessage(String fileContent) {
     Matcher matcher = ERROR_MESSAGE_PATTERN.matcher(fileContent);
