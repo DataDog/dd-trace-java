@@ -10923,9 +10923,9 @@
     ],
     "DD_TRACE_TRACER_METRICS_MAX_PENDING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],
