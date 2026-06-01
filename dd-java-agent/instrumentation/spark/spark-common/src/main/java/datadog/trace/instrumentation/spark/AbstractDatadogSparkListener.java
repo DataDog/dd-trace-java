@@ -539,8 +539,16 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return span;
     }
 
+    if (perSessionApplicationSpans.size() >= MAX_COLLECTION_SIZE) {
+      // Cap exceeded: fall back to the global application span so this session's children
+      // are still parented and the started span is never orphaned.
+      initApplicationSpanIfNotInitialized();
+      return applicationSpan;
+    }
+
     AgentTracer.SpanBuilder builder =
         buildSparkSpan("spark.application", jobProperties)
+            // 1µs before first child so this span sorts strictly before its children.
             .withStartTimestamp(timeMs * 1000 - 1)
             .withTag("session_id", sessionId)
             .withTag("spark.connect.server", true);
@@ -571,10 +579,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     sessionAppSpan.setMeasured(true);
     setDataJobsSamplingPriority(sessionAppSpan);
 
-    if (perSessionApplicationSpans.size() < MAX_COLLECTION_SIZE) {
-      perSessionApplicationSpans.put(sessionId, sessionAppSpan);
-      perSessionApplicationMetrics.put(sessionId, new SparkAggregatedTaskMetrics());
-    }
+    perSessionApplicationSpans.put(sessionId, sessionAppSpan);
+    perSessionApplicationMetrics.put(sessionId, new SparkAggregatedTaskMetrics());
     return sessionAppSpan;
   }
 
@@ -589,7 +595,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     for (String tag : jobTags.split(",")) {
       tag = tag.trim();
       if (tag.startsWith("spark-connect-session-")) {
-        return tag.substring("spark-connect-session-".length());
+        String id = tag.substring("spark-connect-session-".length());
+        if (!id.isEmpty()) {
+          return id;
+        }
       }
     }
     return null;
@@ -685,7 +694,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       // Only propagate the error to the application if it is not a cancellation
       if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
-        if (connectSessionId != null) {
+        if (connectSessionId != null && perSessionApplicationSpans.containsKey(connectSessionId)) {
           perSessionLastJobFailed.put(connectSessionId, true);
           perSessionLastJobFailedMessage.put(connectSessionId, errorMessage);
           perSessionLastJobFailedStackTrace.put(connectSessionId, errorStackTrace);
@@ -696,12 +705,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
         }
       }
     } else {
-      if (connectSessionId != null) {
+      if (connectSessionId != null && perSessionApplicationSpans.containsKey(connectSessionId)) {
         perSessionLastJobFailed.put(connectSessionId, false);
       } else {
         lastJobFailed = false;
+        lastSqlFailed = false;
       }
-      lastSqlFailed = false;
     }
 
     SparkAggregatedTaskMetrics metrics = jobMetrics.remove(jobEnd.jobId());
