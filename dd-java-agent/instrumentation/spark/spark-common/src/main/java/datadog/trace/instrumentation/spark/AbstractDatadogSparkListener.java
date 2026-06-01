@@ -115,6 +115,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
   private final HashMap<Integer, Integer> stageToJob = new HashMap<>();
   private final HashMap<Long, Properties> stageProperties = new HashMap<>();
+  private final HashMap<Integer, String> jobToSessionId = new HashMap<>();
 
   private final SparkAggregatedTaskMetrics applicationMetrics = new SparkAggregatedTaskMetrics();
   private final HashMap<String, SparkAggregatedTaskMetrics> streamingBatchMetrics = new HashMap<>();
@@ -127,6 +128,12 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
   private final HashMap<Long, SparkListenerSQLExecutionStart> sqlQueries = new HashMap<>();
   protected final HashMap<Long, SparkPlanInfo> sqlPlans = new HashMap<>();
   private final HashMap<String, SparkListenerExecutorAdded> liveExecutors = new HashMap<>();
+  private final HashMap<String, AgentSpan> perSessionApplicationSpans = new HashMap<>();
+  private final HashMap<String, SparkAggregatedTaskMetrics> perSessionApplicationMetrics =
+      new HashMap<>();
+  private final HashMap<String, Boolean> perSessionLastJobFailed = new HashMap<>();
+  private final HashMap<String, String> perSessionLastJobFailedMessage = new HashMap<>();
+  private final HashMap<String, String> perSessionLastJobFailedStackTrace = new HashMap<>();
 
   private final Map<Long, Integer> accumulatorToStageID = new HashMap<>();
 
@@ -361,6 +368,33 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     applicationEnded = true;
 
+    // Finish per-session application spans before the guard below, because a pure Connect server
+    // has applicationSpan == null with jobCount > 0, which would cause the guard to return early
+    // and skip finishing the per-session spans entirely.
+    for (Map.Entry<String, AgentSpan> entry : perSessionApplicationSpans.entrySet()) {
+      String sessionId = entry.getKey();
+      AgentSpan sessionAppSpan = entry.getValue();
+
+      if (Boolean.TRUE.equals(perSessionLastJobFailed.get(sessionId))) {
+        sessionAppSpan.setError(true);
+        sessionAppSpan.setTag(DDTags.ERROR_TYPE, "Spark Application Failed");
+        sessionAppSpan.setTag(DDTags.ERROR_MSG, perSessionLastJobFailedMessage.get(sessionId));
+        sessionAppSpan.setTag(DDTags.ERROR_STACK, perSessionLastJobFailedStackTrace.get(sessionId));
+      }
+
+      SparkAggregatedTaskMetrics sessionMetrics = perSessionApplicationMetrics.get(sessionId);
+      if (sessionMetrics != null) {
+        sessionMetrics.setSpanMetrics(sessionAppSpan);
+      }
+
+      sessionAppSpan.finish(time * 1000);
+    }
+    perSessionApplicationSpans.clear();
+    perSessionApplicationMetrics.clear();
+    perSessionLastJobFailed.clear();
+    perSessionLastJobFailedMessage.clear();
+    perSessionLastJobFailedStackTrace.clear();
+
     if ((applicationSpan == null && jobCount > 0) || isRunningOnDatabricks) {
       // If the application span is not initialized, but spark jobs have been executed, all those
       // spark jobs were databricks or streaming. In this case we don't send the application span
@@ -466,6 +500,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       return null;
     }
 
+    String connectSessionId = getSparkConnectSessionId(jobProperties);
+
     AgentTracer.SpanBuilder spanBuilder =
         buildSparkSpan("spark.sql", jobProperties)
             .withStartTimestamp(queryStart.time() * 1000)
@@ -479,6 +515,10 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpan batchSpan =
           getOrCreateStreamingBatchSpan(batchKey, queryStart.time(), jobProperties);
       spanBuilder.asChildOf(batchSpan.context());
+    } else if (connectSessionId != null) {
+      AgentSpan sessionAppSpan =
+          getOrCreatePerSessionApplicationSpan(connectSessionId, queryStart.time(), jobProperties);
+      spanBuilder.asChildOf(sessionAppSpan.context());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(spanBuilder, jobProperties, true);
     } else {
@@ -490,6 +530,69 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     setDataJobsSamplingPriority(sqlSpan);
     sqlSpans.put(sqlExecutionId, sqlSpan);
     return sqlSpan;
+  }
+
+  private AgentSpan getOrCreatePerSessionApplicationSpan(
+      String sessionId, long timeMs, Properties jobProperties) {
+    AgentSpan span = perSessionApplicationSpans.get(sessionId);
+    if (span != null) {
+      return span;
+    }
+
+    AgentTracer.SpanBuilder builder =
+        buildSparkSpan("spark.application", jobProperties)
+            .withStartTimestamp(timeMs * 1000 - 1)
+            .withTag("session_id", sessionId)
+            .withTag("spark.connect.server", true);
+
+    if (applicationStart != null) {
+      String ddTags =
+          Config.get().getGlobalTags().entrySet().stream()
+              .sorted(Map.Entry.comparingByKey())
+              .map(e -> e.getKey() + ":" + e.getValue())
+              .collect(Collectors.joining(","));
+
+      builder
+          .withTag("application_name", applicationStart.appName())
+          .withTag("djm.tags", ddTags)
+          .withTag("spark_user", applicationStart.sparkUser());
+
+      applicationStart.appAttemptId().foreach(id -> builder.withTag("app_attempt_id", id));
+    }
+
+    captureApplicationParameters(builder);
+    captureEmrStepId(builder);
+    captureOpenlineageJobInfo(builder);
+
+    // captureOpenlineageContextIfPresent and predeterminedTraceIdContext are intentionally NOT
+    // applied — per-session spans must be independent trace roots.
+
+    AgentSpan sessionAppSpan = builder.start();
+    sessionAppSpan.setMeasured(true);
+    setDataJobsSamplingPriority(sessionAppSpan);
+
+    if (perSessionApplicationSpans.size() < MAX_COLLECTION_SIZE) {
+      perSessionApplicationSpans.put(sessionId, sessionAppSpan);
+      perSessionApplicationMetrics.put(sessionId, new SparkAggregatedTaskMetrics());
+    }
+    return sessionAppSpan;
+  }
+
+  private static String getSparkConnectSessionId(Properties properties) {
+    if (properties == null) {
+      return null;
+    }
+    String jobTags = properties.getProperty("spark.jobTags");
+    if (jobTags == null) {
+      return null;
+    }
+    for (String tag : jobTags.split(",")) {
+      tag = tag.trim();
+      if (tag.startsWith("spark-connect-session-")) {
+        return tag.substring("spark-connect-session-".length());
+      }
+    }
+    return null;
   }
 
   @Override
@@ -507,6 +610,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     String batchKey = getStreamingBatchKey(jobStart.properties());
     Long sqlExecutionId = getSqlExecutionId(jobStart.properties());
+    String connectSessionId = getSparkConnectSessionId(jobStart.properties());
     AgentSpan sqlSpan = null;
 
     if (sqlExecutionId != null) {
@@ -531,6 +635,11 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       jobSpanBuilder.asChildOf(batchSpan.context());
     } else if (isRunningOnDatabricks) {
       addDatabricksSpecificTags(jobSpanBuilder, jobStart.properties(), true);
+    } else if (connectSessionId != null) {
+      AgentSpan sessionAppSpan =
+          getOrCreatePerSessionApplicationSpan(
+              connectSessionId, jobStart.time(), jobStart.properties());
+      jobSpanBuilder.asChildOf(sessionAppSpan.context());
     } else {
       // In non-databricks, non-streaming env, the spark application is the local root span
       initApplicationSpanIfNotInitialized();
@@ -546,6 +655,9 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     for (int stageId : getSparkJobStageIds(jobStart)) {
       stageToJob.put(stageId, jobStart.jobId());
     }
+    if (connectSessionId != null) {
+      jobToSessionId.put(jobStart.jobId(), connectSessionId);
+    }
     jobSpans.put(jobStart.jobId(), jobSpan);
     notifyOl(x -> openLineageSparkListener.onJobStart(x), jobStart);
   }
@@ -556,6 +668,8 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     if (jobSpan == null) {
       return;
     }
+
+    String connectSessionId = jobToSessionId.remove(jobEnd.jobId());
 
     if (jobEnd.jobResult() instanceof JobFailed) {
       JobFailed jobFailed = (JobFailed) jobEnd.jobResult();
@@ -571,12 +685,22 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
       // Only propagate the error to the application if it is not a cancellation
       if (errorMessage != null && !errorMessage.toLowerCase().contains("cancelled")) {
-        lastJobFailed = true;
-        lastJobFailedMessage = errorMessage;
-        lastJobFailedStackTrace = errorStackTrace;
+        if (connectSessionId != null) {
+          perSessionLastJobFailed.put(connectSessionId, true);
+          perSessionLastJobFailedMessage.put(connectSessionId, errorMessage);
+          perSessionLastJobFailedStackTrace.put(connectSessionId, errorStackTrace);
+        } else {
+          lastJobFailed = true;
+          lastJobFailedMessage = errorMessage;
+          lastJobFailedStackTrace = errorStackTrace;
+        }
       }
     } else {
-      lastJobFailed = false;
+      if (connectSessionId != null) {
+        perSessionLastJobFailed.put(connectSessionId, false);
+      } else {
+        lastJobFailed = false;
+      }
       lastSqlFailed = false;
     }
 
@@ -683,12 +807,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
 
     Properties prop = stageProperties.remove(stageSpanKey);
     Long sqlExecutionId = getSqlExecutionId(prop);
+    String connectSessionId = getSparkConnectSessionId(prop);
 
     SparkAggregatedTaskMetrics stageMetric = stageMetrics.remove(stageSpanKey);
     if (stageMetric != null) {
       stageMetric.computeSkew();
       stageMetric.setSpanMetrics(span);
-      applicationMetrics.accumulateStageMetrics(stageMetric);
+      if (connectSessionId != null) {
+        SparkAggregatedTaskMetrics sessionMetrics =
+            perSessionApplicationMetrics.get(connectSessionId);
+        if (sessionMetrics != null) {
+          sessionMetrics.accumulateStageMetrics(stageMetric);
+        }
+      } else {
+        applicationMetrics.accumulateStageMetrics(stageMetric);
+      }
 
       jobMetrics
           .computeIfAbsent(jobId, k -> new SparkAggregatedTaskMetrics())
