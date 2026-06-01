@@ -2191,14 +2191,34 @@ public class Config {
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
-    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
+    // The metrics inbox is an MpscArrayQueue<SpanSnapshot>; each saturated slot holds one
+    // ~120 B SpanSnapshot. The historical default TRACER_METRICS_MAX_PENDING=2048 (logical) *
+    // LEGACY_BATCH_SIZE=64 = 131072 slots was sized for the prior conflating-Batch model where
+    // slot memory was only realized under burst; with one snapshot per slot, the worst-case
+    // in-flight footprint is ~15 MB. At Xmx <= ~128 MB the G1 survivor region is too small to
+    // absorb that footprint when the aggregator stalls -- observed catastrophically at Xmx64m
+    // petclinic where SpanSnapshots overflow young gen and trigger To-space Exhausted -> Full
+    // GC storms (0 r/s in the worst case).
+    //
+    // Cut the default accordingly:
+    //   - normal heap: 128 logical * 64 = 8192 slots, ~1 MB worst-case in-flight. ~0.8 s of
+    //     buffer at 10K spans/s, well above typical GC pause windows.
+    //   - tight heap (Xmx < 128 MB): 64 logical * 64 = 4096 slots, ~500 KB worst case.
+    //
+    // Customers who explicitly configured TRACER_METRICS_MAX_PENDING keep their value (the
+    // LEGACY_BATCH_SIZE multiplier still applies to it) -- only the implicit default shrinks.
+    final boolean tightHeap = Runtime.getRuntime().maxMemory() < 128L * 1024 * 1024;
+    final int defaultMaxAggregates = tightHeap ? 256 : 2048;
+    final int defaultMaxPending = tightHeap ? 64 : 128;
+
+    tracerMetricsMaxAggregates =
+        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
     /*
      * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
      * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
      * we multiply the configured value by the legacy batch size to preserve the effective
-     * span-throughput capacity of the prior default *and* of any existing customer override
-     * (e.g. a configured 4096 still means "~262144 spans before drops", same as before). ~100 B
-     * per SpanSnapshot * 131072 ≈ 13 MB worst-case heap floor at the default.
+     * span-throughput capacity for any existing customer override (e.g. a configured 4096 still
+     * means "~262144 spans before drops", same as before).
      *
      * Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
      * override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
@@ -2206,7 +2226,8 @@ public class Config {
      * see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
      */
     long requestedMaxPending =
-        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048) * LEGACY_BATCH_SIZE;
+        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
+            * LEGACY_BATCH_SIZE;
     tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
 
     reportHostName =
