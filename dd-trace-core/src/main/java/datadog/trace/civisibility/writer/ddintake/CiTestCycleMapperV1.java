@@ -3,7 +3,8 @@ package datadog.trace.civisibility.writer.ddintake;
 import static datadog.communication.http.OkHttpUtils.gzippedMsgpackRequestBodyOf;
 import static datadog.communication.http.OkHttpUtils.msgpackRequestBodyOf;
 import static datadog.json.JsonMapper.toJson;
-import static datadog.trace.common.writer.CiVisibilityMetaTruncation.truncate;
+import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH;
+import static datadog.trace.util.Strings.truncate;
 
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.Writable;
@@ -241,34 +242,34 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
     headerWriter.startMap(10);
     /* 2,1,1 */
     headerWriter.writeUTF8(ENV);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getEnv()));
+    headerWriter.writeUTF8(wellKnownTags.getEnv());
     /* 2,1,2 */
     headerWriter.writeUTF8(RUNTIME_ID);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getRuntimeId()));
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeId());
     /* 2,1,3 */
     headerWriter.writeUTF8(LANGUAGE);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getLanguage()));
+    headerWriter.writeUTF8(wellKnownTags.getLanguage());
     /* 2,1,4 */
     headerWriter.writeUTF8(RUNTIME_NAME);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getRuntimeName()));
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeName());
     /* 2,1,5 */
     headerWriter.writeUTF8(RUNTIME_VENDOR);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getRuntimeVendor()));
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeVendor());
     /* 2,1,6 */
     headerWriter.writeUTF8(RUNTIME_VERSION);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getRuntimeVersion()));
+    headerWriter.writeUTF8(wellKnownTags.getRuntimeVersion());
     /* 2,1,7 */
     headerWriter.writeUTF8(OS_ARCHITECTURE);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getOsArch()));
+    headerWriter.writeUTF8(wellKnownTags.getOsArch());
     /* 2,1,8 */
     headerWriter.writeUTF8(OS_PLATFORM);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getOsPlatform()));
+    headerWriter.writeUTF8(wellKnownTags.getOsPlatform());
     /* 2,1,9 */
     headerWriter.writeUTF8(OS_VERSION);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getOsVersion()));
+    headerWriter.writeUTF8(wellKnownTags.getOsVersion());
     /* 2,1,10 */
     headerWriter.writeUTF8(TEST_IS_USER_PROVIDED_SERVICE);
-    headerWriter.writeUTF8(truncate(wellKnownTags.getIsUserProvidedService()));
+    headerWriter.writeUTF8(wellKnownTags.getIsUserProvidedService());
     /* 3  */
     headerWriter.writeUTF8(EVENTS);
     headerWriter.startArray(eventCount);
@@ -351,21 +352,22 @@ public class CiTestCycleMapperV1 implements RemoteMapper {
       // we just need to be sure that the size is the same as the number of elements
       for (Map.Entry<String, String> entry : metadata.getBaggage().entrySet()) {
         writable.writeString(entry.getKey(), null);
-        writable.writeString(truncate(entry.getValue()), null);
+        writable.writeString(truncate(entry.getValue(), MAX_META_STRING_VALUE_LENGTH), null);
       }
       if (null != metadata.getHttpStatusCode()) {
         writable.writeUTF8(HTTP_STATUS);
-        writable.writeUTF8(truncate(metadata.getHttpStatusCode().toString()));
+        writable.writeUTF8(truncate(metadata.getHttpStatusCode(), MAX_META_STRING_VALUE_LENGTH));
       }
       for (Map.Entry<String, Object> entry : tags.entrySet()) {
         Object value = entry.getValue();
         if (!(value instanceof Number)) {
           writable.writeString(entry.getKey(), null);
           if (!(value instanceof Iterable)) {
-            writable.writeString(truncate(String.valueOf(value)), null);
+            writable.writeString(
+                truncate(String.valueOf(value), MAX_META_STRING_VALUE_LENGTH), null);
           } else {
             String serializedValue = toJson((Collection<String>) value);
-            writable.writeString(truncate(serializedValue), null);
+            writable.writeString(truncate(serializedValue, MAX_META_STRING_VALUE_LENGTH), null);
           }
         }
       }

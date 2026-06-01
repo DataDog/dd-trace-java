@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TagMap;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.intake.TrackType;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
@@ -148,9 +149,8 @@ class FileBasedPayloadDispatcherTest {
       throws IOException {
     FileBasedPayloadDispatcher dispatcher =
         new FileBasedPayloadDispatcher(outputDir.toString(), "tests", TrackType.CITESTCYCLE);
-    String longValue =
-        longString(CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH + 1, 'a');
-    String exactValue = longString(CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH, 'b');
+    String longValue = longString(CIConstants.MAX_META_STRING_VALUE_LENGTH + 1, 'a');
+    String exactValue = longString(CIConstants.MAX_META_STRING_VALUE_LENGTH, 'b');
     Map<String, Object> tags = new HashMap<>();
     tags.put(Tags.TEST_SESSION_ID, DDTraceId.from(123));
     tags.put(Tags.TEST_MODULE_ID, 456L);
@@ -169,11 +169,10 @@ class FileBasedPayloadDispatcherTest {
     JsonNode metrics = content.get("metrics");
 
     assertEquals(
-        longValue.substring(0, CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH),
+        longValue.substring(0, CIConstants.MAX_META_STRING_VALUE_LENGTH),
         meta.get("custom.tag").asText());
     assertEquals(
-        CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH,
-        meta.get("custom.tag").asText().length());
+        CIConstants.MAX_META_STRING_VALUE_LENGTH, meta.get("custom.tag").asText().length());
     assertEquals(exactValue, meta.get("exact.tag").asText());
     assertEquals(42L, metrics.get("custom.metric").asLong());
     assertFalse(meta.has(Tags.TEST_SESSION_ID));

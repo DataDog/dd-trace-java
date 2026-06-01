@@ -23,8 +23,8 @@ import java.nio.ByteBuffer
 import java.nio.channels.WritableByteChannel
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED
-import static datadog.trace.common.writer.CiVisibilityMetaTruncation.MAX_META_STRING_VALUE_LENGTH
-import static datadog.trace.common.writer.CiVisibilityMetaTruncation.truncate
+import static datadog.trace.api.civisibility.CIConstants.MAX_META_STRING_VALUE_LENGTH
+import static datadog.trace.util.Strings.truncate
 import static datadog.trace.common.writer.TraceGenerator.generateRandomSpan
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces
 import static org.junit.jupiter.api.Assertions.assertEquals
@@ -327,25 +327,25 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
 
         assertEquals(10, unpacker.unpackMapHeader())
         assertEquals("env", unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.env as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.env as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals("runtime-id", unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.runtimeId as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.runtimeId as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals("language", unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.language as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.language as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.RUNTIME_NAME, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.runtimeName as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.runtimeName as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.RUNTIME_VENDOR, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.runtimeVendor as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.runtimeVendor as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.RUNTIME_VERSION, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.runtimeVersion as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.runtimeVersion as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.OS_ARCHITECTURE, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.osArch as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.osArch as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.OS_PLATFORM, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.osPlatform as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.osPlatform as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(Tags.OS_VERSION, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.osVersion as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.osVersion as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
         assertEquals(DDTags.TEST_IS_USER_PROVIDED_SERVICE, unpacker.unpackString())
-        assertEquals(truncate(wellKnownTags.isUserProvidedService as String), unpacker.unpackString())
+        assertEquals(truncate(wellKnownTags.isUserProvidedService as String, MAX_META_STRING_VALUE_LENGTH), unpacker.unpackString())
 
         assertEquals("events", unpacker.unpackString())
 
@@ -359,7 +359,7 @@ class CiTestCycleMapperV1PayloadTest extends DDSpecification {
           TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k)
           assertEquals(3, unpacker.unpackMapHeader())
           assertEquals("type", unpacker.unpackString())
-          if ("test" == expectedSpan.getType()) {
+          if ("test" == String.valueOf(expectedSpan.getType())) {
             assertEquals("test", unpacker.unpackString())
           } else {
             assertEquals("span", unpacker.unpackString())
