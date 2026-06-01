@@ -596,6 +596,13 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     return sessionAppSpan;
   }
 
+  // Spark Connect adds
+  // "SparkConnect_OperationTag_User_{userId}_Session_{sessionId}_Operation_{opId}"
+  // to every job's spark.jobTags via SparkContext.addJobTag in ExecuteThreadRunner.scala.
+  private static final String CONNECT_OP_TAG_PREFIX = "SparkConnect_OperationTag_";
+  private static final String SESSION_MARKER = "_Session_";
+  private static final String OPERATION_MARKER = "_Operation_";
+
   private static String getSparkConnectSessionId(Properties properties) {
     if (properties == null) {
       return null;
@@ -606,11 +613,21 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
     }
     for (String tag : jobTags.split(",")) {
       tag = tag.trim();
-      if (tag.startsWith("spark-connect-session-")) {
-        String id = tag.substring("spark-connect-session-".length());
-        if (!id.isEmpty()) {
-          return id;
-        }
+      if (!tag.startsWith(CONNECT_OP_TAG_PREFIX)) {
+        continue;
+      }
+      int sessionIdx = tag.indexOf(SESSION_MARKER);
+      if (sessionIdx < 0) {
+        continue;
+      }
+      int sessionStart = sessionIdx + SESSION_MARKER.length();
+      int operationIdx = tag.indexOf(OPERATION_MARKER, sessionStart);
+      if (operationIdx <= sessionStart) {
+        continue;
+      }
+      String sessionId = tag.substring(sessionStart, operationIdx);
+      if (!sessionId.isEmpty()) {
+        return sessionId;
       }
     }
     return null;

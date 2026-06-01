@@ -293,10 +293,11 @@ class SparkConnectListenerTest extends AbstractInstrumentationTest {
         new DatadogSpark213Listener(new SparkConf(), "test_app_id", "3.5.0");
     listener.onApplicationStart(appStartEvent(1000L));
 
-    // spark.jobTags with empty suffix after the prefix should not produce a session span.
+    // A malformed OperationTag where the Session segment is empty must not produce a session span.
     Properties props = new Properties();
     props.setProperty("spark.sql.execution.id", "1");
-    props.setProperty("spark.jobTags", "spark-connect-session-");
+    props.setProperty(
+        "spark.jobTags", "SparkConnect_OperationTag_User_testUser_Session__Operation_op-1");
     @SuppressWarnings("unchecked")
     Seq<StageInfo> emptyStages = (Seq<StageInfo>) (Object) Nil$.MODULE$;
     listener.onOtherEvent(sqlStartEvent(1L, 1100L));
@@ -380,7 +381,10 @@ class SparkConnectListenerTest extends AbstractInstrumentationTest {
       int jobId, long time, String sessionId, long sqlExecutionId) {
     Properties props = new Properties();
     props.setProperty("spark.sql.execution.id", String.valueOf(sqlExecutionId));
-    props.setProperty("spark.jobTags", "spark-connect-session-" + sessionId);
+    // Real Spark Connect tag format: ExecuteHolder.scala ExecuteJobTag
+    props.setProperty(
+        "spark.jobTags",
+        "SparkConnect_OperationTag_User_testUser_Session_" + sessionId + "_Operation_op-1");
 
     @SuppressWarnings("unchecked")
     Seq<StageInfo> emptyStages = (Seq<StageInfo>) (Object) Nil$.MODULE$;
