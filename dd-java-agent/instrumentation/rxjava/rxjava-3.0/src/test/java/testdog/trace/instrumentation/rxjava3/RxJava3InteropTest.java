@@ -84,11 +84,13 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
                 .tags(componentTrace(), defaultTags())));
   }
 
-  // FINDING: context propagates even when the CompletableFuture is completed on another thread.
-  // There is no rxjava3 instrumentation for fromCompletionStage; propagation comes from the agent's
-  // concurrent/executor instrumentation, which carries the active context across the ForkJoinPool
-  // used by supplyAsync. blockingGet() runs the map() on the calling thread, where the
-  // interop-parent scope is still active, so the child span is a direct child of interop-parent.
+  /**
+   * FINDING: context propagates even when the CompletableFuture is completed on another thread.
+   * There is no rxjava3 instrumentation for fromCompletionStage; propagation comes from the agent's
+   * concurrent/executor instrumentation, which carries the active context across the ForkJoinPool
+   * used by supplyAsync. blockingGet() runs the map() on the calling thread, where the
+   * interop-parent scope is still active, so the child span is a direct child of interop-parent.
+   */
   @Test
   void fromCompletionStageAsync() {
     Integer result =
@@ -128,9 +130,11 @@ class RxJava3InteropTest extends AbstractInstrumentationTest {
                 .tags(componentTrace(), defaultTags())));
   }
 
-  // FINDING: fromStream(2 elements) emits one child span per element (2 spans here), each a direct
-  // child of interop-parent. The map() runs synchronously on the subscribing thread under the
-  // active interop-parent scope, so no async/concurrent instrumentation is involved.
+  /**
+   * FINDING: fromStream(2 elements) emits one child span per element (2 spans here), each a direct
+   * child of interop-parent. The map() runs synchronously on the subscribing thread under the
+   * active interop-parent scope, so no async/concurrent instrumentation is involved.
+   */
   @Test
   void fromStream() {
     List<Integer> result =
