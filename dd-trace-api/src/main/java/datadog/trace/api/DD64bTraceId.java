@@ -12,6 +12,10 @@ import datadog.trace.api.internal.util.LongStringUtils;
 public class DD64bTraceId extends DDTraceId {
   public static final DD64bTraceId MAX =
       new DD64bTraceId(-1, "18446744073709551615"); // All bits set
+  // Cached zero singleton so create()/from() don't allocate for every zero id. Initialized with
+  // this subclass (not in DDTraceId.<clinit>), so it does not reintroduce the init deadlock. It is
+  // value-equal to DDTraceId.ZERO.
+  private static final DD64bTraceId ZERO_ID = new DD64bTraceId(0, "0");
 
   private final long id;
   private String str; // cache for string representation
@@ -59,11 +63,13 @@ public class DD64bTraceId extends DDTraceId {
   }
 
   static DD64bTraceId create(long id, String str) {
-    // -1 (all bits set) reuses the MAX singleton. 0 is not special-cased: DDTraceId.ZERO is a
-    // sibling type (not a DD64bTraceId), so it cannot be returned here; a zero 64-bit id is simply
-    // a DD64bTraceId(0), and callers detect zero via DDTraceId.isZero() rather than by identity.
+    // Reuse cached singletons rather than allocating: -1 (all bits set) is MAX, 0 is ZERO_ID.
+    // ZERO_ID is a DD64bTraceId, not DDTraceId.ZERO (a sibling type), but is value-equal to it;
+    // callers detect zero via DDTraceId.isValid() rather than by identity.
     if (id == -1) {
       return MAX;
+    } else if (id == 0) {
+      return ZERO_ID;
     } else {
       return new DD64bTraceId(id, str);
     }
@@ -72,9 +78,12 @@ public class DD64bTraceId extends DDTraceId {
   @Override
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (!(o instanceof DD64bTraceId)) return false;
-    DD64bTraceId ddId = (DD64bTraceId) o;
-    return this.id == ddId.id;
+    // Value-equal to the DDTraceIdConstant backing DDTraceId.ZERO/ONE (also a 64-bit id), so the
+    // ZERO/ONE constants keep comparing equal to the equivalent DD64bTraceId as they did when they
+    // were themselves DD64bTraceId instances.
+    if (o instanceof DD64bTraceId) return this.id == ((DD64bTraceId) o).id;
+    if (o instanceof DDTraceIdConstant) return this.id == ((DDTraceIdConstant) o).toLong();
+    return false;
   }
 
   @Override

@@ -234,7 +234,7 @@ class DatadogHttpCodec {
     private void restore128bTraceId() {
       long highOrderBits;
       // Check if the low-order 64 bits of the TraceId, and propagation tags were parsed
-      if (!traceId.isZero()
+      if (traceId.isValid()
           && propagationTags != null
           && (highOrderBits = propagationTags.getTraceIdHighOrderBits()) != 0) {
         // Restore the 128-bit TraceId

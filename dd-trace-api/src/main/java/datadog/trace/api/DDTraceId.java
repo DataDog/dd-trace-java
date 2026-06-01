@@ -1,7 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.internal.util.LongStringUtils;
-
 /**
  * Class encapsulating the id used for TraceIds.
  *
@@ -10,24 +8,21 @@ import datadog.trace.api.internal.util.LongStringUtils;
  */
 public abstract class DDTraceId {
   /**
-   * Invalid TraceId value used to denote no TraceId.
+   * Invalid TraceId value used to denote no/unset TraceId.
    *
-   * <p>This is an instance of a private {@link DDTraceId} subtype (a sibling of {@link
-   * DD64bTraceId}), not a {@code DD64bTraceId}, and that is deliberate. {@code DD64bTraceId} is a
-   * subclass of {@code DDTraceId}, so the JVM must initialize {@code DDTraceId} before {@code
-   * DD64bTraceId}. If this constant were built via {@code DD64bTraceId.from(0)} (as it once was),
-   * {@code DDTraceId.<clinit>} would initialize {@code DD64bTraceId} while holding the {@code
-   * DDTraceId} init lock, and two threads first touching the classes from opposite ends would
-   * deadlock on the two class-initialization locks. Building it from a sibling type keeps {@code
-   * DDTraceId.<clinit>} free of any reference to the subclass.
+   * <p>Backed by {@link DDTraceIdConstant}, a sibling of {@link DD64bTraceId}, not by {@code
+   * DD64bTraceId} itself. {@code DD64bTraceId} is a subclass, so building this via {@code
+   * DD64bTraceId.from(0)} (as it once was) made {@code DDTraceId.<clinit>} initialize the subclass
+   * while holding the {@code DDTraceId} init lock; two threads touching the classes from opposite
+   * ends then deadlocked. The sibling type keeps {@code DDTraceId.<clinit>} free of the subclass.
    *
-   * <p>To test whether an id is zero, prefer {@link #isZero()} over {@code == DDTraceId.ZERO}: a
-   * zero id parsed via the 64-bit factories is a distinct instance, not this singleton.
+   * <p>Use {@link #isValid()} rather than {@code == DDTraceId.ZERO}: a zero id parsed via the
+   * 64-bit factories is a distinct instance, not this constant.
    */
-  public static final DDTraceId ZERO = new ConstantId(0, "0");
+  public static final DDTraceId ZERO = new DDTraceIdConstant(0, "0");
 
   /** Convenience constant used from tests. See {@link #ZERO} for why this is a sibling type. */
-  public static final DDTraceId ONE = new ConstantId(1, "1");
+  public static final DDTraceId ONE = new DDTraceIdConstant(1, "1");
 
   /**
    * Creates a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as
@@ -38,7 +33,9 @@ public abstract class DDTraceId {
    * @return A new {@link DDTraceId} instance.
    */
   public static DDTraceId from(long id) {
-    return DD64bTraceId.from(id);
+    // Normalize a zero id to the ZERO constant so callers comparing against DDTraceId.ZERO keep
+    // working. DD64bTraceId.from keeps its own cached zero singleton for the 64-bit-specific path.
+    return id == 0 ? ZERO : DD64bTraceId.from(id);
   }
 
   /**
@@ -50,7 +47,8 @@ public abstract class DDTraceId {
    * @throws NumberFormatException If the given {@link String} does not represent a valid number.
    */
   public static DDTraceId from(String s) throws NumberFormatException {
-    return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
+    DD64bTraceId id = DD64bTraceId.from(s);
+    return id.toLong() == 0 ? ZERO : id;
   }
 
   /**
@@ -66,7 +64,11 @@ public abstract class DDTraceId {
     if (s == null) {
       throw new NumberFormatException("s cannot be null");
     }
-    return s.length() > 16 ? DD128bTraceId.fromHex(s) : DD64bTraceId.fromHex(s);
+    if (s.length() > 16) {
+      return DD128bTraceId.fromHex(s);
+    }
+    DD64bTraceId id = DD64bTraceId.fromHex(s);
+    return id.toLong() == 0 ? ZERO : id;
   }
 
   /**
@@ -118,68 +120,15 @@ public abstract class DDTraceId {
   public abstract long toHighOrderLong();
 
   /**
-   * Returns whether this {@link DDTraceId} is zero, the value used to denote no/invalid TraceId.
+   * Returns whether this is a valid (non-zero) {@link DDTraceId}; a zero id denotes no/unset
+   * TraceId.
    *
-   * <p>Prefer this over {@code == DDTraceId.ZERO}: it is value-based, so it recognizes a zero id
-   * regardless of its concrete type or how it was created (e.g. a zero parsed via the 64-bit
-   * factories, which is a distinct instance from the {@link #ZERO} singleton).
+   * <p>Value-based, aligning with OpenTelemetry: it recognizes a zero id of any concrete type,
+   * including a zero parsed via the 64-bit factories (a distinct instance from {@link #ZERO}).
    *
-   * @return {@code true} if both the high- and low-order 64 bits are zero.
+   * @return {@code true} if the high- or low-order 64 bits are non-zero.
    */
-  public boolean isZero() {
-    return toHighOrderLong() == 0 && toLong() == 0;
-  }
-
-  /**
-   * Minimal concrete {@link DDTraceId} backing the {@link #ZERO} and {@link #ONE} constants. It is
-   * a sibling of {@link DD64bTraceId} (it extends {@link DDTraceId} directly), so constructing
-   * these constants in {@code DDTraceId.<clinit>} never initializes {@code DD64bTraceId} (which
-   * would create a class-initialization deadlock; see {@link #ZERO}). It represents a 64-bit id and
-   * formats identically to the equivalent {@link DD64bTraceId}.
-   */
-  private static final class ConstantId extends DDTraceId {
-    private final long id;
-    private final String str;
-    private String hexStr; // cache for hex string representation
-
-    private ConstantId(long id, String str) {
-      this.id = id;
-      this.str = str;
-    }
-
-    @Override
-    public String toString() {
-      return this.str;
-    }
-
-    @Override
-    public String toHexString() {
-      String hexStr = this.hexStr;
-      // This race condition is intentional and benign.
-      // The worst that can happen is that an identical value is produced and written into the
-      // field.
-      if (hexStr == null) {
-        this.hexStr = hexStr = LongStringUtils.toHexStringPadded(this.id, 32);
-      }
-      return hexStr;
-    }
-
-    @Override
-    public String toHexStringPadded(int size) {
-      if (size > 16) {
-        return toHexString();
-      }
-      return LongStringUtils.toHexStringPadded(this.id, size);
-    }
-
-    @Override
-    public long toLong() {
-      return this.id;
-    }
-
-    @Override
-    public long toHighOrderLong() {
-      return 0;
-    }
+  public boolean isValid() {
+    return toHighOrderLong() != 0 || toLong() != 0;
   }
 }

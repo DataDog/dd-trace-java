@@ -211,10 +211,9 @@ class XRayHttpCodec {
           }
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
-            // isZero() (not == DDTraceId.ZERO): DD64bTraceId.fromHex below returns a non-singleton
-            // zero-valued id, so a zero Root must still be treated as "unset" and overwritten by a
-            // later valid Root in the same header.
-            if (interpreter.traceId == null || interpreter.traceId.isZero()) {
+            // Value-based check, not == DDTraceId.ZERO: a zero Root parsed here is a non-singleton
+            // id that must still count as unset so a later valid Root can replace it.
+            if (interpreter.traceId == null || !interpreter.traceId.isValid()) {
               interpreter.traceId =
                   DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }
