@@ -69,8 +69,7 @@ pattern before writing new code. Use it as a template.
    `DD_TRACE_COUCHBASE_3_ENABLED`). Add a `"type": "boolean"` entry, in alphabetical order, with
    aliases `DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`. Set `default`
    to the module's real default — `"true"`, or `"false"` if it overrides `defaultEnabled()` (e.g.
-   OpenTelemetry, Hazelcast); the task won't catch a wrong default, but it ships misleading
-   metadata. Declaring several names (`super("a", "b")`) means one entry each.
+   OpenTelemetry, Hazelcast). Declaring several names (`super("a", "b")`) means one entry each.
 
 ## Step 5 – Write the InstrumenterModule
 
