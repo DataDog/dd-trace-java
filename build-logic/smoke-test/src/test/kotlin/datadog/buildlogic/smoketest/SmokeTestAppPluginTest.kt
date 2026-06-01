@@ -68,6 +68,37 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
+  fun `application task receives configured Gradle distribution base URL`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.gradleDistributionBaseUrl.set("https://mass.example")
+    extension.application {
+      taskName.set("packageApp")
+      artifactPath.set("libs/test.jar")
+      sysProperty.set("test.path")
+    }
+
+    val task = project.tasks.getByName("packageApp") as NestedGradleBuild
+
+    assertThat(task.gradleDistributionBaseUrl.get()).isEqualTo("https://mass.example")
+  }
+
+  @Test
+  fun `Gradle distribution URI routes through MASS artifact path`() {
+    assertThat(gradleDistributionUri("https://mass.example", "8.14.5").toString())
+      .isEqualTo(
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      )
+    assertThat(gradleDistributionUri("https://mass.example/", "8.14.5").toString())
+      .isEqualTo(
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      )
+  }
+
+  @Test
   fun `extension defaults javaLauncher to a JDK 21 toolchain`() {
     // JavaToolchainService is contributed by the `java-base` plugin; apply something that
     // pulls it in so ProjectBuilder can resolve the convention.
