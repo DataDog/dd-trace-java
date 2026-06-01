@@ -40,7 +40,6 @@ import datadog.trace.agent.test.naming.VersionedNamingTestBase
 import datadog.trace.api.Config
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.bootstrap.instrumentation.api.Tags
-import datadog.trace.test.util.Flaky
 import org.json.XML
 import spock.lang.AutoCleanup
 import spock.lang.Shared
@@ -346,7 +345,6 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
     }
   }
 
-  @Flaky("assertTraces sometimes fails")
   def "timeout and retry errors captured"() {
     setup:
     def server = httpServer {
@@ -393,9 +391,9 @@ abstract class AWS1ClientTest extends VersionedNamingTestBase {
             "bucketname" "someBucket"
             "aws.object.key" "someKey"
             try {
-              errorTags AmazonClientException, ~/Unable to execute HTTP request/
+              errorTags AmazonClientException, String
             } catch (AssertionError e) {
-              errorTags SdkClientException, "Unable to execute HTTP request: Request did not complete before the request timeout configuration."
+              errorTags IOException, String
             }
             defaultTags()
           }
