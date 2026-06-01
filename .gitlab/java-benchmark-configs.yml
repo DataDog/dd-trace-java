@@ -60,6 +60,12 @@ linux-java-spring-petclinic-load-parallel:
   variables:
     <<: *benchmark_branch_override
 
+linux-java-spring-petclinic-sca-load-parallel:
+  needs: ["publish-artifacts-to-s3"]
+  rules: *parallel_benchmark_rules
+  variables:
+    <<: *benchmark_branch_override
+
 linux-java-insecure-bank-startup-parallel:
   needs: ["publish-artifacts-to-s3"]
   rules: *parallel_startup_benchmark_rules
