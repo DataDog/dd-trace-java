@@ -67,6 +67,11 @@ public final class SerializingMetricWriter implements MetricWriter {
       DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
   private final GitInfoProvider gitInfoProvider;
+  // [Claude] Not final/eager: Histogram.newHistogram() requires the Histograms factory to be
+  // registered first. SerializingMetricWriter is constructed during tracer startup before that
+  // registration completes, so eager init would throw. Lazy init on first add() call is safe
+  // because add() only runs on the aggregator thread, which starts after factory registration.
+  // The single-writer invariant also means no synchronization is needed on this field.
   private byte[] emptyHistogramBytesCache;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
