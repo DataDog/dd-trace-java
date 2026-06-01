@@ -29,7 +29,7 @@ pluginManagement {
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.1"
+  id("com.gradle.develocity") version "4.4.2"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -112,6 +112,7 @@ include(
 
 include(
   ":communication",
+  ":components:annotations",
   ":components:context",
   ":components:environment",
   ":components:http:http-api",

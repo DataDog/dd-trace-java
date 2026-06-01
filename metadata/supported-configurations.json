@@ -2417,6 +2417,14 @@
         "aliases": []
       }
     ],
+    "DD_METRICS_OTEL_EXPERIMENTAL_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_OBFUSCATION_QUERY_STRING_REGEXP": [
       {
         "version": "A",
@@ -7489,14 +7497,6 @@
         "aliases": ["DD_JMXFETCH_WEBSPHERE_ENABLED"]
       }
     ],
-    "DD_TRACE_JMXFETCH_{CHECK_NAME}_ENABLED": [
-      {
-        "version": "B",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_JMXFETCH_{CHECK_NAME}_ENABLED"]
-      }
-    ],
     "DD_TRACE_JMX_TAGS": [
       {
         "version": "A",
@@ -10923,9 +10923,9 @@
     ],
     "DD_TRACE_TRACER_METRICS_MAX_PENDING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],
@@ -11494,6 +11494,14 @@
         "version": "A",
         "type": "string",
         "default": null,
+        "aliases": []
+      }
+    ],
+    "OTEL_INSTRUMENTATION_RUNTIME_TELEMETRY_EMIT_EXPERIMENTAL_METRICS": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
         "aliases": []
       }
     ],
