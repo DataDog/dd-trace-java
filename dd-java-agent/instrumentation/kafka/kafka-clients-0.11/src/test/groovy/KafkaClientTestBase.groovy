@@ -42,6 +42,7 @@ import org.springframework.kafka.listener.MessageListener
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.ContainerTestUtils
 import org.springframework.kafka.test.utils.KafkaTestUtils
+import org.junit.Rule
 import spock.lang.Shared
 
 import java.util.concurrent.ExecutionException
