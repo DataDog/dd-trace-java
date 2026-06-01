@@ -17,6 +17,13 @@ if (hasProperty('appBuildDir')) {
   buildDir = property('appBuildDir')
 }
 
+// Spring Boot 3.0's bundled ASM 9.4 only parses class files up to major 64 (Java 20), so
+// target release 17 here regardless of the daemon JDK — keeps the inner app's class files
+// at major 61 and avoids needing a separate Java 17 toolchain for the nested build.
+tasks.withType(JavaCompile).configureEach {
+  options.release = 17
+}
+
 dependencies {
   implementation 'org.springframework.boot:spring-boot-starter-web'
   if (hasProperty('apiJar')) {

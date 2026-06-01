@@ -17,6 +17,7 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_ENABLED;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -195,6 +196,11 @@ final class OtelEnvironmentConfigSource extends ConfigProvider.Source {
         METRICS_OTEL_CARDINALITY_LIMIT,
         getOtelProperty(
             "otel.java.metrics.cardinality.limit", "dd." + METRICS_OTEL_CARDINALITY_LIMIT));
+    capture(
+        METRICS_OTEL_EXPERIMENTAL_ENABLED,
+        getOtelProperty(
+            "otel.instrumentation.runtime-telemetry.emit-experimental-metrics",
+            "dd." + METRICS_OTEL_EXPERIMENTAL_ENABLED));
 
     String exporter = getOtelProperty("otel.metrics.exporter");
     if (exporter == null || "otlp".equalsIgnoreCase(exporter)) { // metrics defaults to OTLP
