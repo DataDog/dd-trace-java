@@ -10,7 +10,6 @@ import org.apache.kafka.clients.consumer.ConsumerConfig
 import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.apache.kafka.clients.producer.ProducerConfig
 import org.apache.kafka.clients.producer.ProducerRecord
-import org.junit.Rule
 import org.springframework.kafka.test.rule.KafkaEmbedded
 import org.springframework.kafka.test.utils.KafkaTestUtils
 import reactor.core.publisher.Flux
@@ -27,9 +26,8 @@ import java.util.concurrent.LinkedBlockingQueue
 import java.util.concurrent.TimeUnit
 
 class KafkaReactorForkedTest extends InstrumentationSpecification {
-  @Rule
   // create 4 partitions for more parallelism
-  KafkaEmbedded embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
+  KafkaEmbedded embeddedKafka
 
   @Override
   boolean useStrictTraceWrites() {
@@ -37,7 +35,13 @@ class KafkaReactorForkedTest extends InstrumentationSpecification {
   }
 
   def setup() {
+    embeddedKafka = new KafkaEmbedded(1, true, 4, KafkaClientTestBase.SHARED_TOPIC)
+    embeddedKafka.before()
     TEST_WRITER.setFilter(KafkaClientTestBase.DROP_KAFKA_POLL)
+  }
+
+  def cleanup() {
+    embeddedKafka?.after()
   }
 
   def "test reactive produce and consume"() {
