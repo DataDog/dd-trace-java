@@ -1,23 +1,15 @@
 package datadog.trace.api;
 
 import datadog.trace.api.internal.util.LongStringUtils;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
- * Concrete {@link DDTraceId} backing the {@link DDTraceId#ZERO} and {@link DDTraceId#ONE}
- * constants.
+ * Backs {@link DDTraceId#ZERO} and {@link DDTraceId#ONE}. A 64-bit id that is a sibling of {@link
+ * DD64bTraceId} (it extends {@link DDTraceId} directly) so initializing {@code DDTraceId} never
+ * initializes its subclass; value-equal to the equivalent {@link DD64bTraceId}.
  *
- * <p>It extends {@link DDTraceId} directly, so it is a sibling of {@link DD64bTraceId} rather than
- * a {@code DD64bTraceId}. That keeps {@code DDTraceId.<clinit>} free of any reference to the
- * subclass (see {@link DDTraceId#ZERO} for why that matters). It represents a 64-bit id and is
- * value-equal to the equivalent {@link DD64bTraceId}.
- *
- * <p>Invariant: this type must only ever be initialized as a consequence of {@code
- * DDTraceId.<clinit>} constructing the constants below. It is {@code final} and package-private,
- * and the only place it is instantiated is {@link DDTraceId}. {@code instanceof}/cast (used in
- * {@link #equals}) do not trigger class initialization, so they are safe. Do not add a static
- * member access or any other path that could initialize this class independently of {@code
- * DDTraceId}: that would let a thread hold this class's init lock while waiting for {@code
- * DDTraceId}, reintroducing the very class-initialization deadlock this design removes.
+ * <p>Only ever initialize this through {@link DDTraceId}'s constants. Initializing it independently
+ * (e.g. a static-member access) would bring back the class-initialization deadlock.
  */
 final class DDTraceIdConstant extends DDTraceId {
   private final long id;
@@ -64,6 +56,9 @@ final class DDTraceIdConstant extends DDTraceId {
   }
 
   @Override
+  @SuppressFBWarnings(
+      value = "EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS",
+      justification = "DD64bTraceId is a sibling type; ZERO/ONE are equal to it by 64-bit value.")
   public boolean equals(Object o) {
     if (this == o) return true;
     if (o instanceof DD64bTraceId) return this.id == ((DD64bTraceId) o).toLong();

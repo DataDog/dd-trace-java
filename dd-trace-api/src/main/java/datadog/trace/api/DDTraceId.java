@@ -7,21 +7,14 @@ package datadog.trace.api;
  * The string representations are either kept from parsing, or generated on demand and cached.
  */
 public abstract class DDTraceId {
-  /**
-   * Invalid TraceId value used to denote no/unset TraceId.
-   *
-   * <p>Backed by {@link DDTraceIdConstant}, a sibling of {@link DD64bTraceId}, not by {@code
-   * DD64bTraceId} itself. {@code DD64bTraceId} is a subclass, so building this via {@code
-   * DD64bTraceId.from(0)} (as it once was) made {@code DDTraceId.<clinit>} initialize the subclass
-   * while holding the {@code DDTraceId} init lock; two threads touching the classes from opposite
-   * ends then deadlocked. The sibling type keeps {@code DDTraceId.<clinit>} free of the subclass.
-   *
-   * <p>Use {@link #isValid()} rather than {@code == DDTraceId.ZERO}: a zero id parsed via the
-   * 64-bit factories is a distinct instance, not this constant.
-   */
+  // ZERO/ONE use DDTraceIdConstant (a sibling of DD64bTraceId) rather than DD64bTraceId so that
+  // initializing DDTraceId never initializes its subclass, which would deadlock. Test for zero with
+  // isValid(), not == ZERO.
+
+  /** Invalid TraceId value used to denote no/unset TraceId. */
   public static final DDTraceId ZERO = new DDTraceIdConstant(0, "0");
 
-  /** Convenience constant used from tests. See {@link #ZERO} for why this is a sibling type. */
+  /** Convenience constant used from tests. */
   public static final DDTraceId ONE = new DDTraceIdConstant(1, "1");
 
   /**
@@ -33,8 +26,7 @@ public abstract class DDTraceId {
    * @return A new {@link DDTraceId} instance.
    */
   public static DDTraceId from(long id) {
-    // Normalize a zero id to the ZERO constant so callers comparing against DDTraceId.ZERO keep
-    // working. DD64bTraceId.from keeps its own cached zero singleton for the 64-bit-specific path.
+    // Zero maps to the ZERO constant so callers can still compare against it.
     return id == 0 ? ZERO : DD64bTraceId.from(id);
   }
 
@@ -120,13 +112,10 @@ public abstract class DDTraceId {
   public abstract long toHighOrderLong();
 
   /**
-   * Returns whether this is a valid (non-zero) {@link DDTraceId}; a zero id denotes no/unset
-   * TraceId.
+   * Returns whether this is a valid (non-zero) {@link DDTraceId}; zero denotes no/unset TraceId.
+   * Value-based, so it recognizes a zero id of any concrete type.
    *
-   * <p>Value-based, aligning with OpenTelemetry: it recognizes a zero id of any concrete type,
-   * including a zero parsed via the 64-bit factories (a distinct instance from {@link #ZERO}).
-   *
-   * @return {@code true} if the high- or low-order 64 bits are non-zero.
+   * @return {@code true} if any bit is non-zero.
    */
   public boolean isValid() {
     return toHighOrderLong() != 0 || toLong() != 0;
