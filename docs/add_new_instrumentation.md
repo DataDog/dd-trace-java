@@ -67,6 +67,17 @@ public class GoogleHttpClientInstrumentation extends InstrumenterModule.Tracing 
 }
 ```
 
+> [!IMPORTANT]
+> **The instrumentation name controls a config flag that must be registered.** The name passed to
+> `super(...)` becomes the config key `dd.trace.<name>.enabled` → environment variable
+> `DD_TRACE_<NAME>_ENABLED` (`.` and `-` become `_`, then uppercased — e.g. `couchbase-3` →
+> `DD_TRACE_COUCHBASE_3_ENABLED`). Every such name must be registered in
+> `metadata/supported-configurations.json` with the two standard aliases
+> (`DD_TRACE_INTEGRATION_<NAME>_ENABLED` and `DD_INTEGRATION_<NAME>_ENABLED`), or the
+> `checkInstrumenterModuleConfigurations` Gradle task fails the build. A module declaring multiple
+> names (`super("a", "b")`) needs **one entry per name**. See
+> [Add new configurations](./add_new_configurations.md) for the JSON entry shape.
+
 ## Match the target class
 
 In this case we target only one known class to instrument. This is the class which contains the method this
