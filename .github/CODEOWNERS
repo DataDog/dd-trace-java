@@ -22,8 +22,8 @@
 /dd-smoke-tests/wildfly/                                                                         @DataDog/apm-idm-java
 
 # @DataDog/apm-release-platform
-/.gitlab/                              @DataDog/apm-release-platform
-/.gitlab-ci.yml                        @DataDog/apm-release-platform
+/.gitlab/                              @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
+/.gitlab-ci.yml                        @DataDog/apm-release-platform @DataDog/apm-lang-platform-java
 
 # @DataDog/apm-sdk-capabilities-java
 /dd-java-agent/agent-otel                                       @DataDog/apm-sdk-capabilities-java
