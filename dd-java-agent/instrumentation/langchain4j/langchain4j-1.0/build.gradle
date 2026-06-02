@@ -15,5 +15,7 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'dev.langchain4j', name: 'langchain4j-core', version: minVer
   testImplementation group: 'dev.langchain4j', name: 'langchain4j', version: minVer
+  testCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '1.2.0'
   latestDepTestImplementation group: 'dev.langchain4j', name: 'langchain4j', version: '+'
+  latestDepTestCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '+'
 }
