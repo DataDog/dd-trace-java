@@ -25,7 +25,6 @@ import datadog.trace.api.Config;
 import datadog.trace.api.featureflag.FeatureFlaggingGateway;
 import datadog.trace.api.featureflag.ufc.v1.ServerConfiguration;
 import java.time.Instant;
-import java.util.Date;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -174,47 +173,49 @@ class RemoteConfigServiceImplTest {
   }
 
   @TableTest({
-    "scenario                                  | value                            | expectedEpochMilli",
-    "utc second                                | '2023-01-01T00:00:00Z'           | 1672531200000     ",
-    "utc end of year                           | '2023-12-31T23:59:59Z'           | 1704067199000     ",
-    "leap day                                  | '2024-02-29T12:00:00Z'           | 1709208000000     ",
-    "millisecond precision                     | '2023-01-01T00:00:00.000Z'       | 1672531200000     ",
-    "three fractional digits                   | '2023-06-15T14:30:45.123Z'       | 1686839445123     ",
-    "six fractional digits truncate to millis  | '2023-06-15T14:30:45.123456Z'    | 1686839445123     ",
-    "six fractional digits preserve millis     | '2023-06-15T14:30:45.235982Z'    | 1686839445235     ",
-    "nine fractional digits truncate to millis | '2023-06-15T14:30:45.123456789Z' | 1686839445123     ",
-    "one fractional digit                      | '2023-06-15T14:30:45.1Z'         | 1686839445100     ",
-    "two fractional digits                     | '2023-06-15T14:30:45.12Z'        | 1686839445120     ",
-    "positive offset                           | '2023-01-01T01:00:00+01:00'      | 1672531200000     ",
-    "negative offset                           | '2023-01-01T00:00:00-05:00'      | 1672549200000     ",
-    "date only                                 | '2023-01-01'                     |                   ",
-    "invalid                                   | 'invalid-date'                   |                   ",
-    "empty string                              | ''                               |                   ",
-    "not a date                                | 'not-a-date'                     |                   ",
-    "slash date                                | '2023/01/01T00:00:00Z'           |                   ",
-    "null                                      |                                  |                   "
+    "scenario                          | value                            | expectedInstant                 ",
+    "utc second                        | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
+    "utc end of year                   | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
+    "leap day                          | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
+    "millisecond precision             | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
+    "three fractional digits           | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
+    "six fractional digits             | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
+    "six fractional digits preserve ms | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
+    "nine fractional digits            | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
+    "one fractional digit              | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
+    "two fractional digits             | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
+    "positive offset                   | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
+    "negative offset                   | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
+    "date only                         | '2023-01-01'                     |                                 ",
+    "invalid                           | 'invalid-date'                   |                                 ",
+    "empty string                      | ''                               |                                 ",
+    "not a date                        | 'not-a-date'                     |                                 ",
+    "slash date                        | '2023/01/01T00:00:00Z'           |                                 ",
+    "null                              |                                  |                                 "
   })
-  void testDateParsing(final String value, final Long expectedEpochMilli) throws Exception {
+  void testInstantParsing(final String value, final String expectedInstant) throws Exception {
     final JsonReader reader = mock(JsonReader.class);
     when(reader.nextString()).thenReturn(value);
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+    final RemoteConfigServiceImpl.InstantAdapter adapter =
+        new RemoteConfigServiceImpl.InstantAdapter();
 
-    final Date parsed = adapter.fromJson(reader);
-    if (expectedEpochMilli == null) {
+    final Instant parsed = adapter.fromJson(reader);
+    if (expectedInstant == null) {
       assertNull(parsed);
     } else {
       assertNotNull(parsed);
-      assertEquals(Instant.ofEpochMilli(expectedEpochMilli), parsed.toInstant());
+      assertEquals(Instant.parse(expectedInstant), parsed);
     }
   }
 
   @Test
   void testParsingOnlyAdapter() {
-    final RemoteConfigServiceImpl.DateAdapter adapter = new RemoteConfigServiceImpl.DateAdapter();
+    final RemoteConfigServiceImpl.InstantAdapter adapter =
+        new RemoteConfigServiceImpl.InstantAdapter();
 
     assertThrows(
         UnsupportedOperationException.class,
-        () -> adapter.toJson(mock(JsonWriter.class), new Date()));
+        () -> adapter.toJson(mock(JsonWriter.class), Instant.EPOCH));
   }
 
   @SuppressWarnings("unchecked")

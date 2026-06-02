@@ -45,15 +45,12 @@ import dev.openfeature.sdk.EvaluationContext;
 import dev.openfeature.sdk.MutableContext;
 import dev.openfeature.sdk.ProviderEvaluation;
 import dev.openfeature.sdk.Value;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -129,7 +126,7 @@ public class DDEvaluatorTest {
       Arguments.of(Value.class, null, null),
 
       // Unsupported
-      Arguments.of(Date.class, "21-12-2023", IllegalArgumentException.class),
+      Arguments.of(Long.class, 42L, IllegalArgumentException.class),
     };
   }
 
@@ -763,8 +760,8 @@ public class DDEvaluatorTest {
             new Allocation(
                 "time-alloc",
                 null,
-                parseDate("2022-01-01T00:00:00Z"),
-                parseDate("2022-12-31T23:59:59Z"),
+                parseInstant("2022-01-01T00:00:00Z"),
+                parseInstant("2022-12-31T23:59:59Z"),
                 splits,
                 false));
 
@@ -1170,7 +1167,7 @@ public class DDEvaluatorTest {
     // Allocation that starts in the future (2050)
     final Allocation allocation =
         new Allocation(
-            "future-alloc", null, parseDate("2050-01-01T00:00:00Z"), null, splits, false);
+            "future-alloc", null, parseInstant("2050-01-01T00:00:00Z"), null, splits, false);
 
     return new Flag(
         "future-allocation-flag", true, ValueType.STRING, variants, singletonList(allocation));
@@ -1368,13 +1365,7 @@ public class DDEvaluatorTest {
     return result;
   }
 
-  private static Date parseDate(String dateString) {
-    try {
-      SimpleDateFormat formatter = new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss'Z'");
-      formatter.setTimeZone(TimeZone.getTimeZone("UTC"));
-      return formatter.parse(dateString);
-    } catch (ParseException e) {
-      throw new RuntimeException("Failed to parse date: " + dateString, e);
-    }
+  private static Instant parseInstant(String value) {
+    return Instant.parse(value);
   }
 }
