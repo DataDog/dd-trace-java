@@ -17,6 +17,7 @@ import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isAllocationPro
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isCpuProfilerEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLiveHeapSizeTrackingEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isMemoryLeakProfilingEnabled;
+import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isLlmPhaseAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isResourceNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isSpanNameContextAttributeEnabled;
 import static com.datadog.profiling.ddprof.DatadogProfilerConfig.isTrackingGenerations;
@@ -69,6 +70,7 @@ public final class DatadogProfiler {
 
   private static final String OPERATION = "_dd.trace.operation";
   private static final String RESOURCE = "_dd.trace.resource";
+  private static final String LLM_PHASE = "llm.agent.phase";
 
   private static final int MAX_NUM_ENDPOINTS = 8192;
 
@@ -105,6 +107,7 @@ public final class DatadogProfiler {
   private final Set<ProfilingMode> profilingModes = EnumSet.noneOf(ProfilingMode.class);
 
   private final ContextSetter contextSetter;
+  private final int llmPhaseOffset;
 
   private final List<String> orderedContextAttributes;
 
@@ -150,7 +153,11 @@ public final class DatadogProfiler {
     if (isResourceNameContextAttributeEnabled(configProvider)) {
       orderedContextAttributes.add(RESOURCE);
     }
+    if (isLlmPhaseAttributeEnabled(configProvider)) {
+      orderedContextAttributes.add(LLM_PHASE);
+    }
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
+    this.llmPhaseOffset = contextSetter.offsetOf(LLM_PHASE);
     this.queueTimeThresholdMillis =
         configProvider.getLong(
             PROFILING_QUEUEING_TIME_THRESHOLD_MILLIS,
@@ -406,6 +413,14 @@ public final class DatadogProfiler {
       }
     }
     return false;
+  }
+
+  public boolean setAgentPhase(String phaseToken) {
+    return contextSetter.setContextValue(llmPhaseOffset, phaseToken);
+  }
+
+  public boolean clearAgentPhase() {
+    return contextSetter.clearContextValue(llmPhaseOffset);
   }
 
   private void debugLogging(long localRootSpanId) {
