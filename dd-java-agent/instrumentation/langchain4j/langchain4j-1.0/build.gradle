@@ -22,7 +22,7 @@ dependencies {
 }
 
 tasks.register('runOllamaDemo', JavaExec) {
-  dependsOn testClasses
+  dependsOn testClasses, ':dd-java-agent:shadowJar'
   classpath = sourceSets.test.runtimeClasspath
   mainClass = 'datadog.trace.instrumentation.langchain4j.demo.OllamaLlmPipelineDemo'
   // Pick the highest semver agent jar in build/libs, ignoring classifier jars.
