@@ -573,6 +573,7 @@ muzzle:
         matrix:
           - GRADLE_TARGET: ":instrumentationTest"
             CACHE_TYPE: "inst"
+      optional: true
   stage: tests
   rules:
     - if: '$CI_COMMIT_BRANCH =~ /^mq-working-branch-/'

@@ -91,3 +91,93 @@ java-post-pr-comment-startup:
 java-post-pr-comment-load-dacapo:
   variables:
     <<: *benchmark_branch_override
+
+# Disable all non-benchmark CI jobs
+# build and publish-artifacts-to-s3 are left enabled because the benchmarks depend on them.
+.never: &never
+  rules:
+    - when: never
+
+build_tests:
+  <<: *never
+
+populate_dep_cache:
+  <<: *never
+
+spotless:
+  <<: *never
+
+check-instrumentation-naming:
+  <<: *never
+
+config-inversion-linter:
+  <<: *never
+
+test_published_artifacts:
+  <<: *never
+
+check_build_src:
+  <<: *never
+
+check_base:
+  <<: *never
+
+check_inst:
+  <<: *never
+
+check_smoke:
+  <<: *never
+
+check_profiling:
+  <<: *never
+
+check_debugger:
+  <<: *never
+
+muzzle:
+  <<: *never
+
+muzzle-dep-report:
+  <<: *never
+
+agent_integration_tests:
+  <<: *never
+
+test_base:
+  <<: *never
+
+test_inst:
+  <<: *never
+
+test_inst_latest:
+  <<: *never
+
+test_flaky:
+  <<: *never
+
+test_flaky_inst:
+  <<: *never
+
+test_profiling:
+  <<: *never
+
+test_debugger:
+  <<: *never
+
+test_smoke:
+  <<: *never
+
+test_ssi_smoke:
+  <<: *never
+
+test_smoke_graalvm:
+  <<: *never
+
+test_smoke_semeru8_debugger:
+  <<: *never
+
+aggregate_test_counts:
+  <<: *never
+
+requirements_json_test:
+  <<: *never
