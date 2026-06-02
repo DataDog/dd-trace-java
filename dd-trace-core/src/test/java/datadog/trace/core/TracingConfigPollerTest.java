@@ -137,46 +137,48 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       // Add org level config (priority 1) - should set service mapping
       updater.accept(
           orgKey,
-          ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_service_mapping\": [{\n"
-                  + "      \"from_key\": \"org-service\",\n"
-                  + "      \"to_name\": \"org-mapped\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_sampling_rate\": 0.7\n"
-                  + "  }\n"
-                  + "}")
+          """
+          {
+            "service_target": {
+              "service": "*",
+              "env": "*"
+            },
+            "lib_config": {
+              "tracing_service_mapping": [{
+                "from_key": "org-service",
+                "to_name": "org-mapped"
+              }],
+              "tracing_sampling_rate": 0.7
+            }
+          }"""
               .getBytes(StandardCharsets.UTF_8),
           null);
       // Add service level config (priority 4) - should override service mapping and add header tags
       updater.accept(
           serviceKey,
-          ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"test-service\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_service_mapping\": [{\n"
-                  + "      \"from_key\": \"service-specific\",\n"
-                  + "      \"to_name\": \"service-mapped\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_header_tags\": [{\n"
-                  + "      \"header\": \"X-Custom-Header\",\n"
-                  + "      \"tag_name\": \"custom.header\"\n"
-                  + "    }],\n"
-                  + "    \"tracing_sampling_rate\": 1.3,\n"
-                  + "    \"data_streams_transaction_extractors\": [{\n"
-                  + "      \"name\": \"test\",\n"
-                  + "      \"type\": \"unknown\",\n"
-                  + "      \"value\": \"value\"\n"
-                  + "    }]\n"
-                  + "  }\n"
-                  + "}")
+          """
+          {
+            "service_target": {
+              "service": "test-service",
+              "env": "*"
+            },
+            "lib_config": {
+              "tracing_service_mapping": [{
+                "from_key": "service-specific",
+                "to_name": "service-mapped"
+              }],
+              "tracing_header_tags": [{
+                "header": "X-Custom-Header",
+                "tag_name": "custom.header"
+              }],
+              "tracing_sampling_rate": 1.3,
+              "data_streams_transaction_extractors": [{
+                "name": "test",
+                "type": "unknown",
+                "value": "value"
+              }]
+            }
+          }"""
               .getBytes(StandardCharsets.UTF_8),
           null);
       // Commit both configs
@@ -251,29 +253,31 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       // Add org level config with ApmTracing enabled
       updater.accept(
           orgConfig1Key,
-          ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"tracing_enabled\": true\n"
-                  + "  }\n"
-                  + "}")
+          """
+          {
+            "service_target": {
+              "service": "*",
+              "env": "*"
+            },
+            "lib_config": {
+              "tracing_enabled": true
+            }
+          }"""
               .getBytes(StandardCharsets.UTF_8),
           null);
       // Add second org level config with DataStreams enabled
       updater.accept(
           orgConfig2Key,
-          ("{\n"
-                  + "  \"service_target\": {\n"
-                  + "    \"service\": \"*\",\n"
-                  + "    \"env\": \"*\"\n"
-                  + "  },\n"
-                  + "  \"lib_config\": {\n"
-                  + "    \"data_streams_enabled\": true\n"
-                  + "  }\n"
-                  + "}")
+          """
+          {
+            "service_target": {
+              "service": "*",
+              "env": "*"
+            },
+            "lib_config": {
+              "data_streams_enabled": true
+            }
+          }"""
               .getBytes(StandardCharsets.UTF_8),
           null);
       // Commit both configs

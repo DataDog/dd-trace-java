@@ -63,6 +63,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("frgaal-test-compiler") {
+      id = "dd-trace-java.frgaal-test-compiler"
+      implementationClass = "datadog.gradle.plugin.frgaal.FrgaalCompilerPlugin"
+    }
   }
 }
 

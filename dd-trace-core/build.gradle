@@ -1,6 +1,7 @@
 plugins {
   id 'me.champeau.jmh'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.frgaal-test-compiler'
 }
 
 description = 'dd-trace-core'
