@@ -134,6 +134,8 @@ tasks.register('forkedTest', Test) {
   classpath = sourceSets.test.runtimeClasspath
 }
 
+// testRuntimeActivation is registered in individual module build files after this convention is
+// applied, so tasks.named() won't work here — use a lazy hook that intercepts it on registration.
 tasks.withType(Test).configureEach {
   if (name == 'testRuntimeActivation') {
     testClassesDirs = sourceSets.test.output.classesDirs
