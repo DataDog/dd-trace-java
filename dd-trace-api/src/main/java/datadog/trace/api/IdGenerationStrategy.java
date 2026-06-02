@@ -18,7 +18,8 @@ public abstract class IdGenerationStrategy {
     // This avoids a potential 'clinit' deadlock between DDTraceId and DD64bTraceId caused
     // by one thread touching DD64bTraceId before the static initializer in DDTraceId has
     // finished setting up the ZERO constant (which in turn uses DD64bTraceId)
-    @SuppressWarnings("unused") DDTraceId init = DDTraceId.ZERO;
+    @SuppressWarnings("unused")
+    DDTraceId init = DDTraceId.ZERO;
   }
 
   protected final boolean traceId128BitGenerationEnabled;

@@ -25,11 +25,11 @@ import org.junit.jupiter.api.Timeout;
  * original cycle. An alternative fix would have been to introduce another subclass just for these
  * constants, but that has wide repercussions across the codebase. Furthermore, if that new class
  * was ever touched early on then a similar clinit deadlock could still occur. The only way to fix
- * this without breaking API compatibility is therefore to arrange for {@code DDTraceId.ZERO} to
- * be accessed as early as possible when configuring the trace id strategy.
+ * this without breaking API compatibility is therefore to arrange for {@code DDTraceId.ZERO} to be
+ * accessed as early as possible when configuring the trace id strategy.
  *
- * <p>This test initializes the two classes for the first time concurrently from opposite ends
- * after first touching {@code IdGenerationStrategy} and asserts neither thread hangs.
+ * <p>This test initializes the two classes for the first time concurrently from opposite ends after
+ * first touching {@code IdGenerationStrategy} and asserts neither thread hangs.
  *
  * <p>Runs forked ({@code forkEvery = 1}) so it gets a fresh JVM in which these classes have not yet
  * been initialized by another test. Without the fix it deadlocks and fails via the join check (and
