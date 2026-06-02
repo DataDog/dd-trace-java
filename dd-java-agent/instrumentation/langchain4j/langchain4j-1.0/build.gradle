@@ -36,7 +36,7 @@ tasks.register('runOllamaDemo', JavaExec) {
   jvmArgs "-javaagent:${agentJar}",
       "-Ddd.profiling.enabled=true",
       "-Ddd.profiling.context.attributes.llm.phase.enabled=true",
-      "-Ddd.trace.enabled=false",
+      "-Ddd.writer.type=LoggingWriter",
       "-Ddd.profiling.start-force-first=true",
       "-Ddd.profiling.upload.period=10",
       "-Ddd.profiling.debug.dump_path=/tmp/llm-demo-profiles"
