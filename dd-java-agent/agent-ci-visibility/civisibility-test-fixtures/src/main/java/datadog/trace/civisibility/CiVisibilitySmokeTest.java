@@ -100,7 +100,7 @@ public abstract class CiVisibilitySmokeTest {
 
   protected List<String> buildJvmArguments(
       String mockBackendIntakeUrl, String serviceName, Map<String, String> additionalArgs) {
-    List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx256m"));
+    List<String> arguments = new ArrayList<>(Arrays.asList("-Xms256m", "-Xmx512m"));
 
     arguments.add(preventJulPrefsFileLock());
 

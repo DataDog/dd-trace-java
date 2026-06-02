@@ -5,8 +5,9 @@ import static datadog.trace.api.DDSpanTypes.RPC;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ENDPOINT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
-import static datadog.trace.common.metrics.AggregateMetric.ERROR_TAG;
-import static datadog.trace.common.metrics.AggregateMetric.TOP_LEVEL_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.ERROR_TAG;
+import static datadog.trace.common.metrics.AggregateEntry.TOP_LEVEL_TAG;
+import static datadog.trace.common.metrics.SignalItem.ClearSignal.CLEAR;
 import static datadog.trace.common.metrics.SignalItem.ReportSignal.REPORT;
 import static datadog.trace.common.metrics.SignalItem.StopSignal.STOP;
 import static datadog.trace.util.AgentThreadFactory.AgentThread.METRICS_AGGREGATOR;
@@ -18,12 +19,8 @@ import datadog.common.queue.Queues;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.communication.ddagent.SharedCommunicationObjects;
 import datadog.trace.api.Config;
-import datadog.trace.api.Pair;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.api.cache.DDCache;
-import datadog.trace.api.cache.DDCaches;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
-import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.common.metrics.SignalItem.ReportSignal;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.core.CoreSpan;
@@ -39,7 +36,6 @@ import java.util.Set;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
-import java.util.function.Function;
 import org.jctools.queues.MessagePassingQueue;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -51,22 +47,6 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
   private static final Map<String, String> DEFAULT_HEADERS =
       Collections.singletonMap(DDAgentApi.DATADOG_META_TRACER_VERSION, DDTraceCoreInfo.VERSION);
 
-  static final DDCache<String, UTF8BytesString> SERVICE_NAMES = DDCaches.newFixedSizeCache(32);
-
-  static final DDCache<CharSequence, UTF8BytesString> SPAN_KINDS = DDCaches.newFixedSizeCache(16);
-  static final DDCache<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE =
-          DDCaches.newFixedSizeCache(
-              64); // it can be unbounded since those values are returned by the agent and should be
-  // under control. 64 entries is enough in this case to contain all the peer tags.
-  static final Function<
-          String, Pair<DDCache<String, UTF8BytesString>, Function<String, UTF8BytesString>>>
-      PEER_TAGS_CACHE_ADDER =
-          key ->
-              Pair.of(
-                  DDCaches.newFixedSizeCache(512),
-                  value -> UTF8BytesString.create(key + ":" + value));
   private static final CharSequence SYNTHETICS_ORIGIN = "synthetics";
 
   private static final SpanKindFilter METRICS_ELIGIBLE_KINDS =
@@ -532,8 +512,17 @@ public final class ConflatingMetricsAggregator implements MetricsAggregator, Eve
     features.discover();
     if (!features.supportsMetrics()) {
       log.debug("Disabling metric reporting because an agent downgrade was detected");
-      this.inbox.clear();
-      this.aggregator.clearAggregates();
+      // Route the clear through the inbox so the aggregator thread is the only writer.
+      // AggregateTable is not thread-safe; mutating it directly from this thread would race
+      // with Drainer.accept on the aggregator thread.
+      //
+      // Best-effort single offer rather than the retry-loop pattern in report(). If the inbox is
+      // full at downgrade time the clear is dropped, but the system self-heals: features.discover()
+      // already flipped supportsMetrics() false, so producer publish() calls now skip the inbox;
+      // the aggregator drains existing snapshots and ships them on the next report cycle; the
+      // sink rejects that payload and fires DOWNGRADED again, which retries disable() against a
+      // now-empty inbox. Worst case: one extra reporting cycle of stale data.
+      inbox.offer(CLEAR);
     }
   }
 
