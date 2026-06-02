@@ -42,12 +42,6 @@ cp /tmp/*.trc $REPORTS_DIR 2>/dev/null || true
 cp /tmp/*.dmp $REPORTS_DIR 2>/dev/null || true
 cp /tmp/dd-profiler/*.jfr $REPORTS_DIR 2>/dev/null || true
 
-# Gradle immutable-workspace metadata evidence (good + corrupt metadata.bin) captured in the
-# gradle_build before_script before corrupt entries are cleared. See .gitlab-ci.yml.
-if [ -d ./gradle-cache-metadata ]; then
-  cp -r ./gradle-cache-metadata "$REPORTS_DIR/" 2>/dev/null || true
-fi
-
 function process_reports () {
     project_to_save=$1
     report_path=$REPORTS_DIR/$project_to_save
