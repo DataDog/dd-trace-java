@@ -85,19 +85,18 @@ final class OrgGuardEnforcer {
       // We don't know our own OPM yet — never enforce.
       return extracted;
     }
-    CharSequence inboundCs = ctx.getPropagationTags().getOrgPropagationMarker();
-    String inbound = inboundCs == null ? null : inboundCs.toString();
-
-    if (inbound == null) {
+    CharSequence opmChars = ctx.getPropagationTags().getOrgPropagationMarker();
+    if (opmChars == null) {
       if (!strict) {
         return extracted;
       }
       return strip(ctx, OrgGuard.Reason.STRICT_MISSING, localOpm, null);
     }
-    if (localOpm.equals(inbound) || trustedOpms.contains(inbound)) {
+    String inboundOpm = opmChars.toString();
+    if (localOpm.equals(inboundOpm) || trustedOpms.contains(inboundOpm)) {
       return extracted;
     }
-    return strip(ctx, OrgGuard.Reason.MISMATCH, localOpm, inbound);
+    return strip(ctx, OrgGuard.Reason.MISMATCH, localOpm, inboundOpm);
   }
 
   private ExtractedContext strip(
