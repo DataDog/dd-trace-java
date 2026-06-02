@@ -223,6 +223,9 @@ public final class ProfilingConfig {
   public static final String PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED =
       "profiling.context.attributes.resource.name.enabled";
 
+  public static final String PROFILING_CONTEXT_ATTRIBUTES_LLM_PHASE_ENABLED =
+      "profiling.context.attributes.llm.phase.enabled";
+
   public static final String PROFILING_QUEUEING_TIME_ENABLED = "profiling.queueing.time.enabled";
 
   public static final boolean PROFILING_QUEUEING_TIME_ENABLED_DEFAULT = true;

@@ -4,6 +4,7 @@ import static com.datadog.profiling.controller.ProfilingSupport.isOldObjectSampl
 import static datadog.environment.JavaVirtualMachine.isJ9;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_ALLOCATION_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_LLM_PHASE_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_CONTEXT_ATTRIBUTES_SPAN_NAME_ENABLED;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_ALLOC_ENABLED;
@@ -394,6 +395,10 @@ public class DatadogProfilerConfig {
 
   public static boolean isResourceNameContextAttributeEnabled(ConfigProvider configProvider) {
     return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_RESOURCE_NAME_ENABLED, false);
+  }
+
+  public static boolean isLlmPhaseAttributeEnabled(ConfigProvider configProvider) {
+    return configProvider.getBoolean(PROFILING_CONTEXT_ATTRIBUTES_LLM_PHASE_ENABLED, true);
   }
 
   public static boolean isTrackingGenerations(ConfigProvider configProvider) {
