@@ -15,7 +15,19 @@ addTestSuiteForDir('latestDepTest', 'test')
 dependencies {
   compileOnly group: 'dev.langchain4j', name: 'langchain4j-core', version: minVer
   testImplementation group: 'dev.langchain4j', name: 'langchain4j', version: minVer
-  testCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '1.2.0'
+  testImplementation group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '1.2.0'
   latestDepTestImplementation group: 'dev.langchain4j', name: 'langchain4j', version: '+'
   latestDepTestCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '+'
+}
+
+tasks.register('runOllamaDemo', JavaExec) {
+  dependsOn testClasses
+  classpath = sourceSets.test.runtimeClasspath
+  mainClass = 'datadog.trace.instrumentation.langchain4j.demo.OllamaLlmPipelineDemo'
+  def agentJar = fileTree("$rootDir/dd-java-agent/build/libs").include("dd-java-agent-*.jar")
+      .exclude("*-sources.jar").singleFile
+  jvmArgs "-javaagent:${agentJar}",
+      "-Ddd.profiling.enabled=true",
+      "-Ddd.profiling.context.attributes.llm.phase.enabled=true",
+      "-Ddd.trace.enabled=false"
 }
