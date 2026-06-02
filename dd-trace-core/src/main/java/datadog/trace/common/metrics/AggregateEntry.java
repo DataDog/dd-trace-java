@@ -554,7 +554,7 @@ final class AggregateEntry extends Hashtable.Entry {
       if (schema == null || values == null) {
         return;
       }
-      int n = schema.size();
+      int n = Math.min(schema.size(), values.length);
       for (int i = 0; i < n; i++) {
         String value = values[i];
         if (value == null) {
