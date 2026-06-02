@@ -29,7 +29,9 @@ public class JmhInstrumentation extends InstrumenterModule.CiVisibility
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".JmhUtils", packageName + ".DDOutputFormat",
+      packageName + ".JmhUtils",
+      packageName + ".DDOutputFormat",
+      packageName + ".DatadogJmhReporter",
     };
   }
 
@@ -49,12 +51,7 @@ public class JmhInstrumentation extends InstrumenterModule.CiVisibility
       if (out instanceof DDOutputFormat) {
         return;
       }
-      String version = null;
-      try {
-        version = org.openjdk.jmh.Main.class.getPackage().getImplementationVersion();
-      } catch (Throwable ignored) {
-      }
-      out = new DDOutputFormat(out, version);
+      out = new DDOutputFormat(out);
     }
   }
 }
