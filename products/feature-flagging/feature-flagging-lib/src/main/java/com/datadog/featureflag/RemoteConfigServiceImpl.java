@@ -29,9 +29,13 @@ import java.util.Set;
 import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 import okio.Okio;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 public class RemoteConfigServiceImpl
     implements RemoteConfigService, ConfigurationChangesTypedListener<ServerConfiguration> {
+
+  private static final Logger LOGGER = LoggerFactory.getLogger(RemoteConfigServiceImpl.class);
 
   private final ConfigurationPoller configurationPoller;
 
@@ -123,8 +127,11 @@ public class RemoteConfigServiceImpl
           if (flag != null) {
             flags.put(flagKey, flag);
           }
-        } catch (JsonDataException | IllegalArgumentException ignored) {
-          // A malformed flag must not prevent other flags in the same config from evaluating.
+        } catch (JsonDataException | IllegalArgumentException error) {
+          LOGGER.warn(
+              "Dropping malformed FFE flag {} during remote config deserialization: {}",
+              flagKey,
+              error.toString());
         }
       }
       reader.endObject();
