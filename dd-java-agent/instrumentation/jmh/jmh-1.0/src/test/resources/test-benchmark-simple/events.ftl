@@ -10,10 +10,11 @@
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_suite_end",
       "test.framework" : "jmh",
+      "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "jmh-1.0",
       "test.status" : "pass",
       "test.suite" : "datadog.trace.instrumentation.jmh.benchmarks.SimpleBenchmark",
-      "test.type" : "test",
+      "test.type" : "benchmark",
       "test_session.name" : "session-name"
     },
     "metrics" : {
@@ -48,11 +49,12 @@
       "span.kind" : "test",
       "test.final_status" : "pass",
       "test.framework" : "jmh",
+      "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "jmh-1.0",
       "test.name" : "measure",
       "test.status" : "pass",
       "test.suite" : "datadog.trace.instrumentation.jmh.benchmarks.SimpleBenchmark",
-      "test.type" : "test",
+      "test.type" : "benchmark",
       "test_session.name" : "session-name"
     },
     "metrics" : {
@@ -95,8 +97,9 @@
       "span.kind" : "test_session_end",
       "test.command" : "jmh-1.0",
       "test.framework" : "jmh",
+      "test.framework_version" : ${content_meta_test_framework_version},
       "test.status" : "pass",
-      "test.type" : "test",
+      "test.type" : "benchmark",
       "test_session.name" : "session-name"
     },
     "metrics" : {
@@ -125,9 +128,10 @@
       "library_version" : ${content_meta_library_version},
       "span.kind" : "test_module_end",
       "test.framework" : "jmh",
+      "test.framework_version" : ${content_meta_test_framework_version},
       "test.module" : "jmh-1.0",
       "test.status" : "pass",
-      "test.type" : "test",
+      "test.type" : "benchmark",
       "test_session.name" : "session-name"
     },
     "metrics" : {

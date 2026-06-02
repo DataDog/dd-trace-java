@@ -2,51 +2,53 @@ package datadog.trace.instrumentation.jmh;
 
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.junit.jupiter.api.Test;
 
 class JmhUtilsTest {
 
   @Test
   void splitBenchmarkName_simple() {
-    String[] parts = JmhUtils.splitBenchmarkName("com.example.MyBenchmark.myMethod");
-    assertArrayEquals(new String[] {"com.example.MyBenchmark", "myMethod"}, parts);
-  }
-
-  @Test
-  void splitBenchmarkName_withParams() {
-    String[] parts =
-        JmhUtils.splitBenchmarkName("com.example.MyBenchmark.myMethod:size=1000,threads=4");
-    assertArrayEquals(new String[] {"com.example.MyBenchmark", "myMethod"}, parts);
+    assertArrayEquals(
+        new String[] {"com.example.MyBenchmark", "myMethod"},
+        JmhUtils.splitBenchmarkName("com.example.MyBenchmark.myMethod"));
   }
 
   @Test
   void splitBenchmarkName_noPackage() {
-    String[] parts = JmhUtils.splitBenchmarkName("MyBenchmark.myMethod");
-    assertArrayEquals(new String[] {"MyBenchmark", "myMethod"}, parts);
+    assertArrayEquals(
+        new String[] {"MyBenchmark", "myMethod"},
+        JmhUtils.splitBenchmarkName("MyBenchmark.myMethod"));
   }
 
   @Test
   void splitBenchmarkName_noDot() {
-    String[] parts = JmhUtils.splitBenchmarkName("noDot");
-    assertArrayEquals(new String[] {"", "noDot"}, parts);
+    assertArrayEquals(new String[] {"", "noDot"}, JmhUtils.splitBenchmarkName("noDot"));
   }
 
   @Test
-  void testParameters_noParams() {
-    assertNull(JmhUtils.testParameters("com.example.MyBenchmark.myMethod"));
+  void paramsToJson_singleParam() {
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("size", "1000");
+    assertEquals("{\"metadata\":{\"test_name\":\"size=1000\"}}", JmhUtils.paramsToJson(params));
   }
 
   @Test
-  void testParameters_withParams() {
-    String result = JmhUtils.testParameters("com.example.MyBenchmark.myMethod:size=1000,threads=4");
-    assertEquals("{\"metadata\":{\"test_name\":\"myMethod:size=1000,threads=4\"}}", result);
+  void paramsToJson_multipleParams() {
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("size", "1000");
+    params.put("threads", "4");
+    assertEquals(
+        "{\"metadata\":{\"test_name\":\"size=1000, threads=4\"}}", JmhUtils.paramsToJson(params));
   }
 
   @Test
-  void testParameters_escapesQuotes() {
-    String result = JmhUtils.testParameters("com.example.MyBenchmark.myMethod:key=\"value\"");
-    assertEquals("{\"metadata\":{\"test_name\":\"myMethod:key=\\\"value\\\"\"}}", result);
+  void paramsToJson_escapesQuotes() {
+    Map<String, String> params = new LinkedHashMap<>();
+    params.put("key", "\"value\"");
+    assertEquals(
+        "{\"metadata\":{\"test_name\":\"key=\\\"value\\\"\"}}", JmhUtils.paramsToJson(params));
   }
 }

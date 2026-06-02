@@ -1,5 +1,6 @@
 import datadog.trace.api.DisableTestTrace
 import datadog.trace.civisibility.CiVisibilityInstrumentationTest
+import datadog.trace.instrumentation.jmh.JmhUtils
 import datadog.trace.instrumentation.jmh.benchmarks.SimpleBenchmark
 import datadog.trace.instrumentation.jmh.benchmarks.ParameterizedBenchmark
 import org.openjdk.jmh.runner.Runner
@@ -22,21 +23,24 @@ class JmhInstrumentationTest extends CiVisibilityInstrumentationTest {
   ]
 
   def "test #testcaseName"() {
-    runBenchmark(benchmarkClass)
+    runBenchmarks(*benchmarkClasses)
     assertSpansData(testcaseName, [:], BENCHMARK_METRIC_TAGS)
 
     where:
-    testcaseName                 | benchmarkClass
-    "test-benchmark-simple"      | SimpleBenchmark
-    "test-benchmark-parameterized" | ParameterizedBenchmark
+    testcaseName                   | benchmarkClasses
+    "test-benchmark-simple"        | [SimpleBenchmark]
+    "test-benchmark-parameterized" | [ParameterizedBenchmark]
+    // Multiple classes in one run keep several suites open at once (all finished in onRunEnd);
+    // guards against suite spans being activated on the active-span stack, which would make
+    // finishing them out of order throw IllegalStateException.
+    "test-benchmark-multi-class"   | [SimpleBenchmark, ParameterizedBenchmark]
   }
 
-  private void runBenchmark(Class<?> benchmarkClass) {
-    def options = new OptionsBuilder()
-      .include(benchmarkClass.getName())
+  private void runBenchmarks(Class<?>... benchmarkClasses) {
+    def builder = new OptionsBuilder()
       .jvmArgsAppend("-Djmh.ignoreLock=true")
-      .build()
-    new Runner(options).run()
+    benchmarkClasses.each { builder.include(it.getName()) }
+    new Runner(builder.build()).run()
   }
 
   @Override
@@ -46,6 +50,6 @@ class JmhInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   @Override
   String instrumentedLibraryVersion() {
-    Runner.class.getPackage().getImplementationVersion()
+    JmhUtils.frameworkVersion()
   }
 }
