@@ -36,8 +36,23 @@ public class OllamaLlmPipelineDemo {
             .chatMemory(MessageWindowChatMemory.withMaxMessages(10))
             .build();
 
-        System.out.println("Sending request...");
-        String answer = assistant.chat("Explain Java garbage collection in one sentence.");
-        System.out.println("Response: " + answer);
+        String[] questions = {
+            "Explain Java garbage collection in one sentence.",
+            "What is a Java virtual thread?",
+            "Name one advantage of the G1 garbage collector."
+        };
+        for (String q : questions) {
+            System.out.println("Q: " + q);
+            System.out.println("A: " + assistant.chat(q));
+        }
+
+        // Hold the JVM alive so the profiler flushes at least two recording cycles
+        // (dd.profiling.upload.period=10 → flush at ~10 s and ~20 s).
+        System.out.println("Waiting 25 s for profiling data to flush...");
+        try {
+            Thread.sleep(25_000);
+        } catch (InterruptedException ignored) {
+        }
+        System.out.println("Done.");
     }
 }
