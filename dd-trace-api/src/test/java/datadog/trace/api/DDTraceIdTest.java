@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertThrows;
@@ -176,13 +175,10 @@ class DDTraceIdTest {
   @Test
   void checkZeroConstantInitialization() {
     DDTraceId zero = DDTraceId.ZERO;
+    DDTraceId fromZero = DDTraceId.from(0);
 
     assertNotNull(zero);
-    assertFalse(zero.isValid());
-    // The public DDTraceId factories normalize a zero id back to the ZERO constant.
-    assertSame(zero, DDTraceId.from(0));
-    assertSame(zero, DDTraceId.from("0"));
-    assertSame(zero, DDTraceId.fromHex("0"));
+    assertSame(fromZero, zero);
   }
 
   private static String leftPadWithZeros(String value, int size) {

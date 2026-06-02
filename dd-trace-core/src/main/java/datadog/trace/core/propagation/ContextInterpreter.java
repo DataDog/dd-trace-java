@@ -250,7 +250,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
 
   protected TagContext build() {
     if (valid) {
-      if (fullContext && traceId.isValid()) {
+      if (fullContext && !DDTraceId.ZERO.equals(traceId)) {
         if (propagationTags == null) {
           propagationTags = propagationTagsFactory.empty();
         }
@@ -305,7 +305,7 @@ public abstract class ContextInterpreter implements AgentPropagation.KeyClassifi
   }
 
   private int samplingPriorityOrDefault(DDTraceId traceId, int samplingPriority) {
-    return samplingPriority == PrioritySampling.UNSET || !traceId.isValid()
+    return samplingPriority == PrioritySampling.UNSET || DDTraceId.ZERO.equals(traceId)
         ? defaultSamplingPriority()
         : samplingPriority;
   }

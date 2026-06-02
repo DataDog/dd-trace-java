@@ -20,10 +20,16 @@ import org.junit.jupiter.api.Timeout;
  * thread held one class-initialization lock and waited for the other, hanging trace creation. This
  * surfaced as 30s {@code LogInjectionSmokeTest} timeouts in CI.
  *
- * <p>{@code DDTraceId.ZERO}/{@code ONE} are now instances of a private sibling type (not {@code
- * DD64bTraceId}), so {@code DDTraceId.<clinit>} no longer references {@code DD64bTraceId} and the
- * cycle is gone. This test initializes the two classes for the first time concurrently from
- * opposite ends and asserts neither thread hangs.
+ * <p>We now eagerly initialize {@code DDTraceId.ZERO} in {@code IdGenerationStrategy} - this class
+ * is touched very early on in config before the tracer is installed, which is enough to break the
+ * original cycle. An alternative fix would have been to introduce another subclass just for these
+ * constants, but that has wide repercussions across the codebase. Furthermore, if that new class
+ * was ever touched early on then a similar clinit deadlock could still occur. The only way to fix
+ * this without breaking API compatibility is therefore to arrange for {@code DDTraceId.ZERO} to
+ * be accessed as early as possible when configuring the trace id strategy.
+ *
+ * <p>This test initializes the two classes for the first time concurrently from opposite ends
+ * after first touching {@code IdGenerationStrategy} and asserts neither thread hangs.
  *
  * <p>Runs forked ({@code forkEvery = 1}) so it gets a fresh JVM in which these classes have not yet
  * been initialized by another test. Without the fix it deadlocks and fails via the join check (and
@@ -40,6 +46,7 @@ class DDTraceIdClinitDeadlockForkedTest {
 
     // One thread enters via the superclass (mirrors blackholeSpan() -> DDTraceId.ZERO), the other
     // via the subclass (mirrors IdGenerationStrategy.generateTraceId() -> DD64bTraceId.from()).
+
     Thread viaSuper =
         new Thread(
             () -> {
@@ -56,6 +63,7 @@ class DDTraceIdClinitDeadlockForkedTest {
             () -> {
               try {
                 barrier.await();
+                Class.forName("datadog.trace.api.IdGenerationStrategy", true, cl);
                 Class.forName("datadog.trace.api.DD64bTraceId", true, cl);
               } catch (Throwable t) {
                 error.compareAndSet(null, t);

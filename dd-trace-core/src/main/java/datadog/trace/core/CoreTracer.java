@@ -2025,9 +2025,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
           propagationTags = extractedContext.getPropagationTags();
         } else if (resolvedParentContext != null) {
           traceId =
-              resolvedParentContext.getTraceId().isValid()
-                  ? resolvedParentContext.getTraceId()
-                  : tracer.idGenerationStrategy.generateTraceId();
+              resolvedParentContext.getTraceId() == DDTraceId.ZERO
+                  ? tracer.idGenerationStrategy.generateTraceId()
+                  : resolvedParentContext.getTraceId();
           parentSpanId = resolvedParentContext.getSpanId();
           samplingPriority = resolvedParentContext.getSamplingPriority();
           endToEndStartTime = 0;

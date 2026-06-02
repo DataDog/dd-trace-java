@@ -1,7 +1,6 @@
 package datadog.trace.api;
 
 import datadog.trace.api.internal.util.LongStringUtils;
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 /**
  * Class encapsulating the unsigned 64 bit id used for Traceids.
@@ -13,8 +12,6 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 public class DD64bTraceId extends DDTraceId {
   public static final DD64bTraceId MAX =
       new DD64bTraceId(-1, "18446744073709551615"); // All bits set
-  // Cached zero so create()/from() don't allocate per zero id. Value-equal to DDTraceId.ZERO.
-  private static final DD64bTraceId ZERO_ID = new DD64bTraceId(0, "0");
 
   private final long id;
   private String str; // cache for string representation
@@ -62,27 +59,23 @@ public class DD64bTraceId extends DDTraceId {
   }
 
   static DD64bTraceId create(long id, String str) {
-    // Reuse cached singletons rather than allocating: -1 -> MAX, 0 -> ZERO_ID.
-    if (id == -1) {
+    // ZERO constant is created and stored by the parent class as part of its API contract
+    // But initialized by this 64-bit child class. Ensures uniqueness of ZERO once created.
+    if (id == 0 && ZERO != null) {
+      return (DD64bTraceId) ZERO;
+    } else if (id == -1) {
       return MAX;
-    } else if (id == 0) {
-      return ZERO_ID;
     } else {
       return new DD64bTraceId(id, str);
     }
   }
 
   @Override
-  @SuppressFBWarnings(
-      value = "EQ_CHECK_FOR_OPERAND_NOT_COMPATIBLE_WITH_THIS",
-      justification =
-          "DDTraceIdConstant is a sibling type backing ZERO/ONE; equal by 64-bit value.")
   public boolean equals(Object o) {
     if (this == o) return true;
-    if (o instanceof DD64bTraceId) return this.id == ((DD64bTraceId) o).id;
-    // Also value-equal to the DDTraceIdConstant backing ZERO/ONE (both 64-bit ids).
-    if (o instanceof DDTraceIdConstant) return this.id == ((DDTraceIdConstant) o).toLong();
-    return false;
+    if (!(o instanceof DD64bTraceId)) return false;
+    DD64bTraceId ddId = (DD64bTraceId) o;
+    return this.id == ddId.id;
   }
 
   @Override

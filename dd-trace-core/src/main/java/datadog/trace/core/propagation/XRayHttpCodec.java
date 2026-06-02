@@ -12,6 +12,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TraceConfig;
 import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -211,8 +212,7 @@ class XRayHttpCodec {
           }
           String part = value.substring(startPart, endPart).trim();
           if (part.startsWith(ROOT_PREFIX)) {
-            // isValid(), not == ZERO: a parsed zero Root must still count as unset.
-            if (interpreter.traceId == null || !interpreter.traceId.isValid()) {
+            if (interpreter.traceId == null || interpreter.traceId == DDTraceId.ZERO) {
               interpreter.traceId =
                   DD64bTraceId.fromHex(part.substring(ROOT_PREAMBLE + TRACE_ID_PADDING.length()));
             }

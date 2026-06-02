@@ -1,5 +1,7 @@
 package datadog.trace.api;
 
+import datadog.trace.api.internal.util.LongStringUtils;
+
 /**
  * Class encapsulating the id used for TraceIds.
  *
@@ -7,15 +9,11 @@ package datadog.trace.api;
  * The string representations are either kept from parsing, or generated on demand and cached.
  */
 public abstract class DDTraceId {
-  // ZERO/ONE use DDTraceIdConstant (a sibling of DD64bTraceId) rather than DD64bTraceId so that
-  // initializing DDTraceId never initializes its subclass, which would deadlock. Test for zero with
-  // isValid(), not == ZERO.
+  /** Invalid TraceId value used to denote no TraceId. */
+  public static final DDTraceId ZERO = from(0);
 
-  /** Invalid TraceId value used to denote no/unset TraceId. */
-  public static final DDTraceId ZERO = new DDTraceIdConstant(0, "0");
-
-  /** Convenience constant used from tests. */
-  public static final DDTraceId ONE = new DDTraceIdConstant(1, "1");
+  /** Convenience constant used from tests */
+  public static final DDTraceId ONE = from(1);
 
   /**
    * Creates a new {@link DD64bTraceId 64-bit TraceId} from the given {@code long} interpreted as
@@ -26,8 +24,7 @@ public abstract class DDTraceId {
    * @return A new {@link DDTraceId} instance.
    */
   public static DDTraceId from(long id) {
-    // Zero maps to the ZERO constant so callers can still compare against it.
-    return id == 0 ? ZERO : DD64bTraceId.from(id);
+    return DD64bTraceId.from(id);
   }
 
   /**
@@ -39,8 +36,7 @@ public abstract class DDTraceId {
    * @throws NumberFormatException If the given {@link String} does not represent a valid number.
    */
   public static DDTraceId from(String s) throws NumberFormatException {
-    DD64bTraceId id = DD64bTraceId.from(s);
-    return id.toLong() == 0 ? ZERO : id;
+    return DD64bTraceId.create(LongStringUtils.parseUnsignedLong(s), s);
   }
 
   /**
@@ -56,11 +52,7 @@ public abstract class DDTraceId {
     if (s == null) {
       throw new NumberFormatException("s cannot be null");
     }
-    if (s.length() > 16) {
-      return DD128bTraceId.fromHex(s);
-    }
-    DD64bTraceId id = DD64bTraceId.fromHex(s);
-    return id.toLong() == 0 ? ZERO : id;
+    return s.length() > 16 ? DD128bTraceId.fromHex(s) : DD64bTraceId.fromHex(s);
   }
 
   /**
@@ -110,14 +102,4 @@ public abstract class DDTraceId {
    *     <code>0</code> for 64-bit {@link DDTraceId} only.
    */
   public abstract long toHighOrderLong();
-
-  /**
-   * Returns whether this is a valid (non-zero) {@link DDTraceId}; zero denotes no/unset TraceId.
-   * Value-based, so it recognizes a zero id of any concrete type.
-   *
-   * @return {@code true} if any bit is non-zero.
-   */
-  public boolean isValid() {
-    return toHighOrderLong() != 0 || toLong() != 0;
-  }
 }

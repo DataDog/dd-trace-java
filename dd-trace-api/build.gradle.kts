@@ -16,7 +16,6 @@ val excludedClassesCoverage by extra(
     "datadog.trace.api.DDTags",
     "datadog.trace.api.DDTraceApiInfo",
     "datadog.trace.api.DDTraceId",
-    "datadog.trace.api.DDTraceIdConstant",
     "datadog.trace.api.EventTracker",
     "datadog.trace.api.GlobalTracer*",
     "datadog.trace.api.PropagationStyle",

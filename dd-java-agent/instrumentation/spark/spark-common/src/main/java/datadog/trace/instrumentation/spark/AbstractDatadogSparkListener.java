@@ -444,7 +444,7 @@ public abstract class AbstractDatadogSparkListener extends SparkListener {
       AgentSpanContext parentContext =
           new DatabricksParentContext(databricksJobId, databricksJobRunId, databricksTaskRunId);
 
-      if (parentContext.getTraceId().isValid()) {
+      if (parentContext.getTraceId() != DDTraceId.ZERO) {
         if (withParentContext) {
           builder.asChildOf(parentContext);
         } else {
