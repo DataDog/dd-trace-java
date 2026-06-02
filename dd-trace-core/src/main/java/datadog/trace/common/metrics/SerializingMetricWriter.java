@@ -6,6 +6,7 @@ import static java.nio.charset.StandardCharsets.ISO_8859_1;
 import datadog.communication.serialization.GrowableBuffer;
 import datadog.communication.serialization.WritableFormatter;
 import datadog.communication.serialization.msgpack.MsgPackWriter;
+import datadog.metrics.api.Histogram;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.api.cache.DDCache;
@@ -13,6 +14,7 @@ import datadog.trace.api.cache.DDCaches;
 import datadog.trace.api.git.GitInfo;
 import datadog.trace.api.git.GitInfoProvider;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import java.nio.ByteBuffer;
 import java.util.List;
 import java.util.function.Function;
 
@@ -65,6 +67,12 @@ public final class SerializingMetricWriter implements MetricWriter {
       DDCaches.newFixedSizeWeakKeyCache(4);
   private long sequence = 0;
   private final GitInfoProvider gitInfoProvider;
+  // Not final/eager: Histogram.newHistogram() requires the Histograms factory to be
+  // registered first. SerializingMetricWriter is constructed during tracer startup before that
+  // registration completes, so eager init would throw. Lazy init on first add() call is safe
+  // because add() only runs on the aggregator thread, which starts after factory registration.
+  // The single-writer invariant also means no synchronization is needed on this field.
+  private byte[] emptyHistogramBytesCache;
 
   public SerializingMetricWriter(WellKnownTags wellKnownTags, Sink sink) {
     this(wellKnownTags, sink, 512 * 1024);
@@ -238,8 +246,6 @@ public final class SerializingMetricWriter implements MetricWriter {
     }
   }
 
-  private byte[] emptyHistogramBytesCache;
-
   /**
    * Returns the cached serialized form of an empty histogram. Computed lazily on first call so the
    * {@link datadog.metrics.api.Histograms} factory has been registered (by the producer-side tracer
@@ -248,7 +254,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private byte[] emptyErrorHistogramBytes() {
     byte[] cached = emptyHistogramBytesCache;
     if (cached == null) {
-      java.nio.ByteBuffer buf = datadog.metrics.api.Histogram.newHistogram().serialize();
+      ByteBuffer buf = Histogram.newHistogram().serialize();
       cached = new byte[buf.remaining()];
       buf.get(cached);
       emptyHistogramBytesCache = cached;
