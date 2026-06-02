@@ -13,7 +13,7 @@ import java.io.File
 import java.util.Locale
 
 /**
- * Compiles test sources with the [Frgaal](https://frgaal.com) compiler so they may use modern Java
+ * Compiles test sources with the [Frgaal](https://frgaal.org) compiler so they may use modern Java
  * syntax (Java 17 source level) while still producing Java 8 bytecode that runs on every JVM the
  * agent supports.
  *
