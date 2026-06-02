@@ -3,9 +3,8 @@ package datadog.trace.instrumentation.langchain4j;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.named;
 
+import com.datadog.profiling.ddprof.DatadogProfilingIntegration;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.profiling.Profiling;
-import datadog.trace.api.profiling.ProfilingScope;
 import net.bytebuddy.asm.Advice;
 
 public class AiServicesInstrumentation
@@ -25,16 +24,13 @@ public class AiServicesInstrumentation
 
   public static final class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ProfilingScope enter() {
-      ProfilingScope scope = Profiling.get().newScope();
-      scope.setContextValue("llm.agent.phase", "context_build");
-      return scope;
+    public static void enter() {
+      DatadogProfilingIntegration.setLlmPhase("context_build");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.Enter final ProfilingScope scope) {
-      scope.clearContextValue("llm.agent.phase");
-      scope.close();
+    public static void exit() {
+      DatadogProfilingIntegration.clearLlmPhase();
     }
   }
 }

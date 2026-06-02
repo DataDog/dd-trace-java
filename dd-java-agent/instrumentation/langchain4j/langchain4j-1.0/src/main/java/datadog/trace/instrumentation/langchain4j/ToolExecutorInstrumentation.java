@@ -5,9 +5,8 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
+import com.datadog.profiling.ddprof.DatadogProfilingIntegration;
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.api.profiling.Profiling;
-import datadog.trace.api.profiling.ProfilingScope;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -36,16 +35,13 @@ public class ToolExecutorInstrumentation
 
   public static final class ExecuteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ProfilingScope enter() {
-      ProfilingScope scope = Profiling.get().newScope();
-      scope.setContextValue("llm.agent.phase", "tool_execution");
-      return scope;
+    public static void enter() {
+      DatadogProfilingIntegration.setLlmPhase("tool_execution");
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.Enter final ProfilingScope scope) {
-      scope.clearContextValue("llm.agent.phase");
-      scope.close();
+    public static void exit() {
+      DatadogProfilingIntegration.clearLlmPhase();
     }
   }
 }

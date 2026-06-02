@@ -82,6 +82,14 @@ public class DatadogProfilingIntegration implements ProfilingContextIntegration 
     DDPROF.clearContextValue(RESOURCE_NAME_INDEX);
   }
 
+  public static void setLlmPhase(String phaseToken) {
+    DDPROF.setAgentPhase(phaseToken);
+  }
+
+  public static void clearLlmPhase() {
+    DDPROF.clearAgentPhase();
+  }
+
   @Override
   public ProfilingContextAttribute createContextAttribute(String attribute) {
     return new DatadogProfilerContextSetter(attribute, DDPROF);
