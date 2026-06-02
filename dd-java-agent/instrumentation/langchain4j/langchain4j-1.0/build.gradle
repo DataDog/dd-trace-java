@@ -1,0 +1,19 @@
+apply from: "$rootDir/gradle/java.gradle"
+
+def minVer = '1.0.0'
+
+muzzle {
+  pass {
+    group = "dev.langchain4j"
+    module = "langchain4j-core"
+    versions = "[$minVer,)"
+  }
+}
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+dependencies {
+  compileOnly group: 'dev.langchain4j', name: 'langchain4j-core', version: minVer
+  testImplementation group: 'dev.langchain4j', name: 'langchain4j', version: minVer
+  latestDepTestImplementation group: 'dev.langchain4j', name: 'langchain4j', version: '+'
+}
