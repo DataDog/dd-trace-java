@@ -29,7 +29,6 @@ ext {
 }
 
 // Route artifact downloads through MASS staging to validate HEAD support.
-// MASS staging: https://mass-read.us1.staging.dog
 // DO NOT MERGE — staging validation only.
 def massArtifactUrl = { String upstreamArtifactUrl ->
   def massReadUrl = 'https://mass-read.us1.staging.dog'
@@ -66,3 +65,32 @@ dependencies {
 
 tasks.register("unzip", Copy) {
   def zipFileNamePrefix = "tomcat"
+  def serverZipTree = providers.provider {
+    // eager access
+    def zipPath = project.configurations.serverFile.find {
+      it.name.startsWith(zipFileNamePrefix)
+    }
+    if (zipPath == null) {
+      throw new GradleException("Can't find server zip file that starts with: " + zipFileNamePrefix)
+    }
+    zipTree(zipPath)
+  }
+
+  from serverZipTree
+  into layout.buildDirectory
+
+  // When tests are disabled this would still be run, so disable this manually
+  onlyIf { !project.rootProject.hasProperty("skipTests") }
+}
+
+tasks.named('bootWar') {
+  dependsOn 'unzip'
+}
+
+tasks.named('bootWarMainClassName') {
+  dependsOn 'unzip'
+}
+
+tasks.named('war') {
+  dependsOn 'unzip'
+}
