@@ -39,5 +39,5 @@ tasks.register('runOllamaDemo', JavaExec) {
       "-Ddd.trace.enabled=false",
       "-Ddd.profiling.start-force-first=true",
       "-Ddd.profiling.upload.period=10",
-      "-XX:StartFlightRecording=filename=/tmp/demo-llm.jfr,dumponexit=true,settings=profile"
+      "-Ddd.profiling.debug.dump_path=/tmp/llm-demo-profiles"
 }
