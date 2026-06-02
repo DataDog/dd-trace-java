@@ -40,18 +40,27 @@ class FrgaalCompilerPlugin : Plugin<Project> {
 
     val writeFrgaalJavacWrapper = project.tasks.register("writeFrgaalJavacWrapper") {
       inputs.files(frgaalCompiler)
-      outputs.file(frgaalJavacWrapper)
+      outputs.dir(frgaalJavaHome)
 
       doLast {
-        val javacWrapper = frgaalJavacWrapper.get().asFile
-        javacWrapper.parentFile.mkdirs()
+        val binDir = File(frgaalJavaHome.get().asFile, "bin")
+        binDir.mkdirs()
 
-        val javaBin = if (isWindows) "bin/java.exe" else "bin/java"
-        val javaExecutable = File(System.getProperty("java.home"), javaBin).absolutePath
+        val realJava = File(System.getProperty("java.home"), if (isWindows) "bin/java.exe" else "bin/java").absolutePath
+        val javacWrapper = frgaalJavacWrapper.get().asFile
+        // When forkOptions.executable points at <frgaalJavaHome>/bin/javac, Gradle treats
+        // <frgaalJavaHome> as a Java installation and validates it by running <home>/bin/java -version
+        // (this happens on JDK 8 daemons, where gradle/java_no_deps.gradle resolves a javaCompiler
+        // toolchain instead of using --release). So the fake home must expose a working java that
+        // delegates to the real, probe-able JDK — otherwise the build fails before javac even runs.
+        val javaWrapper = File(binDir, if (isWindows) "java.bat" else "java")
         if (isWindows) {
-          javacWrapper.writeText(windowsWrapperScript(javaExecutable, frgaalCompiler.asPath))
+          javaWrapper.writeText(windowsJavaScript(realJava))
+          javacWrapper.writeText(windowsWrapperScript(realJava, frgaalCompiler.asPath))
         } else {
-          javacWrapper.writeText(unixWrapperScript(javaExecutable, frgaalCompiler.asPath))
+          javaWrapper.writeText(unixJavaScript(realJava))
+          javacWrapper.writeText(unixWrapperScript(realJava, frgaalCompiler.asPath))
+          javaWrapper.setExecutable(true)
           javacWrapper.setExecutable(true)
         }
       }
@@ -95,7 +104,25 @@ class FrgaalCompilerPlugin : Plugin<Project> {
 
   private fun isTestJavaCompileTask(taskName: String): Boolean {
     return taskName == "compileTestJava" ||
-      (taskName.startsWith("compile") && taskName.endsWith("TestJava"))
+        (taskName.startsWith("compile") && taskName.endsWith("TestJava"))
+  }
+
+  /** Minimal `java` that forwards to the real JDK so Gradle's installation probe succeeds. */
+  private fun unixJavaScript(realJava: String): String {
+    return """
+      |#!/bin/sh
+      |exec ${shQuote(realJava)} "${'$'}@"
+      |
+      """.trimMargin()
+  }
+
+  private fun windowsJavaScript(realJava: String): String {
+    return """
+      |@echo off
+      |"$realJava" %*
+      |exit /b %ERRORLEVEL%
+      |
+      """.trimMargin()
   }
 
   private fun unixWrapperScript(javaExecutable: String, frgaalClasspath: String): String {
