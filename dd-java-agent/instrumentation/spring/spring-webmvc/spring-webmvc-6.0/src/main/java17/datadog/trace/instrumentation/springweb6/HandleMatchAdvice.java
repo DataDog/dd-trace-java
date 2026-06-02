@@ -37,13 +37,6 @@ public class HandleMatchAdvice {
       return;
     }
 
-    // hacky, but APM instrumentation causes the instrumented method to be called twice
-    if (req.getClass()
-        .getName()
-        .equals("datadog.trace.instrumentation.springweb6.PathMatchingHttpServletRequestWrapper")) {
-      return;
-    }
-
     AgentSpan agentSpan = AgentTracer.activeSpan();
     if (agentSpan == null) {
       return;
