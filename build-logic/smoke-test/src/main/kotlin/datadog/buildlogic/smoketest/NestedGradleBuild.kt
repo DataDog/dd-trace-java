@@ -16,6 +16,7 @@ import org.gradle.api.tasks.InputFiles
 import org.gradle.api.tasks.Internal
 import org.gradle.api.tasks.CacheableTask
 import org.gradle.api.tasks.Nested
+import org.gradle.api.tasks.Optional
 import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.PathSensitive
 import org.gradle.api.tasks.PathSensitivity
@@ -47,6 +48,9 @@ abstract class NestedGradleBuild @Inject constructor(
 
   init {
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -68,6 +72,14 @@ abstract class NestedGradleBuild @Inject constructor(
 
   @get:Input
   abstract val gradleVersion: Property<String>
+
+  /**
+   * Optional base URL for Gradle distribution downloads. CI sets this to MASS so nested builds
+   * download through the pull-through cache instead of directly from services.gradle.org.
+   */
+  @get:Input
+  @get:Optional
+  abstract val gradleDistributionBaseUrl: Property<String>
 
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
@@ -137,8 +149,17 @@ abstract class NestedGradleBuild @Inject constructor(
     }
 
     val connector = GradleConnector.newConnector()
-      .useGradleVersion(gradleVersion.get())
       .forProjectDirectory(appDir)
+      .apply {
+        val distributionBaseUrl = gradleDistributionBaseUrl.orNull
+        if (distributionBaseUrl.isNullOrBlank()) {
+          useGradleVersion(gradleVersion.get())
+        } else {
+          useDistribution(
+            gradleDistributionUri(distributionBaseUrl, gradleVersion.get()),
+          )
+        }
+      }
 
     val extraEnv = environment.get()
     val mergedEnv: Map<String, String>? =
