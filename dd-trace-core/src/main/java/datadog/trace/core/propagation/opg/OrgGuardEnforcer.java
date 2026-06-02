@@ -100,11 +100,11 @@ final class OrgGuardEnforcer {
   }
 
   private ExtractedContext strip(
-      ExtractedContext ctx, OrgGuard.Reason reason, String localOpm, String inbound) {
+      ExtractedContext ctx, OrgGuard.Reason reason, String localOpm, String inboundOpm) {
     log.debug(
         "OPG enforcement: dropping dd context (reason={}, inbound={}, local={})",
         reason.tag(),
-        inbound,
+        inboundOpm,
         localOpm);
     healthMetrics.onOrgGuardEnforce(reason);
 

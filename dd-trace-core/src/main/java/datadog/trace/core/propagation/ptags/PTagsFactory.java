@@ -369,7 +369,6 @@ public class PTagsFactory implements PropagationTags.Factory {
       if (!Objects.equals(this.orgPropagationMarkerTagValue, newValue)) {
         clearCachedHeader(DATADOG);
         clearCachedHeader(W3C);
-        invalidateXDatadogTagsSize();
         this.orgPropagationMarkerTagValue = newValue;
       }
     }
