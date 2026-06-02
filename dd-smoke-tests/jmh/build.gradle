@@ -18,13 +18,9 @@ tasks.withType(Test).configureEach {
         return ["-Ddatadog.smoketest.jmh.core.jar.path=${jmhJar}"]
       }
     })
-  jvmArgumentProviders.add(new CommandLineArgumentProvider() {
-      @Override
-      Iterable<String> asArguments() {
-        def annprocJar = configurations.named("annotationProcessor")
-          .get()
-          .find { it.name.contains("jmh-generator-annprocess") }
-        return ["-Ddatadog.smoketest.jmh.annproc.jar.path=${annprocJar}"]
-      }
-    })
+
+  if (project.hasProperty("mavenRepositoryProxy")) {
+    // propagate proxy URL to tests, to then propagate it to nested Gradle builds
+    environment "MAVEN_REPOSITORY_PROXY", project.property("mavenRepositoryProxy")
+  }
 }
