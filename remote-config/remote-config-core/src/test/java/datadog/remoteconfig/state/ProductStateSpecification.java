@@ -18,7 +18,7 @@ import datadog.remoteconfig.tuf.RemoteConfigResponse;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
@@ -42,10 +42,11 @@ class ProductStateSpecification {
     listener.operations.clear(); // Clear for the actual test
 
     // a new response with config1 (changed hash) and config2 (new)
-    Map<String, TargetSpec> targets = new LinkedHashMap<>();
-    targets.put("org/ASM_DATA/config1/foo", new TargetSpec(2, 8, "newhash1"));
-    targets.put("org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2"));
-    RemoteConfigResponse response2 = buildResponse(targets);
+    RemoteConfigResponse response2 =
+        buildResponse(
+            targets(
+                "org/ASM_DATA/config1/foo", new TargetSpec(2, 8, "newhash1"),
+                "org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2")));
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DATA/config2/foo");
 
     // apply is called
@@ -69,10 +70,11 @@ class ProductStateSpecification {
     productState.addProductListener(listener);
 
     // first apply with config1 and config2 to cache them
-    Map<String, TargetSpec> targets1 = new LinkedHashMap<>();
-    targets1.put("org/ASM_DD/config1/foo", new TargetSpec(1, 8, "oldhash1"));
-    targets1.put("org/ASM_DD/config2/foo", new TargetSpec(1, 8, "hash2"));
-    RemoteConfigResponse response1 = buildResponse(targets1);
+    RemoteConfigResponse response1 =
+        buildResponse(
+            targets(
+                "org/ASM_DD/config1/foo", new TargetSpec(1, 8, "oldhash1"),
+                "org/ASM_DD/config2/foo", new TargetSpec(1, 8, "hash2")));
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DD/config1/foo");
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DD/config2/foo");
     productState.apply(response1, Arrays.asList(key1, key2), hinter);
@@ -102,20 +104,22 @@ class ProductStateSpecification {
     productState.addProductListener(listener);
 
     // first apply with old configs
-    Map<String, TargetSpec> oldTargets = new LinkedHashMap<>();
-    oldTargets.put("org/ASM_DD/old1/foo", new TargetSpec(1, 8, "hash_old1"));
-    oldTargets.put("org/ASM_DD/old2/foo", new TargetSpec(1, 8, "hash_old2"));
-    RemoteConfigResponse response1 = buildResponse(oldTargets);
+    RemoteConfigResponse response1 =
+        buildResponse(
+            targets(
+                "org/ASM_DD/old1/foo", new TargetSpec(1, 8, "hash_old1"),
+                "org/ASM_DD/old2/foo", new TargetSpec(1, 8, "hash_old2")));
     ParsedConfigKey oldKey1 = ParsedConfigKey.parse("org/ASM_DD/old1/foo");
     ParsedConfigKey oldKey2 = ParsedConfigKey.parse("org/ASM_DD/old2/foo");
     productState.apply(response1, Arrays.asList(oldKey1, oldKey2), hinter);
     listener.operations.clear(); // Clear for the actual test
 
     // a response with completely new configs
-    Map<String, TargetSpec> newTargets = new LinkedHashMap<>();
-    newTargets.put("org/ASM_DD/new1/foo", new TargetSpec(1, 8, "hash_new1"));
-    newTargets.put("org/ASM_DD/new2/foo", new TargetSpec(1, 8, "hash_new2"));
-    RemoteConfigResponse response2 = buildResponse(newTargets);
+    RemoteConfigResponse response2 =
+        buildResponse(
+            targets(
+                "org/ASM_DD/new1/foo", new TargetSpec(1, 8, "hash_new1"),
+                "org/ASM_DD/new2/foo", new TargetSpec(1, 8, "hash_new2")));
     ParsedConfigKey newKey1 = ParsedConfigKey.parse("org/ASM_DD/new1/foo");
     ParsedConfigKey newKey2 = ParsedConfigKey.parse("org/ASM_DD/new2/foo");
 
@@ -221,10 +225,11 @@ class ProductStateSpecification {
     productState.addProductListener("config1", configListener);
 
     // a response with two configs
-    Map<String, TargetSpec> targets = new LinkedHashMap<>();
-    targets.put("org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1"));
-    targets.put("org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2"));
-    RemoteConfigResponse response = buildResponse(targets);
+    RemoteConfigResponse response =
+        buildResponse(
+            targets(
+                "org/ASM_DATA/config1/foo", new TargetSpec(1, 8, "hash1"),
+                "org/ASM_DATA/config2/foo", new TargetSpec(1, 8, "hash2")));
 
     ParsedConfigKey key1 = ParsedConfigKey.parse("org/ASM_DATA/config1/foo");
     ParsedConfigKey key2 = ParsedConfigKey.parse("org/ASM_DATA/config2/foo");
@@ -274,8 +279,14 @@ class ProductStateSpecification {
   // Helper methods
 
   private static Map<String, TargetSpec> targets(String path, TargetSpec spec) {
-    Map<String, TargetSpec> targets = new LinkedHashMap<>();
-    targets.put(path, spec);
+    return Collections.singletonMap(path, spec);
+  }
+
+  private static Map<String, TargetSpec> targets(
+      String path1, TargetSpec spec1, String path2, TargetSpec spec2) {
+    Map<String, TargetSpec> targets = new HashMap<>();
+    targets.put(path1, spec1);
+    targets.put(path2, spec2);
     return targets;
   }
 
