@@ -16,11 +16,20 @@ pluginManagement {
     }
     gradlePluginPortal()
     mavenCentral()
+    // Hosts gradle-tooling-api, a transitive dep of the build-logic:smoke-test plugin used
+    // to run nested Gradle builds for smoke-test applications pinned to older Gradle versions.
+    maven {
+      url = uri("https://repo.gradle.org/gradle/libs-releases")
+      content {
+        includeGroup("org.gradle")
+      }
+    }
   }
+  includeBuild("build-logic")
 }
 
 plugins {
-  id("com.gradle.develocity") version "4.4.1"
+  id("com.gradle.develocity") version "4.4.2"
   id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
@@ -103,6 +112,7 @@ include(
 
 include(
   ":communication",
+  ":components:annotations",
   ":components:context",
   ":components:environment",
   ":components:http:http-api",

@@ -25,3 +25,22 @@ dependencies {
   }
 }
 
+if (hasProperty('agentJar')) {
+  // The Quarkus Gradle plugin reads `quarkus.native.additional-build-args` from
+  // MicroProfile Config, which honours system properties. Setting it at script
+  // evaluation time is equivalent to passing `-Dquarkus.native.additional-build-args=...`
+  // on the gradle invocation, but keeps the agent jar path resolution inside this
+  // script (where `agentJar` is forwarded by the outer smoke-test plugin).
+  //
+  // Note, however, the way these system properties are set in this nested project
+  // are not properly tracked by this nested gradle build cache, it needs to be tracked
+  // from the outside (see smokeTestApp).
+  final agentJar = property('agentJar')
+  System.setProperty(
+    'quarkus.native.additional-build-args',
+    "-J-javaagent:${agentJar}," +
+    "-J-Ddatadog.slf4j.simpleLogger.dateTimeFormat=yyyy-MM-dd'T'HH:mm:ss.SSS'Z [dd.trace]'," +
+    "-J-Ddd.profiling.enabled=true," +
+    "-march=native"
+    )
+}

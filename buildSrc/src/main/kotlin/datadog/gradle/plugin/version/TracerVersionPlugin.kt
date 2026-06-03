@@ -32,9 +32,9 @@ class TracerVersionPlugin @Inject constructor(
       providerFactory.gradleProperty("tracerVersion.qualifier")
     )
 
-    val versionProvider = versionProvider(targetProject, extension)
+    val theVersion = versionProvider(targetProject, extension)
     targetProject.allprojects {
-      version = versionProvider
+      version = theVersion
     }
   }
 
@@ -48,9 +48,18 @@ class TracerVersionPlugin @Inject constructor(
       // Not a git repository
       extension.defaultVersion.get()
     } else {
+      val currentBranchProvider = gitCurrentBranchProvider(repoWorkingDirectory)
       providerFactory.zip(
-        gitDescribeProvider(extension, repoWorkingDirectory),
-        gitCurrentBranchProvider(repoWorkingDirectory)
+        currentBranchProvider.flatMap { currentBranch ->
+          // Use --first-parent only on release branches so they stay anchored to their own
+          // version line; feature branches pick up newer tags merged in from main.
+          gitDescribeProvider(
+            extension,
+            repoWorkingDirectory,
+            firstParent = currentBranch.startsWith("release/v")
+          )
+        },
+        currentBranchProvider
       ) { describeString, currentBranch ->
         toTracerVersion(describeString, extension) {
           when {
@@ -87,7 +96,8 @@ class TracerVersionPlugin @Inject constructor(
 
   private fun gitDescribeProvider(
     extension: TracerVersionExtension,
-    repoWorkingDirectory: File
+    repoWorkingDirectory: File,
+    firstParent: Boolean,
   ) = providerFactory.of(GitCommandValueSource::class.java) {
     parameters {
       val tagPrefix = extension.tagVersionPrefix.get()
@@ -96,9 +106,12 @@ class TracerVersionPlugin @Inject constructor(
         "describe",
         "--abbrev=8",
         "--tags",
-        "--first-parent",
         "--match=$tagPrefix[0-9].[0-9]*.[0-9]*",
       )
+
+      if (firstParent) {
+        gitCommand.add("--first-parent")
+      }
 
       if (extension.detectDirty.get()) {
         gitCommand.add("--dirty")

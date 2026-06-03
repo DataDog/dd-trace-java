@@ -136,4 +136,4 @@ org.spockframework:spock-core:2.4-groovy-3.0=testCompileClasspath,testCompilePro
 org.tabletest:tabletest-junit:1.2.1=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 org.tabletest:tabletest-parser:1.2.0=testCompileClasspath,testCompileProtoPath,testRuntimeClasspath
 org.xmlresolver:xmlresolver:5.3.3=spotbugs
-empty=annotationProcessor,protobuf,spotbugsPlugins,testAnnotationProcessor,testProtobuf
+empty=annotationProcessor,protobuf,smokeTestAppExtraJarApiJar,spotbugsPlugins,testAnnotationProcessor,testProtobuf

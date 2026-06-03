@@ -118,6 +118,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_METRICS_OTEL_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_OTLP_GRPC_PORT;
@@ -466,6 +467,7 @@ import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_QUEUE_SIZE;
 import static datadog.trace.api.config.OtlpConfig.LOGS_OTEL_TIMEOUT;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_CARDINALITY_LIMIT;
+import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPERIMENTAL_ENABLED;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_EXPORTER;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_INTERVAL;
 import static datadog.trace.api.config.OtlpConfig.METRICS_OTEL_TIMEOUT;
@@ -683,6 +685,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_STRICT;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_TRUSTED_OPMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_HOSTNAME_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
@@ -718,6 +723,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
@@ -808,6 +814,16 @@ public class Config {
   private static final Logger log = LoggerFactory.getLogger(Config.class);
 
   private static final Pattern COLON = Pattern.compile(":");
+
+  // Historical conflating-Batch size; used to translate TRACER_METRICS_MAX_PENDING (configured in
+  // legacy batch units) into the new per-SpanSnapshot inbox capacity.
+  private static final int LEGACY_BATCH_SIZE = 64;
+
+  // Practical upper bound on Object[] allocations. Sits a few bytes below Integer.MAX_VALUE
+  // because the JVM reserves header slack on array allocations; matches the JDK's own
+  // {@code java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH} convention. Used to clamp computed
+  // capacities that feed into array-backed collections.
+  private static final int MAX_SAFE_ARRAY_SIZE = Integer.MAX_VALUE - 8;
 
   private final InstrumenterConfig instrumenterConfig;
 
@@ -927,6 +943,9 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
+  private final boolean traceOrgGuardEnabled;
+  private final boolean traceOrgGuardStrict;
+  private final Set<String> traceOrgGuardTrustedOpms;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
@@ -970,6 +989,7 @@ public class Config {
   private final int metricsOtelInterval;
   private final int metricsOtelTimeout;
   private final int metricsOtelCardinalityLimit;
+  private final boolean metricsOtelExperimentalEnabled;
   private final String otlpMetricsEndpoint;
   private final Map<String, String> otlpMetricsHeaders;
   private final OtlpConfig.Protocol otlpMetricsProtocol;
@@ -1780,7 +1800,9 @@ public class Config {
         configProvider.getBoolean(
             DB_DBM_ALWAYS_APPEND_SQL_COMMENT, DEFAULT_DB_DBM_ALWAYS_APPEND_SQL_COMMENT);
 
-    dbmInjectSqlBaseHash = configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false);
+    dbmInjectSqlBaseHash =
+        configProvider.getBoolean(DB_DBM_INJECT_SQL_BASEHASH, false)
+            || DBM_PROPAGATION_MODE_DYNAMIC_SERVICE.equals(dbmPropagationMode);
 
     splitByTags = tryMakeImmutableSet(configProvider.getList(SPLIT_BY_TAGS));
 
@@ -1933,6 +1955,10 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceOrgGuardEnabled = configProvider.getBoolean(TRACE_ORG_GUARD_ENABLED, false);
+    traceOrgGuardStrict = configProvider.getBoolean(TRACE_ORG_GUARD_STRICT, false);
+    traceOrgGuardTrustedOpms =
+        configProvider.getSet(TRACE_ORG_GUARD_TRUSTED_OPMS, Collections.emptySet());
     traceInferredProxyEnabled =
         configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
@@ -2054,6 +2080,10 @@ public class Config {
     }
     metricsOtelTimeout = otelTimeout;
 
+    metricsOtelExperimentalEnabled =
+        configProvider.getBoolean(
+            METRICS_OTEL_EXPERIMENTAL_ENABLED, DEFAULT_METRICS_OTEL_EXPERIMENTAL_ENABLED);
+
     // keep OTLP default timeout below the overall export timeout
     int defaultOtlpMetricsTimeout = Math.min(metricsOtelTimeout, DEFAULT_METRICS_OTEL_TIMEOUT);
     otlpTimeout = configProvider.getInteger(OTLP_METRICS_TIMEOUT, defaultOtlpMetricsTimeout);
@@ -2172,8 +2202,44 @@ public class Config {
         configProvider.getBoolean(TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION, false);
     tracerMetricsBufferingEnabled =
         configProvider.getBoolean(TRACER_METRICS_BUFFERING_ENABLED, false);
-    tracerMetricsMaxAggregates = configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, 2048);
-    tracerMetricsMaxPending = configProvider.getInteger(TRACER_METRICS_MAX_PENDING, 2048);
+    // The metrics inbox is an MpscArrayQueue<SpanSnapshot>; each saturated slot holds one
+    // ~120 B SpanSnapshot. The historical default TRACER_METRICS_MAX_PENDING=2048 (logical) *
+    // LEGACY_BATCH_SIZE=64 = 131072 slots was sized for the prior conflating-Batch model where
+    // slot memory was only realized under burst; with one snapshot per slot, the worst-case
+    // in-flight footprint is ~15 MB. At Xmx <= ~128 MB the G1 survivor region is too small to
+    // absorb that footprint when the aggregator stalls -- observed catastrophically at Xmx64m
+    // petclinic where SpanSnapshots overflow young gen and trigger To-space Exhausted -> Full
+    // GC storms (0 r/s in the worst case).
+    //
+    // Cut the default accordingly:
+    //   - normal heap: 128 logical * 64 = 8192 slots, ~1 MB worst-case in-flight. ~0.8 s of
+    //     buffer at 10K spans/s, well above typical GC pause windows.
+    //   - tight heap (Xmx < 128 MB): 64 logical * 64 = 4096 slots, ~500 KB worst case.
+    //
+    // Customers who explicitly configured TRACER_METRICS_MAX_PENDING keep their value (the
+    // LEGACY_BATCH_SIZE multiplier still applies to it) -- only the implicit default shrinks.
+    final boolean tightHeap = Runtime.getRuntime().maxMemory() < 128L * 1024 * 1024;
+    final int defaultMaxAggregates = tightHeap ? 256 : 2048;
+    final int defaultMaxPending = tightHeap ? 64 : 128;
+
+    tracerMetricsMaxAggregates =
+        configProvider.getInteger(TRACER_METRICS_MAX_AGGREGATES, defaultMaxAggregates);
+    /*
+     * TRACER_METRICS_MAX_PENDING historically counted conflating Batch slots (~64 spans per batch
+     * via Batch.MAX_BATCH_SIZE). The inbox now holds 1 SpanSnapshot per metrics-eligible span, so
+     * we multiply the configured value by the legacy batch size to preserve the effective
+     * span-throughput capacity for any existing customer override (e.g. a configured 4096 still
+     * means "~262144 spans before drops", same as before).
+     *
+     * Long-promote the multiplication and clamp to MAX_SAFE_ARRAY_SIZE so an absurd customer
+     * override (>= ~33M) can't silently wrap to a negative int. MAX_SAFE_ARRAY_SIZE sits a few
+     * bytes below Integer.MAX_VALUE because the JVM reserves header slack on array allocations;
+     * see java.util.ArraysSupport.SOFT_MAX_ARRAY_LENGTH for the same convention.
+     */
+    long requestedMaxPending =
+        (long) configProvider.getInteger(TRACER_METRICS_MAX_PENDING, defaultMaxPending)
+            * LEGACY_BATCH_SIZE;
+    tracerMetricsMaxPending = (int) Math.min(requestedMaxPending, MAX_SAFE_ARRAY_SIZE);
 
     reportHostName =
         configProvider.getBoolean(TRACE_REPORT_HOSTNAME, DEFAULT_TRACE_REPORT_HOSTNAME);
@@ -3195,7 +3261,7 @@ public class Config {
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
-            ? 5000 // EVP limit
+            ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
             : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
@@ -3624,6 +3690,18 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isTraceOrgGuardEnabled() {
+    return traceOrgGuardEnabled;
+  }
+
+  public boolean isTraceOrgGuardStrict() {
+    return traceOrgGuardStrict;
+  }
+
+  public Set<String> getTraceOrgGuardTrustedOpms() {
+    return traceOrgGuardTrustedOpms;
   }
 
   public boolean isInferredProxyPropagationEnabled() {
@@ -5479,6 +5557,10 @@ public class Config {
     return "otlp".equalsIgnoreCase(metricsOtelExporter);
   }
 
+  public boolean isMetricsOtelExperimentalEnabled() {
+    return metricsOtelExperimentalEnabled;
+  }
+
   public int getMetricsOtelCardinalityLimit() {
     return metricsOtelCardinalityLimit;
   }
@@ -5656,6 +5738,7 @@ public class Config {
   // Database monitoring propagation mode constants
   public static final String DBM_PROPAGATION_MODE_STATIC = "service";
   public static final String DBM_PROPAGATION_MODE_FULL = "full";
+  public static final String DBM_PROPAGATION_MODE_DYNAMIC_SERVICE = "dynamic_service";
 
   // Helper method to check if comment injection is enabled
   public boolean isDbmCommentInjectionEnabled() {
@@ -5663,7 +5746,8 @@ public class Config {
       return false;
     }
     return dbmPropagationMode.equals(DBM_PROPAGATION_MODE_FULL)
-        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC);
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_STATIC)
+        || dbmPropagationMode.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   }
 
   private void logIgnoredSettingWarning(
@@ -6601,6 +6685,8 @@ public class Config {
         + metricsOtelTimeout
         + ", metricsOtelCardinalityLimit="
         + metricsOtelCardinalityLimit
+        + ", metricsOtelExperimentalEnabled="
+        + metricsOtelExperimentalEnabled
         + ", otlpMetricsEndpoint="
         + otlpMetricsEndpoint
         + ", otlpMetricsHeaders="
