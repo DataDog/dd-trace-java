@@ -734,16 +734,8 @@ final class AggregateEntry extends Hashtable.Entry {
           additionalTagsBuffer[i] = null;
           continue;
         }
-        String tagKey = additionalTagsSchema.name(i);
-        String capped = additionalTagsLimiter.applyLengthCap(tagKey, v);
-        if (capped == null) {
-          additionalTagsBuffer[i] = additionalTagsSchema.blockedSentinel(i);
-        } else {
-          // Fresh UTF8BytesString per insert -- bounded by maxAggregates * configured_tags per
-          // bucket. On a hit nothing here gets referenced past this populate() call; on a miss
-          // it's copied into the new entry.
-          additionalTagsBuffer[i] = UTF8BytesString.create(tagKey + ":" + capped);
-        }
+
+        additionalTagsBuffer[i] = additionalTagsSchema.register(i, v);
       }
     }
 

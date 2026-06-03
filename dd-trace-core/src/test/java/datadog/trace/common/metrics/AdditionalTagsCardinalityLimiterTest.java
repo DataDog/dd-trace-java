@@ -2,8 +2,6 @@ package datadog.trace.common.metrics;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
-import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.core.monitor.HealthMetrics;
@@ -14,36 +12,6 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 class AdditionalTagsCardinalityLimiterTest {
-
-  @Test
-  void shortValuePassesThroughLengthCap() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP);
-    assertEquals("us-east-1", limiter.applyLengthCap("region", "us-east-1"));
-  }
-
-  @Test
-  void overLongValueReturnsNullAndFiresHealthMetric() {
-    RecordingHealthMetrics health = new RecordingHealthMetrics();
-    AdditionalTagsCardinalityLimiter limiter = new AdditionalTagsCardinalityLimiter(100, health);
-    char[] chars = new char[AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1];
-    Arrays.fill(chars, 'x');
-    String overlong = new String(chars);
-
-    assertNull(limiter.applyLengthCap("region", overlong));
-    assertEquals(1, health.blockedKeys.size());
-    assertEquals("region", health.blockedKeys.get(0));
-  }
-
-  @Test
-  void exactlyMaxLengthPasses() {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP);
-    char[] chars = new char[AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH];
-    Arrays.fill(chars, 'x');
-    String exactlyMax = new String(chars);
-    assertNotNull(limiter.applyLengthCap("region", exactlyMax));
-  }
 
   @Test
   void counterTracksAdmissionsAndCap() {

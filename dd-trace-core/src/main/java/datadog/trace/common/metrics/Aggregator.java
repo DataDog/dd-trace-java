@@ -43,6 +43,7 @@ final class Aggregator implements Runnable {
   private boolean dirty;
 
   private final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
+  private final AdditionalTagsSchema additionalTagsSchema;
 
   Aggregator(
       MetricWriter writer,
@@ -125,6 +126,7 @@ final class Aggregator implements Runnable {
     this.inbox = inbox;
     this.additionalTagsLimiter =
         new AdditionalTagsCardinalityLimiter(additionalTagsCardinalityLimit, healthMetrics);
+    this.additionalTagsSchema = additionalTagsSchema;
     this.aggregates =
         new AggregateTable(
             maxAggregates, additionalTagsSchema, additionalTagsLimiter, healthMetrics);
@@ -243,6 +245,7 @@ final class Aggregator implements Runnable {
     // Reset cardinality handlers each report cycle so the per-field budgets refresh.
     // Safe to call on this (aggregator) thread; handlers are HashMap-based and not thread-safe.
     AggregateEntry.resetCardinalityHandlers();
+    additionalTagsSchema.resetHandlers();
     additionalTagsLimiter.resetBucket();
     signal.complete();
     if (skipped) {

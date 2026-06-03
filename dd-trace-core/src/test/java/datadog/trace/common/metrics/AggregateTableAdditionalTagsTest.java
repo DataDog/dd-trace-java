@@ -52,24 +52,6 @@ class AggregateTableAdditionalTagsTest {
   }
 
   @Test
-  void overlongValuesShareTheBlockedSentinelEntry() {
-    AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, 100);
-
-    String overlong = repeat('a', AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 1);
-    String evenLonger = repeat('b', AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH + 50);
-
-    AggregateEntry first = table.findOrInsert(snapshot(schema, overlong));
-    AggregateEntry second = table.findOrInsert(snapshot(schema, evenLonger));
-
-    // Both values get replaced with the same per-key blocked sentinel, so they collapse onto
-    // one entry rather than fragmenting.
-    assertSame(first, second);
-    assertEquals(1, table.size());
-    assertEquals("region:blocked_by_tracer", first.getAdditionalTags()[0].toString());
-  }
-
-  @Test
   void cardinalityCapCollapsesNewEntriesToBlockedSentinel() {
     AdditionalTagsSchema schema = schemaFor("region");
     AggregateTable table = newTable(schema, /*cardinalityLimit*/ 2);

@@ -17,7 +17,7 @@ import org.slf4j.LoggerFactory;
  * rather than into the no-additional-tags base bucket. Spans whose full canonical already exists in
  * the table merge into it regardless of the cap.
  *
- * <p>The counter and both one-shot warn flags reset every flush via {@link #resetBucket()}.
+ * <p>The counter and the one-shot warn flag reset every flush via {@link #resetBucket()}.
  *
  * <p>Acknowledged spec deviation: the CSS v1.3.0 spec requires per-tag isolation. This is a single
  * global counter for simplicity. A misconfigured tag can starve another tag's admission of new
@@ -32,36 +32,10 @@ final class AdditionalTagsCardinalityLimiter {
   private final HealthMetrics healthMetrics;
   private int statEntryCounter;
   private boolean warnedAboutCardinality;
-  private boolean warnedAboutLength;
 
   AdditionalTagsCardinalityLimiter(int maxStatEntries, HealthMetrics healthMetrics) {
     this.maxStatEntries = maxStatEntries;
     this.healthMetrics = healthMetrics;
-  }
-
-  /**
-   * Returns {@code value} unchanged if it's short enough, or {@code null} if it exceeds {@link
-   * AdditionalTagsSchema#MAX_ADDITIONAL_TAG_VALUE_LENGTH} -- caller should substitute the schema's
-   * per-key blocked sentinel and fire the health metric. We return {@code null} rather than the
-   * {@link AdditionalTagsSchema#BLOCKED_VALUE} string here so the caller can plug in the pre-built
-   * {@code UTF8BytesString} sentinel directly without re-canonicalizing.
-   */
-  String applyLengthCap(String tagKey, String value) {
-    if (value.length() > AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH) {
-      healthMetrics.onAdditionalTagValueCardinalityBlocked(tagKey);
-      if (!warnedAboutLength) {
-        warnedAboutLength = true;
-        log.warn(
-            "Additional metric tag '{}' had a value of length {} exceeding the max length of {}; "
-                + "replacing with '{}' for the rest of the current bucket",
-            tagKey,
-            value.length(),
-            AdditionalTagsSchema.MAX_ADDITIONAL_TAG_VALUE_LENGTH,
-            AdditionalTagsSchema.BLOCKED_VALUE);
-      }
-      return null;
-    }
-    return value;
   }
 
   /** Whether the global stat-entry counter has reached the cap. */
@@ -95,10 +69,9 @@ final class AdditionalTagsCardinalityLimiter {
     statEntryCounter++;
   }
 
-  /** Zeroes the counter and re-arms both warn flags. Called from {@code Aggregator.report}. */
+  /** Zeroes the counter and re-arms the warn flag. Called from {@code Aggregator.report}. */
   void resetBucket() {
     statEntryCounter = 0;
     warnedAboutCardinality = false;
-    warnedAboutLength = false;
   }
 }

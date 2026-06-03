@@ -71,4 +71,10 @@ final class MetricCardinalityLimits {
    * peer tag gets its own handler at this limit.
    */
   static final int PEER_TAG_VALUE = 512;
+
+  /**
+   * Distinct values per additional-tag key (e.g. distinct values of a span-derived primary tag).
+   * Each configured additional tag gets its own {@link TagCardinalityHandler} at this limit.
+   */
+  static final int ADDITIONAL_TAG_VALUE = 512;
 }
