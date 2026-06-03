@@ -85,9 +85,13 @@ public enum JDBCConnectionUrlParser {
       if (type.equals("db2") || type.equals("as400")) {
         if (jdbcUrl.contains("=")) {
           paramLoc = jdbcUrl.lastIndexOf(':');
-          urlPart1 = jdbcUrl.substring(0, paramLoc);
-          urlPart2 = jdbcUrl.substring(paramLoc + 1);
-
+          if (paramLoc > hostIndex + 2) {
+            urlPart1 = jdbcUrl.substring(0, paramLoc);
+            urlPart2 = jdbcUrl.substring(paramLoc + 1);
+          } else {
+            urlPart1 = jdbcUrl;
+            urlPart2 = null;
+          }
         } else {
           urlPart1 = jdbcUrl;
           urlPart2 = null;
