@@ -37,6 +37,14 @@ public class HandleMatchAdvice {
       return;
     }
 
+    // When the opt-in spring-path-filter integration is enabled, the filter resolves the handler
+    // against a PathMatchingHttpServletRequestWrapper, which triggers handleMatch a second time.
+    if (req.getClass()
+        .getName()
+        .equals("datadog.trace.instrumentation.springweb6.PathMatchingHttpServletRequestWrapper")) {
+      return;
+    }
+
     AgentSpan agentSpan = AgentTracer.activeSpan();
     if (agentSpan == null) {
       return;

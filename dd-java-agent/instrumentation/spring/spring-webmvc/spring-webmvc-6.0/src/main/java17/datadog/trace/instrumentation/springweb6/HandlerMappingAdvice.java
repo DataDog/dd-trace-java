@@ -33,8 +33,6 @@ public class HandlerMappingAdvice {
     if (contextObj instanceof Context) {
       final AgentSpan parentSpan = spanFromContext((Context) contextObj);
       if (parentSpan != null) {
-        // onRequest reads BEST_MATCHING_PATTERN_ATTRIBUTE, skips "/**", and guards against
-        // re-application (also by ControllerAdvice) on forwards/redirects.
         DECORATE.onRequest(parentSpan, request, request, root());
       }
     }

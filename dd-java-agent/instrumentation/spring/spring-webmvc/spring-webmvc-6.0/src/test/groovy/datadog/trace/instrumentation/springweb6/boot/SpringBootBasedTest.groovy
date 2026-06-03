@@ -517,3 +517,16 @@ class SpringBootRumInjectionForkedTest extends SpringBootBasedTest {
     true
   }
 }
+
+/**
+ * Runs the full suite with the opt-in legacy route-naming filter enabled, to verify that path still
+ * produces the same traces (including APMS-8174). The default path (getHandler + ControllerAdvice)
+ * stays active; the DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED guard prevents double naming.
+ */
+class SpringBootResourceNameFilterForkedTest extends SpringBootBasedTest {
+  @Override
+  protected void configurePreAgent() {
+    super.configurePreAgent()
+    injectSysConfig("dd.integration.spring-path-filter.enabled", "true")
+  }
+}
