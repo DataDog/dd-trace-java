@@ -416,7 +416,6 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_BUFFERING_EN
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS;
-import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
@@ -5211,18 +5210,6 @@ public class Config {
 
   public Set<String> getTraceStatsAdditionalTags() {
     return tryMakeImmutableSet(configProvider.getList(TRACE_STATS_ADDITIONAL_TAGS));
-  }
-
-  public int getTraceStatsAdditionalTagsCardinalityLimit() {
-    int configured = configProvider.getInteger(TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT, 100);
-    if (configured <= 0) {
-      log.warn(
-          "Invalid {} value: {}; falling back to default of 100",
-          TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT,
-          configured);
-      return 100;
-    }
-    return configured;
   }
 
   public String getEnv() {

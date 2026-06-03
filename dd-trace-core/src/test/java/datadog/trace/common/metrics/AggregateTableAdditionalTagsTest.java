@@ -9,7 +9,6 @@ import datadog.metrics.agent.AgentMeter;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
-import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
 import java.util.LinkedHashSet;
 import java.util.concurrent.TimeUnit;
@@ -28,7 +27,7 @@ class AggregateTableAdditionalTagsTest {
   @Test
   void distinctAdditionalTagValuesYieldDistinctEntries() {
     AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, 100);
+    AggregateTable table = newTable(schema);
 
     AggregateEntry usEast = table.findOrInsert(snapshot(schema, "us-east-1"));
     AggregateEntry euWest = table.findOrInsert(snapshot(schema, "eu-west-1"));
@@ -42,7 +41,7 @@ class AggregateTableAdditionalTagsTest {
   @Test
   void sameAdditionalTagValuesShareEntry() {
     AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, 100);
+    AggregateTable table = newTable(schema);
 
     AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
     AggregateEntry second = table.findOrInsert(snapshot(schema, "us-east-1"));
@@ -51,52 +50,14 @@ class AggregateTableAdditionalTagsTest {
     assertEquals(1, table.size());
   }
 
-  @Test
-  void cardinalityCapCollapsesNewEntriesToBlockedSentinel() {
-    AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, /*cardinalityLimit*/ 2);
-
-    // Two distinct values admitted before the cap closes.
-    AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
-    AggregateEntry second = table.findOrInsert(snapshot(schema, "eu-west-1"));
-    assertNotSame(first, second);
-
-    // Third distinct value should collapse onto the blocked sentinel; fourth too.
-    AggregateEntry third = table.findOrInsert(snapshot(schema, "ap-south-1"));
-    AggregateEntry fourth = table.findOrInsert(snapshot(schema, "us-west-2"));
-
-    assertSame(third, fourth);
-    assertEquals("region:blocked_by_tracer", third.getAdditionalTags()[0].toString());
-    // 2 in-budget entries + 1 collapsed blocked-sentinel entry = 3 total
-    assertEquals(3, table.size());
-  }
-
-  @Test
-  void cardinalityCapDoesNotBlockExistingEntries() {
-    AdditionalTagsSchema schema = schemaFor("region");
-    AggregateTable table = newTable(schema, /*cardinalityLimit*/ 1);
-
-    AggregateEntry first = table.findOrInsert(snapshot(schema, "us-east-1"));
-    // Now at cap. A repeat of the same value should still hit the existing entry.
-    AggregateEntry firstAgain = table.findOrInsert(snapshot(schema, "us-east-1"));
-    assertSame(first, firstAgain);
-
-    // But a brand-new value should go to the blocked sentinel.
-    AggregateEntry blocked = table.findOrInsert(snapshot(schema, "eu-west-1"));
-    assertNotSame(first, blocked);
-    assertEquals("region:blocked_by_tracer", blocked.getAdditionalTags()[0].toString());
-  }
-
   // ---------- helpers ----------
 
   private static AdditionalTagsSchema schemaFor(String... names) {
     return AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList(names)));
   }
 
-  private static AggregateTable newTable(AdditionalTagsSchema schema, int cardinalityLimit) {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(cardinalityLimit, HealthMetrics.NO_OP);
-    return new AggregateTable(256, schema, limiter, HealthMetrics.NO_OP);
+  private static AggregateTable newTable(AdditionalTagsSchema schema) {
+    return new AggregateTable(256, schema);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String regionValue) {
@@ -119,11 +80,5 @@ class AggregateTableAdditionalTagsTest {
         null,
         values,
         0L);
-  }
-
-  private static String repeat(char ch, int n) {
-    char[] chars = new char[n];
-    Arrays.fill(chars, ch);
-    return new String(chars);
   }
 }

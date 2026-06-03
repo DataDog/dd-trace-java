@@ -1,6 +1,5 @@
 package datadog.trace.common.metrics;
 
-import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
 import java.util.function.BiConsumer;
@@ -16,12 +15,6 @@ import java.util.function.Consumer;
  * AggregateEntry.Canonical} scratch buffer; on a hit nothing is allocated, on a miss the buffer's
  * references are copied into a fresh entry and the buffer is overwritten on the next call.
  *
- * <p>Additional metric tags get a second layer of cardinality protection: brand-new entries that
- * would push the bucket past {@link AdditionalTagsCardinalityLimiter#isAtCap()} have all their
- * present additional-tag slots replaced by the schema's blocked sentinels before the bucket lookup.
- * Spans whose canonical (including the additional tags) is already in the table merge normally
- * regardless of the cap.
- *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
  * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
  * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the inbox
@@ -33,7 +26,6 @@ final class AggregateTable {
 
   private final Hashtable.Entry[] buckets;
   private final int maxAggregates;
-  private final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
   private final AggregateEntry.Canonical canonical;
   private int size;
 
@@ -45,22 +37,13 @@ final class AggregateTable {
   private int evictCursor;
 
   AggregateTable(int maxAggregates) {
-    this(
-        maxAggregates,
-        AdditionalTagsSchema.EMPTY,
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP),
-        HealthMetrics.NO_OP);
+    this(maxAggregates, AdditionalTagsSchema.EMPTY);
   }
 
-  AggregateTable(
-      int maxAggregates,
-      AdditionalTagsSchema additionalTagsSchema,
-      AdditionalTagsCardinalityLimiter additionalTagsLimiter,
-      HealthMetrics healthMetrics) {
+  AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
-    this.additionalTagsLimiter = additionalTagsLimiter;
-    this.canonical = new AggregateEntry.Canonical(additionalTagsSchema, additionalTagsLimiter);
+    this.canonical = new AggregateEntry.Canonical(additionalTagsSchema);
   }
 
   int size() {
@@ -86,40 +69,13 @@ final class AggregateTable {
         return candidate;
       }
     }
-    // Miss path. If this brand-new entry has any additional-tag values and the bucket cap is
-    // reached, mask every present slot with the per-key blocked sentinel, recompute the hash, and
-    // re-resolve the bucket -- so blocked entries collapse into a small number of shape buckets
-    // rather than the no-additional-tags base bucket.
-    boolean countedTowardAdditionalTagBudget = false;
-    if (canonical.hasAdditionalTags()) {
-      if (additionalTagsLimiter.isAtCap()) {
-        additionalTagsLimiter.recordCardinalityBlock(
-            canonical.additionalTagsSchema, snapshot.additionalTagValues);
-        canonical.rebuildAdditionalTagsWithBlockedSentinels();
-        keyHash = canonical.keyHash;
-        int bucketIndex = Hashtable.Support.bucketIndex(buckets, keyHash);
-        // Re-scan: the masked canonical may already match an existing "all-blocked" entry.
-        for (Hashtable.Entry e = buckets[bucketIndex]; e != null; e = e.next()) {
-          if (e.keyHash == keyHash) {
-            AggregateEntry candidate = (AggregateEntry) e;
-            if (canonical.matches(candidate)) {
-              return candidate;
-            }
-          }
-        }
-      } else {
-        countedTowardAdditionalTagBudget = true;
-      }
-    }
+    // Miss path.
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
     AggregateEntry entry = canonical.createEntry();
     Hashtable.Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
-    if (countedTowardAdditionalTagBudget) {
-      additionalTagsLimiter.onNewStatEntryAdmitted();
-    }
     return entry;
   }
 

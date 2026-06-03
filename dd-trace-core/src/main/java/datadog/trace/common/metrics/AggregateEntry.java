@@ -620,27 +620,17 @@ final class AggregateEntry extends Hashtable.Entry {
     final AdditionalTagsSchema additionalTagsSchema;
 
     /**
-     * Length-cap policy + warn-log throttling. Length-blocked values are substituted by callers
-     * with {@link AdditionalTagsSchema#blockedSentinel(int)}.
-     */
-    final AdditionalTagsCardinalityLimiter additionalTagsLimiter;
-
-    /**
      * Reusable buffer of canonicalized additional-tag values, sized exactly to the schema. Slot
      * {@code i} = the canonical {@code "key:value"} UTF8BytesString for {@code schema.name(i)}, or
      * {@code null} when the span didn't set that tag. Cleared on each {@link #populate}. {@link
-     * #toEntry} copies it into the new entry; {@link #rebuildAdditionalTagsWithBlockedSentinels}
-     * replaces all present slots with the schema's blocked sentinels.
+     * #toEntry} copies it into the new entry.
      */
     final UTF8BytesString[] additionalTagsBuffer;
 
     long keyHash;
 
-    Canonical(
-        AdditionalTagsSchema additionalTagsSchema,
-        AdditionalTagsCardinalityLimiter additionalTagsLimiter) {
+    Canonical(AdditionalTagsSchema additionalTagsSchema) {
       this.additionalTagsSchema = additionalTagsSchema;
-      this.additionalTagsLimiter = additionalTagsLimiter;
       this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
     }
 
@@ -737,37 +727,6 @@ final class AggregateEntry extends Hashtable.Entry {
 
         additionalTagsBuffer[i] = additionalTagsSchema.register(i, v);
       }
-    }
-
-    /**
-     * Replace every non-null slot in {@link #additionalTagsBuffer} with the schema's blocked
-     * sentinel and re-compute the hash. Called by {@link AggregateTable#findOrInsert} when a
-     * brand-new entry would push the bucket past the cardinality cap. Returns the number of
-     * positions that were masked (so callers can fire the per-key health metric appropriately).
-     */
-    int rebuildAdditionalTagsWithBlockedSentinels() {
-      int masked = 0;
-      for (int i = 0; i < additionalTagsBuffer.length; i++) {
-        UTF8BytesString slot = additionalTagsBuffer[i];
-        if (slot != null && slot != additionalTagsSchema.blockedSentinel(i)) {
-          additionalTagsBuffer[i] = additionalTagsSchema.blockedSentinel(i);
-          masked++;
-        }
-      }
-      if (masked > 0) {
-        recomputeKeyHash();
-      }
-      return masked;
-    }
-
-    /** Whether this canonicalized snapshot has any non-null additional-tag values present. */
-    boolean hasAdditionalTags() {
-      for (UTF8BytesString slot : additionalTagsBuffer) {
-        if (slot != null) {
-          return true;
-        }
-      }
-      return false;
     }
 
     /**

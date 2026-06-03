@@ -9,7 +9,6 @@ import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.DDSketchHistograms;
 import datadog.metrics.impl.MonitoringImpl;
 import datadog.trace.api.WellKnownTags;
-import datadog.trace.core.monitor.HealthMetrics;
 import java.nio.ByteBuffer;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -92,9 +91,7 @@ class SerializingMetricWriterAdditionalTagsTest {
   // ---------- helpers ----------
 
   private static AggregateTable newTable(AdditionalTagsSchema schema) {
-    AdditionalTagsCardinalityLimiter limiter =
-        new AdditionalTagsCardinalityLimiter(100, HealthMetrics.NO_OP);
-    return new AggregateTable(64, schema, limiter, HealthMetrics.NO_OP);
+    return new AggregateTable(64, schema);
   }
 
   private static SpanSnapshot snapshot(AdditionalTagsSchema schema, String... values) {

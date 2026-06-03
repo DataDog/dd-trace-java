@@ -102,7 +102,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         config.getWellKnownTags(),
         config.getMetricsIgnoredResources(),
         AdditionalTagsSchema.from(config.getTraceStatsAdditionalTags(), healthMetrics),
-        config.getTraceStatsAdditionalTagsCardinalityLimit(),
         sharedCommunicationObjects.featuresDiscovery(config),
         healthMetrics,
         new OkHttpSink(
@@ -130,7 +129,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -145,7 +143,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -156,7 +153,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         additionalTagsSchema,
-        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -183,7 +179,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         wellKnownTags,
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -198,7 +193,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -210,7 +204,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         ignoredResources,
         additionalTagsSchema,
-        additionalTagsCardinalityLimit,
         features,
         healthMetric,
         sink,
@@ -237,7 +230,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     this(
         ignoredResources,
         AdditionalTagsSchema.EMPTY,
-        100,
         features,
         healthMetric,
         sink,
@@ -252,7 +244,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
-      int additionalTagsCardinalityLimit,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
       Sink sink,
@@ -278,8 +269,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             timeUnit,
             healthMetric,
             this::resetCardinalityHandlers,
-            additionalTagsSchema,
-            additionalTagsCardinalityLimit);
+            additionalTagsSchema);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;

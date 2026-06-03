@@ -82,8 +82,6 @@ public final class GeneralConfig {
   public static final String TRACE_STATS_CARDINALITY_LIMITS_ENABLED =
       "trace.stats.cardinality.limits.enabled";
   public static final String TRACE_STATS_ADDITIONAL_TAGS = "trace.stats.additional.tags";
-  public static final String TRACE_STATS_ADDITIONAL_TAGS_CARDINALITY_LIMIT =
-      "trace.stats.additional.tags.cardinality.limit";
 
   public static final String AZURE_APP_SERVICES = "azure.app.services";
   public static final String INTERNAL_EXIT_ON_FAILURE = "trace.internal.exit.on.failure";
