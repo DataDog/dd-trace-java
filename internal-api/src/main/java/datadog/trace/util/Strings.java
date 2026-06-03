@@ -2,6 +2,7 @@ package datadog.trace.util;
 
 import static java.nio.charset.StandardCharsets.US_ASCII;
 
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -90,6 +91,18 @@ public final class Strings {
       return input;
     }
     return input.subSequence(0, limit);
+  }
+
+  /**
+   * Truncates a pre-encoded {@link UTF8BytesString}. Returns the same instance when within the
+   * limit, so callers writing it back out keep the zero-copy fast path; only the rare over-limit
+   * case re-encodes the truncated value.
+   */
+  public static UTF8BytesString truncate(UTF8BytesString input, int limit) {
+    if (input == null || input.length() <= limit) {
+      return input;
+    }
+    return UTF8BytesString.create(input.subSequence(0, limit));
   }
 
   /**
