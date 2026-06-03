@@ -68,7 +68,9 @@ final testTasks = scalaVersions.collect { scalaLibrary ->
   }
 
   return tasks.register("test$version", Test) {
-    classpath = classpath
+    testClassesDirs = sourceSets.test.output.classesDirs
+      .minus(files(sourceSets.test.scala.classesDirectory))
+    classpath = sourceSets.test.runtimeClasspath
       .filter { !it.toString().contains('scala-library') }   // exclude default scala-library
       .minus(files(sourceSets.test.scala.classesDirectory))  // exclude default /build/classes/scala/test folder
       .plus(customSourceSet.output.classesDirs)              // add /build/classes/scala/${version} folder
@@ -83,4 +85,3 @@ tasks.named('test', Test) {
   systemProperty('uses.java.concat', false) // version 2.10.7 does not use java concatenation
   finalizedBy(testTasks)
 }
-
