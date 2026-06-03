@@ -81,8 +81,8 @@ class JmhSmokeTest extends CiVisibilitySmokeTest {
 
   @Test
   void testBenchmarkSpansAreEmittedWhenForked() throws Exception {
-    // when forking, the parent records one APM "command_execution" span for the forked java process,
-    // hence 5 total events (4 CI Visibility + 1 process span)
+    // when forking, the parent records one APM "command_execution" span for the forked java
+    // process, hence 5 total events (4 CI Visibility + 1 process span)
     assertBenchmarkSpansAreEmitted(1, 5);
   }
 
@@ -102,7 +102,7 @@ class JmhSmokeTest extends CiVisibilitySmokeTest {
     List<Map<String, Object>> events =
         ciVisibilityEvents(mockBackend.waitForEvents(expectedEventCount));
 
-    // validate benchmark.value is a real measure before verifyEventsAndCoverages rewrites the template
+    // validate benchmark.value is a real measure before verifyEventsAndCoverages rewrites it
     Map<String, Object> testEvent = findEvent(events, "test");
     assertNotNull(testEvent, "Expected a test span for the benchmark method");
     @SuppressWarnings("unchecked")
