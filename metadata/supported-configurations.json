@@ -8628,8 +8628,8 @@
     "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
       {
         "version": "A",
-        "type": "list",
-        "default": "",
+        "type": "array",
+        "default": null,
         "aliases": []
       }
     ],
