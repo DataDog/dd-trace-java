@@ -1,0 +1,20 @@
+{
+  "version": "7.67.0",
+  "git_commit": "bdf863ccc9",
+  "endpoints": [
+    "/v0.3/traces",
+    "/v0.4/traces",
+    "/v0.5/traces",
+    "/v0.6/stats",
+    "/v0.1/pipeline_stats",
+    "/telemetry/proxy/",
+    "/evp_proxy/v4/",
+    "/debugger/v1/input"
+  ],
+  "client_drop_p0s": true,
+  "long_running_spans": true,
+  "config": {
+    "statsd_port": 8125
+  },
+  "org_prop_marker": "abc123def0"
+}
