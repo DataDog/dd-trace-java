@@ -159,8 +159,7 @@ public final class SerializingMetricWriter implements MetricWriter {
     final boolean hasServiceSource = entry.hasServiceSource();
     final boolean hasGrpcStatusCode = entry.hasGrpcStatusCode();
     final UTF8BytesString[] additionalTags = entry.getAdditionalTags();
-    final int additionalTagCount = countNonNull(additionalTags);
-    final boolean hasAdditionalTags = additionalTagCount > 0;
+    final boolean hasAdditionalTags = additionalTags.length > 0;
     final int mapSize =
         15
             + (hasServiceSource ? 1 : 0)
@@ -209,12 +208,9 @@ public final class SerializingMetricWriter implements MetricWriter {
     // metric tags pay zero payload overhead.
     if (hasAdditionalTags) {
       writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
-      writer.startArray(additionalTagCount);
-      for (int i = 0; i < additionalTags.length; i++) {
-        UTF8BytesString slot = additionalTags[i];
-        if (slot != null) {
-          writer.writeUTF8(slot);
-        }
+      writer.startArray(additionalTags.length);
+      for (UTF8BytesString slot : additionalTags) {
+        writer.writeUTF8(slot);
       }
     }
 
@@ -292,13 +288,5 @@ public final class SerializingMetricWriter implements MetricWriter {
   @Override
   public void reset() {
     buffer.reset();
-  }
-
-  private static int countNonNull(UTF8BytesString[] values) {
-    int count = 0;
-    for (UTF8BytesString value : values) {
-      if (value != null) count++;
-    }
-    return count;
   }
 }

@@ -152,11 +152,11 @@ final class AggregateEntry extends Hashtable.Entry {
   final List<UTF8BytesString> peerTags;
 
   /**
-   * Per-configured-key additional metric tag values, in {@code AdditionalTagsSchema} order. {@code
-   * null} slot = the span didn't set that tag; non-null slots hold the canonical {@code
-   * "key:value"} UTF8BytesString (or the schema's blocked sentinel if the value was length-capped
-   * or cardinality-capped). Array length matches the configured schema; empty array for the no-
-   * additional-tags case.
+   * Compact, schema-ordered (alphabetical by key) array of the additional metric tag values the
+   * span actually set -- only present values, no null slots. Each element is the canonical {@code
+   * "key:value"} UTF8BytesString (or the schema's blocked sentinel when the per-cycle cardinality
+   * budget was exhausted). The {@code "key:"} prefix makes the packed form unambiguous. Empty array
+   * for the no-additional-tags case (shared {@link #EMPTY_ADDITIONAL_TAGS}).
    */
   final UTF8BytesString[] additionalTags;
 
@@ -258,7 +258,8 @@ final class AggregateEntry extends Hashtable.Entry {
             traceRoot,
             peerTagsArr,
             peerTagsArr.length,
-            EMPTY_ADDITIONAL_TAGS);
+            EMPTY_ADDITIONAL_TAGS,
+            0);
     return new AggregateEntry(
         keyHash,
         resourceUtf,
@@ -331,7 +332,8 @@ final class AggregateEntry extends Hashtable.Entry {
       boolean traceRoot,
       UTF8BytesString[] peerTags,
       int peerTagCount,
-      UTF8BytesString[] additionalTags) {
+      UTF8BytesString[] additionalTags,
+      int additionalTagCount) {
     long h = 0;
     h = LongHashingUtils.addToHash(h, resource);
     h = LongHashingUtils.addToHash(h, service);
@@ -345,9 +347,9 @@ final class AggregateEntry extends Hashtable.Entry {
     for (int i = 0; i < peerTagCount; i++) {
       h = LongHashingUtils.addToHash(h, peerTags[i]);
     }
-    // Additional tags hash in schema order (which is alphabetical by key, per the schema's
-    // construction). null slots are mixed in too so absent-vs-present yields different hashes.
-    for (int i = 0; i < additionalTags.length; i++) {
+    // Additional tags are packed compactly in schema order (alphabetical by key); each carries its
+    // "key:" prefix so the packed form is unambiguous without positional null slots.
+    for (int i = 0; i < additionalTagCount; i++) {
       h = LongHashingUtils.addToHash(h, additionalTags[i]);
     }
     h = LongHashingUtils.addToHash(h, httpStatusCode);
@@ -620,12 +622,16 @@ final class AggregateEntry extends Hashtable.Entry {
     final AdditionalTagsSchema additionalTagsSchema;
 
     /**
-     * Reusable buffer of canonicalized additional-tag values, sized exactly to the schema. Slot
-     * {@code i} = the canonical {@code "key:value"} UTF8BytesString for {@code schema.name(i)}, or
-     * {@code null} when the span didn't set that tag. Cleared on each {@link #populate}. {@link
-     * #toEntry} copies it into the new entry.
+     * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
+     * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
+     * gives the count. Each entry is a {@code "key:value"} UTF8BytesString, so packing loses no
+     * information -- the key prefix disambiguates which key a value belongs to. Mirrors the {@code
+     * peerTagsBuffer + peerTagsSize} pattern. {@link #toEntry} copies the populated prefix into the
+     * new entry.
      */
     final UTF8BytesString[] additionalTagsBuffer;
+
+    int additionalTagsSize;
 
     long keyHash;
 
@@ -674,7 +680,8 @@ final class AggregateEntry extends Hashtable.Entry {
           traceRoot,
           peerTagsBuffer != null ? peerTagsBuffer : EMPTY_PEER_TAGS,
           peerTagsSize,
-          additionalTagsBuffer);
+          additionalTagsBuffer,
+          additionalTagsSize);
     }
 
     /**
@@ -705,27 +712,23 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     /**
-     * Fills {@link #additionalTagsBuffer} with canonical {@code "key:value"} UTF8BytesStrings for
-     * each non-null slot in {@code values} via {@link AdditionalTagsSchema#register}. Absent slots
-     * become {@code null}; the handler returns the per-key blocked sentinel when the per-cycle
-     * value budget is exhausted.
+     * Packs canonical {@code "key:value"} UTF8BytesStrings for each present slot of {@code values}
+     * into the front of {@link #additionalTagsBuffer} (schema order), via {@link
+     * AdditionalTagsSchema#register}, and sets {@link #additionalTagsSize}. The handler returns the
+     * per-key blocked sentinel when the per-cycle value budget is exhausted.
      */
     private void populateAdditionalTags(@Nullable String[] values) {
+      additionalTagsSize = 0;
       int n = additionalTagsBuffer.length;
       if (n == 0 || values == null) {
-        // Schema empty or span had no additional tags at all -- clear the buffer's slots so a
-        // previous iteration's state doesn't leak through.
-        Arrays.fill(additionalTagsBuffer, null);
         return;
       }
       for (int i = 0; i < n; i++) {
         String v = values[i];
         if (v == null) {
-          additionalTagsBuffer[i] = null;
           continue;
         }
-
-        additionalTagsBuffer[i] = additionalTagsSchema.register(i, v);
+        additionalTagsBuffer[additionalTagsSize++] = additionalTagsSchema.register(i, v);
       }
     }
 
@@ -753,12 +756,17 @@ final class AggregateEntry extends Hashtable.Entry {
           && httpStatusCode == e.httpStatusCode
           && synthetic == e.synthetic
           && traceRoot == e.traceRoot
-          && Arrays.equals(additionalTagsBuffer, e.additionalTags);
+          && additionalTagsEqual(additionalTagsBuffer, additionalTagsSize, e.additionalTags);
     }
 
-    private static boolean allNull(UTF8BytesString[] arr) {
-      for (UTF8BytesString slot : arr) {
-        if (slot != null) {
+    /** Compact compare: first {@code aSize} slots of {@code a} against the entry's packed array. */
+    private static boolean additionalTagsEqual(
+        UTF8BytesString[] a, int aSize, UTF8BytesString[] b) {
+      if (aSize != b.length) {
+        return false;
+      }
+      for (int i = 0; i < aSize; i++) {
+        if (!a[i].equals(b[i])) {
           return false;
         }
       }
@@ -792,12 +800,10 @@ final class AggregateEntry extends Hashtable.Entry {
       } else {
         snapshottedPeerTags = Arrays.asList(Arrays.copyOf(peerTagsBuffer, n));
       }
-      UTF8BytesString[] snapshottedAdditionalTags;
-      if (additionalTagsBuffer.length == 0 || allNull(additionalTagsBuffer)) {
-        snapshottedAdditionalTags = EMPTY_ADDITIONAL_TAGS;
-      } else {
-        snapshottedAdditionalTags = additionalTagsBuffer.clone();
-      }
+      UTF8BytesString[] snapshottedAdditionalTags =
+          additionalTagsSize == 0
+              ? EMPTY_ADDITIONAL_TAGS
+              : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
       return new AggregateEntry(
           keyHash,
           resource,
