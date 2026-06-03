@@ -104,22 +104,14 @@ public class ExceptionHandlers {
           }
 
           // Build the log message:
-          //   "Failed to handle exception in instrumentation for <type> (" + adviceName + ")"
+          //   "Failed to handle exception in instrumentation for <type> - " + adviceName
           // <type> is a generation-time constant baked into the prefix LDC.
           // stack: (top) adviceName, throwable
           mv.visitLdcInsn(
-              "Failed to handle exception in instrumentation for " + instrumentedTypeName + " (");
+              "Failed to handle exception in instrumentation for " + instrumentedTypeName + " - ");
           // stack: prefix (top), adviceName, throwable
           mv.visitInsn(Opcodes.SWAP);
           // stack: adviceName (top), prefix, throwable
-          mv.visitMethodInsn(
-              Opcodes.INVOKEVIRTUAL,
-              "java/lang/String",
-              "concat",
-              "(Ljava/lang/String;)Ljava/lang/String;",
-              false);
-          // stack: "Failed to ... (<adviceName>" (top), throwable
-          mv.visitLdcInsn(")");
           mv.visitMethodInsn(
               Opcodes.INVOKEVIRTUAL,
               "java/lang/String",
@@ -175,7 +167,7 @@ public class ExceptionHandlers {
         }
       };
 
-  public static ExceptionHandler defaultExceptionHandler(final String adviceClassName) {
+  public static ExceptionHandler exceptionHandlerFor(final String adviceClassName) {
     return new ExceptionHandler.Simple(
         new StackManipulation.Compound(
             new TextConstant(adviceClassName), EXCEPTION_STACK_MANIPULATION));
