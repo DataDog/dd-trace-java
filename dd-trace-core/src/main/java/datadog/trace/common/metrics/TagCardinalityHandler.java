@@ -32,6 +32,9 @@ final class TagCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
+  /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
+  private long blockedCount;
+
   /**
    * Test convenience: limits-enabled mode. Production uses the three-argument constructor with the
    * flag from {@code Config}.
@@ -85,6 +88,7 @@ final class TagCardinalityHandler {
     }
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
     if (capExhausted && this.useBlockedSentinel) {
+      this.blockedCount++;
       return this.blockedByTracer();
     }
     int priorSlot = start;
@@ -122,7 +126,13 @@ final class TagCardinalityHandler {
     return cacheBlocked;
   }
 
-  void reset() {
+  /**
+   * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
+   * caller is responsible for reporting the count to health metrics if non-zero.
+   */
+  long reset() {
+    long count = this.blockedCount;
+    this.blockedCount = 0;
     final String[] tmpKeys = this.priorKeys;
     final UTF8BytesString[] tmpValues = this.priorValues;
     this.priorKeys = this.curKeys;
@@ -132,5 +142,6 @@ final class TagCardinalityHandler {
     Arrays.fill(this.curKeys, null);
     Arrays.fill(this.curValues, null);
     this.curSize = 0;
+    return count;
   }
 }

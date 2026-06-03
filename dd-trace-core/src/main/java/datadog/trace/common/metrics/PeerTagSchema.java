@@ -30,15 +30,15 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
- * #warnedCardinality}) and accumulate a per-tag block counter (tracked via {@link #blockedCounts})
- * that is flushed to {@link HealthMetrics#onTagCardinalityBlocked(String, long)} once per affected
- * tag at cycle reset. All per-cycle state resets in {@link #resetCardinalityHandlers()}.
+ * #warnedCardinality}). Per-tag block counts live inside each {@link TagCardinalityHandler} and are
+ * returned by {@link TagCardinalityHandler#reset()}, then flushed to {@link
+ * HealthMetrics#onTagCardinalityBlocked(String, long)} in {@link #resetCardinalityHandlers()}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
  * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
- * {@link #blockedCounts}, and {@link #state}) is exercised only on the aggregator thread. {@link
+ * and {@link #state}) is exercised only on the aggregator thread. {@link
  * #names} and {@link #handlers} are final and safe to read from any thread; producer threads access
  * them through the volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
@@ -72,14 +72,6 @@ final class PeerTagSchema {
    */
   private final Set<String> warnedCardinality = new HashSet<>();
 
-  /**
-   * Per-tag block counter, indexed in lockstep with {@link #names}. Incremented on every blocked
-   * value during the cycle; flushed to {@link HealthMetrics#onTagCardinalityBlocked(String, long)}
-   * and zeroed in {@link #resetCardinalityHandlers()}. Single statsd call per affected tag per
-   * cycle keeps a misconfigured high-cardinality tag from flooding the metrics pipe.
-   */
-  private final long[] blockedCounts;
-
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
   static PeerTagSchema of(Set<String> names, String state, HealthMetrics healthMetrics) {
     return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics);
@@ -100,7 +92,6 @@ final class PeerTagSchema {
     this.state = state;
     this.healthMetrics = healthMetrics;
     this.handlers = new TagCardinalityHandler[names.length];
-    this.blockedCounts = new long[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
           new TagCardinalityHandler(
@@ -129,22 +120,17 @@ final class PeerTagSchema {
   /**
    * Canonicalizes the peer-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY} for
    * null inputs and the handler's {@code "<tag>:blocked_by_tracer"} sentinel when the per-tag
-   * cardinality budget is exhausted. Increments the per-tag block counter on every block and emits
-   * a one-shot warn log per cycle per tag; the counter is flushed to {@link HealthMetrics} in
-   * {@link #resetCardinalityHandlers()}.
+   * cardinality budget is exhausted. The handler counts blocks internally; emits a one-shot warn
+   * log per cycle per tag via {@link #warnedCardinality}.
    */
   UTF8BytesString register(int i, String value) {
     TagCardinalityHandler handler = handlers[i];
     UTF8BytesString result = handler.register(value);
-    if (handler.isBlockedResult(result)) {
-      blockedCounts[i]++;
-      String name = names[i];
-      if (warnedCardinality.add(name)) {
-        log.warn(
-            "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'blocked_by_tracer' until the next reporting cycle",
-            name);
-      }
+    if (handler.isBlockedResult(result) && warnedCardinality.add(names[i])) {
+      log.warn(
+          "Cardinality limit reached for peer tag '{}'; further values are reported as"
+              + " 'blocked_by_tracer' until the next reporting cycle",
+          names[i]);
     }
     return result;
   }
@@ -156,10 +142,9 @@ final class PeerTagSchema {
    */
   void resetCardinalityHandlers() {
     for (int i = 0; i < handlers.length; i++) {
-      handlers[i].reset();
-      if (blockedCounts[i] > 0) {
-        healthMetrics.onTagCardinalityBlocked(names[i], blockedCounts[i]);
-        blockedCounts[i] = 0;
+      long blocked = handlers[i].reset();
+      if (blocked > 0) {
+        healthMetrics.onTagCardinalityBlocked(names[i], blocked);
       }
     }
     warnedCardinality.clear();
