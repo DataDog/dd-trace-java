@@ -63,6 +63,9 @@ final class PropertyCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
 
+  /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
+  private long blockedCount;
+
   /**
    * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
    * the two-argument constructor with the flag from {@code Config}.
@@ -119,6 +122,7 @@ final class PropertyCardinalityHandler {
     }
     boolean capExhausted = this.curSize >= this.cardinalityLimit;
     if (capExhausted && this.useBlockedSentinel) {
+      this.blockedCount++;
       return this.blockedByTracer();
     }
     // Reuse from the prior cycle if possible to avoid re-allocation -- runs whether or not the
@@ -149,7 +153,13 @@ final class PropertyCardinalityHandler {
     return cacheBlocked;
   }
 
-  void reset() {
+  /**
+   * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
+   * caller is responsible for reporting the count to health metrics if non-zero.
+   */
+  long reset() {
+    long count = this.blockedCount;
+    this.blockedCount = 0;
     // Flip pointers: the just-completed cycle becomes prior; what was prior (2 cycles ago) is
     // recycled into the new (empty) current.
     final UTF8BytesString[] tmp = this.priorValues;
@@ -159,5 +169,6 @@ final class PropertyCardinalityHandler {
     // AggregateEntry rows they ended up populating; this just drops the handler's references.
     Arrays.fill(this.curValues, null);
     this.curSize = 0;
+    return count;
   }
 }

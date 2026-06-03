@@ -3,6 +3,7 @@ package datadog.trace.common.metrics;
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import java.util.Arrays;
@@ -336,16 +337,26 @@ final class AggregateEntry extends Hashtable.Entry {
    * entries.
    */
   static void resetCardinalityHandlers() {
-    RESOURCE_HANDLER.reset();
-    SERVICE_HANDLER.reset();
-    OPERATION_HANDLER.reset();
-    SERVICE_SOURCE_HANDLER.reset();
-    TYPE_HANDLER.reset();
-    SPAN_KIND_HANDLER.reset();
-    HTTP_METHOD_HANDLER.reset();
-    HTTP_ENDPOINT_HANDLER.reset();
-    GRPC_STATUS_CODE_HANDLER.reset();
+    resetCardinalityHandlers(HealthMetrics.NO_OP);
+  }
+
+  static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
+    reportIfBlocked(healthMetrics, "resource", RESOURCE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "service", SERVICE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "operation", OPERATION_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "service_source", SERVICE_SOURCE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "type", TYPE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "span_kind", SPAN_KIND_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "http_method", HTTP_METHOD_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "http_endpoint", HTTP_ENDPOINT_HANDLER.reset());
+    reportIfBlocked(healthMetrics, "grpc_status_code", GRPC_STATUS_CODE_HANDLER.reset());
     PeerTagSchema.INTERNAL.resetCardinalityHandlers();
+  }
+
+  private static void reportIfBlocked(HealthMetrics healthMetrics, String field, long blocked) {
+    if (blocked > 0) {
+      healthMetrics.onTagCardinalityBlocked(field, blocked);
+    }
   }
 
   /**
