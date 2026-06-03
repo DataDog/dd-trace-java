@@ -19,6 +19,7 @@ import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
@@ -57,6 +58,14 @@ public class AdditionalTagsMetricsBenchmark {
   private ClientStatsAggregator aggregator;
   private AdversarialMetricsBenchmark.CountingHealthMetrics health;
 
+  /**
+   * Whether the {@link TagCardinalityHandler}s inside {@link AdditionalTagsSchema} substitute the
+   * {@code blocked_by_tracer} sentinel once the per-key budget is exhausted. JMH runs both values
+   * within the same fork so the two modes see equivalent thermal conditions.
+   */
+  @Param({"false", "true"})
+  public boolean limitsEnabled;
+
   @State(Scope.Thread)
   public static class ThreadState {
     int cursor;
@@ -71,7 +80,7 @@ public class AdditionalTagsMetricsBenchmark {
     // blocked sentinel -- that's the contention we want to measure.
     AdditionalTagsSchema additionalTagsSchema =
         AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), this.health);
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), this.health, limitsEnabled);
     this.aggregator =
         new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),
