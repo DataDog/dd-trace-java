@@ -145,6 +145,9 @@ class JmhSmokeTest extends CiVisibilitySmokeTest {
     List<String> command = new ArrayList<>();
     command.add(javacPath());
     command.addAll(Arrays.asList("-cp", JMH_CORE_JAR + File.pathSeparator + JMH_ANNPROC_JAR));
+    command.addAll(
+        Arrays.asList("-processorpath", JMH_ANNPROC_JAR + File.pathSeparator + JMH_CORE_JAR));
+    command.addAll(Arrays.asList("-processor", "org.openjdk.jmh.generators.BenchmarkProcessor"));
     command.addAll(Arrays.asList("-d", classesDir.toString()));
     command.addAll(findJavaFiles(projectHome.resolve("src/main/java")));
 
