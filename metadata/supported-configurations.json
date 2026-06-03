@@ -2761,6 +2761,14 @@
         "aliases": []
       }
     ],
+    "DD_PROFILING_EXPERIMENTAL_DDPROF_FORCE_JMETHODID": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": []
+      }
+    ],
     "DD_PROFILING_AUXILIARY": [
       {
         "version": "A",
