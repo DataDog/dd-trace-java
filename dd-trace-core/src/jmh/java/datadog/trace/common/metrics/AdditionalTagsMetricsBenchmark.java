@@ -6,7 +6,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
-import datadog.trace.core.monitor.HealthMetrics;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -42,8 +41,8 @@ import org.openjdk.jmh.infra.Blackhole;
  *       HealthMetrics.onTagCardinalityBlocked(name, count)} per affected key.
  * </ul>
  *
- * <p>The aim is not absolute throughput numbers but a regression guard for the additional-tags
- * hot path: any future refactor that adds a tag-map lookup, allocates per call, or pulls the
+ * <p>The aim is not absolute throughput numbers but a regression guard for the additional-tags hot
+ * path: any future refactor that adds a tag-map lookup, allocates per call, or pulls the
  * sentinel-materialization onto the hot path should show up as a step change here.
  */
 @State(Scope.Benchmark)
@@ -112,8 +111,7 @@ public class AdditionalTagsMetricsBenchmark {
     long durationNanos = 1L + (rng.nextLong() & 0x3FFFFFFFL);
 
     SimpleSpan span =
-        new SimpleSpan(
-            "svc", "op", "res", "web", true, true, false, 0, durationNanos, 200);
+        new SimpleSpan("svc", "op", "res", "web", true, true, false, 0, durationNanos, 200);
     span.setTag(SPAN_KIND, SPAN_KIND_CLIENT);
     span.setTag("region", region);
     span.setTag("tenant_id", tenant);

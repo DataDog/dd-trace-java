@@ -696,7 +696,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * filtered out anyway. Producer-side {@code capturePeerTagValues} produces sparse-null arrays,
      * so the skip pays off whenever a span carries only a subset of the configured peer tags.
      */
-    private void populatePeerTags(PeerTagSchema schema, String[] values) {
+    private void populatePeerTags(@Nullable PeerTagSchema schema, @Nullable String[] values) {
       peerTagsSize = 0;
       if (schema == null || values == null) {
         return;
@@ -720,7 +720,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * are replaced by the schema's pre-built {@code "<key>:blocked_by_tracer"} sentinel. Absent
      * slots become {@code null}.
      */
-    private void populateAdditionalTags(String[] values) {
+    private void populateAdditionalTags(@Nullable String[] values) {
       int n = additionalTagsBuffer.length;
       if (n == 0 || values == null) {
         // Schema empty or span had no additional tags at all -- clear the buffer's slots so a
