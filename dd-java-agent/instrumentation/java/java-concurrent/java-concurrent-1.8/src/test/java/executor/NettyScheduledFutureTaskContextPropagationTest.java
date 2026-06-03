@@ -28,6 +28,8 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
   @Test
   void testNettyVersionCompatible() {
     assertFalse(isCompatibleVersion("4.0.0.Final"));
+    assertFalse(isCompatibleVersion("4.0.44.Final"));
+    assertFalse(isCompatibleVersion("4.0.99.Final"));
     assertFalse(isCompatibleVersion("4.1.9.Final"));
     assertFalse(isCompatibleVersion("4.1.43.Final"));
     assertTrue(isCompatibleVersion("4.1.44.Final"));
@@ -72,6 +74,59 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
     }
   }
 
+  @Test
+  void testDelayedTaskPropagatesContextOnAllNettyVersions() throws Exception {
+    // Cross-version invariant: context propagation through a delayed task must work on every
+    // supported Netty version — pre-4.1.44 (single run() at the deadline) and 4.1.44+ (a delay > 0
+    // self-enqueue run followed by the real fire). This guards against the fix regressing the
+    // versions that were never broken.
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      TraceableTask task = new TraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+
+      try (AgentScope ignored = activateSpan(parent)) {
+        executor.schedule(task, 50, MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+
+      assertTrue(task.finished.await(5, SECONDS));
+      assertTrue(task.sawActiveSpan.get());
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
+  @Test
+  void testImmediateScheduledTaskKeepsContext() throws Exception {
+    // A ScheduledFutureTask scheduled with a non-positive delay only ever runs its body when
+    // delayNanos <= 0 (Netty self-enqueues only while delay > 0). The fix's "delay > 0" skip must
+    // therefore NOT apply to immediate tasks, so the captured continuation must still activate.
+    try (CloseableDefaultEventExecutorGroup group = new CloseableDefaultEventExecutorGroup()) {
+      EventExecutor executor = group.next();
+      TraceableTask task = new TraceableTask();
+      AgentSpan parent = startSpan("test", "parent");
+
+      try (AgentScope ignored = activateSpan(parent)) {
+        executor.schedule(task, 0, MILLISECONDS);
+      } finally {
+        parent.finish();
+      }
+
+      assertTrue(task.finished.await(5, SECONDS));
+      assertTrue(task.sawActiveSpan.get());
+      assertTraces(
+          trace(
+              SORT_BY_START_TIME,
+              span().root().operationName("parent"),
+              span().childOfPrevious().operationName("asyncChild")));
+    }
+  }
+
   private static boolean hasCompatibleVersion() {
     for (Map.Entry<String, Version> entry : Version.identify().entrySet()) {
       if (entry.getKey().startsWith("netty-")) {
@@ -86,25 +141,11 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
     if (parts.length < 3) {
       return false;
     }
-
     int major = Integer.parseInt(parts[0]);
     int minor = Integer.parseInt(parts[1]);
     int patch = Integer.parseInt(parts[2]);
-
-    if (major > 4) {
-      return true;
-    }
-
-    if (major != 4) {
-      return false;
-    }
-
-    if (minor > 1) {
-      return true;
-    }
-
-    // Since 4.1.44+ Netty uses a self-enqueue path for delayed tasks.
-    return patch >= 44;
+    // Netty uses a self-enqueue path for delayed tasks since 4.1.44.
+    return major > 4 || (major == 4 && (minor > 1 || (minor == 1 && patch >= 44)));
   }
 
   private static final class CloseableDefaultEventExecutorGroup extends DefaultEventExecutorGroup
@@ -138,6 +179,24 @@ class NettyScheduledFutureTaskContextPropagationTest extends AbstractInstrumenta
         asyncChild();
       } catch (InterruptedException e) {
         Thread.currentThread().interrupt();
+      } finally {
+        finished.countDown();
+      }
+    }
+
+    @Trace(operationName = "asyncChild")
+    private void asyncChild() {}
+  }
+
+  private static final class TraceableTask implements Runnable {
+    private final CountDownLatch finished = new CountDownLatch(1);
+    private final AtomicBoolean sawActiveSpan = new AtomicBoolean();
+
+    @Override
+    public void run() {
+      sawActiveSpan.set(activeSpan() != null);
+      try {
+        asyncChild();
       } finally {
         finished.countDown();
       }

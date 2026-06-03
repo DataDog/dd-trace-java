@@ -10,7 +10,6 @@ import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPr
 import static datadog.trace.instrumentation.java.concurrent.ConcurrentInstrumentationNames.EXECUTOR_INSTRUMENTATION_NAME;
 import static net.bytebuddy.matcher.ElementMatchers.isDeclaredBy;
 import static net.bytebuddy.matcher.ElementMatchers.isTypeInitializer;
-import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -48,7 +47,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
-  private static final String VERTX_IMPL = "io.vertx.core.impl.VertxImpl";
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -61,6 +59,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "rx.internal.operators.OperatorTimeoutBase",
       "com.amazonaws.http.timers.request.HttpRequestTimer",
       "io.netty.handler.timeout.WriteTimeoutHandler",
+      "io.netty.handler.timeout.IdleStateHandler",
+      "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
+      "play.shaded.ahc.io.netty.handler.timeout.IdleStateHandler",
+      "com.couchbase.client.deps.io.netty.handler.timeout.IdleStateHandler",
       "java.util.concurrent.ScheduledThreadPoolExecutor",
       "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
       "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
@@ -82,9 +84,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
-      "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
-      VERTX_IMPL
+      "io.reactivex.internal.schedulers.AbstractDirectTask"
     };
   }
 
@@ -120,6 +120,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("scheduleTimeout")
             .and(isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
+        advice);
+    // ReadTimeoutHandler and IdleStateHandler both schedule long-lived framework-owned idle timers
+    // through IdleStateHandler#schedule (ReadTimeoutHandler inherits it). Suppressing propagation
+    // here stops those timers from capturing an active request span and holding the trace open. The
+    // nameEndsWith match also covers the shaded Netty copies (grpc-shaded, Play WS, Couchbase).
+    transformer.applyAdvice(
+        named("schedule")
+            .and(isDeclaredBy(nameEndsWith(".netty.handler.timeout.IdleStateHandler"))),
         advice);
     transformer.applyAdvice(
         named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)), advice);
@@ -180,19 +188,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
                     named(
                         "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"))),
         advice);
-    // Vert.x can schedule long-running internal timers while a request span is active.
-    //  Suppress propagation only for Vert.x-owned timer handlers so user timers still keep context.
-    String disableVertxInternalTimerAdvice =
-        getClass().getName() + "$DisableVertxInternalTimerAdvice";
-    transformer.applyAdvice(
-        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(4)),
-        disableVertxInternalTimerAdvice);
-    transformer.applyAdvice(
-        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(6)),
-        disableVertxInternalTimerAdvice);
-    transformer.applyAdvice(
-        named("scheduleTimeout").and(isDeclaredBy(named(VERTX_IMPL))).and(takesArguments(7)),
-        disableVertxInternalTimerAdvice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
@@ -215,55 +210,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       if (wasDisabled) {
         setAsyncPropagationEnabled(true);
       }
-    }
-  }
-
-  public static class DisableVertxInternalTimerAdvice {
-
-    @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static boolean before(@Advice.AllArguments Object[] args) {
-      for (Object arg : args) {
-        if (isVertxInternalHandler(arg)) {
-          return DisableAsyncAdvice.before();
-        }
-      }
-      return false;
-    }
-
-    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
-    public static void after(@Advice.Enter boolean wasDisabled) {
-      DisableAsyncAdvice.after(wasDisabled);
-    }
-
-    private static boolean isVertxInternalHandler(Object arg) {
-      if (arg == null || !arg.getClass().getName().startsWith("io.vertx.")) {
-        return false;
-      }
-      return implementsVertxHandler(arg.getClass());
-    }
-
-    private static boolean implementsVertxHandler(Class<?> clazz) {
-      while (clazz != null) {
-        for (Class<?> iface : clazz.getInterfaces()) {
-          if (isVertxHandler(iface)) {
-            return true;
-          }
-        }
-        clazz = clazz.getSuperclass();
-      }
-      return false;
-    }
-
-    private static boolean isVertxHandler(Class<?> iface) {
-      if ("io.vertx.core.Handler".equals(iface.getName())) {
-        return true;
-      }
-      for (Class<?> parent : iface.getInterfaces()) {
-        if (isVertxHandler(parent)) {
-          return true;
-        }
-      }
-      return false;
     }
   }
 }
