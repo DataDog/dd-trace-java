@@ -34,6 +34,12 @@ public final class ProfilingConfig {
   public static final String PROFILING_UPLOAD_TIMEOUT = "profiling.upload.timeout";
   public static final int PROFILING_UPLOAD_TIMEOUT_DEFAULT = 30;
 
+  // Experimental feature for reducing jmethoidID allocations
+  public static final String PROFILING_DATADOG_PROFILER_FORCE_JMETHODID =
+      "profiling.experimental.ddprof.force_jmethodID";
+  // The feature is off by default
+  public static final boolean PROFILING_DATADOG_PROFILER_FORCE_JMETHODID_DEFAULT = true;
+
   /**
    * @deprecated Use {@link #PROFILING_DEBUG_UPLOAD_COMPRESSION} instead. This will be removed in a
    *     future release.
