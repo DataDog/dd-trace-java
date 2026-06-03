@@ -6,6 +6,7 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 
 import datadog.trace.api.WellKnownTags;
 import datadog.trace.core.CoreSpan;
+import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.LinkedHashSet;
@@ -120,6 +121,7 @@ public class AdditionalTagsMetricsBenchmark {
   }
 
   @TearDown
+  @SuppressForbidden
   public void tearDown() {
     aggregator.close();
     System.err.println("[ADDITIONAL-TAGS] counters (across all threads, single fork):");

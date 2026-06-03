@@ -51,6 +51,22 @@ class AdditionalTagsSchemaTest {
   }
 
   @Test
+  void rejectsEmptyAndColonContainingKeys() {
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(
+            new LinkedHashSet<>(Arrays.asList("region", "", "bad:key", "tenant_id")));
+    // Empty key and "bad:key" are dropped; only the two valid keys remain.
+    assertArrayEquals(new String[] {"region", "tenant_id"}, schema.names);
+  }
+
+  @Test
+  void allInvalidKeysReturnsEmptySchema() {
+    AdditionalTagsSchema schema =
+        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("", "also:bad")));
+    assertSame(AdditionalTagsSchema.EMPTY, schema);
+  }
+
+  @Test
   void emptySchemaHasZeroSizeAndEmptyArrays() {
     AdditionalTagsSchema schema = AdditionalTagsSchema.EMPTY;
     assertEquals(0, schema.size());
