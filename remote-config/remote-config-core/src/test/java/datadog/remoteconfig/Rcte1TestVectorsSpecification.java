@@ -1,8 +1,7 @@
 package datadog.remoteconfig;
 
-import static org.junit.jupiter.api.Assertions.assertEquals;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -18,7 +17,6 @@ import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Paths;
-import java.util.Map;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Supplier;
@@ -89,12 +87,10 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
         StandardCharsets.UTF_8);
   }
 
-  @SuppressWarnings("unchecked")
-  private Object parseBody(RequestBody body) throws IOException {
+  private static String bodyToString(RequestBody body) throws IOException {
     Buffer buffer = new Buffer();
     body.writeTo(buffer);
-    byte[] bytes = buffer.readByteArray();
-    return moshi.adapter(Object.class).fromJson(new String(bytes, StandardCharsets.UTF_8));
+    return buffer.readUtf8();
   }
 
   private void stubScheduling() {
@@ -167,10 +163,8 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
     task.run(poller);
     task.run(poller);
 
-    Map<String, Object> body = (Map<String, Object>) parseBody(request.body());
-    Map<String, Object> client = (Map<String, Object>) body.get("client");
-    Map<String, Object> state = (Map<String, Object>) client.get("state");
-    assertEquals(Boolean.TRUE, state.get("has_error"));
-    assertTrue(((String) state.get("error")).contains(message));
+    String bodyJson = bodyToString(request.body());
+    assertThatJson(bodyJson).node("client.state.has_error").isEqualTo(true);
+    assertThatJson(bodyJson).node("client.state.error").asString().contains(message);
   }
 }

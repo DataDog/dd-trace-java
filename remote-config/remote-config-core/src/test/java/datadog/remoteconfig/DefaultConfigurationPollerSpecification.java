@@ -4,9 +4,9 @@ import static datadog.remoteconfig.tuf.RemoteConfigRequest.ClientInfo.ClientStat
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.nio.charset.StandardCharsets.UTF_8;
 import static java.util.concurrent.TimeUnit.MILLISECONDS;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertArrayEquals;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -43,7 +43,6 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Base64;
-import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -58,7 +57,6 @@ import okhttp3.MediaType;
 import okhttp3.OkHttpClient;
 import okhttp3.Protocol;
 import okhttp3.Request;
-import okhttp3.RequestBody;
 import okhttp3.Response;
 import okhttp3.ResponseBody;
 import okio.Buffer;
@@ -151,24 +149,21 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
     verify(listener).accept(any(), any(), any());
 
-    Map<String, Object> body = parseBody();
-    assertNull(body.get("cached_target_files"));
-    Map<String, Object> client = asMap(body.get("client"));
-    Map<String, Object> clientTracer = asMap(client.get("client_tracer"));
-    assertEquals("", clientTracer.get("app_version"));
-    assertEquals("my_env", clientTracer.get("env"));
-    assertEquals("java", clientTracer.get("language"));
-    assertNotEquals("", clientTracer.get("runtime_id"));
-    assertEquals("my_service", clientTracer.get("service"));
-    assertEquals("0.0.0", clientTracer.get("tracer_version"));
-    assertEquals(36, ((String) client.get("id")).length());
-    assertEquals(Boolean.TRUE, client.get("is_tracer"));
-    assertEquals(Collections.singletonList("ASM_DD"), client.get("products"));
-    Map<String, Object> state = asMap(client.get("state"));
-    assertTrue(asList(state.get("config_states")).isEmpty());
-    assertEquals(Boolean.FALSE, state.get("has_error"));
-    assertEquals(1L, asLong(state.get("root_version")));
-    assertEquals(0L, asLong(state.get("targets_version")));
+    String json = bodyJson();
+    assertThatJson(json).node("cached_target_files").isAbsent();
+    assertThatJson(json).node("client.client_tracer.app_version").isEqualTo("");
+    assertThatJson(json).node("client.client_tracer.env").isEqualTo("my_env");
+    assertThatJson(json).node("client.client_tracer.language").isEqualTo("java");
+    assertThatJson(json).node("client.client_tracer.runtime_id").isString().isNotEmpty();
+    assertThatJson(json).node("client.client_tracer.service").isEqualTo("my_service");
+    assertThatJson(json).node("client.client_tracer.tracer_version").isEqualTo("0.0.0");
+    assertThatJson(json).node("client.id").isString().hasSize(36);
+    assertThatJson(json).node("client.is_tracer").isEqualTo(true);
+    assertThatJson(json).node("client.products").isArray().containsExactly("ASM_DD");
+    assertThatJson(json).node("client.state.config_states").isArray().isEmpty();
+    assertThatJson(json).node("client.state.has_error").isEqualTo(false);
+    assertThatJson(json).node("client.state.root_version").isEqualTo(1);
+    assertThatJson(json).node("client.state.targets_version").isEqualTo(0);
   }
 
   @Test
@@ -1180,11 +1175,14 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
     }
   }
 
-  private Map<String, Object> parseBody() throws IOException {
+  private String bodyJson() throws IOException {
     Buffer buffer = new Buffer();
-    RequestBody body = request.body();
-    body.writeTo(buffer);
-    return parseMap(new String(buffer.readByteArray(), UTF_8));
+    request.body().writeTo(buffer);
+    return new String(buffer.readByteArray(), UTF_8);
+  }
+
+  private Map<String, Object> parseBody() throws IOException {
+    return parseMap(bodyJson());
   }
 
   private static Map<String, Object> clientState(Map<String, Object> body) {

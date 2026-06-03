@@ -44,4 +44,6 @@ dependencies {
   testImplementation(libs.bundles.junit5)
   testImplementation(libs.bundles.mockito)
   testImplementation(libs.tabletest)
+  testImplementation(libs.assertj.core)
+  testImplementation(libs.json.unit.assertj)
 }

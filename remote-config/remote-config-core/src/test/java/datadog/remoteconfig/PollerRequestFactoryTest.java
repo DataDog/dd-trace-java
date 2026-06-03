@@ -2,8 +2,8 @@ package datadog.remoteconfig;
 
 import static datadog.trace.api.config.GeneralConfig.EXPERIMENTAL_PROPAGATE_PROCESS_TAGS_ENABLED;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static net.javacrumbs.jsonunit.assertj.JsonAssertions.assertThatJson;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -105,11 +105,11 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
     if (enabled) {
       assertNotNull(workingDir);
       assertNotNull(entrypointName);
-      assertTrue(json.contains("\"process_tags\":["));
+      assertThatJson(json).node("client.client_tracer.process_tags").isArray().isNotEmpty();
     } else {
       assertNull(workingDir);
       assertNull(entrypointName);
-      assertFalse(json.contains("\"process_tags\":["));
+      assertThatJson(json).node("client.client_tracer.process_tags").isAbsent();
     }
   }
 
