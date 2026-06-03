@@ -173,25 +173,25 @@ class RemoteConfigServiceImplTest {
   }
 
   @TableTest({
-    "scenario                          | value                            | expectedInstant                 ",
-    "utc second                        | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
-    "utc end of year                   | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
-    "leap day                          | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
-    "millisecond precision             | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
-    "three fractional digits           | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
-    "six fractional digits             | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
-    "six fractional digits preserve ms | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
-    "nine fractional digits            | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
-    "one fractional digit              | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
-    "two fractional digits             | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
-    "positive offset                   | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
-    "negative offset                   | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
-    "date only                         | '2023-01-01'                     |                                 ",
-    "invalid                           | 'invalid-date'                   |                                 ",
-    "empty string                      | ''                               |                                 ",
-    "not a date                        | 'not-a-date'                     |                                 ",
-    "slash date                        | '2023/01/01T00:00:00Z'           |                                 ",
-    "null                              |                                  |                                 "
+    "scenario                       | value                            | expectedInstant                 ",
+    "utc second                     | '2023-01-01T00:00:00Z'           | '2023-01-01T00:00:00Z'          ",
+    "utc end of year                | '2023-12-31T23:59:59Z'           | '2023-12-31T23:59:59Z'          ",
+    "leap day                       | '2024-02-29T12:00:00Z'           | '2024-02-29T12:00:00Z'          ",
+    "millisecond precision          | '2023-01-01T00:00:00.000Z'       | '2023-01-01T00:00:00Z'          ",
+    "three fractional digits        | '2023-06-15T14:30:45.123Z'       | '2023-06-15T14:30:45.123Z'      ",
+    "six fractional digits          | '2023-06-15T14:30:45.123456Z'    | '2023-06-15T14:30:45.123456Z'   ",
+    "six fractional digits distinct | '2023-06-15T14:30:45.235982Z'    | '2023-06-15T14:30:45.235982Z'   ",
+    "nine fractional digits         | '2023-06-15T14:30:45.123456789Z' | '2023-06-15T14:30:45.123456789Z'",
+    "one fractional digit           | '2023-06-15T14:30:45.1Z'         | '2023-06-15T14:30:45.100Z'      ",
+    "two fractional digits          | '2023-06-15T14:30:45.12Z'        | '2023-06-15T14:30:45.120Z'      ",
+    "positive offset                | '2023-01-01T01:00:00+01:00'      | '2023-01-01T00:00:00Z'          ",
+    "negative offset                | '2023-01-01T00:00:00-05:00'      | '2023-01-01T05:00:00Z'          ",
+    "date only                      | '2023-01-01'                     |                                 ",
+    "invalid                        | 'invalid-date'                   |                                 ",
+    "empty string                   | ''                               |                                 ",
+    "not a date                     | 'not-a-date'                     |                                 ",
+    "slash date                     | '2023/01/01T00:00:00Z'           |                                 ",
+    "null                           |                                  |                                 "
   })
   void testInstantParsing(final String value, final String expectedInstant) throws Exception {
     final JsonReader reader = mock(JsonReader.class);
