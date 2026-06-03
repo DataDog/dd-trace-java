@@ -9,6 +9,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.util.Strings;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.nio.charset.StandardCharsets;
@@ -122,12 +123,18 @@ public class LambdaHandler {
 
     Object errorMessage = span.getTag(DDTags.ERROR_MSG);
     if (errorMessage != null) {
-      builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
+      final String errorMessageString = errorMessage.toString();
+      if (Strings.isNotBlank(errorMessageString)) {
+        builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
+      }
     }
 
     Object errorType = span.getTag(DDTags.ERROR_TYPE);
     if (errorType != null) {
-      builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
+      final String errorTypeString = errorType.toString();
+      if (Strings.isNotBlank(errorTypeString)) {
+        builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
+      }
     }
 
     Object errorStack = span.getTag(DDTags.ERROR_STACK);
@@ -135,7 +142,9 @@ public class LambdaHandler {
       String encodedErrStack =
           Base64.getEncoder()
               .encodeToString(errorStack.toString().getBytes(StandardCharsets.UTF_8));
-      builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
+      if (Strings.isNotBlank(encodedErrStack)) {
+        builder.addHeader(DATADOG_INVOCATION_ERROR_STACK, encodedErrStack);
+      }
     }
 
     if (isError) {
