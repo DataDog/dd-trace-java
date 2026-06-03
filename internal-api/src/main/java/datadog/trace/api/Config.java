@@ -720,6 +720,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
@@ -3250,7 +3251,7 @@ public class Config {
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
-            ? 5000 // EVP limit
+            ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
             : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
