@@ -17,9 +17,9 @@ import org.openjdk.jmh.annotations.Fork;
 import org.openjdk.jmh.annotations.Measurement;
 import org.openjdk.jmh.annotations.Mode;
 import org.openjdk.jmh.annotations.OutputTimeUnit;
+import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.Scope;
 import org.openjdk.jmh.annotations.Setup;
-import org.openjdk.jmh.annotations.Param;
 import org.openjdk.jmh.annotations.State;
 import org.openjdk.jmh.annotations.TearDown;
 import org.openjdk.jmh.annotations.Threads;
@@ -29,8 +29,8 @@ import org.openjdk.jmh.infra.Blackhole;
 /**
  * JMH benchmark exercising the span-derived primary tags pipeline added in CSS v1.3.0. Parallel to
  * {@link AdversarialMetricsBenchmark} but configures two additional-tag keys (each with a per-key
- * cardinality cap of 100) and generates unique values per op so the cap saturates fast. The
- * benchmark measures the cost of:
+ * cardinality cap of {@link MetricCardinalityLimits#ADDITIONAL_TAG_VALUE}) and generates unique
+ * values per op so the cap saturates fast. The benchmark measures the cost of:
  *
  * <ul>
  *   <li>producer-side capture: {@code ClientStatsAggregator.captureAdditionalTagValues} walks the
@@ -45,6 +45,29 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>The aim is not absolute throughput numbers but a regression guard for the additional-tags hot
  * path: any future refactor that adds a tag-map lookup, allocates per call, or pulls the
  * sentinel-materialization onto the hot path should show up as a step change here.
+ *
+ * <p><b>Interpreting the {@code limitsEnabled} parameter.</b> The two arms are NOT a fair "cost of
+ * limiting" comparison and should not be read as one. With this benchmark's unbounded distinct
+ * values, the per-key budget saturates almost immediately and the two modes diverge into different
+ * downstream behavior, not just a different branch in {@code register}:
+ *
+ * <ul>
+ *   <li>{@code limitsEnabled=true}: every over-budget span collapses to the single {@code
+ *       "<key>:blocked_by_tracer"} sentinel entry, so {@code findOrInsert} always hits a live entry
+ *       and {@code recordOneDuration} (a DDSketch histogram insert) runs for every drained span.
+ *   <li>{@code limitsEnabled=false}: every over-budget value canonicalizes to a distinct entry, so
+ *       the table saturates at {@code maxAggregates} and most subsequent spans are dropped at
+ *       {@code findOrInsert} -- never reaching the histogram.
+ * </ul>
+ *
+ * <p>So {@code limitsEnabled=true} measures lower throughput here precisely because it does MORE
+ * useful work per span (it keeps the masked data and records it) where the disabled arm drops the
+ * overflow. A 2026-06-03 run (3 forks, -prof gc) measured {@code false} at ~19.8M ops/s / 820 B/op
+ * and {@code true} at ~12.4M ops/s / 888 B/op -- the higher per-op allocation under limits is the
+ * histogram recording, not the sentinel path. Throughput CIs were wide (>20%); the per-op
+ * allocation figures are the reliable signal. A production workload with a bounded value set never
+ * saturates the budget and sees neither arm's overflow behavior (cf. {@code
+ * HighCardinalityResourceMetricsBenchmark}, which is at parity with limits on/off).
  */
 @State(Scope.Benchmark)
 @Warmup(iterations = 2, time = 15, timeUnit = SECONDS)
@@ -109,9 +132,9 @@ public class AdditionalTagsMetricsBenchmark {
     int idx = ts.cursor++;
     ThreadLocalRandom rng = ThreadLocalRandom.current();
 
-    // Distinct values per op -- 65k regions × 65k tenants × random durations.  Cardinality cap is
-    // 100 per key, so the first 100 distinct values per key admit, the rest collapse to the
-    // blocked sentinel and increment the per-tag block counter via the schema's flush path.
+    // Distinct values per op -- 65k regions × 65k tenants × random durations. With the per-key cap
+    // (ADDITIONAL_TAG_VALUE = 512), the first 512 distinct values per key admit; the rest collapse
+    // to the blocked sentinel and increment the per-tag block counter via the schema's flush path.
     int scrambled = idx * 0x9E3779B1;
     String region = "region-" + ((scrambled >>> 4) & 0xFFFF);
     String tenant = "tenant-" + ((scrambled >>> 16) & 0xFFFF);
