@@ -1,6 +1,5 @@
 package datadog.remoteconfig;
 
-import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -12,6 +11,7 @@ import static org.mockito.Mockito.when;
 
 import com.squareup.moshi.Moshi;
 import datadog.trace.api.Config;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
@@ -36,12 +36,15 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
+@WithConfig(
+    key = "rc.targets.key.id",
+    value = "ed7672c9a24abda78872ee32ee71c7cb1d5235e8db4ecbf1ca28b9c50eb75d9e")
+@WithConfig(
+    key = "rc.targets.key",
+    value = "7d3102e39abe71044d207550bda239c71380d013ec5a115f79f51622630054e6")
+@WithConfig(key = "remote_config.integrity_check.enabled", value = "true")
 class Rcte1TestVectorsSpecification extends DDJavaSpecification {
   private static final int DEFAULT_POLL_PERIOD = 5000;
-  private static final String KEY_ID =
-      "ed7672c9a24abda78872ee32ee71c7cb1d5235e8db4ecbf1ca28b9c50eb75d9e";
-  private static final String PUBLIC_KEY =
-      "7d3102e39abe71044d207550bda239c71380d013ec5a115f79f51622630054e6";
 
   private static final HttpUrl URL = HttpUrl.get("https://example.com/v0.7/config");
   private static final Request REQUEST = new Request.Builder().url("https://example.com").build();
@@ -74,10 +77,6 @@ class Rcte1TestVectorsSpecification extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
-    injectSysConfig("dd.rc.targets.key.id", KEY_ID);
-    injectSysConfig("dd.rc.targets.key", PUBLIC_KEY);
-    injectSysConfig("remote_config.integrity_check.enabled", "true");
-
     Supplier<String> urlSupplier = URL::toString;
     poller =
         new DefaultConfigurationPoller(

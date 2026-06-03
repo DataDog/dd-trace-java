@@ -14,6 +14,7 @@ import datadog.trace.api.Config;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.List;
@@ -30,16 +31,17 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
   static final String INVALID_REMOTE_CONFIG_URL = "https://invalid.example.com/";
 
   @Test
+  @WithConfig(key = "service", value = "Service Name")
+  @WithConfig(key = "env", value = "PROD")
+  @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
+  @WithConfig(
+      key = "trace.global.tags",
+      value =
+          Tags.GIT_REPOSITORY_URL
+              + ":https://github.com/DataDog/dd-trace-java,"
+              + Tags.GIT_COMMIT_SHA
+              + ":1234")
   void remoteConfigRequestFieldsBeenSanitized() {
-    injectSysConfig("service", "Service Name");
-    injectSysConfig("env", "PROD");
-    injectSysConfig("tags", "version:1.0.0-SNAPSHOT");
-    injectSysConfig(
-        "trace.global.tags",
-        Tags.GIT_REPOSITORY_URL
-            + ":https://github.com/DataDog/dd-trace-java,"
-            + Tags.GIT_COMMIT_SHA
-            + ":1234");
     PollerRequestFactory factory =
         new PollerRequestFactory(
             Config.get(), TRACER_VERSION, CONTAINER_ID, ENTITY_ID, INVALID_REMOTE_CONFIG_URL, null);
@@ -61,10 +63,10 @@ class PollerRequestFactoryTest extends DDJavaSpecification {
   }
 
   @Test
+  @WithConfig(key = "service", value = "Service Name")
+  @WithConfig(key = "env", value = "PROD")
+  @WithConfig(key = "tags", value = "version:1.0.0-SNAPSHOT")
   void remoteConfigRequestExtraServices() {
-    injectSysConfig("service", "Service Name");
-    injectSysConfig("env", "PROD");
-    injectSysConfig("tags", "version:1.0.0-SNAPSHOT");
     String extraService = "fakeExtraService";
     ServiceNameCollector extraServicesProvider = ServiceNameCollector.get();
     extraServicesProvider.clear();

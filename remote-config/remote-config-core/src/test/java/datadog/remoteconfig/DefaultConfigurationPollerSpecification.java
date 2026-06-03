@@ -30,6 +30,7 @@ import cafe.cryptography.ed25519.Ed25519Signature;
 import com.squareup.moshi.Moshi;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.Config;
+import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.File;
@@ -68,6 +69,10 @@ import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.mockito.stubbing.OngoingStubbing;
 
+@WithConfig(key = "rc.targets.key.id", value = "TEST_KEY_ID")
+@WithConfig(key = "service", value = "my_service")
+@WithConfig(key = "env", value = "my_env")
+@WithConfig(key = "remote_config.integrity_check.enabled", value = "true")
 class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
   private static final HttpUrl URL = HttpUrl.get("https://example.com/v0.7/config");
   private static final Request REQUEST = new Request.Builder().url("https://example.com").build();
@@ -106,11 +111,8 @@ class DefaultConfigurationPollerSpecification extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
-    injectSysConfig("dd.rc.targets.key.id", KEY_ID);
+    // value derived from the randomly generated keypair, so it cannot be a @WithConfig literal
     injectSysConfig("dd.rc.targets.key", new BigInteger(1, PUBLIC_KEY.toByteArray()).toString(16));
-    injectSysConfig("dd.service", "my_service");
-    injectSysConfig("dd.env", "my_env");
-    injectSysConfig("dd.remote_config.integrity_check.enabled", "true");
     poller =
         new DefaultConfigurationPoller(
             Config.get(), "0.0.0", "", "", () -> configUrlSupplier.get(), okHttpClient, scheduler);
