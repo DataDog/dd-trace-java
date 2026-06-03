@@ -15,6 +15,8 @@ import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILE
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CPU_INTERVAL_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_CSTACK_DEFAULT;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID;
+import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_FORCE_JMETHODID_DEFAULT;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LIBPATH;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS;
 import static datadog.trace.api.config.ProfilingConfig.PROFILING_DATADOG_PROFILER_LINE_NUMBERS_DEFAULT;
@@ -437,6 +439,13 @@ public class DatadogProfilerConfig {
 
   public static long getLong(ConfigProvider configProvider, String key) {
     return configProvider.getLong(key, configProvider.getLong(normalizeKey(key), -1));
+  }
+
+  public static boolean forceJMethodID(ConfigProvider configProvider) {
+    return getBoolean(
+        configProvider,
+        PROFILING_DATADOG_PROFILER_FORCE_JMETHODID,
+        PROFILING_DATADOG_PROFILER_FORCE_JMETHODID_DEFAULT);
   }
 
   private static String normalizeKey(String key) {
