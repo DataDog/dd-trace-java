@@ -34,9 +34,9 @@ import org.openjdk.jmh.infra.Blackhole;
  * <ul>
  *   <li>producer-side capture: {@code ClientStatsAggregator.captureAdditionalTagValues} walks the
  *       schema and pulls each key via {@code unsafeGetTag}.
- *   <li>aggregator-side canonicalization: {@code AdditionalTagsSchema.register(i, value)} runs
- *       length-check, handler probe + insert, isBlockedResult check, and per-tag block-counter
- *       accumulation.
+ *   <li>aggregator-side canonicalization: {@code AdditionalTagsSchema.register(i, value)} runs a
+ *       {@link TagCardinalityHandler} probe + insert, returning the per-key blocked sentinel once
+ *       the per-cycle value budget is exhausted.
  *   <li>cycle-reset flush: at every reporting cycle, the schema fires one {@code
  *       HealthMetrics.onTagCardinalityBlocked(name, count)} per affected key.
  * </ul>
@@ -65,12 +65,13 @@ public class AdditionalTagsMetricsBenchmark {
   @Setup
   public void setup() {
     this.health = new AdversarialMetricsBenchmark.CountingHealthMetrics();
-    // Two configured additional tags. The schema caps per-key cardinality at 100, so over the run
-    // most ops will collapse onto the per-key "<key>:blocked_by_tracer" sentinel -- the contention
-    // we want to measure.
+    // Two configured additional tags. Each key gets a TagCardinalityHandler capped at
+    // MetricCardinalityLimits.ADDITIONAL_TAG_VALUE (512) distinct values per cycle. The benchmark
+    // generates 65k distinct values per key so the cap saturates quickly and most ops return the
+    // blocked sentinel -- that's the contention we want to measure.
     AdditionalTagsSchema additionalTagsSchema =
         AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), 100, this.health);
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), this.health);
     this.aggregator =
         new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),
@@ -90,11 +91,8 @@ public class AdditionalTagsMetricsBenchmark {
   public void tearDown() {
     aggregator.close();
     System.err.println("[ADDITIONAL-TAGS] counters (across all threads, single fork):");
-    System.err.println("  onStatsInboxFull         = " + health.inboxFull);
-    System.err.println("  onStatsAggregateDropped  = " + health.aggregateDropped);
-    System.err.println("  traceComputedCalls       = " + health.traceComputedCalls);
-    System.err.println("  totalSpansCounted        = " + health.totalSpansCounted);
-    System.err.println("  tagCardinalityBlocked    = " + health.tagCardinalityBlocked);
+    System.err.println("  onStatsInboxFull         = " + health.inboxFull.sum());
+    System.err.println("  onStatsAggregateDropped  = " + health.aggregateDropped.sum());
   }
 
   @Benchmark

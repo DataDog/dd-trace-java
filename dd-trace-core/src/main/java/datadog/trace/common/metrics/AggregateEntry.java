@@ -706,9 +706,9 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Fills {@link #additionalTagsBuffer} with canonical {@code "key:value"} UTF8BytesStrings for
-     * each non-null slot in {@code values}, applying the per-value length cap. Length-capped slots
-     * are replaced by the schema's pre-built {@code "<key>:blocked_by_tracer"} sentinel. Absent
-     * slots become {@code null}.
+     * each non-null slot in {@code values} via {@link AdditionalTagsSchema#register}. Absent slots
+     * become {@code null}; the handler returns the per-key blocked sentinel when the per-cycle
+     * value budget is exhausted.
      */
     private void populateAdditionalTags(@Nullable String[] values) {
       int n = additionalTagsBuffer.length;
@@ -756,6 +756,15 @@ final class AggregateEntry extends Hashtable.Entry {
           && Arrays.equals(additionalTagsBuffer, e.additionalTags);
     }
 
+    private static boolean allNull(UTF8BytesString[] arr) {
+      for (UTF8BytesString slot : arr) {
+        if (slot != null) {
+          return false;
+        }
+      }
+      return true;
+    }
+
     private static boolean peerTagsEqual(UTF8BytesString[] a, int aSize, List<UTF8BytesString> b) {
       if (aSize != b.size()) {
         return false;
@@ -784,7 +793,7 @@ final class AggregateEntry extends Hashtable.Entry {
         snapshottedPeerTags = Arrays.asList(Arrays.copyOf(peerTagsBuffer, n));
       }
       UTF8BytesString[] snapshottedAdditionalTags;
-      if (additionalTagsBuffer.length == 0) {
+      if (additionalTagsBuffer.length == 0 || allNull(additionalTagsBuffer)) {
         snapshottedAdditionalTags = EMPTY_ADDITIONAL_TAGS;
       } else {
         snapshottedAdditionalTags = additionalTagsBuffer.clone();
