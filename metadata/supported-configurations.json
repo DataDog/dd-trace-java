@@ -8609,6 +8609,30 @@
         "aliases": []
       }
     ],
+    "DD_TRACE_ORG_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_STRICT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
+      {
+        "version": "A",
+        "type": "array",
+        "default": null,
+        "aliases": []
+      }
+    ],
     "DD_TRACE_PARTIAL_FLUSH_ENABLED": [
       {
         "version": "B",
@@ -10915,9 +10939,9 @@
     ],
     "DD_TRACE_TRACER_METRICS_MAX_PENDING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],
