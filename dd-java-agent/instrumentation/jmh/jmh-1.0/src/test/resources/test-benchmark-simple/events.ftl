@@ -65,6 +65,7 @@
       "benchmark.run.iterations" : 1,
       "benchmark.run.threads" : 1,
       "benchmark.run.warmup_iterations" : 1,
+      "benchmark.value" : ${content_metrics_benchmark_value},
       "process_id" : ${content_metrics_process_id}
     },
     "name" : "jmh.test",

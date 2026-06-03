@@ -3,13 +3,13 @@ import datadog.trace.civisibility.CiVisibilityInstrumentationTest
 import datadog.trace.instrumentation.jmh.JmhUtils
 import datadog.trace.instrumentation.jmh.benchmarks.SimpleBenchmark
 import datadog.trace.instrumentation.jmh.benchmarks.ParameterizedBenchmark
+import datadog.trace.instrumentation.jmh.benchmarks.DistributionBenchmark
 import org.openjdk.jmh.runner.Runner
 import org.openjdk.jmh.runner.options.OptionsBuilder
 
 @DisableTestTrace(reason = "avoid self-tracing")
 class JmhInstrumentationTest extends CiVisibilityInstrumentationTest {
 
-  // Benchmark numeric metrics vary each run — they are verified structurally in the smoke test
   static final List<String> BENCHMARK_METRIC_TAGS = [
     "content.metrics.['benchmark.value']",
     "content.metrics.['benchmark.error']",
@@ -24,16 +24,14 @@ class JmhInstrumentationTest extends CiVisibilityInstrumentationTest {
 
   def "test #testcaseName"() {
     runBenchmarks(*benchmarkClasses)
-    assertSpansData(testcaseName, [:], BENCHMARK_METRIC_TAGS)
+    assertSpansData(testcaseName, [:], [], BENCHMARK_METRIC_TAGS)
 
     where:
     testcaseName                   | benchmarkClasses
     "test-benchmark-simple"        | [SimpleBenchmark]
     "test-benchmark-parameterized" | [ParameterizedBenchmark]
-    // Multiple classes in one run keep several suites open at once (all finished in onRunEnd);
-    // guards against suite spans being activated on the active-span stack, which would make
-    // finishing them out of order throw IllegalStateException.
     "test-benchmark-multi-class"   | [SimpleBenchmark, ParameterizedBenchmark]
+    "test-benchmark-distribution"  | [DistributionBenchmark]
   }
 
   private void runBenchmarks(Class<?>... benchmarkClasses) {

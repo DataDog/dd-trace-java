@@ -353,7 +353,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     settings.impactedTestsDetectionEnabled = impactedTestsDetectionEnabled
   }
 
-  def assertSpansData(String testcaseName, Map<String, String> replacements = [:], List<String> ignoredTags = []) {
+  def assertSpansData(String testcaseName, Map<String, String> replacements = [:], List<String> ignoredTags = [], List<String> dynamicTags = []) {
     Predicate<DDSpan> sessionSpan = span -> span.spanType == "test_session_end"
     spanFilter.waitForSpan(sessionSpan, TimeUnit.SECONDS.toMillis(20))
 
@@ -369,13 +369,13 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
     def additionalIgnoredTags = CiVisibilityTestUtils.IGNORED_TAGS + ignoredTags
 
     if (System.getenv().get("GENERATE_TEST_FIXTURES") != null) {
-      return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
+      return generateTestFixtures(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags, dynamicTags)
     }
 
-    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags)
+    return CiVisibilityTestUtils.assertData(testcaseName, events, coverages, additionalReplacements, additionalIgnoredTags, [], dynamicTags)
   }
 
-  def generateTestFixtures(String testcaseName, List<Map> events, List<Map> coverages, Map<String, String> additionalReplacements, List<String> additionalIgnoredTags) {
+  def generateTestFixtures(String testcaseName, List<Map> events, List<Map> coverages, Map<String, String> additionalReplacements, List<String> additionalIgnoredTags, List<String> dynamicTags = []) {
     def clazz = this.getClass()
     def resourceName = "/" + clazz.name.replace('.', '/') + ".class"
     def classfilePath = clazz.getResource(resourceName).toURI().schemeSpecificPart
@@ -387,7 +387,7 @@ abstract class CiVisibilityInstrumentationTest extends InstrumentationSpecificat
       submoduleName = "test"
     }
     def baseTemplatesPath = modulePath + "/src/" + submoduleName + "/resources/" + testcaseName
-    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet(), additionalIgnoredTags)
+    CiVisibilityTestUtils.generateTemplates(baseTemplatesPath, events, coverages, additionalReplacements.keySet(), additionalIgnoredTags, dynamicTags)
     return [:]
   }
 
