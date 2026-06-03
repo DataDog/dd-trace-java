@@ -15,8 +15,14 @@ tracerJava {
 }
 
 addTestSuiteForDir("latestDepTest", "test")
+addTestSuiteForDir("latestDepBoot3Test", "test")
 
-["compileMain_java17Java", "compileTestJava", "compileLatestDepTestJava"].each {
+[
+  "compileMain_java17Java",
+  "compileTestJava",
+  "compileLatestDepTestJava",
+  "compileLatestDepBoot3TestJava"
+].each {
   tasks.named(it, JavaCompile) {
     configureCompiler(it, 17, JavaVersion.VERSION_1_8)
   }
@@ -55,10 +61,30 @@ dependencies {
 
   testImplementation(libs.spock.spring)
 
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '4.+'
+
+  latestDepBoot3TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
+  latestDepBoot3TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
+  latestDepBoot3TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
+  latestDepBoot3TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-websocket', version: '3.+'
 }
 
+// latestDepBoot3Test uses Spring Boot 3.+ (latest Boot 3) — same behavior expectations as latestDepTest
+tasks.named("latestDepBoot3Test", Test) {
+  jvmArgs '-Dtest.dd.latestDepTest=true'
+}
 
+// Spring Boot 4 pulls JUnit 6 (platform 6.x) transitively via spring-boot-starter-test, but the test harness
+// uses junit-platform-launcher 1.x. Force all JUnit artifacts back to the JUnit 5 versions used project-wide.
+configurations.latestDepTestRuntimeClasspath {
+  resolutionStrategy.eachDependency { details ->
+    if (details.requested.group == 'org.junit.jupiter') {
+      details.useVersion('5.14.1')
+    } else if (details.requested.group == 'org.junit.platform' && details.requested.name != 'junit-platform-launcher') {
+      details.useVersion('1.14.1')
+    }
+  }
+}

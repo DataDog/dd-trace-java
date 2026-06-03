@@ -25,10 +25,12 @@ import okhttp3.RequestBody
 import okhttp3.Response
 import org.springframework.beans.BeansException
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
+import org.springframework.context.annotation.Configuration
 import org.springframework.http.MediaType
 import org.springframework.web.servlet.HandlerInterceptor
+import org.springframework.web.servlet.config.annotation.InterceptorRegistry
+import org.springframework.web.servlet.config.annotation.WebMvcConfigurer
 import org.springframework.web.socket.BinaryMessage
 import org.springframework.web.socket.TextMessage
 import org.springframework.web.socket.WebSocketSession
@@ -75,7 +77,7 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
         "spring.web.resources.add-mappings"             : false,
         "server.forward-headers-strategy": "NONE"])
       context = app.run()
-      port = (context as ServletWebServerApplicationContext).webServer.port
+      port = context.webServer.port
       try {
         endpoint = context.getBean(WebsocketEndpoint)
       } catch (BeansException ignored) {
@@ -451,18 +453,36 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
     InstrumentationBridge.clearIastModules()
   }
 
+  @Configuration
+  static class FailingPreHandleInterceptorConfig implements WebMvcConfigurer {
+    @Override
+    void addInterceptors(InterceptorRegistry registry) {
+      registry.addInterceptor(new HandlerInterceptor() {
+          @Override
+          boolean preHandle(HttpServletRequest req, HttpServletResponse response, Object handler) throws Exception {
+            if ("true".equalsIgnoreCase(req.getHeader("fail"))) {
+              throw new RuntimeException("Stop here")
+            }
+            return true
+          }
+        })
+    }
+  }
+
   def 'path is extract when preHandle fails'() {
     setup:
-    def request = request(PATH_PARAM, 'GET', null).header("fail", "true").build()
-    context.getBeanFactory().registerSingleton("testHandler", new HandlerInterceptor() {
-        @Override
-        boolean preHandle(HttpServletRequest req, HttpServletResponse response, Object handler) throws Exception {
-          if ("true".equalsIgnoreCase(req.getHeader("fail"))) {
-            throw new RuntimeException("Stop here")
-          }
-          return true
-        }
-      })
+    def app = new SpringApplication(SecurityConfig, TestController, AppConfig, WebsocketConfig, FailingPreHandleInterceptorConfig)
+    app.setDefaultProperties(["server.port": 0, "server.context-path": "/$servletContext",
+      "spring.mvc.throw-exception-if-no-handler-found": false,
+      "spring.web.resources.add-mappings"             : false,
+      "server.forward-headers-strategy": "NONE"])
+    def localContext = app.run()
+    def localBase = new URI("http://localhost:${localContext.webServer.port}/$servletContext/")
+    def request = new Request.Builder()
+      .url(PATH_PARAM.resolve(localBase).toURL())
+      .header("fail", "true")
+      .get()
+      .build()
 
     when:
     client.newCall(request).execute()
@@ -471,6 +491,9 @@ class SpringBootBasedTest extends HttpServerTest<ConfigurableApplicationContext>
 
     then:
     span.getResourceName().toString() == "GET " + testPathParam()
+
+    cleanup:
+    localContext.close()
   }
 
   boolean hasResponseSpan(ServerEndpoint endpoint) {

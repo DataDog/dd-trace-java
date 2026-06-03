@@ -4,7 +4,6 @@ import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
 import org.springframework.stereotype.Controller
@@ -37,7 +36,16 @@ class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
 
   @Bean
   RequestContextFilter requestContextFilter() {
-    new OrderedRequestContextFilter(order: Ordered.HIGHEST_PRECEDENCE)
+    // OrderedRequestContextFilter moved from o.s.b.web.servlet.filter (SB3) to o.s.b.servlet.filter (SB4)
+    for (def cls : [
+        'org.springframework.boot.servlet.filter.OrderedRequestContextFilter',
+        'org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter'
+      ]) {
+      try {
+        return Class.forName(cls).newInstance().tap { order = Ordered.HIGHEST_PRECEDENCE } as RequestContextFilter
+      } catch (ClassNotFoundException ignored) {}
+    }
+    throw new IllegalStateException('OrderedRequestContextFilter not found on classpath')
   }
 }
 
