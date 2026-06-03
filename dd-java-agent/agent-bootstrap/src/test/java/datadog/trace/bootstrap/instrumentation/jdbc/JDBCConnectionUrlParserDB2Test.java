@@ -7,16 +7,11 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.CsvSource;
 
 /**
- * Regression tests for StringIndexOutOfBoundsException in MODIFIED_URL_LIKE.doParse() (line 109)
- * when parsing DB2/AS400 URLs that contain '=' but have no explicit port number.
+ * Tests for DB2/AS400 JDBC URL parsing when the URL contains '=' but no explicit port.
  *
- * <p>Root cause: {@code lastIndexOf(':')} returns the scheme colon (e.g. position 3 in
- * {@code "db2://..."}) when there is no port in the URL. This makes {@code urlPart1} shorter than
- * {@code hostIndex + 3}, causing the subsequent {@code urlPart1.substring(hostIndex + 3)} call to
- * throw.
- *
- * <p>Triggering condition: type is {@code db2} or {@code as400}, URL contains {@code =} (e.g.
- * query-string parameters), and there is no explicit port.
+ * <p>Without a port, {@code lastIndexOf(':')} returns the scheme colon, making {@code urlPart1}
+ * too short for the subsequent {@code substring()} call and causing a
+ * {@code StringIndexOutOfBoundsException}.
  */
 class JDBCConnectionUrlParserDB2Test {
 
@@ -33,9 +28,7 @@ class JDBCConnectionUrlParserDB2Test {
       String url, String expectedType, String expectedHost) {
     DBInfo info = extractDBInfo(url.trim(), null);
 
-    // Before the fix, MODIFIED_URL_LIKE.doParse() throws StringIndexOutOfBoundsException.
-    // The exception is swallowed by the catch in JDBCConnectionUrlParser.parse(), but host
-    // is never set, so info.getHost() returns null.
+    // Without the fix, host was never extracted due to StringIndexOutOfBoundsException.
     assertEquals(expectedType, info.getType());
     assertEquals(expectedHost, info.getHost());
   }
