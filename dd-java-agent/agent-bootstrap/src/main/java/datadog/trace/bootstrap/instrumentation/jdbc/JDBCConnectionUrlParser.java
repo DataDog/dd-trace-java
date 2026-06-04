@@ -36,9 +36,11 @@ public enum JDBCConnectionUrlParser {
 
         populateStandardProperties(builder, splitQuery(uri.getQuery(), '&'));
 
-        final String user = uri.getUserInfo();
-        if (user != null) {
-          builder.user(user);
+        final String userInfo = uri.getUserInfo();
+        if (userInfo != null) {
+          // getUserInfo() returns "user:password" — strip the password
+          final int colonLoc = userInfo.indexOf(':');
+          builder.user(colonLoc >= 0 ? userInfo.substring(0, colonLoc) : userInfo);
         }
 
         String path = uri.getPath();
