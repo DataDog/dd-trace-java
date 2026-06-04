@@ -37,7 +37,8 @@ public class HandleMatchAdvice {
       return;
     }
 
-    // hacky, but APM instrumentation causes the instrumented method to be called twice
+    // When the opt-in spring-path-filter integration is enabled, the filter resolves the handler
+    // against a PathMatchingHttpServletRequestWrapper, which triggers handleMatch a second time.
     if (req.getClass()
         .getName()
         .equals("datadog.trace.instrumentation.springweb6.PathMatchingHttpServletRequestWrapper")) {

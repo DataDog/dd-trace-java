@@ -10,6 +10,7 @@ import datadog.trace.bootstrap.instrumentation.api.URIDataAdapter;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.bootstrap.instrumentation.decorator.HttpServerDecorator;
 import javax.servlet.ServletException;
+import javax.servlet.ServletRequest;
 import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpServletResponse;
 import org.slf4j.Logger;
@@ -126,5 +127,20 @@ public class Servlet3Decorator
       super.onError(span, throwable);
     }
     return span;
+  }
+
+  /**
+   * Safely calls ServletRequest#isAsyncStarted. Some 2.x wrappers might be dangling in the 3.x
+   * classpath and produce an AbstractMethodError
+   *
+   * @param servletRequest the servlet request.
+   * @return the real call result or false when the method does not exist in the provided object.
+   */
+  public boolean safeIsAsyncStarted(final ServletRequest servletRequest) {
+    try {
+      return servletRequest.isAsyncStarted();
+    } catch (AbstractMethodError ignored) {
+      return false;
+    }
   }
 }
