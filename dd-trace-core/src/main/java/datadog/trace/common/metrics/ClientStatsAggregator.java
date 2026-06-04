@@ -303,6 +303,12 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   }
 
   private boolean publish(CoreSpan<?> span, boolean isTopLevel, PeerTagSchema peerTagSchema) {
+    boolean error = span.getError() > 0;
+    // size() is approximate on jctools MPSC queues but good enough for a fast-path overflow check.
+    if (inbox.size() >= inbox.capacity()) {
+      healthMetrics.onStatsInboxFull();
+      return error;
+    }
     // Extract HTTP method and endpoint only if the feature is enabled
     String httpMethod = null;
     String httpEndpoint = null;
@@ -326,7 +332,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
       spanKind = "";
     }
 
-    boolean error = span.getError() > 0;
     long tagAndDuration =
         span.getDurationNano() | (error ? ERROR_TAG : 0L) | (isTopLevel ? TOP_LEVEL_TAG : 0L);
 
