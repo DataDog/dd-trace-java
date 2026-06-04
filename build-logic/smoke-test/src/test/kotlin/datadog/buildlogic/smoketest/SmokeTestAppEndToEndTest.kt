@@ -340,22 +340,81 @@ class SmokeTestAppEndToEndTest {
   }
 
   @Test
-  fun `init script injects Maven repository proxy into nested settings`() {
+  fun `init script prepends Maven proxy repositories without overriding project repositories`() {
     writeOuterSettings()
-    val repository = projectDir.resolve("maven-repo").toFile()
-    val artifactDir = File(repository, "com/example/demo/1.0")
-    artifactDir.mkdirs()
-    File(artifactDir, "demo-1.0.pom").writeText(
+    val proxyRepository = projectDir.resolve("proxy-maven-repo").toFile()
+    val projectRepository = projectDir.resolve("project-maven-repo").toFile()
+    writeMavenArtifact(proxyRepository, "com.example", "shared", "1.0", "proxy")
+    writeMavenArtifact(projectRepository, "com.example", "shared", "1.0", "project")
+    writeMavenArtifact(projectRepository, "com.example", "project-only", "1.0", "project-only")
+    outerBuild.writeText(
       """
-      <project>
-        <modelVersion>4.0.0</modelVersion>
-        <groupId>com.example</groupId>
-        <artifactId>demo</artifactId>
-        <version>1.0</version>
-      </project>
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("resolveRepositories")
+          artifactPath.set("resolved-repositories.txt")
+          sysProperty.set("resolved.repositories.path")
+        }
+      }
       """.trimIndent(),
     )
-    File(artifactDir, "demo-1.0.jar").writeText("demo")
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      repositories {
+        maven {
+          url = uri("${projectRepository.toURI()}")
+        }
+      }
+
+      dependencies {
+        implementation("com.example:shared:1.0")
+        implementation("com.example:project-only:1.0")
+      }
+
+      tasks.register("resolveRepositories") {
+        val resolved = layout.buildDirectory.file("resolved-repositories.txt")
+        inputs.files(configurations.compileClasspath)
+        outputs.file(resolved)
+        doLast {
+          resolved.get().asFile.writeText(
+            configurations.compileClasspath.get()
+              .sortedBy { it.name }
+              .joinToString(System.lineSeparator()) { it.name + "=" + it.readText() }
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "resolveRepositories",
+      "-PmavenRepositoryProxy=${proxyRepository.toURI()}",
+      environment = mapOf("CI" to "true"),
+    ).build()
+
+    assertThat(result.task(":resolveRepositories")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val resolvedFile = File(projectDir.toFile(), "build/application/resolved-repositories.txt")
+    assertThat(resolvedFile).exists()
+    assertThat(resolvedFile.readLines()).containsExactly(
+      "project-only-1.0.jar=project-only",
+      "shared-1.0.jar=proxy",
+    )
+  }
+
+  @Test
+  fun `init script injects Maven repository proxy into nested build`() {
+    writeOuterSettings()
+    val repository = projectDir.resolve("maven-repo").toFile()
+    writeMavenArtifact(repository, "com.example", "demo", "1.0", "demo")
     outerBuild.writeText(
       """
       plugins {
@@ -578,6 +637,28 @@ class SmokeTestAppEndToEndTest {
       $taskBlock
       """.trimIndent(),
     )
+  }
+
+  private fun writeMavenArtifact(
+    repository: File,
+    groupId: String,
+    artifactId: String,
+    version: String,
+    jarContent: String,
+  ) {
+    val artifactDir = File(repository, "${groupId.replace('.', '/')}/$artifactId/$version")
+    artifactDir.mkdirs()
+    File(artifactDir, "$artifactId-$version.pom").writeText(
+      """
+      <project>
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>$groupId</groupId>
+        <artifactId>$artifactId</artifactId>
+        <version>$version</version>
+      </project>
+      """.trimIndent(),
+    )
+    File(artifactDir, "$artifactId-$version.jar").writeText(jarContent)
   }
 
   private fun runner(

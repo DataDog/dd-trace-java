@@ -258,7 +258,7 @@ abstract class NestedGradleBuild @Inject constructor(
 
   private fun writeInitScripts(): List<File> =
     initScripts.get().mapIndexed { index, script ->
-      temporaryDir.resolve("init-$index.gradle").also { file ->
+      temporaryDir.resolve("init-$index.init.gradle.kts").also { file ->
         file.writeText(script)
       }
     }
@@ -306,6 +306,6 @@ private fun MutableList<String>.addGradleProperty(name: String, value: String?) 
 }
 
 internal val PROXY_REPOSITORIES_INIT_SCRIPT: String =
-  NestedGradleBuild::class.java.getResource("proxy-repositories.init.gradle")
+  NestedGradleBuild::class.java.getResource("proxy-repositories.init.gradle.kts")
     ?.readText()
-    ?: error("Missing proxy-repositories.init.gradle resource")
+    ?: error("Missing proxy-repositories.init.gradle.kts resource")
