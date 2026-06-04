@@ -626,7 +626,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
      * gives the count. Each entry is a {@code "key:value"} UTF8BytesString, so packing loses no
      * information -- the key prefix disambiguates which key a value belongs to. Mirrors the {@code
-     * peerTagsBuffer + peerTagsSize} pattern. {@link #toEntry} copies the populated prefix into the
+     * peerTagsBuffer + peerTagsSize} pattern. {@link #createEntry} copies the populated prefix into the
      * new entry.
      */
     final UTF8BytesString[] additionalTagsBuffer;
