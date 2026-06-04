@@ -121,21 +121,8 @@ public class LambdaHandler {
             .addHeader(LAMBDA_RUNTIME_AWS_REQUEST_ID, lambdaRequestId)
             .post(body);
 
-    Object errorMessage = span.getTag(DDTags.ERROR_MSG);
-    if (errorMessage != null) {
-      final String errorMessageString = errorMessage.toString();
-      if (Strings.isNotBlank(errorMessageString)) {
-        builder.addHeader(DATADOG_INVOCATION_ERROR_MSG, errorMessage.toString());
-      }
-    }
-
-    Object errorType = span.getTag(DDTags.ERROR_TYPE);
-    if (errorType != null) {
-      final String errorTypeString = errorType.toString();
-      if (Strings.isNotBlank(errorTypeString)) {
-        builder.addHeader(DATADOG_INVOCATION_ERROR_TYPE, errorType.toString());
-      }
-    }
+    addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_MSG, span.getTag(DDTags.ERROR_MSG));
+    addHeaderIfValid(builder, DATADOG_INVOCATION_ERROR_TYPE, span.getTag(DDTags.ERROR_TYPE));
 
     Object errorStack = span.getTag(DDTags.ERROR_STACK);
     if (errorStack != null) {
@@ -172,6 +159,15 @@ public class LambdaHandler {
       }
     }
     return json;
+  }
+
+  private static void addHeaderIfValid(Request.Builder builder, String name, Object value) {
+    if (value != null) {
+      final String stringValue = value.toString();
+      if (Strings.isNotBlank(stringValue)) {
+        builder.addHeader(name, stringValue);
+      }
+    }
   }
 
   public static void setExtensionBaseUrl(String extensionBaseUrl) {
