@@ -10,11 +10,6 @@ import java.net.http.HttpResponse
 import java.time.Duration
 
 abstract class JavaHttpClientTest extends HttpClientTest {
-  @Override
-  boolean useStrictTraceWrites() {
-    // TODO fix this by making sure that spans get closed properly
-    return false
-  }
 
   def client = HttpClient.newBuilder()
   .connectTimeout(Duration.ofMillis(CONNECT_TIMEOUT_MS))

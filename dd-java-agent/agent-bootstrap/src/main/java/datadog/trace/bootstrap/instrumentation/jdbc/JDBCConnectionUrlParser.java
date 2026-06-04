@@ -81,13 +81,26 @@ public enum JDBCConnectionUrlParser {
       final String urlPart1;
       final String urlPart2;
       final int paramLoc;
+      char paramSeparator = ';';
 
       if (type.equals("db2") || type.equals("as400")) {
         if (jdbcUrl.contains("=")) {
           paramLoc = jdbcUrl.lastIndexOf(':');
-          urlPart1 = jdbcUrl.substring(0, paramLoc);
-          urlPart2 = jdbcUrl.substring(paramLoc + 1);
-
+          if (paramLoc > hostIndex + 2) {
+            urlPart1 = jdbcUrl.substring(0, paramLoc);
+            urlPart2 = jdbcUrl.substring(paramLoc + 1);
+          } else {
+            // No ':' past '://': fall back to '?' query-string params
+            final int queryLoc = jdbcUrl.indexOf('?');
+            if (queryLoc >= 0) {
+              urlPart1 = jdbcUrl.substring(0, queryLoc);
+              urlPart2 = jdbcUrl.substring(queryLoc + 1);
+              paramSeparator = '&';
+            } else {
+              urlPart1 = jdbcUrl;
+              urlPart2 = null;
+            }
+          }
         } else {
           urlPart1 = jdbcUrl;
           urlPart2 = null;
@@ -99,7 +112,7 @@ public enum JDBCConnectionUrlParser {
       }
 
       if (urlPart2 != null) {
-        final Map<String, String> props = splitQuery(urlPart2, ';');
+        final Map<String, String> props = splitQuery(urlPart2, paramSeparator);
         populateStandardProperties(builder, props);
         if (props.containsKey("servername")) {
           serverName = props.get("servername");
