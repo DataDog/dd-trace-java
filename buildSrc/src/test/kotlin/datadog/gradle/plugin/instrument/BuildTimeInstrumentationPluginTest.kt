@@ -30,7 +30,7 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
     }
 
     dependencies {
-      compileOnly("net.bytebuddy:byte-buddy:1.18.9") // just to build TestPlugin
+      compileOnly("net.bytebuddy:byte-buddy:1.18.10") // just to build TestPlugin
     }
 
     buildTimeInstrumentation.plugins.set(listOf("TestPlugin"))
@@ -71,7 +71,7 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
       }
 
       dependencies {
-        compileOnly("net.bytebuddy:byte-buddy:1.18.9")
+        compileOnly("net.bytebuddy:byte-buddy:1.18.10")
       }
 
       buildTimeInstrumentation {
@@ -112,7 +112,7 @@ class BuildTimeInstrumentationPluginTest : GradleFixture() {
       }
 
       dependencies {
-        compileOnly("net.bytebuddy:byte-buddy:1.18.9")
+        compileOnly("net.bytebuddy:byte-buddy:1.18.10")
       }
 
       buildTimeInstrumentation {
