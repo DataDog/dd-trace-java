@@ -13,14 +13,21 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 /**
- * This instrumentation adds the HandlerMappingResourceNameFilter definition to the spring context
- * When the context is created, the filter will be added to the beginning of the filter chain
+ * Opt-in alternative to the default {@code getHandler}/{@code ControllerAdvice} route naming. Adds
+ * the {@link HandlerMappingResourceNameFilter} bean to the Spring context, which names the route at
+ * the start of the filter chain by resolving the handler itself. This is the legacy approach and is
+ * disabled by default; enable it with {@code dd.integration.spring-path-filter.enabled=true}.
  */
 @AutoService(InstrumenterModule.class)
 public class WebApplicationContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public WebApplicationContextInstrumentation() {
     super("spring-web", "spring-path-filter");
+  }
+
+  @Override
+  protected boolean defaultEnabled() {
+    return false;
   }
 
   @Override

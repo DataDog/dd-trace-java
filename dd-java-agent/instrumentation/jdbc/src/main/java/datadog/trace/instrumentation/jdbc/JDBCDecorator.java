@@ -1,5 +1,6 @@
 package datadog.trace.instrumentation.jdbc;
 
+import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_DYNAMIC_SERVICE;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_FULL;
 import static datadog.trace.api.Config.DBM_PROPAGATION_MODE_STATIC;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
@@ -60,7 +61,8 @@ public class JDBCDecorator extends DatabaseClientDecorator<DBInfo> {
       Config.get().isExperimentalPropagateProcessTagsEnabled();
   public static final boolean INJECT_COMMENT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL)
-          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC);
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_STATIC)
+          || DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_DYNAMIC_SERVICE);
   private static final boolean INJECT_TRACE_CONTEXT =
       DBM_PROPAGATION_MODE.equals(DBM_PROPAGATION_MODE_FULL);
   public static final boolean DBM_TRACE_PREPARED_STATEMENTS =

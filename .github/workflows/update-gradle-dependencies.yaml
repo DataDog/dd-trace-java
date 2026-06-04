@@ -59,11 +59,15 @@ jobs:
 
       - name: Validate changed lock files meet dependency age policy
         id: validate-lockfiles
+        env:
+          AKKA_REPO_TOKEN: ${{ secrets.AKKA_REPO_TOKEN }}
         run: |
           python3 .github/scripts/dependency_age.py validate-lockfiles \
             --baseline-dir /tmp/gradle-lockfiles-before \
             --current-dir . \
             --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --repo-url "https://repo1.maven.org/maven2" \
+            --repo-url "https://repo.akka.io/${AKKA_REPO_TOKEN}/secure" \
             --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
