@@ -13,7 +13,7 @@ class ScopeAndContinuationLayoutTest extends DDJavaSpecification {
 
   @BeforeAll
   static void assumeNotIbmJvm() {
-    assumeFalse(JavaVirtualMachine.isIbm());
+    assumeFalse(JavaVirtualMachine.isJ9());
   }
 
   @Test
