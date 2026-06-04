@@ -25,11 +25,6 @@ class ReactorNettyHttp2ClientTest extends InstrumentationSpecification {
   .bindNow()
 
   @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
-  @Override
   def cleanupSpec() {
     server?.disposeNow()
   }
