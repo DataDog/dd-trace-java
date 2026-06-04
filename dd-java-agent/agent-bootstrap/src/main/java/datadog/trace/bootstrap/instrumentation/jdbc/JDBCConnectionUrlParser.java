@@ -36,11 +36,17 @@ public enum JDBCConnectionUrlParser {
 
         populateStandardProperties(builder, splitQuery(uri.getQuery(), '&'));
 
-        final String userInfo = uri.getUserInfo();
-        if (userInfo != null) {
-          // getUserInfo() returns "user:password" — strip the password
-          final int colonLoc = userInfo.indexOf(':');
-          builder.user(colonLoc >= 0 ? userInfo.substring(0, colonLoc) : userInfo);
+        final String rawUserInfo = uri.getRawUserInfo();
+        if (rawUserInfo != null) {
+          // getRawUserInfo() avoids decoding %3A in the username before splitting on the unescaped
+          // ':'
+          final int colonLoc = rawUserInfo.indexOf(':');
+          final String rawUser = colonLoc >= 0 ? rawUserInfo.substring(0, colonLoc) : rawUserInfo;
+          try {
+            builder.user(URLDecoder.decode(rawUser, "UTF-8"));
+          } catch (final UnsupportedEncodingException e) {
+            builder.user(rawUser);
+          }
         }
 
         String path = uri.getPath();

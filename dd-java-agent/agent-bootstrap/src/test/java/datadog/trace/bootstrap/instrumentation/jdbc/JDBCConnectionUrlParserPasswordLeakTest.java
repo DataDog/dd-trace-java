@@ -16,9 +16,10 @@ import org.tabletest.junit.TableTest;
 class JDBCConnectionUrlParserPasswordLeakTest {
 
   @TableTest({
-    "scenario                             | url                                             | type       | host    | user  ",
-    "PostgreSQL userinfo with password    | jdbc:postgresql://myuser:secret123@pg.host/mydb | postgresql | pg.host | myuser",
-    "PostgreSQL userinfo without password | jdbc:postgresql://myuser@pg.host/mydb           | postgresql | pg.host | myuser"
+    "scenario                                       | url                                             | type       | host    | user        ",
+    "PostgreSQL userinfo with password              | jdbc:postgresql://myuser:secret123@pg.host/mydb | postgresql | pg.host | myuser      ",
+    "PostgreSQL userinfo without password           | jdbc:postgresql://myuser@pg.host/mydb           | postgresql | pg.host | myuser      ",
+    "PostgreSQL userinfo with percent-encoded colon | jdbc:postgresql://tenant%3Aalice@pg.host/mydb   | postgresql | pg.host | tenant:alice"
   })
   void passwordShouldNotLeakIntoUserTag(String url, String type, String host, String user) {
     DBInfo info = extractDBInfo(url, null);
