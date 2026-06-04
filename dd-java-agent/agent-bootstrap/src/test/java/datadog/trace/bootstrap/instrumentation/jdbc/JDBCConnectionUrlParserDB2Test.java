@@ -19,7 +19,9 @@ class JDBCConnectionUrlParserDB2Test {
     "DB2 with user param, no port         | jdbc:db2://db2.host/mydb?user=db2user                      | db2   | db2.host | mydb     | db2user | mydb   ",
     "AS400 with user param, no port       | jdbc:as400://ashost/asdb?user=asuser                       | as400 | ashost   | asdb     | asuser  | asdb   ",
     "DB2 with multiple params, no port    | jdbc:db2://db2.host/mydb?user=db2user&connectionTimeout=30 | db2   | db2.host | mydb     | db2user | mydb   ",
-    "DB2 with databasename param, no port | jdbc:db2://db2.host/mydb?user=db2user&databasename=otherdb | db2   | db2.host | mydb     | db2user | otherdb"
+    "DB2 with databasename param, no port | jdbc:db2://db2.host/mydb?user=db2user&databasename=otherdb | db2   | db2.host | mydb     | db2user | otherdb",
+    "DB2 with port and colon params       | jdbc:db2://db2.host:50000/mydb:user=db2user                | db2   | db2.host | mydb     | db2user | mydb   ",
+    "DB2 no params                        | jdbc:db2://db2.host/mydb                                   | db2   | db2.host | mydb     |         | mydb   "
   })
   void db2UrlWithEqualsAndNoPortShouldParseCorrectly(
       String url, String type, String host, String instance, String user, String db) {
