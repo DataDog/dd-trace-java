@@ -45,6 +45,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       nameEndsWith("io.grpc.internal.ManagedChannelImpl");
   private static final ElementMatcher<TypeDescription> REACTOR_DISABLED_TYPE_INITIALIZERS =
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
+  private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
+      named("io.reactivex.internal.schedulers.AbstractDirectTask");
+  private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
+      extendsClass(named("java.net.http.HttpClient"));
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -77,7 +81,9 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "net.sf.ehcache.store.disk.DiskStorageFactory",
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
-      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager"
+      "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
+      "io.reactivex.internal.schedulers.AbstractDirectTask",
+      "jdk.internal.net.http.HttpClientImpl"
     };
   }
 
@@ -88,7 +94,11 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
 
   @Override
   public ElementMatcher<TypeDescription> hierarchyMatcher() {
-    return RX_WORKERS.or(GRPC_MANAGED_CHANNEL).or(REACTOR_DISABLED_TYPE_INITIALIZERS);
+    return RX_WORKERS
+        .or(GRPC_MANAGED_CHANNEL)
+        .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
+        .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
+        .or(JAVA_HTTP_CLIENT);
   }
 
   @Override
@@ -172,6 +182,9 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformer.applyAdvice(
+        isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
   }
 
   public static class DisableAsyncAdvice {
