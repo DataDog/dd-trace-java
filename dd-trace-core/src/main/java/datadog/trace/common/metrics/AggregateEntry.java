@@ -618,23 +618,26 @@ final class AggregateEntry extends Hashtable.Entry {
     }
 
     private long computeKeyHash() {
-      return hashOf(
-          resource,
-          service,
-          operationName,
-          serviceSource,
-          type,
-          spanKind,
-          httpMethod,
-          httpEndpoint,
-          grpcStatusCode,
-          httpStatusCode,
-          synthetic,
-          traceRoot,
-          peerTagsBuffer != null ? peerTagsBuffer : EMPTY_TAGS,
-          peerTagsSize,
-          additionalTagsBuffer,
-          additionalTagsSize);
+      long h = 0;
+      h = LongHashingUtils.addToHash(h, resource);
+      h = LongHashingUtils.addToHash(h, service);
+      h = LongHashingUtils.addToHash(h, operationName);
+      h = LongHashingUtils.addToHash(h, serviceSource);
+      h = LongHashingUtils.addToHash(h, type);
+      h = LongHashingUtils.addToHash(h, spanKind);
+      h = LongHashingUtils.addToHash(h, httpMethod);
+      h = LongHashingUtils.addToHash(h, httpEndpoint);
+      h = LongHashingUtils.addToHash(h, grpcStatusCode);
+      for (int i = 0; i < peerTagsSize; i++) {
+        h = LongHashingUtils.addToHash(h, peerTagsBuffer[i]);
+      }
+      for (int i = 0; i < additionalTagsSize; i++) {
+        h = LongHashingUtils.addToHash(h, additionalTagsBuffer[i]);
+      }
+      h = LongHashingUtils.addToHash(h, httpStatusCode);
+      h = LongHashingUtils.addToHash(h, synthetic);
+      h = LongHashingUtils.addToHash(h, traceRoot);
+      return h;
     }
 
     /**
