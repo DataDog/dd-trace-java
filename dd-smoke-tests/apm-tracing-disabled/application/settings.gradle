@@ -1,27 +1,3 @@
-// The `gradlePluginProxy` / `mavenRepositoryProxy` properties point to internal Maven
-// mirrors used by CI when the public repos are unreachable; they are forwarded from the
-// outer build via the smoke-test plugin. `allowInsecureProtocol` is required because the
-// mirrors are reached over plain HTTP inside the CI network.
-pluginManagement {
-  repositories {
-    mavenLocal()
-    if (settings.hasProperty("gradlePluginProxy")) {
-      maven {
-        url settings["gradlePluginProxy"]
-        allowInsecureProtocol = true
-      }
-    }
-    if (settings.hasProperty("mavenRepositoryProxy")) {
-      maven {
-        url settings["mavenRepositoryProxy"]
-        allowInsecureProtocol = true
-      }
-    }
-    gradlePluginPortal()
-    mavenCentral()
-  }
-}
-
 def isCI = providers.environmentVariable("CI").isPresent()
 
 // On CI, point the local Gradle build cache to the shared workspace directory under the
