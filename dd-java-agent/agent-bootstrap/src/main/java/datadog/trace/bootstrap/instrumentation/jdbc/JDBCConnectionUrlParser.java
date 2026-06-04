@@ -38,8 +38,7 @@ public enum JDBCConnectionUrlParser {
 
         final String rawUserInfo = uri.getRawUserInfo();
         if (rawUserInfo != null) {
-          // getRawUserInfo() avoids decoding %3A in the username before splitting on the unescaped
-          // ':'
+          // rawUserInfo keeps %3A encoded, so indexOf(':') only matches the password separator
           final int colonLoc = rawUserInfo.indexOf(':');
           final String rawUser = colonLoc >= 0 ? rawUserInfo.substring(0, colonLoc) : rawUserInfo;
           try {
