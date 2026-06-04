@@ -458,7 +458,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     double rate =
         sampling != null
             ? sampling.getEventsPerSecond()
-            : (isCaptureSnapshot()
+            : (isFullSnapshot()
                 ? ProbeRateLimiter.DEFAULT_SNAPSHOT_RATE
                 : ProbeRateLimiter.DEFAULT_LOG_RATE);
     sampler = ProbeRateLimiter.createSampler(rate);
