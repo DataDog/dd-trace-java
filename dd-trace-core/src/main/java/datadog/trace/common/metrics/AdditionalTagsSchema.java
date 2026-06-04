@@ -9,33 +9,12 @@ import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/**
- * Immutable schema describing the configured span-derived primary tag keys. Built once from {@code
- * Config.getTraceStatsAdditionalTags()} at aggregator construction; not replaced at runtime.
- *
- * <p>Parallels {@link PeerTagSchema} for shape: a sorted, deduped, validated, capped {@code
- * String[]} of names plus per-name {@link TagCardinalityHandler}s for UTF8 caching and value-level
- * cardinality limiting. The handlers are reset each reporting cycle via {@link #resetHandlers()}.
- *
- * <p>What's pre-built:
- *
- * <ul>
- *   <li>{@link #names} -- the alphabetically sorted, deduped, validated, capped list of tag keys.
- *   <li>{@link #blockedSentinels} -- one shared {@code UTF8BytesString("<key>:blocked_by_tracer")}
- *       per configured key, returned when the per-tag cardinality budget is exhausted.
- *   <li>{@link #handlers} -- one {@link TagCardinalityHandler} per key providing UTF8 reuse and
- *       per-cycle cardinality limiting. Aggregator-thread-only; reset each cycle.
- * </ul>
- */
+/** Immutable schema of configured span-derived primary tag keys; built once at aggregator construction. */
 final class AdditionalTagsSchema {
 
   private static final Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
 
-  /**
-   * Backend stats pipeline supports a small number of primary tag dimensions (4 by default, up to
-   * ~10 for elevated quotas). Configuring more than this is misuse; we drop the overflow at
-   * startup.
-   */
+  // Backend pipeline supports ~4 primary tag dimensions by default; drop overflow at startup.
   static final int MAX_ADDITIONAL_TAG_KEYS = 10;
 
   static final String BLOCKED_VALUE = "blocked_by_tracer";
@@ -73,11 +52,6 @@ final class AdditionalTagsSchema {
     return from(configured, healthMetrics, AggregateEntry.LIMITS_ENABLED);
   }
 
-  /**
-   * Builds a schema from the configured tag keys. Validates each key (non-empty, no {@code :}),
-   * sorts alphabetically, dedupes, and caps at {@link #MAX_ADDITIONAL_TAG_KEYS}. Returns the shared
-   * empty schema when {@code configured} is null or empty.
-   */
   static AdditionalTagsSchema from(
       Set<String> configured, HealthMetrics healthMetrics, boolean useBlockedSentinel) {
     if (configured == null || configured.isEmpty()) {
@@ -141,19 +115,10 @@ final class AdditionalTagsSchema {
     return blockedSentinels[i];
   }
 
-  /**
-   * Canonicalizes {@code value} for the additional tag at slot {@code i} through the per-key {@link
-   * TagCardinalityHandler}: provides UTF8 caching and returns the per-tag blocked sentinel when the
-   * per-cycle budget is exhausted. Returns {@link UTF8BytesString#EMPTY} for null inputs.
-   */
   UTF8BytesString register(int i, String value) {
     return handlers[i].register(value);
   }
 
-  /**
-   * Resets every handler's working set and flushes accumulated block counts to {@link
-   * HealthMetrics}. Must be called on the aggregator thread each cycle.
-   */
   void resetHandlers() {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();

@@ -20,11 +20,6 @@ import org.junit.jupiter.api.Test;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
 
-/**
- * Verifies the {@code AdditionalMetricTags} wire field: shape is {@code repeated string} of {@code
- * "key:value"} entries; field is omitted when no slots are populated; null slots within a populated
- * array are skipped.
- */
 class SerializingMetricWriterAdditionalTagsTest {
 
   @BeforeAll

@@ -151,24 +151,13 @@ final class AggregateEntry extends Hashtable.Entry {
   final boolean traceRoot;
   final List<UTF8BytesString> peerTags;
 
-  /**
-   * Compact, schema-ordered (alphabetical by key) array of the additional metric tag values the
-   * span actually set -- only present values, no null slots. Each element is the canonical {@code
-   * "key:value"} UTF8BytesString (or the schema's blocked sentinel when the per-cycle cardinality
-   * budget was exhausted). The {@code "key:"} prefix makes the packed form unambiguous. Empty array
-   * for the no-additional-tags case (shared {@link #EMPTY_ADDITIONAL_TAGS}).
-   */
+  // Schema-ordered "key:value" strings; "key:" prefix makes packing unambiguous without null slots.
   final UTF8BytesString[] additionalTags;
 
   // Recording state. Mutated only on the aggregator thread. Not thread-safe.
   private final Histogram okLatencies;
 
-  /**
-   * Lazily allocated on the first recorded error. Most entries never see an error and keep this
-   * null for life; {@link SerializingMetricWriter} writes a cached empty-histogram form when null
-   * to keep the wire payload identical. Once allocated, it survives {@link #clear()} (cleared, not
-   * nulled) since an entry that errored once tends to error again.
-   */
+  // Null until first error; SerializingMetricWriter writes empty histogram form when null.
   @Nullable private Histogram errorLatencies;
 
   private int errorCount;
