@@ -28,6 +28,7 @@ import org.gradle.jvm.toolchain.JavaToolchainService
 import org.gradle.kotlin.dsl.newInstance
 import org.gradle.tooling.GradleConnector
 import java.io.File
+import java.util.concurrent.TimeUnit
 import javax.inject.Inject
 
 /**
@@ -187,9 +188,71 @@ abstract class NestedGradleBuild @Inject constructor(
           .run()
       }
     } finally {
+      stopGradleDaemon(appDir, gradleUserHomeDir, daemonJavaHome, mergedEnv)
       deleteGradleUserHome(gradleUserHomeDir)
     }
   }
+
+  private fun stopGradleDaemon(
+    appDir: File,
+    gradleUserHomeDir: File,
+    daemonJavaHome: File,
+    environment: Map<String, String>,
+  ) {
+    val gradleExecutable = findGradleExecutable(gradleUserHomeDir)
+    if (gradleExecutable == null) {
+      logger.warn(
+        "Could not find nested Gradle executable under {} to stop its daemon",
+        gradleUserHomeDir.absolutePath,
+      )
+      return
+    }
+
+    try {
+      val processBuilder = ProcessBuilder(gradleExecutable.absolutePath, "--stop")
+        .directory(appDir)
+        .redirectOutput(ProcessBuilder.Redirect.INHERIT)
+        .redirectError(ProcessBuilder.Redirect.INHERIT)
+      processBuilder.environment().apply {
+        clear()
+        putAll(environment)
+        put("JAVA_HOME", daemonJavaHome.absolutePath)
+      }
+
+      val process = processBuilder.start()
+      if (!process.waitFor(GRADLE_STOP_TIMEOUT_SECONDS, TimeUnit.SECONDS)) {
+        process.destroyForcibly()
+        logger.warn("Timed out while stopping nested Gradle daemon")
+        return
+      }
+      val exitCode = process.exitValue()
+      if (exitCode != 0) {
+        logger.warn("Nested Gradle daemon stop exited with code {}", exitCode)
+      }
+    } catch (e: InterruptedException) {
+      Thread.currentThread().interrupt()
+      logger.warn(
+        "Interrupted while stopping nested Gradle daemon before deleting its user home",
+        e,
+      )
+    } catch (e: Exception) {
+      logger.warn("Could not stop nested Gradle daemon before deleting its user home", e)
+    }
+  }
+
+  private fun findGradleExecutable(gradleUserHomeDir: File): File? =
+    gradleUserHomeDir.walkTopDown().firstOrNull { file ->
+      file.isFile &&
+        file.name == gradleExecutableName() &&
+        file.parentFile?.name == "bin"
+    }
+
+  private fun gradleExecutableName(): String =
+    if (System.getProperty("os.name").lowercase().contains("windows")) {
+      "gradle.bat"
+    } else {
+      "gradle"
+    }
 
   private fun createGradleUserHome(): File {
     val directory = temporaryDir.resolve("gradle-user-home")
@@ -206,5 +269,9 @@ abstract class NestedGradleBuild @Inject constructor(
     if (directory.exists() && !directory.deleteRecursively()) {
       logger.warn("Could not delete nested Gradle user home: {}", directory.absolutePath)
     }
+  }
+
+  private companion object {
+    const val GRADLE_STOP_TIMEOUT_SECONDS = 30L
   }
 }
