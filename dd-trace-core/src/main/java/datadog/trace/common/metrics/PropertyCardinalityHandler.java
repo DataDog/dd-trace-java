@@ -26,11 +26,7 @@ import java.util.Arrays;
  * and reuses any matching {@link UTF8BytesString} when a value first appears in the new cycle.
  */
 final class PropertyCardinalityHandler {
-  // Upper bound prevents int overflow in the (cardinalityLimit * 2 - 1) capacity calculation.
-  // Practical limits are 8..512; this cap is well beyond any realistic configuration.
-  private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
-
-  final String name;
+  private final String name;
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -61,7 +57,6 @@ final class PropertyCardinalityHandler {
    * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
    * the three-argument constructor with the flag from {@code Config}.
    */
-  @VisibleForTesting
   PropertyCardinalityHandler(String name, int cardinalityLimit) {
     this(name, cardinalityLimit, true);
   }
@@ -159,7 +154,7 @@ final class PropertyCardinalityHandler {
    */
   String[] statsDTag() {
     if (statsDTag == null) {
-      statsDTag = new String[] {"collapsed:" + name};
+      statsDTag = new String[] {"tag:" + name};
     }
     return statsDTag;
   }

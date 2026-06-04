@@ -19,7 +19,7 @@ final class TagCardinalityHandler {
   private static final int MAX_CARDINALITY_LIMIT = 1 << 29;
 
   private final String tag;
-  final String[] statsDTag;
+  private String[] statsDTag = null;
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -55,7 +55,6 @@ final class TagCardinalityHandler {
           "cardinalityLimit must be at most " + MAX_CARDINALITY_LIMIT + ": " + cardinalityLimit);
     }
     this.tag = tag;
-    this.statsDTag = new String[] {"tag:" + tag};
     this.cardinalityLimit = cardinalityLimit;
     this.useBlockedSentinel = useBlockedSentinel;
     final int capacity = Integer.highestOneBit(cardinalityLimit * 2 - 1) << 1;
@@ -143,17 +142,17 @@ final class TagCardinalityHandler {
     return cacheBlocked;
   }
 
-  String[] statsDTag() {
-    if (statsDTag == null) {
-      statsDTag = new String[] {"collapsed:" + tag};
-    }
-    return statsDTag;
-  }
-
   /**
    * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
    * caller is responsible for reporting the count to health metrics if non-zero.
    */
+  String[] statsDTag() {
+    if (statsDTag == null) {
+      statsDTag = new String[] {"tag:" + tag};
+    }
+    return statsDTag;
+  }
+
   long reset() {
     long count = this.blockedCount;
     this.blockedCount = 0;

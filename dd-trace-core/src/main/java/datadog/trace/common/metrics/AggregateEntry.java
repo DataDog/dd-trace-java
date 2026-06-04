@@ -74,76 +74,29 @@ final class AggregateEntry extends Hashtable.Entry {
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler(
-          "resource",
-          Config.get().getTraceStatsCardinalityLimit("resource", MetricCardinalityLimits.RESOURCE));
+      new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler(
-          "service",
-          Config.get().getTraceStatsCardinalityLimit("service", MetricCardinalityLimits.SERVICE));
+      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler OPERATION_HANDLER =
       new PropertyCardinalityHandler(
-          "operation",
-          Config.get()
-              .getTraceStatsCardinalityLimit("operation", MetricCardinalityLimits.OPERATION));
+          "operation", MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
       new PropertyCardinalityHandler(
-          "service_source",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "service_source", MetricCardinalityLimits.SERVICE_SOURCE));
+          "service_source", MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler(
-          "type",
-          Config.get().getTraceStatsCardinalityLimit("type", MetricCardinalityLimits.TYPE));
+      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
       new PropertyCardinalityHandler(
-          "span_kind",
-          Config.get()
-              .getTraceStatsCardinalityLimit("span_kind", MetricCardinalityLimits.SPAN_KIND));
+          "span_kind", MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
       new PropertyCardinalityHandler(
-          "http_method",
-          Config.get()
-              .getTraceStatsCardinalityLimit("http_method", MetricCardinalityLimits.HTTP_METHOD));
+          "http_method", MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
       new PropertyCardinalityHandler(
-          "http_endpoint",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT));
+          "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
       new PropertyCardinalityHandler(
-          "grpc_status_code",
-          Config.get()
-              .getTraceStatsCardinalityLimit(
-                  "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE));
-
-  // Single authoritative list used by resetCardinalityHandlers(). populateFrom() and hashOf() keep
-  // named access for readability and to avoid per-span iteration overhead; this array ensures the
-  // reset site stays in sync even if a new field is added without updating the loop by name.
-  private static final PropertyCardinalityHandler[] FIELD_HANDLERS = {
-    RESOURCE_HANDLER,
-    SERVICE_HANDLER,
-    OPERATION_HANDLER,
-    SERVICE_SOURCE_HANDLER,
-    TYPE_HANDLER,
-    SPAN_KIND_HANDLER,
-    HTTP_METHOD_HANDLER,
-    HTTP_ENDPOINT_HANDLER,
-    GRPC_STATUS_CODE_HANDLER,
-  };
-
-  // Pre-built StatsD tag arrays for each property handler — avoids per-reset allocation.
-  private static final String[] RESOURCE_STATS_TAG = {"tag:resource"};
-  private static final String[] SERVICE_STATS_TAG = {"tag:service"};
-  private static final String[] OPERATION_STATS_TAG = {"tag:operation"};
-  private static final String[] SERVICE_SOURCE_STATS_TAG = {"tag:service_source"};
-  private static final String[] TYPE_STATS_TAG = {"tag:type"};
-  private static final String[] SPAN_KIND_STATS_TAG = {"tag:span_kind"};
-  private static final String[] HTTP_METHOD_STATS_TAG = {"tag:http_method"};
-  private static final String[] HTTP_ENDPOINT_STATS_TAG = {"tag:http_endpoint"};
-  private static final String[] GRPC_STATUS_CODE_STATS_TAG = {"tag:grpc_status_code"};
+          "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -289,22 +242,23 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
-    reportIfBlocked(healthMetrics, RESOURCE_STATS_TAG, RESOURCE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, SERVICE_STATS_TAG, SERVICE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, OPERATION_STATS_TAG, OPERATION_HANDLER.reset());
-    reportIfBlocked(healthMetrics, SERVICE_SOURCE_STATS_TAG, SERVICE_SOURCE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, TYPE_STATS_TAG, TYPE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, SPAN_KIND_STATS_TAG, SPAN_KIND_HANDLER.reset());
-    reportIfBlocked(healthMetrics, HTTP_METHOD_STATS_TAG, HTTP_METHOD_HANDLER.reset());
-    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_STATS_TAG, HTTP_ENDPOINT_HANDLER.reset());
-    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_STATS_TAG, GRPC_STATUS_CODE_HANDLER.reset());
-    PeerTagSchema.INTERNAL.resetCardinalityHandlers();
+    reportIfBlocked(healthMetrics, RESOURCE_HANDLER);
+    reportIfBlocked(healthMetrics, SERVICE_HANDLER);
+    reportIfBlocked(healthMetrics, OPERATION_HANDLER);
+    reportIfBlocked(healthMetrics, SERVICE_SOURCE_HANDLER);
+    reportIfBlocked(healthMetrics, TYPE_HANDLER);
+    reportIfBlocked(healthMetrics, SPAN_KIND_HANDLER);
+    reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
+    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
+    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
+    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
   }
 
   private static void reportIfBlocked(
-      HealthMetrics healthMetrics, String[] statsDTag, long blocked) {
+      HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
+    long blocked = handler.reset();
     if (blocked > 0) {
-      healthMetrics.onTagCardinalityBlocked(statsDTag, blocked);
+      healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
   }
 
