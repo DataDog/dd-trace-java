@@ -1554,6 +1554,7 @@ class DefaultConfigurationPollerSpecification extends DDSpecification {
     14L                   | [14] as byte[]
     1 << 8                | [1, 0] as byte[]
     1 << 9                | [2, 0] as byte[]
+    1L << 49              | [2, 0, 0, 0, 0, 0, 0] as byte[]
     -9223372036854775807L | [128, 0, 0, 0, 0, 0, 0, 1] as byte[]
   }
 

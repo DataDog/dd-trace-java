@@ -4950,6 +4950,15 @@ public class Config {
     return dataStreamsTransactionExtractors;
   }
 
+  /**
+   * Static fallback for Transaction Tracking candidate-source patterns. Always returns an empty
+   * list; non-empty values are only delivered through {@code APM_TRACING} remote-config (field
+   * {@code tt_candidate_source_patterns}).
+   */
+  public java.util.List<String> getTransactionTrackingCandidateSourcePatterns() {
+    return java.util.Collections.emptyList();
+  }
+
   public long getDataStreamsBucketDurationNanoseconds() {
     // Rounds to the nearest millisecond before converting to nanos
     int milliseconds = Math.round(dataStreamsBucketDurationSeconds * 1000);

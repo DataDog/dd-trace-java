@@ -19,6 +19,7 @@ import datadog.remoteconfig.Product;
 import datadog.remoteconfig.state.ParsedConfigKey;
 import datadog.remoteconfig.state.ProductListener;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
+import datadog.trace.api.tt.TransactionTrackingCandidateSources;
 import java.lang.reflect.Field;
 import java.nio.charset.StandardCharsets;
 import java.util.Arrays;
@@ -215,6 +216,108 @@ public class TracingConfigPollerTest extends DDCoreJavaSpecification {
       assertEquals(Collections.emptyMap(), tracer.captureTraceConfig().getServiceMapping());
       assertNull(tracer.captureTraceConfig().getTraceSampleRate());
     } finally {
+      tracer.close();
+    }
+  }
+
+  @Test
+  void ttCandidateSourcePatternsArePropagatedAndPublished() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      TransactionTrackingCandidateSources.resetForTest();
+      assertEquals(
+          Collections.emptyList(),
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
+
+      ProductListener updater = capturedUpdater[0];
+      updater.accept(
+          key,
+          ("{\n"
+                  + "  \"service_target\": {\"service\": \"*\", \"env\": \"*\"},\n"
+                  + "  \"lib_config\": {\n"
+                  + "    \"tt_candidate_source_patterns\": [\"x-trace-*\", \"*-tenant\"]\n"
+                  + "  }\n"
+                  + "}")
+              .getBytes(StandardCharsets.UTF_8),
+          null);
+      updater.commit(null);
+
+      assertEquals(
+          Arrays.asList("x-trace-*", "*-tenant"),
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertFalse(TransactionTrackingCandidateSources.isEmpty());
+      assertTrue(TransactionTrackingCandidateSources.matchesAny("X-Trace-Id"));
+      assertTrue(TransactionTrackingCandidateSources.matchesAny("customer-tenant"));
+      assertFalse(TransactionTrackingCandidateSources.matchesAny("unrelated"));
+
+      // Removing the config should clear the static snapshot back to empty.
+      updater.remove(key, null);
+      updater.commit(null);
+      assertEquals(
+          Collections.emptyList(),
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
+    } finally {
+      TransactionTrackingCandidateSources.resetForTest();
+      tracer.close();
+    }
+  }
+
+  @Test
+  void absentTtCandidateSourcePatternsFieldKeepsSnapshotEmpty() throws Exception {
+    ParsedConfigKey key = ParsedConfigKey.parse("datadog/2/APM_TRACING/org_config/config");
+    ConfigurationPoller poller = mock(ConfigurationPoller.class);
+    SharedCommunicationObjects sco = createScoWithPoller(poller);
+
+    ProductListener[] capturedUpdater = {null};
+    doAnswer(
+            inv -> {
+              capturedUpdater[0] = inv.getArgument(1, ProductListener.class);
+              return null;
+            })
+        .when(poller)
+        .addListener(eq(Product.APM_TRACING), any(ProductListener.class));
+
+    CoreTracer tracer =
+        CoreTracer.builder().sharedCommunicationObjects(sco).pollForTracingConfiguration().build();
+    unclosedTracers.add(tracer);
+
+    try {
+      TransactionTrackingCandidateSources.resetForTest();
+      ProductListener updater = capturedUpdater[0];
+      updater.accept(
+          key,
+          ("{\n"
+                  + "  \"service_target\": {\"service\": \"*\", \"env\": \"*\"},\n"
+                  + "  \"lib_config\": {\"tracing_sampling_rate\": 0.5}\n"
+                  + "}")
+              .getBytes(StandardCharsets.UTF_8),
+          null);
+      updater.commit(null);
+
+      assertEquals(
+          Collections.emptyList(),
+          tracer.captureTraceConfig().getTransactionTrackingCandidateSourcePatterns());
+      assertTrue(TransactionTrackingCandidateSources.isEmpty());
+    } finally {
+      TransactionTrackingCandidateSources.resetForTest();
       tracer.close();
     }
   }
