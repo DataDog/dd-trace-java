@@ -289,7 +289,7 @@ final class AggregateEntry extends Hashtable.Entry {
     reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
     reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
     reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
-    PeerTagSchema.INTERNAL.resetCardinalityHandlers();
+    PeerTagSchema.INTERNAL.resetCardinalityHandlers(healthMetrics);
   }
 
   private static void reportIfBlocked(

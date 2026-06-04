@@ -23,16 +23,17 @@ import org.slf4j.LoggerFactory;
  * <ul>
  *   <li>{@link #INTERNAL} -- a singleton with one entry for {@code base.service}, used for
  *       internal-kind spans where only the base service is aggregated.
- *   <li>A peer-aggregation schema built via {@link #of(Set, String, HealthMetrics)} for {@code
- *       client}/{@code producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the
- *       most recently built schema and reconciles it on the aggregator thread once per reporting
- *       cycle by comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
+ *   <li>A peer-aggregation schema built via {@link #of(Set, String)} for {@code client}/{@code
+ *       producer}/{@code consumer} spans. {@link ClientStatsAggregator} caches the most recently
+ *       built schema and reconciles it on the aggregator thread once per reporting cycle by
+ *       comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
  * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
  * #warnedCardinality}). Per-tag block counts live inside each {@link TagCardinalityHandler} and are
  * returned by {@link TagCardinalityHandler#reset()}, then flushed to {@link
- * HealthMetrics#onTagCardinalityBlocked(String, long)} in {@link #resetCardinalityHandlers()}.
+ * HealthMetrics#onTagCardinalityBlocked(String, long)} in {@link
+ * #resetCardinalityHandlers(HealthMetrics)}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
@@ -47,9 +48,7 @@ final class PeerTagSchema {
   private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
-  static final PeerTagSchema INTERNAL =
-      // INTERNAL is never reconciled, so the state value is irrelevant.
-      new PeerTagSchema(new String[] {BASE_SERVICE}, null, HealthMetrics.NO_OP);
+  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, null);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
@@ -63,34 +62,26 @@ final class PeerTagSchema {
    */
   String state;
 
-  private final HealthMetrics healthMetrics;
-
   /**
    * Per-cycle warn-once gating. {@code Set.add(name)} returns true exactly the first time a tag
    * gets blocked this cycle, which is the only time we want to emit the warn log. Cleared by {@link
-   * #resetCardinalityHandlers()}.
+   * #resetCardinalityHandlers(HealthMetrics)}.
    */
   private final Set<String> warnedCardinality = new HashSet<>();
 
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
-  static PeerTagSchema of(Set<String> names, String state, HealthMetrics healthMetrics) {
-    return new PeerTagSchema(names.toArray(new String[0]), state, healthMetrics);
+  static PeerTagSchema of(Set<String> names, String state) {
+    return new PeerTagSchema(names.toArray(new String[0]), state);
   }
 
-  /**
-   * Test-only factory that takes the names array directly so tests can build a schema in a specific
-   * order without going through a {@link Set}. Uses {@link HealthMetrics#NO_OP} and a {@code null}
-   * state; tests exercising the cardinality-handler reset path should use {@link #of(Set, String,
-   * HealthMetrics)} instead.
-   */
+  /** Test-only factory: takes names array directly to build a schema in a specific order. */
   static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, null, HealthMetrics.NO_OP);
+    return new PeerTagSchema(names, null);
   }
 
-  private PeerTagSchema(String[] names, String state, HealthMetrics healthMetrics) {
+  private PeerTagSchema(String[] names, String state) {
     this.names = names;
     this.state = state;
-    this.healthMetrics = healthMetrics;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
@@ -140,7 +131,7 @@ final class PeerTagSchema {
    * counts to {@link HealthMetrics}, and clears the per-cycle warn-once tracking. Must be called on
    * the aggregator thread; handlers are not thread-safe.
    */
-  void resetCardinalityHandlers() {
+  void resetCardinalityHandlers(HealthMetrics healthMetrics) {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();
       if (blocked > 0) {

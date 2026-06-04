@@ -394,8 +394,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private PeerTagSchema buildPeerTagSchema() {
     String state = features.state();
     Set<String> names = features.peerTags();
-    return PeerTagSchema.of(
-        names == null ? Collections.<String>emptySet() : names, state, healthMetrics);
+    return PeerTagSchema.of(names == null ? Collections.<String>emptySet() : names, state);
   }
 
   /**
@@ -411,7 +410,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     AggregateEntry.resetCardinalityHandlers(healthMetrics);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
-      schema.resetCardinalityHandlers();
+      schema.resetCardinalityHandlers(healthMetrics);
     }
   }
 
@@ -442,8 +441,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     } else {
       // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
       // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      cached.resetCardinalityHandlers();
-      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState, healthMetrics);
+      cached.resetCardinalityHandlers(healthMetrics);
+      cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }
 
