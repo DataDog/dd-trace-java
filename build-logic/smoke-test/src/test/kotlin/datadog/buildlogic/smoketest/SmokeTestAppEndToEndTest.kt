@@ -235,6 +235,63 @@ class SmokeTestAppEndToEndTest {
     assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 
+  @Test
+  fun `nested build receives native app environment and provider backed file inputs`() {
+    writeOuterSettings()
+    File(projectDir.toFile(), "agent.jar").writeText("agent")
+    outerBuild.writeText(
+      """
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("recordNativeInputs")
+          artifactPath.set("native-inputs.txt")
+          sysProperty.set("native.inputs.path")
+          buildArguments.add("-Dnative.enabled=true")
+          environment.put("GRAALVM_HOME", providers.provider { "test-graalvm" })
+        }
+        projectJar("agentPath", providers.provider { layout.projectDirectory.file("agent.jar") })
+      }
+      """.trimIndent(),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordNativeInputs") {
+        val out = layout.buildDirectory.file("native-inputs.txt")
+        outputs.file(out)
+        doLast {
+          out.get().asFile.writeText(
+            listOf(
+              "graalvm=" + System.getenv("GRAALVM_HOME"),
+              "agentPath=" + project.findProperty("agentPath"),
+              "nativeEnabled=" + System.getProperty("native.enabled"),
+            ).joinToString(System.lineSeparator())
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner("recordNativeInputs").build()
+
+    assertThat(result.task(":recordNativeInputs")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val inputsFile = File(projectDir.toFile(), "build/application/native-inputs.txt")
+    assertThat(inputsFile).exists()
+    assertThat(inputsFile.readLines()).contains(
+      "graalvm=test-graalvm",
+      "agentPath=${projectDir.resolve("agent.jar").toFile().absolutePath}",
+      "nativeEnabled=true",
+    )
+  }
+
   /**
    * `buildCacheEnabled` defaults to `false` and is plumbed through to the nested daemon as
    * an explicit `--no-build-cache` / `--build-cache` argument. The inner build records
