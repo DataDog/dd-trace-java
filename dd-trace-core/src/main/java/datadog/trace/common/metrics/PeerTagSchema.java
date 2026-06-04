@@ -44,6 +44,14 @@ final class PeerTagSchema {
   final String[] names;
 
   /**
+   * Precomputed {@code Arrays.hashCode(names)}. The schema is shared across many publishes so
+   * recomputing it on the aggregator hot path (per-publish call to {@code AggregateEntry.hashOf})
+   * was waste -- it showed up as a top aggregator-thread sample. Cached here, computed once at
+   * construction.
+   */
+  final int namesHash;
+
+  /**
    * The {@code DDAgentFeaturesDiscovery.state()} hash this schema was built from. The aggregator
    * thread reads and updates this once per reporting cycle when reconciling against the latest
    * discovery; producer threads never touch it. Plain (non-volatile, non-final) because the
@@ -54,6 +62,7 @@ final class PeerTagSchema {
 
   private PeerTagSchema(String[] names, String state) {
     this.names = names;
+    this.namesHash = java.util.Arrays.hashCode(names);
     this.state = state;
   }
 
