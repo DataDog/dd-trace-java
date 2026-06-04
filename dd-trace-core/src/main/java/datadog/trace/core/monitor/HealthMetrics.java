@@ -115,14 +115,6 @@ public abstract class HealthMetrics implements AutoCloseable {
   public void onTagCardinalityBlocked(String[] statsDTag, long count) {}
 
   /**
-   * Fires once per additional-metric-tag value that gets masked with {@code blocked_by_tracer} --
-   * either because it exceeded the per-value length cap, or because the bucket's stat-entry
-   * cardinality cap was reached. {@code tagKey} identifies which configured key the masked value
-   * belonged to.
-   */
-  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {}
-
-  /**
    * @return Human-readable summary of the current health metrics.
    */
   public String summary() {

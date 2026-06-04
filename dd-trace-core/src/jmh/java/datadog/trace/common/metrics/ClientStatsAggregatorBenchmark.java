@@ -42,6 +42,7 @@ public class ClientStatsAggregatorBenchmark {
       new ClientStatsAggregator(
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
+          AdditionalTagsSchema.EMPTY,
           featuresDiscovery,
           HealthMetrics.NO_OP,
           new NullSink(),

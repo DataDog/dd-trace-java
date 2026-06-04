@@ -51,6 +51,7 @@ final class Aggregator implements Runnable {
       long reportingInterval,
       TimeUnit reportingIntervalTimeUnit,
       HealthMetrics healthMetrics,
+      AdditionalTagsSchema additionalTagsSchema,
       Runnable onReportCycle) {
     this(
         writer,
@@ -60,49 +61,8 @@ final class Aggregator implements Runnable {
         reportingIntervalTimeUnit,
         DEFAULT_SLEEP_MILLIS,
         healthMetrics,
-        onReportCycle,
-        AdditionalTagsSchema.EMPTY);
-  }
-
-  Aggregator(
-      MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
-      int maxAggregates,
-      long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit,
-      HealthMetrics healthMetrics,
-      AdditionalTagsSchema additionalTagsSchema) {
-    this(
-        writer,
-        inbox,
-        maxAggregates,
-        reportingInterval,
-        reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS,
-        healthMetrics,
-        null,
-        additionalTagsSchema);
-  }
-
-  Aggregator(
-      MetricWriter writer,
-      MessagePassingQueue<InboxItem> inbox,
-      int maxAggregates,
-      long reportingInterval,
-      TimeUnit reportingIntervalTimeUnit,
-      HealthMetrics healthMetrics,
-      Runnable onReportCycle,
-      AdditionalTagsSchema additionalTagsSchema) {
-    this(
-        writer,
-        inbox,
-        maxAggregates,
-        reportingInterval,
-        reportingIntervalTimeUnit,
-        DEFAULT_SLEEP_MILLIS,
-        healthMetrics,
-        onReportCycle,
-        additionalTagsSchema);
+        additionalTagsSchema,
+        onReportCycle);
   }
 
   Aggregator(
@@ -113,8 +73,8 @@ final class Aggregator implements Runnable {
       TimeUnit reportingIntervalTimeUnit,
       long sleepMillis,
       HealthMetrics healthMetrics,
-      Runnable onReportCycle,
-      AdditionalTagsSchema additionalTagsSchema) {
+      AdditionalTagsSchema additionalTagsSchema,
+      Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
     this.additionalTagsSchema = additionalTagsSchema;

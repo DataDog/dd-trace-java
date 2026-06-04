@@ -64,11 +64,6 @@ final class AdditionalTagsSchema {
     this.healthMetrics = healthMetrics;
   }
 
-  /**
-   * Builds a schema from the configured tag keys. Validates each key (non-empty, no {@code :}),
-   * sorts alphabetically, dedupes, and caps at {@link #MAX_ADDITIONAL_TAG_KEYS}. Returns the shared
-   * empty schema when {@code configured} is null or empty.
-   */
   /** Test convenience: uses {@link HealthMetrics#NO_OP}. */
   static AdditionalTagsSchema from(Set<String> configured) {
     return from(configured, HealthMetrics.NO_OP, AggregateEntry.LIMITS_ENABLED);
@@ -78,6 +73,11 @@ final class AdditionalTagsSchema {
     return from(configured, healthMetrics, AggregateEntry.LIMITS_ENABLED);
   }
 
+  /**
+   * Builds a schema from the configured tag keys. Validates each key (non-empty, no {@code :}),
+   * sorts alphabetically, dedupes, and caps at {@link #MAX_ADDITIONAL_TAG_KEYS}. Returns the shared
+   * empty schema when {@code configured} is null or empty.
+   */
   static AdditionalTagsSchema from(
       Set<String> configured, HealthMetrics healthMetrics, boolean useBlockedSentinel) {
     if (configured == null || configured.isEmpty()) {

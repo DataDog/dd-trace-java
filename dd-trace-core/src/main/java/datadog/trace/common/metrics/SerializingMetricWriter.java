@@ -202,10 +202,9 @@ public final class SerializingMetricWriter implements MetricWriter {
       writer.writeUTF8(peerTag);
     }
 
-    // Emit AdditionalMetricTags as repeated string of pre-built "key:value" UTF8BytesStrings, in
-    // schema (alphabetical-by-key) order. Skip null slots (tags the span didn't set). The whole
-    // field is omitted when no non-null slots exist so customers who don't configure additional
-    // metric tags pay zero payload overhead.
+    // Emit AdditionalMetricTags as a packed array of pre-built "key:value" UTF8BytesStrings, in
+    // schema (alphabetical-by-key) order. The field is omitted entirely when the entry carries no
+    // additional tags, so spans that set none pay zero payload overhead.
     if (hasAdditionalTags) {
       writer.writeUTF8(ADDITIONAL_METRIC_TAGS);
       writer.startArray(additionalTags.length);

@@ -62,6 +62,7 @@ public class ClientStatsAggregatorDDSpanBenchmark {
       new ClientStatsAggregator(
           new WellKnownTags("", "", "", "", "", ""),
           Collections.emptySet(),
+          AdditionalTagsSchema.EMPTY,
           featuresDiscovery,
           HealthMetrics.NO_OP,
           new ClientStatsAggregatorBenchmark.NullSink(),

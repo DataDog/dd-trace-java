@@ -444,10 +444,10 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   /**
-   * Returns the configured-additional-tag values in schema (alphabetical-by-key) order. Each slot
-   * is either {@code null} (span didn't set that tag) or the canonical {@code "key:value"}
-   * UTF8BytesString. The array's length matches the schema; empty array when no additional tags are
-   * configured.
+   * @return the packed additional-tag values this entry recorded, as canonical {@code "key:value"}
+   *     UTF8BytesStrings in schema (alphabetical-by-key) order. Only tags the span actually set are
+   *     present (no null slots), so the length is the count of present tags -- empty when the span
+   *     set none or no additional tags are configured.
    */
   UTF8BytesString[] getAdditionalTags() {
     return additionalTags;
@@ -656,11 +656,6 @@ final class AggregateEntry extends Hashtable.Entry {
       this.traceRoot = s.traceRoot;
       populatePeerTags(s.peerTagSchema, s.peerTagValues);
       populateAdditionalTags(s.additionalTagValues);
-      this.keyHash = computeKeyHash();
-    }
-
-    /** Recompute the key hash from the current buffer state (used after a blocked-rebuild). */
-    void recomputeKeyHash() {
       this.keyHash = computeKeyHash();
     }
 

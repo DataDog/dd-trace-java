@@ -104,7 +104,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
 
   private final LongAdder statsAggregateDropped = new LongAdder();
   private final LongAdder statsInboxFull = new LongAdder();
-  private final LongAdder statsAdditionalTagBlocked = new LongAdder();
 
   private final StatsDClient statsd;
   private final long interval;
@@ -388,11 +387,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
   }
 
   @Override
-  public void onAdditionalTagValueCardinalityBlocked(String tagKey) {
-    statsAdditionalTagBlocked.increment();
-  }
-
-  @Override
   public void close() {
     if (null != cancellation) {
       cancellation.cancel();
@@ -559,11 +553,6 @@ public class TracerHealthMetrics extends HealthMetrics implements AutoCloseable 
             "stats.dropped_aggregates",
             target.statsInboxFull,
             REASON_INBOX_FULL_TAG);
-        reportIfChanged(
-            target.statsd,
-            "stats.additional_tag.cardinality_blocked",
-            target.statsAdditionalTagBlocked,
-            NO_TAGS);
 
       } catch (ArrayIndexOutOfBoundsException e) {
         log.warn(

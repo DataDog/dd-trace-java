@@ -119,29 +119,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   ClientStatsAggregator(
       WellKnownTags wellKnownTags,
       Set<String> ignoredResources,
-      DDAgentFeaturesDiscovery features,
-      HealthMetrics healthMetric,
-      Sink sink,
-      int maxAggregates,
-      int queueSize,
-      boolean includeEndpointInMetrics) {
-    this(
-        wellKnownTags,
-        ignoredResources,
-        AdditionalTagsSchema.EMPTY,
-        features,
-        healthMetric,
-        sink,
-        maxAggregates,
-        queueSize,
-        10,
-        SECONDS,
-        includeEndpointInMetrics);
-  }
-
-  ClientStatsAggregator(
-      WellKnownTags wellKnownTags,
-      Set<String> ignoredResources,
       AdditionalTagsSchema additionalTagsSchema,
       DDAgentFeaturesDiscovery features,
       HealthMetrics healthMetric,
@@ -160,32 +137,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         queueSize,
         10,
         SECONDS,
-        includeEndpointInMetrics);
-  }
-
-  /** Test-only: defaults to no additional tags schema. */
-  ClientStatsAggregator(
-      WellKnownTags wellKnownTags,
-      Set<String> ignoredResources,
-      DDAgentFeaturesDiscovery features,
-      HealthMetrics healthMetric,
-      Sink sink,
-      int maxAggregates,
-      int queueSize,
-      long reportingInterval,
-      TimeUnit timeUnit,
-      boolean includeEndpointInMetrics) {
-    this(
-        wellKnownTags,
-        ignoredResources,
-        AdditionalTagsSchema.EMPTY,
-        features,
-        healthMetric,
-        sink,
-        maxAggregates,
-        queueSize,
-        reportingInterval,
-        timeUnit,
         includeEndpointInMetrics);
   }
 
@@ -268,8 +219,8 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
             reportingInterval,
             timeUnit,
             healthMetric,
-            this::resetCardinalityHandlers,
-            additionalTagsSchema);
+            additionalTagsSchema,
+            this::resetCardinalityHandlers);
     this.thread = newAgentThread(METRICS_AGGREGATOR, aggregator);
     this.reportingInterval = reportingInterval;
     this.reportingIntervalTimeUnit = timeUnit;

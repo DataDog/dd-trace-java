@@ -42,6 +42,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
     ClientStatsAggregator aggregator = new ClientStatsAggregator(
       wellKnownTags,
       empty,
+      AdditionalTagsSchema.EMPTY,
       features,
       HealthMetrics.NO_OP,
       sink,
@@ -72,6 +73,7 @@ class ClientStatsAggregatorTest extends DDSpecification {
     ClientStatsAggregator aggregator = new ClientStatsAggregator(
       wellKnownTags,
       [ignoredResourceName].toSet(),
+      AdditionalTagsSchema.EMPTY,
       features,
       HealthMetrics.NO_OP,
       sink,
