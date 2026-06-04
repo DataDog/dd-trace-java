@@ -68,7 +68,7 @@ final class AggregateTable {
     if (size >= maxAggregates && !evictOneStale()) {
       return null;
     }
-    AggregateEntry entry = canonical.toEntry();
+    AggregateEntry entry = canonical.createEntry();
     Support.insertHeadEntry(buckets, keyHash, entry);
     size++;
     return entry;

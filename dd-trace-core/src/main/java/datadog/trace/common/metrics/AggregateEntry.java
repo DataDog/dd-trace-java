@@ -269,8 +269,8 @@ final class AggregateEntry extends Hashtable.Entry {
   /**
    * Test-friendly factory mirroring the prior {@code new MetricKey(...)} positional args. Bypasses
    * the cardinality handlers so tests don't pollute their state -- {@link UTF8BytesString}s are
-   * created directly. Content-equal entries from {@link Canonical#toEntry} still {@link #equals} an
-   * entry built via {@code of(...)}.
+   * created directly. Content-equal entries from {@link Canonical#createEntry} still {@link
+   * #equals} an entry built via {@code of(...)}.
    */
   static AggregateEntry of(
       CharSequence resource,
@@ -517,8 +517,8 @@ final class AggregateEntry extends Hashtable.Entry {
 
     /**
      * Reusable buffer of canonicalized peer-tag UTF8 forms. Cleared and refilled in {@link
-     * #populate}; on miss, {@link #toEntry} copies it into an immutable list for the entry to own.
-     * Zero allocation on the hit path. Sized lazily to the schema's tag count; resized if the
+     * #populate}; on miss, {@link #createEntry} copies it into an immutable list for the entry to
+     * own. Zero allocation on the hit path. Sized lazily to the schema's tag count; resized if the
      * schema grows.
      */
     UTF8BytesString[] peerTagsBuffer = null;
@@ -628,7 +628,7 @@ final class AggregateEntry extends Hashtable.Entry {
      * copied into an immutable list so the entry's reference stays stable across subsequent {@link
      * #populate} calls.
      */
-    AggregateEntry toEntry() {
+    AggregateEntry createEntry() {
       List<UTF8BytesString> snapshottedPeerTags;
       int n = peerTagsSize;
       if (n == 0) {
