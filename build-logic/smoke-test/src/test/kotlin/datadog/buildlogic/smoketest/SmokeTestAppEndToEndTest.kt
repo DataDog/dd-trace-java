@@ -292,6 +292,73 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
+  @Test
+  fun `init script injects Maven repository proxy into nested settings`() {
+    writeOuterSettings()
+    val repository = projectDir.resolve("maven-repo").toFile()
+    val artifactDir = File(repository, "com/example/demo/1.0")
+    artifactDir.mkdirs()
+    File(artifactDir, "demo-1.0.pom").writeText(
+      """
+      <project>
+        <modelVersion>4.0.0</modelVersion>
+        <groupId>com.example</groupId>
+        <artifactId>demo</artifactId>
+        <version>1.0</version>
+      </project>
+      """.trimIndent(),
+    )
+    File(artifactDir, "demo-1.0.jar").writeText("demo")
+    outerBuild.writeText(
+      """
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("resolveDependency")
+          artifactPath.set("resolved-dependency.txt")
+          sysProperty.set("resolved.dependency.path")
+        }
+      }
+      """.trimIndent(),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      dependencies {
+        implementation("com.example:demo:1.0")
+      }
+
+      tasks.register("resolveDependency") {
+        val resolved = layout.buildDirectory.file("resolved-dependency.txt")
+        inputs.files(configurations.compileClasspath)
+        outputs.file(resolved)
+        doLast {
+          resolved.get().asFile.writeText(
+            configurations.compileClasspath.get().singleFile.name
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "resolveDependency",
+      "-PmavenRepositoryProxy=${repository.toURI()}",
+    ).build()
+
+    assertThat(result.task(":resolveDependency")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val resolvedFile = File(projectDir.toFile(), "build/application/resolved-dependency.txt")
+    assertThat(resolvedFile).exists()
+    assertThat(resolvedFile.readText()).isEqualTo("demo-1.0.jar")
+  }
+
   /**
    * `buildCacheEnabled` defaults to `false` and is plumbed through to the nested daemon as
    * an explicit `--no-build-cache` / `--build-cache` argument. The inner build records
