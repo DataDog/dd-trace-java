@@ -287,9 +287,56 @@ class SmokeTestAppEndToEndTest {
     assertThat(inputsFile).exists()
     assertThat(inputsFile.readLines()).contains(
       "graalvm=test-graalvm",
-      "agentPath=${projectDir.resolve("agent.jar").toFile().absolutePath}",
+      "agentPath=${projectDir.resolve("agent.jar").toFile().canonicalPath}",
       "nativeEnabled=true",
     )
+  }
+
+  @Test
+  fun `init scripts are not added outside CI`() {
+    writeOuterSettings()
+    outerBuild.writeText(
+      """
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("recordInitScripts")
+          artifactPath.set("init-script-count.txt")
+          sysProperty.set("init.script.count.path")
+        }
+      }
+      """.trimIndent(),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordInitScripts") {
+        val out = layout.buildDirectory.file("init-script-count.txt")
+        outputs.file(out)
+        val initScriptCount = gradle.startParameter.initScripts.size
+        doLast {
+          out.get().asFile.writeText(initScriptCount.toString())
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "recordInitScripts",
+      environment = mapOf("CI" to "false"),
+    ).build()
+
+    assertThat(result.task(":recordInitScripts")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val countFile = File(projectDir.toFile(), "build/application/init-script-count.txt")
+    assertThat(countFile).exists()
+    assertThat(countFile.readText()).isEqualTo("0")
   }
 
   @Test
@@ -351,6 +398,7 @@ class SmokeTestAppEndToEndTest {
     val result = runner(
       "resolveDependency",
       "-PmavenRepositoryProxy=${repository.toURI()}",
+      environment = mapOf("CI" to "true"),
     ).build()
 
     assertThat(result.task(":resolveDependency")?.outcome).isEqualTo(TaskOutcome.SUCCESS)

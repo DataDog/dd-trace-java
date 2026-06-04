@@ -1,8 +1,8 @@
 import org.gradle.api.initialization.resolve.RepositoriesMode
 
 beforeSettings { settings ->
-  def gradlePluginProxy = settings.findProperty("gradlePluginProxy")
-  def mavenRepositoryProxy = settings.findProperty("mavenRepositoryProxy")
+  def gradlePluginProxy = settings.providers.gradleProperty("gradlePluginProxy").orNull
+  def mavenRepositoryProxy = settings.providers.gradleProperty("mavenRepositoryProxy").orNull
 
   settings.pluginManagement {
     repositories {

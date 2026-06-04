@@ -54,9 +54,8 @@ abstract class NestedGradleBuild @Inject constructor(
     gradleDistributionBaseUrl.convention(
       project.providers.environmentVariable(MASS_READ_URL_ENV),
     )
-    gradlePluginProxy.convention(project.providers.gradleProperty("gradlePluginProxy"))
-    mavenRepositoryProxy.convention(project.providers.gradleProperty("mavenRepositoryProxy"))
-    proxyInitScript.convention(PROXY_INIT_SCRIPT)
+    initScripts.convention(emptyList())
+    gradleProperties.convention(emptyMap())
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
@@ -88,15 +87,10 @@ abstract class NestedGradleBuild @Inject constructor(
   abstract val gradleDistributionBaseUrl: Property<String>
 
   @get:Input
-  @get:Optional
-  abstract val gradlePluginProxy: Property<String>
+  abstract val initScripts: ListProperty<String>
 
   @get:Input
-  @get:Optional
-  abstract val mavenRepositoryProxy: Property<String>
-
-  @get:Input
-  abstract val proxyInitScript: Property<String>
+  abstract val gradleProperties: MapProperty<String, String>
 
   @get:Nested
   abstract val javaLauncher: Property<JavaLauncher>
@@ -157,15 +151,18 @@ abstract class NestedGradleBuild @Inject constructor(
     val appBuildDirFile = applicationBuildDir.get().asFile
     val daemonJavaHome = javaLauncher.get().metadata.installationPath.asFile
     val gradleUserHomeDir = createGradleUserHome()
-    val proxyInitScriptFile = writeProxyInitScript()
+    val initScriptFiles = writeInitScripts()
 
     val args = buildList {
-      add("--init-script")
-      add(proxyInitScriptFile.absolutePath)
+      initScriptFiles.forEach { script ->
+        add("--init-script")
+        add(script.absolutePath)
+      }
       add(if (buildCacheEnabled.get()) "--build-cache" else "--no-build-cache")
       add("-PappBuildDir=${appBuildDirFile.absolutePath}")
-      addGradleProperty("gradlePluginProxy", gradlePluginProxy.orNull)
-      addGradleProperty("mavenRepositoryProxy", mavenRepositoryProxy.orNull)
+      gradleProperties.get().forEach { (name, value) ->
+        addGradleProperty(name, value)
+      }
       projectJars.get().forEach { entry ->
         add("-P${entry.propertyName.get()}=${entry.file.get().asFile.absolutePath}")
       }
@@ -259,11 +256,12 @@ abstract class NestedGradleBuild @Inject constructor(
     }
   }
 
-  private fun writeProxyInitScript(): File {
-    val initScript = temporaryDir.resolve("proxy-repositories.init.gradle")
-    initScript.writeText(proxyInitScript.get())
-    return initScript
-  }
+  private fun writeInitScripts(): List<File> =
+    initScripts.get().mapIndexed { index, script ->
+      temporaryDir.resolve("init-$index.gradle").also { file ->
+        file.writeText(script)
+      }
+    }
 
   private fun findGradleExecutable(gradleUserHomeDir: File): File? =
     gradleUserHomeDir.walkTopDown().firstOrNull { file ->
@@ -307,7 +305,7 @@ private fun MutableList<String>.addGradleProperty(name: String, value: String?) 
   }
 }
 
-private val PROXY_INIT_SCRIPT: String =
+internal val PROXY_REPOSITORIES_INIT_SCRIPT: String =
   NestedGradleBuild::class.java.getResource("proxy-repositories.init.gradle")
     ?.readText()
     ?: error("Missing proxy-repositories.init.gradle resource")
