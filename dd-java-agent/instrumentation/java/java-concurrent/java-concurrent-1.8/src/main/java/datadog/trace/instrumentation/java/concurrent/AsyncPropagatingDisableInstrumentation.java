@@ -184,8 +184,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
-    transformer.applyAdvice(
-        namedOneOf("send", "sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
+    transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
   }
 
   public static class DisableAsyncAdvice {
