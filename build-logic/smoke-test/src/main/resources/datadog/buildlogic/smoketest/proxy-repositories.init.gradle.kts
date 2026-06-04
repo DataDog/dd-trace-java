@@ -1,8 +1,8 @@
+import org.gradle.api.Action
 import org.gradle.api.Project
 import org.gradle.api.initialization.Settings
-import org.gradle.kotlin.dsl.closureOf
 
-beforeSettings(closureOf<Settings> {
+gradle.beforeSettings(Action<Settings> {
   val gradlePluginProxy = providers.gradleProperty("gradlePluginProxy").orNull
   val mavenRepositoryProxy = providers.gradleProperty("mavenRepositoryProxy").orNull
 
@@ -26,7 +26,7 @@ beforeSettings(closureOf<Settings> {
     }
   }
 
-  gradle.beforeProject(closureOf<Project> {
+  gradle.beforeProject(Action<Project> {
     repositories {
       mavenLocal()
       mavenRepositoryProxy?.takeIf { it.isNotBlank() }?.let { proxy ->
