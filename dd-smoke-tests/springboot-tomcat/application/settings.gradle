@@ -1,6 +1,4 @@
 pluginManagement {
-  includeBuild("$settingsDir/../../../build-logic")
-
   repositories {
     mavenLocal()
     if (settings.hasProperty("gradlePluginProxy")) {
