@@ -2,6 +2,7 @@ package datadog.trace.core.monitor;
 
 import datadog.trace.common.writer.RemoteApi;
 import datadog.trace.core.DDSpan;
+import datadog.trace.core.propagation.opg.OrgGuard;
 import java.util.List;
 
 /**
@@ -64,6 +65,12 @@ public abstract class HealthMetrics implements AutoCloseable {
   public void onCloseScope() {}
 
   public void onScopeStackOverflow() {}
+
+  /**
+   * Reports that the Org Propagation Guard dropped the inbound Datadog context for an extracted
+   * trace.
+   */
+  public void onOrgGuardEnforce(OrgGuard.Reason reason) {}
 
   public void onSend(
       final int traceCount, final int sizeInBytes, final RemoteApi.Response response) {}

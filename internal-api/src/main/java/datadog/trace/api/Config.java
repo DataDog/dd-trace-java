@@ -686,6 +686,9 @@ import static datadog.trace.api.config.TracerConfig.TRACE_KEEP_LATENCY_THRESHOLD
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.config.TracerConfig.TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_STRICT;
+import static datadog.trace.api.config.TracerConfig.TRACE_ORG_GUARD_TRUSTED_OPMS;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_HOSTNAME_ENABLED;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_COMPONENT_OVERRIDES;
 import static datadog.trace.api.config.TracerConfig.TRACE_PEER_SERVICE_DEFAULTS_ENABLED;
@@ -721,6 +724,7 @@ import static datadog.trace.util.json.JsonPathParser.parseJsonPaths;
 import datadog.environment.JavaVirtualMachine;
 import datadog.environment.OperatingSystem;
 import datadog.environment.SystemProperties;
+import datadog.trace.api.civisibility.CIConstants;
 import datadog.trace.api.civisibility.CiVisibilityWellKnownTags;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.OtlpConfig;
@@ -940,6 +944,9 @@ public class Config {
   private final Set<TracePropagationStyle> tracePropagationStylesToInject;
   private final TracePropagationBehaviorExtract tracePropagationBehaviorExtract;
   private final boolean tracePropagationExtractFirst;
+  private final boolean traceOrgGuardEnabled;
+  private final boolean traceOrgGuardStrict;
+  private final Set<String> traceOrgGuardTrustedOpms;
   private final int traceBaggageMaxItems;
   private final int traceBaggageMaxBytes;
   private final List<String> traceBaggageTagKeys;
@@ -1950,6 +1957,10 @@ public class Config {
     tracePropagationExtractFirst =
         configProvider.getBoolean(
             TRACE_PROPAGATION_EXTRACT_FIRST, DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST);
+    traceOrgGuardEnabled = configProvider.getBoolean(TRACE_ORG_GUARD_ENABLED, false);
+    traceOrgGuardStrict = configProvider.getBoolean(TRACE_ORG_GUARD_STRICT, false);
+    traceOrgGuardTrustedOpms =
+        configProvider.getSet(TRACE_ORG_GUARD_TRUSTED_OPMS, Collections.emptySet());
     traceInferredProxyEnabled =
         configProvider.getBoolean(TRACE_INFERRED_PROXY_SERVICES_ENABLED, false);
 
@@ -3254,7 +3265,7 @@ public class Config {
 
     int defaultStackTraceLengthLimit =
         instrumenterConfig.isCiVisibilityEnabled()
-            ? 5000 // EVP limit
+            ? CIConstants.MAX_META_STRING_VALUE_LENGTH // EVP limit
             : Integer.MAX_VALUE; // no effective limit (old behavior)
     this.stackTraceLengthLimit =
         configProvider.getInteger(STACK_TRACE_LENGTH_LIMIT, defaultStackTraceLengthLimit);
@@ -3683,6 +3694,18 @@ public class Config {
 
   public boolean isTracePropagationExtractFirst() {
     return tracePropagationExtractFirst;
+  }
+
+  public boolean isTraceOrgGuardEnabled() {
+    return traceOrgGuardEnabled;
+  }
+
+  public boolean isTraceOrgGuardStrict() {
+    return traceOrgGuardStrict;
+  }
+
+  public Set<String> getTraceOrgGuardTrustedOpms() {
+    return traceOrgGuardTrustedOpms;
   }
 
   public boolean isInferredProxyPropagationEnabled() {

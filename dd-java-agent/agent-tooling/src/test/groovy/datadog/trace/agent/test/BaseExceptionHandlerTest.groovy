@@ -51,21 +51,21 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BadAdvice.getName()))
       .advice(
       isMethod().and(named("isInstrumented")),
       BadAdvice.getName()))
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BadAdvice.NoOpAdvice.getName()))
       .advice(
       isMethod().and(namedOneOf("smallStack", "largeStack")),
       BadAdvice.NoOpAdvice.getName()))
       .transform(
       new AgentBuilder.Transformer.ForAdvice()
       .with(new AgentBuilder.LocationStrategy.Simple(ClassFileLocator.ForClassLoader.of(BadAdvice.getClassLoader())))
-      .withExceptionHandler(ExceptionHandlers.defaultExceptionHandler())
+      .withExceptionHandler(ExceptionHandlers.exceptionHandlerFor(BlockingExceptionAdvice.getName()))
       .advice(
       isMethod().and(named("blockingException")),
       BlockingExceptionAdvice.getName()))
@@ -117,7 +117,7 @@ abstract class BaseExceptionHandlerTest extends DDSpecification {
     // Make sure the log event came from our error handler.
     // If the log message changes in the future, it's fine to just
     // update the test's hardcoded message
-    testAppender.list.get(testAppender.list.size() - 1).getMessage().startsWith("Failed to handle exception in instrumentation for")
+    testAppender.list.get(testAppender.list.size() - 1).getMessage() == "Failed to handle exception in instrumentation for ${SomeClass.getName()} - ${BadAdvice.getName()}"
     exitStatus.get() == expectedFailureExitStatus()
   }
 

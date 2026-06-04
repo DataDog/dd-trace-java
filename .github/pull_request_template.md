@@ -15,7 +15,7 @@
 - Add your completed PR to the merge queue by commenting `/merge`. You can also:
   - Customize the commit message associated with the merge with `/merge --commit-message "..."`
   - Remove your PR from the merge queue with `/merge -c`
-  - Skip all merge queue checks with `/merge -f --reason "reason"`; please use this judiciously, as some checks do not run at the PR-level
+  - Skip all merge queue checks with `/merge -f --reason "reason"`; please use this judiciously, as some checks do not run at the PR-level (note: the PR still needs to be mergeable, this will only skip the pre-merge build)
   - Get more information in [this doc](https://datadoghq.atlassian.net/wiki/spaces/DEVX/pages/3121612126/MergeQueue)
 
 Jira ticket: [PROJ-IDENT]
