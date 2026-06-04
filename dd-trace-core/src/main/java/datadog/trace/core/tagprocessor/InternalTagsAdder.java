@@ -10,16 +10,24 @@ import datadog.trace.core.DDSpanContext;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {
-  // Pre-built once at construction and reused on every span. The base.service / version tags are
-  // fixed for the life of the tracer, so reusing the same immutable TagMap.Entry (Entries are
-  // safe to share across maps) avoids allocating a fresh Entry per span in processTags.
-  private final TagMap.Entry baseServiceEntry;
-  private final TagMap.Entry versionEntry;
+  // ddService drives the guard and the service-name comparison; kept even when empty so behavior
+  // matches the prior implementation exactly (an explicitly-empty DD_SERVICE is a valid, if
+  // degenerate, config -- see getStringExcludingSource, which passes "" through, not the default).
+  private final UTF8BytesString ddService;
+
+  // base.service / version values are fixed for the life of the tracer, and TagMap.Entry objects
+  // are safe to share across maps (the OptimizedTagMap collision design relies on it), so the
+  // entries are built once and reused on the hot path instead of allocating one per span.
+  // baseServiceEntry is null when ddService is null OR empty (Entry.create rejects empty values);
+  // the empty case falls back to set(tag, value) below to preserve byte-identical behavior.
+  @Nullable private final TagMap.Entry baseServiceEntry;
+  @Nullable private final TagMap.Entry versionEntry;
 
   public InternalTagsAdder(@Nullable final String ddService, @Nullable final String version) {
+    this.ddService = ddService != null ? UTF8BytesString.create(ddService) : null;
     this.baseServiceEntry =
-        ddService != null
-            ? TagMap.Entry.create(DDTags.BASE_SERVICE, UTF8BytesString.create(ddService))
+        this.ddService != null && this.ddService.length() > 0
+            ? TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService)
             : null;
     this.versionEntry =
         version != null && !version.isEmpty()
@@ -30,13 +38,18 @@ public final class InternalTagsAdder extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    if (spanContext == null || baseServiceEntry == null) {
+    if (spanContext == null || ddService == null) {
       return;
     }
 
-    if (!baseServiceEntry.stringValue().equalsIgnoreCase(spanContext.getServiceName())) {
-      // service name !=  DD_SERVICE
-      unsafeTags.set(baseServiceEntry);
+    if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
+      // service name != DD_SERVICE
+      if (baseServiceEntry != null) {
+        unsafeTags.set(baseServiceEntry);
+      } else {
+        // Empty DD_SERVICE: no prebuilt entry exists; preserve the original behavior.
+        unsafeTags.set(DDTags.BASE_SERVICE, ddService);
+      }
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set
