@@ -757,12 +757,12 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
         }
       } catch (EvaluationException ex) {
         logStatus.addError(new EvaluationError(ex.getExpr(), ex.getMessage()));
-        logStatus.setLogTemplateErrors(true);
+        logStatus.setHasEvalutionErrors(true);
       } catch (Exception ex) {
         // catch all for unexpected exceptions
         logStatus.addError(
             new EvaluationError(captureExpression.getExpr().getDsl(), ex.getMessage()));
-        logStatus.setLogTemplateErrors(true);
+        logStatus.setHasEvalutionErrors(true);
       }
     }
   }
@@ -871,7 +871,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
 
     private boolean condition = true;
     private final DebugSessionStatus debugSessionStatus;
-    private boolean hasLogTemplateErrors;
+    private boolean hasEvaluationErrors;
     private boolean hasConditionErrors;
     private boolean sampled = true;
     private boolean forceSampling;
@@ -897,6 +897,12 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
       return condition;
     }
 
+    @Override
+    public void addError(EvaluationError evaluationError) {
+      super.addError(evaluationError);
+      setHasEvalutionErrors(true);
+    }
+
     public boolean shouldSend() {
       DebugSessionStatus status = getDebugSessionStatus();
       // an ACTIVE status overrides the sampling as the sampling decision was made by the trigger
@@ -906,7 +912,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
 
     public boolean shouldReportError() {
-      return sampled && (hasConditionErrors || hasLogTemplateErrors);
+      return sampled && (hasConditionErrors || hasEvaluationErrors);
     }
 
     public boolean getCondition() {
@@ -946,11 +952,11 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
     }
 
     public boolean hasLogTemplateErrors() {
-      return hasLogTemplateErrors;
+      return hasEvaluationErrors;
     }
 
-    public void setLogTemplateErrors(boolean value) {
-      this.hasLogTemplateErrors = value;
+    public void setHasEvalutionErrors(boolean value) {
+      this.hasEvaluationErrors = value;
     }
 
     public void setMessage(String message) {
@@ -991,7 +997,7 @@ public class LogProbe extends ProbeDefinition implements Sampled, CapturedContex
           + ", hasConditionErrors="
           + hasConditionErrors
           + ", hasLogTemplateErrors="
-          + hasLogTemplateErrors
+          + hasEvaluationErrors
           + ", message='"
           + message
           + '\''

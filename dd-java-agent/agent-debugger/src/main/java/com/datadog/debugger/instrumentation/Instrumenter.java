@@ -2,6 +2,7 @@ package com.datadog.debugger.instrumentation;
 
 import static com.datadog.debugger.instrumentation.ASMHelper.adjustLocalVarsBasedOnArgs;
 import static com.datadog.debugger.instrumentation.ASMHelper.createLocalVarNodes;
+import static com.datadog.debugger.instrumentation.ASMHelper.isStaticMethod;
 import static com.datadog.debugger.instrumentation.ASMHelper.ldc;
 import static com.datadog.debugger.instrumentation.ASMHelper.sortLocalVariables;
 import static com.datadog.debugger.instrumentation.Types.STRING_TYPE;
@@ -62,14 +63,10 @@ public abstract class Instrumenter {
     this.classFileLines = methodInfo.getClassFileLines();
     this.diagnostics = diagnostics;
     this.probeIndices = probeIndices;
-    isStatic = (methodNode.access & Opcodes.ACC_STATIC) != 0;
+    isStatic = isStaticMethod(methodNode);
     methodEnterLabel = insertMethodEnterLabel();
-    argOffset = isStatic ? 0 : 1;
-    Type[] argTypes = Type.getArgumentTypes(methodNode.desc);
-    for (Type t : argTypes) {
-      argOffset += t.getSize();
-    }
-    localVarsBySlotArray = extractLocalVariables(argTypes);
+    argOffset = ASMHelper.getArgOffset(methodNode);
+    localVarsBySlotArray = extractLocalVariables(Type.getArgumentTypes(methodNode.desc));
     this.language = JvmLanguage.of(classNode.sourceFile);
   }
 
@@ -232,12 +229,6 @@ public abstract class Instrumenter {
       ldc(insnList, tag.toString()); // stack: [array, array, int, string]
       insnList.add(new InsnNode(Opcodes.AASTORE)); // stack: [array]
     }
-  }
-
-  protected int newVar(Type type) {
-    int varId = methodNode.maxLocals + 1;
-    methodNode.maxLocals += type.getSize();
-    return varId;
   }
 
   protected int newVar(int size) {

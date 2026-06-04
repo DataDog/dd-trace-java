@@ -60,7 +60,7 @@ public class StringTemplateBuilder {
             handleException(status, ex, segment.getExpr(), sb);
           }
           if (!status.getErrors().isEmpty()) {
-            status.setLogTemplateErrors(true);
+            status.setHasEvalutionErrors(true);
           }
         }
       }

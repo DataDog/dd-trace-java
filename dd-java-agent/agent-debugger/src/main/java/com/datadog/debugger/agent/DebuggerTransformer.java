@@ -74,6 +74,7 @@ import org.objectweb.asm.tree.analysis.AnalyzerException;
 import org.objectweb.asm.tree.analysis.BasicValue;
 import org.objectweb.asm.tree.analysis.BasicVerifier;
 import org.objectweb.asm.util.CheckClassAdapter;
+import org.objectweb.asm.util.TraceClassVisitor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -595,6 +596,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     }
     ClassWriter writer = new SafeClassWriter(loader);
     ClassVisitor visitor = new JsrInliningClassVisitor(writer);
+    visitor = new DebugVisitor(visitor);
+    ClassVisitor traceVisitor = new TraceClassVisitor(null, new PrintWriter(System.out));
+    classNode.accept(traceVisitor);
     LOGGER.debug("Generating bytecode for class: {}", Strings.getClassName(classFilePath));
     try {
       classNode.accept(visitor);
@@ -648,7 +652,9 @@ public class DebuggerTransformer implements ClassFileTransformer {
     boolean transformed = false;
     ClassFileLines classFileLines = new ClassFileLines(classNode);
     Set<ProbeDefinition> remainingDefinitions = new HashSet<>(definitions);
-    for (MethodNode methodNode : classNode.methods) {
+    // create a new list for be able to add method during instrumentation
+    List<MethodNode> methods = new ArrayList<>(classNode.methods);
+    for (MethodNode methodNode : methods) {
       List<ProbeDefinition> matchingDefs = new ArrayList<>();
       for (ProbeDefinition definition : definitions) {
         Where.MethodMatching methodMatching =
@@ -1033,6 +1039,37 @@ public class DebuggerTransformer implements ClassFileTransformer {
         int access, String name, String descriptor, String signature, String[] exceptions) {
       MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
       return new JSRInlinerAdapter(mv, access, name, descriptor, signature, exceptions);
+    }
+  }
+
+  /** A {@link org.objectweb.asm.ClassVisitor} that logs all visited methods. */
+  static class DebugVisitor extends ClassVisitor {
+    protected DebugVisitor(ClassVisitor parent) {
+      super(Opcodes.ASM9, parent);
+    }
+
+    // generate methods for logging all visited methods
+    @Override
+    public MethodVisitor visitMethod(
+        int access, String name, String descriptor, String signature, String[] exceptions) {
+      MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
+      LOGGER.debug("visiting method: {}", name);
+      return new DebugMethodVisitor(mv, name);
+    }
+  }
+
+  static class DebugMethodVisitor extends MethodVisitor {
+    private final String name;
+
+    protected DebugMethodVisitor(MethodVisitor parent, String name) {
+      super(Opcodes.ASM9, parent);
+      this.name = name;
+    }
+
+    @Override
+    public void visitEnd() {
+      super.visitEnd();
+      LOGGER.debug("visiting end method: {}", name);
     }
   }
 

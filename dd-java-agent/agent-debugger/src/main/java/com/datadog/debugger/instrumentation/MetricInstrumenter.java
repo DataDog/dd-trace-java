@@ -213,7 +213,7 @@ public class MetricInstrumenter extends Instrumenter {
     InsnList handler = new InsnList();
     handler.add(handlerLabel);
     // declare a local var to store the current Throwable of the 'finally' block
-    int throwableTmpVar = newVar(Type.getType(Throwable.class));
+    int throwableTmpVar = ASMHelper.newVar(methodNode, Type.getType(Throwable.class));
     // stack [exception]
     handler.add(new VarInsnNode(Opcodes.ASTORE, throwableTmpVar));
     // stack []
@@ -839,7 +839,7 @@ public class MetricInstrumenter extends Instrumenter {
         }
         // call System.nanoTime at the beginning of the method
         if (durationStartVar == -1) {
-          durationStartVar = instrumentor.newVar(LONG_TYPE);
+          durationStartVar = ASMHelper.newVar(instrumentor.methodNode, LONG_TYPE);
           InsnList nanoTimeList = new InsnList();
           invokeStatic(nanoTimeList, Type.getType(System.class), "nanoTime", LONG_TYPE);
           nanoTimeList.add(new VarInsnNode(Opcodes.LSTORE, durationStartVar));

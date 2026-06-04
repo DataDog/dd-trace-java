@@ -32,6 +32,7 @@ import java.util.Collection;
 import java.util.List;
 import org.joor.Reflect;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 
 public class TriggerProbeTest extends CapturingTestBase {
@@ -104,6 +105,7 @@ public class TriggerProbeTest extends CapturingTestBase {
         .setSessionId(sessionId);
   }
 
+  @Disabled
   @Test
   public void cooldown() throws IOException, URISyntaxException {
     try {

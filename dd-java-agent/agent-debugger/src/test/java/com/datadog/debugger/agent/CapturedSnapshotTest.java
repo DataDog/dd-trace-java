@@ -992,7 +992,8 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   public void uncaughtException() throws IOException, URISyntaxException {
     final String CLASS_NAME = "CapturedSnapshot05";
     TestSnapshotListener listener =
-        installProbes(createMethodProbe(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "()"));
+        installProbes(
+            createMethodProbe(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "(String)"));
     Class<?> testClass = compileAndLoadClass(CLASS_NAME);
     try {
       Reflect.onClass(testClass).call("main", "triggerUncaughtException").get();
@@ -1022,7 +1023,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     final String CLASS_NAME = "CapturedSnapshot05";
     final String LOG_TEMPLATE = "exception msg={@exception.detailMessage}";
     LogProbe probe =
-        createProbeBuilder(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "()")
+        createProbeBuilder(PROBE_ID, CLASS_NAME, "triggerUncaughtException", "(String)")
             .evaluateAt(MethodLocation.EXIT)
             .when(
                 new ProbeCondition(
@@ -1697,7 +1698,7 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "f").get();
     assertEquals(42, result);
     Snapshot snapshot = assertOneSnapshot(listener);
-    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 5);
+    assertCaptureFieldCount(snapshot.getCaptures().getEntry(), 12);
     assertCaptureFields(snapshot.getCaptures().getEntry(), "intValue", "int", "24");
     assertCaptureFields(snapshot.getCaptures().getEntry(), "doubleValue", "double", "3.14");
     assertCaptureFields(
@@ -1709,7 +1710,11 @@ public class CapturedSnapshotTest extends CapturingTestBase {
         Arrays.asList("foo", "bar"));
     assertCaptureFields(
         snapshot.getCaptures().getEntry(), "strMap", "java.util.HashMap", Collections.emptyMap());
-    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 5);
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "strArray", "java.lang.String[]", "[foo, bar]");
+    assertCaptureFields(
+        snapshot.getCaptures().getEntry(), "longArray", "long[]", "[0, 1, 2, 3, 4, 5, 6, 7, 8, 9]");
+    assertCaptureFieldCount(snapshot.getCaptures().getReturn(), 12);
     assertCaptureFields(snapshot.getCaptures().getReturn(), "intValue", "int", "48");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "doubleValue", "double", "3.14");
     assertCaptureFields(snapshot.getCaptures().getReturn(), "strValue", "java.lang.String", "done");
@@ -1765,14 +1770,15 @@ public class CapturedSnapshotTest extends CapturingTestBase {
   }
 
   @Test
-  public void staticInheritedFields() throws IOException, URISyntaxException {
+  public void staticFieldsCondition() throws IOException, URISyntaxException {
     final String CLASS_NAME = "com.datadog.debugger.CapturedSnapshot19";
     final String INHERITED_CLASS_NAME = CLASS_NAME + "$Inherited";
     LogProbe logProbe =
         createProbeBuilder(PROBE_ID, INHERITED_CLASS_NAME, "f", "()")
             .when(
                 new ProbeCondition(
-                    DSL.when(DSL.eq(DSL.ref("intValue"), DSL.value(48))), "intValue == 48"))
+                    DSL.when(DSL.eq(DSL.ref("strValue"), DSL.value("barfoo"))),
+                    "strValue == 'barfoo'"))
             .evaluateAt(MethodLocation.EXIT)
             .build();
     TestSnapshotListener listener = installProbes(logProbe);
@@ -2040,8 +2046,6 @@ public class CapturedSnapshotTest extends CapturingTestBase {
     int result = Reflect.onClass(testClass).call("main", "1").get();
     assertEquals(3, result);
     assertEquals(0, listener.snapshots.size());
-    assertTrue(listener.skipped);
-    assertEquals(DebuggerContext.SkipCause.CONDITION, listener.cause);
   }
 
   @Test

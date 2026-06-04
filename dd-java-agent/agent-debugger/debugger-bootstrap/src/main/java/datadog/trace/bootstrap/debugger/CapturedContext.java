@@ -17,7 +17,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
-import java.util.function.Function;
 
 /** Stores different kind of data (arguments, locals, fields, exception) for a specific location */
 public class CapturedContext implements ValueReferenceResolver {
@@ -134,12 +133,12 @@ public class CapturedContext implements ValueReferenceResolver {
         }
       }
     } else {
-      Map<String, Function<Object, CapturedValue>> specialTypeAccess =
+      Map<String, WellKnownClasses.SpecialFieldInfo> specialTypeAccess =
           WellKnownClasses.getSpecialTypeAccess(target);
       if (specialTypeAccess != null) {
-        Function<Object, CapturedValue> specialFieldAccess = specialTypeAccess.get(memberName);
-        if (specialFieldAccess != null) {
-          CapturedValue specialField = specialFieldAccess.apply(target);
+        WellKnownClasses.SpecialFieldInfo specialFieldInfo = specialTypeAccess.get(memberName);
+        if (specialFieldInfo != null) {
+          CapturedValue specialField = specialFieldInfo.accessor.apply(target);
           if (specialField != null && specialField.getName().equals(memberName)) {
             return specialField;
           }
@@ -358,6 +357,14 @@ public class CapturedContext implements ValueReferenceResolver {
       return Status.EMPTY_STATUS;
     }
     return result;
+  }
+
+  public void addError(ProbeImplementation probeImplementation, EvaluationError evaluationError) {
+    Status status =
+        statusByProbeId.computeIfAbsent(
+            probeImplementation.getProbeId().getEncodedId(),
+            key -> probeImplementation.createStatus());
+    status.addError(evaluationError);
   }
 
   @Override

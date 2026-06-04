@@ -37,7 +37,7 @@ public class SpanInstrumenter extends Instrumenter {
     if (definition.isLineProbe()) {
       return addRangeSpan(classFileLines);
     }
-    spanVar = newVar(DEBUGGER_SPAN_TYPE);
+    spanVar = ASMHelper.newVar(methodNode, DEBUGGER_SPAN_TYPE);
     processInstructions();
     LabelNode initSpanLabel = new LabelNode();
     InsnList insnList = createSpan(initSpanLabel);
@@ -116,7 +116,7 @@ public class SpanInstrumenter extends Instrumenter {
             "No line info for " + (sourceLine.isSingleLine() ? "line " : "range ") + sourceLine);
         return InstrumentationResult.Status.ERROR;
       }
-      spanVar = newVar(DEBUGGER_SPAN_TYPE);
+      spanVar = ASMHelper.newVar(methodNode, DEBUGGER_SPAN_TYPE);
       LabelNode initSpanLabel = new LabelNode();
       InsnList createSpaninsnList = createSpan(initSpanLabel);
       methodNode.instructions.insertBefore(beforeLabel.getNext(), createSpaninsnList);
