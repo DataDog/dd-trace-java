@@ -127,7 +127,15 @@ final class AggregateEntry extends Hashtable.Entry {
 
   // Mutable aggregate state -- single-thread (consumer/aggregator) writer.
   private final Histogram okLatencies = Histogram.newHistogram();
-  private final Histogram errorLatencies = Histogram.newHistogram();
+
+  /**
+   * Lazily allocated on the first recorded error. Most entries never see an error and keep this
+   * null for life; {@link SerializingMetricWriter} writes a cached empty-histogram form when null
+   * to keep the wire payload identical. Once allocated, it survives {@link #clear()} (cleared, not
+   * nulled) since an entry that errored once tends to error again.
+   */
+  @Nullable private Histogram errorLatencies;
+
   private int errorCount;
   private int hitCount;
   private int topLevelCount;
@@ -165,7 +173,7 @@ final class AggregateEntry extends Hashtable.Entry {
     }
     if ((tagAndDuration & ERROR_TAG) == ERROR_TAG) {
       tagAndDuration ^= ERROR_TAG;
-      errorLatencies.accept(tagAndDuration);
+      errorLatenciesForWrite().accept(tagAndDuration);
       ++errorCount;
     } else {
       okLatencies.accept(tagAndDuration);
@@ -193,8 +201,24 @@ final class AggregateEntry extends Hashtable.Entry {
     return okLatencies;
   }
 
+  /**
+   * Returns the entry's error-latency histogram, or {@code null} if no error has been recorded.
+   * Callers serializing this should treat {@code null} as "emit a cached empty histogram"; see
+   * {@link SerializingMetricWriter}.
+   */
+  @Nullable
   Histogram getErrorLatencies() {
     return errorLatencies;
+  }
+
+  /** Lazy-allocates {@link #errorLatencies} on the first error. */
+  private Histogram errorLatenciesForWrite() {
+    Histogram h = errorLatencies;
+    if (h == null) {
+      h = Histogram.newHistogram();
+      errorLatencies = h;
+    }
+    return h;
   }
 
   /**
@@ -210,7 +234,10 @@ final class AggregateEntry extends Hashtable.Entry {
     this.topLevelCount = 0;
     this.duration = 0;
     this.okLatencies.clear();
-    this.errorLatencies.clear();
+    // errorLatencies stays null on entries that never errored. Only clear if it was allocated.
+    if (this.errorLatencies != null) {
+      this.errorLatencies.clear();
+    }
   }
 
   boolean matches(SpanSnapshot s) {
@@ -265,10 +292,15 @@ final class AggregateEntry extends Hashtable.Entry {
     // Object[].hashCode is identity-based, which would let two snapshots with content-equal but
     // distinct PeerTagSchema instances hash to different buckets. Null inputs hash to 0 here,
     // distinct from {@code Arrays.hashCode(empty)} = 1 or any non-empty array.
+    //
+    // peerTagValues is gated by peerTagSchema: the slot's peerTagValues is a reusable scratch
+    // buffer that may carry stale contents from a prior tag-firing publish when this publish had
+    // no peer tags. Hash it only when the schema says it's meaningful, matching the matches()
+    // contract.
+    h = LongHashingUtils.addToHash(h, s.peerTagSchema == null ? 0 : s.peerTagSchema.namesHash);
     h =
         LongHashingUtils.addToHash(
-            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagSchema.names));
-    h = LongHashingUtils.addToHash(h, Arrays.hashCode(s.peerTagValues));
+            h, s.peerTagSchema == null ? 0 : Arrays.hashCode(s.peerTagValues));
     h = LongHashingUtils.addToHash(h, s.httpMethod);
     h = LongHashingUtils.addToHash(h, s.httpEndpoint);
     h = LongHashingUtils.addToHash(h, s.grpcStatusCode);
