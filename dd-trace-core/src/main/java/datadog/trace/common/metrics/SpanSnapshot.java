@@ -36,9 +36,9 @@ final class SpanSnapshot implements InboxItem {
    */
   @Nullable final String[] peerTagValues;
 
-  final String httpMethod;
-  final String httpEndpoint;
-  final String grpcStatusCode;
+  @Nullable final String httpMethod;
+  @Nullable final String httpEndpoint;
+  @Nullable final String grpcStatusCode;
 
   /** Duration in nanoseconds, OR-ed with {@code ERROR_TAG} / {@code TOP_LEVEL_TAG} as needed. */
   final long tagAndDuration;
@@ -55,9 +55,9 @@ final class SpanSnapshot implements InboxItem {
       String spanKind,
       @Nullable PeerTagSchema peerTagSchema,
       @Nullable String[] peerTagValues,
-      String httpMethod,
-      String httpEndpoint,
-      String grpcStatusCode,
+      @Nullable String httpMethod,
+      @Nullable String httpEndpoint,
+      @Nullable String grpcStatusCode,
       long tagAndDuration) {
     this.resourceName = resourceName;
     this.serviceName = serviceName;

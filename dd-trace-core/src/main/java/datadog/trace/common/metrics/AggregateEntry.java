@@ -10,6 +10,8 @@ import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import javax.annotation.Nullable;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Aggregator hashtable entry: UTF8 label fields + counter/histogram state; hashing runs after
@@ -19,6 +21,8 @@ import javax.annotation.Nullable;
  * static).
  */
 final class AggregateEntry extends Hashtable.Entry {
+
+  private static final Logger log = LoggerFactory.getLogger(AggregateEntry.class);
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
@@ -292,6 +296,11 @@ final class AggregateEntry extends Hashtable.Entry {
       HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
     long blocked = handler.reset();
     if (blocked > 0) {
+      if (handler.shouldWarnThisCycle()) {
+        log.warn(
+            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+            handler.name);
+      }
       healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
   }
