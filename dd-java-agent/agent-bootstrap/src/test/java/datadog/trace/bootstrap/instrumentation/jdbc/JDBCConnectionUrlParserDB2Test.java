@@ -3,8 +3,7 @@ package datadog.trace.bootstrap.instrumentation.jdbc;
 import static datadog.trace.bootstrap.instrumentation.jdbc.JDBCConnectionUrlParser.extractDBInfo;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.CsvSource;
+import org.tabletest.junit.TableTest;
 
 /**
  * Tests for DB2/AS400 JDBC URL parsing when the URL contains '=' but no explicit port.
@@ -15,46 +14,20 @@ import org.junit.jupiter.params.provider.CsvSource;
  */
 class JDBCConnectionUrlParserDB2Test {
 
-  @ParameterizedTest
-  @CsvSource({
-    // DB2: path present, query-string params, no port — last ':' is the scheme colon
-    "jdbc:db2://db2.host/mydb?user=db2user,                       db2,   db2.host, mydb, db2user",
-    // AS400: same pattern
-    "jdbc:as400://ashost/asdb?user=asuser,                         as400, ashost,   asdb, asuser",
-    // DB2: multiple query params
-    "jdbc:db2://db2.host/mydb?user=db2user&connectionTimeout=30,  db2,   db2.host, mydb, db2user",
+  @TableTest({
+    "scenario                             | url                                                        | type  | host     | instance | user    | db     ",
+    "DB2 with user param, no port         | jdbc:db2://db2.host/mydb?user=db2user                      | db2   | db2.host | mydb     | db2user | mydb   ",
+    "AS400 with user param, no port       | jdbc:as400://ashost/asdb?user=asuser                       | as400 | ashost   | asdb     | asuser  | asdb   ",
+    "DB2 with multiple params, no port    | jdbc:db2://db2.host/mydb?user=db2user&connectionTimeout=30 | db2   | db2.host | mydb     | db2user | mydb   ",
+    "DB2 with databasename param, no port | jdbc:db2://db2.host/mydb?user=db2user&databasename=otherdb | db2   | db2.host | mydb     | db2user | otherdb"
   })
-  void db2UrlWithEqualsAndNoPortShouldParseHostCorrectly(
-      String url,
-      String expectedType,
-      String expectedHost,
-      String expectedInstance,
-      String expectedUser) {
-    DBInfo info = extractDBInfo(url.trim(), null);
-
-    // Without the fix, host was never extracted due to StringIndexOutOfBoundsException.
-    assertEquals(expectedType, info.getType());
-    assertEquals(expectedHost, info.getHost());
-    assertEquals(expectedInstance, info.getInstance());
-    assertEquals(expectedUser, info.getUser());
-  }
-
-  @ParameterizedTest
-  @CsvSource({
-    // databasename param in query string should be parsed into db field
-    "jdbc:db2://db2.host/mydb?user=db2user&databasename=otherdb, db2, db2.host, db2user, otherdb",
-  })
-  void db2UrlWithDatabasenameQueryParamShouldParseDbCorrectly(
-      String url,
-      String expectedType,
-      String expectedHost,
-      String expectedUser,
-      String expectedDb) {
-    DBInfo info = extractDBInfo(url.trim(), null);
-
-    assertEquals(expectedType, info.getType());
-    assertEquals(expectedHost, info.getHost());
-    assertEquals(expectedUser, info.getUser());
-    assertEquals(expectedDb, info.getDb());
+  void db2UrlWithEqualsAndNoPortShouldParseCorrectly(
+      String url, String type, String host, String instance, String user, String db) {
+    DBInfo info = extractDBInfo(url, null);
+    assertEquals(type, info.getType());
+    assertEquals(host, info.getHost());
+    assertEquals(instance, info.getInstance());
+    assertEquals(user, info.getUser());
+    assertEquals(db, info.getDb());
   }
 }
