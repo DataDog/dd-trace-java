@@ -3,6 +3,7 @@ package datadog.buildlogic.smoketest
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -424,6 +426,7 @@ class SmokeTestAppEndToEndTest {
       mapOf(
         "GRADLE_ARGS" to "",
         "GRADLE_OPTS" to "",
+        "GRADLE_USER_HOME" to outerGradleUserHome.absolutePath,
       ) +
       (overrides ?: emptyMap())
 
@@ -433,6 +436,19 @@ class SmokeTestAppEndToEndTest {
     }
 
   companion object {
+    private val outerGradleUserHome: File by lazy {
+      Files.createTempDirectory("smoke-test-app-gradle-user-home-").toFile().also { dir ->
+        Runtime.getRuntime().addShutdownHook(Thread {
+          try {
+            DefaultGradleConnector.close()
+          } catch (_: Exception) {
+            // best effort
+          }
+          dir.deleteRecursively()
+        })
+      }
+    }
+
     @JvmStatic
     fun buildCacheFlagCases(): List<Arguments> = listOf(
       // (scenario name, DSL line added to the `application { … }` block, expected

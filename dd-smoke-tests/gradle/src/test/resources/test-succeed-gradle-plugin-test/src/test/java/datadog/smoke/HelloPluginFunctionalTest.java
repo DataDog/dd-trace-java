@@ -41,17 +41,18 @@ class HelloPluginFunctionalTest {
             .withPluginClasspath()
             .withGradleDistribution(URI.create(gradleDistributionUrl))
             .withArguments("hello", "--stacktrace")
-            .withEnvironment(sanitizedGradleEnvironment())
+            .withEnvironment(sanitizedGradleEnvironment(testProjectDir.resolve("gradle-user-home")))
             .forwardOutput()
             .build();
 
     assertTrue(result.getOutput().contains("Hello from my plugin!"));
   }
 
-  private static Map<String, String> sanitizedGradleEnvironment() {
+  private static Map<String, String> sanitizedGradleEnvironment(Path gradleUserHomeDir) {
     Map<String, String> environment = new HashMap<>(System.getenv());
     environment.put("GRADLE_ARGS", "");
     environment.put("GRADLE_OPTS", "");
+    environment.put("GRADLE_USER_HOME", gradleUserHomeDir.toString());
     return environment;
   }
 }
