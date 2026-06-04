@@ -56,7 +56,7 @@ public class AdditionalTagsMetricsBenchmark {
     this.health = new AdversarialMetricsBenchmark.CountingHealthMetrics();
     AdditionalTagsSchema additionalTagsSchema =
         AdditionalTagsSchema.from(
-            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), this.health, limitsEnabled);
+            new LinkedHashSet<>(Arrays.asList("region", "tenant_id")), limitsEnabled, this.health);
     this.aggregator =
         new ClientStatsAggregator(
             new WellKnownTags("", "", "", "", "", ""),

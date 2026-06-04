@@ -42,11 +42,11 @@ final class AdditionalTagsSchema {
 
   /** Test convenience: uses {@link HealthMetrics#NO_OP} and limits enabled. */
   static AdditionalTagsSchema from(Set<String> configured) {
-    return from(configured, HealthMetrics.NO_OP, true);
+    return from(configured, true, HealthMetrics.NO_OP);
   }
 
   static AdditionalTagsSchema from(
-      Set<String> configured, HealthMetrics healthMetrics, boolean useBlockedSentinel) {
+      Set<String> configured, boolean useBlockedSentinel, HealthMetrics healthMetrics) {
     if (configured == null || configured.isEmpty()) {
       return EMPTY;
     }
