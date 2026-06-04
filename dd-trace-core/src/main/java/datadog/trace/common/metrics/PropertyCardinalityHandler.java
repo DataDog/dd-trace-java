@@ -43,6 +43,7 @@ import java.util.Arrays;
  * short-circuit downstream equality to identity comparisons.
  */
 final class PropertyCardinalityHandler {
+  private final String name;
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -62,19 +63,21 @@ final class PropertyCardinalityHandler {
   private int curSize;
 
   private UTF8BytesString cacheBlocked = null;
+  private String[] statsDTag = null;
 
   /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
   private long blockedCount;
 
   /**
    * Test convenience: limits-enabled mode (blocked sentinel substitution active). Production uses
-   * the two-argument constructor with the flag from {@code Config}.
+   * the three-argument constructor with the flag from {@code Config}.
    */
-  PropertyCardinalityHandler(int cardinalityLimit) {
-    this(cardinalityLimit, true);
+  PropertyCardinalityHandler(String name, int cardinalityLimit) {
+    this(name, cardinalityLimit, true);
   }
 
-  PropertyCardinalityHandler(int cardinalityLimit, boolean useBlockedSentinel) {
+  PropertyCardinalityHandler(String name, int cardinalityLimit, boolean useBlockedSentinel) {
+    this.name = name;
     if (cardinalityLimit <= 0) {
       throw new IllegalArgumentException("cardinalityLimit must be positive: " + cardinalityLimit);
     }
@@ -157,6 +160,13 @@ final class PropertyCardinalityHandler {
    * Resets the per-cycle working set and returns the accumulated block count for this cycle. The
    * caller is responsible for reporting the count to health metrics if non-zero.
    */
+  String[] statsDTag() {
+    if (statsDTag == null) {
+      statsDTag = new String[] {"tag:" + name};
+    }
+    return statsDTag;
+  }
+
   long reset() {
     long count = this.blockedCount;
     this.blockedCount = 0;

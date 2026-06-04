@@ -11,7 +11,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyReturnsSameInstanceForRepeatedValueUntilLimit() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(3);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 3);
     UTF8BytesString a1 = h.register("a");
     UTF8BytesString a2 = h.register("a");
     assertSame(a1, a2);
@@ -20,7 +20,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyOverLimitReturnsBlockedSentinel() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2);
     UTF8BytesString a = h.register("a");
     UTF8BytesString b = h.register("b");
     UTF8BytesString blocked1 = h.register("c");
@@ -34,7 +34,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyResetRefreshesBudget() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2);
     h.register("a");
     h.register("b");
     UTF8BytesString blocked = h.register("c");
@@ -62,7 +62,7 @@ class CardinalityHandlerTest {
     // reused on the first registration in the new cycle, so aggregate entries that hold a
     // reference to a UTF8BytesString still match on identity after the per-cycle reset.
     // This is the cache-survives-reset property the canonical-key lookup depends on.
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 4);
     UTF8BytesString aBefore = h.register("a");
     UTF8BytesString bBefore = h.register("b");
 
@@ -78,7 +78,7 @@ class CardinalityHandlerTest {
   void propertyPriorCycleReuseSurvivesOneResetButNotTwo() {
     // Reuse window is one cycle deep -- the handler swaps current/prior on reset, so a
     // value last seen two cycles ago is no longer cached and will be re-allocated.
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 4);
     UTF8BytesString first = h.register("a");
 
     h.reset();
@@ -139,7 +139,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyRegisterOfNullReturnsEmpty() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(4);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 4);
     // Null input short-circuits to UTF8BytesString.EMPTY -- the universal "absent" sentinel that
     // AggregateEntry's optional UTF8 fields use in place of null.
     assertSame(UTF8BytesString.EMPTY, h.register(null));
@@ -147,7 +147,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyRegisterOfNullDoesNotConsumeBudget() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2);
     h.register(null);
     h.register(null);
     h.register(null);
@@ -171,7 +171,7 @@ class CardinalityHandlerTest {
 
   @Test
   void propertyOverLimitWithSentinelDisabledReturnsFreshUtf8() {
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2, false);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2, false);
     UTF8BytesString a = h.register("a");
     UTF8BytesString b = h.register("b");
     UTF8BytesString c = h.register("c");
@@ -192,7 +192,7 @@ class CardinalityHandlerTest {
   void propertyOverLimitWithSentinelDisabledReusesPriorCycleInstances() {
     // Prior-cycle reuse runs in disabled mode too: a value that was seen last cycle but is now
     // over-budget still gets its prior-cycle UTF8BytesString back instead of an allocation.
-    PropertyCardinalityHandler h = new PropertyCardinalityHandler(2, false);
+    PropertyCardinalityHandler h = new PropertyCardinalityHandler("test", 2, false);
     UTF8BytesString cBeforeReset = h.register("c");
 
     h.reset();

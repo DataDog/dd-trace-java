@@ -112,7 +112,7 @@ public abstract class HealthMetrics implements AutoCloseable {
    * affected tag at cycle reset, so the implementation can do a single counter update rather than
    * one per blocked value.
    */
-  public void onTagCardinalityBlocked(String tag, long count) {}
+  public void onTagCardinalityBlocked(String[] statsDTag, long count) {}
 
   /**
    * @return Human-readable summary of the current health metrics.

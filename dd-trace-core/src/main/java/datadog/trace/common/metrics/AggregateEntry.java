@@ -15,14 +15,15 @@ import javax.annotation.Nullable;
  * Aggregator hashtable entry: UTF8 label fields + counter/histogram state; hashing runs after
  * canonicalization so overflow values collapse to a shared sentinel bucket rather than fragmenting.
  * Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
- * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are static).
+ * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
+ * static).
  */
 final class AggregateEntry extends Hashtable.Entry {
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
-  private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
+  private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
   // Frozen at first AggregateEntry class-load; construct handlers with explicit useBlockedSentinel
   // args in tests rather than trying to flip this via Config.
@@ -31,23 +32,29 @@ final class AggregateEntry extends Hashtable.Entry {
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler OPERATION_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "operation", MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "service_source", MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
   static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "span_kind", MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "http_method", MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
   static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
   static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
+      new PropertyCardinalityHandler(
+          "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -269,21 +276,23 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
-    reportIfBlocked(healthMetrics, "resource", RESOURCE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "service", SERVICE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "operation", OPERATION_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "service_source", SERVICE_SOURCE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "type", TYPE_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "span_kind", SPAN_KIND_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "http_method", HTTP_METHOD_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "http_endpoint", HTTP_ENDPOINT_HANDLER.reset());
-    reportIfBlocked(healthMetrics, "grpc_status_code", GRPC_STATUS_CODE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, RESOURCE_HANDLER);
+    reportIfBlocked(healthMetrics, SERVICE_HANDLER);
+    reportIfBlocked(healthMetrics, OPERATION_HANDLER);
+    reportIfBlocked(healthMetrics, SERVICE_SOURCE_HANDLER);
+    reportIfBlocked(healthMetrics, TYPE_HANDLER);
+    reportIfBlocked(healthMetrics, SPAN_KIND_HANDLER);
+    reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
+    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
+    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
     PeerTagSchema.INTERNAL.resetCardinalityHandlers();
   }
 
-  private static void reportIfBlocked(HealthMetrics healthMetrics, String field, long blocked) {
+  private static void reportIfBlocked(
+      HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
+    long blocked = handler.reset();
     if (blocked > 0) {
-      healthMetrics.onTagCardinalityBlocked(field, blocked);
+      healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
   }
 
@@ -356,7 +365,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * predicate rather than comparing against {@code EMPTY} directly.
    */
   boolean hasServiceSource() {
-    return serviceSource != UTF8BytesString.EMPTY;
+    return serviceSource.length() > 0;
   }
 
   UTF8BytesString getType() {
@@ -375,7 +384,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * Whether the snapshot carried an HTTP method. See {@link #hasServiceSource} for the contract.
    */
   boolean hasHttpMethod() {
-    return httpMethod != UTF8BytesString.EMPTY;
+    return httpMethod.length() > 0;
   }
 
   UTF8BytesString getHttpEndpoint() {
@@ -386,7 +395,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * Whether the snapshot carried an HTTP endpoint. See {@link #hasServiceSource} for the contract.
    */
   boolean hasHttpEndpoint() {
-    return httpEndpoint != UTF8BytesString.EMPTY;
+    return httpEndpoint.length() > 0;
   }
 
   UTF8BytesString getGrpcStatusCode() {
@@ -398,7 +407,7 @@ final class AggregateEntry extends Hashtable.Entry {
    * contract.
    */
   boolean hasGrpcStatusCode() {
-    return grpcStatusCode != UTF8BytesString.EMPTY;
+    return grpcStatusCode.length() > 0;
   }
 
   int getHttpStatusCode() {
@@ -484,7 +493,7 @@ final class AggregateEntry extends Hashtable.Entry {
               httpStatusCode,
               synthetic,
               traceRoot,
-              peerTagsBuffer != null ? peerTagsBuffer : EMPTY_PEER_TAGS,
+              peerTagsBuffer != null ? peerTagsBuffer : EMPTY_TAGS,
               peerTagsSize);
     }
 

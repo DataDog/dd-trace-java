@@ -18,6 +18,7 @@ import java.util.Arrays;
  */
 final class TagCardinalityHandler {
   private final String tag;
+  private String[] statsDTag = null;
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -124,6 +125,13 @@ final class TagCardinalityHandler {
 
     this.cacheBlocked = cacheBlocked = UTF8BytesString.create(this.tag + ":blocked_by_tracer");
     return cacheBlocked;
+  }
+
+  String[] statsDTag() {
+    if (statsDTag == null) {
+      statsDTag = new String[] {"tag:" + tag};
+    }
+    return statsDTag;
   }
 
   /**

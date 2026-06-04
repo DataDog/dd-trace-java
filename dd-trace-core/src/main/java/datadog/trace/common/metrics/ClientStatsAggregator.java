@@ -279,7 +279,9 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
         boolean isTopLevel = span.isTopLevel();
         if (shouldComputeMetric(span, isTopLevel)) {
           final CharSequence resourceName = span.getResourceName();
-          if (resourceName != null && ignoredResources.contains(resourceName.toString())) {
+          if (!ignoredResources.isEmpty()
+              && resourceName != null
+              && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
             forceKeep = false;
             break;
