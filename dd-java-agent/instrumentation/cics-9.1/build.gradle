@@ -6,9 +6,18 @@ ext {
   cicsSdkName = 'CICS_TG_SDK_91_Unix'
 }
 
+def massArtifactUrl = { String upstreamArtifactUrl ->
+  def massReadUrl = providers.environmentVariable('MASS_READ_URL').orNull
+  if (massReadUrl == null) {
+    return "https://${upstreamArtifactUrl}"
+  }
+  def baseUrl = massReadUrl.endsWith('/') ? massReadUrl : "${massReadUrl}/"
+  return "${baseUrl}internal/artifact/${upstreamArtifactUrl}"
+}
+
 repositories {
   ivy {
-    url = 'https://public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/'
+    url = massArtifactUrl('public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/')
     patternLayout {
       artifact '[module].[ext]'
     }

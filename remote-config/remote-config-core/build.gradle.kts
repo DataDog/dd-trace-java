@@ -41,4 +41,9 @@ dependencies {
   implementation(project(":utils:logging-utils"))
 
   testImplementation(project(":utils:test-utils"))
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.bundles.mockito)
+  testImplementation(libs.tabletest)
+  testImplementation(libs.assertj.core)
+  testImplementation(libs.json.unit.assertj)
 }
