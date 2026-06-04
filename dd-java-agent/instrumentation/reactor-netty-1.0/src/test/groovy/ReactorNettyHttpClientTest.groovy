@@ -1,5 +1,6 @@
 import datadog.environment.JavaVirtualMachine
 import datadog.trace.agent.test.base.HttpClientTest
+import datadog.trace.agent.test.utils.PortUtils
 import datadog.trace.agent.test.naming.TestingNettyHttpNamingConventions
 import datadog.trace.instrumentation.netty41.client.NettyHttpClientDecorator
 import io.netty.handler.codec.http.HttpMethod
@@ -68,6 +69,40 @@ class ReactorNettyHttpClientTest extends HttpClientTest implements TestingNettyH
   @Override
   boolean testConnectionFailure() {
     false
+  }
+
+  def "connection error produces netty.connect error span"() {
+    given:
+    def uri = new URI("http://localhost:${PortUtils.UNUSABLE_PORT}/")
+
+    when:
+    runUnderTrace("parent") {
+      httpClient.get()
+        .uri(uri)
+        .responseSingle({ r, b -> b.asString() })
+        .block()
+    }
+
+    then:
+    def ex = thrown(Exception)
+    assertTraces(1) {
+      trace(2) {
+        basicSpan(it, "parent", null, ex)
+        span {
+          operationName "netty.connect"
+          resourceName "netty.connect"
+          childOf span(0)
+          errored true
+          tags {
+            "component" "netty"
+            "error.type" String
+            "error.message" String
+            "error.stack" String
+            defaultTags()
+          }
+        }
+      }
+    }
   }
 
   @Override
