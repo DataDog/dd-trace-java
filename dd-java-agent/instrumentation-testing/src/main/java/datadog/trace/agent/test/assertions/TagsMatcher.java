@@ -5,7 +5,9 @@ import static datadog.trace.agent.test.assertions.Matchers.is;
 import static datadog.trace.agent.test.assertions.Matchers.isNonNull;
 import static datadog.trace.api.DDTags.BASE_SERVICE;
 import static datadog.trace.api.DDTags.DD_INTEGRATION;
+import static datadog.trace.api.DDTags.DD_SVC_SRC;
 import static datadog.trace.api.DDTags.DJM_ENABLED;
+import static datadog.trace.api.DDTags.PEER_SERVICE_SOURCE;
 import static datadog.trace.api.DDTags.DSM_ENABLED;
 import static datadog.trace.api.DDTags.ERROR_MSG;
 import static datadog.trace.api.DDTags.ERROR_STACK;
@@ -22,7 +24,10 @@ import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.DDTags.THREAD_ID;
 import static datadog.trace.api.DDTags.THREAD_NAME;
 import static datadog.trace.api.DDTags.TRACER_HOST;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.PEER_SERVICE;
 import static datadog.trace.common.sampling.RateByServiceTraceSampler.SAMPLING_AGENT_RATE;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_LIMIT_RATE;
+import static datadog.trace.common.sampling.RuleBasedTraceSampler.SAMPLING_RULE_RATE;
 import static datadog.trace.common.writer.ddagent.TraceMapper.SAMPLING_PRIORITY_KEY;
 
 import java.util.HashMap;
@@ -42,8 +47,11 @@ public final class TagsMatcher {
     tagMatchers.put(RUNTIME_ID_TAG, any());
     tagMatchers.put(LANGUAGE_TAG_KEY, any());
     tagMatchers.put(SAMPLING_AGENT_RATE, any());
+    tagMatchers.put(SAMPLING_LIMIT_RATE, any());
+    tagMatchers.put(SAMPLING_RULE_RATE, any());
     tagMatchers.put(SAMPLING_PRIORITY_KEY.toString(), any());
     tagMatchers.put("_sample_rate", any());
+    tagMatchers.put("env", any());
     tagMatchers.put(PID_TAG, any());
     tagMatchers.put(SCHEMA_VERSION_TAG_KEY, any());
     tagMatchers.put(PROFILING_ENABLED, any());
@@ -55,6 +63,9 @@ public final class TagsMatcher {
     tagMatchers.put(SPAN_LINKS, any()); // this is checked by LinksAsserter
     tagMatchers.put(DD_INTEGRATION, any());
     tagMatchers.put(TRACER_HOST, any());
+    tagMatchers.put(DD_SVC_SRC, any());
+    tagMatchers.put(PEER_SERVICE, any());
+    tagMatchers.put(PEER_SERVICE_SOURCE, any());
 
     for (String tagName : REQUIRED_CODE_ORIGIN_TAGS) {
       tagMatchers.put(tagName, any());

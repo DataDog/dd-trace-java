@@ -1,0 +1,36 @@
+muzzle {
+  pass {
+    group = "redis.clients"
+    module = "jedis"
+    versions = "[3.0.0,4.0.0)"
+    skipVersions += "jedis-3.6.2"
+  }
+  fail {
+    group = "redis.clients"
+    module = "jedis"
+    versions = "[,3.0.0)"
+    skipVersions += "jedis-3.6.2"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuiteForDir('latestDepTest', 'test')
+
+// Ensure tracing is enabled in tests even if DD_TRACE_ENABLED=false is set in the environment
+tasks.withType(Test).configureEach {
+  jvmArgs "-Ddd.trace.enabled=true"
+}
+
+dependencies {
+  compileOnly group: 'redis.clients', name: 'jedis', version: '3.0.0'
+  testImplementation group: 'redis.clients', name: 'jedis', version: '3.0.0'
+
+  testImplementation (group: 'com.github.codemonstur', name: 'embedded-redis', version: '1.4.3') {
+    // Excluding redis client to avoid conflicts in instrumentation code.
+    exclude group: 'redis.clients', module: 'jedis'
+  }
+
+  // Jedis 4.0 has API changes that prevent this instrumentation from applying
+  latestDepTestImplementation group: 'redis.clients', name: 'jedis', version: '3.+'
+}
