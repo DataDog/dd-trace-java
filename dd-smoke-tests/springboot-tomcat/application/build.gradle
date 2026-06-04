@@ -1,6 +1,7 @@
 plugins {
   id 'war'
   id 'org.springframework.boot' version '2.5.12'
+  id 'dd-trace-java.mass'
 }
 
 def sharedRootDir = "$rootDir/../../../"
@@ -28,18 +29,9 @@ ext {
   serverExtension = 'zip'
 }
 
-def massArtifactUrl = { String upstreamArtifactUrl ->
-  def massReadUrl = providers.environmentVariable('MASS_READ_URL').orNull
-  if (massReadUrl == null) {
-    return "https://${upstreamArtifactUrl}"
-  }
-  def baseUrl = massReadUrl.endsWith('/') ? massReadUrl : "${massReadUrl}/"
-  return "${baseUrl}internal/artifact/${upstreamArtifactUrl}"
-}
-
 repositories {
   ivy {
-    url = massArtifactUrl('dlcdn.apache.org')
+    url = mass.artifactUrl('dlcdn.apache.org')
     patternLayout {
       artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
     }
