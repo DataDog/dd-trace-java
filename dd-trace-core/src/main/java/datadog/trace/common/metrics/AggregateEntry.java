@@ -134,6 +134,17 @@ final class AggregateEntry extends Hashtable.Entry {
     GRPC_STATUS_CODE_HANDLER,
   };
 
+  // Pre-built StatsD tag arrays for each property handler — avoids per-reset allocation.
+  private static final String[] RESOURCE_STATS_TAG = {"tag:resource"};
+  private static final String[] SERVICE_STATS_TAG = {"tag:service"};
+  private static final String[] OPERATION_STATS_TAG = {"tag:operation"};
+  private static final String[] SERVICE_SOURCE_STATS_TAG = {"tag:service_source"};
+  private static final String[] TYPE_STATS_TAG = {"tag:type"};
+  private static final String[] SPAN_KIND_STATS_TAG = {"tag:span_kind"};
+  private static final String[] HTTP_METHOD_STATS_TAG = {"tag:http_method"};
+  private static final String[] HTTP_ENDPOINT_STATS_TAG = {"tag:http_endpoint"};
+  private static final String[] GRPC_STATUS_CODE_STATS_TAG = {"tag:grpc_status_code"};
+
   final UTF8BytesString resource;
   final UTF8BytesString service;
   final UTF8BytesString operationName;
@@ -278,20 +289,22 @@ final class AggregateEntry extends Hashtable.Entry {
   }
 
   static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
-    for (PropertyCardinalityHandler handler : FIELD_HANDLERS) {
-      reportIfBlocked(healthMetrics, handler);
-    }
-    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
+    reportIfBlocked(healthMetrics, RESOURCE_STATS_TAG, RESOURCE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, SERVICE_STATS_TAG, SERVICE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, OPERATION_STATS_TAG, OPERATION_HANDLER.reset());
+    reportIfBlocked(healthMetrics, SERVICE_SOURCE_STATS_TAG, SERVICE_SOURCE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, TYPE_STATS_TAG, TYPE_HANDLER.reset());
+    reportIfBlocked(healthMetrics, SPAN_KIND_STATS_TAG, SPAN_KIND_HANDLER.reset());
+    reportIfBlocked(healthMetrics, HTTP_METHOD_STATS_TAG, HTTP_METHOD_HANDLER.reset());
+    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_STATS_TAG, HTTP_ENDPOINT_HANDLER.reset());
+    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_STATS_TAG, GRPC_STATUS_CODE_HANDLER.reset());
+    PeerTagSchema.INTERNAL.resetCardinalityHandlers();
   }
 
   private static void reportIfBlocked(
-      HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
-    long blocked = handler.reset();
+      HealthMetrics healthMetrics, String[] statsDTag, long blocked) {
     if (blocked > 0) {
-      log.warn(
-          "Cardinality limit reached for stats field '{}'; further values will be reported as tracer_blocked_value",
-          handler.name);
-      healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
+      healthMetrics.onTagCardinalityBlocked(statsDTag, blocked);
     }
   }
 

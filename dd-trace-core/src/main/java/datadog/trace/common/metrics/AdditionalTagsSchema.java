@@ -120,7 +120,7 @@ final class AdditionalTagsSchema {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();
       if (blocked > 0) {
-        healthMetrics.onTagCardinalityBlocked(names[i], blocked);
+        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag, blocked);
       }
     }
   }
