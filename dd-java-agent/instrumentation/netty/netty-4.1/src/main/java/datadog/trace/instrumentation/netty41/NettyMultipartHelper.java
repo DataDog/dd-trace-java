@@ -33,8 +33,15 @@ public final class NettyMultipartHelper {
       List<String> filesContent) {
     RuntimeException exc = null;
     for (InterfaceHttpData data : parts) {
-      if (attributes != null
-          && data.getHttpDataType() == InterfaceHttpData.HttpDataType.Attribute) {
+      InterfaceHttpData.HttpDataType dataType;
+      try {
+        dataType = data.getHttpDataType();
+      } catch (UnsupportedOperationException ignored) {
+        // Some framework-specific implementations (e.g. Vert.x NettyFileUpload) do not support
+        // getHttpDataType() - skip them; their framework's own instrumentation handles them.
+        continue;
+      }
+      if (attributes != null && dataType == InterfaceHttpData.HttpDataType.Attribute) {
         String name = data.getName();
         List<String> values = attributes.get(name);
         if (values == null) {
@@ -45,7 +52,7 @@ public final class NettyMultipartHelper {
         } catch (IOException e) {
           exc = new UndeclaredThrowableException(e);
         }
-      } else if (data.getHttpDataType() == InterfaceHttpData.HttpDataType.FileUpload) {
+      } else if (dataType == InterfaceHttpData.HttpDataType.FileUpload) {
         FileUpload fileUpload = (FileUpload) data;
         String filename = fileUpload.getFilename();
         if (filenames != null && filename != null && !filename.isEmpty()) {

@@ -3,6 +3,7 @@ package datadog.buildlogic.smoketest
 import org.assertj.core.api.Assertions.assertThat
 import org.gradle.testkit.runner.GradleRunner
 import org.gradle.testkit.runner.TaskOutcome
+import org.gradle.tooling.internal.consumer.DefaultGradleConnector
 import org.junit.jupiter.api.BeforeEach
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.io.TempDir
@@ -10,6 +11,7 @@ import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.Arguments
 import org.junit.jupiter.params.provider.MethodSource
 import java.io.File
+import java.nio.file.Files
 import java.nio.file.Path
 
 /**
@@ -161,6 +163,76 @@ class SmokeTestAppEndToEndTest {
     val result = runner("customBuild").build()
 
     assertThat(result.task(":customBuild")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+  }
+
+  @Test
+  fun `nested build clears inherited Gradle launcher environment`() {
+    writeOuterSettings()
+    val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
+    inheritedGradleUserHome.mkdirs()
+    outerBuild.writeText(
+      """
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("recordGradleEnvironment")
+          artifactPath.set("gradle-env.txt")
+          sysProperty.set("gradle.env.path")
+        }
+      }
+      """.trimIndent(),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordGradleEnvironment") {
+        val out = layout.buildDirectory.file("gradle-env.txt")
+        outputs.file(out)
+        doLast {
+          out.get().asFile.writeText(
+            listOf(
+              "GRADLE_ARGS=${'$'}{System.getenv("GRADLE_ARGS") ?: "<null>"}",
+              "GRADLE_OPTS=${'$'}{System.getenv("GRADLE_OPTS") ?: "<null>"}",
+              "GRADLE_USER_HOME=${'$'}{System.getenv("GRADLE_USER_HOME") ?: "<null>"}",
+              "gradleUserHomeDir=${'$'}{gradle.gradleUserHomeDir.absolutePath}",
+            ).joinToString(System.lineSeparator())
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "recordGradleEnvironment",
+      environment = mapOf(
+        "GRADLE_ARGS" to "--info",
+        "GRADLE_OPTS" to "-Ddd.test.gradle.opts=inherited",
+        "GRADLE_USER_HOME" to inheritedGradleUserHome.absolutePath,
+      ),
+    ).build()
+
+    assertThat(result.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val envFile = File(projectDir.toFile(), "build/application/gradle-env.txt")
+    assertThat(envFile).exists()
+    val lines = envFile.readLines()
+    assertThat(lines).contains(
+      "GRADLE_ARGS=",
+      "GRADLE_OPTS=",
+    )
+    val gradleUserHomeEnv = lines.single { it.startsWith("GRADLE_USER_HOME=") }
+      .substringAfter("=")
+    val gradleUserHomeDir = lines.single { it.startsWith("gradleUserHomeDir=") }
+      .substringAfter("=")
+    assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
+    assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
+    assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 
   /**
@@ -336,12 +408,27 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
-  private fun runner(vararg args: String): GradleRunner =
+  private fun runner(
+    vararg args: String,
+    environment: Map<String, String>? = null,
+  ): GradleRunner =
     GradleRunner.create()
       .withProjectDir(projectDir.toFile())
       .withPluginClasspath()
       .withArguments(*args, "--stacktrace")
+      .withEnvironment(sanitizedGradleEnvironment(environment))
       .forwardOutput()
+
+  private fun sanitizedGradleEnvironment(
+    overrides: Map<String, String>? = null,
+  ): Map<String, String> =
+    System.getenv() +
+      mapOf(
+        "GRADLE_ARGS" to "",
+        "GRADLE_OPTS" to "",
+        "GRADLE_USER_HOME" to outerGradleUserHome.absolutePath,
+      ) +
+      (overrides ?: emptyMap())
 
   private fun currentMajorJdk(): Int =
     System.getProperty("java.specification.version").let {
@@ -349,6 +436,19 @@ class SmokeTestAppEndToEndTest {
     }
 
   companion object {
+    private val outerGradleUserHome: File by lazy {
+      Files.createTempDirectory("smoke-test-app-gradle-user-home-").toFile().also { dir ->
+        Runtime.getRuntime().addShutdownHook(Thread {
+          try {
+            DefaultGradleConnector.close()
+          } catch (_: Exception) {
+            // best effort
+          }
+          dir.deleteRecursively()
+        })
+      }
+    }
+
     @JvmStatic
     fun buildCacheFlagCases(): List<Arguments> = listOf(
       // (scenario name, DSL line added to the `application { … }` block, expected
