@@ -119,5 +119,6 @@ final class AdditionalTagsSchema {
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }
     }
+    warnedCardinality.clear();
   }
 }

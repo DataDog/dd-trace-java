@@ -26,7 +26,7 @@ import java.util.Arrays;
  * and reuses any matching {@link UTF8BytesString} when a value first appears in the new cycle.
  */
 final class PropertyCardinalityHandler {
-  private final String name;
+  final String name;
   private final int cardinalityLimit;
   private final int capacityMask;
 
@@ -49,6 +49,7 @@ final class PropertyCardinalityHandler {
 
   private UTF8BytesString cacheBlocked = null;
   private String[] statsDTag = null;
+  private boolean warnedThisCycle = false;
 
   /** Accumulated block count for the current cycle. Returned and zeroed by {@link #reset()}. */
   private long blockedCount;
@@ -159,9 +160,17 @@ final class PropertyCardinalityHandler {
     return statsDTag;
   }
 
+  // Returns true once per cycle when cardinality is first exceeded; gates the warn log in callers.
+  boolean shouldWarnThisCycle() {
+    if (warnedThisCycle) return false;
+    warnedThisCycle = true;
+    return true;
+  }
+
   long reset() {
     long count = this.blockedCount;
     this.blockedCount = 0;
+    this.warnedThisCycle = false;
     // Flip pointers: the just-completed cycle becomes prior; what was prior (2 cycles ago) is
     // recycled into the new (empty) current.
     final UTF8BytesString[] tmp = this.priorValues;

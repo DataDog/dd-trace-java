@@ -255,6 +255,11 @@ final class AggregateEntry extends Hashtable.Entry {
       HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
     long blocked = handler.reset();
     if (blocked > 0) {
+      if (handler.shouldWarnThisCycle()) {
+        log.warn(
+            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+            handler.name);
+      }
       healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
   }
