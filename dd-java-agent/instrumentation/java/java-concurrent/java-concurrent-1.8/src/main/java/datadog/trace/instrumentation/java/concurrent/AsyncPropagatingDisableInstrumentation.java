@@ -47,6 +47,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       namedOneOf("reactor.core.scheduler.SchedulerTask", "reactor.core.scheduler.WorkerTask");
   private static final ElementMatcher<TypeDescription> RXJAVA2_DISABLED_TYPE_INITIALIZERS =
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
+  private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
+      extendsClass(named("java.net.http.HttpClient"));
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -84,7 +86,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.springframework.jms.listener.DefaultMessageListenerContainer",
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
-      "io.reactivex.internal.schedulers.AbstractDirectTask"
+      "io.reactivex.internal.schedulers.AbstractDirectTask",
+      "jdk.internal.net.http.HttpClientImpl"
     };
   }
 
@@ -98,7 +101,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     return RX_WORKERS
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
-        .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS);
+        .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
+        .or(JAVA_HTTP_CLIENT);
   }
 
   @Override
@@ -192,6 +196,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         isTypeInitializer().and(isDeclaredBy(REACTOR_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
+    transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
   }
 
   public static class DisableAsyncAdvice {

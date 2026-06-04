@@ -23,7 +23,6 @@ include:
 stages:
   - build
   - publish
-  # These benchmarks are intended to replace the legacy benchmarks in the future
   - java-spring-petclinic-parallel
   - java-spring-petclinic-parallel-slo
   - java-startup-parallel
@@ -224,6 +223,7 @@ default:
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      org.gradle.console=colored
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
@@ -461,6 +461,7 @@ test_published_artifacts:
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx2G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew publishToMavenLocal $GRADLE_ARGS
     - cd test-published-dependencies
+    - printf '\norg.gradle.console=colored\n' >> gradle.properties
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms1G -Xmx1G -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
     - ./gradlew --version
     - ./gradlew check --info $GRADLE_ARGS

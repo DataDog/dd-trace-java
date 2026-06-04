@@ -12,9 +12,18 @@ ext {
   serverExtension = 'zip'
 }
 
+def massArtifactUrl = { String upstreamArtifactUrl ->
+  def massReadUrl = providers.environmentVariable('MASS_READ_URL').orNull
+  if (massReadUrl == null) {
+    return "https://${upstreamArtifactUrl}"
+  }
+  def baseUrl = massReadUrl.endsWith('/') ? massReadUrl : "${massReadUrl}/"
+  return "${baseUrl}internal/artifact/${upstreamArtifactUrl}"
+}
+
 repositories {
   ivy {
-    url = 'https://github.com/wildfly/wildfly/releases/download/'
+    url = massArtifactUrl('github.com/wildfly/wildfly/releases/download/')
     // Restrict this repository to WildFly distribution artifacts only.
     // Without this filter, Gradle may probe this host for unrelated dependencies
     // (for example JUnit/Mockito), which makes the build flaky when the host is unreachable.
