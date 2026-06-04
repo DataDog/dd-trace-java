@@ -7,6 +7,7 @@ import static org.junit.jupiter.params.provider.Arguments.arguments;
 import datadog.trace.junit.utils.tabletest.BoxedValueConverter;
 import java.util.Arrays;
 import java.util.BitSet;
+import java.util.Collections;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
@@ -97,7 +98,7 @@ public class ConfigSettingTest {
         arguments(Arrays.asList(1.0f, 22.23d, 3.1415d), "1.0,22.23,3.1415"),
         arguments(mapStringInt, "a:1,b:2"),
         arguments(mapStringString, "a:1,b:2"),
-        arguments(new LinkedHashMap<>(), ""),
+        arguments(Collections.emptyMap(), ""),
         arguments(Arrays.<String>asList(), ""),
         arguments(bitSetIntervals(), "33,200-300,303,400-500"));
   }
