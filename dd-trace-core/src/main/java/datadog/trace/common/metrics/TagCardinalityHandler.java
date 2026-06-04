@@ -81,7 +81,7 @@ final class TagCardinalityHandler {
 
     int slot = start;
     String curKey;
-    while ((curKey = this.curKeys[slot]) != null && !curKey.equals(value)) {
+    while ((curKey = this.curKeys[slot]) != null && curKey != value && !curKey.equals(value)) {
       slot = (slot + 1) & this.capacityMask;
     }
     if (curKey != null) {
@@ -94,7 +94,9 @@ final class TagCardinalityHandler {
     }
     int priorSlot = start;
     String priorKey;
-    while ((priorKey = this.priorKeys[priorSlot]) != null && !priorKey.equals(value)) {
+    while ((priorKey = this.priorKeys[priorSlot]) != null
+        && priorKey != value
+        && !priorKey.equals(value)) {
       priorSlot = (priorSlot + 1) & this.capacityMask;
     }
     UTF8BytesString utf8 =
