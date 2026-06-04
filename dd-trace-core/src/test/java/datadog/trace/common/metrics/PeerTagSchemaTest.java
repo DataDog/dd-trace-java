@@ -13,11 +13,6 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 import org.junit.jupiter.api.Test;
 
-/**
- * Unit tests for {@link PeerTagSchema}. Covers the {@link PeerTagSchema#hasSameTagsAs(Set)}
- * predicate that drives the aggregator's reconcile fast/slow path split, the factory shapes, and
- * the {@link PeerTagSchema#INTERNAL} singleton.
- */
 class PeerTagSchemaTest {
 
   @Test

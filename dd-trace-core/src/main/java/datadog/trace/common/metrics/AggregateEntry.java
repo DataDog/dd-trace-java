@@ -12,55 +12,10 @@ import java.util.List;
 import javax.annotation.Nullable;
 
 /**
- * Hashtable entry for the consumer-side aggregator. Holds the UTF8-encoded label fields (the data
- * {@link SerializingMetricWriter} writes to the wire) plus the mutable counter / histogram state
- * for the key.
- *
- * <p>UTF8 canonicalization runs through per-field {@link PropertyCardinalityHandler}s (and {@link
- * TagCardinalityHandler}s for peer tags), which combine a UTF8 reuse cache with an optional
- * per-cycle cardinality limit (see {@link #LIMITS_ENABLED}). The critical property: hashing and
- * matching happen <b>after</b> canonicalization, so when limits are enabled and a field's budget is
- * exhausted, overflow values collapse to a {@code blocked_by_tracer} sentinel and land in the same
- * bucket rather than fragmenting. When limits are disabled (the default), the cache size is still
- * capped at the same budget but over-cap values get freshly-allocated {@link UTF8BytesString}s and
- * flow to distinct buckets.
- *
- * <p>The aggregator thread is the sole writer. {@link AggregateTable} holds a reusable {@link
- * Canonical} scratch buffer so the canonicalization itself doesn't allocate per lookup; on a miss
- * the buffer's references are copied into a fresh entry. On a hit nothing is allocated.
- *
- * <p>The handlers are reset on the aggregator thread every reporting cycle via {@link
- * #resetCardinalityHandlers()}.
- *
- * <p><b>Deliberate cohesion.</b> This class concentrates the per-field {@code
- * PropertyCardinalityHandler}/{@code TagCardinalityHandler} infrastructure, the canonicalized label
- * fields, the encoded {@code peerTags} list used by the serializer, the {@link Canonical} scratch
- * buffer, and the mutable counter/histogram aggregate state on a single object. The prior design
- * split label fields and aggregate state across separate {@code MetricKey} and {@code
- * AggregateMetric} instances, allocating both per unique key on miss; folding them yields one
- * allocation per unique key. The class is wider than its predecessors as a result, but that's the
- * trade we explicitly chose.
- *
- * <p><b>Thread-safety:</b> not thread-safe. Counter and histogram updates, cardinality-handler
- * registration, and {@link Canonical} use all run on the aggregator thread. Producer threads tag
- * durations via {@link #ERROR_TAG} / {@link #TOP_LEVEL_TAG} bits and hand them off through the
- * snapshot inbox. Test code uses {@link #of} which constructs entries without touching the
- * cardinality handlers.
- *
- * <p><b>Single-writer invariant relies on convention.</b> The aggregator thread is the only mutator
- * of this class and of {@link AggregateTable}. Nothing enforces this at runtime -- a stray mutation
- * from a different thread (e.g. an HTTP-client callback) would corrupt counters, cardinality-
- * handler state, or hashtable chains silently. The {@code ClearSignal} routing in {@link
- * Aggregator} is the explicit mechanism for funneling cross-thread requests (e.g. {@code
- * disable()}) back onto the aggregator thread; any new entry point that mutates aggregate state
- * must do the same.
- *
- * <p><b>One {@link ClientStatsAggregator} per JVM.</b> The {@code RESOURCE_HANDLER}/{@code
- * SERVICE_HANDLER}/... fields and {@link PeerTagSchema#INTERNAL} are {@code static}, so all
- * aggregator instances in a JVM share the same per-field cardinality budgets and {@code
- * blocked_by_tracer} sentinels. Production wires up exactly one aggregator (see {@link
- * MetricsAggregatorFactory}); tests that exercise this class must call {@link
- * #resetCardinalityHandlers()} in their setup to avoid cross-test pollution.
+ * Aggregator hashtable entry: UTF8 label fields + counter/histogram state; hashing runs after
+ * canonicalization so overflow values collapse to a shared sentinel bucket rather than fragmenting.
+ * Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
+ * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are static).
  */
 final class AggregateEntry extends Hashtable.Entry {
 
@@ -69,35 +24,8 @@ final class AggregateEntry extends Hashtable.Entry {
 
   private static final UTF8BytesString[] EMPTY_PEER_TAGS = new UTF8BytesString[0];
 
-  /**
-   * Whether cardinality limits substitute the {@code blocked_by_tracer} sentinel when a per-field
-   * budget is exhausted. Read once at class init from {@link
-   * Config#isTraceStatsCardinalityLimitsEnabled()} ({@code trace.stats.cardinality.limits.enabled},
-   * default {@code false}) and threaded through every {@link PropertyCardinalityHandler} and {@link
-   * TagCardinalityHandler} the class owns. With the flag off, the per-field tables still cap their
-   * cache size at the same budget but over-cap values get freshly-allocated {@link
-   * UTF8BytesString}s instead of the sentinel -- so the wire format never carries a {@code
-   * blocked_by_tracer} value and entries don't collapse into a shared bucket.
-   *
-   * <p><b>Over-cap repeat tradeoff in disabled mode.</b> When the cap is exhausted and the flag is
-   * off, over-cap values are not written into the current-cycle cache (it's full). A repeat of the
-   * same over-cap value within the same cycle therefore re-walks both probe chains and allocates a
-   * fresh {@code UTF8BytesString} -- it cannot promote into the cache to amortize subsequent calls.
-   * The typical "stable working set + occasional outliers" workload is unaffected (working set fits
-   * in the cap and stays cached); a workload with repeating over-cap values pays one allocation per
-   * repeat. The prior cap sizing in {@link MetricCardinalityLimits} was chosen for the limiter role
-   * and is appropriately conservative; if production shows cache thrashing in disabled mode, widen
-   * the limits via a follow-up rather than changing the eviction strategy here.
-   *
-   * <p><b>Class-init caveat.</b> This field is {@code static final}, so its value is frozen for the
-   * JVM at the first reference to {@code AggregateEntry}. Tests that want to exercise the
-   * limits-enabled code path through {@link #RESOURCE_HANDLER} / {@link #SERVICE_HANDLER} / etc.
-   * can't simply set Config and reload -- the static field captures whatever Config returned the
-   * first time the class loaded. Construct {@link PropertyCardinalityHandler} or {@link
-   * TagCardinalityHandler} directly with explicit {@code useBlockedSentinel} args (the convenience
-   * constructors default to {@code true} for this reason) when targeted limits-on testing is
-   * needed.
-   */
+  // Frozen at first AggregateEntry class-load; construct handlers with explicit useBlockedSentinel
+  // args in tests rather than trying to flip this via Config.
   static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
 
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
