@@ -68,9 +68,6 @@ final class AggregateEntry extends Hashtable.Entry {
    */
   static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
 
-  /** Shared empty array for entries with no additional-tags schema configured. */
-  private static final UTF8BytesString[] EMPTY_ADDITIONAL_TAGS = new UTF8BytesString[0];
-
   // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
   // per-field rationale.
   static final PropertyCardinalityHandler RESOURCE_HANDLER =
@@ -211,7 +208,7 @@ final class AggregateEntry extends Hashtable.Entry {
             traceRoot,
             peerTagsArr,
             peerTagsArr.length,
-            EMPTY_ADDITIONAL_TAGS,
+            EMPTY_TAGS,
             0);
     return new AggregateEntry(
         keyHash,
@@ -228,7 +225,7 @@ final class AggregateEntry extends Hashtable.Entry {
         synthetic,
         traceRoot,
         peerTagsList,
-        EMPTY_ADDITIONAL_TAGS);
+        EMPTY_TAGS);
   }
 
   /**
@@ -629,7 +626,7 @@ final class AggregateEntry extends Hashtable.Entry {
           httpStatusCode,
           synthetic,
           traceRoot,
-          peerTagsBuffer != null ? peerTagsBuffer : EMPTY_PEER_TAGS,
+          peerTagsBuffer != null ? peerTagsBuffer : EMPTY_TAGS,
           peerTagsSize,
           additionalTagsBuffer,
           additionalTagsSize);
@@ -753,7 +750,7 @@ final class AggregateEntry extends Hashtable.Entry {
       }
       UTF8BytesString[] snapshottedAdditionalTags =
           additionalTagsSize == 0
-              ? EMPTY_ADDITIONAL_TAGS
+              ? EMPTY_TAGS
               : Arrays.copyOf(additionalTagsBuffer, additionalTagsSize);
       return new AggregateEntry(
           keyHash,
