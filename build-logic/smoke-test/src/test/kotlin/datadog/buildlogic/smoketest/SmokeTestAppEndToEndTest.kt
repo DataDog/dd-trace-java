@@ -163,6 +163,63 @@ class SmokeTestAppEndToEndTest {
     assertThat(result.task(":customBuild")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
   }
 
+  @Test
+  fun `nested build clears inherited Gradle launcher environment`() {
+    writeOuterSettings()
+    outerBuild.writeText(
+      """
+      plugins {
+        java
+        id("dd-trace-java.smoke-test-app")
+      }
+
+      smokeTestApp {
+        javaLauncher.set(
+          javaToolchains.launcherFor { languageVersion.set(JavaLanguageVersion.of(${currentMajorJdk()})) }
+        )
+        application {
+          taskName.set("recordGradleEnvironment")
+          artifactPath.set("gradle-env.txt")
+          sysProperty.set("gradle.env.path")
+        }
+      }
+      """.trimIndent(),
+    )
+    writeInnerSettings()
+    writeInnerBuild(
+      """
+      tasks.register("recordGradleEnvironment") {
+        val out = layout.buildDirectory.file("gradle-env.txt")
+        outputs.file(out)
+        doLast {
+          out.get().asFile.writeText(
+            listOf("GRADLE_ARGS", "GRADLE_OPTS")
+              .joinToString(System.lineSeparator()) { key ->
+                "${'$'}key=${'$'}{System.getenv(key) ?: "<null>"}"
+              }
+          )
+        }
+      }
+      """.trimIndent(),
+    )
+
+    val result = runner(
+      "recordGradleEnvironment",
+      environment = mapOf(
+        "GRADLE_ARGS" to "--console=colored",
+        "GRADLE_OPTS" to "-Dorg.gradle.console=colored",
+      ),
+    ).build()
+
+    assertThat(result.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    val envFile = File(projectDir.toFile(), "build/application/gradle-env.txt")
+    assertThat(envFile).exists()
+    assertThat(envFile.readLines()).containsExactly(
+      "GRADLE_ARGS=",
+      "GRADLE_OPTS=",
+    )
+  }
+
   /**
    * `buildCacheEnabled` defaults to `false` and is plumbed through to the nested daemon as
    * an explicit `--no-build-cache` / `--build-cache` argument. The inner build records
@@ -336,11 +393,15 @@ class SmokeTestAppEndToEndTest {
     )
   }
 
-  private fun runner(vararg args: String): GradleRunner =
+  private fun runner(
+    vararg args: String,
+    environment: Map<String, String>? = null,
+  ): GradleRunner =
     GradleRunner.create()
       .withProjectDir(projectDir.toFile())
       .withPluginClasspath()
       .withArguments(*args, "--stacktrace")
+      .apply { if (environment != null) withEnvironment(System.getenv() + environment) }
       .forwardOutput()
 
   private fun currentMajorJdk(): Int =

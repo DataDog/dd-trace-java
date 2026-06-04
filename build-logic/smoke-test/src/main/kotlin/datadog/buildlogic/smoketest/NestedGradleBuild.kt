@@ -104,8 +104,9 @@ abstract class NestedGradleBuild @Inject constructor(
 
   /**
    * Extra environment variables for the nested Gradle daemon. Merged on top of the outer
-   * process environment — set a key to override an inherited value. The nested build script
-   * sees these via `System.getenv()` like any normal environment variable.
+   * process environment after clearing Gradle launcher variables — set a key to override an
+   * inherited value. The nested build script sees these via `System.getenv()` like any normal
+   * environment variable.
    */
   @get:Input
   abstract val environment: MapProperty<String, String>
@@ -161,16 +162,20 @@ abstract class NestedGradleBuild @Inject constructor(
         }
       }
 
-    val extraEnv = environment.get()
-    val mergedEnv: Map<String, String>? =
-      if (extraEnv.isEmpty()) null else System.getenv() + extraEnv
+    val mergedEnv =
+      System.getenv() +
+        mapOf(
+          "GRADLE_ARGS" to "",
+          "GRADLE_OPTS" to "",
+        ) +
+        environment.get()
 
     connector.connect().use { connection ->
       connection.newBuild()
         .forTasks(*tasksToRun.get().toTypedArray())
         .withArguments(args)
         .setJavaHome(daemonJavaHome)
-        .apply { if (mergedEnv != null) setEnvironmentVariables(mergedEnv) }
+        .setEnvironmentVariables(mergedEnv)
         .setStandardOutput(System.out)
         .setStandardError(System.err)
         .run()
