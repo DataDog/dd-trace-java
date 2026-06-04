@@ -31,7 +31,7 @@ scala33 = "3.3.0"
 # Bytecode manipulations & codegen
 autoservice = "1.1.1"
 asm = "9.9.1"
-byte-buddy = "1.18.8"
+byte-buddy = "1.18.9"
 instrument-java = "0.0.3"
 
 # Benchmarks
