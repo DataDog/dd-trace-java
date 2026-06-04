@@ -38,9 +38,9 @@ import org.slf4j.LoggerFactory;
  * the indexing even if the current schema is replaced between capture and consumption.
  *
  * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
- * and {@link #state}) is exercised only on the aggregator thread. {@link
- * #names} and {@link #handlers} are final and safe to read from any thread; producer threads access
- * them through the volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
+ * and {@link #state}) is exercised only on the aggregator thread. {@link #names} and {@link
+ * #handlers} are final and safe to read from any thread; producer threads access them through the
+ * volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
