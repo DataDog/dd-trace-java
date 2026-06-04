@@ -4,19 +4,26 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
+import datadog.trace.junit.utils.tabletest.BoxedValueConverter;
 import java.util.Arrays;
 import java.util.BitSet;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 public class ConfigSettingTest {
 
-  @ParameterizedTest
-  @MethodSource("supportsEqualityCheckArguments")
+  @TableTest({
+    "scenario         | key1 | key2 | value1 | value2 | origin1  | origin2  | expectedEqual",
+    "equal            | key  | key  | value  | value  | DEFAULT  | DEFAULT  | true         ",
+    "different key    | key  | key2 | value  | value  | ENV      | ENV      | false        ",
+    "different value  | key  | key  | value2 | value  | JVM_PROP | JVM_PROP | false        ",
+    "different origin | key  | key  | value  | value  | ENV      | DEFAULT  | false        "
+  })
   void supportsEqualityCheck(
       String key1,
       String key2,
@@ -43,15 +50,6 @@ public class ConfigSettingTest {
     }
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments> supportsEqualityCheckArguments() {
-    return Stream.of(
-        arguments("key", "key", "value", "value", ConfigOrigin.DEFAULT, ConfigOrigin.DEFAULT, true),
-        arguments("key", "key2", "value", "value", ConfigOrigin.ENV, ConfigOrigin.ENV, false),
-        arguments(
-            "key", "key", "value2", "value", ConfigOrigin.JVM_PROP, ConfigOrigin.JVM_PROP, false),
-        arguments("key", "key", "value", "value", ConfigOrigin.ENV, ConfigOrigin.DEFAULT, false));
-  }
-
   @TableTest({
     "scenario             | key                  | value     | filteredValue",
     "DD_API_KEY           | DD_API_KEY           | somevalue | <hidden>     ",
@@ -64,21 +62,18 @@ public class ConfigSettingTest {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
   }
 
-  @ParameterizedTest
-  @MethodSource("supportBasicTypesArguments")
-  void supportBasicTypes(Object value, String rendered) {
+  @TableTest({
+    "scenario | value  | rendered",
+    "null     |        |         ",
+    "boolean  | true   | true    ",
+    "boolean  | false  | false   ",
+    "integer  | 1      | 1       ",
+    "double   | 1.0    | 1.0     ",
+    "float    | 2.33f  | 2.33    ",
+    "string   | string | string  "
+  })
+  void supportBasicTypes(@ConvertWith(BoxedValueConverter.class) Object value, String rendered) {
     assertEquals(rendered, ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue());
-  }
-
-  static Stream<org.junit.jupiter.params.provider.Arguments> supportBasicTypesArguments() {
-    return Stream.of(
-        arguments((Object) null, (String) null),
-        arguments(true, "true"),
-        arguments(false, "false"),
-        arguments(1, "1"),
-        arguments(1.0d, "1.0"),
-        arguments(2.33f, "2.33"),
-        arguments("string", "string"));
   }
 
   @ParameterizedTest

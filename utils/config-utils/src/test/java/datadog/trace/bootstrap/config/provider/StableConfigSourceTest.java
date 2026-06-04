@@ -21,7 +21,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.StandardOpenOption;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
@@ -30,6 +29,7 @@ import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 import org.snakeyaml.engine.v2.api.Dump;
 import org.snakeyaml.engine.v2.api.DumpSettings;
+import org.tabletest.junit.TableTest;
 
 @SuppressForbidden
 public class StableConfigSourceTest extends DDJavaSpecification {
@@ -57,8 +57,11 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
-  @ParameterizedTest
-  @MethodSource("testFileInvalidFormatArguments")
+  @TableTest({
+    "scenario       | configId | data                    ",
+    "corrupt yaml   |          | not_valid_stable_config ",
+    "invalid format | 12345    | this is not yaml format!"
+  })
   void testFileInvalidFormat(String configId, String data) throws IOException {
     Path filePath = Files.createTempFile("testFile_", ".yaml");
     assertNotNull(filePath, "Failed to create: " + filePath);
@@ -72,11 +75,6 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     } finally {
       Files.delete(filePath);
     }
-  }
-
-  static Stream<org.junit.jupiter.params.provider.Arguments> testFileInvalidFormatArguments() {
-    return Stream.of(
-        arguments((String) null, CORRUPT_YAML), arguments("12345", "this is not yaml format!"));
   }
 
   @Test
@@ -100,9 +98,12 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
-  @ParameterizedTest
-  @MethodSource("testFileValidFormatArguments")
-  void testFileValidFormat(String configId, Map<String, Object> defaultConfigs) throws IOException {
+  @TableTest({
+    "configId | defaultConfigs                    ",
+    "''       | [:]                               ",
+    "12345    | [DD_KEY_ONE: one, DD_KEY_TWO: two]"
+  })
+  void testFileValidFormat(String configId, Map<String, String> defaultConfigs) throws IOException {
     Path filePath = Files.createTempFile("testFile_", ".yaml");
     try {
       writeFileYaml(filePath, configId, defaultConfigs);
@@ -111,14 +112,6 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     } finally {
       Files.delete(filePath);
     }
-  }
-
-  static Stream<org.junit.jupiter.params.provider.Arguments> testFileValidFormatArguments() {
-    Map<String, Object> defaultConfigs = new LinkedHashMap<>();
-    defaultConfigs.put("DD_KEY_ONE", "one");
-    defaultConfigs.put("DD_KEY_TWO", "two");
-    return Stream.of(
-        arguments("", new HashMap<String, Object>()), arguments("12345", defaultConfigs));
   }
 
   @ParameterizedTest
@@ -295,12 +288,8 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
-  // Corrupt YAML string variable used for testing
-  private static final String CORRUPT_YAML =
-      " \n" + "      abc: 123\n" + "      def:\n" + "        ghi: \"jkl\"\n" + "        lmn: 456\n";
-
   private static void writeFileYaml(
-      Path filePath, String configId, Map<String, Object> defaultConfigs) throws IOException {
+      Path filePath, String configId, Map<String, String> defaultConfigs) throws IOException {
     Map<String, Object> yamlData = new HashMap<>();
 
     if (configId != null && !configId.isEmpty()) {
