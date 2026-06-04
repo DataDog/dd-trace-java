@@ -49,8 +49,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
-  private static final ElementMatcher<TypeDescription> REACTOR_NETTY_HTTP_CONNECT =
-      named("reactor.netty.http.client.HttpClientConnect$MonoHttpConnect");
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -85,8 +83,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
       "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "jdk.internal.net.http.HttpClientImpl",
-      "reactor.netty.http.client.HttpClientConnect$MonoHttpConnect"
+      "jdk.internal.net.http.HttpClientImpl"
     };
   }
 
@@ -101,8 +98,7 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(JAVA_HTTP_CLIENT)
-        .or(REACTOR_NETTY_HTTP_CONNECT);
+        .or(JAVA_HTTP_CLIENT);
   }
 
   @Override
@@ -189,10 +185,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
-    // Avoid leaking continuations on the netty event loop that initiates the tasks that handle the
-    // request lifecycle
-    transformer.applyAdvice(
-        named("subscribe").and(isDeclaredBy(REACTOR_NETTY_HTTP_CONNECT)), advice);
   }
 
   public static class DisableAsyncAdvice {

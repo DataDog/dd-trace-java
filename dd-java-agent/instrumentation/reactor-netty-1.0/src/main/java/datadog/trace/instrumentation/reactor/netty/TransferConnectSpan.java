@@ -24,10 +24,9 @@ public class TransferConnectSpan implements BiConsumer<HttpClientRequest, Connec
         current.cancel();
       }
 
-      // A http2 channel (Http2StreamChannel, H2C prior-knowledge), operates a child stream level by
-      // design.
-      // ConnectAdvice stores a continuation on the parent TCP channel at connect time hence this
-      // will be never canceled
+      // HTTP/2 requests operate on stream channels. Netty captures the TCP connect continuation on
+      // the parent channel, but request tracing consumes the request-specific continuation from the
+      // stream channel, so the parent copy must not keep the trace open.
       final Channel parent = channel.parent();
       if (parent != null) {
         final Continuation parentCurrent =
