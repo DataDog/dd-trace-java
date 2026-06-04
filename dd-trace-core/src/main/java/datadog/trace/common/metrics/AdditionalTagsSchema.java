@@ -40,13 +40,9 @@ final class AdditionalTagsSchema {
     this.healthMetrics = healthMetrics;
   }
 
-  /** Test convenience: uses {@link HealthMetrics#NO_OP}. */
+  /** Test convenience: uses {@link HealthMetrics#NO_OP} and limits enabled. */
   static AdditionalTagsSchema from(Set<String> configured) {
-    return from(configured, HealthMetrics.NO_OP, AggregateEntry.LIMITS_ENABLED);
-  }
-
-  static AdditionalTagsSchema from(Set<String> configured, HealthMetrics healthMetrics) {
-    return from(configured, healthMetrics, AggregateEntry.LIMITS_ENABLED);
+    return from(configured, HealthMetrics.NO_OP, true);
   }
 
   static AdditionalTagsSchema from(
