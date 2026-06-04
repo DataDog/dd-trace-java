@@ -38,7 +38,6 @@ import com.datadoghq.profiler.JavaProfiler;
 import datadog.environment.JavaVirtualMachine;
 import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.config.ProfilingConfig;
-import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.profiling.RecordingData;
 import datadog.trace.bootstrap.config.provider.ConfigProvider;
 import datadog.trace.bootstrap.instrumentation.api.TaskWrapper;
@@ -242,11 +241,6 @@ public final class DatadogProfiler {
   private final Path recordingsPath;
 
   private DatadogProfiler(ConfigProvider configProvider) {
-    this(configProvider, getContextAttributes(configProvider));
-  }
-
-  @VisibleForTesting
-  DatadogProfiler(ConfigProvider configProvider, Set<String> contextAttributes) {
     this.configProvider = configProvider;
     this.profiler = DdprofLibraryLoader.javaProfiler().getComponent();
     this.detailedDebugLogging =
@@ -272,13 +266,8 @@ public final class DatadogProfiler {
     if (isWallClockProfilerEnabled(configProvider)) {
       profilingModes.add(WALL);
     }
-    this.orderedContextAttributes = new ArrayList<>(contextAttributes);
-    if (isSpanNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(OPERATION);
-    }
-    if (isResourceNameContextAttributeEnabled(configProvider)) {
-      orderedContextAttributes.add(RESOURCE);
-    }
+    Set<String> contextAttributes = getContextAttributes(configProvider);
+    this.orderedContextAttributes = getOrderedContextAttributes(contextAttributes, configProvider);
     this.contextSetter = new ContextSetter(profiler, orderedContextAttributes);
     // ContextSetter deduplicates and truncates to 10 internally; size arrays to its actual size.
     int contextSize = contextSetter.snapshotTags().length;
@@ -310,6 +299,27 @@ public final class DatadogProfiler {
             "Failed to create recordings directory: " + recordingsPath, e);
       }
     }
+  }
+
+  /**
+   * Computes the ordered context-attribute list (base attributes from config, then the optional
+   * span-name and resource-name attributes) in the exact order used for the per-thread {@link
+   * ContextSetter} and the native profiler's {@code attributes=} argument. Exposed so the OTel
+   * process context can publish the same {@code attribute_key_map} before the profiler starts.
+   */
+  public static List<String> getOrderedContextAttributes(ConfigProvider configProvider) {
+    return getOrderedContextAttributes(getContextAttributes(configProvider), configProvider);
+  }
+
+  private static List<String> getOrderedContextAttributes(Set<String> contextAttributes, ConfigProvider configProvider) {
+    List<String> ordered = new ArrayList<>(contextAttributes);
+    if (isSpanNameContextAttributeEnabled(configProvider)) {
+      ordered.add(OPERATION);
+    }
+    if (isResourceNameContextAttributeEnabled(configProvider)) {
+      ordered.add(RESOURCE);
+    }
+    return ordered;
   }
 
   void addThread() {
