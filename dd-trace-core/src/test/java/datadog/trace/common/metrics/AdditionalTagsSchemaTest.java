@@ -43,14 +43,6 @@ class AdditionalTagsSchemaTest {
   }
 
   @Test
-  void blockedSentinelsArePerKey() {
-    AdditionalTagsSchema schema =
-        AdditionalTagsSchema.from(new LinkedHashSet<>(Arrays.asList("region", "tenant_id")));
-    assertEquals("region:blocked_by_tracer", schema.blockedSentinel(0).toString());
-    assertEquals("tenant_id:blocked_by_tracer", schema.blockedSentinel(1).toString());
-  }
-
-  @Test
   void rejectsEmptyAndColonContainingKeys() {
     AdditionalTagsSchema schema =
         AdditionalTagsSchema.from(
@@ -67,10 +59,9 @@ class AdditionalTagsSchemaTest {
   }
 
   @Test
-  void emptySchemaHasZeroSizeAndEmptyArrays() {
+  void emptySchemaHasZeroSize() {
     AdditionalTagsSchema schema = AdditionalTagsSchema.EMPTY;
     assertEquals(0, schema.size());
     assertTrue(schema.names.length == 0);
-    assertTrue(schema.blockedSentinels.length == 0);
   }
 }

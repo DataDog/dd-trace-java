@@ -4,12 +4,16 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-/** Immutable schema of configured span-derived primary tag keys; built once at aggregator construction. */
+/**
+ * Immutable schema of configured span-derived primary tag keys; built once at aggregator
+ * construction.
+ */
 final class AdditionalTagsSchema {
 
   private static final Logger log = LoggerFactory.getLogger(AdditionalTagsSchema.class);
@@ -17,28 +21,21 @@ final class AdditionalTagsSchema {
   // Backend pipeline supports ~4 primary tag dimensions by default; drop overflow at startup.
   static final int MAX_ADDITIONAL_TAG_KEYS = 10;
 
-  static final String BLOCKED_VALUE = "blocked_by_tracer";
-
   /** Singleton empty schema returned when no additional tags are configured. */
   static final AdditionalTagsSchema EMPTY =
-      new AdditionalTagsSchema(
-          new String[0], new UTF8BytesString[0], new TagCardinalityHandler[0], HealthMetrics.NO_OP);
+      new AdditionalTagsSchema(new String[0], new TagCardinalityHandler[0], HealthMetrics.NO_OP);
 
   final String[] names;
-  final UTF8BytesString[] blockedSentinels;
 
   /** Per-key handlers providing UTF8 caching and per-cycle cardinality limiting. */
   private final TagCardinalityHandler[] handlers;
 
   private final HealthMetrics healthMetrics;
+  private final Set<String> warnedCardinality = new HashSet<>();
 
   private AdditionalTagsSchema(
-      String[] names,
-      UTF8BytesString[] blockedSentinels,
-      TagCardinalityHandler[] handlers,
-      HealthMetrics healthMetrics) {
+      String[] names, TagCardinalityHandler[] handlers, HealthMetrics healthMetrics) {
     this.names = names;
-    this.blockedSentinels = blockedSentinels;
     this.handlers = handlers;
     this.healthMetrics = healthMetrics;
   }
@@ -92,15 +89,13 @@ final class AdditionalTagsSchema {
       deduped = deduped.subList(0, MAX_ADDITIONAL_TAG_KEYS);
     }
     String[] namesArr = deduped.toArray(new String[0]);
-    UTF8BytesString[] sentinels = new UTF8BytesString[namesArr.length];
     TagCardinalityHandler[] handlersArr = new TagCardinalityHandler[namesArr.length];
     for (int i = 0; i < namesArr.length; i++) {
-      sentinels[i] = UTF8BytesString.create(namesArr[i] + ":" + BLOCKED_VALUE);
       handlersArr[i] =
           new TagCardinalityHandler(
               namesArr[i], MetricCardinalityLimits.ADDITIONAL_TAG_VALUE, useBlockedSentinel);
     }
-    return new AdditionalTagsSchema(namesArr, sentinels, handlersArr, healthMetrics);
+    return new AdditionalTagsSchema(namesArr, handlersArr, healthMetrics);
   }
 
   int size() {
@@ -111,12 +106,14 @@ final class AdditionalTagsSchema {
     return names[i];
   }
 
-  UTF8BytesString blockedSentinel(int i) {
-    return blockedSentinels[i];
-  }
-
   UTF8BytesString register(int i, String value) {
-    return handlers[i].register(value);
+    UTF8BytesString result = handlers[i].register(value);
+    if (handlers[i].isBlockedResult(result) && warnedCardinality.add(names[i])) {
+      log.warn(
+          "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer",
+          names[i]);
+    }
+    return result;
   }
 
   void resetHandlers() {
