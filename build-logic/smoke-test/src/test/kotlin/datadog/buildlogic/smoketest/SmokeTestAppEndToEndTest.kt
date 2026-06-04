@@ -166,6 +166,8 @@ class SmokeTestAppEndToEndTest {
   @Test
   fun `nested build clears inherited Gradle launcher environment`() {
     writeOuterSettings()
+    val inheritedGradleUserHome = projectDir.resolve("inherited-gradle-user-home").toFile()
+    inheritedGradleUserHome.mkdirs()
     outerBuild.writeText(
       """
       plugins {
@@ -193,10 +195,12 @@ class SmokeTestAppEndToEndTest {
         outputs.file(out)
         doLast {
           out.get().asFile.writeText(
-            listOf("GRADLE_ARGS", "GRADLE_OPTS")
-              .joinToString(System.lineSeparator()) { key ->
-                "${'$'}key=${'$'}{System.getenv(key) ?: "<null>"}"
-              }
+            listOf(
+              "GRADLE_ARGS=${'$'}{System.getenv("GRADLE_ARGS") ?: "<null>"}",
+              "GRADLE_OPTS=${'$'}{System.getenv("GRADLE_OPTS") ?: "<null>"}",
+              "GRADLE_USER_HOME=${'$'}{System.getenv("GRADLE_USER_HOME") ?: "<null>"}",
+              "gradleUserHomeDir=${'$'}{gradle.gradleUserHomeDir.absolutePath}",
+            ).joinToString(System.lineSeparator())
           )
         }
       }
@@ -208,16 +212,25 @@ class SmokeTestAppEndToEndTest {
       environment = mapOf(
         "GRADLE_ARGS" to "--console=colored",
         "GRADLE_OPTS" to "-Ddd.test.gradle.opts=inherited",
+        "GRADLE_USER_HOME" to inheritedGradleUserHome.absolutePath,
       ),
     ).build()
 
     assertThat(result.task(":recordGradleEnvironment")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
     val envFile = File(projectDir.toFile(), "build/application/gradle-env.txt")
     assertThat(envFile).exists()
-    assertThat(envFile.readLines()).containsExactly(
+    val lines = envFile.readLines()
+    assertThat(lines).contains(
       "GRADLE_ARGS=",
       "GRADLE_OPTS=",
     )
+    val gradleUserHomeEnv = lines.single { it.startsWith("GRADLE_USER_HOME=") }
+      .substringAfter("=")
+    val gradleUserHomeDir = lines.single { it.startsWith("gradleUserHomeDir=") }
+      .substringAfter("=")
+    assertThat(gradleUserHomeEnv).isEqualTo(gradleUserHomeDir)
+    assertThat(gradleUserHomeDir).isNotEqualTo(inheritedGradleUserHome.absolutePath)
+    assertThat(File(gradleUserHomeDir)).doesNotExist()
   }
 
   /**

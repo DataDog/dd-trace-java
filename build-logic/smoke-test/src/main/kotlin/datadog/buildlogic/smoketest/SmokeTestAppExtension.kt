@@ -214,10 +214,10 @@ abstract class ApplicationSpec @Inject constructor() {
   abstract val buildArguments: ListProperty<String>
 
   /**
-   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the
-   * outer process environment after clearing Gradle launcher variables — entries here override
-   * any inherited values with the same key. Use this for nested tooling that reads `JAVA_HOME`,
-   * `GRAALVM_HOME`, etc. from the env.
+   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the outer
+   * process environment; Gradle launcher variables are reserved by the nested build task so CI
+   * settings do not leak into pinned Gradle versions. Use this for nested tooling that reads
+   * `JAVA_HOME`, `GRAALVM_HOME`, etc. from the env.
    */
   abstract val environment: MapProperty<String, String>
 
