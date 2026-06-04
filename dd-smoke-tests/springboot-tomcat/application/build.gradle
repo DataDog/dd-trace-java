@@ -28,9 +28,16 @@ ext {
   serverExtension = 'zip'
 }
 
+// Route artifact downloads through MASS staging to validate HEAD support.
+// DO NOT MERGE — staging validation only.
+def massArtifactUrl = { String upstreamArtifactUrl ->
+  def massReadUrl = 'https://mass-read.us1.staging.dog'
+  return "${massReadUrl}/internal/artifact/${upstreamArtifactUrl}"
+}
+
 repositories {
   ivy {
-    url = 'https://dlcdn.apache.org'
+    url = massArtifactUrl('dlcdn.apache.org')
     patternLayout {
       artifact '/[organisation]/[module]/v[revision]/bin/apache-[organisation]-[revision].[ext]'
     }
