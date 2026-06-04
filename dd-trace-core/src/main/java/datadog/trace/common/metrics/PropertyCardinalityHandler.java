@@ -117,7 +117,9 @@ final class PropertyCardinalityHandler {
 
     int slot = start;
     UTF8BytesString existing;
-    while ((existing = this.curValues[slot]) != null && !existing.toString().contentEquals(value)) {
+    while ((existing = this.curValues[slot]) != null
+        && existing != value
+        && !existing.toString().contentEquals(value)) {
       slot = (slot + 1) & this.capacityMask;
     }
     if (existing != null) {
@@ -134,6 +136,7 @@ final class PropertyCardinalityHandler {
     int priorSlot = start;
     UTF8BytesString priorMatch;
     while ((priorMatch = this.priorValues[priorSlot]) != null
+        && priorMatch != value
         && !priorMatch.toString().contentEquals(value)) {
       priorSlot = (priorSlot + 1) & this.capacityMask;
     }
