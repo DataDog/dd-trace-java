@@ -306,6 +306,8 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
   private BuildResult runGradle(
       String gradleVersion, List<String> arguments, boolean successExpected) throws IOException {
     Map<String, String> buildEnv = new HashMap<>();
+    buildEnv.put("GRADLE_ARGS", "");
+    buildEnv.put("GRADLE_OPTS", "");
     buildEnv.put("GRADLE_VERSION", gradleVersion);
     buildEnv.put(
         GradleDistribution.GRADLE_DISTRIBUTION_URL_ENV,

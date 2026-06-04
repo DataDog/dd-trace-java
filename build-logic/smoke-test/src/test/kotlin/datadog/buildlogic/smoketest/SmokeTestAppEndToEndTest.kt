@@ -207,7 +207,7 @@ class SmokeTestAppEndToEndTest {
       "recordGradleEnvironment",
       environment = mapOf(
         "GRADLE_ARGS" to "--console=colored",
-        "GRADLE_OPTS" to "-Dorg.gradle.console=colored",
+        "GRADLE_OPTS" to "-Ddd.test.gradle.opts=inherited",
       ),
     ).build()
 
@@ -401,8 +401,18 @@ class SmokeTestAppEndToEndTest {
       .withProjectDir(projectDir.toFile())
       .withPluginClasspath()
       .withArguments(*args, "--stacktrace")
-      .apply { if (environment != null) withEnvironment(System.getenv() + environment) }
+      .withEnvironment(sanitizedGradleEnvironment(environment))
       .forwardOutput()
+
+  private fun sanitizedGradleEnvironment(
+    overrides: Map<String, String>? = null,
+  ): Map<String, String> =
+    System.getenv() +
+      mapOf(
+        "GRADLE_ARGS" to "",
+        "GRADLE_OPTS" to "",
+      ) +
+      (overrides ?: emptyMap())
 
   private fun currentMajorJdk(): Int =
     System.getProperty("java.specification.version").let {
