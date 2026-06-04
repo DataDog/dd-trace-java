@@ -109,7 +109,8 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals(size, containerInfo.getCGroups().size());
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments> containerInfoParsedFromFileContentArguments() {
+  static Stream<org.junit.jupiter.params.provider.Arguments>
+      containerInfoParsedFromFileContentArguments() {
     // spotless:off
     return Stream.of(
         // Docker
@@ -274,11 +275,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
   }
   // spotless:on
 
-  @TableTest({
-    "cid",
-    "   ",
-    "''"
-  })
+  @TableTest({"cid", "   ", "'' "})
   void readEntityIDReturnNullIfContainerIdIsNotDefinedAndIsHostCgroupNamespace(String cid) {
     ContainerInfo containerInfo = new ContainerInfo();
     containerInfo.setContainerId(cid);
@@ -342,8 +339,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
   @Test
   void readEntityIDReturnIdInoForParentWhenPathIsSlash() throws Exception {
     File mountPath = createTempDir();
-    File memoryController =
-        Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
+    File memoryController = Files.createDirectory(mountPath.toPath().resolve("memory")).toFile();
     memoryController.deleteOnExit();
     long ino = readInode(memoryController.toPath());
 
@@ -353,8 +349,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
     cGroupInfo.setPath("/");
     containerInfo.setcGroups(Arrays.asList(cGroupInfo));
 
-    assertEquals("in-" + ino,
-        ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
+    assertEquals("in-" + ino, ContainerInfo.readEntityID(containerInfo, false, mountPath.toPath()));
   }
 
   private static File createTempDir() throws IOException {

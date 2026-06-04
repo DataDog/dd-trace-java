@@ -18,11 +18,11 @@ import org.tabletest.junit.TableTest;
 public class ConfigSettingTest {
 
   @TableTest({
-    "scenario         | key1 | key2 | value1 | value2 | origin1  | origin2  | expectedEqual",
-    "equal            | key  | key  | value  | value  | DEFAULT  | DEFAULT  | true         ",
-    "different key    | key  | key2 | value  | value  | ENV      | ENV      | false        ",
-    "different value  | key  | key  | value2 | value  | JVM_PROP | JVM_PROP | false        ",
-    "different origin | key  | key  | value  | value  | ENV      | DEFAULT  | false        "
+    "scenario         | key1 | key2 | value1 | value2 | origin1  | origin2 ",
+    "equal            | key  | key  | value  | value  | DEFAULT  | DEFAULT ",
+    "different key    | key  | key2 | value  | value  | ENV      | ENV     ",
+    "different value  | key  | key  | value2 | value  | JVM_PROP | JVM_PROP",
+    "different origin | key  | key  | value  | value  | ENV      | DEFAULT "
   })
   void supportsEqualityCheck(
       String key1,
@@ -30,14 +30,13 @@ public class ConfigSettingTest {
       Object value1,
       Object value2,
       ConfigOrigin origin1,
-      ConfigOrigin origin2,
-      boolean expectedEqual) {
+      ConfigOrigin origin2) {
     // when
     ConfigSetting cs1 = ConfigSetting.of(key1, value1, origin1);
     ConfigSetting cs2 = ConfigSetting.of(key2, value2, origin2);
 
     // then
-    if (expectedEqual) {
+    if (key1.equals(key2) && value1.equals(value2) && origin1 == origin2) {
       assertEquals(cs1.hashCode(), cs2.hashCode());
       assertEquals(cs1, cs2);
       assertEquals(cs2, cs1);
