@@ -224,6 +224,7 @@ default:
       org.gradle.java.installations.auto-detect=false
       org.gradle.java.installations.auto-download=false
       org.gradle.java.installations.fromEnv=$JAVA_HOMES
+      org.gradle.console=colored
       EOF
     - mkdir -p .gradle
     - export GRADLE_USER_HOME=$(pwd)/.gradle
@@ -244,7 +245,7 @@ default:
         ln -s "$(pwd)/.mvn/caches/equo" "$HOME/.m2/repository/dev/equo"
       fi
     - export GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms$GRADLE_MEMORY_MIN -Xmx$GRADLE_MEMORY_MAX -XX:ErrorFile=/tmp/hs_err_pid%p.log -XX:+HeapDumpOnOutOfMemoryError -XX:HeapDumpPath=/tmp'"
-    - export GRADLE_ARGS=" --console=colored --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
+    - export GRADLE_ARGS=" --build-cache --stacktrace --no-daemon --parallel --max-workers=$GRADLE_WORKERS"
     - *normalize_node_index
     # GitLab's cache helper restores .gradle as root, but we run as non-root-user (uid 1001),
     # and Gradle does `chmod 700 .gradle` on startup which requires user ownership.
@@ -436,7 +437,7 @@ check-instrumentation-naming:
   needs: [ ]
   script:
     - ./gradlew --version
-    - ./gradlew checkInstrumentationNaming --console=colored
+    - ./gradlew checkInstrumentationNaming
 
 config-inversion-linter:
   extends: .gradle_build
@@ -444,7 +445,7 @@ config-inversion-linter:
   needs: []
   script:
     - ./gradlew --version
-    - ./gradlew checkConfigurations --console=colored
+    - ./gradlew checkConfigurations
 
 test_published_artifacts:
   extends: .gradle_build

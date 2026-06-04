@@ -210,7 +210,7 @@ class SmokeTestAppEndToEndTest {
     val result = runner(
       "recordGradleEnvironment",
       environment = mapOf(
-        "GRADLE_ARGS" to "--console=colored",
+        "GRADLE_ARGS" to "--info",
         "GRADLE_OPTS" to "-Ddd.test.gradle.opts=inherited",
         "GRADLE_USER_HOME" to inheritedGradleUserHome.absolutePath,
       ),
