@@ -18,7 +18,8 @@ import org.slf4j.LoggerFactory;
  * canonicalization so overflow values collapse to a shared sentinel bucket rather than fragmenting.
  * Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
  * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
- * static).
+ * static); tests using {@link AdditionalTagsSchema} must also call {@link
+ * AdditionalTagsSchema#resetHandlers()} on the schema instance.
  */
 final class AggregateEntry extends Hashtable.Entry {
 
@@ -269,12 +270,7 @@ final class AggregateEntry extends Hashtable.Entry {
         peerTagsList);
   }
 
-  /**
-   * Resets every cardinality handler's working set. Must be called on the aggregator thread.
-   * Existing entries continue to hold their previously-issued {@link UTF8BytesString} references;
-   * matches via content-equality so snapshots delivered after a reset still resolve to the existing
-   * entries.
-   */
+  /** Resets the static per-field cardinality handlers. Does not cover {@link AdditionalTagsSchema}. */
   static void resetCardinalityHandlers() {
     resetCardinalityHandlers(HealthMetrics.NO_OP);
   }
@@ -296,11 +292,9 @@ final class AggregateEntry extends Hashtable.Entry {
       HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
     long blocked = handler.reset();
     if (blocked > 0) {
-      if (handler.shouldWarnThisCycle()) {
-        log.warn(
-            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
-            handler.name);
-      }
+      log.warn(
+          "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+          handler.name);
       healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
     }
   }
