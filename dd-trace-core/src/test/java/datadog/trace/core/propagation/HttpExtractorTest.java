@@ -45,39 +45,6 @@ class HttpExtractorTest extends DDJavaSpecification {
   private static final String W3C_TRACE_STATE_NO_P = "dd=s:2,foo=1";
   private static final String W3C_SPAN_ID_LSTR = Long.toString(DDSpanId.fromHex(W3C_SPAN_ID));
 
-  @TypeConverter
-  static TracePropagationStyle parseTracePropagationStyle(String value) {
-    String name = value.trim();
-    if (name.startsWith("TracePropagationStyle.")) {
-      name = name.substring("TracePropagationStyle.".length());
-    }
-    return TracePropagationStyle.valueOf(name);
-  }
-
-  static class W3cConstantConverter implements ArgumentConverter {
-    @Override
-    public Object convert(Object source, ParameterContext context)
-        throws ArgumentConversionException {
-      if (source == null) {
-        return null;
-      }
-      switch (source.toString()) {
-        case "W3C_TRACE_PARENT":
-          return W3C_TRACE_PARENT;
-        case "W3C_TRACE_STATE_WITH_P":
-          return W3C_TRACE_STATE_WITH_P;
-        case "W3C_TRACE_STATE_NO_P":
-          return W3C_TRACE_STATE_NO_P;
-        case "W3C_SPAN_ID_LSTR":
-          return W3C_SPAN_ID_LSTR;
-        case "W3C_PARENT_ID":
-          return W3C_PARENT_ID;
-        default:
-          return source;
-      }
-    }
-  }
-
   @TableTest({
     "scenario                                  | styles                           | datadogTraceId         | datadogSpanId          | b3TraceId              | b3SpanId               | w3cTraceParent     | expectedTraceId | expectedSpanId     | putDatadogFields | expectDatadogFields | tagContext | extractFirst",
     "DATADOG,B3MULTI ids                       | [DATADOG, B3MULTI]               | '1'                    | '2'                    | 'a'                    | 'b'                    |                    | '1'             | '2'                | true             | true                | false      | false       ",
@@ -119,16 +86,7 @@ class HttpExtractorTest extends DDJavaSpecification {
       boolean expectDatadogFields,
       boolean tagContext,
       boolean extractFirst) {
-    Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
-    when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(singletonMap("SOME_HEADER", "some-tag"))
-            .setBaggageMapping(emptyMap())
-            .apply();
-    HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
+    HttpCodec.Extractor extractor = createExtractor(styles, extractFirst, singletonMap("SOME_HEADER", "some-tag"));
 
     // spotless:off
     Map<String, String> headers = headers(
@@ -189,11 +147,7 @@ class HttpExtractorTest extends DDJavaSpecification {
       String expectedTraceId,
       @ConvertWith(W3cConstantConverter.class) String expectedSpanId,
       @ConvertWith(W3cConstantConverter.class) String expectedParentId) {
-    Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
-    HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
+    HttpCodec.Extractor extractor = createExtractor(styles);
 
     // spotless:off
     Map<String, String> headers = headers(
@@ -230,11 +184,7 @@ class HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(W3cConstantConverter.class) String w3cTraceParent,
       @ConvertWith(W3cConstantConverter.class) String traceState,
       List<TracePropagationStyle> expectedSpanLinks) {
-    Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
-    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
-    HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
+    HttpCodec.Extractor extractor = createExtractor(styles);
 
     // spotless:off
     Map<String, String> headers = headers(
@@ -264,6 +214,22 @@ class HttpExtractorTest extends DDJavaSpecification {
     return new LinkedHashSet<>(styles);
   }
 
+  private static HttpCodec.Extractor createExtractor(List<TracePropagationStyle> styles) {
+    return createExtractor(styles, false, emptyMap());
+  }
+
+  private static HttpCodec.Extractor createExtractor(List<TracePropagationStyle> styles, boolean extractFirst, Map<String, String> headerTags) {
+    Config config = mock(Config.class);
+    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
+      when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
+        DynamicConfig.create()
+            .setHeaderTags(headerTags)
+            .setBaggageMapping(emptyMap())
+            .apply();
+    return HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
+  }
+
   private static Map<String, String> headers(String... headerKeysAndValues) {
     HashMap<String, String> headers = new HashMap<>();
     for (int i = 0; i < headerKeysAndValues.length / 2; i++) {
@@ -275,5 +241,38 @@ class HttpExtractorTest extends DDJavaSpecification {
       headers.put(headerName, headerValue);
     }
     return headers;
+  }
+
+  @TypeConverter
+  static TracePropagationStyle parseTracePropagationStyle(String value) {
+    String name = value.trim();
+    if (name.startsWith("TracePropagationStyle.")) {
+      name = name.substring("TracePropagationStyle.".length());
+    }
+    return TracePropagationStyle.valueOf(name);
+  }
+
+  static class W3cConstantConverter implements ArgumentConverter {
+    @Override
+    public Object convert(Object source, ParameterContext context)
+        throws ArgumentConversionException {
+      if (source == null) {
+        return null;
+      }
+      switch (source.toString()) {
+        case "W3C_TRACE_PARENT":
+          return W3C_TRACE_PARENT;
+        case "W3C_TRACE_STATE_WITH_P":
+          return W3C_TRACE_STATE_WITH_P;
+        case "W3C_TRACE_STATE_NO_P":
+          return W3C_TRACE_STATE_NO_P;
+        case "W3C_SPAN_ID_LSTR":
+          return W3C_SPAN_ID_LSTR;
+        case "W3C_PARENT_ID":
+          return W3C_PARENT_ID;
+        default:
+          return source;
+      }
+    }
   }
 }
