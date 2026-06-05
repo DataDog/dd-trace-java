@@ -5,6 +5,7 @@ import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_TRACE_ID;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -22,7 +23,6 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.util.DDJavaSpecification;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -86,7 +86,8 @@ class HttpExtractorTest extends DDJavaSpecification {
       boolean expectDatadogFields,
       boolean tagContext,
       boolean extractFirst) {
-    HttpCodec.Extractor extractor = createExtractor(styles, extractFirst, singletonMap("SOME_HEADER", "some-tag"));
+    HttpCodec.Extractor extractor =
+        createExtractor(styles, extractFirst, singletonMap("SOME_HEADER", "some-tag"));
 
     // spotless:off
     Map<String, String> headers = headers(
@@ -218,29 +219,14 @@ class HttpExtractorTest extends DDJavaSpecification {
     return createExtractor(styles, false, emptyMap());
   }
 
-  private static HttpCodec.Extractor createExtractor(List<TracePropagationStyle> styles, boolean extractFirst, Map<String, String> headerTags) {
+  private static HttpCodec.Extractor createExtractor(
+      List<TracePropagationStyle> styles, boolean extractFirst, Map<String, String> headerTags) {
     Config config = mock(Config.class);
     when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
-      when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
+    when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
-        DynamicConfig.create()
-            .setHeaderTags(headerTags)
-            .setBaggageMapping(emptyMap())
-            .apply();
+        DynamicConfig.create().setHeaderTags(headerTags).setBaggageMapping(emptyMap()).apply();
     return HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
-  }
-
-  private static Map<String, String> headers(String... headerKeysAndValues) {
-    HashMap<String, String> headers = new HashMap<>();
-    for (int i = 0; i < headerKeysAndValues.length / 2; i++) {
-      String headerValue = headerKeysAndValues[i * 2 + 1];
-      if (headerValue == null) {
-        continue;
-      }
-      String headerName = headerKeysAndValues[i * 2].toUpperCase();
-      headers.put(headerName, headerValue);
-    }
-    return headers;
   }
 
   @TypeConverter
