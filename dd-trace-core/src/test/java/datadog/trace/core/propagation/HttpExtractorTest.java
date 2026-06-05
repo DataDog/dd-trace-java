@@ -3,10 +3,13 @@ package datadog.trace.core.propagation;
 import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.TracePropagationStyle.TRACECONTEXT;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
+import static datadog.trace.core.propagation.B3HttpCodec.B3_TRACE_ID;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -19,6 +22,7 @@ import datadog.trace.api.TracePropagationStyle;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -87,7 +91,7 @@ public class HttpExtractorTest extends DDJavaSpecification {
       boolean tagContext,
       boolean extractFirst) {
     Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(linkedHashSetOf(styles));
+    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     when(config.isTracePropagationExtractFirst()).thenReturn(extractFirst);
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create()
@@ -95,29 +99,20 @@ public class HttpExtractorTest extends DDJavaSpecification {
             .setBaggageMapping(emptyMap())
             .apply();
     HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, () -> dynamicConfig.captureTraceConfig());
+        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
 
-    Map<String, String> actual = new LinkedHashMap<>();
-    if (datadogTraceId != null) {
-      actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId);
-    }
-    if (datadogSpanId != null) {
-      actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId);
-    }
-    if (b3TraceId != null) {
-      actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId);
-    }
-    if (b3SpanId != null) {
-      actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId);
-    }
-    if (w3cTraceParent != null) {
-      actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent);
-    }
-    if (putDatadogFields) {
-      actual.put("SOME_HEADER", "my-interesting-info");
-    }
+    // spotless:off
+    Map<String, String> headers = headers(
+        DatadogHttpCodec.TRACE_ID_KEY, datadogTraceId,
+        DatadogHttpCodec.SPAN_ID_KEY, datadogSpanId,
+        B3HttpCodec.TRACE_ID_KEY, b3TraceId,
+        B3HttpCodec.SPAN_ID_KEY, b3SpanId,
+        W3CHttpCodec.TRACE_PARENT_KEY, w3cTraceParent,
+        "SOME_HEADER", putDatadogFields ? "my-interesting-info" : null
+    );
+    // spotless:on
 
-    TagContext context = extractor.extract(actual, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     if (tagContext) {
       assertInstanceOf(TagContext.class, context);
@@ -132,10 +127,11 @@ public class HttpExtractorTest extends DDJavaSpecification {
     if (expectDatadogFields) {
       Map<String, String> expectedTags = new LinkedHashMap<>();
       if (tagContext && b3TraceId != null) {
-        expectedTags.put("b3.traceid", b3TraceId);
-        expectedTags.put("b3.spanid", b3SpanId);
+        expectedTags.put(B3_TRACE_ID, b3TraceId);
+        expectedTags.put(B3_SPAN_ID, b3SpanId);
       }
       expectedTags.put("some-tag", "my-interesting-info");
+      assertNotNull(context);
       assertEquals(expectedTags, context.getTags());
     }
   }
@@ -165,34 +161,27 @@ public class HttpExtractorTest extends DDJavaSpecification {
       String expectedSpanId,
       String expectedParentId) {
     Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(linkedHashSetOf(styles));
+    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
     HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, () -> dynamicConfig.captureTraceConfig());
+        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
 
-    Map<String, String> actual = new LinkedHashMap<>();
-    actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), W3C_TRACE_PARENT);
-    if (datadogTraceId != null) {
-      actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId);
-    }
-    if (datadogSpanId != null) {
-      actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId);
-    }
-    if (b3TraceId != null) {
-      actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId);
-    }
-    if (b3SpanId != null) {
-      actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId);
-    }
-    if (traceState != null) {
-      actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState);
-    }
+    // spotless:off
+    Map<String, String> headers = headers(
+        W3CHttpCodec.TRACE_PARENT_KEY, W3C_TRACE_PARENT,
+        DatadogHttpCodec.TRACE_ID_KEY, datadogTraceId,
+        DatadogHttpCodec.SPAN_ID_KEY, datadogSpanId,
+        B3HttpCodec.TRACE_ID_KEY, b3TraceId,
+        B3HttpCodec.SPAN_ID_KEY, b3SpanId,
+        W3CHttpCodec.TRACE_STATE_KEY, traceState
+    );
+    // spotless:on
 
-    TagContext context = extractor.extract(actual, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(expectedTraceId).toLong(), context.getTraceId().toLong());
     assertEquals(DDSpanId.from(expectedSpanId), context.getSpanId());
-    assertEquals(expectedParentId, context.getTags().get(PARENT_ID));
+    assertEquals(expectedParentId, context.getTags().getString(PARENT_ID));
     // TODO Add some more W3C override checks
   }
 
@@ -213,20 +202,23 @@ public class HttpExtractorTest extends DDJavaSpecification {
       String traceState,
       List<TracePropagationStyle> expectedSpanLinks) {
     Config config = mock(Config.class);
-    when(config.getTracePropagationStylesToExtract()).thenReturn(linkedHashSetOf(styles));
+    when(config.getTracePropagationStylesToExtract()).thenReturn(orderedSetOf(styles));
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig = DynamicConfig.create().apply();
     HttpCodec.Extractor extractor =
-        HttpCodec.createExtractor(config, () -> dynamicConfig.captureTraceConfig());
+        HttpCodec.createExtractor(config, dynamicConfig::captureTraceConfig);
 
-    Map<String, String> actual = new LinkedHashMap<>();
-    actual.put(DatadogHttpCodec.TRACE_ID_KEY.toUpperCase(), datadogTraceId);
-    actual.put(DatadogHttpCodec.SPAN_ID_KEY.toUpperCase(), datadogSpanId);
-    actual.put(B3HttpCodec.TRACE_ID_KEY.toUpperCase(), b3TraceId);
-    actual.put(B3HttpCodec.SPAN_ID_KEY.toUpperCase(), b3SpanId);
-    actual.put(W3CHttpCodec.TRACE_PARENT_KEY.toUpperCase(), w3cTraceParent);
-    actual.put(W3CHttpCodec.TRACE_STATE_KEY.toUpperCase(), traceState);
+    // spotless:off
+    Map<String, String> headers = headers(
+        DatadogHttpCodec.TRACE_ID_KEY, datadogTraceId,
+        DatadogHttpCodec.SPAN_ID_KEY, datadogSpanId,
+        B3HttpCodec.TRACE_ID_KEY, b3TraceId,
+        B3HttpCodec.SPAN_ID_KEY, b3SpanId,
+        W3CHttpCodec.TRACE_PARENT_KEY, w3cTraceParent,
+        W3CHttpCodec.TRACE_STATE_KEY, traceState
+    );
+    // spotless:on
 
-    TagContext context = extractor.extract(actual, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     List<AgentSpanLink> links = context.getTerminatedContextLinks();
     assertEquals(expectedSpanLinks.size(), links.size());
@@ -239,7 +231,20 @@ public class HttpExtractorTest extends DDJavaSpecification {
     }
   }
 
-  private static Set<TracePropagationStyle> linkedHashSetOf(List<TracePropagationStyle> styles) {
+  private static Set<TracePropagationStyle> orderedSetOf(List<TracePropagationStyle> styles) {
     return new LinkedHashSet<>(styles);
+  }
+
+  private static Map<String, String> headers(String... headerKeysAndValues) {
+    HashMap<String, String> headers = new HashMap<>();
+    for (int i = 0; i < headerKeysAndValues.length / 2; i++) {
+      String headerValue = headerKeysAndValues[i * 2 + 1];
+      if (headerValue == null) {
+        continue;
+      }
+      String headerName = headerKeysAndValues[i * 2].toUpperCase();
+      headers.put(headerName, headerValue);
+    }
+    return headers;
   }
 }
