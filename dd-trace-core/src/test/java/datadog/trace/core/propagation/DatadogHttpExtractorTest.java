@@ -291,9 +291,9 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
         OT_BAGGAGE_PREFIX + "k1", "v1",
         OT_BAGGAGE_PREFIX + "k2", "v2",
         SOME_HEADER, "my-interesting-info",
-        DATADOG_TAGS_KEY, is128bTrace ?
-            "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16) :
-            null
+        DATADOG_TAGS_KEY, is128bTrace
+            ? "_dd.p.tid=" + LongStringUtils.toHexStringPadded(traceId.toHighOrderLong(), 16)
+            : null
     );
     // spotless:on
 
