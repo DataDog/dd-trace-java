@@ -26,7 +26,7 @@ public class RepoIndex {
 
   static final RepoIndex EMPTY =
       new RepoIndex(
-          ClassNameTrie.Builder.EMPTY_TRIE,
+          ClassNameTrie.EMPTY_TRIE,
           Collections.emptyMap(),
           Collections.emptyList(),
           Collections.emptyList());
