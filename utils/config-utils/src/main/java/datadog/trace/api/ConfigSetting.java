@@ -23,9 +23,28 @@ public final class ConfigSetting {
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
 
+  // Configuration keys whose values are excluded from configuration telemetry by replacing them
+  // with "<hidden>". Keys are listed in every form that may reach this constructor: the dotted
+  // configuration name (used by ConfigProvider) and the environment-variable name.
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
-          Arrays.asList("DD_API_KEY", "dd.api-key", "dd.profiling.api-key", "dd.profiling.apikey"));
+          Arrays.asList(
+              "DD_API_KEY",
+              "dd.api-key",
+              "dd.profiling.api-key",
+              "dd.profiling.apikey",
+              "application-key",
+              "dd.application-key",
+              "DD_APPLICATION_KEY",
+              "app-key",
+              "dd.app-key",
+              "otlp.traces.headers",
+              "otlp.metrics.headers",
+              "otlp.logs.headers",
+              "OTEL_EXPORTER_OTLP_HEADERS",
+              "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
+              "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+              "OTEL_EXPORTER_OTLP_LOGS_HEADERS"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
