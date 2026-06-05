@@ -25,6 +25,7 @@ import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -106,7 +107,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
-    Map<String, String> headers = new HashMap<>();
+    Map<String, String> headers = new LinkedHashMap<>();
     headers.put("", "empty key");
     headers.put(B3_KEY, b3);
     headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
@@ -135,7 +136,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
-    Map<String, String> headers = new HashMap<>();
+    Map<String, String> headers = new LinkedHashMap<>();
     headers.put("", "empty key");
     headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
