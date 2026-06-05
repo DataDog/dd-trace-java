@@ -1,8 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY;
+import static datadog.trace.core.propagation.B3TestHelper.spanIdOrPadded;
+import static datadog.trace.core.propagation.B3TestHelper.traceIdOrPadded;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
@@ -18,7 +21,6 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.test.util.JavaStringUtils;
 import java.util.EnumSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -30,27 +32,8 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 public class HttpInjectorTest extends DDCoreJavaSpecification {
-
   protected boolean tracePropagationB3Padding() {
-    return false;
-  }
-
-  private String idOrPadded(DDTraceId id) {
-    if (id.toHighOrderLong() == 0) {
-      return idOrPadded(DDSpanId.toHexString(id.toLong()), 32);
-    }
-    return id.toHexString();
-  }
-
-  private String idOrPadded(long id) {
-    return idOrPadded(DDSpanId.toHexString(id), 16);
-  }
-
-  private String idOrPadded(String id, int size) {
-    if (!tracePropagationB3Padding()) {
-      return id.toLowerCase();
-    }
-    return JavaStringUtils.padHexLower(id, size);
+    return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
   }
 
   @TableTest({
@@ -92,8 +75,8 @@ public class HttpInjectorTest extends DDCoreJavaSpecification {
     DDSpanContext mockedContext =
         mockedContext(tracer, traceId, spanId, samplingPriority, origin, baggage);
     Map<String, String> carrier = mock(Map.class);
-    String b3TraceIdHex = idOrPadded(traceId);
-    String b3SpanIdHex = idOrPadded(spanId);
+    String b3TraceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String b3SpanIdHex = spanIdOrPadded(spanId, tracePropagationB3Padding());
 
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
 
@@ -161,8 +144,8 @@ public class HttpInjectorTest extends DDCoreJavaSpecification {
     DDSpanContext mockedContext =
         mockedContext(tracer, traceId, spanId, samplingPriority, origin, baggage);
     Map<String, String> carrier = mock(Map.class);
-    String b3TraceIdHex = idOrPadded(traceId);
-    String b3SpanIdHex = idOrPadded(spanId);
+    String b3TraceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String b3SpanIdHex = spanIdOrPadded(spanId, tracePropagationB3Padding());
 
     injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
 
@@ -259,5 +242,12 @@ public class HttpInjectorTest extends DDCoreJavaSpecification {
         false,
         PropagationTags.factory()
             .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"));
+  }
+
+  static class HttpInjectorNonPaddedTest extends HttpInjectorTest {
+    @Override
+    protected boolean tracePropagationB3Padding() {
+      return false;
+    }
   }
 }
