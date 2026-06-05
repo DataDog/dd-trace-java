@@ -1699,6 +1699,50 @@ class ClientStatsAggregatorTest extends DDSpecification {
     aggregator.close()
   }
 
+  def "cardinality limits reset between report cycles"() {
+    setup:
+    injectSysConfig("trace.stats.cardinality.limits.enabled", "true")
+    List<AggregateEntry> cycle1Entries = []
+    List<AggregateEntry> cycle2Entries = []
+    CountDownLatch latch1 = new CountDownLatch(1)
+    CountDownLatch latch2 = new CountDownLatch(1)
+    MetricWriter writer = Mock(MetricWriter)
+    Sink sink = Stub(Sink)
+    DDAgentFeaturesDiscovery features = Mock(DDAgentFeaturesDiscovery)
+    features.supportsMetrics() >> true
+    features.peerTags() >> []
+    ClientStatsAggregator aggregator = new ClientStatsAggregator(empty,
+      features, HealthMetrics.NO_OP, sink, writer, 256, queueSize, reportingInterval, SECONDS, false)
+    aggregator.start()
+
+    when: "publish SERVICE+1 distinct services to fill and overflow the cardinality budget"
+    for (int i = 0; i <= MetricCardinalityLimits.SERVICE; i++) {
+      aggregator.publish([new SimpleSpan("svc-$i", "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)])
+    }
+    aggregator.report()
+    latch1.await(2, SECONDS)
+
+    then: "the overflow service maps to the blocked_by_tracer sentinel"
+    1 * writer.startBucket(MetricCardinalityLimits.SERVICE + 1, _, _)
+    (1.._) * writer.add(_) >> { AggregateEntry e -> cycle1Entries << e }
+    1 * writer.finishBucket() >> { latch1.countDown() }
+    cycle1Entries.count { it.getService().toString() == "blocked_by_tracer" } == 1
+
+    when: "publish the overflow service in the next cycle after the cardinality reset"
+    aggregator.publish([new SimpleSpan("svc-${MetricCardinalityLimits.SERVICE}", "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)])
+    aggregator.report()
+    latch2.await(2, SECONDS)
+
+    then: "after reset the overflow service name is accepted as a real entry"
+    1 * writer.startBucket(1, _, _)
+    1 * writer.add(_) >> { AggregateEntry e -> cycle2Entries << e }
+    1 * writer.finishBucket() >> { latch2.countDown() }
+    cycle2Entries[0].getService().toString() == "svc-${MetricCardinalityLimits.SERVICE}"
+
+    cleanup:
+    aggregator.close()
+  }
+
   def reportAndWaitUntilEmpty(ClientStatsAggregator aggregator) {
     waitUntilEmpty(aggregator)
     aggregator.report()
