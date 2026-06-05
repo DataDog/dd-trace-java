@@ -47,7 +47,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
   void injectHttpHeaders(
       String traceId,
       String spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin,
       String tracestate) {
     ListWriter writer = new ListWriter();

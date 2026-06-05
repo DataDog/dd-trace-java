@@ -1,7 +1,11 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
+import static datadog.trace.core.propagation.B3HttpCodec.B3_SPAN_ID;
+import static datadog.trace.core.propagation.B3HttpCodec.B3_TRACE_ID;
+import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_ACCEPT;
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY;
@@ -12,12 +16,10 @@ import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
@@ -33,7 +35,6 @@ import org.tabletest.junit.TableTest;
 
 @WithConfig(key = "propagation.extract.log_header_names.enabled", value = "true")
 class B3HttpExtractorTest extends DDJavaSpecification {
-
   private static final String SOME_HEADER = "SOME_HEADER";
   private static final String SOME_TAG = "some-tag";
   private static final String SOME_VALUE = "my-interesting-info";
@@ -50,14 +51,14 @@ class B3HttpExtractorTest extends DDJavaSpecification {
             .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
             .setBaggageMapping(emptyMap())
             .apply();
-    extractor = B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
-    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
+    this.extractor = B3HttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    this.origAppSecActive = APPSEC_ACTIVE;
+    APPSEC_ACTIVE = true;
   }
 
   @AfterEach
   void teardown() {
-    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive;
+    APPSEC_ACTIVE = this.origAppSecActive;
   }
 
   @TableTest({
@@ -72,8 +73,8 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       String traceIdHex,
       String spanIdHex,
       Integer samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedSamplingPriority) {
-    Map<String, String> headers = new LinkedHashMap<>();
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+    Map<String, String> headers = new HashMap<>();
     headers.put("", "empty key");
     headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
@@ -103,7 +104,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       String b3,
       String expectedTraceIdHex,
       long expectedSpanId,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
     Map<String, String> headers = new LinkedHashMap<>();
@@ -112,9 +113,10 @@ class B3HttpExtractorTest extends DDJavaSpecification {
     headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
     headers.put(SOME_HEADER, SOME_VALUE);
-    headers.put(SAMPLING_PRIORITY_KEY, "1");
+    headers.put(SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT);
 
-    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertB3MultiOrSingleContext(
         context, expectedTraceIdHex, expectedSpanId, expectedSamplingPriority);
@@ -131,7 +133,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       String b3,
       String expectedTraceIdHex,
       long expectedSpanId,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
     Map<String, String> headers = new LinkedHashMap<>();
@@ -140,9 +142,9 @@ class B3HttpExtractorTest extends DDJavaSpecification {
     headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
     headers.put(B3_KEY, b3);
     headers.put(SOME_HEADER, SOME_VALUE);
-    headers.put(SAMPLING_PRIORITY_KEY, "1");
+    headers.put(SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT);
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertB3MultiOrSingleContext(
         context, expectedTraceIdHex, expectedSpanId, expectedSamplingPriority);
@@ -163,8 +165,8 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   private Map<String, Object> expectedB3Tags(TagContext context) {
     Map<String, Object> expected = new HashMap<>();
-    expected.put("b3.traceid", ((B3TraceId) context.getTraceId()).getOriginal());
-    expected.put("b3.spanid", DDSpanId.toHexString(context.getSpanId()));
+    expected.put(B3_TRACE_ID, ((B3TraceId) context.getTraceId()).getOriginal());
+    expected.put(B3_SPAN_ID, DDSpanId.toHexString(context.getSpanId()));
     expected.put(SOME_TAG, SOME_VALUE);
     return expected;
   }
@@ -186,11 +188,11 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   })
   void extract128BitIdTruncatesIdTo64Bit(
       String traceId, String spanId, String expectedTraceIdHex, Long expectedSpanId) {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectedTraceIdHex != null) {
       assertInstanceOf(ExtractedContext.class, context);
@@ -198,19 +200,22 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       assertEquals(expectedTraceId, context.getTraceId());
       long spanIdValue = expectedSpanId == null ? 0L : expectedSpanId;
       assertEquals(spanIdValue, context.getSpanId());
-      assertEquals(expectedTraceId.getOriginal(), context.getTags().get("b3.traceid"));
-      Object expectedSpanIdTag =
-          expectedSpanId == null ? null : DDSpanId.toHexString(expectedSpanId);
-      assertEquals(expectedSpanIdTag, context.getTags().get("b3.spanid"));
-    } else {
-      assertTrue(context == null || !(context instanceof ExtractedContext));
+      assertEquals(expectedTraceId.getOriginal(), context.getTags().getString(B3_TRACE_ID));
+      if (expectedSpanId == null) {
+        assertNull(context.getTags().getString(B3_SPAN_ID));
+      } else {
+        assertEquals(DDSpanId.toHexString(expectedSpanId), context.getTags().getString(B3_SPAN_ID));
+      }
+    } else if (context != null) {
+      assertInstanceOf(TagContext.class, context);
+      assertFalse(context instanceof ExtractedContext);
     }
   }
 
   @Test
   void extractHeaderTagsWithNoPropagation() {
     TagContext context =
-        extractor.extract(singletonMap(SOME_HEADER, SOME_VALUE), stringValuesMap());
+        this.extractor.extract(singletonMap(SOME_HEADER, SOME_VALUE), stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap(SOME_TAG, SOME_VALUE), context.getTags());
@@ -220,7 +225,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   void extractHeadersWithForwarding() {
     String forwarded = "for=" + FORWARDED_IP + ":" + FORWARDED_PORT;
     Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
+    Map<String, String> fullCtx = new HashMap<>();
     fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
     fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
     fullCtx.put("Forwarded", forwarded);
@@ -231,7 +236,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwarded, context.getForwarded());
 
-    context = extractor.extract(fullCtx, stringValuesMap());
+    context = this.extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -241,10 +246,10 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeadersWithXForwarding() {
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
+    Map<String, String> tagOnlyCtx = new HashMap<>();
     tagOnlyCtx.put("X-Forwarded-For", FORWARDED_IP);
     tagOnlyCtx.put("X-Forwarded-Port", FORWARDED_PORT);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
+    Map<String, String> fullCtx = new HashMap<>();
     fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
     fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
     fullCtx.put("x-forwarded-for", FORWARDED_IP);
@@ -273,7 +278,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithInvalidNonNumericId() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), "traceId");
     headers.put(SPAN_ID_KEY.toUpperCase(), "spanId");
     headers.put(SOME_HEADER, SOME_VALUE);
@@ -286,7 +291,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithOutOfRangeSpanId() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), "0");
     headers.put(SPAN_ID_KEY.toUpperCase(), "-1");
     headers.put(SOME_HEADER, SOME_VALUE);
@@ -309,7 +314,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   })
   void extractIdsWhileRetainingTheOriginalString(
       String traceId, String spanId, long expectedSpanId) {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
     B3TraceId expectedTraceId = B3TraceId.fromHex(traceId);
@@ -336,7 +341,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractCommonHttpHeaders() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(HttpCodec.USER_AGENT_KEY, "some-user-agent");
     headers.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1");
     headers.put(HttpCodec.X_REAL_IP_KEY, "2.2.2.2");
