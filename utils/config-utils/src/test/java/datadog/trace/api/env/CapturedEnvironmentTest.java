@@ -14,8 +14,6 @@ import org.tabletest.junit.TableTest;
 
 public class CapturedEnvironmentTest {
 
-  // A blank sunJavaCommand passes no argument, leaving the real sun.java.command (this test
-  // runner) in place, so the service name resolves to the ServiceNamePrinter main class.
   @TableTest({
     "scenario           | sunJavaCommand                          | envVars                                                    | expectedServiceName                                             ",
     "null command       | null                                    | [:]                                                        |                                                                 ",
