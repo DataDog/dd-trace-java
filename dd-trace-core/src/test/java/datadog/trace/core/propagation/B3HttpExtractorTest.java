@@ -10,6 +10,7 @@ import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_ACCEP
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -26,7 +27,6 @@ import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -75,14 +75,14 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       String spanIdHex,
       Integer samplingPriority,
       @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
-    Map<String, String> headers = new HashMap<>();
-    headers.put("", "empty key");
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
-    headers.put(SOME_HEADER, SOME_VALUE);
-    if (samplingPriority != null) {
-      headers.put(SAMPLING_PRIORITY_KEY, samplingPriority.toString());
-    }
+    // spotless:off
+    Map<String, String> headers = headers(
+        "", "empty key",
+        TRACE_ID_KEY, traceIdHex,
+        SPAN_ID_KEY, spanIdHex,
+        SOME_HEADER, SOME_VALUE,
+        SAMPLING_PRIORITY_KEY, samplingPriority != null ? samplingPriority.toString() : null);
+    // spotless:on
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
@@ -108,13 +108,16 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put("", "empty key");
-    headers.put(B3_KEY, b3);
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
-    headers.put(SOME_HEADER, SOME_VALUE);
-    headers.put(SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT);
+    // spotless:off
+    Map<String, String> headers = headers(
+        "", "empty key",
+        B3_KEY, b3,
+        TRACE_ID_KEY, traceIdHex,
+        SPAN_ID_KEY, spanIdHex,
+        SOME_HEADER, SOME_VALUE,
+        SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT
+    );
+    // spotless:on
 
     ExtractedContext context =
         (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
@@ -137,13 +140,16 @@ class B3HttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     String traceIdHex = "1";
     String spanIdHex = "2";
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put("", "empty key");
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceIdHex);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanIdHex);
-    headers.put(B3_KEY, b3);
-    headers.put(SOME_HEADER, SOME_VALUE);
-    headers.put(SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT);
+    // spotless:off
+    Map<String, String> headers = headers(
+        "", "empty key",
+        TRACE_ID_KEY, traceIdHex,
+        SPAN_ID_KEY, spanIdHex,
+        B3_KEY, b3,
+        SOME_HEADER, SOME_VALUE,
+        SAMPLING_PRIORITY_KEY, SAMPLING_PRIORITY_ACCEPT
+    );
+    // spotless:on
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -189,9 +195,12 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   })
   void extract128BitIdTruncatesIdTo64Bit(
       String traceId, String spanId, String expectedTraceIdHex, Long expectedSpanId) {
-    Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId
+    );
+    // spotless:on
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -225,11 +234,14 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   @Test
   void extractHeadersWithForwarding() {
     String forwarded = "for=" + FORWARDED_IP + ":" + FORWARDED_PORT;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
-    Map<String, String> fullCtx = new HashMap<>();
-    fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
-    fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
-    fullCtx.put("Forwarded", forwarded);
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
+    // spotless:off
+    Map<String, String> fullCtx = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        "Forwarded", forwarded
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
@@ -247,14 +259,18 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeadersWithXForwarding() {
-    Map<String, String> tagOnlyCtx = new HashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", FORWARDED_IP);
-    tagOnlyCtx.put("X-Forwarded-Port", FORWARDED_PORT);
-    Map<String, String> fullCtx = new HashMap<>();
-    fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
-    fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
-    fullCtx.put("x-forwarded-for", FORWARDED_IP);
-    fullCtx.put("x-forwarded-port", FORWARDED_PORT);
+    // spotless:off
+    Map<String, String> tagOnlyCtx = headers(
+        "X-Forwarded-For", FORWARDED_IP,
+        "X-Forwarded-Port", FORWARDED_PORT
+    );
+    Map<String, String> fullCtx = headers(
+        TRACE_ID_KEY, "1",
+        SPAN_ID_KEY, "2",
+        "x-forwarded-for", FORWARDED_IP,
+        "x-forwarded-port", FORWARDED_PORT
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
@@ -279,10 +295,13 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithInvalidNonNumericId() {
-    Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "traceId");
-    headers.put(SPAN_ID_KEY.toUpperCase(), "spanId");
-    headers.put(SOME_HEADER, SOME_VALUE);
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "traceId",
+        SPAN_ID_KEY, "spanId",
+        SOME_HEADER, SOME_VALUE
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -292,10 +311,13 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithOutOfRangeSpanId() {
-    Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "0");
-    headers.put(SPAN_ID_KEY.toUpperCase(), "-1");
-    headers.put(SOME_HEADER, SOME_VALUE);
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, "0",
+        SPAN_ID_KEY, "-1",
+        SOME_HEADER, SOME_VALUE
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -315,9 +337,12 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   })
   void extractIdsWhileRetainingTheOriginalString(
       String traceId, String spanId, long expectedSpanId) {
-    Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
-    headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
+    // spotless:off
+    Map<String, String> headers = headers(
+        TRACE_ID_KEY, traceId,
+        SPAN_ID_KEY, spanId
+    );
+    // spotless:on
     B3TraceId expectedTraceId = B3TraceId.fromHex(traceId);
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
@@ -342,17 +367,20 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractCommonHttpHeaders() {
-    Map<String, String> headers = new HashMap<>();
-    headers.put(HttpCodec.USER_AGENT_KEY, "some-user-agent");
-    headers.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1");
-    headers.put(HttpCodec.X_REAL_IP_KEY, "2.2.2.2");
-    headers.put(HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3");
-    headers.put(HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4");
-    headers.put(HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5");
-    headers.put(HttpCodec.FORWARDED_KEY, "6.6.6.6");
-    headers.put(HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7");
-    headers.put(HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8");
-    headers.put(HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
+    // spotless:off
+    Map<String, String> headers = headers(
+        HttpCodec.USER_AGENT_KEY, "some-user-agent",
+        HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1",
+        HttpCodec.X_REAL_IP_KEY, "2.2.2.2",
+        HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3",
+        HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4",
+        HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5",
+        HttpCodec.FORWARDED_KEY, "6.6.6.6",
+        HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7",
+        HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8",
+        HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9"
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
