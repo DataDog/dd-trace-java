@@ -74,7 +74,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     expected.put(OT_BAGGAGE_PREFIX + "k2", "v2");
     expected.put("SOME_CUSTOM_HEADER", "some-value");
 
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     assertEquals(expected, carrier);
 
@@ -102,7 +102,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     mockedContext.beginEndToEnd();
     Map<String, String> carrier = new LinkedHashMap<>();
 
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     Map<String, String> expected = new LinkedHashMap<>();
     expected.put(TRACE_PARENT_KEY, buildTraceParent("1", "2", PrioritySampling.UNSET));
@@ -135,7 +135,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     mockedContext.setSamplingPriority(PrioritySampling.USER_KEEP, MANUAL);
     Map<String, String> carrier = new LinkedHashMap<>();
 
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     Map<String, String> expected = new LinkedHashMap<>();
     expected.put(TRACE_PARENT_KEY, buildTraceParent("1", "2", PrioritySampling.USER_KEEP));
@@ -158,7 +158,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     long rootSpanId = rootSpan.getSpanId();
     AgentScope rootScope = tracer.activateSpan(rootSpan);
 
-    injector.inject((DDSpanContext) rootSpan.context(), carrier, MapSetter.INSTANCE);
+    injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
     long lastParentId = extractLastParentId(carrier);
 
     // trace state has root span id as last parent
@@ -168,7 +168,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     AgentSpan childSpan = tracer.startSpan("test", "child");
     long childSpanId = childSpan.getSpanId();
     carrier.clear();
-    injector.inject((DDSpanContext) childSpan.context(), carrier, MapSetter.INSTANCE);
+    injector.inject((DDSpanContext) childSpan.context(), carrier, Map::put);
     lastParentId = extractLastParentId(carrier);
 
     // trace state has child span id as last parent
@@ -177,7 +177,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     // injecting root span again
     childSpan.finish();
     carrier.clear();
-    injector.inject((DDSpanContext) rootSpan.context(), carrier, MapSetter.INSTANCE);
+    injector.inject((DDSpanContext) rootSpan.context(), carrier, Map::put);
     lastParentId = extractLastParentId(carrier);
 
     // trace state has root span is as last parent again

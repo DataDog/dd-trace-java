@@ -35,7 +35,7 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 import org.tabletest.junit.TypeConverter;
 
-public class HttpExtractorTest extends DDJavaSpecification {
+class HttpExtractorTest extends DDJavaSpecification {
 
   private static final String W3C_TRACE_ID = "00000000000000000000000000000001";
   private static final String W3C_SPAN_ID = "123456789abcdef0";

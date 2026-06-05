@@ -74,7 +74,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> carrier = mock(Map.class);
     clearInvocations(timeSource);
 
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     verify(timeSource).getCurrentTimeMillis();
     verify(carrier).put("X-Amzn-Trace-Id", expectedTraceHeader);
@@ -125,7 +125,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> carrier = mock(Map.class);
     clearInvocations(timeSource);
 
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     verify(timeSource).getCurrentTimeMillis();
     verify(carrier).put("X-Amzn-Trace-Id", expectedTraceHeader);
@@ -159,7 +159,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> carrier = mock(Map.class);
 
     mockedContext.beginEndToEnd();
-    injector.inject(mockedContext, carrier, MapSetter.INSTANCE);
+    injector.inject(mockedContext, carrier, Map::put);
 
     // 2 calls: CoreTracer constructor + beginEndToEnd()
     verify(timeSource, times(2)).getCurrentTimeNanos();
