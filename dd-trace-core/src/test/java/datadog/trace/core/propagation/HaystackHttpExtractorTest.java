@@ -65,6 +65,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @AfterEach
   void teardown() {
+    this.extractor.cleanup();
     APPSEC_ACTIVE = origAppSecActive;
   }
 
