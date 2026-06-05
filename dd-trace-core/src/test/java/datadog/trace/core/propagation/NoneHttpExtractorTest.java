@@ -94,7 +94,7 @@ class NoneHttpExtractorTest extends DDJavaSpecification {
   void extractHttpHeaders(
       String traceId,
       String spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin,
       boolean allowComma) {
     injectEnvConfig(

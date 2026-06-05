@@ -109,7 +109,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
       boolean tpValid,
       String traceIdHex,
       long spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int priority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte priority) {
     Map<String, String> headers = new LinkedHashMap<>();
     if (traceparent != null) {
       headers.put(W3CHttpCodec.TRACE_PARENT_KEY, traceparent);
@@ -151,7 +151,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
   void extractTraceparentTracestateAndHttpHeaders(
       String traceparent,
       String tracestate,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
       @ConvertWith(SamplingMechanismConverter.class) Byte decisionMaker,
       String origin) {
     Map<String, String> headers = new LinkedHashMap<>();

@@ -54,7 +54,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
   void injectHttpHeaders(
       String traceId,
       String spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String expectedTraceHeader) {
     ListWriter writer = new ListWriter();
     TimeSource timeSource = mock(TimeSource.class);

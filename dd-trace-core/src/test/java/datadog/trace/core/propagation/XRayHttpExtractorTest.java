@@ -69,7 +69,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
       String traceId,
       String spanId,
       String samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedSamplingPriority) {
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
     Map<String, String> headers = new LinkedHashMap<>();
     headers.put(
         "X-Amzn-Trace-Id",
