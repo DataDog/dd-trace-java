@@ -2,13 +2,10 @@ package datadog.trace.common.writer.ddagent;
 
 import static datadog.trace.bootstrap.instrumentation.api.InstrumentationTags.DD_MEASURED;
 import static datadog.trace.common.writer.TraceGenerator.generateRandomTraces;
-import static datadog.trace.common.writer.ddagent.PayloadVerifiers.assertEqualsWithNullAsEmpty;
-import static datadog.trace.common.writer.ddagent.PayloadVerifiers.unpackNumber;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.communication.serialization.ByteBufferConsumer;
@@ -21,49 +18,63 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.writer.Payload;
-import datadog.trace.common.writer.TraceGenerator.PojoSpan;
+import datadog.trace.common.writer.TraceGenerator;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.test.junit.utils.config.WithConfigExtension;
+import datadog.trace.test.util.DDJavaSpecification;
 import java.io.IOException;
 import java.nio.ByteBuffer;
+import java.nio.channels.WritableByteChannel;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Stream;
-import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.extension.ExtendWith;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
+import org.msgpack.core.MessageFormat;
 import org.msgpack.core.MessagePack;
 import org.msgpack.core.MessageUnpacker;
+import org.tabletest.junit.TableTest;
 
-@ExtendWith(WithConfigExtension.class)
-class TraceMapperV04PayloadTest {
+class TraceMapperV04PayloadTest extends DDJavaSpecification {
 
-  // Keep the ProcessTags static in sync with the (per-test rebuilt) Config, the way DDSpecification
-  // did for the original Spock tests. Runs after WithConfigExtension has rebuilt Config.
-  @BeforeEach
-  void syncProcessTags() {
-    ProcessTags.reset(Config.get());
-  }
-
-  @ParameterizedTest(name = "buffer={0} traces={1} lowCardinality={2}")
-  @MethodSource("tracesWrittenCorrectlyArguments")
-  void tracesWrittenCorrectly(int bufferSize, int traceCount, boolean lowCardinality) {
-    List<List<PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
+  @TableTest({
+    "scenario              | bufferSize | traceCount | lowCardinality",
+    "0 traces low card     | 20480      | 0          | true          ",
+    "1 trace low card 20k  | 20480      | 1          | true          ",
+    "1 trace low card 30k  | 30720      | 1          | true          ",
+    "2 traces low card     | 30720      | 2          | true          ",
+    "0 traces high card    | 20480      | 0          | false         ",
+    "1 trace high card 20k | 20480      | 1          | false         ",
+    "1 trace high card 30k | 30720      | 1          | false         ",
+    "2 traces high card    | 30720      | 2          | false         ",
+    "0 traces 100k low     | 102400     | 0          | true          ",
+    "1 trace 100k low      | 102400     | 1          | true          ",
+    "10 traces 100k low    | 102400     | 10         | true          ",
+    "100 traces 100k low   | 102400     | 100        | true          ",
+    "1000 traces 100k low  | 102400     | 1000       | true          ",
+    "0 traces 100k high    | 102400     | 0          | false         ",
+    "1 trace 100k high     | 102400     | 1          | false         ",
+    "10 traces 100k high   | 102400     | 10         | false         ",
+    "100 traces 100k high  | 102400     | 100        | false         ",
+    "1000 traces 100k high | 102400     | 1000       | false         "
+  })
+  void testTracesWrittenCorrectly(int bufferSize, int traceCount, boolean lowCardinality) {
+    List<List<TraceGenerator.PojoSpan>> traces = generateRandomTraces(traceCount, lowCardinality);
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(bufferSize, verifier));
+
     boolean tracesFitInBuffer = true;
-    for (List<PojoSpan> trace : traces) {
+    for (List<TraceGenerator.PojoSpan> trace : traces) {
       if (!packer.format(trace, traceMapper)) {
         verifier.skipLargeTrace();
         tracesFitInBuffer = false;
-        // in the real like the mapper is always reset each trace.
+        // in the real life the mapper is always reset each trace.
         // here we need to force it when we fail since the buffer will be reset as well
         traceMapper.reset();
       }
@@ -75,34 +86,18 @@ class TraceMapperV04PayloadTest {
     }
   }
 
-  private static Stream<Arguments> tracesWrittenCorrectlyArguments() {
+  static Stream<Arguments> testFull64BitTraceAndSpanIdentifiersArguments() {
     return Stream.of(
-        arguments(20 << 10, 0, true),
-        arguments(20 << 10, 1, true),
-        arguments(30 << 10, 1, true),
-        arguments(30 << 10, 2, true),
-        arguments(20 << 10, 0, false),
-        arguments(20 << 10, 1, false),
-        arguments(30 << 10, 1, false),
-        arguments(30 << 10, 2, false),
-        arguments(100 << 10, 0, true),
-        arguments(100 << 10, 1, true),
-        arguments(100 << 10, 10, true),
-        arguments(100 << 10, 100, true),
-        arguments(100 << 10, 1000, true),
-        arguments(100 << 10, 0, false),
-        arguments(100 << 10, 1, false),
-        arguments(100 << 10, 10, false),
-        arguments(100 << 10, 100, false),
-        arguments(100 << 10, 1000, false));
+        arguments(DD64bTraceId.ONE, 2L, 3L),
+        arguments(DD64bTraceId.MAX, 2L, 3L),
+        arguments(DD64bTraceId.from(-10), -11L, -12L));
   }
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("fullSixtyFourBitTraceAndSpanIdentifiersArguments")
-  void fullSixtyFourBitTraceAndSpanIdentifiers(
-      String scenario, DDTraceId traceId, long spanId, long parentId) {
-    PojoSpan span =
-        new PojoSpan(
+  @ParameterizedTest
+  @MethodSource("testFull64BitTraceAndSpanIdentifiersArguments")
+  void testFull64BitTraceAndSpanIdentifiers(DDTraceId traceId, long spanId, long parentId) {
+    TraceGenerator.PojoSpan span =
+        new TraceGenerator.PojoSpan(
             "service",
             "operation",
             "resource",
@@ -119,7 +114,8 @@ class TraceMapperV04PayloadTest {
             0,
             0,
             "origin");
-    List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
+    List<List<TraceGenerator.PojoSpan>> traces =
+        Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier));
@@ -130,17 +126,10 @@ class TraceMapperV04PayloadTest {
     verifier.verifyTracesConsumed();
   }
 
-  private static Stream<Arguments> fullSixtyFourBitTraceAndSpanIdentifiersArguments() {
-    return Stream.of(
-        arguments("ONE", DD64bTraceId.ONE, 2L, 3L),
-        arguments("MAX", DD64bTraceId.MAX, 2L, 3L),
-        arguments("negative", DD64bTraceId.from(-10), -11L, -12L));
-  }
-
   @Test
-  void metaStructSupport() {
-    PojoSpan span =
-        new PojoSpan(
+  void testMetaStructSupport() {
+    TraceGenerator.PojoSpan span =
+        new TraceGenerator.PojoSpan(
             "service",
             "operation",
             "resource",
@@ -157,31 +146,34 @@ class TraceMapperV04PayloadTest {
             0,
             0,
             "origin");
-    List<Map<String, String>> stack = new ArrayList<>();
-    for (StackTraceElement element : Thread.currentThread().getStackTrace()) {
-      Map<String, String> frame = new HashMap<>();
-      frame.put("file", element.getFileName() != null ? element.getFileName() : "");
-      frame.put("class_name", element.getClassName() != null ? element.getClassName() : "");
-      frame.put("function", element.getMethodName() != null ? element.getMethodName() : "");
-      stack.add(frame);
+
+    StackTraceElement[] stackTrace = Thread.currentThread().getStackTrace();
+    List<Map<String, String>> stackList = new ArrayList<>();
+    for (StackTraceElement element : stackTrace) {
+      Map<String, String> entry = new HashMap<>();
+      entry.put("file", element.getFileName() != null ? element.getFileName() : "");
+      entry.put("class_name", element.getClassName());
+      entry.put("function", element.getMethodName());
+      stackList.add(entry);
     }
-    span.setMetaStruct("stack", stack);
-    List<List<PojoSpan>> traces = Collections.singletonList(Collections.singletonList(span));
+    span.setMetaStruct("stack", stackList);
+
+    List<List<TraceGenerator.PojoSpan>> traces =
+        Collections.singletonList(Collections.singletonList(span));
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier =
         new PayloadVerifier(
             traces,
             traceMapper,
-            (expected, received) -> {
+            (expectedObj, received) -> {
+              List<?> expected = (List<?>) expectedObj;
               MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(received);
-              List<?> expectedStack = (List<?>) expected;
               int size = unpacker.unpackArrayHeader();
-              assertEquals(expectedStack.size(), size);
-              for (Object entry : expectedStack) {
-                @SuppressWarnings("unchecked")
-                Map<String, String> stackEntry = (Map<String, String>) entry;
+              assertEquals(expected.size(), size);
+              for (int i = 0; i < size; i++) {
+                Map<?, ?> stackEntry = (Map<?, ?>) expected.get(i);
                 int fields = unpacker.unpackMapHeader();
-                for (int f = 0; f < fields; ++f) {
+                for (int j = 0; j < fields; j++) {
                   String field = unpacker.unpackString();
                   assertEquals(stackEntry.get(field), unpacker.unpackString());
                 }
@@ -196,12 +188,13 @@ class TraceMapperV04PayloadTest {
   }
 
   @Test
-  void processTagsSerialization() {
+  void testProcessTagsSerialization() {
     assertNotNull(ProcessTags.getTagsForSerialization());
-    List<PojoSpan> spans = new ArrayList<>();
-    for (long spanId = 1; spanId <= 2; ++spanId) {
+
+    List<TraceGenerator.PojoSpan> spans = new ArrayList<>();
+    for (int spanId = 1; spanId <= 2; spanId++) {
       spans.add(
-          new PojoSpan(
+          new TraceGenerator.PojoSpan(
               "service",
               "operation",
               "resource",
@@ -220,7 +213,7 @@ class TraceMapperV04PayloadTest {
               "origin"));
     }
 
-    List<List<PojoSpan>> traces = Collections.singletonList(spans);
+    List<List<TraceGenerator.PojoSpan>> traces = Collections.singletonList(spans);
     TraceMapperV0_4 traceMapper = new TraceMapperV0_4();
     PayloadVerifier verifier = new PayloadVerifier(traces, traceMapper);
     MsgPackWriter packer = new MsgPackWriter(new FlushingBuffer(20 << 10, verifier));
@@ -231,24 +224,28 @@ class TraceMapperV04PayloadTest {
     verifier.verifyTracesConsumed();
   }
 
-  private static final class PayloadVerifier implements ByteBufferConsumer {
+  // --- Inner classes ---
 
-    private final List<List<PojoSpan>> expectedTraces;
+  private interface MetaStructVerifier {
+    void verify(Object expected, byte[] received) throws IOException;
+  }
+
+  private static final class PayloadVerifier implements ByteBufferConsumer, WritableByteChannel {
+
+    private final List<List<TraceGenerator.PojoSpan>> expectedTraces;
     private final TraceMapperV0_4 mapper;
-    private final MetaStructVerifier<Object> metaStructVerifier;
-    private final PayloadVerifiers.CapturingChannel channel =
-        new PayloadVerifiers.CapturingChannel(200 << 10);
-
+    private ByteBuffer captured = ByteBuffer.allocate(200 << 10);
+    private final MetaStructVerifier metaStructVerifier;
     private int position = 0;
 
-    private PayloadVerifier(List<List<PojoSpan>> traces, TraceMapperV0_4 mapper) {
+    private PayloadVerifier(List<List<TraceGenerator.PojoSpan>> traces, TraceMapperV0_4 mapper) {
       this(traces, mapper, null);
     }
 
     private PayloadVerifier(
-        List<List<PojoSpan>> traces,
+        List<List<TraceGenerator.PojoSpan>> traces,
         TraceMapperV0_4 mapper,
-        MetaStructVerifier<Object> metaStructVerifier) {
+        MetaStructVerifier metaStructVerifier) {
       this.expectedTraces = traces;
       this.mapper = mapper;
       this.metaStructVerifier = metaStructVerifier;
@@ -266,15 +263,16 @@ class TraceMapperV04PayloadTest {
       int processTagsCount = 0;
       try {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer);
-        payload.writeTo(channel);
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(channel.flipForReading());
+        payload.writeTo(this);
+        captured.flip();
+        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured);
         int traceCount = unpacker.unpackArrayHeader();
         for (int i = 0; i < traceCount; ++i) {
-          List<PojoSpan> expectedTrace = expectedTraces.get(position++);
+          List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++);
           int spanCount = unpacker.unpackArrayHeader();
           assertEquals(expectedTrace.size(), spanCount);
           for (int k = 0; k < spanCount; ++k) {
-            PojoSpan expectedSpan = expectedTrace.get(k);
+            TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k);
             int elementCount = unpacker.unpackMapHeader();
             boolean hasMetaStruct = !expectedSpan.getMetaStruct().isEmpty();
             assertEquals(hasMetaStruct ? 13 : 12, elementCount);
@@ -313,19 +311,43 @@ class TraceMapperV04PayloadTest {
             HashMap<String, Number> metrics = new HashMap<>();
             for (int j = 0; j < metricsSize; ++j) {
               String key = unpacker.unpackString();
-              Number n = unpackNumber(unpacker, key);
+              Number metricValue = null;
+              MessageFormat format = unpacker.getNextFormat();
+              switch (format) {
+                case NEGFIXINT:
+                case POSFIXINT:
+                case INT8:
+                case UINT8:
+                case INT16:
+                case UINT16:
+                case INT32:
+                case UINT32:
+                  metricValue = unpacker.unpackInt();
+                  break;
+                case INT64:
+                case UINT64:
+                  metricValue = unpacker.unpackLong();
+                  break;
+                case FLOAT32:
+                  metricValue = unpacker.unpackFloat();
+                  break;
+                case FLOAT64:
+                  metricValue = unpacker.unpackDouble();
+                  break;
+                default:
+                  Assertions.fail("Unexpected type in metrics values: " + format);
+              }
               if (DD_MEASURED.toString().equals(key)) {
-                assertTrue(
-                    (n.intValue() == 1 && expectedSpan.isMeasured()) || !expectedSpan.isMeasured());
+                assertTrue(metricValue.intValue() == 1 || !expectedSpan.isMeasured());
               } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
                 // check that priority sampling is only on first and last span
                 if (k == 0 || k == spanCount - 1) {
-                  assertEquals(expectedSpan.samplingPriority(), n.intValue());
+                  assertEquals(expectedSpan.samplingPriority(), metricValue.intValue());
                 } else {
                   assertFalse(expectedSpan.hasSamplingPriority());
                 }
               } else {
-                metrics.put(key, n);
+                metrics.put(key, metricValue);
               }
             }
             for (Map.Entry<String, Number> metric : metrics.entrySet()) {
@@ -335,8 +357,8 @@ class TraceMapperV04PayloadTest {
                     metric.getValue().doubleValue(),
                     0.001);
               } else {
-                // Integer-typed metrics round-trip through msgpack's minimal encoding, so a Long
-                // tag can come back as an Integer (and vice versa). Compare numerically.
+                // Groovy compared numerically, Java requires explicit long comparison to avoid
+                // Long/Integer type mismatch from different msgpack integer encoding widths
                 assertEquals(
                     ((Number) expectedSpan.getTag(metric.getKey())).longValue(),
                     metric.getValue().longValue());
@@ -360,7 +382,7 @@ class TraceMapperV04PayloadTest {
                 processTagsCount++;
               } else {
                 Object tag = expectedSpan.getTag(entry.getKey());
-                if (tag != null) {
+                if (null != tag) {
                   assertEquals(String.valueOf(tag), entry.getValue());
                 } else {
                   assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue());
@@ -383,22 +405,47 @@ class TraceMapperV04PayloadTest {
           }
         }
       } catch (IOException e) {
-        fail(e.getMessage());
+        Assertions.fail(e.getMessage());
       } finally {
         mapper.reset();
-        channel.resetForWriting();
+        captured.position(0);
+        captured.limit(captured.capacity());
         assertEquals(
             Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0, processTagsCount);
       }
     }
 
+    @Override
+    public int write(ByteBuffer src) {
+      if (captured.remaining() < src.remaining()) {
+        ByteBuffer newBuffer = ByteBuffer.allocate(captured.capacity() + src.capacity());
+        captured.flip();
+        newBuffer.put(captured);
+        captured = newBuffer;
+        return write(src);
+      }
+      captured.put(src);
+      return src.position();
+    }
+
     void verifyTracesConsumed() {
       assertEquals(expectedTraces.size(), position);
     }
+
+    @Override
+    public boolean isOpen() {
+      return true;
+    }
+
+    @Override
+    public void close() {}
   }
 
-  @FunctionalInterface
-  private interface MetaStructVerifier<E> {
-    void verify(E expected, byte[] received) throws IOException;
+  private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
+    if (null == expected) {
+      assertEquals("", actual);
+    } else {
+      assertEquals(expected.toString(), actual.toString());
+    }
   }
 }
