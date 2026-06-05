@@ -1,11 +1,16 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.CoreTracer.TRACE_ID_MAX;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_SPAN_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
+import static java.math.BigInteger.ONE;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -17,19 +22,17 @@ import datadog.trace.api.Config;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.sampling.PrioritySampling;
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.test.util.DDJavaSpecification;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
-@WithConfig(key = "propagation.extract.log_header_names.enabled", value = "true")
+@WithConfig(key = PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
 class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   private static final String SOME_HEADER = "SOME_HEADER";
@@ -45,7 +48,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @BeforeEach
   void setup() {
-    Map<String, String> baggageMap = new LinkedHashMap<>();
+    Map<String, String> baggageMap = new HashMap<>();
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, SOME_BAGGAGE);
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, SOME_CASE_SENSITIVE_BAGGAGE);
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
@@ -53,15 +56,16 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
             .setHeaderTags(singletonMap(SOME_HEADER, SOME_TAG))
             .setBaggageMapping(baggageMap)
             .apply();
-    extractor =
-        HaystackHttpCodec.newExtractor(Config.get(), () -> dynamicConfig.captureTraceConfig());
-    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
+    this.extractor =
+        HaystackHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+
+    this.origAppSecActive = APPSEC_ACTIVE;
+    APPSEC_ACTIVE = true;
   }
 
   @AfterEach
   void teardown() {
-    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive;
+    APPSEC_ACTIVE = origAppSecActive;
   }
 
   @TableTest({
@@ -72,7 +76,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     "uint64 max-1     | '18446744073709551614' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
   })
   void extractHttpHeaders(String traceId, String spanId, String traceUuid, String spanUuid) {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put("", "empty key");
     headers.put(TRACE_ID_KEY.toUpperCase(), traceUuid);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanUuid);
@@ -83,11 +87,12 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info");
     headers.put(SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2");
 
-    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(traceId), context.getTraceId());
     assertEquals(DDSpanId.from(spanId), context.getSpanId());
-    Map<String, String> expectedBaggage = new LinkedHashMap<>();
+    Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
     expectedBaggage.put("k3", "%76%33"); // expect value decoded only once
@@ -97,7 +102,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     expectedBaggage.put(SOME_CASE_SENSITIVE_BAGGAGE, "my-interesting-baggage-info-2");
     assertEquals(expectedBaggage, context.getBaggage());
     assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
-    assertEquals(PrioritySampling.SAMPLER_KEEP, context.getSamplingPriority());
+    assertEquals(SAMPLER_KEEP, context.getSamplingPriority());
     assertNull(context.getOrigin());
   }
 
@@ -105,7 +110,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   void extractHeaderTagsWithNoPropagation() {
     Map<String, String> headers = singletonMap(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap(SOME_TAG, "my-interesting-info"), context.getTags());
@@ -117,18 +122,18 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     String forwardedPort = "123";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
     Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
+    Map<String, String> fullCtx = new HashMap<>();
     fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
     fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
     fullCtx.put("Forwarded", forwarded);
 
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwarded, context.getForwarded());
 
-    context = extractor.extract(fullCtx, stringValuesMap());
+    context = this.extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -140,22 +145,22 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   void extractHeadersWithXForwarding() {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "123";
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
+    Map<String, String> tagOnlyCtx = new HashMap<>();
     tagOnlyCtx.put("X-Forwarded-For", forwardedIp);
     tagOnlyCtx.put("X-Forwarded-Port", forwardedPort);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
+    Map<String, String> fullCtx = new HashMap<>();
     fullCtx.put(TRACE_ID_KEY.toUpperCase(), "1");
     fullCtx.put(SPAN_ID_KEY.toUpperCase(), "2");
     fullCtx.put("x-forwarded-for", forwardedIp);
     fullCtx.put("x-forwarded-port", forwardedPort);
 
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertEquals(forwardedIp, context.getXForwardedFor());
     assertEquals(forwardedPort, context.getXForwardedPort());
 
-    context = extractor.extract(fullCtx, stringValuesMap());
+    context = this.extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -166,48 +171,49 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    assertNull(
-        extractor.extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+    Map<String, String> headers = singletonMap("ignored-header", "ignored-value");
+    assertNull(this.extractor.extract(headers, stringValuesMap()));
   }
 
   @Test
   void extractHttpHeadersWithInvalidNonNumericId() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), "traceId");
     headers.put(SPAN_ID_KEY.toUpperCase(), "spanId");
     headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
     headers.put(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @Test
   void extractHttpHeadersWithOutOfRangeTraceId() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), "18446744073709551616"); // TRACE_ID_MAX + 1
+    String outOfRangeTraceId = TRACE_ID_MAX.add(ONE).toString();
+    Map<String, String> headers = new HashMap<>();
+    headers.put(TRACE_ID_KEY.toUpperCase(), outOfRangeTraceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), "0");
     headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
     headers.put(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
 
   @Test
   void extractHttpHeadersWithOutOfRangeSpanId() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), "0");
     headers.put(SPAN_ID_KEY.toUpperCase(), "-1");
     headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
     headers.put(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertNull(context);
   }
@@ -220,7 +226,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     "uuid format    | '44617461-646f-6721-463a-c35c9f6413ad' | '44617461-646f-6721-463a-c35c9f6413ad' | true      "
   })
   void baggageIsMappedOnContextCreation(String traceId, String spanId, boolean ctxCreated) {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
     headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue");
@@ -228,11 +234,11 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
     headers.put(SOME_ARBITRARY_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (ctxCreated) {
       assertNotNull(context);
-      Map<String, String> expectedBaggage = new LinkedHashMap<>();
+      Map<String, String> expectedBaggage = new HashMap<>();
       expectedBaggage.put(HAYSTACK_TRACE_ID_BAGGAGE_KEY, traceId);
       expectedBaggage.put(HAYSTACK_SPAN_ID_BAGGAGE_KEY, spanId);
       expectedBaggage.put(SOME_BAGGAGE, "mappedBaggageValue");
@@ -267,11 +273,11 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
       Long expectedTraceIdLong,
       long expectedSpanId,
       boolean ctxCreated) {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     if (expectedTraceIdLong != null) {
       assertEquals(DDTraceId.from(expectedTraceIdLong), context.getTraceId());
@@ -286,7 +292,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractCommonHttpHeaders() {
-    Map<String, String> headers = new LinkedHashMap<>();
+    Map<String, String> headers = new HashMap<>();
     headers.put(HttpCodec.USER_AGENT_KEY, "some-user-agent");
     headers.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1");
     headers.put(HttpCodec.X_REAL_IP_KEY, "2.2.2.2");
@@ -298,7 +304,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     headers.put(HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8");
     headers.put(HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertEquals("some-user-agent", context.getUserAgent());
     assertEquals("1.1.1.1", context.getXClusterClientIp());

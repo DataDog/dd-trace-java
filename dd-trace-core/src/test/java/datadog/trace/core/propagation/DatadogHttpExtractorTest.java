@@ -53,8 +53,8 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   private static final String SOME_BAGGAGE = "some-baggage";
   private static final String SOME_CASE_SENSITIVE_BAGGAGE = "some-CaseSensitive-baggage";
 
-  private boolean origAppSecActive;
   private HttpCodec.Extractor extractor;
+  private boolean origAppSecActive;
 
   @BeforeEach
   void setup() {
@@ -216,8 +216,8 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    Map<String, String> carrier = singletonMap("ignored-header", "ignored-value");
-    assertNull(this.extractor.extract(carrier, stringValuesMap()));
+    Map<String, String> headers = singletonMap("ignored-header", "ignored-value");
+    assertNull(this.extractor.extract(headers, stringValuesMap()));
   }
 
   @Test
