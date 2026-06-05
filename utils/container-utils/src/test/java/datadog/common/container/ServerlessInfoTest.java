@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.trace.test.util.ControllableEnvironmentVariables;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.io.File;
+import java.lang.reflect.Constructor;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
@@ -49,7 +50,7 @@ public class ServerlessInfoTest extends DDJavaSpecification {
   @Test
   void testServerlessHasExtensionFalseSinceExtensionPathIsNull() throws Exception {
     // ServerlessInfo(String extensionPath) is private — access via reflection
-    java.lang.reflect.Constructor<ServerlessInfo> constructor =
+    Constructor<ServerlessInfo> constructor =
         ServerlessInfo.class.getDeclaredConstructor(String.class);
     constructor.setAccessible(true);
     ServerlessInfo info = constructor.newInstance((Object) null);
@@ -62,7 +63,7 @@ public class ServerlessInfoTest extends DDJavaSpecification {
     File f = File.createTempFile("fake-", "extension");
     f.deleteOnExit();
 
-    java.lang.reflect.Constructor<ServerlessInfo> constructor =
+    Constructor<ServerlessInfo> constructor =
         ServerlessInfo.class.getDeclaredConstructor(String.class);
     constructor.setAccessible(true);
     ServerlessInfo info = constructor.newInstance(f.getAbsolutePath());

@@ -8,69 +8,30 @@ import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 public class CapturedEnvironmentTest {
 
+  // A blank sunJavaCommand passes no argument, leaving the real sun.java.command (this test
+  // runner) in place, so the service name resolves to the ServiceNamePrinter main class.
   @TableTest({
-    "scenario         | sunJavaCommand                          | expectedServiceName",
-    "null command     | null                                    |                    ",
-    "empty command    | ''                                      |                    ",
-    "all blanks       | ' '                                     |                    ",
-    "class in command | org.example.App -Dfoo=bar arg2 arg3     | org.example.App    ",
-    "jar in command   | foo/bar/example.jar -Dfoo=bar arg2 arg3 | example            "
+    "scenario           | sunJavaCommand                          | envVars                                                    | expectedServiceName                                             ",
+    "null command       | null                                    | [:]                                                        |                                                                 ",
+    "empty command      | ''                                      | [:]                                                        |                                                                 ",
+    "all blanks         | ' '                                     | [:]                                                        |                                                                 ",
+    "class in command   | org.example.App -Dfoo=bar arg2 arg3     | [:]                                                        | org.example.App                                                 ",
+    "jar in command     | foo/bar/example.jar -Dfoo=bar arg2 arg3 | [:]                                                        | example                                                         ",
+    "real sun command   |                                         | [:]                                                        | datadog.trace.api.env.CapturedEnvironmentTest$ServiceNamePrinter",
+    "azure site name    | foo/bar/example.jar -Dfoo=bar arg2 arg3 | [DD_AZURE_APP_SERVICES: 1, WEBSITE_SITE_NAME: siteService] | siteService                                                     ",
+    "site name no azure | foo/bar/example.jar -Dfoo=bar arg2 arg3 | [WEBSITE_SITE_NAME: siteService]                           | example                                                         ",
+    "azure flag no site | foo/bar/example.jar -Dfoo=bar arg2 arg3 | [DD_AZURE_APP_SERVICES: true]                              | example                                                         "
   })
-  void capturesServiceNameFromSunJavaCommand(String sunJavaCommand, String expectedServiceName)
+  void capturesServiceName(
+      String sunJavaCommand, Map<String, String> envVars, String expectedServiceName)
       throws IOException, InterruptedException {
-    assertEquals(expectedServiceName, forkAndRunProperties(sunJavaCommand));
-  }
-
-  @Test
-  void setServiceNameWithRealSunJavaCommandProperty() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties(null);
-
-    assertEquals(ServiceNamePrinter.class.getName(), serviceName);
-  }
-
-  @Test
-  void useAzureSiteNameInAzure() throws IOException, InterruptedException {
-    HashMap<String, String> azureEnvVars = new HashMap<>();
-    azureEnvVars.put("DD_AZURE_APP_SERVICES", "1");
-    azureEnvVars.put("WEBSITE_SITE_NAME", "siteService");
-
-    String serviceName =
-        forkAndRunProperties("foo/bar/example.jar -Dfoo=bar arg2 arg3", azureEnvVars);
-
-    assertEquals("siteService", serviceName);
-  }
-
-  @Test
-  void dontUseSiteNameWhenNotInAzure() throws IOException, InterruptedException {
-    String serviceName =
-        forkAndRunProperties(
-            "foo/bar/example.jar -Dfoo=bar arg2 arg3",
-            Collections.singletonMap("WEBSITE_SITE_NAME", "siteService"));
-
-    assertEquals("example", serviceName);
-  }
-
-  @Test
-  void dontUseAzureSiteNameWhenNull() throws IOException, InterruptedException {
-    String serviceName =
-        forkAndRunProperties(
-            "foo/bar/example.jar -Dfoo=bar arg2 arg3",
-            Collections.singletonMap("DD_AZURE_APP_SERVICES", "true"));
-
-    assertEquals("example", serviceName);
-  }
-
-  private static String forkAndRunProperties(String arg) throws IOException, InterruptedException {
-    return forkAndRunProperties(arg, Collections.<String, String>emptyMap());
+    assertEquals(expectedServiceName, forkAndRunProperties(sunJavaCommand, envVars));
   }
 
   private static String forkAndRunProperties(String arg, Map<String, String> envVars)

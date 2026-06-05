@@ -1,41 +1,33 @@
 package datadog.trace.bootstrap.config.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertThrows;
 
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Properties;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class PropertiesConfigSourceTest extends DDJavaSpecification {
 
   @Test
-  void testNull() {
+  void throwsWhenPropertiesAreNull() {
     assertThrows(AssertionError.class, () -> new PropertiesConfigSource(null, true));
   }
 
-  @Test
-  void configPulledFromProperties() {
+  @TableTest({
+    "scenario    | usePrefix | abc | ddAbc | missing",
+    "no prefix   | false     | def | xyz   |        ",
+    "with prefix | true      | xyz |       |        "
+  })
+  void configPulledFromProperties(boolean usePrefix, String abc, String ddAbc, String missing) {
     Properties props = new Properties();
     props.put("abc", "def");
     props.put("dd.abc", "xyz");
-    PropertiesConfigSource source = new PropertiesConfigSource(props, false);
+    PropertiesConfigSource source = new PropertiesConfigSource(props, usePrefix);
 
-    assertEquals("def", source.get("abc"));
-    assertEquals("xyz", source.get("dd.abc"));
-    assertNull(source.get("missing"));
-  }
-
-  @Test
-  void configPulledFromPropertiesWithPrefix() {
-    Properties props = new Properties();
-    props.put("abc", "def");
-    props.put("dd.abc", "xyz");
-    PropertiesConfigSource source = new PropertiesConfigSource(props, true);
-
-    assertEquals("xyz", source.get("abc"));
-    assertNull(source.get("dd.abc"));
-    assertNull(source.get("missing"));
+    assertEquals(abc, source.get("abc"));
+    assertEquals(ddAbc, source.get("dd.abc"));
+    assertEquals(missing, source.get("missing"));
   }
 }

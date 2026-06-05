@@ -14,6 +14,7 @@ import datadog.trace.api.ConfigOrigin;
 import datadog.trace.api.ConfigSetting;
 import datadog.trace.test.util.DDJavaSpecification;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
+import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
 import java.lang.reflect.Constructor;
@@ -25,6 +26,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.slf4j.LoggerFactory;
 import org.snakeyaml.engine.v2.api.Dump;
@@ -128,7 +130,7 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     listAppender.start();
     logbackLogger.addAppender(listAppender);
 
-    java.io.File tempFile = java.io.File.createTempFile("testFile_", ".yaml");
+    File tempFile = File.createTempFile("testFile_", ".yaml");
     try {
       Files.write(tempFile.toPath(), yaml.getBytes());
 
@@ -150,8 +152,7 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     }
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments>
-      testParseInvalidLogsMappingErrorsArguments() {
+  static Stream<Arguments> testParseInvalidLogsMappingErrorsArguments() {
     return Stream.of(
         arguments(
             "apm_configuration_rules:\n"

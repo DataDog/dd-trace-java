@@ -20,6 +20,7 @@ import java.util.List;
 import java.util.stream.Stream;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.Arguments;
 import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
@@ -109,8 +110,7 @@ public class ContainerInfoTest extends DDJavaSpecification {
     assertEquals(size, containerInfo.getCGroups().size());
   }
 
-  static Stream<org.junit.jupiter.params.provider.Arguments>
-      containerInfoParsedFromFileContentArguments() {
+  static Stream<Arguments> containerInfoParsedFromFileContentArguments() {
     // spotless:off
     return Stream.of(
         // Docker
