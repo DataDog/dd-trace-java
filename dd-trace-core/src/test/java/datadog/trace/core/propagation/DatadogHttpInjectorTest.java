@@ -9,12 +9,12 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.verifyNoMoreInteractions;
 
-import datadog.context.propagation.CarrierSetter;
 import datadog.trace.api.DD128bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
@@ -25,63 +25,53 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import java.util.LinkedHashMap;
+import java.util.HashMap;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
+  private HttpCodec.Injector injector;
+  private CoreTracer tracer;
 
-  private static final CarrierSetter<Map<String, String>> MAP_SETTER = Map::put;
+  @BeforeEach
+  void setup() {
+    this.injector = DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
 
-  private final HttpCodec.Injector injector =
-      DatadogHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
+    ListWriter writer = new ListWriter();
+    this.tracer = tracerBuilder().writer(writer).build();
+  }
+
+  @AfterEach
+  void tearDown() {
+    this.tracer.close();
+  }
 
   @TableTest({
-    "scenario          | traceId                | spanId                 | samplingPriority              | origin  ",
-    "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '1'                    | '2'                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP |         "
+      "scenario          | traceId                | spanId                 | samplingPriority              | origin  ",
+      "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |         ",
+      "keep with origin  | '1'                    | '2'                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
+      "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan'",
+      "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP |         "
   })
   @SuppressWarnings("unchecked")
   void injectHttpHeaders(
       String traceId,
       String spanId,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
     baggage.put("some-baggage-key", "some-value");
-    DDSpanContext mockedContext =
-        new DDSpanContext(
-            DDTraceId.from(traceId),
-            DDSpanId.from(spanId),
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            samplingPriority,
-            origin,
-            baggage,
-            false,
-            "fakeType",
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory()
-                .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.usr=123"));
+
+    DDSpanContext spanContext = mockSpanContext(traceId, spanId, samplingPriority, origin, baggage, "_dd.p.usr=123");
     Map<String, String> carrier = mock(Map.class);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    this.injector.inject(spanContext, carrier, Map::put);
 
     verify(carrier).put(TRACE_ID_KEY, traceId);
     verify(carrier).put(SPAN_ID_KEY, spanId);
@@ -101,40 +91,18 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void injectHttpHeadersWithEndToEnd() {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    DDSpanContext mockedContext =
-        new DDSpanContext(
-            DDTraceId.from("1"),
-            DDSpanId.from("2"),
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            UNSET,
-            "fakeOrigin",
-            baggage,
-            false,
-            "fakeType",
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"));
-    mockedContext.beginEndToEnd();
-    String expectedT0 = String.valueOf(mockedContext.getEndToEndStartTime() / 1_000_000L);
+
+    DDSpanContext spanContext = mockSpanContext("1", "2", UNSET, "fakeOrigin", baggage, "_dd.p.dm=-4,_dd.p.anytag=value");
+    spanContext.beginEndToEnd();
+
     Map<String, String> carrier = mock(Map.class);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    this.injector.inject(spanContext, carrier, Map::put);
 
+    String expectedT0 = String.valueOf(spanContext.getEndToEndStartTime() / 1_000_000L);
     verify(carrier).put(TRACE_ID_KEY, "1");
     verify(carrier).put(SPAN_ID_KEY, "2");
     verify(carrier).put(ORIGIN_KEY, "fakeOrigin");
@@ -148,36 +116,15 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   @Test
   @SuppressWarnings("unchecked")
   void injectTheDecisionMakerTag() {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    DDSpanContext mockedContext =
-        new DDSpanContext(
-            DDTraceId.from("1"),
-            DDSpanId.from("2"),
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            UNSET,
-            "fakeOrigin",
-            baggage,
-            false,
-            "fakeType",
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory().empty());
-    mockedContext.setSamplingPriority(USER_KEEP, MANUAL);
+
+    DDSpanContext spanContext = mockSpanContext("1", "2", UNSET, "fakeOrigin", baggage, null);
+    spanContext.setSamplingPriority(USER_KEEP, MANUAL);
     Map<String, String> carrier = mock(Map.class);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    this.injector.inject(spanContext, carrier, Map::put);
 
     verify(carrier).put(TRACE_ID_KEY, "1");
     verify(carrier).put(SPAN_ID_KEY, "2");
@@ -190,50 +137,27 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | hexId                             ",
-    "64-bit short        | '1'                               ",
-    "64-bit max chars    | '123456789abcdef0'                ",
-    "128-bit             | '123456789abcdef0123456789abcdef0'",
-    "128-bit zero middle | '64184f2400000000123456789abcdef0'",
-    "128-bit all f       | 'ffffffffffffffffffffffffffffffff'"
+      "scenario            | hexId                             ",
+      "64-bit short        | '1'                               ",
+      "64-bit max chars    | '123456789abcdef0'                ",
+      "128-bit             | '123456789abcdef0123456789abcdef0'",
+      "128-bit zero middle | '64184f2400000000123456789abcdef0'",
+      "128-bit all f       | 'ffffffffffffffffffffffffffffffff'"
   })
   @SuppressWarnings("unchecked")
   void injectHttpHeadersWith128BitTraceId(String hexId) {
-    ListWriter writer = new ListWriter();
-    CoreTracer tracer = tracerBuilder().writer(writer).build();
     DD128bTraceId traceId = DD128bTraceId.fromHex(hexId);
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
-    DDSpanContext mockedContext =
-        new DDSpanContext(
-            traceId,
-            DDSpanId.from("2"),
-            DDSpanId.ZERO,
-            null,
-            "fakeService",
-            "fakeOperation",
-            "fakeResource",
-            UNSET,
-            null,
-            baggage,
-            false,
-            "fakeType",
-            0,
-            tracer.createTraceCollector(DDTraceId.ONE),
-            null,
-            null,
-            NoopPathwayContext.INSTANCE,
-            false,
-            PropagationTags.factory()
-                .fromHeaderValue(
-                    PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"));
-    mockedContext.beginEndToEnd();
-    String expectedT0 = String.valueOf(mockedContext.getEndToEndStartTime() / 1_000_000L);
+
+    DDSpanContext spanContext = mockSpanContext(traceId, "2", UNSET, null, baggage, "_dd.p.dm=-4,_dd.p.anytag=value");
+    spanContext.beginEndToEnd();
     Map<String, String> carrier = mock(Map.class);
 
-    injector.inject(mockedContext, carrier, MAP_SETTER);
+    this.injector.inject(spanContext, carrier, Map::put);
 
+    String expectedT0 = String.valueOf(spanContext.getEndToEndStartTime() / 1_000_000L);
     verify(carrier).put(TRACE_ID_KEY, traceId.toString());
     verify(carrier).put(SPAN_ID_KEY, "2");
     verify(carrier).put(OT_BAGGAGE_PREFIX + "t0", expectedT0);
@@ -247,5 +171,45 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
           .put(DATADOG_TAGS_KEY, "_dd.p.dm=-4,_dd.p.tid=" + tIdHex + ",_dd.p.anytag=value");
     }
     verifyNoMoreInteractions(carrier);
+  }
+
+  private DDSpanContext mockSpanContext(
+      String traceId,
+      String spanId,
+      byte samplingPriority,
+      String origin,
+      Map<String, String> baggage,
+      String ddPTags) {
+    return mockSpanContext(DDTraceId.from(traceId), spanId, samplingPriority, origin, baggage, ddPTags);
+  }
+
+  private DDSpanContext mockSpanContext(
+      DDTraceId traceId,
+      String spanId,
+      byte samplingPriority,
+      String origin,
+      Map<String, String> baggage,
+      String ddPTags) {
+    PropagationTags propagationTags = ddPTags == null ? PropagationTags.factory().empty() : PropagationTags.factory().fromHeaderValue(DATADOG, ddPTags);
+    return new DDSpanContext(
+        traceId,
+        DDSpanId.from(spanId),
+        DDSpanId.ZERO,
+        null,
+        "fakeService",
+        "fakeOperation",
+        "fakeResource",
+        samplingPriority,
+        origin,
+        baggage,
+        false,
+        "fakeType",
+        0,
+        this.tracer.createTraceCollector(DDTraceId.ONE),
+        null,
+        null,
+        NoopPathwayContext.INSTANCE,
+        false,
+        propagationTags);
   }
 }

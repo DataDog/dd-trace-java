@@ -130,8 +130,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   })
   void updatePropagationTagsSamplingMechanism(
       String originalTagSet,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
-      @ConvertWith(SamplingMechanismConverter.class) int mechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
+      @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       String expectedHeaderValue,
       Map<String, String> tags) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, originalTagSet);
