@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.api.Config;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
@@ -42,7 +43,10 @@ final class AggregateTable {
   }
 
   AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
-    this(maxAggregates, additionalTagsSchema, new PropertyHandlers(AggregateEntry.LIMITS_ENABLED));
+    this(
+        maxAggregates,
+        additionalTagsSchema,
+        new PropertyHandlers(Config.get().isTraceStatsCardinalityLimitsEnabled()));
   }
 
   AggregateTable(
