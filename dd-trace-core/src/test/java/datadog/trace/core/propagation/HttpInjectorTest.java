@@ -25,7 +25,6 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -146,7 +145,7 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
 
     DDTraceId traceId = DDTraceId.ONE;
     long spanId = 2;
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
     baggage.put("some-baggage-item", "some-baggage-value");

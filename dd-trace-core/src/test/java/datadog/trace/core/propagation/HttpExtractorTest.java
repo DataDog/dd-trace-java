@@ -46,7 +46,7 @@ class HttpExtractorTest extends DDJavaSpecification {
   private static final String W3C_SPAN_ID_LSTR = Long.toString(DDSpanId.fromHex(W3C_SPAN_ID));
 
   @TypeConverter
-  public static TracePropagationStyle parseTracePropagationStyle(String value) {
+  static TracePropagationStyle parseTracePropagationStyle(String value) {
     String name = value.trim();
     if (name.startsWith("TracePropagationStyle.")) {
       name = name.substring("TracePropagationStyle.".length());
