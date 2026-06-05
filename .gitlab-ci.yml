@@ -689,7 +689,9 @@ muzzle-dep-report:
     - .gitlab/count_tests.sh "$GRADLE_TARGET" "$testJvm" "./results" "./test_counts_${CI_JOB_ID}.json"
     - export TEST_COUNTS_S3_PREFIX="test-counts/${CI_PIPELINE_ID}"
     - export TEST_COUNTS_FILE="./test_counts_${CI_JOB_ID}.json"
-    - export TEST_COUNTS_S3_URI="s3://${TEST_COUNTS_S3_BUCKET}/${TEST_COUNTS_S3_PREFIX}/test_counts_${CI_JOB_ID}.json"
+    # Use logical job identity in S3 so retried jobs overwrite stale attempts.
+    - export TEST_COUNTS_S3_FILE="test_counts_${CI_JOB_NAME_SLUG}_${CI_NODE_INDEX}-${CI_NODE_TOTAL}.json"
+    - export TEST_COUNTS_S3_URI="s3://${TEST_COUNTS_S3_BUCKET}/${TEST_COUNTS_S3_PREFIX}/${TEST_COUNTS_S3_FILE}"
     - echo "Uploading ${TEST_COUNTS_FILE} to ${TEST_COUNTS_S3_URI}"
     - aws s3 cp "$TEST_COUNTS_FILE" "$TEST_COUNTS_S3_URI" --only-show-errors
     - URL_ENCODED_JOB_NAME=$(jq -rn --arg x "$CI_JOB_NAME" '$x|@uri')
