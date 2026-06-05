@@ -5,61 +5,31 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 import java.util.Map;
-import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
 public class AgentArgsParserTest {
 
-  @Test
-  void parsesASingleArgument() {
-    String args = "key1=value1";
-
+  @TableTest({
+    "scenario             | args                    | size | key  | expectedValue    ",
+    "single argument      | key1=value1             | 1    | key1 | value1           ",
+    "multiple arguments   | key1=value1,key2=value2 | 2    | key2 | value2           ",
+    "argument with spaces | key=value with spaces   | 1    | key  | value with spaces"
+  })
+  void parsesArguments(String args, int size, String key, String expectedValue) {
     Map<String, String> properties = AgentArgsParser.parseAgentArgs(args);
 
     assertNotNull(properties);
-    assertEquals(1, properties.size());
-    assertEquals("value1", properties.get("key1"));
+    assertEquals(size, properties.size());
+    assertEquals(expectedValue, properties.get(key));
   }
 
-  @Test
-  void parsesMultipleArguments() {
-    String args = "key1=value1,key2=value2";
-
-    Map<String, String> properties = AgentArgsParser.parseAgentArgs(args);
-
-    assertNotNull(properties);
-    assertEquals(2, properties.size());
-    assertEquals("value2", properties.get("key2"));
-  }
-
-  @Test
-  void returnsNullForNullString() {
-    Map<String, String> properties = AgentArgsParser.parseAgentArgs(null);
-
-    assertNull(properties);
-  }
-
-  @Test
-  void returnsNullForEmptyString() {
-    Map<String, String> properties = AgentArgsParser.parseAgentArgs("");
-
-    assertNull(properties);
-  }
-
-  @Test
-  void returnsNullForMalformedString() {
-    Map<String, String> properties = AgentArgsParser.parseAgentArgs("key=value,,,==");
-
-    assertNull(properties);
-  }
-
-  @Test
-  void parsesArgumentWithSpaces() {
-    String args = "key=value with spaces";
-
-    Map<String, String> properties = AgentArgsParser.parseAgentArgs(args);
-
-    assertNotNull(properties);
-    assertEquals(1, properties.size());
-    assertEquals("value with spaces", properties.get("key"));
+  @TableTest({
+    "scenario     | args          ",
+    "null string  |               ",
+    "empty string | ''            ",
+    "malformed    | key=value,,,=="
+  })
+  void returnsNullForInvalidArguments(String args) {
+    assertNull(AgentArgsParser.parseAgentArgs(args));
   }
 }

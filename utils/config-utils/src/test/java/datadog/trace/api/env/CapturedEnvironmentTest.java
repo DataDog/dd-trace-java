@@ -2,10 +2,8 @@ package datadog.trace.api.env;
 
 import static java.io.File.separator;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.test.util.DDJavaSpecification;
 import java.io.BufferedReader;
 import java.io.IOException;
 import java.io.InputStreamReader;
@@ -15,42 +13,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
-public class CapturedEnvironmentTest extends DDJavaSpecification {
+public class CapturedEnvironmentTest {
 
-  @Test
-  void nonAutodetectedServiceNameWithNullCommand() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties("null");
-
-    assertNull(serviceName);
-  }
-
-  @Test
-  void nonAutodetectedServiceNameWithEmptyCommand() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties("");
-
-    assertNull(serviceName);
-  }
-
-  @Test
-  void nonAutodetectedServiceNameWithAllBlanksCommand() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties(" ");
-
-    assertNull(serviceName);
-  }
-
-  @Test
-  void setServiceNameBySyspropSunJavaCommandWithClass() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties("org.example.App -Dfoo=bar arg2 arg3");
-
-    assertEquals("org.example.App", serviceName);
-  }
-
-  @Test
-  void setServiceNameBySyspropSunJavaCommandWithJar() throws IOException, InterruptedException {
-    String serviceName = forkAndRunProperties("foo/bar/example.jar -Dfoo=bar arg2 arg3");
-
-    assertEquals("example", serviceName);
+  @TableTest({
+    "scenario         | sunJavaCommand                          | expectedServiceName",
+    "null command     | null                                    |                    ",
+    "empty command    | ''                                      |                    ",
+    "all blanks       | ' '                                     |                    ",
+    "class in command | org.example.App -Dfoo=bar arg2 arg3     | org.example.App    ",
+    "jar in command   | foo/bar/example.jar -Dfoo=bar arg2 arg3 | example            "
+  })
+  void capturesServiceNameFromSunJavaCommand(String sunJavaCommand, String expectedServiceName)
+      throws IOException, InterruptedException {
+    assertEquals(expectedServiceName, forkAndRunProperties(sunJavaCommand));
   }
 
   @Test

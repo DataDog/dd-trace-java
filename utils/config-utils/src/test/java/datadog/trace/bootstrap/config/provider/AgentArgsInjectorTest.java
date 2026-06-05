@@ -2,11 +2,10 @@ package datadog.trace.bootstrap.config.provider;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
-import datadog.trace.test.util.DDJavaSpecification;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
-public class AgentArgsInjectorTest extends DDJavaSpecification {
+public class AgentArgsInjectorTest {
 
   @AfterEach
   void clearInjectedProperties() {

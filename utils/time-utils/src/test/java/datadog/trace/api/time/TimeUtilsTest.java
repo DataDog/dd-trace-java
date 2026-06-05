@@ -7,7 +7,6 @@ import org.tabletest.junit.TableTest;
 
 public class TimeUtilsTest extends DDJavaSpecification {
 
-  // spotless:off
   @TableTest({
     "delayString | expected",
     "            | -1      ",
@@ -44,7 +43,6 @@ public class TimeUtilsTest extends DDJavaSpecification {
     "2H          | 7200    ",
     "3H          | 10800   "
   })
-  // spotless:on
   void testSimpleDelayParsing(String delayString, long expected) {
     assertEquals(expected, TimeUtils.parseSimpleDelay(delayString));
   }

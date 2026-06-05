@@ -26,16 +26,20 @@ public class BoxedValueConverter implements ArgumentConverter {
   public Object convert(Object source, ParameterContext context)
       throws ArgumentConversionException {
     if (source == null) return null;
+
     String s = source.toString();
     if (s.isEmpty()) return null;
+
     if ("true".equals(s)) return Boolean.TRUE;
     if ("false".equals(s)) return Boolean.FALSE;
+
     if (s.endsWith("f")) {
       try {
         return Float.parseFloat(s.substring(0, s.length() - 1));
       } catch (NumberFormatException ignored) {
       }
     }
+
     if (s.contains(".")) {
       try {
         return Double.parseDouble(s);

@@ -107,8 +107,13 @@ public class StableConfigSourceTest extends DDJavaSpecification {
     Path filePath = Files.createTempFile("testFile_", ".yaml");
     try {
       writeFileYaml(filePath, configId, defaultConfigs);
-      // verify parsing succeeds without throwing an exception
-      assertNotNull(new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG));
+      StableConfigSource stableCfg =
+          new StableConfigSource(filePath.toString(), ConfigOrigin.LOCAL_STABLE_CONFIG);
+
+      assertEquals(configId.isEmpty() ? null : configId, stableCfg.getConfigId());
+      assertEquals(defaultConfigs.keySet(), stableCfg.getKeys());
+      defaultConfigs.forEach(
+          (key, value) -> assertEquals(value, stableCfg.get(key.substring("DD_".length()))));
     } finally {
       Files.delete(filePath);
     }
