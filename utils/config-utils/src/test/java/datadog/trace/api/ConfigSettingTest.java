@@ -2,18 +2,10 @@ package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotEquals;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
 
 import datadog.trace.junit.utils.tabletest.BoxedValueConverter;
-import java.util.Arrays;
-import java.util.BitSet;
-import java.util.Collections;
-import java.util.LinkedHashMap;
-import java.util.Map;
-import java.util.stream.Stream;
-import org.junit.jupiter.params.ParameterizedTest;
+import datadog.trace.junit.utils.tabletest.ConfigValueConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
-import org.junit.jupiter.params.provider.MethodSource;
 import org.tabletest.junit.TableTest;
 
 public class ConfigSettingTest {
@@ -76,39 +68,17 @@ public class ConfigSettingTest {
     assertEquals(rendered, ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue());
   }
 
-  @ParameterizedTest
-  @MethodSource("convertIterableMapAndBitSetArguments")
-  void convertIterableMapAndBitSetToString(Object value, String rendered) {
+  @TableTest({
+    "scenario      | value                           | rendered              ",
+    "iterable      | [1, 2, 3]                       | 1,2,3                 ",
+    "decimals      | [1.0, 22.23, 3.1415]            | 1.0,22.23,3.1415      ",
+    "map           | [a: 1, b: 2]                    | a:1,b:2               ",
+    "empty list    | []                              | ''                    ",
+    "empty map     | [:]                             | ''                    ",
+    "bitset ranges | bits(33, 200-300, 303, 400-500) | 33,200-300,303,400-500"
+  })
+  void convertIterableMapAndBitSetToString(
+      @ConvertWith(ConfigValueConverter.class) Object value, String rendered) {
     assertEquals(rendered, ConfigSetting.of("key", value, ConfigOrigin.DEFAULT).stringValue());
-  }
-
-  static Stream<org.junit.jupiter.params.provider.Arguments>
-      convertIterableMapAndBitSetArguments() {
-    Map<String, Integer> mapStringInt = new LinkedHashMap<>();
-    mapStringInt.put("a", 1);
-    mapStringInt.put("b", 2);
-
-    Map<String, String> mapStringString = new LinkedHashMap<>();
-    mapStringString.put("a", "1");
-    mapStringString.put("b", "2");
-
-    return Stream.of(
-        arguments(Arrays.asList("1", "2", "3"), "1,2,3"),
-        arguments(Arrays.asList(1, 2, 3), "1,2,3"),
-        arguments(Arrays.asList(1.0f, 22.23d, 3.1415d), "1.0,22.23,3.1415"),
-        arguments(mapStringInt, "a:1,b:2"),
-        arguments(mapStringString, "a:1,b:2"),
-        arguments(Collections.emptyMap(), ""),
-        arguments(Arrays.<String>asList(), ""),
-        arguments(bitSetIntervals(), "33,200-300,303,400-500"));
-  }
-
-  private static BitSet bitSetIntervals() {
-    BitSet bitSet = new BitSet();
-    bitSet.set(33);
-    bitSet.set(200, 300);
-    bitSet.set(303);
-    bitSet.set(400, 500);
-    return bitSet;
   }
 }
