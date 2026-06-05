@@ -1,6 +1,7 @@
 package datadog.trace.junit.utils.tabletest;
 
 import java.util.BitSet;
+import java.util.regex.Pattern;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;
@@ -20,10 +21,12 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
 public class ConfigValueConverter implements ArgumentConverter {
 
   private static final String BITSET_PREFIX = "bits(";
+  private static final Pattern COMMA = Pattern.compile(",");
 
   @Override
   public Object convert(Object source, ParameterContext context)
       throws ArgumentConversionException {
+    if (source == null) return null;
     if (source instanceof String) {
       String s = ((String) source).trim();
       if (s.startsWith(BITSET_PREFIX) && s.endsWith(")")) {
@@ -36,7 +39,7 @@ public class ConfigValueConverter implements ArgumentConverter {
 
   private static BitSet parseBitSet(String intervals) {
     BitSet bitSet = new BitSet();
-    for (String token : intervals.split(",")) {
+    for (String token : COMMA.split(intervals)) {
       String trimmed = token.trim();
       if (trimmed.isEmpty()) {
         continue;
