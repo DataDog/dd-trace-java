@@ -1,5 +1,6 @@
 package datadog.trace.common.metrics;
 
+import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.Hashtable.MutatingTableIterator;
 import java.util.function.BiConsumer;
@@ -41,9 +42,18 @@ final class AggregateTable {
   }
 
   AggregateTable(int maxAggregates, AdditionalTagsSchema additionalTagsSchema) {
+    this(maxAggregates, additionalTagsSchema, new PropertyHandlers(AggregateEntry.LIMITS_ENABLED));
+  }
+
+  AggregateTable(
+      int maxAggregates, AdditionalTagsSchema additionalTagsSchema, PropertyHandlers handlers) {
     this.buckets = Support.create(maxAggregates, Support.MAX_RATIO);
     this.maxAggregates = maxAggregates;
-    this.canonical = new AggregateEntry.Canonical(additionalTagsSchema);
+    this.canonical = new AggregateEntry.Canonical(additionalTagsSchema, handlers);
+  }
+
+  void resetHandlers(HealthMetrics healthMetrics) {
+    canonical.handlers.reset(healthMetrics);
   }
 
   int size() {

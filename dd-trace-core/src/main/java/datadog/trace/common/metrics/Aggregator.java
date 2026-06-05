@@ -42,8 +42,6 @@ final class Aggregator implements Runnable {
       justification = "the field is confined to the agent thread running the Aggregator")
   private boolean dirty;
 
-  private final AdditionalTagsSchema additionalTagsSchema;
-
   Aggregator(
       MetricWriter writer,
       MessagePassingQueue<InboxItem> inbox,
@@ -77,12 +75,15 @@ final class Aggregator implements Runnable {
       Runnable onReportCycle) {
     this.writer = writer;
     this.inbox = inbox;
-    this.additionalTagsSchema = additionalTagsSchema;
     this.aggregates = new AggregateTable(maxAggregates, additionalTagsSchema);
     this.reportingIntervalNanos = reportingIntervalTimeUnit.toNanos(reportingInterval);
     this.sleepMillis = sleepMillis;
     this.healthMetrics = healthMetrics;
     this.onReportCycle = onReportCycle;
+  }
+
+  void resetPropertyHandlers(HealthMetrics healthMetrics) {
+    aggregates.resetHandlers(healthMetrics);
   }
 
   @Override

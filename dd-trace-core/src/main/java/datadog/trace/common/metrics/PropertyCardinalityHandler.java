@@ -160,12 +160,7 @@ final class PropertyCardinalityHandler {
     return statsDTag;
   }
 
-  // Returns true once per cycle when cardinality is first exceeded; gates the warn log in callers.
-  boolean shouldWarnThisCycle() {
-    if (warnedThisCycle) return false;
-    warnedThisCycle = true;
-    return true;
-  }
+
 
   long reset() {
     long count = this.blockedCount;

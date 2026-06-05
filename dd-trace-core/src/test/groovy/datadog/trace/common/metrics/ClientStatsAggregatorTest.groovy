@@ -20,10 +20,6 @@ import spock.lang.Shared
 
 class ClientStatsAggregatorTest extends DDSpecification {
 
-  def setup() {
-    AggregateEntry.resetCardinalityHandlers()
-  }
-
   static Set<String> empty = new HashSet<>()
 
   static final int HTTP_OK = 200

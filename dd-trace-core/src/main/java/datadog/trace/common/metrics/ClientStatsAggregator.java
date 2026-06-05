@@ -468,14 +468,13 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   /**
    * Single reset hook invoked on the aggregator thread at the end of each report cycle. Reconciles
    * the cached peer-tag schema against the latest feature discovery, then resets all cardinality
-   * state in lockstep: the static property handlers + {@code PeerTagSchema.INTERNAL} (via {@link
-   * AggregateEntry#resetCardinalityHandlers()}) and the cached peer-tag schema (with whatever
-   * reconciliation just produced). New handlers added anywhere in this pipeline should be reset
-   * from here.
+   * state in lockstep: the property handlers, both peer-tag schemas, and the additional tags
+   * schema. New handlers added anywhere in this pipeline should be reset from here.
    */
   private void resetCardinalityHandlers() {
     reconcilePeerTagSchema();
-    AggregateEntry.resetCardinalityHandlers(healthMetrics);
+    aggregator.resetPropertyHandlers(healthMetrics);
+    PeerTagSchema.INTERNAL.resetCardinalityHandlers(healthMetrics);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
       schema.resetHandlers(healthMetrics);

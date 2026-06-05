@@ -3,7 +3,6 @@ package datadog.trace.common.metrics;
 import datadog.metrics.api.Histogram;
 import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
-import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
@@ -13,87 +12,18 @@ import java.util.List;
 import java.util.Objects;
 import java.util.concurrent.atomic.AtomicLongArray;
 import javax.annotation.Nullable;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
-/**
- * {@link datadog.trace.util.Hashtable} entry used by the aggregator thread.
- *
- * <p>Stores the canonical UTF8 label values that identify one aggregate row, plus the mutable
- * counter and histogram state for that row. Labels are canonicalized before hashing, so overflow
- * values replaced with the sentinel use the same hash and map to the same row.
- *
- * <p>Not thread-safe — all mutation is on the aggregator thread. Tests must call {@link
- * #resetCardinalityHandlers()} in setup to avoid cross-test handler pollution (handlers are
- * static); tests using {@link PeerTagSchema} must also call {@link
- * PeerTagSchema#resetHandlers(HealthMetrics)} on the schema instance.
- */
+/** Aggregator hashtable entry: UTF8 label fields + counter/histogram state. */
 final class AggregateEntry extends Hashtable.Entry {
-
-  private static final Logger log = LoggerFactory.getLogger(AggregateEntry.class);
 
   static final long ERROR_TAG = 0x8000000000000000L;
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
 
-  /**
-   * Whether cardinality limits substitute the {@code blocked_by_tracer} sentinel when a per-field
-   * budget is exhausted. Read once at class init from {@link
-   * Config#isTraceStatsCardinalityLimitsEnabled()} ({@code trace.stats.cardinality.limits.enabled},
-   * default {@code false}) and threaded through every {@link PropertyCardinalityHandler} and {@link
-   * TagCardinalityHandler} the class owns. With the flag off, the per-field tables still cap their
-   * cache size at the same budget but over-cap values get freshly-allocated {@link
-   * UTF8BytesString}s instead of the sentinel -- so the wire format never carries a {@code
-   * blocked_by_tracer} value and entries don't collapse into a shared bucket.
-   *
-   * <p><b>Over-cap repeat tradeoff in disabled mode.</b> When the cap is exhausted and the flag is
-   * off, over-cap values are not written into the current-cycle cache (it's full). A repeat of the
-   * same over-cap value within the same cycle therefore re-walks both probe chains and allocates a
-   * fresh {@code UTF8BytesString} -- it cannot promote into the cache to amortize subsequent calls.
-   * The typical "stable working set + occasional outliers" workload is unaffected (working set fits
-   * in the cap and stays cached); a workload with repeating over-cap values pays one allocation per
-   * repeat. The prior cap sizing in {@link MetricCardinalityLimits} was chosen for the limiter role
-   * and is appropriately conservative; if production shows cache thrashing in disabled mode, widen
-   * the limits via a follow-up rather than changing the eviction strategy here.
-   *
-   * <p><b>Class-init caveat.</b> This field is {@code static final}, so its value is frozen for the
-   * JVM at the first reference to {@code AggregateEntry}. Tests that want to exercise the
-   * limits-enabled code path through {@link #RESOURCE_HANDLER} / {@link #SERVICE_HANDLER} / etc.
-   * can't simply set Config and reload -- the static field captures whatever Config returned the
-   * first time the class loaded. Construct {@link PropertyCardinalityHandler} or {@link
-   * TagCardinalityHandler} directly with explicit {@code useBlockedSentinel} args (the convenience
-   * constructors default to {@code true} for this reason) when targeted limits-on testing is
-   * needed.
-   */
+  // Frozen at first AggregateEntry class-load; used by AggregateTable to construct default
+  // handlers.
   static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
-
-  // Per-field cardinality handlers. Limits live on MetricCardinalityLimits -- see that class for
-  // per-field rationale.
-  static final PropertyCardinalityHandler RESOURCE_HANDLER =
-      new PropertyCardinalityHandler("resource", MetricCardinalityLimits.RESOURCE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SERVICE_HANDLER =
-      new PropertyCardinalityHandler("service", MetricCardinalityLimits.SERVICE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler OPERATION_HANDLER =
-      new PropertyCardinalityHandler(
-          "operation", MetricCardinalityLimits.OPERATION, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SERVICE_SOURCE_HANDLER =
-      new PropertyCardinalityHandler(
-          "service_source", MetricCardinalityLimits.SERVICE_SOURCE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler TYPE_HANDLER =
-      new PropertyCardinalityHandler("type", MetricCardinalityLimits.TYPE, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler SPAN_KIND_HANDLER =
-      new PropertyCardinalityHandler(
-          "span_kind", MetricCardinalityLimits.SPAN_KIND, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler HTTP_METHOD_HANDLER =
-      new PropertyCardinalityHandler(
-          "http_method", MetricCardinalityLimits.HTTP_METHOD, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler HTTP_ENDPOINT_HANDLER =
-      new PropertyCardinalityHandler(
-          "http_endpoint", MetricCardinalityLimits.HTTP_ENDPOINT, LIMITS_ENABLED);
-  static final PropertyCardinalityHandler GRPC_STATUS_CODE_HANDLER =
-      new PropertyCardinalityHandler(
-          "grpc_status_code", MetricCardinalityLimits.GRPC_STATUS_CODE, LIMITS_ENABLED);
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
@@ -228,41 +158,7 @@ final class AggregateEntry extends Hashtable.Entry {
         EMPTY_TAGS);
   }
 
-  /**
-   * Resets every cardinality handler's working set. Must be called on the aggregator thread.
-   * Existing entries continue to hold their previously-issued {@link UTF8BytesString} references;
-   * matches via content-equality so snapshots delivered after a reset still resolve to the existing
-   * entries.
-   */
-  static void resetCardinalityHandlers() {
-    resetCardinalityHandlers(HealthMetrics.NO_OP);
-  }
 
-  static void resetCardinalityHandlers(HealthMetrics healthMetrics) {
-    reportIfBlocked(healthMetrics, RESOURCE_HANDLER);
-    reportIfBlocked(healthMetrics, SERVICE_HANDLER);
-    reportIfBlocked(healthMetrics, OPERATION_HANDLER);
-    reportIfBlocked(healthMetrics, SERVICE_SOURCE_HANDLER);
-    reportIfBlocked(healthMetrics, TYPE_HANDLER);
-    reportIfBlocked(healthMetrics, SPAN_KIND_HANDLER);
-    reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
-    reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
-    reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
-    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
-  }
-
-  private static void reportIfBlocked(
-      HealthMetrics healthMetrics, PropertyCardinalityHandler handler) {
-    long blocked = handler.reset();
-    if (blocked > 0) {
-      if (handler.shouldWarnThisCycle()) {
-        log.warn(
-            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
-            handler.name);
-      }
-      healthMetrics.onTagCardinalityBlocked(handler.statsDTag(), blocked);
-    }
-  }
 
   /**
    * 64-bit lookup hash, computed over UTF8-encoded fields so that cardinality-blocked values (which
@@ -579,6 +475,9 @@ final class AggregateEntry extends Hashtable.Entry {
     /** Schema + per-key blocked sentinels for additional metric tags. Immutable. */
     final AdditionalTagsSchema additionalTagsSchema;
 
+    /** Per-field property cardinality handlers; owned by the enclosing {@link AggregateTable}. */
+    final PropertyHandlers handlers;
+
     /**
      * Reusable scratch for canonicalized additional-tag values, sized to the schema. Present values
      * are packed at the front in schema order (alphabetical by key); {@link #additionalTagsSize}
@@ -593,22 +492,23 @@ final class AggregateEntry extends Hashtable.Entry {
 
     long keyHash;
 
-    Canonical(AdditionalTagsSchema additionalTagsSchema) {
+    Canonical(AdditionalTagsSchema additionalTagsSchema, PropertyHandlers handlers) {
       this.additionalTagsSchema = additionalTagsSchema;
+      this.handlers = handlers;
       this.additionalTagsBuffer = new UTF8BytesString[additionalTagsSchema.size()];
     }
 
     /** Canonicalize all fields from {@code s} through the handlers into this buffer. */
-    void populateFrom(SpanSnapshot s) {
-      this.resource = RESOURCE_HANDLER.register(s.resourceName);
-      this.service = SERVICE_HANDLER.register(s.serviceName);
-      this.operationName = OPERATION_HANDLER.register(s.operationName);
-      this.serviceSource = SERVICE_SOURCE_HANDLER.register(s.serviceNameSource);
-      this.type = TYPE_HANDLER.register(s.spanType);
-      this.spanKind = SPAN_KIND_HANDLER.register(s.spanKind);
-      this.httpMethod = HTTP_METHOD_HANDLER.register(s.httpMethod);
-      this.httpEndpoint = HTTP_ENDPOINT_HANDLER.register(s.httpEndpoint);
-      this.grpcStatusCode = GRPC_STATUS_CODE_HANDLER.register(s.grpcStatusCode);
+    void populate(SpanSnapshot s) {
+      this.resource = handlers.resource.register(s.resourceName);
+      this.service = handlers.service.register(s.serviceName);
+      this.operationName = handlers.operation.register(s.operationName);
+      this.serviceSource = handlers.serviceSource.register(s.serviceNameSource);
+      this.type = handlers.type.register(s.spanType);
+      this.spanKind = handlers.spanKind.register(s.spanKind);
+      this.httpMethod = handlers.httpMethod.register(s.httpMethod);
+      this.httpEndpoint = handlers.httpEndpoint.register(s.httpEndpoint);
+      this.grpcStatusCode = handlers.grpcStatusCode.register(s.grpcStatusCode);
       this.httpStatusCode = s.httpStatusCode;
       this.synthetic = s.synthetic;
       this.traceRoot = s.traceRoot;
