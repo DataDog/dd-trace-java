@@ -18,6 +18,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -37,16 +38,16 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                | traceId              | spanId               | samplingPriority              | origin | tracestate                                    ",
-    "unset 1->2              | 1                    | 2                    | PrioritySampling.UNSET        |        | 'dd=p:0000000000000002;t.usr:123'             ",
-    "keep 1->4 saipan        | 1                    | 4                    | PrioritySampling.SAMPLER_KEEP | saipan | 'dd=s:1;o:saipan;p:0000000000000004;t.usr:123'",
-    "unset max->max-1 saipan | 18446744073709551615 | 18446744073709551614 | PrioritySampling.UNSET        | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
-    "keep max-1->max         | 18446744073709551614 | 18446744073709551615 | PrioritySampling.SAMPLER_KEEP |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
-    "drop max-1->max         | 18446744073709551614 | 18446744073709551615 | PrioritySampling.SAMPLER_DROP |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
+    "scenario                | traceId        | spanId         | samplingPriority              | origin | tracestate                                    ",
+    "unset 1->2              | 1              | 2              | PrioritySampling.UNSET        |        | 'dd=p:0000000000000002;t.usr:123'             ",
+    "keep 1->4 saipan        | 1              | 4              | PrioritySampling.SAMPLER_KEEP | saipan | 'dd=s:1;o:saipan;p:0000000000000004;t.usr:123'",
+    "unset max->max-1 saipan | TRACE_ID_MAX   | TRACE_ID_MAX-1 | PrioritySampling.UNSET        | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
+    "keep max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | PrioritySampling.SAMPLER_KEEP |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
+    "drop max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | PrioritySampling.SAMPLER_DROP |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
   })
   void injectHttpHeaders(
-      String traceId,
-      String spanId,
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin,
       String tracestate) {

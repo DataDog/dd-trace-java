@@ -7,14 +7,13 @@ import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENA
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
-import static datadog.trace.core.CoreTracer.TRACE_ID_MAX;
 import static datadog.trace.core.propagation.DatadogHttpCodec.DATADOG_TAGS_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.ORIGIN_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
-import static java.math.BigInteger.ONE;
+import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -32,6 +31,7 @@ import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -79,15 +79,15 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId                | spanId                 | samplingPriority              | origin  ",
-    "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '2'                    | '3'                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario          | traceId          | spanId           | samplingPriority              | origin  ",
+    "unset no origin   | '1'              | '2'              | PrioritySampling.UNSET        |         ",
+    "keep with origin  | '2'              | '3'              | PrioritySampling.SAMPLER_KEEP | 'saipan'",
+    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | PrioritySampling.UNSET        | 'saipan'",
+    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | PrioritySampling.SAMPLER_KEEP | 'saipan'"
   })
   void extractHttpHeaders(
-      String traceId,
-      String spanId,
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
     Map<String, String> headers = new HashMap<>();
@@ -314,9 +314,8 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithOutOfRangeTraceId() {
-    String outOfRangeTraceId = TRACE_ID_MAX.add(ONE).toString();
     Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), outOfRangeTraceId);
+    headers.put(TRACE_ID_KEY.toUpperCase(), TRACE_ID_MAX_PLUS_1);
     headers.put(SPAN_ID_KEY.toUpperCase(), "0");
     headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");
@@ -342,17 +341,20 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | traceId                | spanId                 | expectExtraction",
-    "negative traceId     | '-1'                   | '1'                    | false           ",
-    "negative spanId      | '1'                    | '-1'                   | false           ",
-    "zero traceId         | '0'                    | '1'                    | false           ",
-    "zero spanId          | '1'                    | '0'                    | true            ",
-    "uint64 max traceId   | '18446744073709551615' | '1'                    | true            ",
-    "out-of-range traceId | '18446744073709551616' | '1'                    | false           ",
-    "uint64 max spanId    | '1'                    | '18446744073709551615' | true            ",
-    "out-of-range spanId  | '1'                    | '18446744073709551616' | false           "
+    "scenario             | traceId          | spanId           | expectExtraction",
+    "negative traceId     | '-1'             | '1'              | false           ",
+    "negative spanId      | '1'              | '-1'             | false           ",
+    "zero traceId         | '0'              | '1'              | false           ",
+    "zero spanId          | '1'              | '0'              | true            ",
+    "uint64 max traceId   | 'TRACE_ID_MAX'   | '1'              | true            ",
+    "out-of-range traceId | 'TRACE_ID_MAX+1' | '1'              | false           ",
+    "uint64 max spanId    | '1'              | 'TRACE_ID_MAX'   | true            ",
+    "out-of-range spanId  | '1'              | 'TRACE_ID_MAX+1' | false           "
   })
-  void moreIdRangeValidation(String traceId, String spanId, boolean expectExtraction) {
+  void moreIdRangeValidation(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      boolean expectExtraction) {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);
@@ -401,13 +403,16 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId                | spanId                 | ctxCreated",
-    "negative traceId | '-1'                   | '1'                    | false     ",
-    "negative spanId  | '1'                    | '-1'                   | false     ",
-    "zero traceId     | '0'                    | '1'                    | true      ",
-    "uint64 max-1 ids | '18446744073709551614' | '18446744073709551614' | true      "
+    "scenario         | traceId          | spanId           | ctxCreated",
+    "negative traceId | '-1'             | '1'              | false     ",
+    "negative spanId  | '1'              | '-1'             | false     ",
+    "zero traceId     | '0'              | '1'              | true      ",
+    "uint64 max-1 ids | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX-1' | true      "
   })
-  void baggageIsMappedOnContextCreation(String traceId, String spanId, boolean ctxCreated) {
+  void baggageIsMappedOnContextCreation(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      boolean ctxCreated) {
     Map<String, String> headers = new HashMap<>();
     headers.put(TRACE_ID_KEY.toUpperCase(), traceId);
     headers.put(SPAN_ID_KEY.toUpperCase(), spanId);

@@ -3,7 +3,8 @@ package datadog.trace.core.propagation;
 import datadog.trace.api.DDTraceId;
 
 /**
- * This class contains helper methods for formatting trace and span identifiers for B3 propagation tests.
+ * This class contains helper methods for formatting trace and span identifiers for B3 propagation
+ * tests.
  */
 public final class B3TestHelper {
 

@@ -96,7 +96,9 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
       assertEquals("_dd.p.usr=123", carrier.get(DATADOG_TAGS_KEY));
       expectedSize += 5;
       if (samplingPriority != UNSET) {
-        assertEquals(Integer.toString(samplingPriority), carrier.get(DatadogHttpCodec.SAMPLING_PRIORITY_KEY));
+        assertEquals(
+            Integer.toString(samplingPriority),
+            carrier.get(DatadogHttpCodec.SAMPLING_PRIORITY_KEY));
         expectedSize++;
       }
       if (origin != null) {
@@ -114,9 +116,10 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
       }
     }
     if (styles.contains(TracePropagationStyle.B3SINGLE)) {
-      String expectedB3Value = samplingPriority != UNSET
-          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-          : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value =
+          samplingPriority != UNSET
+              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+              : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }
@@ -166,7 +169,9 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
       assertEquals("_dd.p.usr=123", carrier.get(DATADOG_TAGS_KEY));
       expectedSize = 6;
       if (samplingPriority != UNSET) {
-        assertEquals(Integer.toString(samplingPriority), carrier.get(DatadogHttpCodec.SAMPLING_PRIORITY_KEY));
+        assertEquals(
+            Integer.toString(samplingPriority),
+            carrier.get(DatadogHttpCodec.SAMPLING_PRIORITY_KEY));
         expectedSize++;
       }
       if (origin != null) {
@@ -182,9 +187,10 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
         expectedSize++;
       }
     } else if (style == TracePropagationStyle.B3SINGLE) {
-      String expectedB3Value = samplingPriority != UNSET
-          ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
-          : b3TraceIdHex + "-" + b3SpanIdHex;
+      String expectedB3Value =
+          samplingPriority != UNSET
+              ? b3TraceIdHex + "-" + b3SpanIdHex + "-1"
+              : b3TraceIdHex + "-" + b3SpanIdHex;
       assertEquals(expectedB3Value, carrier.get(B3_KEY));
       expectedSize++;
     }
@@ -222,7 +228,8 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
     assertEquals("ab%27%2C%3A%5Ccd", carrier.get("excluded"));
   }
 
-  HttpCodec.Injector createInjector(List<TracePropagationStyle> overriddenStyles, Map<String, String> invertedBaggageMapping) {
+  HttpCodec.Injector createInjector(
+      List<TracePropagationStyle> overriddenStyles, Map<String, String> invertedBaggageMapping) {
     Config config = mock(Config.class);
     if (overriddenStyles != null) {
       LinkedHashSet<TracePropagationStyle> orderedSet = new LinkedHashSet<>(overriddenStyles);

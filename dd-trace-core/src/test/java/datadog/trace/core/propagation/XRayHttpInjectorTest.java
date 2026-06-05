@@ -24,6 +24,7 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;
@@ -41,19 +42,19 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId              | spanId               | samplingPriority              | expectedTraceHeader                                                                                                                 ",
-    "unset 1->2       | 1                    | 2                    | PrioritySampling.UNSET        | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
-    "keep 2->3        | 2                    | 3                    | PrioritySampling.SAMPLER_KEEP | 'Root=1-633c7675-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
-    "drop 4->5        | 4                    | 5                    | PrioritySampling.SAMPLER_DROP | 'Root=1-633c7675-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
-    "user keep 5->6   | 5                    | 6                    | PrioritySampling.USER_KEEP    | 'Root=1-633c7675-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
-    "user drop 6->7   | 6                    | 7                    | PrioritySampling.USER_DROP    | 'Root=1-633c7675-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
-    "unset max->max-1 | 18446744073709551615 | 18446744073709551614 | PrioritySampling.UNSET        | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
-    "keep max-1->max  | 18446744073709551614 | 18446744073709551615 | PrioritySampling.SAMPLER_KEEP | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'"
+    "scenario         | traceId        | spanId         | samplingPriority              | expectedTraceHeader                                                                                                                 ",
+    "unset 1->2       | 1              | 2              | PrioritySampling.UNSET        | 'Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
+    "keep 2->3        | 2              | 3              | PrioritySampling.SAMPLER_KEEP | 'Root=1-633c7675-000000000000000000000002;Parent=0000000000000003;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
+    "drop 4->5        | 4              | 5              | PrioritySampling.SAMPLER_DROP | 'Root=1-633c7675-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
+    "user keep 5->6   | 5              | 6              | PrioritySampling.USER_KEEP    | 'Root=1-633c7675-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
+    "user drop 6->7   | 6              | 7              | PrioritySampling.USER_DROP    | 'Root=1-633c7675-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
+    "unset max->max-1 | TRACE_ID_MAX   | TRACE_ID_MAX-1 | PrioritySampling.UNSET        | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
+    "keep max-1->max  | TRACE_ID_MAX-1 | TRACE_ID_MAX   | PrioritySampling.SAMPLER_KEEP | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'"
   })
   @SuppressWarnings("unchecked")
   void injectHttpHeaders(
-      String traceId,
-      String spanId,
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String expectedTraceHeader) {
     ListWriter writer = new ListWriter();

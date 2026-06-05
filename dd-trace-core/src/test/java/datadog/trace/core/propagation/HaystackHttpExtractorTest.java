@@ -4,13 +4,12 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
-import static datadog.trace.core.CoreTracer.TRACE_ID_MAX;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_SPAN_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.HAYSTACK_TRACE_ID_BAGGAGE_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
-import static java.math.BigInteger.ONE;
+import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_MINUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,12 +23,14 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 @WithConfig(key = PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
@@ -70,13 +71,17 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId                | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids        | '1'                    | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "incrementing ids | '2'                    | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
-    "uint64 max       | '18446744073709551615' | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
-    "uint64 max-1     | '18446744073709551614' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
+    "scenario         | traceId          | spanId                 | traceUuid                              | spanUuid                              ",
+    "small ids        | '1'              | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "incrementing ids | '2'              | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
+    "uint64 max       | 'TRACE_ID_MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
+    "uint64 max-1     | 'TRACE_ID_MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
   })
-  void extractHttpHeaders(String traceId, String spanId, String traceUuid, String spanUuid) {
+  void extractHttpHeaders(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      String spanId,
+      String traceUuid,
+      String spanUuid) {
     Map<String, String> headers = new HashMap<>();
     headers.put("", "empty key");
     headers.put(TRACE_ID_KEY.toUpperCase(), traceUuid);
@@ -192,9 +197,8 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHttpHeadersWithOutOfRangeTraceId() {
-    String outOfRangeTraceId = TRACE_ID_MAX.add(ONE).toString();
     Map<String, String> headers = new HashMap<>();
-    headers.put(TRACE_ID_KEY.toUpperCase(), outOfRangeTraceId);
+    headers.put(TRACE_ID_KEY.toUpperCase(), TRACE_ID_MAX_MINUS_1);
     headers.put(SPAN_ID_KEY.toUpperCase(), "0");
     headers.put((OT_BAGGAGE_PREFIX + "k1").toUpperCase(), "v1");
     headers.put((OT_BAGGAGE_PREFIX + "k2").toUpperCase(), "v2");

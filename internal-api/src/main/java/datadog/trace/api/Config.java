@@ -1654,7 +1654,8 @@ public class Config {
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     tracePropagationStyleB3PaddingEnabled =
-        isEnabled(DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+        isEnabled(
+            DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
     try {
