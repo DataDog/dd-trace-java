@@ -11,6 +11,9 @@ def jarPath = "$buildDir/application/target/${jarName}"
 def isWindows = System.getProperty("os.name").toLowerCase().contains("win")
 def mvnwCommand = isWindows ? 'mvnw.cmd' : 'mvnw'
 
+// Keep the Maven wrapper here until more Maven smoke-test applications need nested builds.
+// The smoke-test-app plugin is Gradle-focused, and a Maven sibling task is not worth the
+// extra API surface for only the two OpenLiberty applications.
 // compile the Open liberty spring boot server
 tasks.register('mvnStage', Exec) {
   workingDir("$appDir")

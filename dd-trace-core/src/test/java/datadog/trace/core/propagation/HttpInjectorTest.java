@@ -73,7 +73,7 @@ public class HttpInjectorTest extends DDCoreJavaSpecification {
   @SuppressWarnings("unchecked")
   void injectHttpHeadersUsingStyles(
       List<TracePropagationStyle> styles,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
     Set<TracePropagationStyle> styleSet = new LinkedHashSet<>(styles);
     Config config = mock(Config.class);
@@ -143,7 +143,7 @@ public class HttpInjectorTest extends DDCoreJavaSpecification {
   @SuppressWarnings("unchecked")
   void injectHttpHeadersUsingStyle(
       TracePropagationStyle style,
-      @ConvertWith(PrioritySamplingConverter.class) int samplingPriority,
+      @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
     Config config = mock(Config.class);
     when(config.isTracePropagationStyleB3PaddingEnabled()).thenReturn(tracePropagationB3Padding());

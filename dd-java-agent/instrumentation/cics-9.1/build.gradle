@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.mass'
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 // Configuration for downloading CICS SDK from IBM
@@ -8,7 +12,7 @@ ext {
 
 repositories {
   ivy {
-    url = 'https://public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/'
+    url = mass.artifactUrl('public.dhe.ibm.com/software/htp/cics/support/supportpacs/individual/')
     patternLayout {
       artifact '[module].[ext]'
     }
