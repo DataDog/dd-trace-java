@@ -19,8 +19,8 @@ import java.util.function.Consumer;
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
  * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
- * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the inbox
- * (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the
+ * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
  * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
  * bucket chains silently.
  */
