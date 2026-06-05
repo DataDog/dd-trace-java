@@ -935,6 +935,8 @@ aggregate_test_counts:
       when: on_success
     - if: '$CI_COMMIT_BRANCH =~ /^gh-readonly-queue/'
       when: on_success
+    - if: '$CI_COMMIT_BRANCH'
+      when: on_success
   script:
     - *set_datadog_api_keys
     - export TEST_COUNTS_S3_PREFIX="test-counts/${CI_PIPELINE_ID}"
