@@ -27,43 +27,45 @@ class ConfigCollectorTest extends DDSpecification {
     expect:
     def envConfigByKey = ConfigCollector.get().collect().get(ConfigOrigin.ENV)
     def config = envConfigByKey.get(configKey)
-    config.stringValue() == configValue
+    config.stringValue() == expectedValue
     config.origin == ConfigOrigin.ENV
 
     where:
-    configKey                                                  | configValue
+    // expectedValue equals configValue for every setting except those redacted from configuration
+    // telemetry (e.g. the application key), where the collected value is rendered as "<hidden>".
+    configKey                                                  | configValue                                    | expectedValue
     // ConfigProvider.getEnum
-    IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.DEBUG.toString()
+    IastConfig.IAST_TELEMETRY_VERBOSITY                        | Verbosity.DEBUG.toString()                     | configValue
     // ConfigProvider.getString
-    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v1"
+    TracerConfig.TRACE_SPAN_ATTRIBUTE_SCHEMA                   | "v1"                                           | configValue
     // ConfigProvider.getStringNotEmpty
-    AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | UserEventTrackingMode.EXTENDED.toString()
+    AppSecConfig.APPSEC_AUTOMATED_USER_EVENTS_TRACKING         | UserEventTrackingMode.EXTENDED.toString()      | configValue
     // ConfigProvider.getStringExcludingSource
-    GeneralConfig.APPLICATION_KEY                              | "app-key"
+    GeneralConfig.APPLICATION_KEY                              | "app-key"                                      | "<hidden>"
     // ConfigProvider.getBoolean
-    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | "true"
+    TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES         | "true"                                         | configValue
     // ConfigProvider.getInteger
-    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"
+    JmxFetchConfig.JMX_FETCH_CHECK_PERIOD                      | "60"                                           | configValue
     // ConfigProvider.getLong
-    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"
+    CiVisibilityConfig.CIVISIBILITY_GIT_COMMAND_TIMEOUT_MILLIS | "450273"                                       | configValue
     // ConfigProvider.getFloat
-    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"
+    GeneralConfig.TELEMETRY_HEARTBEAT_INTERVAL                 | "1.5"                                          | configValue
     // ConfigProvider.getDouble
-    TracerConfig.TRACE_SAMPLE_RATE                             | "2.2"
+    TracerConfig.TRACE_SAMPLE_RATE                             | "2.2"                                          | configValue
     // ConfigProvider.getList
-    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | "someTopic,otherTopic"
+    TraceInstrumentationConfig.JMS_PROPAGATION_DISABLED_TOPICS | "someTopic,otherTopic"                         | configValue
     // ConfigProvider.getSet
-    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | "SHA1,SHA-1"
+    IastConfig.IAST_WEAK_HASH_ALGORITHMS                       | "SHA1,SHA-1"                                   | configValue
     // ConfigProvider.getSpacedList
-    TracerConfig.PROXY_NO_PROXY                                | "a b c"
+    TracerConfig.PROXY_NO_PROXY                                | "a b c"                                        | configValue
     // ConfigProvider.getMergedMap
-    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | "service1:best_service,userService:my_service"
+    TracerConfig.TRACE_PEER_SERVICE_MAPPING                    | "service1:best_service,userService:my_service" | configValue
     // ConfigProvider.getOrderedMap
-    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | "/asdf/*:/test"
+    TracerConfig.TRACE_HTTP_SERVER_PATH_RESOURCE_NAME_MAPPING  | "/asdf/*:/test"                                | configValue
     // ConfigProvider.getMergedMapWithOptionalMappings
-    TracerConfig.HEADER_TAGS                                   | "e:five"
+    TracerConfig.HEADER_TAGS                                   | "e:five"                                       | configValue
     // ConfigProvider.getIntegerRange
-    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-402"
+    TracerConfig.TRACE_HTTP_CLIENT_ERROR_STATUSES              | "400-402"                                      | configValue
   }
 
   def "should collect merged data from multiple sources"() {
@@ -131,8 +133,10 @@ class ConfigCollectorTest extends DDSpecification {
     cs.origin == ConfigOrigin.DEFAULT
 
     where:
+    // GeneralConfig.APPLICATION_KEY is redacted from configuration telemetry, so its collected
+    // value is rendered as "<hidden>" rather than null; that redaction is verified in the
+    // "non-default config settings get collected" feature above.
     configKey << [
-      GeneralConfig.APPLICATION_KEY,
       TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES,
       JmxFetchConfig.JMX_FETCH_CHECK_PERIOD,
       CiVisibilityConfig.CIVISIBILITY_DEBUG_PORT,
