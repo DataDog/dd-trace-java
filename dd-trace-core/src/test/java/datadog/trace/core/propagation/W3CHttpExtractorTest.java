@@ -191,7 +191,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeaderTagsWithNoPropagation() {
-    Map<String, String> headers = singletonMap(SOME_HEADER, "my-interesting-info");
+    Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
     TagContext context = extractor().extract(headers, stringValuesMap());
 
@@ -204,9 +204,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = headers(
-        "Forwarded", forwarded
-    );
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
         W3CHttpCodec.TRACE_PARENT_KEY, "00-00000000000000000000000000000001-0000000000000002-01",
@@ -262,8 +260,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    assertNull(
-        extractor().extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(extractor().extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test

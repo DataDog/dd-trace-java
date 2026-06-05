@@ -170,7 +170,7 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
         TRACE_ID_KEY, "1",
@@ -227,7 +227,7 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    Map<String, String> headers = singletonMap("ignored-header", "ignored-value");
+    Map<String, String> headers = headers("ignored-header", "ignored-value");
     assertNull(this.extractor.extract(headers, stringValuesMap()));
   }
 

@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.clearInvocations;
@@ -106,7 +107,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
             .timeSource(timeSource)
             .build();
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id",
             "Root=1-00000000-00000000"
                 + padLeft(traceId, 16, '0')

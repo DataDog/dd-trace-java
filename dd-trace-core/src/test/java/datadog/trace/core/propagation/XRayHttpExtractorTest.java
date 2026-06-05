@@ -101,7 +101,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeaderTagsWithNoPropagation() {
-    Map<String, String> headers = singletonMap(SOME_HEADER, "my-interesting-info");
+    Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -114,7 +114,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
         "x-amzn-trace-id", "Root=1-00000000-000000000000000000000001;Parent=0000000000000002",
@@ -170,8 +170,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void noContextWithEmptyHeaders() {
-    assertNull(
-        extractor.extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test
@@ -191,7 +190,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   @Test
   void noContextWithTooLargeTraceId() {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id", "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
@@ -202,7 +201,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   @Test
   void extractHttpHeadersWithNonZeroEpoch() {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id", "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
@@ -223,7 +222,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   void extractIdsWhileRetainingTheOriginalString(
       String traceId, String spanId, String expectedTraceIdHex, long expectedSpanId) {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id",
             "Root=1-00000000-00000000"
                 + padLeft(traceId, 16, '0')
@@ -245,7 +244,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   })
   void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id",
             "Root=1-00000000-00000000"
                 + padLeft(traceId, 16, '0')

@@ -170,9 +170,7 @@ class NoneHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = headers(
-        "Forwarded", forwarded
-    );
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
         TRACE_ID_KEY, "1",
@@ -231,7 +229,7 @@ class NoneHttpExtractorTest extends DDJavaSpecification {
   @Test
   void extractEmptyHeadersReturnsNull() {
     assertNull(
-        this.extractor.extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+        this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test

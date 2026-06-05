@@ -289,8 +289,7 @@ class B3HttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    assertNull(
-        extractor.extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test

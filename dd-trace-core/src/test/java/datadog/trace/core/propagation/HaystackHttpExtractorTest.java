@@ -118,7 +118,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeaderTagsWithNoPropagation() {
-    Map<String, String> headers = singletonMap(SOME_HEADER, "my-interesting-info");
+    Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
     TagContext context = this.extractor.extract(headers, stringValuesMap());
 
@@ -131,7 +131,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "123";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
         TRACE_ID_KEY, "1",
