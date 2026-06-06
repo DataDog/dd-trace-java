@@ -3,6 +3,7 @@ package datadog.trace.api.telemetry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.atomic.AtomicReference;
 
@@ -153,7 +154,7 @@ public final class ScaReachabilityDependencyRegistry {
       }
       pendingReport = false;
       List<CveSnapshot> cveSnapshots = new ArrayList<>(cves.size());
-      for (java.util.Map.Entry<String, CveState> entry : cves.entrySet()) {
+      for (Map.Entry<String, CveState> entry : cves.entrySet()) {
         cveSnapshots.add(new CveSnapshot(entry.getKey(), entry.getValue().hitRef.get()));
       }
       return new DependencySnapshot(artifact, version, Collections.unmodifiableList(cveSnapshots));

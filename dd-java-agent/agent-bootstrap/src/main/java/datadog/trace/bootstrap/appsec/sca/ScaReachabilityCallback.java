@@ -1,5 +1,7 @@
 package datadog.trace.bootstrap.appsec.sca;
 
+import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -30,8 +32,7 @@ public final class ScaReachabilityCallback {
   private static volatile Handler handler;
 
   /** Runtime dedup: "vulnId|artifact|dotClassName|methodName" tuples already reported. */
-  private static final java.util.Set<String> reported =
-      java.util.concurrent.ConcurrentHashMap.newKeySet();
+  private static final Set<String> reported = ConcurrentHashMap.newKeySet();
 
   /**
    * Called by {@code ScaReachabilitySystem} to wire up the real reporting implementation. Passing
@@ -71,8 +72,8 @@ public final class ScaReachabilityCallback {
       if (reported.add(key)) {
         h.onMethodHit(vulnId, artifact, version, dotClassName, methodName, line);
       }
-    } catch (Throwable t) {
-      // Never propagate to application code — SCA detection is observation-only
+    } catch (Exception t) {
+      // Never propagate to application code - SCA detection is observation-only
       log.debug("SCA Reachability: error in onMethodHit for {}#{}", dotClassName, methodName, t);
     }
   }

@@ -4,6 +4,7 @@ import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
+import datadog.trace.util.Strings;
 import java.io.File;
 import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
@@ -234,7 +235,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         ScaReachabilityDependencyRegistry.INSTANCE.registerCve(
             entry.artifact(), version, entry.vulnId());
         if (dotClassName == null) {
-          dotClassName = className.replace('/', '.');
+          dotClassName = Strings.getClassName(className);
         }
         methodCallbacks
             .computeIfAbsent(symbol.method(), k -> new ArrayList<>())
@@ -272,6 +273,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   public void checkAlreadyLoadedClasses() {
     for (Class<?> clazz : instrumentation.getAllLoadedClasses()) {
+      if (clazz == null) {
+        continue;
+      }
       String internalName = clazz.getName().replace('.', '/');
       if (internalName.charAt(0) == '[') {
         continue;
@@ -373,6 +377,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     if (!pendingRetransformNames.isEmpty()) {
       Set<String> matched = new HashSet<>();
       for (Class<?> loaded : instrumentation.getAllLoadedClasses()) {
+        if (loaded == null) {
+          continue;
+        }
         String name = loaded.getName().replace('.', '/');
         if (pendingRetransformNames.contains(name)) {
           toRetransform.add(loaded);

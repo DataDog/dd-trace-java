@@ -6,6 +6,7 @@ import com.squareup.moshi.Moshi;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.Reader;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -61,7 +62,7 @@ public final class ScaCveDatabase {
     }
   }
 
-  static ScaCveDatabase parse(java.io.Reader reader) throws IOException {
+  static ScaCveDatabase parse(Reader reader) throws IOException {
     Moshi moshi = new Moshi.Builder().build();
     JsonAdapter<DatabaseJson> adapter = moshi.adapter(DatabaseJson.class);
 
@@ -122,7 +123,7 @@ public final class ScaCveDatabase {
     return index.size();
   }
 
-  private static String readAll(java.io.Reader reader) throws IOException {
+  private static String readAll(Reader reader) throws IOException {
     StringBuilder sb = new StringBuilder();
     char[] buf = new char[8192];
     int n;
