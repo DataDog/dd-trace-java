@@ -101,6 +101,11 @@ public class SpringWebHttpServerDecorator
     return httpServletResponse.getStatus();
   }
 
+  // TODO Switch to HandlerMapping.API_VERSION_ATTRIBUTE once compile baseline moves to Spring
+  // Framework 7.
+  private static final String API_VERSION_ATTRIBUTE =
+      "org.springframework.web.servlet.HandlerMapping.apiVersion";
+
   @Override
   public AgentSpan onRequest(
       final AgentSpan span,
@@ -116,6 +121,10 @@ public class SpringWebHttpServerDecorator
       if (method != null && bestMatchingPattern != null && !bestMatchingPattern.equals("/**")) {
         request.setAttribute(DD_FILTERED_SPRING_ROUTE_ALREADY_APPLIED, true);
         HTTP_RESOURCE_DECORATOR.withRoute(span, method, bestMatchingPattern.toString());
+      }
+      final Object apiVersion = request.getAttribute(API_VERSION_ATTRIBUTE);
+      if (apiVersion instanceof String && !((String) apiVersion).isEmpty()) {
+        span.setTag("http.api_version", (String) apiVersion);
       }
     }
     return span;
