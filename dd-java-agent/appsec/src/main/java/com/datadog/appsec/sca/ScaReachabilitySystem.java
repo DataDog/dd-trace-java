@@ -3,7 +3,10 @@ package com.datadog.appsec.sca;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.bootstrap.appsec.sca.ScaReachabilityCallback;
 import datadog.trace.util.stacktrace.AbstractStackWalker;
+import datadog.trace.util.stacktrace.StackWalkerFactory;
 import java.lang.instrument.Instrumentation;
+import java.util.Arrays;
+import java.util.stream.Stream;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -92,15 +95,15 @@ public final class ScaReachabilitySystem {
 
   /**
    * Walks the current thread stack to find the first application frame that called the vulnerable
-   * method. Agent frames are skipped via {@link AbstractStackWalker#isNotDatadogTraceStackElement};
-   * intermediate library frames (e.g. a wrapper around the vulnerable API) are skipped via {@link
-   * ScaStackExclusionTrie}.
+   * method. Uses {@link StackWalkerFactory#INSTANCE} for lazy stack evaluation on JDK9+ (avoids
+   * materializing the full stack array). Agent frames are pre-filtered by the walker; intermediate
+   * library frames are skipped via {@link ScaStackExclusionTrie}.
    *
    * <p>The stack at call time is:
    *
    * <pre>
-   *   ScaReachabilitySystem handler lambda  (skip - agent)
-   *   ScaReachabilityCallback.onMethodHit   (skip - agent)
+   *   ScaReachabilitySystem handler lambda  (skip - agent, filtered by walker)
+   *   ScaReachabilityCallback.onMethodHit   (skip - agent, filtered by walker)
    *   &lt;vulnerableClass&gt;.&lt;method&gt;           (skip - the instrumented library class)
    *   [intermediate library frames]         (skip - trie-excluded)
    *   &lt;application callsite&gt;               ← return this
@@ -110,7 +113,8 @@ public final class ScaReachabilitySystem {
    * @return first application callsite frame, or {@code null} if not found
    */
   static StackTraceElement findCallsite(String vulnerableClass) {
-    return findCallsite(vulnerableClass, Thread.currentThread().getStackTrace());
+    return StackWalkerFactory.INSTANCE.walk(
+        stream -> findCallsiteInStream(vulnerableClass, stream));
   }
 
   /**
@@ -119,35 +123,32 @@ public final class ScaReachabilitySystem {
    * @see #findCallsite(String)
    */
   static StackTraceElement findCallsite(String vulnerableClass, StackTraceElement[] stack) {
-    boolean pastVulnerableClass = false;
+    return findCallsiteInStream(
+        vulnerableClass,
+        Arrays.stream(stack).filter(AbstractStackWalker::isNotDatadogTraceStackElement));
+  }
 
-    for (StackTraceElement frame : stack) {
-      String cls = frame.getClassName();
-
-      // Skip agent frames (datadog.trace.*, com.datadog.appsec.*, etc.)
-      if (!AbstractStackWalker.isNotDatadogTraceStackElement(frame)) {
-        continue;
-      }
-
-      if (!pastVulnerableClass) {
-        if (cls.equals(vulnerableClass)) {
-          pastVulnerableClass = true;
-        }
-        continue;
-      }
-
-      // Skip remaining frames from the vulnerable class itself
-      if (cls.equals(vulnerableClass)) {
-        continue;
-      }
-
-      // Skip intermediate library frames so we report client code, not a wrapper library
-      if (ScaStackExclusionTrie.apply(cls) >= 1) {
-        continue;
-      }
-
-      return frame;
-    }
-    return null;
+  private static StackTraceElement findCallsiteInStream(
+      String vulnerableClass, Stream<StackTraceElement> stream) {
+    boolean[] pastVulnerableClass = {false};
+    return stream
+        .filter(
+            frame -> {
+              String cls = frame.getClassName();
+              if (!pastVulnerableClass[0]) {
+                if (cls.equals(vulnerableClass)) {
+                  pastVulnerableClass[0] = true;
+                }
+                return false;
+              }
+              // Skip remaining frames from the vulnerable class itself
+              if (cls.equals(vulnerableClass)) {
+                return false;
+              }
+              // Skip intermediate library frames so we report client code, not a wrapper library
+              return ScaStackExclusionTrie.apply(cls) < 1;
+            })
+        .findFirst()
+        .orElse(null);
   }
 }
