@@ -43,6 +43,10 @@ public class SpringSecurityUserEventDecorator {
     tracker.onUserNotFound(UserIdCollectionMode.get());
   }
 
+  public void onUserNotFound(final String username) {
+    onUserNotFound();
+  }
+
   public void onSignup(UserDetails user, Throwable throwable) {
     // skip failures while signing up a user, later on, we might want to generate a separate event
     // for this case
