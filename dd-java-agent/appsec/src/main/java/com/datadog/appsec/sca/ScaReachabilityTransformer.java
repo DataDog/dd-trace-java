@@ -2,6 +2,7 @@ package com.datadog.appsec.sca;
 
 import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityHit;
 import datadog.trace.util.Strings;
@@ -95,18 +96,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * Drained and processed by {@link #performPendingRetransforms()} on each telemetry heartbeat.
    */
-  // package-private for testing
+  @VisibleForTesting
   final ConcurrentLinkedQueue<Class<?>> pendingRetransform = new ConcurrentLinkedQueue<>();
 
   /** Class names (internal format) queued for deferred retransformation by name lookup. */
-  // package-private for testing
-  final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
+  @VisibleForTesting final Set<String> pendingRetransformNames = ConcurrentHashMap.newKeySet();
 
   /**
    * Queue of classes detected on first load but not yet processed. Populated by {@link #transform}
    * (class-loading thread); drained by {@link #processPendingClassEvents} (telemetry thread).
    */
-  // package-private for testing
+  @VisibleForTesting
   final ConcurrentLinkedQueue<PendingClass> pendingClassEvents = new ConcurrentLinkedQueue<>();
 
   static final class PendingClass {
@@ -600,7 +600,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
   }
 
-  // package-private for testing
+  @VisibleForTesting
   String findArtifactVersionInClasspath(String artifactName) {
     // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
     Set<URI> scanned = new HashSet<>();
