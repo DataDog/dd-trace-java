@@ -454,7 +454,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    *
    * @return the resolved version string, or {@code null} if the artifact cannot be found
    */
-  // package-private for testing
+  @VisibleForTesting
   String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
     for (Dependency dep : classJarDeps) {
       if (artifactName.equals(dep.name)) {
@@ -483,7 +483,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   private static final String CALLBACK_DESC =
       "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V";
 
-  // package-private for testing
+  @VisibleForTesting
   byte[] injectMethodCallbacks(
       byte[] classfileBuffer, Map<String, List<MethodCallbackSpec>> callbacksPerMethod) {
     ClassReader cr = new ClassReader(classfileBuffer);
