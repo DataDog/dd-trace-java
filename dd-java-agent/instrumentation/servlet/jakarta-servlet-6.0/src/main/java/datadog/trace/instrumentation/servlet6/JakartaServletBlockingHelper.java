@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import datadog.appsec.api.blocking.BlockingContentType;
 import datadog.trace.api.gateway.Flow;

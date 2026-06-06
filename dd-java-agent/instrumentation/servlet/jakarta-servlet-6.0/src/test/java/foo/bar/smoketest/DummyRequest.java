@@ -3,6 +3,7 @@ package foo.bar.smoketest;
 import jakarta.servlet.AsyncContext;
 import jakarta.servlet.DispatcherType;
 import jakarta.servlet.RequestDispatcher;
+import jakarta.servlet.ServletConnection;
 import jakarta.servlet.ServletContext;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.ServletInputStream;
@@ -152,7 +153,6 @@ public class DummyRequest implements HttpServletRequest {
     return false;
   }
 
-  @Override
   public boolean isRequestedSessionIdFromUrl() {
     return false;
   }
@@ -304,8 +304,22 @@ public class DummyRequest implements HttpServletRequest {
     return null;
   }
 
-  @Override
   public String getRealPath(String s) {
+    return null;
+  }
+
+  @Override
+  public String getRequestId() {
+    return null;
+  }
+
+  @Override
+  public String getProtocolRequestId() {
+    return null;
+  }
+
+  @Override
+  public ServletConnection getServletConnection() {
     return null;
   }
 

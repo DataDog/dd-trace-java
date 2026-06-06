@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -20,7 +20,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class JakartaHttpSessionInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public JakartaHttpSessionInstrumentation() {
-    super("servlet", "servlet-5", "servlet-session");
+    super("servlet", "servlet-6", "servlet-session");
   }
 
   @Override

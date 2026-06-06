@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5.jsp;
+package datadog.trace.instrumentation.servlet6.jsp;
 
 import datadog.trace.agent.tooling.csi.CallSite;
 import datadog.trace.api.iast.IastCallSites;

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
@@ -31,7 +31,7 @@ public class IastOptOutJakartaHttpServletRequestInstrumentation extends Instrume
       named("jakarta.servlet.http.HttpServletRequestWrapper");
 
   public IastOptOutJakartaHttpServletRequestInstrumentation() {
-    super("servlet", "servlet-5", "servlet-request");
+    super("servlet", "servlet-6", "servlet-request");
   }
 
   @Override

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream;
 import jakarta.servlet.ServletOutputStream;

@@ -9833,6 +9833,22 @@
         "aliases": ["DD_TRACE_INTEGRATION_SERVLET_5_ENABLED", "DD_INTEGRATION_SERVLET_5_ENABLED"]
       }
     ],
+    "DD_TRACE_SERVLET_6_ASYNC_CONTEXT_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_6_ASYNC_CONTEXT_ENABLED", "DD_INTEGRATION_SERVLET_6_ASYNC_CONTEXT_ENABLED"]
+      }
+    ],
+    "DD_TRACE_SERVLET_6_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_SERVLET_6_ENABLED", "DD_INTEGRATION_SERVLET_6_ENABLED"]
+      }
+    ],
     "DD_TRACE_SERVLET_ANALYTICS_ENABLED": [
       {
         "version": "A",

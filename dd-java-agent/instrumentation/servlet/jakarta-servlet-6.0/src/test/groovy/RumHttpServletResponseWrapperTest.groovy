@@ -3,8 +3,8 @@ import datadog.trace.api.rum.RumInjector
 import datadog.trace.api.rum.RumTelemetryCollector
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeOutputStream
 import datadog.trace.bootstrap.instrumentation.buffer.InjectingPipeWriter
-import datadog.trace.instrumentation.servlet5.RumHttpServletResponseWrapper
-import datadog.trace.instrumentation.servlet5.WrappedServletOutputStream
+import datadog.trace.instrumentation.servlet6.RumHttpServletResponseWrapper
+import datadog.trace.instrumentation.servlet6.WrappedServletOutputStream
 import spock.lang.Subject
 
 import java.util.function.LongConsumer
@@ -169,7 +169,7 @@ class RumHttpServletResponseWrapperTest extends InstrumentationSpecification {
   void 'setCharacterEncoding reports the content-encoding tag with null when injection fails'() {
     setup:
     wrapper.setContentType("text/html")
-    wrapper.setCharacterEncoding(null)
+    wrapper.setCharacterEncoding((String) null)
     mockResponse.getOutputStream() >> { throw new IOException("stream error") }
 
     when:

@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
@@ -16,9 +16,9 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSec
+public class Servlet6RequestBodyInstrumentation extends InstrumenterModule.AppSec
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public Servlet5RequestBodyInstrumentation() {
+  public Servlet6RequestBodyInstrumentation() {
     super("servlet-request-body");
   }
 
@@ -54,9 +54,9 @@ public class Servlet5RequestBodyInstrumentation extends InstrumenterModule.AppSe
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      "datadog.trace.instrumentation.servlet5.BufferedReaderWrapper",
-      "datadog.trace.instrumentation.servlet5.AbstractServletInputStreamWrapper",
-      "datadog.trace.instrumentation.servlet5.Servlet31InputStreamWrapper"
+      "datadog.trace.instrumentation.servlet6.BufferedReaderWrapper",
+      "datadog.trace.instrumentation.servlet6.AbstractServletInputStreamWrapper",
+      "datadog.trace.instrumentation.servlet6.Servlet31InputStreamWrapper"
     };
   }
 

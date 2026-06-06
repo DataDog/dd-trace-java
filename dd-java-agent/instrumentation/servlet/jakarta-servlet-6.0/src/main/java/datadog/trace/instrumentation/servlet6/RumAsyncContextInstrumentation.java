@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -21,7 +21,7 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
 
   public RumAsyncContextInstrumentation() {
-    super("servlet", "servlet-5", "servlet-5-async-context");
+    super("servlet", "servlet-6", "servlet-6-async-context");
   }
 
   @Override
@@ -32,7 +32,9 @@ public class RumAsyncContextInstrumentation extends InstrumenterModule.Tracing
   @Override
   public String[] helperClassNames() {
     return new String[] {
-      packageName + ".RumHttpServletResponseWrapper", packageName + ".WrappedServletOutputStream",
+      packageName + ".RumHttpServletResponseWrapper",
+      packageName + ".RumHttpServletResponseWrapper60",
+      packageName + ".WrappedServletOutputStream",
     };
   }
 

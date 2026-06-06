@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
@@ -25,7 +25,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class IastJakartaServletInstrumentation extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public IastJakartaServletInstrumentation() {
-    super("servlet", "servlet-5");
+    super("servlet", "servlet-6");
   }
 
   @Override

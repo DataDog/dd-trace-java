@@ -29,12 +29,10 @@ public class DummyResponse implements HttpServletResponse {
     return "Encoded_" + url;
   }
 
-  @Override
   public String encodeUrl(String url) {
     return null;
   }
 
-  @Override
   public String encodeRedirectUrl(String url) {
     return null;
   }
@@ -73,8 +71,10 @@ public class DummyResponse implements HttpServletResponse {
   @Override
   public void setStatus(int sc) {}
 
-  @Override
   public void setStatus(int sc, String sm) {}
+
+  @Override
+  public void sendRedirect(String location, int sc, boolean clearBuffer) throws IOException {}
 
   @Override
   public int getStatus() {

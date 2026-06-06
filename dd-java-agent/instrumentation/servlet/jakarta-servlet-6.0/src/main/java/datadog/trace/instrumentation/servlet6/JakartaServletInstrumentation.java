@@ -1,4 +1,4 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.hasSuperType;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
@@ -34,7 +34,7 @@ import net.bytebuddy.matcher.ElementMatcher;
 public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
   public JakartaServletInstrumentation() {
-    super("servlet", "servlet-5");
+    super("servlet", "servlet-6");
   }
 
   @Override
@@ -47,6 +47,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
     return new String[] {
       packageName + ".RumHttpServletRequestWrapper",
       packageName + ".RumHttpServletResponseWrapper",
+      packageName + ".RumHttpServletResponseWrapper60",
       packageName + ".WrappedServletOutputStream",
     };
   }
@@ -88,7 +89,7 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
             rumServletWrapper = (RumControllableResponse) maybeRumWrapper;
           } else {
             rumServletWrapper =
-                new RumHttpServletResponseWrapper(
+                new RumHttpServletResponseWrapper60(
                     httpServletRequest, (HttpServletResponse) response);
             httpServletRequest.setAttribute(DD_RUM_INJECTED, rumServletWrapper);
             response = (ServletResponse) rumServletWrapper;
@@ -130,6 +131,26 @@ public class JakartaServletInstrumentation extends InstrumenterModule.Tracing
       if (Config.get().isServletPrincipalEnabled()
           && httpServletRequest.getUserPrincipal() != null) {
         span.setTag(DDTags.USER_NAME, httpServletRequest.getUserPrincipal().getName());
+      }
+
+      // Servlet 6.0 enrichment
+      try {
+        String requestId = httpServletRequest.getRequestId();
+        if (requestId != null && !requestId.isEmpty()) {
+          span.setTag("http.request_id", requestId);
+        }
+        String protocolRequestId = httpServletRequest.getProtocolRequestId();
+        if (protocolRequestId != null && !protocolRequestId.isEmpty()) {
+          span.setTag("network.protocol_request_id", protocolRequestId);
+        }
+        jakarta.servlet.ServletConnection conn = httpServletRequest.getServletConnection();
+        if (conn != null) {
+          String connId = conn.getConnectionId();
+          if (connId != null) span.setTag("network.connection.id", connId);
+          String protocol = conn.getProtocol();
+          if (protocol != null) span.setTag("network.protocol.name", protocol);
+        }
+      } catch (Exception ignored) {
       }
     }
   }

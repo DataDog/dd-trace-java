@@ -1,9 +1,10 @@
-package datadog.trace.instrumentation.servlet5;
+package datadog.trace.instrumentation.servlet6;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.extendsClass;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.implementsInterface;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -25,10 +26,10 @@ import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
 
 @AutoService(InstrumenterModule.class)
-public final class JakartaHttpServletResponseInstrumentation extends InstrumenterModule.Iast
+public final class JakartaHttpServletResponseInstrumentation60 extends InstrumenterModule.Iast
     implements Instrumenter.ForTypeHierarchy, Instrumenter.HasMethodAdvice {
-  public JakartaHttpServletResponseInstrumentation() {
-    super("servlet", "servlet-5", "servlet-response");
+  public JakartaHttpServletResponseInstrumentation60() {
+    super("servlet", "servlet-6", "servlet-response");
   }
 
   @Override
@@ -63,8 +64,13 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
             .and(returns(String.class)),
         getClass().getName() + "$EncodeURLAdvice");
     transformer.applyAdvice(
-        named("sendRedirect").and(takesArgument(0, String.class)),
+        named("sendRedirect").and(takesArguments(1)).and(takesArgument(0, String.class)),
         getClass().getName() + "$SendRedirectAdvice");
+    transformer.applyAdvice(
+        named("sendRedirect")
+            .and(takesArguments(String.class, int.class, boolean.class))
+            .and(isPublic()),
+        getClass().getName() + "$SendRedirect3ArgAdvice");
   }
 
   public static class AddCookieAdvice {
@@ -74,12 +80,14 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
       if (cookie != null) {
         HttpResponseHeaderModule mod = InstrumentationBridge.RESPONSE_HEADER_MODULE;
         if (mod != null) {
+          String sameSite = cookie.getAttribute("SameSite");
           mod.onCookie(
               Cookie.named(cookie.getName())
                   .value(cookie.getValue())
                   .secure(cookie.getSecure())
                   .httpOnly(cookie.isHttpOnly())
                   .maxAge(cookie.getMaxAge())
+                  .sameSite(sameSite)
                   .build());
         }
       }
@@ -101,6 +109,19 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
   }
 
   public static class SendRedirectAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
+    public static void onEnter(@Advice.Argument(0) final String location) {
+      final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
+      if (module != null) {
+        if (null != location && !location.isEmpty()) {
+          module.onRedirect(location);
+        }
+      }
+    }
+  }
+
+  public static class SendRedirect3ArgAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
     public static void onEnter(@Advice.Argument(0) final String location) {
