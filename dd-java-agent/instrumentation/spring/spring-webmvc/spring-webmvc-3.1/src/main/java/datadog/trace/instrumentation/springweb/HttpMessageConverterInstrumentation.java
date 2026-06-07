@@ -22,6 +22,7 @@ import datadog.trace.api.gateway.RequestContext;
 import datadog.trace.api.gateway.RequestContextSlot;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Type;
+import java.util.Map;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -71,6 +72,18 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
             .and(takesArgument(1, Class.class))
             .and(takesArgument(2, named("org.springframework.http.HttpInputMessage"))),
         HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
+    // SmartHttpMessageConverter#read (Spring 6.2+/7), used by the Jackson 3 converter
+    // (JacksonJsonHttpMessageConverter). Disjoint from the 3-arg matcher above, which requires
+    // arg0 = java.lang.reflect.Type.
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("read"))
+            .and(takesArguments(3))
+            .and(takesArgument(0, named("org.springframework.core.ResolvableType")))
+            .and(takesArgument(1, named("org.springframework.http.HttpInputMessage")))
+            .and(takesArgument(2, Map.class)),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterReadAdvice");
 
     transformer.applyAdvice(
         isMethod()
@@ -91,6 +104,20 @@ public class HttpMessageConverterInstrumentation extends InstrumenterModule.AppS
             .and(takesArgument(1, Type.class))
             .and(takesArgument(2, named("org.springframework.http.MediaType")))
             .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage"))),
+        HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
+
+    // SmartHttpMessageConverter#write (Spring 6.2+/7), used by the Jackson 3 converter
+    // (JacksonJsonHttpMessageConverter) for the response-body path.
+    transformer.applyAdvice(
+        isMethod()
+            .and(isPublic())
+            .and(named("write"))
+            .and(takesArguments(5))
+            .and(takesArgument(0, Object.class))
+            .and(takesArgument(1, named("org.springframework.core.ResolvableType")))
+            .and(takesArgument(2, named("org.springframework.http.MediaType")))
+            .and(takesArgument(3, named("org.springframework.http.HttpOutputMessage")))
+            .and(takesArgument(4, Map.class)),
         HttpMessageConverterInstrumentation.class.getName() + "$HttpMessageConverterWriteAdvice");
   }
 
