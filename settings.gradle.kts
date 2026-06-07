@@ -567,6 +567,7 @@ include(
   ":dd-java-agent:instrumentation:servicetalk:servicetalk-0.42.56",
   ":dd-java-agent:instrumentation:servicetalk",
   ":dd-java-agent:instrumentation:servlet:jakarta-servlet-5.0",
+  ":dd-java-agent:instrumentation:servlet:jakarta-servlet-6.0",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-2.2",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-3.0",
   ":dd-java-agent:instrumentation:servlet:javax-servlet:javax-servlet-common",
