@@ -18,14 +18,16 @@ addTestSuiteForDir("boot1LatestDepTest", "test")
 addTestSuiteForDir("boot2Test", "test")
 addTestSuiteForDir("boot2LatestDepTest", "test")
 addTestSuiteForDir("boot3Test", "test")
+addTestSuiteForDir("boot4Test", "test")
 addTestSuiteForDir("latestDepTest", "test")
 addTestSuiteExtendingForDir("boot1LatestDepForkedTest", "boot1LatestDepTest", "test")
 addTestSuiteExtendingForDir("boot2ForkedTest", "boot2Test", "test")
 addTestSuiteExtendingForDir("boot2LatestDepForkedTest", "boot2LatestDepTest", "test")
 addTestSuiteExtendingForDir("boot3ForkedTest", "boot3Test", "test")
+addTestSuiteExtendingForDir("boot4ForkedTest", "boot4Test", "test")
 addTestSuiteExtendingForDir("latestDepForkedTest", "latestDepTest", "test")
 
-configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy")
+configureGroovyCompiler(17, "compileLatestDepTestGroovy", "compileBoot3TestGroovy", "compileBoot4TestGroovy")
 
 dependencies {
   implementation project(':dd-java-agent:instrumentation:datadog:dynamic-instrumentation:span-origin')
@@ -40,6 +42,8 @@ dependencies {
   boot2LatestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '1.+'
   boot3TestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '3.0.0'
   boot3ForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '3.0.0'
+  boot4TestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '4.0.0'
+  boot4ForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '4.0.0'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '+'
   latestDepForkedTestImplementation group: 'org.springframework.boot', name: 'spring-boot', version: '+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-logging', version: '+'
@@ -65,6 +69,18 @@ tasks.named("boot3Test", Test) {
 }
 
 tasks.named("boot3ForkedTest", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("boot4Test", Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
+
+tasks.named("boot4ForkedTest", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_17
   }
