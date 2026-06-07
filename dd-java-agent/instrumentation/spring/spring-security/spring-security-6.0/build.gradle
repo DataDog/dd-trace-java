@@ -4,7 +4,10 @@ testJvmConstraints {
   minJavaVersion = JavaVersion.VERSION_17
 }
 
-addTestSuiteForDir('latestDepTest', 'test')
+// Spring Boot 4 / Spring Security 7 relocated packages and removed the non-lambda
+// security DSL, so the latestDepTest fixtures cannot share the Boot 3 `test` source
+// tree. Use a dedicated source set (mirrors spring-scheduling-3.1 / spring-webflux-6.0).
+addTestSuite('latestDepTest')
 
 final springBootVersion = '3.0.0'
 
@@ -24,9 +27,9 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: springBootVersion
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: springBootVersion
 
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '3.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-test', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-web', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-security', version: '4.+'
 
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-appsec:tomcat-appsec-6.0')
   testRuntimeOnly project(':dd-java-agent:instrumentation:tomcat:tomcat-5.5')

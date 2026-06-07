@@ -4,9 +4,9 @@ import datadog.trace.agent.test.base.HttpServerTest
 import jakarta.servlet.http.HttpServletRequest
 import jakarta.servlet.http.HttpServletResponse
 import org.springframework.boot.autoconfigure.SpringBootApplication
-import org.springframework.boot.web.servlet.filter.OrderedRequestContextFilter
 import org.springframework.context.annotation.Bean
 import org.springframework.core.Ordered
+import org.springframework.core.annotation.Order
 import org.springframework.stereotype.Controller
 import org.springframework.util.AntPathMatcher
 import org.springframework.web.filter.RequestContextFilter
@@ -35,9 +35,15 @@ class UrlHandlerMappingAppConfig implements WebMvcConfigurer {
     ret
   }
 
+  // Use a plain framework RequestContextFilter ordered via @Order on the bean method rather than
+  // Spring Boot's OrderedRequestContextFilter, which Spring Boot 4 relocated. RequestContextFilter
+  // does not expose an `order` property, so the ordering is applied through @Order, which Spring Boot
+  // honors when registering Filter beans. This keeps the fixture compiling and running against both
+  // Spring Boot 3 and 4.
   @Bean
+  @Order(Ordered.HIGHEST_PRECEDENCE)
   RequestContextFilter requestContextFilter() {
-    new OrderedRequestContextFilter(order: Ordered.HIGHEST_PRECEDENCE)
+    new RequestContextFilter()
   }
 }
 

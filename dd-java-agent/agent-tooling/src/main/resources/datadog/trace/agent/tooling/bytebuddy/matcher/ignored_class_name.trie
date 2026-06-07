@@ -290,6 +290,9 @@
 0 org.springframework.boot.web.embedded.netty.NettyWebServer$*
 0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
 0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
+0 org.springframework.boot.tomcat.TomcatEmbeddedWebappClassLoader
+0 org.springframework.boot.tomcat.TomcatWebServer$1
+0 org.springframework.boot.autoconfigure.preinitialize.BackgroundPreinitializingApplicationListener$*
 0 org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.support.SpringBootServletInitializer

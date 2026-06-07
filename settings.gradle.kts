@@ -585,6 +585,7 @@ include(
   ":dd-java-agent:instrumentation:spring:spring-cloud-zuul-2.0",
   ":dd-java-agent:instrumentation:spring:spring-core-3.2.2",
   ":dd-java-agent:instrumentation:spring:spring-data-1.8",
+  ":dd-java-agent:instrumentation:spring:spring-data-3.0",
   ":dd-java-agent:instrumentation:spring:spring-jms-3.1",
   ":dd-java-agent:instrumentation:spring:spring-messaging-4.0",
   ":dd-java-agent:instrumentation:spring:spring-rabbit-1.5",
