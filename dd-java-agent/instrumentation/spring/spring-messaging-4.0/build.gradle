@@ -85,7 +85,39 @@ dependencies {
   testRuntimeOnly project(':dd-java-agent:instrumentation:kotlin-coroutines-1.3')
   testRuntimeOnly project(':dd-java-agent:instrumentation:kafka:kafka-clients-3.8')
 
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '6.+', {
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-messaging', version: '7.+', {
     exclude group: 'org.slf4j', module: 'slf4j-api'
   }
+
+  // Spring Kafka 4.0.x is the Spring Boot 4 line; it requires Spring Framework 7 and manages
+  // kafka-clients 4.1.x. Pin to the 4.0 GA line (not 4.+, which floats to 4.1.0-RC1) so the
+  // kafka-clients version below stays in lockstep with what spring-kafka-test was built against.
+  // Override the Boot-3 floor (3.3.4 / kafka-clients 3.8.0) only on the latestDep classpath.
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka', version: '4.0.+', {
+    exclude group: 'org.apache.kafka'
+  }
+  latestDepTestImplementation group: 'org.springframework.kafka', name: 'spring-kafka-test', version: '4.0.+', {
+    exclude group: 'org.apache.kafka'
+  }
+
+  // Match the kafka-clients line managed by spring-kafka 4.0.x (4.1.x); 4.+ floats to 4.3.0,
+  // whose KafkaClusterTestKit API differs from what spring-kafka-test 4.0.x expects.
+  latestDepTestImplementation 'org.apache.kafka:kafka-server-common:4.1.+:test'
+  latestDepTestImplementation 'org.apache.kafka:kafka-clients:4.1.+'
+  latestDepTestImplementation 'org.apache.kafka:kafka-clients:4.1.+:test'
+  latestDepTestImplementation 'org.apache.kafka:kafka_2.13:4.1.+'
+  latestDepTestImplementation 'org.apache.kafka:kafka_2.13:4.1.+:test'
+  // Kafka 4.x moved KafkaClusterTestKit (used by EmbeddedKafkaKraftBroker) into
+  // the kafka-test-common-runtime artifact; spring-kafka-test pulls it transitively
+  // but we exclude org.apache.kafka above, so declare it explicitly.
+  latestDepTestImplementation 'org.apache.kafka:kafka-test-common-runtime:4.1.+'
+
+  // spring-cloud-aws-sqs 3.0.1 (floor) targets Spring Framework 6; the 4.x line is the
+  // Spring Framework 7 / Boot 4 compatible release required once spring-messaging is bumped to 7.x.
+  latestDepTestImplementation group: 'io.awspring.cloud', name: 'spring-cloud-aws-sqs', version: '4.+', {
+    exclude group: 'org.slf4j', module: 'slf4j-api'
+  }
+  // spring-cloud-aws-sqs 4.x ships an AWS SDK that defaults to the SQS JSON wire protocol;
+  // elasticmq only learned that protocol in the 1.6.x line (1.2.3 floor returns HTTP 400).
+  latestDepTestImplementation group: 'org.elasticmq', name: 'elasticmq-rest-sqs_2.13', version: '1.6.+'
 }
