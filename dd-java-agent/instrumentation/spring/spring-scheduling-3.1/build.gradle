@@ -67,8 +67,8 @@ dependencies {
   spring6TestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.0.0'
 
   latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
-  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '6.+'
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '3.+'
+  latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '7.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '4.+'
 }
 
 tasks.named("latestDepForkedTest", Test) {
