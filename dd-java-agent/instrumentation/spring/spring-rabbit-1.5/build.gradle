@@ -3,7 +3,7 @@ muzzle {
   pass {
     group = 'org.springframework.boot'
     module = 'spring-boot-starter-amqp'
-    versions = '[1.5.0.RELEASE,3)'
+    versions = '[1.5.0.RELEASE,5)'
     extraDependency 'com.rabbitmq:amqp-client:2.7.0'
   }
 }
@@ -22,7 +22,11 @@ dependencies {
   testImplementation group: 'org.testcontainers', name: 'rabbitmq', version: libs.versions.testcontainers.get()
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
 
-  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '4.+'
+}
+
+tasks.named('latestDepTest').configure {
+  minJavaVersion = JavaVersion.VERSION_17
 }
 
 tasks.withType(Test).configureEach {
