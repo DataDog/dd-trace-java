@@ -82,6 +82,7 @@ public final class ConfigDefaults {
       new LinkedHashSet<>(asList(DATADOG, TRACECONTEXT, BAGGAGE));
   static final Set<PropagationStyle> DEFAULT_PROPAGATION_STYLE =
       new LinkedHashSet<>(asList(PropagationStyle.DATADOG));
+  public static final boolean DEFAULT_PROPAGATION_B3_PADDING_ENABLED = true;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_ITEMS = 64;
   static final int DEFAULT_TRACE_BAGGAGE_MAX_BYTES = 8192;
   static final List<String> DEFAULT_TRACE_BAGGAGE_TAG_KEYS =
