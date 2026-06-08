@@ -10,7 +10,6 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
-import datadog.context.propagation.CarrierSetter;
 import datadog.context.propagation.CarrierVisitor;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTraceId;
@@ -29,6 +28,7 @@ import java.util.HashSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.function.Supplier;
+import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -36,7 +36,6 @@ import org.junit.jupiter.api.Test;
 @DisplayName("Org Propagation Guard end-to-end propagator wiring")
 class OrgGuardEndToEndTest {
 
-  private static final MapSetter SETTER = new MapSetter();
   private static final MapVisitor VISITOR = new MapVisitor();
 
   private PropagationTags.Factory factory;
@@ -58,7 +57,7 @@ class OrgGuardEndToEndTest {
 
     Map<String, String> carrier = new HashMap<>();
     Context ctx = Context.root().with(buildSpanForInjection(/*opmInTags*/ null));
-    propagator.inject(ctx, carrier, SETTER);
+    propagator.inject(ctx, carrier, Map::put);
 
     String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
     assertNotNull(datadogTags, "x-datadog-tags missing: " + carrier);
@@ -76,7 +75,7 @@ class OrgGuardEndToEndTest {
 
     Map<String, String> carrier = new HashMap<>();
     Context ctx = Context.root().with(buildSpanForInjection("upstream-X"));
-    propagator.inject(ctx, carrier, SETTER);
+    propagator.inject(ctx, carrier, Map::put);
 
     String datadogTags = carrier.get(DatadogHttpCodec.DATADOG_TAGS_KEY);
     assertNotNull(datadogTags);
@@ -197,13 +196,7 @@ class OrgGuardEndToEndTest {
     return AgentSpan.fromSpanContext(ddCtx);
   }
 
-  private static final class MapSetter implements CarrierSetter<Map<String, String>> {
-    @Override
-    public void set(Map<String, String> carrier, String key, String value) {
-      carrier.put(key, value);
-    }
-  }
-
+  @ParametersAreNonnullByDefault
   private static final class MapVisitor implements CarrierVisitor<Map<String, String>> {
     @Override
     public void forEachKeyValue(
