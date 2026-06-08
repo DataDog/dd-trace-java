@@ -10,7 +10,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
-import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_MINUS_1;
+import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -213,7 +213,7 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   void extractHttpHeadersWithOutOfRangeTraceId() {
     // spotless:off
     Map<String, String> headers = headers(
-        TRACE_ID_KEY, TRACE_ID_MAX_MINUS_1,
+        TRACE_ID_KEY, TRACE_ID_MAX_PLUS_1,
         SPAN_ID_KEY, "0",
         OT_BAGGAGE_PREFIX + "k1", "v1",
         OT_BAGGAGE_PREFIX + "k2", "v2",
