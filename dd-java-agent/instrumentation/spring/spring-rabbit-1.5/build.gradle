@@ -8,6 +8,10 @@ muzzle {
   }
 }
 
+testJvmConstraints {
+  minJavaVersion = JavaVersion.VERSION_17
+}
+
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -23,10 +27,6 @@ dependencies {
   testImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '2.4.0'
 
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-amqp', version: '4.+'
-}
-
-tasks.named('latestDepTest').configure {
-  minJavaVersion = JavaVersion.VERSION_17
 }
 
 tasks.withType(Test).configureEach {
