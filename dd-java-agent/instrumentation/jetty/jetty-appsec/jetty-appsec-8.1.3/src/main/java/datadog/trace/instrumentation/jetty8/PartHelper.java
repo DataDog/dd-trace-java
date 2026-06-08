@@ -50,6 +50,7 @@ public class PartHelper {
           m = multiPartInputStream.getClass().getMethod("getParts");
           mpiGetParts = m;
         } catch (NoSuchMethodException ignored) {
+          // class does not have getParts() — fall back to singleton below
         }
       }
       if (m != null) {
@@ -60,6 +61,7 @@ public class PartHelper {
             return all;
           }
         } catch (Exception ignored) {
+          // reflection invocation failed — fall back to singleton below
         }
       }
     }
@@ -82,6 +84,7 @@ public class PartHelper {
           filenames.add(filename);
         }
       } catch (Exception ignored) {
+        // malformed or inaccessible part — skip and continue with remaining parts
       }
     }
     return filenames;
@@ -112,6 +115,7 @@ public class PartHelper {
         }
         result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
       } catch (Exception ignored) {
+        // malformed or inaccessible part — skip and continue with remaining parts
       }
     }
     return result;
@@ -249,6 +253,7 @@ public class PartHelper {
       }
       return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
+      // stream read failed — caller skips form field value
       return null;
     }
   }
@@ -278,6 +283,7 @@ public class PartHelper {
         try {
           return Charset.forName(name);
         } catch (Exception ignored) {
+          // unknown or unsupported charset name — fall back to UTF-8
         }
       }
     }

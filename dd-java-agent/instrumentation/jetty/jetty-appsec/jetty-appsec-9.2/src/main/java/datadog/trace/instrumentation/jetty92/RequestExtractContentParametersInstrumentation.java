@@ -24,7 +24,6 @@ import java.util.function.BiFunction;
 import javax.servlet.http.Part;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
-import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
@@ -118,7 +117,6 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Request.class);
       if (!proceed) {
         return;
       }

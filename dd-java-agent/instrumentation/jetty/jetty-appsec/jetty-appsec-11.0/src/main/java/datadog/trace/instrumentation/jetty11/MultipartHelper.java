@@ -38,6 +38,7 @@ public class MultipartHelper {
           filenames.add(name);
         }
       } catch (Exception ignored) {
+        // malformed or inaccessible part — skip and continue with remaining parts
       }
     }
     return filenames;
