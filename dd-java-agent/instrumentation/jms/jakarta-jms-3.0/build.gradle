@@ -1,0 +1,2 @@
+// This module is currently a placeholder for Jakarta JMS 3.0 instrumentation
+// It has not yet been implemented. Commenting out gradle configuration to prevent build errors.
