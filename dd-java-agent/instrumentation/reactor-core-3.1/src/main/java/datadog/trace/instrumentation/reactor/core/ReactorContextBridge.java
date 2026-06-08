@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.reactor.core;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import datadog.trace.bootstrap.instrumentation.api.WithAgentSpan;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
@@ -43,8 +42,7 @@ public final class ReactorContextBridge {
    */
   public static ContextScope activateStoredContext(
       final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
-    return attachIfRequired(
-        subscriberContexts.get(subscriber), Java8BytecodeBridge.getCurrentContext());
+    return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
   }
 
   /**
@@ -63,13 +61,12 @@ public final class ReactorContextBridge {
     }
 
     publisherContexts.put(publisher, context);
-    return attachIfRequired(context, Java8BytecodeBridge.getCurrentContext());
+    return attachIfRequired(context, Context.current());
   }
 
   public static ContextScope activateForBlocking(
       final Publisher<?> publisher, final ContextStore<Publisher, Context> publisherContexts) {
-    return attachIfRequired(
-        publisherContexts.get(publisher), Java8BytecodeBridge.getCurrentContext());
+    return attachIfRequired(publisherContexts.get(publisher), Context.current());
   }
 
   public static void transferToOptimizedSubscriber(
@@ -112,14 +109,10 @@ public final class ReactorContextBridge {
   }
 
   private static ContextScope attachIfRequired(final Context context, final Context activeContext) {
-    if (nonRootContext(context) == null || context == activeContext) {
+    if (context == null || context == activeContext || context == Context.root()) {
       return null;
     }
     return context.attach();
-  }
-
-  private static Context nonRootContext(final Context context) {
-    return context == null || context == Java8BytecodeBridge.getRootContext() ? null : context;
   }
 
   private static boolean hasKey(final reactor.util.context.Context context, final Object key) {

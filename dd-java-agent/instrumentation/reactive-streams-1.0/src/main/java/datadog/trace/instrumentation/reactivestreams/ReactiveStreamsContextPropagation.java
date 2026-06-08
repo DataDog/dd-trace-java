@@ -3,7 +3,6 @@ package datadog.trace.instrumentation.reactivestreams;
 import datadog.context.Context;
 import datadog.context.ContextScope;
 import datadog.trace.bootstrap.ContextStore;
-import datadog.trace.bootstrap.instrumentation.api.Java8BytecodeBridge;
 import org.reactivestreams.Publisher;
 import org.reactivestreams.Subscriber;
 
@@ -16,28 +15,30 @@ public final class ReactiveStreamsContextPropagation {
       final Subscriber<?> subscriber,
       final ContextStore<Publisher, Context> publisherContexts,
       final ContextStore<Subscriber, Context> subscriberContexts) {
+    // Don't consume the publisher context until we've verified the subscriber is non-null. For
+    // subscribe(null), Reactive Streams mandates an NPE after this advice returns. Consuming the
+    // context earlier would incorrectly discard it.
     if (subscriber == null) {
       return null;
     }
 
     final Context contextFromPublisher = publisherContexts.remove(publisher);
-    final Context activeContext = Java8BytecodeBridge.getCurrentContext();
-    final Context context =
-        contextFromPublisher != null ? contextFromPublisher : nonRootContext(activeContext);
-    if (context == null) {
+    final Context activeContext = Context.current();
+    final Context context = contextFromPublisher != null ? contextFromPublisher : activeContext;
+    if (context == Context.root()) {
       return null;
     }
 
     final Context subscriberContext = subscriberContexts.putIfAbsent(subscriber, context);
     // A context captured on the publisher (cross-thread propagation) must win even when the
-    // current thread already carries a non-root active context
+    // current thread already carries a non-root active context.
     return attachIfRequired(subscriberContext, activeContext, true);
   }
 
   public static ContextScope activateOnSignal(
       final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
-    final Context activeContext = Java8BytecodeBridge.getCurrentContext();
-    if (nonRootContext(activeContext) != null) {
+    final Context activeContext = Context.current();
+    if (activeContext != Context.root()) {
       return null;
     }
     return attachIfRequired(subscriberContexts.get(subscriber), activeContext, false);
@@ -45,22 +46,17 @@ public final class ReactiveStreamsContextPropagation {
 
   public static ContextScope activateOnComplete(
       final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
-    return attachIfRequired(
-        subscriberContexts.get(subscriber), Java8BytecodeBridge.getCurrentContext(), true);
+    return attachIfRequired(subscriberContexts.get(subscriber), Context.current(), true);
   }
 
   private static ContextScope attachIfRequired(
       final Context context, final Context activeContext, final boolean allowReplacingActive) {
-    if (nonRootContext(context) == null || context == activeContext) {
+    if (context == null || context == activeContext || context == Context.root()) {
       return null;
     }
-    if (!allowReplacingActive && nonRootContext(activeContext) != null) {
+    if (!allowReplacingActive && activeContext != Context.root()) {
       return null;
     }
     return context.attach();
-  }
-
-  private static Context nonRootContext(final Context context) {
-    return context == null || context == Java8BytecodeBridge.getRootContext() ? null : context;
   }
 }
