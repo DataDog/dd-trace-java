@@ -7,6 +7,7 @@ import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOn
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.captureActiveSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.noopContinuation;
 import static datadog.trace.instrumentation.netty41.AttributeKeys.CONNECT_PARENT_CONTINUATION_ATTRIBUTE_KEY;
+import static datadog.trace.instrumentation.netty41.AttributeKeys.HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -175,6 +176,9 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
           handler2 instanceof ChannelHandler ? (ChannelHandler) handler2 : handler3;
 
       try {
+        if (NettyHttp2Helper.isHttp2ConnectionCodec(handler)) {
+          pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).set(Boolean.TRUE);
+        }
         // Server pipeline handlers
         if (handler instanceof HttpServerCodec) {
           NettyPipelineHelper.addHandlerAfter(
@@ -250,6 +254,10 @@ public class NettyChannelPipelineInstrumentation extends InstrumenterModule.Trac
   public static class ConnectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static void addParentSpan(@Advice.This final ChannelPipeline pipeline) {
+      if (Boolean.TRUE.equals(
+          pipeline.channel().attr(HTTP2_CONNECTION_CODEC_ATTRIBUTE_KEY).get())) {
+        return;
+      }
       AgentScope.Continuation continuation = captureActiveSpan();
       if (continuation != noopContinuation()) {
         final Attribute<AgentScope.Continuation> attribute =
