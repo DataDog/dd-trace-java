@@ -69,6 +69,9 @@ dependencies {
   latestDepTestImplementation group: 'com.h2database', name: 'h2', version: '+'
   latestDepTestImplementation group: 'org.springframework', name: 'spring-context', version: '7.+'
   latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-data-jpa', version: '4.+'
+  latestDepTestImplementation group: 'org.springframework.boot', name: 'spring-boot-starter-actuator', version: '4.+'
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-spring', version: '6.+'
+  latestDepTestImplementation group: 'net.javacrumbs.shedlock', name: 'shedlock-provider-jdbc-template', version: '6.+'
 }
 
 tasks.named("latestDepForkedTest", Test) {
