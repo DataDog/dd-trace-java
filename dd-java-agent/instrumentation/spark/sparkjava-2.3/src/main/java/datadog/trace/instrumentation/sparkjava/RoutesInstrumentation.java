@@ -3,6 +3,8 @@ package datadog.trace.instrumentation.sparkjava;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activeSpan;
 import static datadog.trace.bootstrap.instrumentation.decorator.http.HttpResourceDecorator.HTTP_RESOURCE_DECORATOR;
+import static datadog.trace.instrumentation.sparkjava.SparkJavaDecorator.DECORATE;
+import static datadog.trace.instrumentation.sparkjava.SparkJavaDecorator.SPARK_JAVA;
 import static net.bytebuddy.matcher.ElementMatchers.isPublic;
 import static net.bytebuddy.matcher.ElementMatchers.returns;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
@@ -11,6 +13,7 @@ import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import net.bytebuddy.asm.Advice;
 import spark.route.HttpMethod;
 import spark.routematch.RouteMatch;
@@ -20,12 +23,12 @@ public class RoutesInstrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public RoutesInstrumentation() {
-    super("sparkjava", "sparkjava-2.4");
+    super("sparkjava", "sparkjava-2.3");
   }
 
   @Override
-  public boolean defaultEnabled() {
-    return false;
+  public String[] helperClassNames() {
+    return new String[] {packageName + ".SparkJavaDecorator"};
   }
 
   @Override
@@ -52,6 +55,8 @@ public class RoutesInstrumentation extends InstrumenterModule.Tracing
       final AgentSpan span = activeSpan();
       if (span != null && routeMatch != null) {
         HTTP_RESOURCE_DECORATOR.withRoute(span, method.name(), routeMatch.getMatchUri());
+        span.setSpanName(DECORATE.spanName());
+        span.setTag(Tags.COMPONENT, SPARK_JAVA);
       }
     }
   }
