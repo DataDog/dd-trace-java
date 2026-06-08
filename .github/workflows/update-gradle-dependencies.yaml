@@ -8,6 +8,8 @@ jobs:
   update-gradle-dependencies:
     runs-on: ubuntu-latest
     name: Update Gradle dependencies
+    env:
+      MIN_DEPENDENCY_AGE_HOURS: 48
     permissions:
       contents: read
       id-token: write # Required for OIDC token federation
@@ -19,7 +21,7 @@ jobs:
           policy: self.update-gradle-dependencies.create-pr
 
       - name: Checkout repository
-        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # 6.0.2
+        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # 6.0.3
         with:
           submodules: "recursive"
 
@@ -41,6 +43,12 @@ jobs:
           echo "core_branch=ci/update-gradle-dependencies-${DATE}" >> $GITHUB_OUTPUT
           echo "instrumentation_branch=ci/update-gradle-dependencies-instrumentation-${DATE}" >> $GITHUB_OUTPUT
 
+      - name: Snapshot current Gradle lock files
+        run: |
+          rm -rf /tmp/gradle-lockfiles-before
+          mkdir -p /tmp/gradle-lockfiles-before
+          find . -name 'gradle.lockfile' -print0 | xargs -0 -r cp --parents -t /tmp/gradle-lockfiles-before/
+
       - name: Update Gradle dependencies
         env:
           ORG_GRADLE_PROJECT_akkaRepositoryToken: ${{ secrets.AKKA_REPO_TOKEN }}
@@ -48,6 +56,19 @@ jobs:
           find . -name 'gradle.lockfile' -delete
           GRADLE_OPTS="-Dorg.gradle.jvmargs='-Xms2G -Xmx3G'" \
           ./gradlew resolveAndLockAll --write-locks --parallel --stacktrace --no-daemon --max-workers=4
+
+      - name: Validate changed lock files meet dependency age policy
+        id: validate-lockfiles
+        env:
+          AKKA_REPO_TOKEN: ${{ secrets.AKKA_REPO_TOKEN }}
+        run: |
+          python3 .github/scripts/dependency_age.py validate-lockfiles \
+            --baseline-dir /tmp/gradle-lockfiles-before \
+            --current-dir . \
+            --min-age-hours "${MIN_DEPENDENCY_AGE_HOURS}" \
+            --repo-url "https://repo1.maven.org/maven2" \
+            --repo-url "https://repo.akka.io/${AKKA_REPO_TOKEN}/secure" \
+            --github-output "$GITHUB_OUTPUT"
 
       - name: Save instrumentation lock files
         run: |
@@ -75,7 +96,7 @@ jobs:
 
       - name: Push core changes
         if: steps.check-core-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.core_branch }}"
@@ -87,13 +108,14 @@ jobs:
         if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
             --base master \
             --head ${{ steps.define-branches.outputs.core_branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body "$(cat <<'EOF'
+            --body "$(cat <<EOF
           # What Does This Do
 
           This PR updates the Gradle dependency locks for common and product modules.
@@ -101,6 +123,8 @@ jobs:
           # Motivation
 
           Refresh Gradle dependencies to make sure to apply the latest version available when bumping dependencies.
+
+          ${PR_SUMMARY}
 
           # Contributor Checklist
 
@@ -132,7 +156,7 @@ jobs:
 
       - name: Push instrumentation changes
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
-        uses: DataDog/commit-headless@ad3668640012ec69186398f43d61923f6878bbbe # action/v3.2.0
+        uses: DataDog/commit-headless@567f7eedac58750aa573f48fd60cfe478abc65bd # action/v3.3.0
         with:
           token: "${{ steps.octo-sts.outputs.token }}"
           branch: "${{ steps.define-branches.outputs.instrumentation_branch }}"
@@ -144,13 +168,14 @@ jobs:
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \
             --head ${{ steps.define-branches.outputs.instrumentation_branch }} \
             --label "tag: dependencies" \
             --label "tag: no release notes" \
-            --body "$(cat <<'EOF'
+            --body "$(cat <<EOF
           # What Does This Do
 
           This PR updates the Gradle dependency locks for instrumentations and their tests.
@@ -158,6 +183,8 @@ jobs:
           # Motivation
 
           Refresh Gradle dependencies to make sure to test latest versions of dependencies within their supported versions.
+
+          ${PR_SUMMARY}
 
           # Contributor Checklist
 

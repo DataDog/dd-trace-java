@@ -1,9 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.version-file")
 }
 
 apply(from = "$rootDir/gradle/java.gradle")
-apply(from = "$rootDir/gradle/version.gradle")
 
 description = "Feature flagging remote config and exposure handling"
 
@@ -25,6 +25,8 @@ dependencies {
 
   compileOnly(project(":dd-trace-core")) // shading does not work with this one
 
+  testImplementation(libs.bundles.junit5)
+  testImplementation(libs.bundles.mockito)
   testImplementation(project(":utils:test-utils"))
   testImplementation(project(":dd-java-agent:testing"))
 }

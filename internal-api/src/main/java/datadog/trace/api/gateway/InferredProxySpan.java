@@ -6,6 +6,8 @@ import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.HTTP_S
 import static datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities.MANUAL_INSTRUMENTATION;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.COMPONENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_USER_AGENT;
@@ -290,6 +292,19 @@ public class InferredProxySpan implements ImplicitContextKeyed {
     Object userAgent = serviceEntrySpan.getTag(HTTP_USER_AGENT);
     if (userAgent != null) {
       this.span.setTag(HTTP_USER_AGENT, userAgent.toString());
+    }
+
+    // Forward the Datadog scan/test markers so the API endpoint reducer can keep
+    // scan/test traffic out of the inventory even when the local root is the inferred span.
+    // These markers are only tagged on the service-entry span (by HttpServerDecorator), so
+    // calls from non-service-entry handler spans during phasedFinish are no-ops here.
+    Object endpointScan = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN);
+    if (endpointScan != null) {
+      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_ENDPOINT_SCAN, endpointScan.toString());
+    }
+    Object securityTest = serviceEntrySpan.getTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST);
+    if (securityTest != null) {
+      this.span.setTag(HTTP_REQUEST_HEADERS_X_DATADOG_SECURITY_TEST, securityTest.toString());
     }
   }
 

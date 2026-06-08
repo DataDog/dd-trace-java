@@ -25,7 +25,11 @@ public class ControllerAdvice {
       @Advice.Argument(2) final Object handler,
       @Advice.Local("handlerSpanKey") String handlerSpanKey) {
     handlerSpanKey = "";
-    // Name the parent span based on the matching pattern
+
+    /*
+    By the time HandlerAdapter.handle runs, every handler mapping kind (annotated and SimpleUrlHandlerMapping via its
+    PathExposingHandlerInterceptor) has populated BEST_MATCHING_PATTERN_ATTRIBUTE.
+    */
     Object contextObj = request.getAttribute(DD_CONTEXT_ATTRIBUTE);
     if (contextObj instanceof Context) {
       Context context = (Context) contextObj;

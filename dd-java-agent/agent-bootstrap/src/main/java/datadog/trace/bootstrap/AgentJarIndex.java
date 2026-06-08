@@ -67,7 +67,7 @@ public final class AgentJarIndex {
 
   /** For testing purposes only. */
   public static AgentJarIndex emptyIndex() {
-    return new AgentJarIndex(new String[0], ClassNameTrie.Builder.EMPTY_TRIE);
+    return new AgentJarIndex(new String[0], ClassNameTrie.EMPTY_TRIE);
   }
 
   public static AgentJarIndex readIndex(JarFile agentJar) {

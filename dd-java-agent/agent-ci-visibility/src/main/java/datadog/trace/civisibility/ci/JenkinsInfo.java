@@ -34,6 +34,7 @@ class JenkinsInfo implements CIProviderInfo {
   public static final String JENKINS_GIT_COMMIT = "GIT_COMMIT";
   public static final String JENKINS_GIT_BRANCH = "GIT_BRANCH";
   public static final String JENKINS_DD_CUSTOM_TRACE_ID = "DD_CUSTOM_TRACE_ID";
+  public static final String JENKINS_DD_CUSTOM_PARENT_ID = "DD_CUSTOM_PARENT_ID";
   public static final String JENKINS_NODE_NAME = "NODE_NAME";
   public static final String JENKINS_NODE_LABELS = "NODE_LABELS";
   public static final String JENKINS_PR_NUMBER = "CHANGE_ID";
@@ -67,7 +68,7 @@ class JenkinsInfo implements CIProviderInfo {
         .ciWorkspace(expandTilde(environment.get(JENKINS_WORKSPACE_PATH)))
         .ciNodeName(environment.get(JENKINS_NODE_NAME))
         .ciNodeLabels(buildCiNodeLabels())
-        .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID)
+        .ciEnvVars(JENKINS_DD_CUSTOM_TRACE_ID, JENKINS_DD_CUSTOM_PARENT_ID)
         .build();
   }
 

@@ -24,6 +24,8 @@ class SymbolSinkTest {
     SymbolUploaderMock symbolUploaderMock = new SymbolUploaderMock();
     Config config = mock(Config.class);
     when(config.getServiceName()).thenReturn("service1");
+    when(config.getVersion()).thenReturn("1.0.0");
+    when(config.getRuntimeId()).thenReturn("test-runtime");
     when(config.isSymbolDatabaseCompressed()).thenReturn(false);
     SymbolSink symbolSink = new SymbolSink(config, symbolUploaderMock, MAX_SYMDB_UPLOAD_SIZE);
     symbolSink.addScope(Scope.builder(ScopeType.JAR, null, 0, 0).build());
@@ -35,13 +37,25 @@ class SymbolSinkTest {
     String strEventContent = new String(eventContent.getContent());
     assertTrue(strEventContent.contains("\"ddsource\": \"dd_debugger\""));
     assertTrue(strEventContent.contains("\"service\": \"service1\""));
+    assertTrue(strEventContent.contains("\"version\": \"1.0.0\""));
+    assertTrue(strEventContent.contains("\"language\": \"java\""));
+    assertTrue(strEventContent.contains("\"runtimeId\": \"test-runtime\""));
     assertTrue(strEventContent.contains("\"type\": \"symdb\""));
+    assertTrue(strEventContent.contains("\"uploadId\":"));
+    assertTrue(strEventContent.contains("\"batchNum\": 1"));
+    assertTrue(strEventContent.contains("\"final\": false"));
+    assertTrue(strEventContent.contains("\"attachmentSize\":"));
     BatchUploader.MultiPartContent symbolContent = symbolUploaderMock.multiPartContents.get(1);
     assertEquals("file", symbolContent.getPartName());
     assertEquals("file.json", symbolContent.getFileName());
-    assertEquals(
-        "{\"language\":\"JAVA\",\"scopes\":[{\"end_line\":0,\"has_injectible_lines\":false,\"scope_type\":\"JAR\",\"start_line\":0}],\"service\":\"service1\"}",
-        new String(symbolContent.getContent()));
+    String fileContent = new String(symbolContent.getContent());
+    assertTrue(fileContent.contains("\"language\":\"JAVA\""));
+    assertTrue(fileContent.contains("\"scopes\":["));
+    assertTrue(fileContent.contains("\"service\":\"service1\""));
+    assertTrue(fileContent.contains("\"version\":\"1.0.0\""));
+    assertTrue(fileContent.contains("\"upload_id\":"));
+    assertTrue(fileContent.contains("\"batch_num\":1"));
+    assertTrue(fileContent.contains("\"final\":false"));
   }
 
   @Test
@@ -219,8 +233,13 @@ class SymbolSinkTest {
               .build());
     }
     symbolSink.flush();
-    assertEquals(4, symbolUploaderMock.multiPartContents.size());
-    for (int i = 0; i < 4; i += 2) {
+    int total = symbolUploaderMock.multiPartContents.size();
+    assertTrue(
+        total >= 4, "expected at least 4 multipart entries (2+ event/file pairs), got " + total);
+    assertTrue(
+        total % 2 == 0,
+        "expected an even number of multipart entries (event/file pairs), got " + total);
+    for (int i = 0; i < total; i += 2) {
       BatchUploader.MultiPartContent eventContent = symbolUploaderMock.multiPartContents.get(i);
       assertEquals("event", eventContent.getPartName());
       BatchUploader.MultiPartContent symbolContent =

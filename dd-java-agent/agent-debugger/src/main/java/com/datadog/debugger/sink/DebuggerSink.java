@@ -5,6 +5,7 @@ import com.datadog.debugger.probe.ExceptionProbe;
 import com.datadog.debugger.uploader.BatchUploader;
 import com.datadog.debugger.util.DebuggerMetrics;
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.debugger.DebuggerContext.SkipCause;
 import datadog.trace.bootstrap.debugger.ProbeId;
 import datadog.trace.util.AgentTaskScheduler;
@@ -159,7 +160,7 @@ public class DebuggerSink {
             TimeUnit.MILLISECONDS);
   }
 
-  // visible for testing
+  @VisibleForTesting
   void lowRateFlush(DebuggerSink ignored) {
     symbolSink.flush();
     probeStatusSink.flush(tags);

@@ -1,10 +1,9 @@
 package datadog.gradle.plugin.instrument
 
+import datadog.gradle.plugin.GradleFixture
 import net.bytebuddy.utility.OpenedClassReader
-import org.gradle.testkit.runner.GradleRunner
 import org.junit.jupiter.api.Assertions.assertTrue
 import org.junit.jupiter.api.Test
-import org.junit.jupiter.api.io.TempDir
 import org.objectweb.asm.ClassReader
 import org.objectweb.asm.ClassVisitor
 import org.objectweb.asm.ClassWriter
@@ -13,160 +12,138 @@ import org.objectweb.asm.Opcodes
 import java.io.File
 import java.io.FileInputStream
 
-class BuildTimeInstrumentationPluginTest {
+class BuildTimeInstrumentationPluginTest : GradleFixture() {
 
   private val buildGradle = """
     plugins {
-      id 'java'
-      id 'dd-trace-java.build-time-instrumentation'
+      id("java")
+      id("dd-trace-java.build-time-instrumentation")
     }
 
-    sourceCompatibility = JavaVersion.VERSION_1_8
-    targetCompatibility = JavaVersion.VERSION_1_8
+    java {
+      sourceCompatibility = JavaVersion.VERSION_1_8
+      targetCompatibility = JavaVersion.VERSION_1_8
+    }
 
     repositories {
       mavenCentral()
     }
 
     dependencies {
-      compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8' // just to build TestPlugin
+      compileOnly("net.bytebuddy:byte-buddy:1.18.10") // just to build TestPlugin
     }
 
-    buildTimeInstrumentation.plugins = [
-      'TestPlugin'
-    ]
-  """.trimIndent()
+    buildTimeInstrumentation.plugins.set(listOf("TestPlugin"))
+  """
 
   private val exampleCode = """
     package example;
     public class ExampleCode {}
-  """.trimIndent()
-
-  @TempDir
-  lateinit var buildDir: File
+  """
 
   @Test
   fun `test instrument plugin`() {
-    val buildFile = File(buildDir, "build.gradle")
-    buildFile.writeText(buildGradle)
+    writeRootProject(buildGradle)
+    writeTestPlugin("ExampleCode")
+    writeJavaSource("example.ExampleCode", exampleCode)
 
-    val srcMainJava = testPlugin("src/main/java", "ExampleCode")
+    run("build", "--stacktrace", forwardOutput = true)
 
-    val examplePackageDir = File(srcMainJava, "example").apply { mkdirs() }
-    File(examplePackageDir, "ExampleCode.java").writeText(exampleCode)
-
-    // Run Gradle build with TestKit
-    GradleRunner.create().withTestKitDir(File(buildDir, ".gradle-test-kit")) // workaround in case the global test-kit cache becomes corrupted
-      .withDebug(true) // avoids starting daemon which can leave undeleted files post-cleanup
-      .withProjectDir(buildDir)
-      .withArguments("build", "--stacktrace")
-      .withPluginClasspath()
-      .forwardOutput()
-      .build()
-
-    assertInstrumented(File(buildDir, "build/classes/java/main/example/ExampleCode.class"))
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
   }
 
   @Test
   fun `test instrument plugin processes includeClassDirectories`() {
-    val buildFile = File(buildDir, "build.gradle")
-    buildFile.writeText("""
+    writeRootProject(
+      """
       plugins {
-        id 'java'
-        id 'dd-trace-java.build-time-instrumentation'
+        id("java")
+        id("dd-trace-java.build-time-instrumentation")
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
+        compileOnly("net.bytebuddy:byte-buddy:1.18.10")
       }
 
       buildTimeInstrumentation {
-        plugins = ['TestPlugin']
-        includeClassDirectories.from(file('external-classes'))
+        plugins.set(listOf("TestPlugin"))
+        includeClassDirectories.from(file("external-classes"))
       }
-    """.trimIndent())
+      """
+    )
 
-    testPlugin("src/main/java", "ExternalCode")
+    writeTestPlugin("ExternalCode")
 
     // Pre-compile ExternalCode using ASM and place it in the external-classes directory
-    val externalClassesDir = File(buildDir, "external-classes").apply { mkdirs() }
+    val externalClassesDir = dir("external-classes")
     precompiledClass("ExternalCode", externalClassesDir)
 
-    GradleRunner.create()
-      .withTestKitDir(File(buildDir, ".gradle-test-kit"))
-      .withDebug(true)
-      .withProjectDir(buildDir)
-      .withArguments("build", "--stacktrace")
-      .withPluginClasspath()
-      .forwardOutput()
-      .build()
+    run("build", "--stacktrace", forwardOutput = true)
 
     // ExternalCode.class should have been copied from external-classes, instrumented, and placed in the output
-    assertInstrumented(File(buildDir, "build/classes/java/main/ExternalCode.class"))
+    assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
 
   @Test
   fun `test rerun-tasks does not lose includeClassDirectories classes`() {
-    val buildFile = File(buildDir, "build.gradle")
-    buildFile.writeText("""
+    writeRootProject(
+      """
       plugins {
-        id 'java'
-        id 'dd-trace-java.build-time-instrumentation'
+        id("java")
+        id("dd-trace-java.build-time-instrumentation")
       }
 
-      sourceCompatibility = JavaVersion.VERSION_1_8
-      targetCompatibility = JavaVersion.VERSION_1_8
+      java {
+        sourceCompatibility = JavaVersion.VERSION_1_8
+        targetCompatibility = JavaVersion.VERSION_1_8
+      }
 
       repositories {
         mavenCentral()
       }
 
       dependencies {
-        compileOnly group: 'net.bytebuddy', name: 'byte-buddy', version: '1.18.8'
+        compileOnly("net.bytebuddy:byte-buddy:1.18.10")
       }
 
       buildTimeInstrumentation {
-        plugins = ['TestPlugin']
-        includeClassDirectories.from(file('external-classes'))
+        plugins.set(listOf("TestPlugin"))
+        includeClassDirectories.from(file("external-classes"))
       }
-    """.trimIndent())
+      """
+    )
 
-    val srcMainJava = testPlugin("src/main/java", "ExampleCode", "ExternalCode")
-    val examplePackageDir = File(srcMainJava, "example").apply { mkdirs() }
-    File(examplePackageDir, "ExampleCode.java").writeText("package example; public class ExampleCode {}")
+    writeTestPlugin("ExampleCode", "ExternalCode")
+    writeJavaSource("example.ExampleCode", "package example; public class ExampleCode {}")
 
-    val externalClassesDir = File(buildDir, "external-classes").apply { mkdirs() }
+    val externalClassesDir = dir("external-classes")
     precompiledClass("ExternalCode", externalClassesDir)
 
-    val runner = GradleRunner.create()
-      .withTestKitDir(File(buildDir, ".gradle-test-kit"))
-      .withDebug(true)
-      .withProjectDir(buildDir)
-      .withPluginClasspath()
-      .forwardOutput()
-
     // First build
-    runner.withArguments("build", "--stacktrace").build()
+    run("build", "--stacktrace", forwardOutput = true)
 
     // Second build with --rerun-tasks: compileJava wipes classesDirectory, so without
     // the fix InstrumentAction would only sync freshly-compiled classes and lose ExternalCode.class
-    runner.withArguments("build", "--rerun-tasks", "--stacktrace").build()
+    run("build", "--rerun-tasks", "--stacktrace", forwardOutput = true)
 
-    assertInstrumented(File(buildDir, "build/classes/java/main/example/ExampleCode.class"))
-    assertInstrumented(File(buildDir, "build/classes/java/main/ExternalCode.class"))
+    assertInstrumented(buildFile("classes/java/main/example/ExampleCode.class"))
+    assertInstrumented(buildFile("classes/java/main/ExternalCode.class"))
   }
 
-  private fun testPlugin(srcDir: String, vararg classNames: String): File {
-    val dir = File(buildDir, srcDir).apply { mkdirs() }
+  private fun writeTestPlugin(vararg classNames: String) {
     val conditions = classNames.joinToString(" || ") { "\"$it\".equals(name)" }
-    File(dir, "TestPlugin.java").writeText("""
+    writeJavaSource(
+      "TestPlugin",
+      """
       import java.io.File;
       import java.io.IOException;
       import net.bytebuddy.build.Plugin;
@@ -196,12 +173,12 @@ class BuildTimeInstrumentationPluginTest {
         }
 
         @Override
-        public void close() throws IOException {
-          // no-op
-        }
+      public void close() throws IOException {
+        // no-op
       }
-    """.trimIndent())
-    return dir
+    }
+    """
+    )
   }
 
   private fun precompiledClass(className: String, targetDir: File) {

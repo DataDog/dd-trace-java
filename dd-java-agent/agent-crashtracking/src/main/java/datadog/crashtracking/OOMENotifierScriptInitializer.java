@@ -8,6 +8,7 @@ import static datadog.crashtracking.Initializer.getScriptPathFromArg;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.util.PidHelper;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -20,7 +21,7 @@ public final class OOMENotifierScriptInitializer {
 
   private OOMENotifierScriptInitializer() {}
 
-  // @VisibleForTests
+  @VisibleForTesting
   static void initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
       LOG.debug(

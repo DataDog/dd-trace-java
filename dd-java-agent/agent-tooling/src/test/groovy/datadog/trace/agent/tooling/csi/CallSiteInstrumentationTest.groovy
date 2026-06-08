@@ -162,7 +162,7 @@ class CallSiteInstrumentationTest extends BaseCallSiteTest {
       })
       )
       .make()
-      .load(Thread.currentThread().contextClassLoader, ClassLoadingStrategy.Default.INJECTION)
+      .load(Thread.currentThread().contextClassLoader, ClassLoadingStrategy.Default.WRAPPER)
     return Tuple.tuple(newType.loaded, newType.bytes)
   }
 

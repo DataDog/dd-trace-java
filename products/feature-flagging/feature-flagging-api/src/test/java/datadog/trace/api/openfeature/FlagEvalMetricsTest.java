@@ -13,6 +13,7 @@ import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.data.AggregationTemporality;
 import io.opentelemetry.sdk.metrics.data.LongPointData;
 import io.opentelemetry.sdk.metrics.data.MetricData;
+import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.testing.exporter.InMemoryMetricReader;
 import java.util.Collection;
 import org.junit.jupiter.api.Test;
@@ -145,11 +146,14 @@ class FlagEvalMetricsTest {
   }
 
   @Test
-  void multipleRecordCallsAccumulateCumulativelyInExportedMetrics() {
-    // InMemoryMetricReader defaults to cumulative temporality. This validates that N record()
-    // calls produce a cumulative sum of N, matching the alwaysCumulative() selector configured
-    // on the production OTLP exporter in FlagEvalMetrics.
-    InMemoryMetricReader reader = InMemoryMetricReader.create();
+  void multipleRecordCallsAccumulateWithDeltaTemporality() {
+    // Use delta temporality to match the deltaPreferred() selector configured on the production
+    // OTLP exporter in FlagEvalMetrics. Delta temporality exports only increments since last
+    // collection, which is what OTLP receivers expect.
+    InMemoryMetricReader reader =
+        InMemoryMetricReader.builder()
+            .setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred())
+            .build();
     SdkMeterProvider provider = SdkMeterProvider.builder().registerMetricReader(reader).build();
 
     try (FlagEvalMetrics metrics = new FlagEvalMetrics(provider)) {
@@ -165,12 +169,12 @@ class FlagEvalMetricsTest {
               .orElseThrow(() -> new AssertionError("feature_flag.evaluations metric not found"));
 
       assertEquals(
-          AggregationTemporality.CUMULATIVE,
+          AggregationTemporality.DELTA,
           metric.getLongSumData().getAggregationTemporality(),
-          "Exported metric must use CUMULATIVE temporality");
+          "Exported metric must use DELTA temporality");
 
       LongPointData point = metric.getLongSumData().getPoints().iterator().next();
-      assertEquals(5L, point.getValue(), "5 record() calls must produce a cumulative sum of 5");
+      assertEquals(5L, point.getValue(), "5 record() calls must produce a delta sum of 5");
     }
   }
 
