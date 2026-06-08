@@ -30,7 +30,7 @@ import org.slf4j.LoggerFactory;
 class XRayHttpCodec {
   private static final Logger log = LoggerFactory.getLogger(XRayHttpCodec.class);
 
-  static final String X_AMZN_TRACE_ID = "X-Amzn-Trace-Id";
+  public static final String X_AMZN_TRACE_ID = "X-Amzn-Trace-Id";
 
   static final String ROOT = "Root";
   static final String PARENT = "Parent";
