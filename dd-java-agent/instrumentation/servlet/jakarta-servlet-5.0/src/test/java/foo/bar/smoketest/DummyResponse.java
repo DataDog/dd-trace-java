@@ -46,7 +46,18 @@ public class DummyResponse implements HttpServletResponse {
   public void sendError(int sc) throws IOException {}
 
   @Override
-  public void sendRedirect(String location) throws IOException {}
+  public void sendRedirect(String location) throws IOException {
+    // Servlet 6.1 turns the 1-arg sendRedirect into a default method that delegates to the new
+    // 3-arg overload. Model that delegation here so tests exercise the 6.1 code path (a single
+    // logical redirect traversing both woven methods).
+    sendRedirect(location, 302, true);
+  }
+
+  // New Servlet 6.1 overload: sendRedirect(String location, int sc, boolean clearBuffer).
+  // Declared without @Override so this stub still compiles against jakarta.servlet-api 5.0.0,
+  // where the overload does not exist. The IAST advice matches it by method name + first String
+  // argument regardless of the interface declaration, so it is woven just like the 1-arg form.
+  public void sendRedirect(String location, int sc, boolean clearBuffer) throws IOException {}
 
   @Override
   public void setDateHeader(String name, long date) {}

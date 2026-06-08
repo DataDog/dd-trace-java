@@ -20,6 +20,7 @@ import datadog.trace.api.iast.propagation.PropagationModule;
 import datadog.trace.api.iast.sink.HttpResponseHeaderModule;
 import datadog.trace.api.iast.sink.UnvalidatedRedirectModule;
 import datadog.trace.api.iast.util.Cookie;
+import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -103,12 +104,28 @@ public final class JakartaHttpServletResponseInstrumentation extends Instrumente
   public static class SendRedirectAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     @Sink(VulnerabilityTypes.UNVALIDATED_REDIRECT)
-    public static void onEnter(@Advice.Argument(0) final String location) {
+    public static boolean onEnter(@Advice.Argument(0) final String location) {
+      // Servlet 6.1 makes the 1-arg sendRedirect a default method that delegates to the new 3-arg
+      // overload sendRedirect(String, int, boolean). Both forms are matched by this advice, so a
+      // single logical redirect can traverse two woven methods. Guard with call depth so the
+      // detection fires exactly once per redirect.
+      if (CallDepthThreadLocalMap.incrementCallDepth(jakarta.servlet.http.HttpServletResponse.class)
+          > 0) {
+        return false;
+      }
       final UnvalidatedRedirectModule module = InstrumentationBridge.UNVALIDATED_REDIRECT;
       if (module != null) {
         if (null != location && !location.isEmpty()) {
           module.onRedirect(location);
         }
+      }
+      return true;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void onExit(@Advice.Enter final boolean outermost) {
+      if (outermost) {
+        CallDepthThreadLocalMap.reset(jakarta.servlet.http.HttpServletResponse.class);
       }
     }
   }
