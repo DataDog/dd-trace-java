@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static java.util.Collections.emptyMap;
@@ -12,113 +14,111 @@ import static org.junit.jupiter.api.Assertions.assertNull;
 
 import datadog.trace.api.Config;
 import datadog.trace.api.DD64bTraceId;
+import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.config.TracerConfig;
-import datadog.trace.bootstrap.ActiveSubsystems;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.params.converter.ArgumentConversionException;
+import org.junit.jupiter.params.converter.ArgumentConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-@WithConfig(key = TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
+@WithConfig(key = PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
 class W3CHttpExtractorTest extends DDJavaSpecification {
 
   private static final long TEST_SPAN_ID = 1311768467463790320L;
   private static final DDTraceId TRACE_ID_ONE =
       DDTraceId.fromHex("00000000000000000000000000000001");
+  private static final DDTraceId TRACE_ID_NO_HIGH_LOW_MAX =
+      DDTraceId.fromHex("0000000000000000ffffffffffffffff");
+  private static final DDTraceId TRACE_ID_LOW_MAX =
+      DDTraceId.fromHex("123456789abcdef0ffffffffffffffff");
   private static final String SOME_HEADER = "SOME_HEADER";
   private static final String SOME_CUSTOM_BAGGAGE_HEADER = "SOME_CUSTOM_BAGGAGE_HEADER";
   private static final String SOME_CUSTOM_BAGGAGE_HEADER_2 = "SOME_CUSTOM_BAGGAGE_HEADER_2";
   private static final String SOME_ARBITRARY_HEADER = "SOME_ARBITRARY_HEADER";
 
-  private DynamicConfig<DynamicConfig.Snapshot> dynamicConfig;
-  private HttpCodec.Extractor lazyExtractor;
+  private HttpCodec.Extractor extractor;
   private boolean origAppSecActive;
 
   @BeforeEach
   void setup() {
-    Map<String, String> baggageMap = new LinkedHashMap<>();
+    Map<String, String> baggageMap = new HashMap<>();
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER, "some-baggage");
     baggageMap.put(SOME_CUSTOM_BAGGAGE_HEADER_2, "some-CaseSensitive-baggage");
-    dynamicConfig =
+    DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create()
             .setHeaderTags(singletonMap(SOME_HEADER, "some-tag"))
             .setBaggageMapping(baggageMap)
             .apply();
-    origAppSecActive = ActiveSubsystems.APPSEC_ACTIVE;
-    ActiveSubsystems.APPSEC_ACTIVE = true;
+    this.extractor = W3CHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
+    this.origAppSecActive = APPSEC_ACTIVE;
+    APPSEC_ACTIVE = true;
   }
 
   @AfterEach
   void teardown() {
-    ActiveSubsystems.APPSEC_ACTIVE = origAppSecActive;
-    if (lazyExtractor != null) {
-      lazyExtractor.cleanup();
-    }
-  }
-
-  private HttpCodec.Extractor extractor() {
-    if (lazyExtractor == null) {
-      lazyExtractor =
-          W3CHttpCodec.newExtractor(Config.get(), () -> dynamicConfig.captureTraceConfig());
-    }
-    return lazyExtractor;
+    this.extractor.cleanup();
+    APPSEC_ACTIVE = origAppSecActive;
   }
 
   @TableTest({
-    "scenario                              | traceparent                                                 | tpValid | traceIdHex                         | spanId              | priority                     ",
-    "null traceparent                      |                                                             | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "all zeros trace id                    | '00-00000000000000000000000000000000-123456789abcdef0-01'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "too long trace id                     | '00-123456789abcdef00000000000000000-123456789abcdef0-01'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "all zeros span id                     | '00-00000000000000000000000000000001-0000000000000000-01'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "valid keep                            | '00-00000000000000000000000000000001-123456789abcdef0-01'   | true    | '00000000000000000000000000000001' | 1311768467463790320 | PrioritySampling.SAMPLER_KEEP",
-    "leading tab                           | '\t00-00000000000000000000000000000001-123456789abcdef0-01' | true    | '00000000000000000000000000000001' | 1311768467463790320 | PrioritySampling.SAMPLER_KEEP",
-    "trailing tab                          | '00-00000000000000000000000000000001-123456789abcdef0-01\t' | true    | '00000000000000000000000000000001' | 1311768467463790320 | PrioritySampling.SAMPLER_KEEP",
-    "surrounding spaces                    | ' 00-00000000000000000000000000000001-123456789abcdef0-01 ' | true    | '00000000000000000000000000000001' | 1311768467463790320 | PrioritySampling.SAMPLER_KEEP",
-    "max span id keep                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-01'   | true    | '0000000000000000ffffffffffffffff' | -1                  | PrioritySampling.SAMPLER_KEEP",
-    "max span id drop                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-00'   | true    | '0000000000000000ffffffffffffffff' | -1                  | PrioritySampling.SAMPLER_DROP",
-    "low max trace id drop                 | '00-123456789abcdef0ffffffffffffffff-123456789abcdef0-00'   | true    | '123456789abcdef0ffffffffffffffff' | 1311768467463790320 | PrioritySampling.SAMPLER_DROP",
-    "uppercase F in trace id low part      | '00-123456789abcdef0ffffffffffffffFf-123456789abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "uppercase F in trace id high part     | '00-123456789abcdeF0ffffffffffffffff-123456789abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "uppercase F in trace id mid           | '00-123456789abcdef0fffffffffFffffff-123456789abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "uppercase A in span id                | '00-123456789abcdef0ffffffffffffffff-123456789Abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "unicode a-umlaut in trace id start    | '00-123456789äbcdef0ffffffffffffffff-123456789abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "unicode a-umlaut in trace id mid      | '00-123456789abcdef0ffffffffäfffffff-123456789abcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "unicode a-umlaut in span id           | '00-123456789abcdef0ffffffffffffffff-123456789äbcdef0-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "version 01 flags 02                   | '01-00000000000000000000000000000001-0000000000000001-02'   | true    | '00000000000000000000000000000001' | 1                   | PrioritySampling.SAMPLER_DROP",
-    "too long version                      | '000-0000000000000000000000000000001-0000000000000001-01'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "space inside trace id                 | '00-0000000000000000000000000000001 -0000000000000001-01'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "trace id too short                    | '00-0000000000000000000000000000001-0000000000000001-01'    | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "span id too short                     | '00-00000000000000000000000000000001-000000000000001-01'    | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "flags too short                       | '00-00000000000000000000000000000001-0000000000000001-0'    | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "version ff invalid                    | 'ff-00000000000000000000000000000001-0000000000000001-00'   | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "version fe flags 02                   | 'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | '00000000000000000000000000000001' | 1                   | PrioritySampling.SAMPLER_DROP",
-    "extra data with version 00            | '00-00000000000000000000000000000001-0000000000000001-03-0' | false   |                                    | 0                   | PrioritySampling.UNSET       ",
-    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   |                                    | 0                   | PrioritySampling.UNSET       "
+    "scenario                              | traceparent                                                 | tpValid | traceId                  | spanId       | priority                     ",
+    "null traceparent                      |                                                             | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "all zeros trace id                    | '00-00000000000000000000000000000000-123456789abcdef0-01'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "too long trace id                     | '00-123456789abcdef00000000000000000-123456789abcdef0-01'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "all zeros span id                     | '00-00000000000000000000000000000001-0000000000000000-01'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "valid keep                            | '00-00000000000000000000000000000001-123456789abcdef0-01'   | true    | TRACE_ID_ONE             | SPAN_ID_TEST | PrioritySampling.SAMPLER_KEEP",
+    "leading tab                           | '\t00-00000000000000000000000000000001-123456789abcdef0-01' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | PrioritySampling.SAMPLER_KEEP",
+    "trailing tab                          | '00-00000000000000000000000000000001-123456789abcdef0-01\t' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | PrioritySampling.SAMPLER_KEEP",
+    "surrounding spaces                    | ' 00-00000000000000000000000000000001-123456789abcdef0-01 ' | true    | TRACE_ID_ONE             | SPAN_ID_TEST | PrioritySampling.SAMPLER_KEEP",
+    "max span id keep                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-01'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  | PrioritySampling.SAMPLER_KEEP",
+    "max span id drop                      | '00-0000000000000000ffffffffffffffff-ffffffffffffffff-00'   | true    | TRACE_ID_NO_HIGH_LOW_MAX | SPAN_ID_MAX  | PrioritySampling.SAMPLER_DROP",
+    "low max trace id drop                 | '00-123456789abcdef0ffffffffffffffff-123456789abcdef0-00'   | true    | TRACE_ID_LOW_MAX         | SPAN_ID_TEST | PrioritySampling.SAMPLER_DROP",
+    "uppercase F in trace id low part      | '00-123456789abcdef0ffffffffffffffFf-123456789abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "uppercase F in trace id high part     | '00-123456789abcdeF0ffffffffffffffff-123456789abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "uppercase F in trace id mid           | '00-123456789abcdef0fffffffffFffffff-123456789abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "uppercase A in span id                | '00-123456789abcdef0ffffffffffffffff-123456789Abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "unicode a-umlaut in trace id start    | '00-123456789äbcdef0ffffffffffffffff-123456789abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "unicode a-umlaut in trace id mid      | '00-123456789abcdef0ffffffffäfffffff-123456789abcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "unicode a-umlaut in span id           | '00-123456789abcdef0ffffffffffffffff-123456789äbcdef0-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "version 01 flags 02                   | '01-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  | PrioritySampling.SAMPLER_DROP",
+    "too long version                      | '000-0000000000000000000000000000001-0000000000000001-01'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "space inside trace id                 | '00-0000000000000000000000000000001 -0000000000000001-01'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "trace id too short                    | '00-0000000000000000000000000000001-0000000000000001-01'    | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "span id too short                     | '00-00000000000000000000000000000001-000000000000001-01'    | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "flags too short                       | '00-00000000000000000000000000000001-0000000000000001-0'    | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "version ff invalid                    | 'ff-00000000000000000000000000000001-0000000000000001-00'   | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "version fe flags 02                   | 'fe-00000000000000000000000000000001-0000000000000001-02'   | true    | TRACE_ID_ONE             | SPAN_ID_ONE  | PrioritySampling.SAMPLER_DROP",
+    "extra data with version 00            | '00-00000000000000000000000000000001-0000000000000001-03-0' | false   |                          | 0            | PrioritySampling.UNSET       ",
+    "invalid separator after flags with fe | 'fe-00000000000000000000000000000001-0000000000000001-02.0' | false   |                          | 0            | PrioritySampling.UNSET       "
   })
   void extractTraceparent(
       String traceparent,
       boolean tpValid,
-      String traceIdHex,
-      long spanId,
+      @ConvertWith(TraceIdTestConverter.class) DDTraceId traceId,
+      @ConvertWith(SpanIdTestConverter.class) long spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte priority) {
     Map<String, String> headers = headers(W3CHttpCodec.TRACE_PARENT_KEY, traceparent);
 
-    TagContext result = extractor().extract(headers, stringValuesMap());
+    TagContext result = this.extractor.extract(headers, stringValuesMap());
 
     if (tpValid) {
       assertInstanceOf(ExtractedContext.class, result);
       ExtractedContext context = (ExtractedContext) result;
-      assertEquals(DDTraceId.fromHex(traceIdHex), context.getTraceId());
+      assertEquals(traceId, context.getTraceId());
       assertEquals(spanId, context.getSpanId());
       assertEquals(priority, context.getSamplingPriority());
     } else {
@@ -165,7 +165,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor().extract(headers, stringValuesMap());
+    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(TRACE_ID_ONE, context.getTraceId());
     assertEquals(TEST_SPAN_ID, context.getSpanId());
@@ -193,7 +193,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
   void extractHeaderTagsWithNoPropagation() {
     Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
@@ -212,13 +212,13 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwarded, context.getForwarded());
 
-    context = extractor().extract(fullCtx, stringValuesMap());
+    context = extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -242,14 +242,14 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor().extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwardedIp, context.getXForwardedFor());
     assertEquals(forwardedPort, context.getXForwardedPort());
 
-    context = extractor().extract(fullCtx, stringValuesMap());
+    context = extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -260,7 +260,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    assertNull(extractor().extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test
@@ -270,7 +270,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     tagOnlyCtx.put("X-Forwarded-For", "::1");
     tagOnlyCtx.put("User-agent", "foo/bar");
 
-    TagContext ctx = extractor().extract(tagOnlyCtx, stringValuesMap());
+    TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(ctx);
     assertNull(ctx.getXForwardedFor());
@@ -279,12 +279,12 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeadersWithIpResolutionDisabledAppsecDisabled() {
-    ActiveSubsystems.APPSEC_ACTIVE = false;
+    APPSEC_ACTIVE = false;
     Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
     tagOnlyCtx.put("X-Forwarded-For", "::1");
     tagOnlyCtx.put("User-agent", "foo/bar");
 
-    TagContext ctx = extractor().extract(tagOnlyCtx, stringValuesMap());
+    TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(ctx);
     assertNull(ctx.getXForwardedFor());
@@ -297,7 +297,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     tagOnlyCtx.put("X-Forwarded-For", "::1");
     tagOnlyCtx.put("My-Header", "8.8.8.8");
 
-    TagContext ctx = extractor().extract(tagOnlyCtx, stringValuesMap());
+    TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(ctx);
     assertEquals("::1", ctx.getXForwardedFor());
@@ -323,7 +323,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor().extract(headers, stringValuesMap());
+    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     assertEquals(TRACE_ID_ONE, context.getTraceId());
     assertEquals(TEST_SPAN_ID, context.getSpanId());
@@ -354,7 +354,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertNotNull(context);
     if (tpValid) {
@@ -385,7 +385,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor().extract(headers, stringValuesMap());
+    TagContext context = extractor.extract(headers, stringValuesMap());
 
     assertEquals("some-user-agent", context.getUserAgent());
     assertEquals("1.1.1.1", context.getXClusterClientIp());
@@ -413,7 +413,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
         W3CHttpCodec.TRACE_STATE_KEY, tracestate);
     // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor().extract(headers, stringValuesMap());
+    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
     String tid = tracestate.isEmpty() ? "" : tracestate.substring(9);
     Map<String, String> defaultTags = new LinkedHashMap<>();
@@ -424,5 +424,46 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
       expectedTags.put("_dd.propagation_error", "inconsistent_tid " + tid);
     }
     assertEquals(expectedTags, context.getPropagationTags().createTagMap());
+  }
+
+  static final class TraceIdTestConverter implements ArgumentConverter {
+    @Override
+    public Object convert(Object source, ParameterContext context)
+        throws ArgumentConversionException {
+      if (source == null) {
+        return null;
+      }
+      switch (source.toString()) {
+        case "TRACE_ID_ONE":
+          return TRACE_ID_ONE;
+        case "TRACE_ID_NO_HIGH_LOW_MAX":
+          return TRACE_ID_NO_HIGH_LOW_MAX;
+        case "TRACE_ID_LOW_MAX":
+          return TRACE_ID_LOW_MAX;
+        default:
+          return source;
+      }
+    }
+  }
+
+  static final class SpanIdTestConverter implements ArgumentConverter {
+    @Override
+    public Object convert(Object source, ParameterContext context)
+        throws ArgumentConversionException {
+      if (source == null) {
+        return null;
+      }
+      String s = source.toString();
+      switch (s) {
+        case "SPAN_ID_MAX":
+          return DDSpanId.MAX;
+        case "SPAN_ID_TEST":
+          return TEST_SPAN_ID;
+        case "SPAN_ID_ONE":
+          return 1;
+        default:
+          return Long.parseLong(s);
+      }
+    }
   }
 }

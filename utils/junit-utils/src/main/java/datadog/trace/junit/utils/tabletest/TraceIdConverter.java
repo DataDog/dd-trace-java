@@ -31,7 +31,9 @@ public class TraceIdConverter implements ArgumentConverter {
   @Override
   public Object convert(Object source, ParameterContext context)
       throws ArgumentConversionException {
-    if (source == null) return null;
+    if (source == null) {
+      return null;
+    }
     switch (source.toString()) {
       case "TRACE_ID_MAX":
         return TRACE_ID_MAX;
