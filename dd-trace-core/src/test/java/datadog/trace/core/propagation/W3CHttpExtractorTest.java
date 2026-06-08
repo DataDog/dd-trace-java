@@ -1,10 +1,14 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_HEADER;
+import static datadog.trace.api.config.TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED;
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.W3CHttpCodec.OT_BAGGAGE_PREFIX;
 import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_STATE_KEY;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -18,7 +22,6 @@ import datadog.trace.api.DD64bTraceId;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
-import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
@@ -156,20 +159,21 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> headers = headers(
         "", "empty key",
         TRACE_PARENT_KEY, traceparent,
-        W3CHttpCodec.TRACE_STATE_KEY, tracestate,
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
+        TRACE_STATE_KEY, tracestate,
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
         SOME_HEADER, "my-interesting-info",
         SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info",
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
     );
     // spotless:on
 
-    ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(TRACE_ID_ONE, context.getTraceId());
     assertEquals(TEST_SPAN_ID, context.getSpanId());
-    Map<String, String> expectedBaggage = new LinkedHashMap<>();
+    Map<String, String> expectedBaggage = new HashMap<>();
     expectedBaggage.put("k1", "v1");
     expectedBaggage.put("k2", "v2");
     expectedBaggage.put("some-baggage", "my-interesting-baggage-info");
@@ -177,13 +181,9 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     assertEquals(expectedBaggage, context.getBaggage());
     assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
     assertEquals(priority, context.getSamplingPriority());
-    if (decisionMaker != null) {
-      assertEquals(
-          singletonMap("_dd.p.dm", "-" + decisionMaker),
-          context.getPropagationTags().createTagMap());
-    } else {
-      assertEquals(emptyMap(), context.getPropagationTags().createTagMap());
-    }
+    Map<String, String> expectedPTags =
+        decisionMaker != null ? singletonMap("_dd.p.dm", "-" + decisionMaker) : emptyMap();
+    assertEquals(expectedPTags, context.getPropagationTags().createTagMap());
     if (origin != null) {
       assertEquals(origin, context.getOrigin().toString());
     }
@@ -193,7 +193,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
   void extractHeaderTagsWithNoPropagation() {
     Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
-    TagContext context = extractor.extract(headers, stringValuesMap());
+    TagContext context = this.extractor.extract(headers, stringValuesMap());
 
     assertFalse(context instanceof ExtractedContext);
     assertEquals(singletonMap("some-tag", "my-interesting-info"), context.getTags());
@@ -212,13 +212,13 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwarded, context.getForwarded());
 
-    context = extractor.extract(fullCtx, stringValuesMap());
+    context = this.extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -242,14 +242,14 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     );
     // spotless:on
 
-    TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext context = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(context);
     assertFalse(context instanceof ExtractedContext);
     assertEquals(forwardedIp, context.getXForwardedFor());
     assertEquals(forwardedPort, context.getXForwardedPort());
 
-    context = extractor.extract(fullCtx, stringValuesMap());
+    context = this.extractor.extract(fullCtx, stringValuesMap());
 
     assertInstanceOf(ExtractedContext.class, context);
     assertEquals(1L, context.getTraceId().toLong());
@@ -260,17 +260,21 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractEmptyHeadersReturnsNull() {
-    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(
+        this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test
-  @WithConfig(key = TracerConfig.TRACE_CLIENT_IP_RESOLVER_ENABLED, value = "false")
+  @WithConfig(key = TRACE_CLIENT_IP_RESOLVER_ENABLED, value = "false")
   void extractHeadersWithIpResolutionDisabled() {
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("User-agent", "foo/bar");
+    // spotless:off
+    Map<String, String> tagOnlyCtx = headers(
+        "X-Forwarded-For", "::1",
+        "User-agent", "foo/bar"
+    );
+    // spotless:on
 
-    TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext ctx = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(ctx);
     assertNull(ctx.getXForwardedFor());
@@ -280,22 +284,28 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
   @Test
   void extractHeadersWithIpResolutionDisabledAppsecDisabled() {
     APPSEC_ACTIVE = false;
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("User-agent", "foo/bar");
+    // spotless:off
+    Map<String, String> tagOnlyCtx = headers(
+        "X-Forwarded-For", "::1",
+        "User-agent", "foo/bar"
+    );
+    // spotless:on
 
-    TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
+    TagContext ctx = this.extractor.extract(tagOnlyCtx, stringValuesMap());
 
     assertNotNull(ctx);
     assertNull(ctx.getXForwardedFor());
   }
 
   @Test
-  @WithConfig(key = TracerConfig.TRACE_CLIENT_IP_HEADER, value = "my-header")
+  @WithConfig(key = TRACE_CLIENT_IP_HEADER, value = "my-header")
   void customIpHeaderCollectionDoesNotDisableStandardIpHeaderCollection() {
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", "::1");
-    tagOnlyCtx.put("My-Header", "8.8.8.8");
+    // spotless:off
+    Map<String, String> tagOnlyCtx = headers(
+        "X-Forwarded-For", "::1",
+        "My-Header", "8.8.8.8"
+    );
+    // spotless:on
 
     TagContext ctx = extractor.extract(tagOnlyCtx, stringValuesMap());
 
@@ -314,9 +324,9 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> headers = headers(
         "", "empty key",
         TRACE_PARENT_KEY, "00-00000000000000000000000000000001-123456789abcdef0-01",
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "t0", String.valueOf(endToEndStartTime),
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "t0", String.valueOf(endToEndStartTime),
+        OT_BAGGAGE_PREFIX + "k2", "v2",
         SOME_HEADER, "my-interesting-info",
         SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info",
         SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2"
@@ -348,8 +358,8 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> headers = headers(
         TRACE_PARENT_KEY, traceparent,
         SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue",
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
-        W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
+        OT_BAGGAGE_PREFIX + "k1", "v1",
+        OT_BAGGAGE_PREFIX + "k2", "v2",
         SOME_ARBITRARY_HEADER, "my-interesting-info"
     );
     // spotless:on
@@ -410,7 +420,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     // spotless:off
     Map<String, String> headers = headers(
         TRACE_PARENT_KEY, traceparent,
-        W3CHttpCodec.TRACE_STATE_KEY, tracestate);
+        TRACE_STATE_KEY, tracestate);
     // spotless:on
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
