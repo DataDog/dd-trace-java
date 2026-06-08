@@ -18,9 +18,10 @@ public class PeerServiceNamingV1 implements NamingSchema.ForPeerService {
   private final Map<String, String> overridesByComponent;
 
   private static Map<Object, String[]> initPrecursorsByComponent() {
-    final Map<Object, String[]> ret = new HashMap<>(7);
+    final Map<Object, String[]> ret = new HashMap<>(8);
     // messaging
     ret.put("java-kafka", new String[] {InstrumentationTags.KAFKA_BOOTSTRAP_SERVERS});
+    ret.put("jms", new String[] {InstrumentationTags.MESSAGING_DESTINATION_NAME});
     // database
     ret.put("hazelcast-sdk", new String[] {"hazelcast.instance", Tags.PEER_HOSTNAME});
     ret.put(
