@@ -23,7 +23,6 @@ import datadog.trace.instrumentation.springweb6.boot.SecurityConfig
 import okhttp3.Request
 import okhttp3.Response
 import org.springframework.boot.SpringApplication
-import org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 import org.springframework.context.ConfigurableApplicationContext
 
 /**
@@ -43,7 +42,9 @@ class UrlHandlerMappingTest extends HttpServerTest<ConfigurableApplicationContex
     void start() {
       app.setDefaultProperties(singletonMap("server.port", 0))
       context = app.run()
-      port = (context as ServletWebServerApplicationContext).webServer.port
+      // Resolved dynamically (Groovy) so this compiles against both Spring Boot 3 and 4,
+      // which relocated ServletWebServerApplicationContext to a different package.
+      port = context.webServer.port
       assert port > 0
     }
 
