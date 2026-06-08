@@ -282,6 +282,7 @@
 0 org.apache.xalan.transformer.TransformerImpl
 # More runnables to deal with
 0 org.springframework.boot.autoconfigure.BackgroundPreinitializer$*
+0 org.springframework.boot.autoconfigure.preinitialize.BackgroundPreinitializingApplicationListener$*
 0 org.springframework.boot.autoconfigure.condition.OnClassCondition$*
 0 org.springframework.boot.context.embedded.AnnotationConfigEmbeddedWebApplicationContext
 0 org.springframework.boot.context.embedded.EmbeddedWebApplicationContext
@@ -289,7 +290,9 @@
 0 org.springframework.boot.context.embedded.tomcat.TomcatEmbeddedWebappClassLoader
 0 org.springframework.boot.web.embedded.netty.NettyWebServer$*
 0 org.springframework.boot.web.embedded.tomcat.TomcatEmbeddedWebappClassLoader
+0 org.springframework.boot.tomcat.TomcatEmbeddedWebappClassLoader
 0 org.springframework.boot.web.embedded.tomcat.TomcatWebServer$1
+0 org.springframework.boot.tomcat.TomcatWebServer$1
 0 org.springframework.boot.web.servlet.context.AnnotationConfigServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.context.ServletWebServerApplicationContext
 0 org.springframework.boot.web.servlet.support.SpringBootServletInitializer
