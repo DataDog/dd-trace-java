@@ -4,6 +4,7 @@ import static datadog.trace.api.config.TracerConfig.PROPAGATION_EXTRACT_LOG_HEAD
 import static datadog.trace.bootstrap.ActiveSubsystems.APPSEC_ACTIVE;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.W3CHttpCodec.TRACE_PARENT_KEY;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -30,9 +31,11 @@ import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ParameterContext;
+import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
 import org.junit.jupiter.params.converter.ArgumentConverter;
 import org.junit.jupiter.params.converter.ConvertWith;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.tabletest.junit.TableTest;
 
 @WithConfig(key = PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED, value = "true")
@@ -111,7 +114,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
       @ConvertWith(TraceIdTestConverter.class) DDTraceId traceId,
       @ConvertWith(SpanIdTestConverter.class) long spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte priority) {
-    Map<String, String> headers = headers(W3CHttpCodec.TRACE_PARENT_KEY, traceparent);
+    Map<String, String> headers = headers(TRACE_PARENT_KEY, traceparent);
 
     TagContext result = this.extractor.extract(headers, stringValuesMap());
 
@@ -126,13 +129,10 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     }
   }
 
-  @TableTest({
-    "scenario        | traceIdHex                        ",
-    "low max         | '123456789abcdef0ffffffffffffffff'",
-    "no high low max | '0000000000000000ffffffffffffffff'"
-  })
-  void checkMaxFromW3CTraceIds(String traceIdHex) {
-    assertEquals(DD64bTraceId.MAX.toLong(), DDTraceId.fromHex(traceIdHex).toLong());
+  @ParameterizedTest
+  @ValueSource(strings = {"TRACE_ID_LOW_MAX", "TRACE_ID_NO_HIGH_LOW_MAX"})
+  void checkMaxFromW3CTraceIds(@ConvertWith(TraceIdTestConverter.class) DDTraceId traceId) {
+    assertEquals(DD64bTraceId.MAX.toLong(), traceId.toLong());
   }
 
   @TableTest({
@@ -155,7 +155,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
-        W3CHttpCodec.TRACE_PARENT_KEY, traceparent,
+        TRACE_PARENT_KEY, traceparent,
         W3CHttpCodec.TRACE_STATE_KEY, tracestate,
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
@@ -207,7 +207,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
     // spotless:off
     Map<String, String> fullCtx = headers(
-        W3CHttpCodec.TRACE_PARENT_KEY, "00-00000000000000000000000000000001-0000000000000002-01",
+        TRACE_PARENT_KEY, "00-00000000000000000000000000000001-0000000000000002-01",
         "Forwarded", forwarded
     );
     // spotless:on
@@ -236,7 +236,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
         "X-Forwarded-Port", forwardedPort
     );
     Map<String, String> fullCtx = headers(
-        W3CHttpCodec.TRACE_PARENT_KEY, "00-00000000000000000000000000000001-0000000000000002-01",
+        TRACE_PARENT_KEY, "00-00000000000000000000000000000001-0000000000000002-01",
         "x-forwarded-for", forwardedIp,
         "x-forwarded-port", forwardedPort
     );
@@ -313,7 +313,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
     // spotless:off
     Map<String, String> headers = headers(
         "", "empty key",
-        W3CHttpCodec.TRACE_PARENT_KEY, "00-00000000000000000000000000000001-123456789abcdef0-01",
+        TRACE_PARENT_KEY, "00-00000000000000000000000000000001-123456789abcdef0-01",
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "t0", String.valueOf(endToEndStartTime),
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
@@ -346,7 +346,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
   void baggageIsMappedOnContextCreation(boolean tpValid, String traceparent) {
     // spotless:off
     Map<String, String> headers = headers(
-        W3CHttpCodec.TRACE_PARENT_KEY, traceparent,
+        TRACE_PARENT_KEY, traceparent,
         SOME_CUSTOM_BAGGAGE_HEADER, "mappedBaggageValue",
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k1", "v1",
         W3CHttpCodec.OT_BAGGAGE_PREFIX + "k2", "v2",
@@ -409,7 +409,7 @@ class W3CHttpExtractorTest extends DDJavaSpecification {
       String traceparent, String tracestate, boolean consistent) {
     // spotless:off
     Map<String, String> headers = headers(
-        W3CHttpCodec.TRACE_PARENT_KEY, traceparent,
+        TRACE_PARENT_KEY, traceparent,
         W3CHttpCodec.TRACE_STATE_KEY, tracestate);
     // spotless:on
 
