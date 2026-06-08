@@ -381,7 +381,9 @@ public class DefaultConfigurationPoller
       // no error can be reported, as we don't have the data client.state.targets_version avail
       if (e instanceof ClosedSelectorException) {
         // expected when the selector is closed mid-poll, e.g. during pod shutdown
-        ratelimitedLogger.warn("Error parsing remote config response: {}", e.getMessage());
+        ratelimitedLogger.warn(
+            "Error parsing remote config response, which is expected when the selector is closed mid-poll: {}",
+            e.getMessage());
       } else {
         ratelimitedLogger.warn("Error parsing remote config response", e);
       }
