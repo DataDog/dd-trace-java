@@ -117,6 +117,27 @@ public final class ScaReachabilityDependencyRegistry {
   }
 
   /**
+   * Returns the current CVE snapshot for a dependency without clearing the pending flag. Used by
+   * {@code ScaReachabilityPeriodicAction} when a newly-resolved JAR is not in {@code snapshotByKey}
+   * (i.e., the CVE was drained in a prior heartbeat but DependencyService resolved the JAR only
+   * now). Without this peek the emission would carry {@code metadata:[]} and overwrite the CVE
+   * state already reported.
+   *
+   * <p>Returns {@code null} if the dependency has no CVE state.
+   */
+  public DependencySnapshot peekSnapshot(String artifact, String version) {
+    DependencyState dep = dependencies.get(depKey(artifact, version));
+    if (dep == null || dep.cves.isEmpty()) {
+      return null;
+    }
+    List<CveSnapshot> cveSnapshots = new ArrayList<>(dep.cves.size());
+    for (Map.Entry<String, CveState> entry : dep.cves.entrySet()) {
+      cveSnapshots.add(new CveSnapshot(entry.getKey(), entry.getValue().hitRef.get()));
+    }
+    return new DependencySnapshot(artifact, version, Collections.unmodifiableList(cveSnapshots));
+  }
+
+  /**
    * Returns a snapshot of all dependencies that have pending changes since the last drain, then
    * clears the pending flag. Called by {@code ScaReachabilityPeriodicAction} on each heartbeat.
    *

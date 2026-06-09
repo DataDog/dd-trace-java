@@ -6,8 +6,10 @@ import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentCaptor.forClass;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.reset;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -430,6 +432,47 @@ class ScaReachabilityPeriodicActionTest {
     assertNull(emitted.hash, "hash is null when dep not yet in knownDeps");
     assertTrue(emitted.reachabilityMetadata.get(0).contains("GHSA-race"));
     assertTrue(emitted.reachabilityMetadata.get(0).contains("\"path\""), "must include callsite");
+  }
+
+  /**
+   * Regression test for the Codex P2 race condition: CVE registered in HB1 (dep not yet resolved),
+   * emitted immediately without source/hash. In HB2 DependencyService resolves the JAR — if we
+   * naively emit metadata:[] because there is no pending snapshot, the backend overwrites the CVE
+   * state it already received. The fix uses peekSnapshot so HB2 emits the CVE metadata together
+   * with the now-known source/hash.
+   */
+  @Test
+  void cveRegisteredBeforeDepResolved_step2PeeksCveStateInLaterHeartbeat() {
+    DependencyService svc = mock(DependencyService.class);
+
+    // HB1: CVE registered, dep not yet resolved by DependencyService
+    when(svc.drainDeterminedDependencies()).thenReturn(Collections.emptyList());
+    ScaReachabilityPeriodicAction action = new ScaReachabilityPeriodicAction(svc);
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-peek");
+
+    action.doIteration(telService);
+
+    // HB1 emits once: CVE state without source/hash (dep not yet resolved)
+    verify(telService, times(1)).addDependency(any(Dependency.class));
+    reset(telService);
+
+    // HB2: DependencyService now resolves the JAR; no new CVE activity (pendingReport=false)
+    Dependency resolved = new Dependency("com.example:lib", "1.0.0", "lib-1.0.0.jar", "CAFEBABE");
+    when(svc.drainDeterminedDependencies()).thenReturn(Collections.singletonList(resolved));
+
+    action.doIteration(telService);
+
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    Dependency emitted = captor.getValue();
+    assertEquals("lib-1.0.0.jar", emitted.source, "HB2 must include resolved source");
+    assertEquals("CAFEBABE", emitted.hash, "HB2 must include resolved hash");
+    assertFalse(
+        emitted.reachabilityMetadata.isEmpty(),
+        "HB2 must not emit metadata:[] — CVE state must be preserved via peekSnapshot");
+    assertTrue(
+        emitted.reachabilityMetadata.get(0).contains("GHSA-peek"),
+        "HB2 metadata must contain the CVE id");
   }
 
   /**

@@ -42,6 +42,12 @@ import java.util.Map;
  * for the dep. Unmatched snapshots are emitted immediately without source/hash so CVE data is never
  * delayed; when the dep is eventually resolved and stored in {@link #knownDeps}, subsequent CVE
  * emissions (e.g., after a method hit) will include source/hash automatically.
+ *
+ * <p>When the JAR is resolved in a later heartbeat (Step 2) but no CVE is pending (the CVE was
+ * drained in a prior heartbeat), Step 2 calls {@link
+ * ScaReachabilityDependencyRegistry#peekSnapshot} to retrieve the current CVE state without marking
+ * it pending again. This prevents emitting {@code metadata:[]} and overwriting the CVE state the
+ * backend already received.
  */
 public final class ScaReachabilityPeriodicAction
     implements TelemetryRunnable.TelemetryPeriodicAction {
@@ -99,6 +105,12 @@ public final class ScaReachabilityPeriodicAction
         String key = ScaReachabilityDependencyRegistry.depKey(dep.name, dep.version);
         knownDeps.put(key, dep);
         DependencySnapshot snapshot = snapshotByKey.remove(key);
+        if (snapshot == null) {
+          // CVE was drained in a prior heartbeat (pendingReport cleared) but DependencyService
+          // resolved this JAR only now. Peek at the current CVE state so we can enrich the
+          // emission instead of overwriting the backend's state with metadata:[].
+          snapshot = ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot(dep.name, dep.version);
+        }
         if (snapshot != null) {
           // New dep AND has CVE state - emit the full picture in one entry.
           telService.addDependency(
