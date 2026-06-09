@@ -141,7 +141,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
 
       List<ScaEntry> entries = database.entriesForClass(className);
-      if (entries == null || entries.isEmpty()) {
+      if (entries == null) {
         return null;
       }
 
@@ -271,7 +271,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
       List<ScaEntry> entries = database.entriesForClass(internalName);
-      if (entries == null || entries.isEmpty()) {
+      if (entries == null) {
         continue;
       }
 
@@ -319,7 +319,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     while ((event = pendingClassEvents.poll()) != null) {
       final String className = event.className;
       List<ScaEntry> entries = database.entriesForClass(className);
-      if (entries == null || entries.isEmpty()) {
+      if (entries == null) {
         continue;
       }
       try {

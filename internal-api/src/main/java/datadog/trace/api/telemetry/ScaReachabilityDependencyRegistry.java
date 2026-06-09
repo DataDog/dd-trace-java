@@ -1,6 +1,7 @@
 package datadog.trace.api.telemetry;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.internal.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -60,6 +61,7 @@ public final class ScaReachabilityDependencyRegistry {
   }
 
   /** Clears all state. Used in tests to reset between test cases. */
+  @VisibleForTesting
   public void resetForTesting() {
     dependencies.clear();
     capWarningLogged.set(false);
