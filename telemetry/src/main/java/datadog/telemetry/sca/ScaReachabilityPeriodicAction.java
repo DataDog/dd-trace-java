@@ -4,6 +4,7 @@ import datadog.telemetry.TelemetryRunnable;
 import datadog.telemetry.TelemetryService;
 import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyService;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.CveSnapshot;
 import datadog.trace.api.telemetry.ScaReachabilityDependencyRegistry.DependencySnapshot;
@@ -65,6 +66,7 @@ public final class ScaReachabilityPeriodicAction
    * Pre-populates {@link #knownDeps} with a dep entry. Used in tests to simulate a dep that was
    * resolved by {@link DependencyService} in a prior heartbeat without running a full iteration.
    */
+  @VisibleForTesting
   void addKnownDepForTesting(String name, String version) {
     knownDeps.put(
         ScaReachabilityDependencyRegistry.depKey(name, version),

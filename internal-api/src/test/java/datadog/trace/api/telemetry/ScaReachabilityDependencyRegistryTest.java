@@ -1,9 +1,12 @@
 package datadog.trace.api.telemetry;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
+import datadog.trace.api.Config;
 import java.util.List;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
@@ -94,5 +97,95 @@ class ScaReachabilityDependencyRegistryTest {
     }
     assertTrue(
         isValidCallsite, "recorded callsite must be one of the " + threadCount + " valid options");
+  }
+
+  @Test
+  void registerCve_addsEntryAndMarksPending() {
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
+
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+
+    assertEquals(1, snapshots.size());
+    ScaReachabilityDependencyRegistry.DependencySnapshot dep = snapshots.get(0);
+    assertEquals("com.example:lib", dep.artifact);
+    assertEquals("2.0.0", dep.version);
+    assertEquals(1, dep.cves.size());
+    assertEquals("GHSA-0001", dep.cves.get(0).vulnId);
+    assertNull(dep.cves.get(0).hit, "class-load registration has no callsite yet");
+  }
+
+  @Test
+  void drainPendingDependencies_secondDrainEmpty_untilNewHit() {
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "2.0.0", "GHSA-0001");
+
+    // First drain returns the pending dep
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> first =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, first.size());
+
+    // Second drain with no new state change returns empty
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> second =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertTrue(second.isEmpty(), "no pending changes since last drain");
+
+    // A new hit marks the dep pending again
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "2.0.0", "GHSA-0001", "com.myapp.Ctrl", "handle", 42);
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> third =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, third.size(), "dep must be pending again after a hit");
+    assertNotNull(third.get(0).cves.get(0).hit, "hit callsite must be recorded");
+  }
+
+  @Test
+  void registerCve_atCap_newKeysRejected() {
+    int cap = Config.get().getAppSecScaMaxTrackedDependencies();
+
+    // Fill registry to cap
+    for (int i = 0; i < cap; i++) {
+      ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art" + i, "1.0", "GHSA-" + i);
+    }
+
+    // One more unique key — must be rejected
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art-over-cap", "1.0", "GHSA-over");
+
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(cap, snapshots.size(), "registry must not exceed cap");
+    boolean found = snapshots.stream().anyMatch(s -> s.artifact.equals("art-over-cap"));
+    assertFalse(found, "over-cap dep must be rejected");
+  }
+
+  @Test
+  void registerCve_atCap_existingKeyStillUpdated() {
+    int cap = Config.get().getAppSecScaMaxTrackedDependencies();
+
+    // Fill registry to cap
+    for (int i = 0; i < cap; i++) {
+      ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art" + i, "1.0", "GHSA-" + i);
+    }
+    ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+
+    // Adding a NEW CVE to an EXISTING key must still succeed (key already present, cap not
+    // exceeded)
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("art0", "1.0", "GHSA-second-cve");
+
+    List<ScaReachabilityDependencyRegistry.DependencySnapshot> snapshots =
+        ScaReachabilityDependencyRegistry.INSTANCE.drainPendingDependencies();
+    assertEquals(1, snapshots.size(), "only the updated dep must be pending");
+    assertEquals(2, snapshots.get(0).cves.size(), "both CVEs must be present");
+  }
+
+  @Test
+  void resetForTesting_clearsPeriodicWorkCallback() {
+    ScaReachabilityDependencyRegistry.INSTANCE.setPeriodicWorkCallback(() -> {});
+    assertNotNull(ScaReachabilityDependencyRegistry.INSTANCE.getPeriodicWorkCallback());
+
+    ScaReachabilityDependencyRegistry.INSTANCE.resetForTesting();
+
+    assertNull(
+        ScaReachabilityDependencyRegistry.INSTANCE.getPeriodicWorkCallback(),
+        "resetForTesting must clear periodicWorkCallback");
   }
 }
