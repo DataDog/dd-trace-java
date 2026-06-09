@@ -24,6 +24,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
@@ -68,6 +69,33 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
             .writer(writer)
             .profilingContextIntegration(profilingContextIntegration)
             .build();
+  }
+
+  @Test
+  void setTagById_storedTagResolvesByName() {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    DDSpanContext context = (DDSpanContext) span.context();
+
+    // PARENT_ID is a stored tag (serial >= FIRST_STORED_SERIAL): set by id, it lands in the map and
+    // is findable / serialized by its resolved name.
+    context.setTag(CoreTagIds.PARENT_ID, "p123");
+    assertEquals("p123", context.getTags().get(DDTags.PARENT_ID));
+
+    span.finish();
+  }
+
+  @Test
+  void setTagById_reservedTagIsIntercepted() {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    DDSpanContext context = (DDSpanContext) span.context();
+
+    // ERROR is a reserved (virtual) tag: setting it by id dispatches through the interceptor
+    // (id-keyed), which sets the error flag and does NOT store an "error" tag.
+    context.setTag(CoreTagIds.ERROR, true);
+    assertTrue(context.getErrorFlag());
+    assertNull(context.getTags().get(Tags.ERROR));
+
+    span.finish();
   }
 
   @ParameterizedTest

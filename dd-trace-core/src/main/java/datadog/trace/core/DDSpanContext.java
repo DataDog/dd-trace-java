@@ -1,6 +1,5 @@
 package datadog.trace.core;
 
-import static datadog.trace.api.DDTags.PARENT_ID;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
@@ -11,6 +10,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.DDCache;
@@ -385,7 +385,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    setTag(PARENT_ID, this.propagationTags.getLastParentId());
+    setTag(CoreTagIds.PARENT_ID, this.propagationTags.getLastParentId());
   }
 
   @Override
@@ -897,6 +897,33 @@ public class DDSpanContext
     } else if (!tagInterceptor.interceptTag(this, tag, value)) {
       synchronized (unsafeTags) {
         unsafeTags.set(tag, value);
+      }
+    }
+  }
+
+  /**
+   * Sets a tag by its generated tag id. Reserved "virtual" tags (interceptor-handled, not stored)
+   * are routed to the interceptor via an id dispatch; stored tags go straight to the map (slot or
+   * bucket) keyed by id, bypassing the per-tag interceptor string switch. The id classification is
+   * a single range check (see {@link KnownTags#isReserved}).
+   */
+  public void setTag(final long tagId, final Object value) {
+    if (null == value) {
+      String name = KnownTags.nameOf(tagId);
+      if (name != null) {
+        removeTag(name);
+      }
+      return;
+    }
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
       }
     }
   }

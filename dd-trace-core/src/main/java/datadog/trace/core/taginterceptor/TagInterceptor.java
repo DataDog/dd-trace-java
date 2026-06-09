@@ -24,6 +24,7 @@ import static datadog.trace.core.taginterceptor.RuleFlags.Feature.URL_AS_RESOURC
 import datadog.trace.api.Config;
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.Pair;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.config.GeneralConfig;
@@ -36,6 +37,7 @@ import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import datadog.trace.core.CoreTagIds;
 import datadog.trace.core.DDSpanContext;
 import java.net.URI;
 import java.util.Map;
@@ -128,6 +130,22 @@ public class TagInterceptor {
 
       default:
         return splitServiceTags.contains(tag);
+    }
+  }
+
+  /**
+   * Id-dispatched variant of {@link #interceptTag(DDSpanContext, String, Object)}: switches on the
+   * tagId's globalSerial (an int) instead of the tag-name string. Used by {@code
+   * DDSpanContext.setTag(long, Object)} for reserved (virtual) tags. Falls back to the string path
+   * for any reserved id without a dedicated case.
+   */
+  public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
+    switch (KnownTags.globalSerial(tagId)) {
+      case CoreTagIds.ERROR_SERIAL:
+        return interceptError(span, value);
+      default:
+        String name = KnownTags.nameOf(tagId);
+        return name != null && interceptTag(span, name, value);
     }
   }
 
