@@ -76,7 +76,6 @@ class MetricsIntegrationTest {
 
   @BeforeEach
   void setup() {
-    AggregateEntry.resetCardinalityHandlers();
     injectSysConfig(TracerConfig.AGENT_HOST, agentHost());
     injectSysConfig(TracerConfig.TRACE_AGENT_PORT, agentPort());
   }
@@ -117,7 +116,7 @@ class MetricsIntegrationTest {
     // snapshot and creates/looks up the entry). Both entries use one peer tag (grault:quux) and no
     // additional tags -> schema names=["grault"], values=["quux"].
     AggregateTable table = new AggregateTable(8);
-    PeerTagSchema schema = new PeerTagSchema(new String[] {"grault"}, PeerTagSchema.NO_STATE);
+    PeerTagSchema schema = PeerTagSchema.testSchema(new String[] {"grault"});
     SpanSnapshot snap1 =
         new SpanSnapshot(
             "resource1",
@@ -131,6 +130,7 @@ class MetricsIntegrationTest {
             "xyzzy",
             schema,
             new String[] {"quux"},
+            null,
             null,
             null,
             null,
@@ -153,6 +153,7 @@ class MetricsIntegrationTest {
             "xyzzy",
             schema,
             new String[] {"quux"},
+            null,
             null,
             null,
             null,
