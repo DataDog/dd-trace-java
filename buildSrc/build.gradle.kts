@@ -63,6 +63,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("sca-enrichments-plugin") {
+      id = "dd-trace-java.sca-enrichments"
+      implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
+    }
   }
 }
 

@@ -49,6 +49,7 @@ dependencies {
   api(libs.moshi)
 
   testImplementation(project(":utils:test-utils"))
+  testImplementation(libs.bundles.mockito)
   testImplementation(group = "org.jboss", name = "jboss-vfs", version = "3.2.16.Final")
 }
 
