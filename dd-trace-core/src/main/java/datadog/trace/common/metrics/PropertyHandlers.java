@@ -63,13 +63,13 @@ final class PropertyHandlers {
 
   void reset(HealthMetrics healthMetrics) {
     for (PropertyCardinalityHandler h : handlers) {
-      CardinalityBlocks.reportIfBlocked(
-          log,
-          healthMetrics,
-          h.reset(),
-          h.name,
-          h.statsDTag(),
-          "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer");
+      long blocked = h.reset();
+      if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for stats field '{}'; further values will be reported as blocked_by_tracer",
+            h.name);
+        healthMetrics.onTagCardinalityBlocked(h.statsDTag(), blocked);
+      }
     }
   }
 }
