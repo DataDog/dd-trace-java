@@ -562,8 +562,7 @@ public class TagMapEntryTest {
   static final String[] TAG_NAMES = {"tag.alpha", "tag.beta", "tag.gamma"};
 
   static long tagId(int serial, int fieldPos, String name) {
-    long nameHash = TagMap.Entry._hash(name) & 0xFFFFFFFFL;
-    return ((long) serial << 48) | ((long) fieldPos << 32) | nameHash;
+    return KnownTags.tagId(serial, fieldPos, name);
   }
 
   @BeforeAll

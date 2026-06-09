@@ -102,12 +102,10 @@ public final class TagMapFuzzTest {
 
   static long tagIdOf(String key) {
     int n = Integer.parseInt(key.substring("key-".length()));
-    long nameHash = TagMap.Entry._hash(key) & 0xFFFFFFFFL;
     // globalSerial = n + 1 (non-zero, unique per key); fieldPos spreads keys across the slot array
     // (n % CAPACITY), so distinct keys occupy distinct slots AND keys that share a fieldPos collide
     // (first-writer-wins -> the rest fall to buckets), exercising both paths.
-    int fieldPos = n % OptimizedTagMap.KNOWN_ENTRIES_CAPACITY;
-    return ((long) (n + 1) << 48) | ((long) fieldPos << 32) | nameHash;
+    return KnownTags.tagId(n + 1, n % OptimizedTagMap.KNOWN_ENTRIES_CAPACITY, key);
   }
 
   // Number of random sequences per @Test run. Default 1 (fast CI); crank via

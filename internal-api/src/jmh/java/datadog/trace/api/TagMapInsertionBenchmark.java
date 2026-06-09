@@ -1,6 +1,5 @@
 package datadog.trace.api;
 
-import datadog.trace.api.TagMap.Entry;
 import java.util.concurrent.TimeUnit;
 import org.openjdk.jmh.annotations.Benchmark;
 import org.openjdk.jmh.annotations.BenchmarkMode;
@@ -21,9 +20,8 @@ import org.openjdk.jmh.infra.Blackhole;
  * Compares tag insertion / lookup by generated tag id vs by string name, with a {@link
  * KnownTags.Resolver} registered (the production configuration once code generation is live).
  *
- * <p>Placed in {@code datadog.trace.api} so it can build tag ids with the same {@code nameHash} the
- * runtime uses ({@link TagMap.Entry#_hash}); a mismatch would only matter on the bucket-fallback
- * path, but keeping it exact makes the comparison faithful.
+ * <p>Tag ids are built via {@link KnownTags#tagId} (which uses the runtime's own name hash), so the
+ * comparison is faithful even on the bucket-fallback path.
  *
  * <p>The tags use distinct {@code fieldPos} values (no collisions), so every known tag lands in its
  * positional slot. byId skips string hashing and the keyOf round-trip entirely; byString pays
@@ -65,16 +63,11 @@ public class TagMapInsertionBenchmark {
   // a pre-populated (slotted) map for the read benchmarks; built in setup once IDS exist
   TagMap readMap;
 
-  static int nameHash(String tag) {
-    int hash = tag.hashCode();
-    return hash == 0 ? 0xDD06 : hash ^ (hash >>> 16);
-  }
-
   @Setup(Level.Trial)
   public void setup() {
     for (int i = 0; i < NAMES.length; ++i) {
       // globalSerial = i + 1 (unique, non-zero); fieldPos = i (distinct - no collisions)
-      IDS[i] = ((long) (i + 1) << 48) | ((long) i << 32) | (nameHash(NAMES[i]) & 0xFFFFFFFFL);
+      IDS[i] = KnownTags.tagId(i + 1, i, NAMES[i]);
       VALUES[i] = "value-" + i;
     }
     // Representative resolver: nameOf is a dense array index by globalSerial; keyOf is a hash-table
@@ -100,11 +93,6 @@ public class TagMapInsertionBenchmark {
             return id == null ? 0L : id;
           }
         });
-    // sanity: assert _hash matches our nameHash so string lookups hit the same bucket if they ever
-    // fall through (they shouldn't here, but keep the comparison honest)
-    if (Entry._hash(NAMES[0]) != nameHash(NAMES[0])) {
-      throw new IllegalStateException("nameHash mismatch with TagMap.Entry._hash");
-    }
 
     // pre-populate the read map by id (entries land in their slots)
     this.readMap = TagMap.create();

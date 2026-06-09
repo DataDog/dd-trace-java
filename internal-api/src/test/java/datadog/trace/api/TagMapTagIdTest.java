@@ -34,8 +34,15 @@ public class TagMapTagIdTest {
   static final long DB_SYSTEM_ID = tagId(3, 0, DB_SYSTEM);
 
   static long tagId(int globalSerial, int fieldPos, String name) {
-    long nameHash = Entry._hash(name) & 0xFFFFFFFFL;
-    return ((long) globalSerial << 48) | ((long) fieldPos << 32) | nameHash;
+    return KnownTags.tagId(globalSerial, fieldPos, name);
+  }
+
+  @Test
+  public void tagId_roundTripsThroughExtractors() {
+    long id = KnownTags.tagId(7, 13, "some.tag.name");
+    assertEquals(7, KnownTags.globalSerial(id));
+    assertEquals(13, KnownTags.fieldPos(id));
+    assertEquals(Entry._hash("some.tag.name"), KnownTags.nameHash(id));
   }
 
   @BeforeEach

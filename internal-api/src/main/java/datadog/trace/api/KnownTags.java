@@ -39,6 +39,18 @@ public final class KnownTags {
     return (int) tagId;
   }
 
+  /**
+   * Builds a tagId from its parts: {@code globalSerial} (globally unique per known tag), {@code
+   * fieldPos} (the tag's slot within its span type's positional table), and the tag {@code name}
+   * (whose hash is computed via the same function the runtime uses, so the low 32 bits match {@link
+   * TagMap.Entry#hash()}). Inverse of {@link #globalSerial}/{@link #fieldPos}/{@link #nameHash}.
+   * Intended for the code generator and tests.
+   */
+  public static long tagId(int globalSerial, int fieldPos, String name) {
+    long nameHash = TagMap.Entry._hash(name) & 0xFFFFFFFFL;
+    return ((long) globalSerial << 48) | ((long) (fieldPos & 0xFFFF) << 32) | nameHash;
+  }
+
   public interface Resolver {
     String nameOf(long tagId);
 
