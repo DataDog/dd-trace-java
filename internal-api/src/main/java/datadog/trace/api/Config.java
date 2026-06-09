@@ -131,6 +131,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_PARTIAL_FLUSH_MIN_SPANS;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PERF_METRICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PRIORITY_SAMPLING_FORCE;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_STYLE;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_REMOTE_CONFIG_ENABLED;
@@ -1840,7 +1841,8 @@ public class Config {
             DEFAULT_PROPAGATION_EXTRACT_LOG_HEADER_NAMES_ENABLED);
 
     tracePropagationStyleB3PaddingEnabled =
-        isEnabled(true, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
+        isEnabled(
+            DEFAULT_PROPAGATION_B3_PADDING_ENABLED, TRACE_PROPAGATION_STYLE, ".b3.padding.enabled");
 
     TracePropagationBehaviorExtract tmpTracePropagationBehaviorExtract;
     try {

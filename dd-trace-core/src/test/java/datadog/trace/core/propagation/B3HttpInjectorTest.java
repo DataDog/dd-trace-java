@@ -1,11 +1,15 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.B3HttpCodec.B3_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SAMPLING_PRIORITY_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.B3HttpCodec.TRACE_ID_KEY;
+import static datadog.trace.core.propagation.B3TestHelper.spanIdOrPadded;
+import static datadog.trace.core.propagation.B3TestHelper.traceIdOrPadded;
+import static datadog.trace.core.propagation.B3TestHelper.trimHex;
 import static java.util.Collections.emptyMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -28,7 +32,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
-abstract class B3HttpInjectorTest extends DDCoreJavaSpecification {
+class B3HttpInjectorTest extends DDCoreJavaSpecification {
 
   private static final CarrierSetter<Map<String, String>> MAP_SETTER = Map::put;
 
@@ -36,7 +40,9 @@ abstract class B3HttpInjectorTest extends DDCoreJavaSpecification {
   private HttpCodec.Extractor extractor;
   private CoreTracer tracer;
 
-  protected abstract boolean tracePropagationB3Padding();
+  protected boolean tracePropagationB3Padding() {
+    return DEFAULT_PROPAGATION_B3_PADDING_ENABLED;
+  }
 
   @BeforeEach
   void setup() {
@@ -77,8 +83,8 @@ abstract class B3HttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> carrier = new HashMap<>();
     this.injector.inject(spanContext, carrier, MAP_SETTER);
 
-    String traceIdHex = idOrPadded(traceId, 32);
-    String spanIdHex = idOrPadded(spanId, 16);
+    String traceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String spanIdHex = spanIdOrPadded(spanId, tracePropagationB3Padding());
     assertEquals(traceIdHex, carrier.get(TRACE_ID_KEY));
     assertEquals(spanIdHex, carrier.get(SPAN_ID_KEY));
 
@@ -113,49 +119,12 @@ abstract class B3HttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> carrier = new HashMap<>();
     this.injector.inject(mockedContext, carrier, MAP_SETTER);
 
-    String traceIdHex = idOrPadded(traceId, 32);
-    String spanIdHex = idOrPadded(trimHex(spanId), 16);
+    String traceIdHex = traceIdOrPadded(traceId, tracePropagationB3Padding());
+    String spanIdHex = spanIdOrPadded(trimHex(spanId), tracePropagationB3Padding());
     assertEquals(traceIdHex, carrier.get(TRACE_ID_KEY));
     assertEquals(spanIdHex, carrier.get(SPAN_ID_KEY));
     assertEquals(traceIdHex + "-" + spanIdHex, carrier.get(B3_KEY));
     assertEquals(3, carrier.size());
-  }
-
-  private String idOrPadded(long id, int size) {
-    return idOrPadded(Long.toHexString(id), size);
-  }
-
-  private String idOrPadded(String id, int size) {
-    if (!tracePropagationB3Padding()) {
-      return id.toLowerCase();
-    }
-    return padHexLower(id, size);
-  }
-
-  private static String padHexLower(String hex, int size) {
-    String lower = hex.toLowerCase();
-    int diff = size - lower.length();
-    if (diff <= 0) {
-      return lower;
-    }
-    StringBuilder sb = new StringBuilder(size);
-    for (int i = 0; i < diff; i++) {
-      sb.append('0');
-    }
-    sb.append(lower);
-    return sb.toString();
-  }
-
-  private static String trimHex(String hex) {
-    int length = hex.length();
-    int firstNonZero = 0;
-    while (firstNonZero < length && hex.charAt(firstNonZero) == '0') {
-      firstNonZero++;
-    }
-    if (firstNonZero == length) {
-      return "0";
-    }
-    return hex.substring(firstNonZero, length);
   }
 
   private DDSpanContext mockedSpanContext(TagContext context) {
@@ -192,13 +161,6 @@ abstract class B3HttpInjectorTest extends DDCoreJavaSpecification {
     @Override
     protected boolean tracePropagationB3Padding() {
       return false;
-    }
-  }
-
-  static class B3HttpInjectorPaddedTest extends B3HttpInjectorTest {
-    @Override
-    protected boolean tracePropagationB3Padding() {
-      return true;
     }
   }
 }
