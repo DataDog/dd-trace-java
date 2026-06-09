@@ -1,3 +1,5 @@
+package datadog.trace.common.metrics
+
 import static datadog.communication.ddagent.DDAgentFeaturesDiscovery.V06_METRICS_ENDPOINT
 import static datadog.trace.common.metrics.EventListener.EventType.OK
 import static java.util.concurrent.TimeUnit.SECONDS
