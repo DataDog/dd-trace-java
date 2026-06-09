@@ -1,34 +1,33 @@
 package datadog.trace.junit.utils.tabletest;
 
-import datadog.trace.api.sampling.PrioritySampling;
-import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.params.converter.ArgumentConversionException;
-import org.junit.jupiter.params.converter.ArgumentConverter;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
+import static datadog.trace.api.sampling.PrioritySampling.USER_DROP;
+import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 
-public class PrioritySamplingConverter implements ArgumentConverter {
+import java.util.HashMap;
+import java.util.Map;
+
+public class PrioritySamplingConverter extends ClassConstantConvertor<Byte> {
+  private static final Map<String, Byte> MAPPING;
+
+  static {
+    MAPPING = new HashMap<>();
+    MAPPING.put("UNSET", UNSET);
+    MAPPING.put("SAMPLER_KEEP", SAMPLER_KEEP);
+    MAPPING.put("SAMPLER_DROP", SAMPLER_DROP);
+    MAPPING.put("USER_DROP", USER_DROP);
+    MAPPING.put("USER_KEEP", USER_KEEP);
+  }
 
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
-    if (source == null) {
-      return null;
-    }
-    if (source.toString().startsWith("PrioritySampling.")) {
-      switch (source.toString()) {
-        case "PrioritySampling.UNSET":
-          return PrioritySampling.UNSET;
-        case "PrioritySampling.SAMPLER_KEEP":
-          return PrioritySampling.SAMPLER_KEEP;
-        case "PrioritySampling.SAMPLER_DROP":
-          return PrioritySampling.SAMPLER_DROP;
-        case "PrioritySampling.USER_DROP":
-          return PrioritySampling.USER_DROP;
-        case "PrioritySampling.USER_KEEP":
-          return PrioritySampling.USER_KEEP;
-        default:
-          throw new ArgumentConversionException("Cannot convert " + source);
-      }
-    }
-    return source;
+  protected String className() {
+    return "PrioritySampling";
+  }
+
+  @Override
+  protected Map<String, Byte> mapping() {
+    return MAPPING;
   }
 }
