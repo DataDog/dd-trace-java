@@ -13,7 +13,7 @@ from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
@@ -428,14 +428,12 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == 'unverified' else 'Too new'}. Reverted lockfile to baseline.")
 
     reverted_files = len(violations_by_file)
-    summary = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours)
     summary_instrumentation = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=is_instrumentation_path)
     summary_core = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=lambda path: not is_instrumentation_path(path))
     emit_outputs(
         {
             "cutoff_at": format_datetime(cutoff),
             "reverted_files": reverted_files,
-            "summary": summary,
             "summary_core": summary_core,
             "summary_instrumentation": summary_instrumentation,
         },
@@ -445,7 +443,8 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
     return 0
 
 
-# instrumentation lockfiles live under these prefixes and ship in a separate PR from core modules
+# instrumentation lockfiles live under these prefixes and ship in a separate PR from core modules.
+# Keep in sync with the file split in .github/workflows/update-gradle-dependencies.yaml
 INSTRUMENTATION_PATH_PREFIXES = ("dd-smoke-tests/", "dd-java-agent/instrumentation/")
 
 
@@ -456,7 +455,7 @@ def is_instrumentation_path(relative_path: str) -> bool:
 
 
 # build summary of reverted/downgraded dependencies for PR descriptions
-# path_filter, when provided, restricts the summary to lockfiles whose relative path matches,
+# path_filter restricts the summary to lockfiles whose relative path matches,
 # so each PR (core vs instrumentation) only lists the dependencies it actually changes
 def build_validation_summary(
     *,
@@ -464,15 +463,13 @@ def build_validation_summary(
     replacements_by_file: dict[str, dict[str, tuple[str, int]]],
     baseline_lockfiles: dict[str, set[str]],
     min_age_hours: int,
-    path_filter: Any = None,
+    path_filter: Callable[[str], bool],
 ) -> str:
-    def included(relative_path: str) -> bool:
-        return path_filter is None or path_filter(relative_path)
-
-    lines = [f"## Dependency age policy", ""]
+    header = ["## Dependency age policy", ""]
+    lines = list(header)
     seen: set[str] = set()
     for relative_path, replacements in replacements_by_file.items():
-        if not included(relative_path):
+        if not path_filter(relative_path):
             continue
         baseline_coords = baseline_lockfiles.get(relative_path, set())
         for old_gav, (new_gav, hours_remaining) in replacements.items():
@@ -484,7 +481,7 @@ def build_validation_summary(
                     new_version = new_gav.rsplit(":", 1)[1]
                     lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_version}`")
     for relative_path, entries in violations_by_file.items():
-        if not included(relative_path):
+        if not path_filter(relative_path):
             continue
         for gav, kind, hours_remaining in entries:
             if gav not in seen:
@@ -493,7 +490,7 @@ def build_validation_summary(
                     lines.append(f"- `{gav}` — cannot verify age, reverted")
                 else:
                     lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
-    if len(lines) == 2:  # header only, nothing matched
+    if len(lines) == len(header):  # nothing matched the filter
         return ""
     return "\n".join(lines)
 
