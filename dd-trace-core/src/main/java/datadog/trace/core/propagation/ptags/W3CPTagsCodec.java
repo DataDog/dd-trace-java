@@ -27,8 +27,7 @@ public class W3CPTagsCodec extends PTagsCodec {
   private static final char KEY_VALUE_SEPARATOR = ':';
   private static final int MIN_ALLOWED_CHAR = 32;
   private static final int MAX_ALLOWED_CHAR = 126;
-  @VisibleForTesting
-  public static final int MAX_MEMBER_COUNT = 32;
+  @VisibleForTesting public static final int MAX_MEMBER_COUNT = 32;
 
   @Override
   PropagationTags fromHeaderValue(PTagsFactory tagsFactory, String value) {

@@ -4,7 +4,9 @@ import static datadog.trace.core.propagation.PropagationTags.HeaderType;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static datadog.trace.core.propagation.PropagationTags.factory;
 import static datadog.trace.core.propagation.ptags.W3CPTagsCodec.MAX_MEMBER_COUNT;
+import static java.lang.Math.min;
 import static java.util.Collections.emptyMap;
+import static java.util.Collections.singletonMap;
 import static java.util.stream.IntStream.concat;
 import static java.util.stream.IntStream.rangeClosed;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -209,7 +211,7 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   void validateTracestateHeaderNumberOfMembersWhenPropagatingOriginalTracestate(int memberCount) {
     String header = buildHeader(memberCount);
     String expectedHeader =
-        "dd=t.dm:-4," + (memberCount > MAX_MEMBER_COUNT ? "" : buildHeader(Math.min(memberCount, 31)));
+        "dd=t.dm:-4," + (memberCount > MAX_MEMBER_COUNT ? "" : buildHeader(min(memberCount, 31)));
 
     PropagationTags datadogHeaderPT = factory().fromHeaderValue(HeaderType.DATADOG, "_dd.p.dm=-4");
     PropagationTags headerPT = factory().fromHeaderValue(W3C, header);
@@ -220,9 +222,7 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     } else {
       assertEquals("dd=t.dm:-4", datadogHeaderPT.headerValue(W3C));
     }
-    Map<String, String> expectedTags = new java.util.LinkedHashMap<>();
-    expectedTags.put("_dd.p.dm", "-4");
-    assertEquals(expectedTags, datadogHeaderPT.createTagMap());
+    assertEquals(singletonMap("_dd.p.dm", "-4"), datadogHeaderPT.createTagMap());
   }
 
   static IntStream memberCountArguments() {
