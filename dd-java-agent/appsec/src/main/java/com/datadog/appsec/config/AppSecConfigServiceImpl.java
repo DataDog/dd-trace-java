@@ -332,7 +332,9 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
           && !e.wafDiagnostics.rulesetVersion.isEmpty()
           && (!defaultConfigActivated || currentRuleVersion == null)) {
         currentRuleVersion = e.wafDiagnostics.rulesetVersion;
-        statsReporter.setRulesVersion(currentRuleVersion);
+        if (!e.wafDiagnostics.rules.getLoaded().isEmpty()) {
+          statsReporter.setRulesVersion(currentRuleVersion);
+        }
         if (modulesToUpdateVersionIn != null) {
           modulesToUpdateVersionIn.forEach(module -> module.setRuleVersion(currentRuleVersion));
         }
