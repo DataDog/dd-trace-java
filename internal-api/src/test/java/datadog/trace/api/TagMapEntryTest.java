@@ -20,6 +20,8 @@ import java.util.concurrent.Future;
 import java.util.concurrent.ThreadFactory;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -548,6 +550,129 @@ public class TagMapEntryTest {
   public void removalChange() {
     TagMap.EntryChange removalChange = TagMap.EntryChange.newRemoval("foo");
     assertTrue(removalChange.isRemoval());
+  }
+
+  // ---------------------------------------------------------------------------------------------
+  // Tag-id-constructed entries: the name is resolved lazily from the tagId via KnownTags on first
+  // tag()/getKey(). That resolution (and the cache write to the volatile-free `tag` field) is a
+  // benign race — these tests run tag-id entries through the existing multi-threaded harness so 4
+  // threads resolve the name concurrently; all must agree, and on the same interned constant.
+  // ---------------------------------------------------------------------------------------------
+
+  static final String[] TAG_NAMES = {"tag.alpha", "tag.beta", "tag.gamma"};
+
+  static long tagId(int serial, int fieldPos, String name) {
+    long nameHash = TagMap.Entry._hash(name) & 0xFFFFFFFFL;
+    return ((long) serial << 48) | ((long) fieldPos << 32) | nameHash;
+  }
+
+  @BeforeAll
+  static void registerResolver() {
+    KnownTags.register(
+        new KnownTags.Resolver() {
+          @Override
+          public String nameOf(long tagId) {
+            int serial = (int) (tagId >>> 48);
+            // returns the same interned constant each call, so racing resolutions agree by identity
+            return (serial >= 1 && serial <= TAG_NAMES.length) ? TAG_NAMES[serial - 1] : null;
+          }
+
+          @Override
+          public long keyOf(String name) {
+            for (int i = 0; i < TAG_NAMES.length; ++i) {
+              if (TAG_NAMES[i].equals(name)) return tagId(i + 1, i, TAG_NAMES[i]);
+            }
+            return 0L;
+          }
+        });
+  }
+
+  @AfterAll
+  static void clearResolver() {
+    KnownTags.register(null);
+  }
+
+  // resolved name must be the exact interned constant, and hash() must equal the tagId's low 32
+  // bits (nameHash) — both stressed concurrently by the shared-entry multi-threaded harness.
+  static Check checkResolvedTagId(long id, String name, TagMap.Entry entry) {
+    return multiCheck(
+        checkKey(name, entry),
+        checkTrue(() -> entry.tag() == name, "tag() returns interned constant"),
+        checkEquals((int) (id & 0xFFFFFFFFL), () -> entry.hash(), "Entry::hash == nameHash"));
+  }
+
+  @Test
+  @DisplayName("tag-id entry: Object resolves name lazily under race")
+  public void tagIdEntryObject() {
+    long id = tagId(1, 0, TAG_NAMES[0]);
+    test(
+        () -> TagMap.Entry.newAnyEntry(id, "bar"),
+        TagMap.Entry.ANY,
+        (entry) ->
+            multiCheck(
+                checkResolvedTagId(id, TAG_NAMES[0], entry),
+                checkValue("bar", entry),
+                checkTrue(entry::isObject),
+                checkType(TagMap.Entry.OBJECT, entry)));
+  }
+
+  @Test
+  @DisplayName("tag-id entry: int resolves name lazily under race")
+  public void tagIdEntryInt() {
+    long id = tagId(2, 1, TAG_NAMES[1]);
+    test(
+        () -> TagMap.Entry.newIntEntry(id, 42),
+        TagMap.Entry.INT,
+        (entry) ->
+            multiCheck(
+                checkResolvedTagId(id, TAG_NAMES[1], entry),
+                checkValue(42, entry),
+                checkIsNumericPrimitive(entry),
+                checkType(TagMap.Entry.INT, entry)));
+  }
+
+  @Test
+  @DisplayName("tag-id entry: boolean resolves name lazily under race")
+  public void tagIdEntryBoolean() {
+    long id = tagId(3, 2, TAG_NAMES[2]);
+    test(
+        () -> TagMap.Entry.newBooleanEntry(id, true),
+        TagMap.Entry.BOOLEAN,
+        (entry) ->
+            multiCheck(
+                checkResolvedTagId(id, TAG_NAMES[2], entry),
+                checkValue(true, entry),
+                checkType(TagMap.Entry.BOOLEAN, entry)));
+  }
+
+  @Test
+  @DisplayName("string entry: lazy hash() under race")
+  public void stringEntryLazyHash() {
+    // string-constructed entry computes hash() lazily, writing into the low 32 bits of the `tagId`
+    // field (formerly a separate `int lazyTagHash`). Stress concurrent first-resolution.
+    String name = "some.unknown.tag.name";
+    test(
+        () -> TagMap.Entry.newObjectEntry(name, "v"),
+        TagMap.Entry.OBJECT,
+        (entry) ->
+            multiCheck(
+                checkEquals(TagMap.Entry._hash(name), () -> entry.hash(), "lazy hash()"),
+                checkKey(name, entry),
+                checkValue("v", entry)));
+  }
+
+  @Test
+  @DisplayName("tag-id entry: matches() resolves the name under race")
+  public void tagIdEntryMatches() {
+    long id = tagId(1, 0, TAG_NAMES[0]);
+    test(
+        () -> TagMap.Entry.newObjectEntry(id, "bar"),
+        TagMap.Entry.OBJECT,
+        (entry) ->
+            multiCheck(
+                checkTrue(() -> entry.matches(TAG_NAMES[0]), "matches(name)"),
+                checkFalse(() -> entry.matches("nope"), "!matches(other)"),
+                checkKey(TAG_NAMES[0], entry)));
   }
 
   static final int NUM_THREADS = 4;
