@@ -459,7 +459,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
   private void resetCardinalityHandlers() {
     reconcilePeerTagSchema();
     aggregator.resetPropertyHandlers(healthMetrics);
-    PeerTagSchema.INTERNAL.resetCardinalityHandlers(healthMetrics);
+    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
       schema.resetHandlers(healthMetrics);

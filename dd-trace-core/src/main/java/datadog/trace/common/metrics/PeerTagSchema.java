@@ -31,7 +31,7 @@ import org.slf4j.LoggerFactory;
  * </ul>
  *
  * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
- * cycle (with a warn log) in {@link #resetCardinalityHandlers(HealthMetrics)}.
+ * cycle (with a warn log) in {@link #resetHandlers(HealthMetrics)}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
@@ -123,14 +123,14 @@ final class PeerTagSchema {
    */
   void resetHandlers(HealthMetrics healthMetrics) {
     for (int i = 0; i < handlers.length; i++) {
-      long blocked = handlers[i].reset();
-      if (blocked > 0) {
-        log.warn(
-            "Cardinality limit reached for peer tag '{}'; further values are reported as"
-                + " 'blocked_by_tracer' until the next reporting cycle",
-            names[i]);
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
-      }
+      CardinalityBlocks.reportIfBlocked(
+          log,
+          healthMetrics,
+          handlers[i].reset(),
+          names[i],
+          handlers[i].statsDTag(),
+          "Cardinality limit reached for peer tag '{}'; further values are reported as"
+              + " 'blocked_by_tracer' until the next reporting cycle");
     }
   }
 

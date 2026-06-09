@@ -106,13 +106,13 @@ final class AdditionalTagsSchema {
 
   void resetHandlers() {
     for (int i = 0; i < handlers.length; i++) {
-      long blocked = handlers[i].reset();
-      if (blocked > 0) {
-        log.warn(
-            "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer",
-            names[i]);
-        healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
-      }
+      CardinalityBlocks.reportIfBlocked(
+          log,
+          healthMetrics,
+          handlers[i].reset(),
+          names[i],
+          handlers[i].statsDTag(),
+          "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer");
     }
   }
 }
