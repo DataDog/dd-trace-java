@@ -108,7 +108,7 @@ jobs:
         if: steps.check-core-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_core }}
         run: |
           gh pr create --title "Update Gradle dependencies" \
             --base master \
@@ -168,7 +168,7 @@ jobs:
         if: steps.check-instrumentation-changes.outputs.commit_changes == 'true'
         env:
           GH_TOKEN: ${{ steps.octo-sts.outputs.token }}
-          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary }}
+          PR_SUMMARY: ${{ steps.validate-lockfiles.outputs.summary_instrumentation }}
         run: |
           gh pr create --title "Update instrumentation Gradle dependencies" \
             --base master \
