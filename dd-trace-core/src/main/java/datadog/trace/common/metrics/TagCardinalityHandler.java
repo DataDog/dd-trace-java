@@ -105,7 +105,7 @@ final class TagCardinalityHandler {
     // collapse this value to "tag:tracer_blocked_value" and record the block.
     if (capExhausted && this.useBlockedSentinel) {
       this.blockedCount++;
-      return this.tracerBlockedValue();
+      return this.blockedByTracer();
     }
     // Try to find the same raw value in the previous-cycle table so the encoded
     // UTF8 object can be reused after a reset.
@@ -134,7 +134,7 @@ final class TagCardinalityHandler {
     return utf8;
   }
 
-  private UTF8BytesString tracerBlockedValue() {
+  private UTF8BytesString blockedByTracer() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;
 

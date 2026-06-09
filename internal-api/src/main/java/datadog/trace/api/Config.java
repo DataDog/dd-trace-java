@@ -6402,6 +6402,8 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", traceStatsCardinalityLimitsEnabled="
+        + traceStatsCardinalityLimitsEnabled
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="

@@ -30,18 +30,16 @@ import org.slf4j.LoggerFactory;
  *       comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
- * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
- * #warnedCardinality}). Per-tag block counts live inside each {@link TagCardinalityHandler} and are
- * returned by {@link TagCardinalityHandler#reset()}, then flushed to {@link
- * HealthMetrics#onTagCardinalityBlocked(String[], long)} in {@link #resetCardinalityHandlers()}.
+ * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
+ * cycle (with a warn log) in {@link #resetCardinalityHandlers(HealthMetrics)}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
- * and {@link #state}) is exercised only on the aggregator thread. {@link #names} and {@link
- * #handlers} are final and safe to read from any thread; producer threads access them through the
- * volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
+ * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s and {@link #state})
+ * is exercised only on the aggregator thread. {@link #names} and {@link #handlers} are final and
+ * safe to read from any thread; producer threads access them through the volatile {@code
+ * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
@@ -109,7 +107,7 @@ final class PeerTagSchema {
 
   /**
    * Canonicalizes the peer-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY} for
-   * null inputs and the handler's {@code "<tag>:tracer_blocked_value"} sentinel when the per-tag
+   * null inputs and the handler's {@code "<tag>:blocked_by_tracer"} sentinel when the per-tag
    * cardinality budget is exhausted.
    */
   UTF8BytesString register(int i, String value) {
@@ -125,6 +123,10 @@ final class PeerTagSchema {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();
       if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for peer tag '{}'; further values are reported as"
+                + " 'blocked_by_tracer' until the next reporting cycle",
+            names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }
     }

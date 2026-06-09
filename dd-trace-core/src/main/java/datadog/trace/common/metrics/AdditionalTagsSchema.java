@@ -4,7 +4,6 @@ import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Set;
 import org.slf4j.Logger;
@@ -31,7 +30,6 @@ final class AdditionalTagsSchema {
   private final TagCardinalityHandler[] handlers;
 
   private final HealthMetrics healthMetrics;
-  private final Set<String> warnedCardinality = new HashSet<>();
 
   private AdditionalTagsSchema(
       String[] names, TagCardinalityHandler[] handlers, HealthMetrics healthMetrics) {
@@ -103,22 +101,18 @@ final class AdditionalTagsSchema {
   }
 
   UTF8BytesString register(int i, String value) {
-    UTF8BytesString result = handlers[i].register(value);
-    if (handlers[i].isBlockedResult(result) && warnedCardinality.add(names[i])) {
-      log.warn(
-          "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer",
-          names[i]);
-    }
-    return result;
+    return handlers[i].register(value);
   }
 
   void resetHandlers() {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();
       if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for additional metric tag '{}'; further values will be reported as blocked_by_tracer",
+            names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }
     }
-    warnedCardinality.clear();
   }
 }

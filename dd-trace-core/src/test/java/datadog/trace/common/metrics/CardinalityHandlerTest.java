@@ -250,8 +250,6 @@ class CardinalityHandlerTest {
 
   @Test
   void tagOverLimitWithSentinelDisabledNeverSubstitutesBlockedSentinel() {
-    // The sentinel should never materialize in disabled mode -- over-cap values carry their real
-    // "tag:value" content rather than the blocked sentinel.
     TagCardinalityHandler h = new TagCardinalityHandler("peer.service", 1, false);
     h.register("svc-1");
     UTF8BytesString overCap = h.register("svc-2");
