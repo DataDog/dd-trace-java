@@ -528,7 +528,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     if (!reportedHits.add(dedupKey)) {
       return;
     }
-    String dotClassName = internalClassName.replace('/', '.');
+    String dotClassName = Strings.getClassName(internalClassName);
     log.debug(
         "SCA Reachability: {} reached in {}:{} via {}#{}",
         entry.vulnId(),

@@ -63,6 +63,7 @@ public final class ScaReachabilityDependencyRegistry {
   public void resetForTesting() {
     dependencies.clear();
     capWarningLogged.set(false);
+    periodicWorkCallback = null;
   }
 
   private ScaReachabilityDependencyRegistry() {}
@@ -77,14 +78,7 @@ public final class ScaReachabilityDependencyRegistry {
    */
   public void registerCve(String artifact, String version, String vulnId) {
     String key = depKey(artifact, version);
-    if (!dependencies.containsKey(key) && dependencies.size() >= maxTrackedDependencies) {
-      if (capWarningLogged.compareAndSet(false, true)) {
-        log.warn(
-            "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the limit.",
-            maxTrackedDependencies);
-      }
-      return;
-    }
+    if (isCapExceeded(key)) return;
     DependencyState dep =
         dependencies.computeIfAbsent(key, k -> new DependencyState(artifact, version));
     dep.registerCve(vulnId);
@@ -104,17 +98,22 @@ public final class ScaReachabilityDependencyRegistry {
       String callsiteSymbol,
       int callsiteLine) {
     String key = depKey(artifact, version);
+    if (isCapExceeded(key)) return;
+    dependencies
+        .computeIfAbsent(key, k -> new DependencyState(artifact, version))
+        .recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
+  }
+
+  private boolean isCapExceeded(String key) {
     if (!dependencies.containsKey(key) && dependencies.size() >= maxTrackedDependencies) {
       if (capWarningLogged.compareAndSet(false, true)) {
         log.warn(
             "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the limit.",
             maxTrackedDependencies);
       }
-      return;
+      return true;
     }
-    dependencies
-        .computeIfAbsent(key, k -> new DependencyState(artifact, version))
-        .recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
+    return false;
   }
 
   /**
