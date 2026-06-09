@@ -19,8 +19,8 @@ import java.util.function.Consumer;
  *
  * <p><b>Not thread-safe.</b> The aggregator thread is the sole writer of both this table and its
  * contained {@link AggregateEntry} state. Any cross-thread request that needs to mutate -- e.g.
- * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the
- * inbox (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
+ * {@link ClientStatsAggregator#disable()} -- must funnel onto the aggregator thread via the inbox
+ * (see the {@code ClearSignal} routing in {@link Aggregator}). The invariant is convention-
  * enforced; nothing here checks the calling thread at runtime, so a wrong-thread call would corrupt
  * bucket chains silently.
  */
@@ -103,11 +103,11 @@ final class AggregateTable {
    * {@code onStatsAggregateDropped}) rather than evicting an established one. Cap is sized to the
    * steady-state working set, so eviction is rare in the common case.
    *
-   * <p>With per-field cardinality limits enabled, over-cap values for a given field collapse into a
-   * shared {@code tracer_blocked_value} bucket, so the table itself rarely reaches {@code
-   * maxAggregates}. Without per-field limits, over-cap values flow to distinct buckets and {@code
-   * maxAggregates} becomes the load-bearing
-   * backstop -- the cursor-resumed scan was added specifically for this regime.
+   * <p>How often this fires depends on {@link MetricCardinalityLimits#ENABLED}. With limits
+   * enabled, over-cap values for a given field collapse into a shared {@code blocked_by_tracer}
+   * bucket, so the table itself rarely reaches {@code maxAggregates}. With limits disabled (the
+   * default), over-cap values flow to distinct buckets and {@code maxAggregates} becomes the
+   * load-bearing backstop -- the cursor-resumed scan was added specifically for this regime.
    */
   private boolean evictOneStale() {
     // Two passes -- [cursor, length) then [0, cursor) -- using the half-open-range iterator. The

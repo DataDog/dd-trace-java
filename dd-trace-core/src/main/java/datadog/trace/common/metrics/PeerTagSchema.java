@@ -36,9 +36,9 @@ import org.slf4j.LoggerFactory;
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s and {@link #state})
- * is exercised only on the aggregator thread. {@link #names} and {@link #handlers} are final and
- * safe to read from any thread; producer threads access them through the volatile {@code
+ * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s and {@link #state}) is
+ * exercised only on the aggregator thread. {@link #names} and {@link #handlers} are final and safe
+ * to read from any thread; producer threads access them through the volatile {@code
  * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
@@ -73,17 +73,19 @@ final class PeerTagSchema {
     return new PeerTagSchema(names.toArray(new String[0]), state);
   }
 
-  PeerTagSchema(String[] names, String state) {
+  /** Test-only factory: takes names array directly to build a schema in a specific order. */
+  static PeerTagSchema testSchema(String[] names) {
+    return new PeerTagSchema(names, NO_STATE);
+  }
+
+  private PeerTagSchema(String[] names, String state) {
     this.names = names;
     this.state = state;
     this.handlers = new TagCardinalityHandler[names.length];
     for (int i = 0; i < names.length; i++) {
       this.handlers[i] =
           new TagCardinalityHandler(
-              names[i],
-              Config.get()
-                  .getTraceStatsCardinalityLimit(
-                      "peer_tag", MetricCardinalityLimits.PEER_TAG_VALUE));
+              names[i], MetricCardinalityLimits.PEER_TAG_VALUE, MetricCardinalityLimits.ENABLED);
     }
   }
 

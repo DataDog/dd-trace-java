@@ -1,7 +1,6 @@
 package datadog.trace.common.metrics;
 
 import datadog.metrics.api.Histogram;
-import datadog.trace.api.Config;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.util.Hashtable;
 import datadog.trace.util.LongHashingUtils;
@@ -20,10 +19,6 @@ final class AggregateEntry extends Hashtable.Entry {
   static final long TOP_LEVEL_TAG = 0x4000000000000000L;
 
   private static final UTF8BytesString[] EMPTY_TAGS = new UTF8BytesString[0];
-
-  // Frozen at first AggregateEntry class-load; used by AggregateTable to construct default
-  // handlers.
-  static final boolean LIMITS_ENABLED = Config.get().isTraceStatsCardinalityLimitsEnabled();
 
   final UTF8BytesString resource;
   final UTF8BytesString service;
