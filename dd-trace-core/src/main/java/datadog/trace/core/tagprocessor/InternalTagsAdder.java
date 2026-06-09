@@ -10,16 +10,9 @@ import datadog.trace.core.DDSpanContext;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {
-  // ddService drives the guard and the service-name comparison; kept even when empty so behavior
-  // matches the prior implementation exactly (an explicitly-empty DD_SERVICE is a valid, if
-  // degenerate, config -- see getStringExcludingSource, which passes "" through, not the default).
   private final UTF8BytesString ddService;
 
-  // base.service / version values are fixed for the life of the tracer, and TagMap.Entry objects
-  // are safe to share across maps (the OptimizedTagMap collision design relies on it), so the
-  // entries are built once and reused on the hot path instead of allocating one per span.
-  // baseServiceEntry is null when ddService is null OR empty (Entry.create rejects empty values);
-  // the empty case falls back to set(tag, value) below to preserve byte-identical behavior.
+  // Prebuilt once; null when ddService is null or empty (Entry.create rejects empty values).
   @Nullable private final TagMap.Entry baseServiceEntry;
   @Nullable private final TagMap.Entry versionEntry;
 
