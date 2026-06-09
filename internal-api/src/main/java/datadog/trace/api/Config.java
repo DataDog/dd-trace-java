@@ -419,9 +419,9 @@ import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_IGNORED_RESOURCES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_AGGREGATES;
 import static datadog.trace.api.config.GeneralConfig.TRACER_METRICS_MAX_PENDING;
-import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMITS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_DEBUG;
 import static datadog.trace.api.config.GeneralConfig.TRACE_LOG_LEVEL;
+import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_CARDINALITY_LIMITS_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_ENABLED;
 import static datadog.trace.api.config.GeneralConfig.TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION;
 import static datadog.trace.api.config.GeneralConfig.TRACE_TAGS;
@@ -6384,6 +6384,8 @@ public class Config {
         + tracerMetricsMaxAggregates
         + ", tracerMetricsMaxPending="
         + tracerMetricsMaxPending
+        + ", traceStatsCardinalityLimitsEnabled="
+        + traceStatsCardinalityLimitsEnabled
         + ", reportHostName="
         + reportHostName
         + ", traceAnalyticsEnabled="

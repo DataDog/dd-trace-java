@@ -111,16 +111,6 @@ final class TagCardinalityHandler {
     return utf8;
   }
 
-  /**
-   * Whether {@code result} (returned from a prior {@link #register} call) is this handler's blocked
-   * sentinel. Reads {@link #cacheBlocked} directly so callers can safely query without forcing the
-   * sentinel to materialize -- when limits are disabled the sentinel is never built and this method
-   * returns {@code false} for every input.
-   */
-  boolean isBlockedResult(UTF8BytesString result) {
-    return result == this.cacheBlocked;
-  }
-
   private UTF8BytesString blockedByTracer() {
     UTF8BytesString cacheBlocked = this.cacheBlocked;
     if (cacheBlocked != null) return cacheBlocked;

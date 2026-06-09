@@ -213,19 +213,15 @@ class CardinalityHandlerTest {
 
     assertEquals("peer.hostname:host-b", hostB.toString());
     assertEquals("peer.hostname:host-c", hostC.toString());
-    // Over-cap values are not cached -- isBlockedResult never reports true in disabled mode.
-    assertEquals(false, h.isBlockedResult(hostB));
-    assertEquals(false, h.isBlockedResult(hostC));
   }
 
   @Test
-  void tagIsBlockedResultStaysFalseInDisabledModeEvenAtCap() {
-    // The sentinel should never materialize in disabled mode -- isBlockedResult reads cacheBlocked
-    // directly, so no allocation is forced.
+  void tagOverLimitWithSentinelDisabledNeverSubstitutesBlockedSentinel() {
+    // The sentinel should never materialize in disabled mode -- over-cap values carry their real
+    // "tag:value" content rather than the blocked sentinel.
     TagCardinalityHandler h = new TagCardinalityHandler("peer.service", 1, false);
     h.register("svc-1");
     UTF8BytesString overCap = h.register("svc-2");
-    assertEquals(false, h.isBlockedResult(overCap));
     assertEquals("peer.service:svc-2", overCap.toString());
   }
 }

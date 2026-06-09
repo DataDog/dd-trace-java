@@ -181,7 +181,7 @@ class SerializingMetricWriterTest extends DDSpecification {
 
     def content = [e]
 
-    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content)
+    ValidatingSink sink = new ValidatingSink(wellKnownTags, startTime, duration, content, shaCommit)
     SerializingMetricWriter writer = new SerializingMetricWriter(wellKnownTags, sink, 128, gitInfoProvider)
 
     when:
@@ -231,13 +231,15 @@ class SerializingMetricWriterTest extends DDSpecification {
     private final long duration
     private boolean validated = false
     private List<AggregateEntry> content
+    private final String expectedGitCommitSha
 
     ValidatingSink(WellKnownTags wellKnownTags, long startTimeNanos, long duration,
-    List<AggregateEntry> content) {
+    List<AggregateEntry> content, String expectedGitCommitSha = null) {
       this.wellKnownTags = wellKnownTags
       this.startTimeNanos = startTimeNanos
       this.duration = duration
       this.content = content
+      this.expectedGitCommitSha = expectedGitCommitSha
     }
 
     @Override
@@ -248,7 +250,7 @@ class SerializingMetricWriterTest extends DDSpecification {
     void accept(int messageCount, ByteBuffer buffer) {
       MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(buffer)
       int mapSize = unpacker.unpackMapHeader()
-      String gitCommitSha = GitInfoProvider.INSTANCE.getGitInfo()?.getCommit()?.getSha()
+      String gitCommitSha = expectedGitCommitSha
       assert mapSize == (7 + (Config.get().isExperimentalPropagateProcessTagsEnabled() ? 1 : 0)
       + (gitCommitSha != null ? 1 : 0))
       assert unpacker.unpackString() == "RuntimeID"

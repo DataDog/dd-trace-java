@@ -5,7 +5,6 @@ import static datadog.trace.api.DDTags.BASE_SERVICE;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.monitor.HealthMetrics;
-import java.util.HashSet;
 import java.util.Set;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -29,26 +28,31 @@ import org.slf4j.LoggerFactory;
  *       comparing {@link #state} against {@link DDAgentFeaturesDiscovery#state()}.
  * </ul>
  *
- * <p>Cardinality blocks emit a one-shot warn log per reporting cycle per tag (tracked via {@link
- * #warnedCardinality}). Per-tag block counts live inside each {@link TagCardinalityHandler} and are
- * returned by {@link TagCardinalityHandler#reset()}, then flushed to {@link
- * HealthMetrics#onTagCardinalityBlocked(String, long)} in {@link
- * #resetCardinalityHandlers(HealthMetrics)}.
+ * <p>Cardinality blocks are counted inside each {@link TagCardinalityHandler} and flushed once per
+ * cycle (with a warn log) in {@link #resetHandlers(HealthMetrics)}.
  *
  * <p>Each {@link SpanSnapshot} captures its own schema reference so producer and consumer agree on
  * the indexing even if the current schema is replaced between capture and consumption.
  *
- * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s, the warn-once set,
- * and {@link #state}) is exercised only on the aggregator thread. {@link #names} and {@link
- * #handlers} are final and safe to read from any thread; producer threads access them through the
- * volatile {@code cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
+ * <p><b>Thread-safety:</b> all mutable state ({@link TagCardinalityHandler}s and {@link #state}) is
+ * exercised only on the aggregator thread. {@link #names} and {@link #handlers} are final and safe
+ * to read from any thread; producer threads access them through the volatile {@code
+ * cachedPeerTagSchema} reference in {@link ClientStatsAggregator}.
  */
 final class PeerTagSchema {
 
   private static final Logger log = LoggerFactory.getLogger(PeerTagSchema.class);
 
+  /**
+   * Sentinel {@link #state} for schemas that are never reconciled against feature discovery: the
+   * {@link #INTERNAL} singleton and test-built schemas. A {@code null} state always mismatches a
+   * real discovery hash, so a schema built with it would rebuild on first reconcile -- but neither
+   * of these schemas takes that path.
+   */
+  static final String NO_STATE = null;
+
   /** Singleton schema for internal-kind spans -- only {@code base.service}. */
-  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, null);
+  static final PeerTagSchema INTERNAL = new PeerTagSchema(new String[] {BASE_SERVICE}, NO_STATE);
 
   final String[] names;
   final TagCardinalityHandler[] handlers;
@@ -62,13 +66,6 @@ final class PeerTagSchema {
    */
   String state;
 
-  /**
-   * Per-cycle warn-once gating. {@code Set.add(name)} returns true exactly the first time a tag
-   * gets blocked this cycle, which is the only time we want to emit the warn log. Cleared by {@link
-   * #resetCardinalityHandlers(HealthMetrics)}.
-   */
-  private final Set<String> warnedCardinality = new HashSet<>();
-
   /** Builds a schema for the given peer-tag names. Order is determined by the {@link Set}. */
   static PeerTagSchema of(Set<String> names, String state) {
     return new PeerTagSchema(names.toArray(new String[0]), state);
@@ -76,7 +73,7 @@ final class PeerTagSchema {
 
   /** Test-only factory: takes names array directly to build a schema in a specific order. */
   static PeerTagSchema testSchema(String[] names) {
-    return new PeerTagSchema(names, null);
+    return new PeerTagSchema(names, NO_STATE);
   }
 
   private PeerTagSchema(String[] names, String state) {
@@ -111,34 +108,28 @@ final class PeerTagSchema {
   /**
    * Canonicalizes the peer-tag value at slot {@code i}. Returns {@link UTF8BytesString#EMPTY} for
    * null inputs and the handler's {@code "<tag>:blocked_by_tracer"} sentinel when the per-tag
-   * cardinality budget is exhausted. The handler counts blocks internally; emits a one-shot warn
-   * log per cycle per tag via {@link #warnedCardinality}.
+   * cardinality budget is exhausted.
    */
   UTF8BytesString register(int i, String value) {
-    TagCardinalityHandler handler = handlers[i];
-    UTF8BytesString result = handler.register(value);
-    if (handler.isBlockedResult(result) && warnedCardinality.add(names[i])) {
-      log.warn(
-          "Cardinality limit reached for peer tag '{}'; further values are reported as"
-              + " 'blocked_by_tracer' until the next reporting cycle",
-          names[i]);
-    }
-    return result;
+    return handlers[i].register(value);
   }
 
   /**
    * Resets every {@link TagCardinalityHandler}'s working set, flushes accumulated per-tag block
-   * counts to {@link HealthMetrics}, and clears the per-cycle warn-once tracking. Must be called on
-   * the aggregator thread; handlers are not thread-safe.
+   * counts to {@link HealthMetrics}, and emits a warn log for each tag that hit its limit this
+   * cycle. Must be called on the aggregator thread; handlers are not thread-safe.
    */
-  void resetCardinalityHandlers(HealthMetrics healthMetrics) {
+  void resetHandlers(HealthMetrics healthMetrics) {
     for (int i = 0; i < handlers.length; i++) {
       long blocked = handlers[i].reset();
       if (blocked > 0) {
+        log.warn(
+            "Cardinality limit reached for peer tag '{}'; further values are reported as"
+                + " 'blocked_by_tracer' until the next reporting cycle",
+            names[i]);
         healthMetrics.onTagCardinalityBlocked(handlers[i].statsDTag(), blocked);
       }
     }
-    warnedCardinality.clear();
   }
 
   int size() {

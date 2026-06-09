@@ -270,7 +270,9 @@ final class AggregateEntry extends Hashtable.Entry {
         peerTagsList);
   }
 
-  /** Resets the static per-field cardinality handlers. Does not cover {@link AdditionalTagsSchema}. */
+  /**
+   * Resets the static per-field cardinality handlers. Does not cover {@link AdditionalTagsSchema}.
+   */
   static void resetCardinalityHandlers() {
     resetCardinalityHandlers(HealthMetrics.NO_OP);
   }
@@ -285,7 +287,7 @@ final class AggregateEntry extends Hashtable.Entry {
     reportIfBlocked(healthMetrics, HTTP_METHOD_HANDLER);
     reportIfBlocked(healthMetrics, HTTP_ENDPOINT_HANDLER);
     reportIfBlocked(healthMetrics, GRPC_STATUS_CODE_HANDLER);
-    PeerTagSchema.INTERNAL.resetCardinalityHandlers(healthMetrics);
+    PeerTagSchema.INTERNAL.resetHandlers(healthMetrics);
   }
 
   private static void reportIfBlocked(

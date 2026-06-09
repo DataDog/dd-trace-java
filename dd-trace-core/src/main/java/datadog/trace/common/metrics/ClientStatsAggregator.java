@@ -415,7 +415,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     AggregateEntry.resetCardinalityHandlers(healthMetrics);
     PeerTagSchema schema = cachedPeerTagSchema;
     if (schema != null) {
-      schema.resetCardinalityHandlers(healthMetrics);
+      schema.resetHandlers(healthMetrics);
     }
   }
 
@@ -446,7 +446,7 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
     } else {
       // Tags actually changed: flush the outgoing schema's accumulated block telemetry before
       // discarding it, otherwise the partial-cycle blockedCounts would silently disappear.
-      cached.resetCardinalityHandlers(healthMetrics);
+      cached.resetHandlers(healthMetrics);
       cachedPeerTagSchema = PeerTagSchema.of(normalized, latestState);
     }
   }
