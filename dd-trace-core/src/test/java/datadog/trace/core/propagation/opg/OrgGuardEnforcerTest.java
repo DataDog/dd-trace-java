@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation.opg;
 
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
 import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
@@ -20,7 +21,6 @@ import static org.mockito.Mockito.verify;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.TracePropagationStyle;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.ExtractedContext;
@@ -138,9 +138,7 @@ class OrgGuardEnforcerTest {
   void stripPreservesNonDdVendors() {
     OrgGuardEnforcer enforcer = enforcer(false, emptySet(), () -> "L");
     PropagationTags tags =
-        factory.fromHeaderValue(
-            W3C,
-            "dd=s:1;o:foo;t.opm:upstream-X,vendor1=abc,vendor2=def");
+        factory.fromHeaderValue(W3C, "dd=s:1;o:foo;t.opm:upstream-X,vendor1=abc,vendor2=def");
     ExtractedContext ctx =
         new ExtractedContext(
             DDTraceId.from(123L), 456L, 2, "origin", tags, TracePropagationStyle.TRACECONTEXT);
@@ -162,7 +160,7 @@ class OrgGuardEnforcerTest {
   }
 
   private ExtractedContext ctxWithOpm(String opm) {
-    return ctxWithOpm(opm, PrioritySampling.SAMPLER_KEEP, "origin");
+    return ctxWithOpm(opm, SAMPLER_KEEP, "origin");
   }
 
   private ExtractedContext ctxWithOpm(String opm, int samplingPriority, String origin) {

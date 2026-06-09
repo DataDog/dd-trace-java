@@ -44,8 +44,7 @@ class OpmStampingInjectorTest {
   @DisplayName("with null supplier value, leaves PropagationTags untouched")
   void supplierNullLeavesTagsUntouched() {
     PropagationTags.Factory factory = PropagationTags.factory();
-    PropagationTags tags =
-        factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
+    PropagationTags tags = factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
 
     DDSpanContext ctx = mock(DDSpanContext.class);
     when(ctx.getPropagationTags()).thenReturn(tags);
@@ -64,8 +63,7 @@ class OpmStampingInjectorTest {
   @DisplayName("local supplier value overrides any inherited OPM")
   void localOpmOverridesInherited() {
     PropagationTags.Factory factory = PropagationTags.factory();
-    PropagationTags tags =
-        factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
+    PropagationTags tags = factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
 
     DDSpanContext ctx = mock(DDSpanContext.class);
     when(ctx.getPropagationTags()).thenReturn(tags);
