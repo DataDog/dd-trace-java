@@ -11,14 +11,42 @@ tasks.named("compileJava") {
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
+addTestSuiteForDir('legacyNettyTest', 'test')
+
+// legacyNettyTest reuses the whole src/test tree but only exists to verify the non-shaded Netty
+// ScheduledFutureTask / idle-timer propagation on the pre-4.1.44 line (forced to 4.1.9 below).
+// Restrict it to those tests so the ~40-file module suite is not run a second time per pipeline.
+// GrpcShadedNetty... is intentionally excluded: grpc-netty-shaded bundles its own (modern) relocated
+// Netty, which the netty-all 4.1.9 force does not affect, so running it here would not test 4.1.9.
+tasks.named('legacyNettyTest', Test) {
+  filter {
+    includeTestsMatching 'executor.NettyScheduledFutureTaskContextPropagationTest'
+    includeTestsMatching 'executor.NettyIdleTimeoutContextPropagationTest'
+  }
+}
 
 dependencies {
   testImplementation project(':dd-java-agent:instrumentation:datadog:tracing:trace-annotation')
   testImplementation libs.guava
-  testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
+
+  // Netty 4.1.44 is the first version where a delayed ScheduledFutureTask is run
+  // once when it is enqueued and again when the delay expires.
+  testImplementation group: 'io.netty', name: 'netty-all', version: '4.1.44.Final'
+  // Shaded Netty copy to verify the ScheduledFutureTask fix also applies to relocated Netty.
+  testImplementation group: 'io.grpc', name: 'grpc-netty-shaded', version: '1.58.0'
   testImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '7.0.0'
+
   // Tomcat 10.1.+ seems to require Java 11. Limit to fix build.
   // TODO: Tomcat 10.0.10 has a copy of the JSR166 ThreadPoolExecutor so it needs special instrumentation
   latestDepTestImplementation group: 'org.apache.tomcat.embed', name: 'tomcat-embed-core', version: '10.0.8'
+  latestDepTestImplementation group: 'io.netty', name: 'netty-all', version: '4+'
+
+  // Legacy netty version to test.
+  legacyNettyTestImplementation group: 'io.netty', name: 'netty-all', version: '4.1.9.Final'
 }
 
+['legacyNettyTestCompileClasspath', 'legacyNettyTestRuntimeClasspath'].each { name ->
+  configurations.named(name).configure {
+    resolutionStrategy.force 'io.netty:netty-all:4.1.9.Final'
+  }
+}

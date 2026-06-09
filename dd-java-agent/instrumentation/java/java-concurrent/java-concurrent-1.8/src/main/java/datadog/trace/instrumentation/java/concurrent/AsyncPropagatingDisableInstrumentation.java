@@ -61,6 +61,10 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "rx.internal.operators.OperatorTimeoutBase",
       "com.amazonaws.http.timers.request.HttpRequestTimer",
       "io.netty.handler.timeout.WriteTimeoutHandler",
+      "io.netty.handler.timeout.IdleStateHandler",
+      "io.grpc.netty.shaded.io.netty.handler.timeout.IdleStateHandler",
+      "play.shaded.ahc.io.netty.handler.timeout.IdleStateHandler",
+      "com.couchbase.client.deps.io.netty.handler.timeout.IdleStateHandler",
       "java.util.concurrent.ScheduledThreadPoolExecutor",
       "io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
       "io.grpc.netty.shaded.io.netty.channel.nio.AbstractNioChannel$AbstractNioUnsafe",
@@ -120,6 +124,14 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         named("scheduleTimeout")
             .and(isDeclaredBy(named("io.netty.handler.timeout.WriteTimeoutHandler"))),
+        advice);
+    // ReadTimeoutHandler and IdleStateHandler both schedule long-lived framework-owned idle timers
+    // through IdleStateHandler#schedule (ReadTimeoutHandler inherits it). Suppressing propagation
+    // here stops those timers from capturing an active request span and holding the trace open. The
+    // nameEndsWith match also covers the shaded Netty copies (grpc-shaded, Play WS, Couchbase).
+    transformer.applyAdvice(
+        named("schedule")
+            .and(isDeclaredBy(nameEndsWith(".netty.handler.timeout.IdleStateHandler"))),
         advice);
     transformer.applyAdvice(
         named("rescheduleIdleTimer").and(isDeclaredBy(GRPC_MANAGED_CHANNEL)), advice);

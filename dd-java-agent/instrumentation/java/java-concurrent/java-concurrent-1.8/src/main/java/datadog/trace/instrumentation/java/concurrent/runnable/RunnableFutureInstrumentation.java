@@ -31,6 +31,8 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.RunnableFuture;
+import java.util.concurrent.ScheduledFuture;
+import java.util.concurrent.TimeUnit;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.matcher.ElementMatcher;
@@ -147,7 +149,21 @@ public final class RunnableFutureInstrumentation extends InstrumenterModule.Cont
   public static final class Run {
     @Advice.OnMethodEnter
     public static <T> AgentScope activate(@Advice.This RunnableFuture<T> task) {
-      return startTaskScope(InstrumentationContext.get(RunnableFuture.class, State.class), task);
+      // Netty 4.1.44+ invokes ScheduledFutureTask.run() once to self-enqueue delayed tasks
+      // scheduled from outside the event loop (while the delay is still positive), then again when
+      // the deadline elapses (delay <= 0). Skip activation on the early enqueue run when there is a
+      // captured State to preserve, so the continuation survives for the actual fire — otherwise
+      // startTaskScope() would consume it here. The endsWith check intentionally also matches the
+      // shaded Netty copies (grpc-shaded, play-shaded, couchbase-deps), which behave the same way;
+      // the JDK's own ScheduledThreadPoolExecutor$ScheduledFutureTask does not match.
+      State state = InstrumentationContext.get(RunnableFuture.class, State.class).get(task);
+      if (state != null
+          && task instanceof ScheduledFuture
+          && task.getClass().getName().endsWith(".netty.util.concurrent.ScheduledFutureTask")
+          && ((ScheduledFuture<?>) task).getDelay(TimeUnit.NANOSECONDS) > 0) {
+        return null;
+      }
+      return startTaskScope(state);
     }
 
     @Advice.OnMethodExit(onThrowable = Throwable.class)
