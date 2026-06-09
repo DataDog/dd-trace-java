@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.capture;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.endTaskScope;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.AdviceUtils.startTaskScope;
@@ -53,8 +55,10 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
                     .and(takesArgument(0, named("io.lettuce.core.protocol.RedisCommand")))),
         getClass().getName() + "$Capture");
     transformer.applyAdvice(
-        isMethod().and(namedOneOf("complete", "completeExceptionally", "onComplete", "encode")),
+        isMethod().and(namedOneOf("complete", "completeExceptionally", "encode")),
         getClass().getName() + "$Activate");
+    transformer.applyAdvice(
+        isMethod().and(named("onComplete")), getClass().getName() + "$SuppressAsyncPropagation");
     transformer.applyAdvice(
         isMethod().and(named("cancel")).and(takesArguments(boolean.class)),
         getClass().getName() + "$Cancel");
@@ -89,6 +93,24 @@ public class AsyncCommandInstrumentation extends InstrumenterModule.ContextTrack
     public static void before(@Advice.This AsyncCommand asyncCommand) {
       AdviceUtils.cancelTask(
           InstrumentationContext.get(AsyncCommand.class, State.class), asyncCommand);
+    }
+  }
+
+  public static final class SuppressAsyncPropagation {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static boolean before() {
+      if (isAsyncPropagationEnabled()) {
+        setAsyncPropagationEnabled(false);
+        return true;
+      }
+      return false;
+    }
+
+    @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
+    public static void after(@Advice.Enter final boolean restore) {
+      if (restore) {
+        setAsyncPropagationEnabled(true);
+      }
     }
   }
 }

@@ -1,5 +1,8 @@
 package datadog.trace.instrumentation.lettuce5;
 
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.isAsyncPropagationEnabled;
+import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.setAsyncPropagationEnabled;
+
 import io.lettuce.core.protocol.RedisCommand;
 import java.util.Arrays;
 import java.util.HashSet;
@@ -74,5 +77,19 @@ public class LettuceInstrumentationUtil {
       }
     }
     return commandName;
+  }
+
+  public static boolean disableAsyncPropagation() {
+    if (isAsyncPropagationEnabled()) {
+      setAsyncPropagationEnabled(false);
+      return true;
+    }
+    return false;
+  }
+
+  public static void restoreAsyncPropagation(final boolean restore) {
+    if (restore) {
+      setAsyncPropagationEnabled(true);
+    }
   }
 }
