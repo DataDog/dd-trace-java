@@ -40,6 +40,27 @@ public final class KnownTags {
   }
 
   /**
+   * globalSerial partition. {@code [1, FIRST_STORED_SERIAL)} is reserved for "virtual" tags that
+   * are specially handled (redirected to span fields or processed by the tag interceptor) and are
+   * NOT stored in the TagMap — these are hand-assigned in tracer core. {@code [FIRST_STORED_SERIAL,
+   * ..]} is for generated convention tags that ARE stored (slotted/bucketed). {@code globalSerial
+   * == 0} means unknown / string-only. Both core and the code generator must agree on this
+   * boundary.
+   */
+  public static final int FIRST_STORED_SERIAL = 256;
+
+  /** True if the tagId names a reserved "virtual"/specially-handled tag (not stored in the map). */
+  public static boolean isReserved(long tagId) {
+    int globalSerial = globalSerial(tagId);
+    return globalSerial > 0 && globalSerial < FIRST_STORED_SERIAL;
+  }
+
+  /** True if the tagId names a generated, map-stored (slotted/bucketed) tag. */
+  public static boolean isStored(long tagId) {
+    return globalSerial(tagId) >= FIRST_STORED_SERIAL;
+  }
+
+  /**
    * Builds a tagId from its parts: {@code globalSerial} (globally unique per known tag), {@code
    * fieldPos} (the tag's slot within its span type's positional table), and the tag {@code name}
    * (whose hash is computed via the same function the runtime uses, so the low 32 bits match {@link
