@@ -172,7 +172,8 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void noContextWithEmptyHeaders() {
-    assertNull(this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(
+        this.extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test
@@ -191,9 +192,9 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void noContextWithTooLargeTraceId() {
-    Map<String, String> headers = headers(
-            X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8"
-    );
+    Map<String, String> headers =
+        headers(
+            X_AMZN_TRACE_ID, "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -226,7 +227,10 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
     Map<String, String> headers =
         headers(
             X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000" + XRayTestHelper.zeroPadId(traceId) + ";Parent=" + XRayTestHelper.zeroPadId(spanId));
+            "Root=1-00000000-00000000"
+                + XRayTestHelper.zeroPadId(traceId)
+                + ";Parent="
+                + XRayTestHelper.zeroPadId(spanId));
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
@@ -242,7 +246,8 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
     "non-zero | 2       | 3      | 1610001234       "
   })
   void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
-    Map<String, String> headers = headers(
+    Map<String, String> headers =
+        headers(
             X_AMZN_TRACE_ID,
             "Root=1-00000000-00000000"
                 + XRayTestHelper.zeroPadId(traceId)
@@ -252,7 +257,8 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
                 + endToEndStartTime
                 + ";k2=v2");
 
-    ExtractedContext context = (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
+    ExtractedContext context =
+        (ExtractedContext) this.extractor.extract(headers, stringValuesMap());
 
     assertEquals(DDTraceId.from(traceId), context.getTraceId());
     assertEquals(DDSpanId.from(spanId), context.getSpanId());
