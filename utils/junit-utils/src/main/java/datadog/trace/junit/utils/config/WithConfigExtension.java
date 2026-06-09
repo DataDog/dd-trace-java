@@ -71,6 +71,7 @@ public class WithConfigExtension
 
   @Override
   public void beforeAll(ExtensionContext context) {
+    // Back up config and apply class-level config values.
     if (originalSystemProperties == null) {
       saveProperties();
     }

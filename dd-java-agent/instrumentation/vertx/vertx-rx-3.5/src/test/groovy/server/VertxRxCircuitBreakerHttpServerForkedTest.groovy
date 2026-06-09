@@ -40,6 +40,11 @@ class VertxRxCircuitBreakerHttpServerForkedTest extends VertxHttpServerForkedTes
   }
 
   @Override
+  boolean testBodyFilenames() {
+    false
+  }
+
+  @Override
   boolean testBodyJson() {
     false
   }

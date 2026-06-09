@@ -2,139 +2,89 @@ package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.params.provider.Arguments.arguments;
-import static org.mockito.Mockito.lenient;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.DDTags;
 import datadog.trace.api.TagMap;
-import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
+import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
-import java.util.HashMap;
-import java.util.Map;
-import java.util.stream.Stream;
-import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.Arguments;
-import org.junit.jupiter.params.provider.MethodSource;
-import org.mockito.Mock;
-import org.mockito.junit.jupiter.MockitoExtension;
+import java.util.Objects;
+import org.junit.jupiter.api.Test;
+import org.tabletest.junit.TableTest;
 
-@ExtendWith(MockitoExtension.class)
-class InternalTagsAdderTest {
+class InternalTagsAdderTest extends DDJavaSpecification {
 
-  @Mock DDSpanContext spanContext;
-  @Mock AppendableSpanLinks links;
-
-  static Stream<Arguments> baseServiceArguments() {
-    return Stream.of(
-        // (scenario, spanServiceName, expected base.service tag or null)
-        arguments("service differs -> base.service set", "anotherOne", "test"),
-        arguments("service matches exactly -> no base.service", "test", null),
-        arguments("service matches case-insensitively -> no base.service", "TeSt", null));
-  }
-
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("baseServiceArguments")
-  void addsBaseServiceWhenServiceDiffersFromDdService(
-      String scenario, String spanServiceName, String expectedBaseService) {
-    InternalTagsAdder adder = new InternalTagsAdder("test", null);
-    when(spanContext.getServiceName()).thenReturn(spanServiceName);
+  @TableTest({
+    "scenario          | serviceName | expectsBaseService",
+    "different service | anotherOne  | true              ",
+    "exact match       | test        | false             ",
+    "case insensitive  | TeSt        | false             "
+  })
+  void shouldAddBaseServiceWhenServiceDiffersToDdService(
+      String serviceName, boolean expectsBaseService) {
+    InternalTagsAdder calculator = new InternalTagsAdder("test", null);
+    DDSpanContext spanContext = mock(DDSpanContext.class);
+    when(spanContext.getServiceName()).thenReturn(serviceName);
 
     TagMap unsafeTags = TagMap.fromMap(Collections.emptyMap());
-    adder.processTags(unsafeTags, spanContext, links);
+    calculator.processTags(unsafeTags, spanContext, link -> {});
 
-    assertEquals(expectedBaseService, unsafeTags.getString(DDTags.BASE_SERVICE));
+    verify(spanContext, times(1)).getServiceName();
+
+    if (expectsBaseService) {
+      assertEquals(UTF8BytesString.create("test"), unsafeTags.get("_dd.base_service"));
+    } else {
+      assertTrue(unsafeTags.isEmpty());
+    }
   }
 
-  static Stream<Arguments> versionArguments() {
-    return Stream.of(
-        // (scenario, ddService, spanServiceName, ddVersion, existing tags, expected version tag)
-        arguments("matches, no version configured", "same", "same", null, noTags(), null),
-        arguments(
-            "differs, version not added on base.service branch",
-            "same",
-            "different",
-            "1.0",
-            noTags(),
-            null),
-        arguments(
-            "differs, span keeps its own version",
-            "same",
-            "different",
-            "1.0",
-            versionTag("2.0"),
-            "2.0"),
-        arguments(
-            "matches, existing version not overwritten",
-            "same",
-            "same",
-            null,
-            versionTag("2.0"),
-            "2.0"),
-        arguments(
-            "matches, configured version not overwriting existing",
-            "same",
-            "same",
-            "1.0",
-            versionTag("2.0"),
-            "2.0"),
-        arguments("matches, configured version added", "same", "same", "1.0", noTags(), "1.0"));
+  @TableTest({
+    "scenario                          | serviceName | ddVersion | initialVersion | expected",
+    "same service, no version          | same        |           |                |         ",
+    "different service with ddVersion  | different   | 1.0       |                |         ",
+    "different service, manual version | different   | 1.0       | 2.0            | 2.0     ",
+    "same service, no ddVersion        | same        |           | 2.0            | 2.0     ",
+    "same service, both versions       | same        | 1.0       | 2.0            | 2.0     ",
+    "same service, only ddVersion      | same        | 1.0       |                | 1.0     "
+  })
+  void shouldAddVersionWhenDdServiceEqualsServiceNameAndVersionSet(
+      String serviceName, String ddVersion, String initialVersion, String expected) {
+    InternalTagsAdder calculator = new InternalTagsAdder("same", ddVersion);
+    DDSpanContext spanContext = mock(DDSpanContext.class);
+    when(spanContext.getServiceName()).thenReturn(serviceName);
+
+    TagMap unsafeTags =
+        TagMap.fromMap(
+            initialVersion != null
+                ? Collections.singletonMap("version", initialVersion)
+                : Collections.emptyMap());
+    calculator.processTags(unsafeTags, spanContext, link -> {});
+
+    verify(spanContext, times(1)).getServiceName();
+    assertEquals(expected, Objects.toString(unsafeTags.get(VERSION), null));
   }
 
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("versionArguments")
-  void addsVersionWhenServiceMatchesDdService(
-      String scenario,
-      String ddService,
-      String spanServiceName,
-      String ddVersion,
-      Map<String, Object> existingTags,
-      String expectedVersion) {
-    InternalTagsAdder adder = new InternalTagsAdder(ddService, ddVersion);
-    when(spanContext.getServiceName()).thenReturn(spanServiceName);
-
-    TagMap unsafeTags = TagMap.fromMap(existingTags);
-    adder.processTags(unsafeTags, spanContext, links);
-
-    assertEquals(expectedVersion, unsafeTags.getString(VERSION));
-  }
-
-  /**
-   * Regression for the empty-DD_SERVICE edge case (see PR #11555 review): an explicitly-empty
-   * service name is a valid config (the config provider passes "" through, not the default). The
-   * version branch must still be reached when the span's service name also matches the empty
-   * configured service -- pre-building the base.service entry must not short-circuit it.
-   */
-  @ParameterizedTest(name = "{0}")
-  @MethodSource("emptyServiceArguments")
-  void emptyDdServicePreservesVersionHandling(
-      String scenario, String spanServiceName, String expectedVersion) {
+  // Regression: an explicitly-empty DD_SERVICE is valid (the config provider passes "" through).
+  // The version branch must still be reached when the span service also matches the empty value.
+  @Test
+  void emptyDdServicePreservesVersionHandling() {
     InternalTagsAdder adder = new InternalTagsAdder("", "1.0");
-    lenient().when(spanContext.getServiceName()).thenReturn(spanServiceName);
+    DDSpanContext spanContext = mock(DDSpanContext.class);
 
-    TagMap unsafeTags = TagMap.fromMap(Collections.emptyMap());
-    adder.processTags(unsafeTags, spanContext, links);
+    when(spanContext.getServiceName()).thenReturn("");
+    TagMap tags = TagMap.fromMap(Collections.emptyMap());
+    adder.processTags(tags, spanContext, link -> {});
+    assertEquals("1.0", Objects.toString(tags.get(VERSION), null));
 
-    assertEquals(expectedVersion, unsafeTags.getString(VERSION));
-  }
-
-  static Stream<Arguments> emptyServiceArguments() {
-    return Stream.of(
-        // empty span service matches empty DD_SERVICE -> version branch reached
-        arguments("empty service matches -> version added", "", "1.0"),
-        // non-empty span service differs from empty DD_SERVICE -> base.service branch, no version
-        arguments("non-empty service differs -> no version", "nonempty", null));
-  }
-
-  private static Map<String, Object> noTags() {
-    return Collections.emptyMap();
-  }
-
-  private static Map<String, Object> versionTag(String version) {
-    Map<String, Object> tags = new HashMap<>();
-    tags.put("version", version);
-    return tags;
+    when(spanContext.getServiceName()).thenReturn("nonempty");
+    tags = TagMap.fromMap(Collections.emptyMap());
+    adder.processTags(tags, spanContext, link -> {});
+    assertNull(tags.get(VERSION));
   }
 }

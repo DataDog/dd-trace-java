@@ -63,6 +63,11 @@ gradlePlugin {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
     }
+
+    create("sca-enrichments-plugin") {
+      id = "dd-trace-java.sca-enrichments"
+      implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
+    }
   }
 }
 
@@ -77,7 +82,7 @@ repositories {
 dependencies {
   implementation(gradleApi())
 
-  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.8")
+  implementation("net.bytebuddy", "byte-buddy-gradle-plugin", "1.18.10")
 
   implementation("org.eclipse.aether", "aether-connector-basic", "1.1.0")
   implementation("org.eclipse.aether", "aether-transport-http", "1.1.0")

@@ -99,6 +99,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "");
     ShellCommandExecutor shellCommandExecutor =
         new ShellCommandExecutor(projectFolder.toFile(), GRADLE_STOP_TIMEOUT_MILLIS, env);
@@ -114,7 +115,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
-    // Avoid inheriting CI's GRADLE_OPTS which might be incompatible with the tested JVM.
+    // Avoid inheriting CI Gradle launcher settings that might be incompatible with this wrapper.
+    env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "");
     ShellCommandExecutor shellCommandExecutor =
         new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, env);
@@ -139,6 +141,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "-javaagent:" + AGENT_JAR);
     env.put("DD_CIVISIBILITY_ENABLED", "true");
     env.put("DD_CIVISIBILITY_AGENTLESS_ENABLED", "true");
