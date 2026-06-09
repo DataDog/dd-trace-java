@@ -46,6 +46,9 @@ final class AggregateTable {
     this(
         maxAggregates,
         additionalTagsSchema,
+        // Read fresh from Config rather than the frozen MetricCardinalityLimits.ENABLED so tests
+        // can flip the flag via injectSysConfig before constructing the table. In production the
+        // two are identical (Config is immutable for the process lifetime).
         new PropertyHandlers(Config.get().isTraceStatsCardinalityLimitsEnabled()));
   }
 
