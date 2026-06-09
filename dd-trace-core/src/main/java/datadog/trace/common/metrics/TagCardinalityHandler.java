@@ -1,6 +1,7 @@
 package datadog.trace.common.metrics;
 
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
+import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import java.util.Arrays;
 
 /**
@@ -72,6 +73,11 @@ final class TagCardinalityHandler {
    * miss-with-budget) the prior-cycle table; mixing with the upper half ({@code h ^ (h >>> 16)})
    * keeps inputs sharing a low-bit pattern off the same probe chain.
    */
+  @SuppressFBWarnings(
+      value = "ES_COMPARING_PARAMETER_STRING_WITH_EQ",
+      justification =
+          "Intentional identity fast-path: the reference check short-circuits the .equals() call"
+              + " when the stored key and probe value are the same instance.")
   UTF8BytesString register(String value) {
     if (value == null) {
       return UTF8BytesString.EMPTY;
