@@ -139,8 +139,7 @@ public class DDAgentFeaturesDiscovery implements DroppingPolicy {
 
   private synchronized void discoverIfOutdated(final long maxElapsedMs) {
     final long now = System.currentTimeMillis();
-    final State previous = discoveryState;
-    final long elapsed = now - previous.lastTimeDiscovered;
+    final long elapsed = now - discoveryState.lastTimeDiscovered;
     if (elapsed > maxElapsedMs) {
       final State newState = new State();
       doDiscovery(newState);
