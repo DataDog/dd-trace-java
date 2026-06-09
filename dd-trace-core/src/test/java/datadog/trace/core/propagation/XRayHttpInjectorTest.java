@@ -9,7 +9,6 @@ import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.trace.api.Config;
@@ -27,7 +26,6 @@ import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.HashMap;
-import java.util.LinkedHashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
@@ -43,7 +41,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
   void setup() {
     this.injector =
         XRayHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
-    TimeSource  timeSource = mock(TimeSource.class);
+    TimeSource timeSource = mock(TimeSource.class);
     when(timeSource.getCurrentTimeMillis()).thenReturn(1_664_906_869_196L);
     when(timeSource.getCurrentTimeNanos()).thenReturn(1_664_906_869_196_787_813L);
     when(timeSource.getNanoTicks()).thenReturn(1_664_906_869_196L);
@@ -78,11 +76,11 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k", "v");
     baggage.put("some-baggage-key", "some-value");
-    DDSpanContext mockedContext =
+    DDSpanContext spanContext =
         createContext(DDTraceId.from(traceId), DDSpanId.from(spanId), samplingPriority, baggage);
     Map<String, String> carrier = new HashMap<>();
 
-    this.injector.inject(mockedContext, carrier, Map::put);
+    this.injector.inject(spanContext, carrier, Map::put);
 
     assertEquals(1, carrier.size());
     assertEquals(expectedTraceHeader, carrier.get(X_AMZN_TRACE_ID));
@@ -97,52 +95,48 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     "mixed trace id | aaaaaaaaffffffff | 1                | 'Root=1-633c7675-00000000aaaaaaaaffffffff;Parent=0000000000000001;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
     "max span id    | 1                | ffffffffffffffff | 'Root=1-633c7675-000000000000000000000001;Parent=ffffffffffffffff;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'"
   })
-  @SuppressWarnings("unchecked")
   void injectHttpHeadersWithExtractedOriginal(
       String traceId, String spanId, String expectedTraceHeader) {
-    Map<String, String> headers =
-        headers(
-            X_AMZN_TRACE_ID,
-            "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId));
+    // spotless:off
+    Map<String, String> headers = headers(
+        X_AMZN_TRACE_ID,  "Root=1-00000000-00000000" + zeroPadId(traceId) + ";Parent=" + zeroPadId(spanId)
+    );
+    // spotless:on
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
     HttpCodec.Extractor extractor =
         XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
     TagContext context = extractor.extract(headers, stringValuesMap());
-    Map<String, String> baggage = new LinkedHashMap<>();
+    Map<String, String> baggage = new HashMap<>();
     baggage.put("k", "v");
     baggage.put("some-baggage-key", "some-value");
-    DDSpanContext spanContext = createContext(context.getTraceId(), context.getSpanId(), UNSET, baggage);
-    Map<String, String> carrier = mock(Map.class);
+    DDSpanContext spanContext =
+        createContext(context.getTraceId(), context.getSpanId(), UNSET, baggage);
+    Map<String, String> carrier = new HashMap<>();
 
     this.injector.inject(spanContext, carrier, Map::put);
 
-    verify(carrier).put(X_AMZN_TRACE_ID, expectedTraceHeader);
+    assertEquals(1, carrier.size());
+    assertEquals(expectedTraceHeader, carrier.get(X_AMZN_TRACE_ID));
   }
 
   @Test
   void injectHttpHeadersWithEndToEnd() {
     DDSpanContext spanContext =
-        createContext(
-            DDTraceId.from("1"),
-            DDSpanId.from("2"),
-            UNSET,
-            singletonMap("k", "v"));
+        createContext(DDTraceId.from("1"), DDSpanId.from("2"), UNSET, singletonMap("k", "v"));
+    spanContext.beginEndToEnd();
     Map<String, String> carrier = new HashMap<>();
 
-    spanContext.beginEndToEnd();
     this.injector.inject(spanContext, carrier, Map::put);
 
-    String expectedTraceId = "Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;t0=1664906869196;k=v";
+    String expectedTraceHeader =
+        "Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;t0=1664906869196;k=v";
     assertEquals(1, carrier.size());
-    assertEquals(expectedTraceId, carrier.get(X_AMZN_TRACE_ID));
+    assertEquals(expectedTraceHeader, carrier.get(X_AMZN_TRACE_ID));
   }
 
   private DDSpanContext createContext(
-      DDTraceId traceId,
-      long spanId,
-      int samplingPriority,
-      Map<String, String> baggage) {
+      DDTraceId traceId, long spanId, int samplingPriority, Map<String, String> baggage) {
     return new DDSpanContext(
         traceId,
         spanId,
