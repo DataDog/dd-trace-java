@@ -178,43 +178,25 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
 
   /*
    * Tag-id keyed variants. The tagId encodes the tag's identity (see KnownTags); generated
-   * instrumentation uses these to avoid hashing tag-name strings. The default implementations
-   * resolve the name via KnownTags.nameOf and delegate to the string-keyed methods; OptimizedTagMap
-   * overrides them to build tag-id-bearing entries directly. Requires a registered
-   * KnownTags.Resolver to resolve the tag name.
+   * instrumentation uses these to avoid hashing tag-name strings. OptimizedTagMap routes these to
+   * its positional slots; LegacyTagMap resolves the name via KnownTags.nameOf and delegates to the
+   * string-keyed methods. (Abstract rather than default to keep the two implementations explicit.)
    */
-  default void set(long tagId, Object value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, Object value);
 
-  default void set(long tagId, CharSequence value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, CharSequence value);
 
-  default void set(long tagId, boolean value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, boolean value);
 
-  default void set(long tagId, int value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, int value);
 
-  default void set(long tagId, long value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, long value);
 
-  default void set(long tagId, float value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, float value);
 
-  default void set(long tagId, double value) {
-    this.set(KnownTags.nameOf(tagId), value);
-  }
+  void set(long tagId, double value);
 
-  default Entry getEntry(long tagId) {
-    String name = KnownTags.nameOf(tagId);
-    return name == null ? null : this.getEntry(name);
-  }
+  Entry getEntry(long tagId);
 
   /** sets the value while returning the prior Entry */
   Entry getAndSet(String tag, Object value);
@@ -1348,7 +1330,7 @@ final class OptimizedTagMapFactory extends TagMapFactory<OptimizedTagMap> {
 
   @Override
   public OptimizedTagMap empty() {
-    return OptimizedTagMap.EMPTY;
+    return OptimizedTagMap.empty();
   }
 }
 
@@ -1393,10 +1375,24 @@ final class LegacyTagMapFactory extends TagMapFactory<LegacyTagMap> {
  * removed from the collision chain.
  */
 final class OptimizedTagMap implements TagMap {
-  // Using special constructor that creates a frozen view of an existing array
-  // Bucket calculation requires that array length is a power of 2
-  // e.g. size 0 will not work, it results in ArrayIndexOutOfBoundsException, but size 1 does
-  static final OptimizedTagMap EMPTY = new OptimizedTagMap(new Object[1], 0);
+  // The shared empty (frozen) instance, via an initialization-on-demand holder.
+  //
+  // It must NOT be a direct static field of OptimizedTagMap: TagMap.EMPTY is computed in
+  // TagMap.<clinit> through the factory (which returns this empty instance), and TagMap.<clinit>
+  // can run *during* OptimizedTagMap.<clinit> (before its static fields are assigned). A direct
+  // field would still be null at that point, so TagMap.EMPTY would capture null. A separate holder
+  // class initializes independently, so the factory always gets a valid instance regardless of
+  // which class is touched first.
+  //
+  // Special constructor creates a frozen view of an existing array; bucket calculation requires a
+  // power-of-2 length (size 0 fails with AIOOBE, size 1 works).
+  static OptimizedTagMap empty() {
+    return EmptyHolder.EMPTY;
+  }
+
+  private static final class EmptyHolder {
+    static final OptimizedTagMap EMPTY = new OptimizedTagMap(new Object[1], 0);
+  }
 
   // Default capacity for the lazily-allocated knownEntries array (one slot per fieldPos). Known
   // tags' fieldPos values are small (a span type carries well under this many tags); a tagId whose
@@ -3585,6 +3581,49 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   @Override
   public void set(TagMap.EntryReader newEntryReader) {
     this.put(newEntryReader.tag(), newEntryReader.objectValue());
+  }
+
+  // Tag-id keyed variants: LegacyTagMap is name-keyed, so resolve the name via KnownTags and
+  // delegate to the string-keyed methods. Requires a registered KnownTags.Resolver.
+  @Override
+  public void set(long tagId, Object value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, CharSequence value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, boolean value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, int value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, long value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, float value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public void set(long tagId, double value) {
+    this.set(KnownTags.nameOf(tagId), value);
+  }
+
+  @Override
+  public TagMap.Entry getEntry(long tagId) {
+    String name = KnownTags.nameOf(tagId);
+    return name == null ? null : this.getEntry(name);
   }
 
   @Override

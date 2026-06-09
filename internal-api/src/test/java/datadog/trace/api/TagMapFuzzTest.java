@@ -11,16 +11,65 @@ import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ThreadLocalRandom;
+import java.util.Random;
 import java.util.function.Supplier;
 import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.BeforeAll;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.TestInfo;
+import org.junit.jupiter.api.extension.ExtendWith;
+import org.junit.jupiter.api.extension.ExtensionContext;
+import org.junit.jupiter.api.extension.TestWatcher;
 
+@ExtendWith(TagMapFuzzTest.SeedReporter.class)
 public final class TagMapFuzzTest {
   static final int NUM_KEYS = 128;
   static final int MAX_NUM_ACTIONS = 32;
   static final int MIN_NUM_ACTIONS = 8;
+
+  // Seedable RNG for reproducibility. Each test reseeds in @BeforeEach: from
+  // -Ddatadog.tagmap.fuzz.seed when set, else a fresh random seed (always logged). On failure
+  // SeedReporter reprints the seed + reproduce command. Static because the random* helpers are
+  // static; the fuzz tests are single-threaded.
+  static final String SEED_PROPERTY = "datadog.tagmap.fuzz.seed";
+  static Random rng;
+  static long currentSeed;
+
+  @BeforeEach
+  void seedRng(TestInfo info) {
+    String prop = System.getProperty(SEED_PROPERTY);
+    currentSeed = (prop != null) ? Long.parseLong(prop.trim()) : new Random().nextLong();
+    rng = new Random(currentSeed);
+    System.out.println(
+        info.getDisplayName()
+            + " seed="
+            + currentSeed
+            + "  (reproduce with -D"
+            + SEED_PROPERTY
+            + "="
+            + currentSeed
+            + ")");
+  }
+
+  static final class SeedReporter implements TestWatcher {
+    @Override
+    public void testFailed(ExtensionContext ctx, Throwable cause) {
+      System.err.println(
+          "TagMapFuzzTest."
+              + ctx.getDisplayName()
+              + " FAILED with seed="
+              + currentSeed
+              + "\n  reproduce: ./gradlew :internal-api:test --tests \""
+              + ctx.getRequiredTestClass().getName()
+              + "."
+              + ctx.getDisplayName()
+              + "\" -D"
+              + SEED_PROPERTY
+              + "="
+              + currentSeed);
+    }
+  }
 
   // Closed-form KnownTags resolver for the fuzz keys ("key-0".."key-(NUM_KEYS-1)"). Lets the
   // tag-id keyed actions (setById / putAllLedgerById) resolve their names so id-bearing entries
@@ -61,26 +110,36 @@ public final class TagMapFuzzTest {
     return ((long) (n + 1) << 48) | ((long) fieldPos << 32) | nameHash;
   }
 
+  // Number of random sequences per @Test run. Default 1 (fast CI); crank via
+  // -Ddatadog.tagmap.fuzz.iterations=N to hunt rare cases. Deterministic under a fixed seed.
+  static int iterations() {
+    return Integer.getInteger("datadog.tagmap.fuzz.iterations", 1);
+  }
+
   @Test
   void test() {
-    test(generateTest());
+    for (int i = 0, n = iterations(); i < n; ++i) {
+      test(generateTest());
+    }
   }
 
   @Test
   void testMerge() {
-    TestCase mapACase = generateTest();
-    TestCase mapBCase = generateTest();
+    for (int i = 0, n = iterations(); i < n; ++i) {
+      TestCase mapACase = generateTest();
+      TestCase mapBCase = generateTest();
 
-    OptimizedTagMap tagMapA = test(mapACase);
-    OptimizedTagMap tagMapB = test(mapBCase);
+      OptimizedTagMap tagMapA = test(mapACase);
+      OptimizedTagMap tagMapB = test(mapBCase);
 
-    HashMap<String, Object> hashMapA = new HashMap<>(tagMapA);
-    HashMap<String, Object> hashMapB = new HashMap<>(tagMapB);
+      HashMap<String, Object> hashMapA = new HashMap<>(tagMapA);
+      HashMap<String, Object> hashMapB = new HashMap<>(tagMapB);
 
-    tagMapA.putAll(tagMapB);
-    hashMapA.putAll(hashMapB);
+      tagMapA.putAll(tagMapB);
+      hashMapA.putAll(hashMapB);
 
-    assertMapEquals(hashMapA, tagMapA);
+      assertMapEquals(hashMapA, tagMapA);
+    }
   }
 
   @Test
@@ -975,8 +1034,7 @@ public final class TagMapFuzzTest {
   }
 
   public static final TestCase generateTest() {
-    int numActions =
-        ThreadLocalRandom.current().nextInt(MAX_NUM_ACTIONS - MIN_NUM_ACTIONS) + MIN_NUM_ACTIONS;
+    int numActions = rng.nextInt(MAX_NUM_ACTIONS - MIN_NUM_ACTIONS) + MIN_NUM_ACTIONS;
     return generateTest(numActions);
   }
 
@@ -989,7 +1047,7 @@ public final class TagMapFuzzTest {
   }
 
   public static final MapAction randomAction() {
-    float actionSelector = ThreadLocalRandom.current().nextFloat();
+    float actionSelector = rng.nextFloat();
 
     switch (randomChoice(0.02, 0.1, 0.2)) {
       case 0:
@@ -1083,11 +1141,11 @@ public final class TagMapFuzzTest {
   }
 
   static final float randomFloat() {
-    return ThreadLocalRandom.current().nextFloat();
+    return rng.nextFloat();
   }
 
   static final int randomChoice(int numChoices) {
-    return ThreadLocalRandom.current().nextInt(numChoices);
+    return rng.nextInt(numChoices);
   }
 
   static final <T> T randomChoice(Supplier<T>... choiceSuppliers) {
@@ -1097,7 +1155,7 @@ public final class TagMapFuzzTest {
   }
 
   static final int randomChoice(double... proportions) {
-    double selector = ThreadLocalRandom.current().nextDouble();
+    double selector = rng.nextDouble();
 
     for (int i = 0; i < proportions.length; ++i) {
       if (selector < proportions[i]) return i;
@@ -1108,15 +1166,15 @@ public final class TagMapFuzzTest {
   }
 
   static final String randomKey() {
-    return "key-" + ThreadLocalRandom.current().nextInt(NUM_KEYS);
+    return "key-" + rng.nextInt(NUM_KEYS);
   }
 
   static final String randomValue() {
-    return "values-" + ThreadLocalRandom.current().nextInt();
+    return "values-" + rng.nextInt();
   }
 
   static final String[] randomKeysAndValues() {
-    int numEntries = ThreadLocalRandom.current().nextInt(NUM_KEYS);
+    int numEntries = rng.nextInt(NUM_KEYS);
 
     String[] keysAndValues = new String[numEntries << 1];
     for (int i = 0; i < keysAndValues.length; i += 2) {

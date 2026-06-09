@@ -279,6 +279,17 @@ dependencies {
   testImplementation(libs.bundles.mockito)
 }
 
+// Forward TagMapFuzzTest knobs (datadog.tagmap.fuzz.seed / .iterations) to the forked test JVM, so
+// a failing run can be reproduced via -Ddatadog.tagmap.fuzz.seed=<seed> (forked test JVMs don't
+// inherit -D from the Gradle invocation).
+tasks.withType<Test>().configureEach {
+  System.getProperties().stringPropertyNames().forEach {
+    if (it.startsWith("datadog.tagmap.fuzz.")) {
+      systemProperty(it, System.getProperty(it))
+    }
+  }
+}
+
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
