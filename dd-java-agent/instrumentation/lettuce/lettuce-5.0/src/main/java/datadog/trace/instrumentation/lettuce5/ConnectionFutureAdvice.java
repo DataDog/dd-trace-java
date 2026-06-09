@@ -2,6 +2,8 @@ package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.disableAsyncPropagation;
+import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.restoreAsyncPropagation;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -38,11 +40,17 @@ public class ConnectionFutureAdvice {
       span.finish();
       return;
     }
-    connectionFuture =
-        connectionFuture.whenComplete(
-            new ConnectionContextBiConsumer(
-                    redisUri, InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
-                .andThen(new LettuceAsyncBiConsumer<>(span)));
+    final boolean restoreCompletionCallbackPropagation = disableAsyncPropagation();
+    try {
+      connectionFuture =
+          connectionFuture.whenComplete(
+              new ConnectionContextBiConsumer(
+                      redisUri,
+                      InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
+                  .andThen(new LettuceAsyncBiConsumer<>(span)));
+    } finally {
+      restoreAsyncPropagation(restoreCompletionCallbackPropagation);
+    }
     // span finished by LettuceAsyncBiConsumer
   }
 }
