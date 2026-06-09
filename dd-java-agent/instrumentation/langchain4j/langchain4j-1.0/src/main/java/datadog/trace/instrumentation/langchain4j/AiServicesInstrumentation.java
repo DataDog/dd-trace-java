@@ -30,6 +30,8 @@ public class AiServicesInstrumentation
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
+            // FQN used to disambiguate from
+            // datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named
             .and(net.bytebuddy.matcher.ElementMatchers.named("invoke"))
             .and(net.bytebuddy.matcher.ElementMatchers.takesArguments(3))
             .and(
@@ -41,9 +43,13 @@ public class AiServicesInstrumentation
   public static final class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AiServiceEvent enter(@Advice.Argument(1) Method method) {
+      if (method == null) return null;
       if (method.getDeclaringClass() == Object.class) return null;
-      return new AiServiceEvent(
-          method.getDeclaringClass().getSimpleName(), method.getName());
+      // Skip streaming/async return types that return before LLM work completes
+      Class<?> returnType = method.getReturnType();
+      if (returnType.getName().contains("TokenStream")
+          || returnType.getName().contains("CompletableFuture")) return null;
+      return new AiServiceEvent(method.getDeclaringClass().getSimpleName(), method.getName());
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)

@@ -37,6 +37,7 @@ public class ChatModelInstrumentation
   public static final class ChatAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static ChatModelEvent enter(@Advice.Argument(0) ChatRequest request) {
+      if (request == null || request.parameters() == null) return null;
       return new ChatModelEvent(request.parameters().modelName());
     }
 

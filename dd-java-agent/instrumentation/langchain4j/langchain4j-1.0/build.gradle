@@ -21,6 +21,11 @@ muzzle {
     module = "langchain4j-core"
     versions = "[$minVer,)"
   }
+  pass {
+    group = "dev.langchain4j"
+    module = "langchain4j"
+    versions = "[$minVer,)"
+  }
 }
 
 addTestSuiteForDir('latestDepTest', 'test')
@@ -30,7 +35,7 @@ dependencies {
   testImplementation group: 'dev.langchain4j', name: 'langchain4j', version: minVer
   testImplementation group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '1.2.0'
   latestDepTestImplementation group: 'dev.langchain4j', name: 'langchain4j', version: '+'
-  latestDepTestCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '+'
+  latestDepTestCompileOnly group: 'dev.langchain4j', name: 'langchain4j-ollama', version: '1.2.0'
 }
 
 tasks.register('runOllamaDemo', JavaExec) {
@@ -39,17 +44,17 @@ tasks.register('runOllamaDemo', JavaExec) {
   mainClass = 'datadog.trace.instrumentation.langchain4j.demo.OllamaLlmPipelineDemo'
   // Pick the highest semver agent jar in build/libs, ignoring classifier jars.
   def agentJar = fileTree("$rootDir/dd-java-agent/build/libs")
-      .include("dd-java-agent-*.jar")
-      .exclude("*-sources.jar", "*-javadoc.jar")
-      .files
-      .sort { f ->
-          def m = f.name =~ /dd-java-agent-(\d+)\.(\d+)\.(\d+)/
-          m ? (m[0][1] as int) * 1_000_000 + (m[0][2] as int) * 1_000 + (m[0][3] as int) : 0
-      }.last()
+    .include("dd-java-agent-*.jar")
+    .exclude("*-sources.jar", "*-javadoc.jar")
+    .files
+    .sort { f ->
+      def m = f.name =~ /dd-java-agent-(\d+)\.(\d+)\.(\d+)/
+      m ? (m[0][1] as int) * 1_000_000 + (m[0][2] as int) * 1_000 + (m[0][3] as int) : 0
+    }.last()
   jvmArgs "-javaagent:${agentJar}",
-      "-Ddd.profiling.enabled=true",
-      "-Ddd.trace.enabled=false",
-      "-Ddd.profiling.start-force-first=true",
-      "-Ddd.profiling.upload.period=10",
-      "-Ddd.profiling.debug.dump_path=/tmp/llm-demo-profiles"
+    "-Ddd.profiling.enabled=true",
+    "-Ddd.writer.type=LoggingWriter",
+    "-Ddd.profiling.start-force-first=true",
+    "-Ddd.profiling.upload.period=10",
+    "-Ddd.profiling.debug.dump_path=/tmp/llm-demo-profiles"
 }
