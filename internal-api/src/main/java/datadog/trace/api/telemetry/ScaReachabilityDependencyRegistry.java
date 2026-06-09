@@ -1,11 +1,15 @@
 package datadog.trace.api.telemetry;
 
+import datadog.trace.api.Config;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Stateful registry for SCA Reachability, implementing the RFC heartbeat model.
@@ -25,8 +29,14 @@ import java.util.concurrent.atomic.AtomicReference;
  */
 public final class ScaReachabilityDependencyRegistry {
 
+  private static final Logger log =
+      LoggerFactory.getLogger(ScaReachabilityDependencyRegistry.class);
+
   public static final ScaReachabilityDependencyRegistry INSTANCE =
       new ScaReachabilityDependencyRegistry();
+
+  private final int maxTrackedDependencies = Config.get().getAppSecScaMaxTrackedDependencies();
+  private final AtomicBoolean capWarningLogged = new AtomicBoolean(false);
 
   /** Keyed by {@link #depKey(String, String)}. */
   private final ConcurrentHashMap<String, DependencyState> dependencies = new ConcurrentHashMap<>();
@@ -52,6 +62,7 @@ public final class ScaReachabilityDependencyRegistry {
   /** Clears all state. Used in tests to reset between test cases. */
   public void resetForTesting() {
     dependencies.clear();
+    capWarningLogged.set(false);
   }
 
   private ScaReachabilityDependencyRegistry() {}
@@ -66,6 +77,14 @@ public final class ScaReachabilityDependencyRegistry {
    */
   public void registerCve(String artifact, String version, String vulnId) {
     String key = depKey(artifact, version);
+    if (!dependencies.containsKey(key) && dependencies.size() >= maxTrackedDependencies) {
+      if (capWarningLogged.compareAndSet(false, true)) {
+        log.warn(
+            "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the limit.",
+            maxTrackedDependencies);
+      }
+      return;
+    }
     DependencyState dep =
         dependencies.computeIfAbsent(key, k -> new DependencyState(artifact, version));
     dep.registerCve(vulnId);
@@ -84,8 +103,17 @@ public final class ScaReachabilityDependencyRegistry {
       String callsiteClass,
       String callsiteSymbol,
       int callsiteLine) {
+    String key = depKey(artifact, version);
+    if (!dependencies.containsKey(key) && dependencies.size() >= maxTrackedDependencies) {
+      if (capWarningLogged.compareAndSet(false, true)) {
+        log.warn(
+            "SCA Reachability: dependency tracking cap ({}) reached, further dependencies will not be tracked. Increase DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES to raise the limit.",
+            maxTrackedDependencies);
+      }
+      return;
+    }
     dependencies
-        .computeIfAbsent(depKey(artifact, version), k -> new DependencyState(artifact, version))
+        .computeIfAbsent(key, k -> new DependencyState(artifact, version))
         .recordHit(vulnId, callsiteClass, callsiteSymbol, callsiteLine);
   }
 

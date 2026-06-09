@@ -1,5 +1,6 @@
 package com.datadog.appsec.sca;
 
+import com.datadog.appsec.sca.ScaMethodCallbackInjector.MethodCallbackSpec;
 import datadog.telemetry.dependency.Dependency;
 import datadog.telemetry.dependency.DependencyResolver;
 import datadog.trace.api.internal.VisibleForTesting;
@@ -11,7 +12,6 @@ import java.lang.instrument.ClassFileTransformer;
 import java.lang.instrument.Instrumentation;
 import java.net.URI;
 import java.net.URL;
-import java.net.URLClassLoader;
 import java.security.CodeSource;
 import java.security.ProtectionDomain;
 import java.util.ArrayList;
@@ -24,13 +24,6 @@ import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.regex.Pattern;
-import net.bytebuddy.jar.asm.ClassReader;
-import net.bytebuddy.jar.asm.ClassVisitor;
-import net.bytebuddy.jar.asm.ClassWriter;
-import net.bytebuddy.jar.asm.Label;
-import net.bytebuddy.jar.asm.MethodVisitor;
-import net.bytebuddy.jar.asm.Opcodes;
-import net.bytebuddy.utility.OpenedClassReader;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -211,8 +204,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         // method-level symbols, to decide if a periodic retry should be scheduled.
         // Doing this check only when version==null avoids the stream allocation on the
         // common path where the version resolves successfully.
-        if (entry.symbols().stream()
-            .anyMatch(s -> s.className().equals(className) && !s.isClassLevel())) {
+        if (hasMethodLevelSymbolForEntry(entry, className)) {
           hasUnresolvedMethodLevelSymbols = true;
         }
         continue;
@@ -222,8 +214,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         continue;
       }
 
-      // Report class-level hit immediately; register method-level CVEs and collect for ASM
-      // injection.
       reportClassLevelHitIfPresent(entry, version, className);
       for (ScaSymbol symbol : entry.symbols()) {
         if (!symbol.className().equals(className) || symbol.isClassLevel()) {
@@ -257,7 +247,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     if (methodCallbacks.isEmpty()) {
       return null;
     }
-    return injectMethodCallbacks(classfileBuffer, methodCallbacks);
+    return ScaMethodCallbackInjector.inject(classfileBuffer, methodCallbacks);
   }
 
   // ---------------------------------------------------------------------------
@@ -367,7 +357,9 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     List<Class<?>> toRetransform = new ArrayList<>();
     Class<?> clazz;
     while ((clazz = pendingRetransform.poll()) != null) {
-      toRetransform.add(clazz);
+      if (instrumentation.isModifiableClass(clazz)) {
+        toRetransform.add(clazz);
+      }
     }
 
     // Resolve any classes queued by name (from processClass timing failures).
@@ -382,8 +374,11 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
         }
         String name = loaded.getName().replace('.', '/');
         if (pendingRetransformNames.contains(name)) {
-          toRetransform.add(loaded);
+          // Always add to matched to drain the pending set; only retransform if modifiable.
           matched.add(name);
+          if (instrumentation.isModifiableClass(loaded)) {
+            toRetransform.add(loaded);
+          }
         }
       }
       pendingRetransformNames.removeAll(matched);
@@ -421,9 +416,21 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   private static boolean hasMethodLevelSymbolForClass(List<ScaEntry> entries, String className) {
-    return entries.stream()
-        .flatMap(e -> e.symbols().stream())
-        .anyMatch(s -> s.className().equals(className) && !s.isClassLevel());
+    for (ScaEntry entry : entries) {
+      if (hasMethodLevelSymbolForEntry(entry, className)) {
+        return true;
+      }
+    }
+    return false;
+  }
+
+  private static boolean hasMethodLevelSymbolForEntry(ScaEntry entry, String className) {
+    for (ScaSymbol symbol : entry.symbols()) {
+      if (symbol.className().equals(className) && !symbol.isClassLevel()) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -473,161 +480,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     return version;
   }
 
-  // ---------------------------------------------------------------------------
-  // Method-level bytecode injection (ASM)
-  // ---------------------------------------------------------------------------
-
-  private static final String CALLBACK_OWNER =
-      "datadog/trace/bootstrap/appsec/sca/ScaReachabilityCallback";
-  private static final String CALLBACK_METHOD = "onMethodHit";
-  private static final String CALLBACK_DESC =
-      "(Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;Ljava/lang/String;I)V";
-
-  @VisibleForTesting
-  byte[] injectMethodCallbacks(
-      byte[] classfileBuffer, Map<String, List<MethodCallbackSpec>> callbacksPerMethod) {
-    ClassReader cr = new ClassReader(classfileBuffer);
-    ClassWriter cw = new ClassWriter(cr, ClassWriter.COMPUTE_MAXS);
-    cr.accept(new MethodCallbackInjector(cw, callbacksPerMethod), ClassReader.EXPAND_FRAMES);
-    return cw.toByteArray();
-  }
-
-  private class MethodCallbackInjector extends ClassVisitor {
-    private final Map<String, List<MethodCallbackSpec>> callbacksPerMethod;
-
-    MethodCallbackInjector(
-        ClassVisitor cv, Map<String, List<MethodCallbackSpec>> callbacksPerMethod) {
-      super(OpenedClassReader.ASM_API, cv);
-      this.callbacksPerMethod = callbacksPerMethod;
-    }
-
-    @Override
-    public MethodVisitor visitMethod(
-        int access, String name, String descriptor, String signature, String[] exceptions) {
-      MethodVisitor mv = super.visitMethod(access, name, descriptor, signature, exceptions);
-      List<MethodCallbackSpec> specs = callbacksPerMethod.get(name);
-      if (specs == null || specs.isEmpty()) {
-        return mv;
-      }
-      return new MethodEntryInjector(mv, specs);
-    }
-  }
-
-  private class MethodEntryInjector extends MethodVisitor {
-    private final List<MethodCallbackSpec> specs;
-    private boolean injected = false;
-
-    MethodEntryInjector(MethodVisitor mv, List<MethodCallbackSpec> specs) {
-      super(OpenedClassReader.ASM_API, mv);
-      this.specs = specs;
-    }
-
-    @Override
-    public void visitLineNumber(int line, Label start) {
-      if (!injected) {
-        injected = true;
-        injectCallbacks(line);
-      }
-      super.visitLineNumber(line, start);
-    }
-
-    @Override
-    public void visitInsn(int opcode) {
-      ensureInjected();
-      super.visitInsn(opcode);
-    }
-
-    @Override
-    public void visitVarInsn(int opcode, int varIndex) {
-      ensureInjected();
-      super.visitVarInsn(opcode, varIndex);
-    }
-
-    @Override
-    public void visitMethodInsn(
-        int opcode, String owner, String name, String descriptor, boolean isInterface) {
-      ensureInjected();
-      super.visitMethodInsn(opcode, owner, name, descriptor, isInterface);
-    }
-
-    @Override
-    public void visitFieldInsn(int opcode, String owner, String name, String descriptor) {
-      ensureInjected();
-      super.visitFieldInsn(opcode, owner, name, descriptor);
-    }
-
-    private void ensureInjected() {
-      if (!injected) {
-        injected = true;
-        injectCallbacks(1); // no debug info - use line 1 as placeholder
-      }
-    }
-
-    private void injectCallbacks(int line) {
-      // No dedup check here: retransformClasses() always starts from the original class bytes,
-      // so the callback must be re-injected on every transformation pass. Deduplication of
-      // actual runtime reports is handled by ScaReachabilityCallback.reported (bootstrap-side),
-      // which persists across retransformations and prevents duplicate hits regardless of how
-      // many times the class is retransformed.
-      for (MethodCallbackSpec spec : specs) {
-        mv.visitLdcInsn(spec.vulnId);
-        mv.visitLdcInsn(spec.artifact);
-        mv.visitLdcInsn(spec.version);
-        mv.visitLdcInsn(spec.dotClassName);
-        mv.visitLdcInsn(spec.methodName);
-        mv.visitLdcInsn(line); // LDC handles the full int range; SIPUSH is limited to -32768..32767
-        mv.visitMethodInsn(
-            Opcodes.INVOKESTATIC, CALLBACK_OWNER, CALLBACK_METHOD, CALLBACK_DESC, false);
-      }
-    }
-  }
-
-  /** Immutable spec for a single method-level callback to inject. */
-  static final class MethodCallbackSpec {
-    final String vulnId;
-    final String artifact;
-    final String version;
-    final String dotClassName;
-    final String methodName;
-
-    MethodCallbackSpec(
-        String vulnId, String artifact, String version, String dotClassName, String methodName) {
-      this.vulnId = vulnId;
-      this.artifact = artifact;
-      this.version = version;
-      this.dotClassName = dotClassName;
-      this.methodName = methodName;
-    }
-  }
-
   @VisibleForTesting
   String findArtifactVersionInClasspath(String artifactName) {
     // Use URI (not URL) to avoid DNS lookups in equals/hashCode (DMI_COLLECTION_OF_URLS)
     Set<URI> scanned = new HashSet<>();
 
-    // Walk URLClassLoader chain (covers Java 8 system classloader and custom classloaders on 9+)
-    ClassLoader cl = Thread.currentThread().getContextClassLoader();
-    while (cl != null) {
-      if (cl instanceof URLClassLoader) {
-        for (URL url : ((URLClassLoader) cl).getURLs()) {
-          try {
-            if (scanned.add(url.toURI())) {
-              String version = findArtifactInUrl(artifactName, url);
-              if (version != null) {
-                return version;
-              }
-            }
-          } catch (Exception e) {
-            log.debug("SCA Reachability: could not scan classloader URL {}", url, e);
-          }
-        }
-      }
-      cl = cl.getParent();
-    }
-
-    // Fallback for Java 9+: system classloader (jdk.internal.loader.ClassLoaders$AppClassLoader)
-    // no longer extends URLClassLoader, so the loop above misses the main classpath. The
-    // java.class.path system property always contains the classpath entries in this case.
+    // AgentThreadFactory sets context classloader to null on agent threads, so a URLClassLoader
+    // chain walk would never execute here. Scan java.class.path directly — this covers both Java 8
+    // and Java 9+ for standard deployments. OSGi / multi-tenant apps and Spring Boot fat JARs with
+    // dynamically loaded bundle classloaders are a known limitation: version resolution for
+    // aggregator artifacts may fail in those environments, falling back to retrying on the next
+    // heartbeat.
     String classpath = System.getProperty("java.class.path", "");
     for (String entry : PATH_SEPARATOR.split(classpath)) {
       if (entry.isEmpty()) {

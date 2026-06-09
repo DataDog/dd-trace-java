@@ -1079,6 +1079,11 @@ public class Agent {
     if (!Config.get().isAppSecScaEnabled()) {
       return;
     }
+    if (!telemetryEnabled || !Config.get().isTelemetryDependencyServiceEnabled()) {
+      log.warn(
+          "Not starting SCA Reachability subsystem: telemetry or dependency collection disabled");
+      return;
+    }
     StaticEventLogger.begin("ScaReachability");
     try {
       final Class<?> scaClass =

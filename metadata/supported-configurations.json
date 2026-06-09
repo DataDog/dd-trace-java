@@ -393,6 +393,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_STACKTRACE_ENABLED": [
       {
         "version": "A",

@@ -26,9 +26,9 @@ import org.junit.jupiter.api.Test;
 /**
  * Tests for method-level symbol detection ({@code method != null} in sca_cves.json).
  *
- * <p>Strategy: test {@link ScaReachabilityTransformer#injectMethodCallbacks} directly to verify the
- * ASM injection mechanism, decoupled from JAR version resolution. The version resolution path is
- * covered by {@link ScaReachabilityTransformerTest}.
+ * <p>Strategy: test {@link ScaMethodCallbackInjector#inject} directly to verify the ASM injection
+ * mechanism, decoupled from JAR version resolution. The version resolution path is covered by
+ * {@link ScaReachabilityTransformerTest}.
  */
 class ScaReachabilityMethodLevelTest {
 
@@ -65,27 +65,27 @@ class ScaReachabilityMethodLevelTest {
   }
 
   // ---------------------------------------------------------------------------
-  // ASM injection: injectMethodCallbacks()
+  // ASM injection: ScaMethodCallbackInjector.inject()
   // ---------------------------------------------------------------------------
 
   @Test
-  void injectMethodCallbacks_returnsModifiedBytecode() throws Exception {
+  void inject_returnsModifiedBytecode() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacks =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks =
         singleCallback("vulnerableMethod");
 
-    byte[] modified = transformer.injectMethodCallbacks(original, callbacks);
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
 
-    assertNotNull(modified, "injectMethodCallbacks must return non-null modified bytecode");
+    assertNotNull(modified, "inject must return non-null modified bytecode");
   }
 
   @Test
-  void injectMethodCallbacks_callbackFiredOnMethodCall() throws Exception {
+  void inject_callbackFiredOnMethodCall() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacks =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks =
         singleCallback("vulnerableMethod");
 
-    byte[] modified = transformer.injectMethodCallbacks(original, callbacks);
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
     Object instance = cls.getDeclaredConstructor().newInstance();
     cls.getMethod("vulnerableMethod").invoke(instance);
@@ -111,12 +111,12 @@ class ScaReachabilityMethodLevelTest {
   }
 
   @Test
-  void injectMethodCallbacks_noCallbackForSafeMethod() throws Exception {
+  void inject_noCallbackForSafeMethod() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacks =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks =
         singleCallback("vulnerableMethod");
 
-    byte[] modified = transformer.injectMethodCallbacks(original, callbacks);
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
     Object instance = cls.getDeclaredConstructor().newInstance();
     cls.getMethod("safeMethod").invoke(instance); // call only the safe method
@@ -126,12 +126,12 @@ class ScaReachabilityMethodLevelTest {
   }
 
   @Test
-  void injectMethodCallbacks_deduplicatesOnMultipleCalls() throws Exception {
+  void inject_deduplicatesOnMultipleCalls() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacks =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks =
         singleCallback("vulnerableMethod");
 
-    byte[] modified = transformer.injectMethodCallbacks(original, callbacks);
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
     Object instance = cls.getDeclaredConstructor().newInstance();
     Method m = cls.getMethod("vulnerableMethod");
@@ -147,9 +147,9 @@ class ScaReachabilityMethodLevelTest {
   }
 
   @Test
-  void injectMethodCallbacks_injectsMultipleMethodsIndependently() throws Exception {
+  void inject_injectsMultipleMethodsIndependently() throws Exception {
     byte[] original = bytecodeOf(TargetClass.class);
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacks = new HashMap<>();
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacks = new HashMap<>();
     callbacks.put(
         "vulnerableMethod",
         Collections.singletonList(
@@ -158,7 +158,7 @@ class ScaReachabilityMethodLevelTest {
         "safeMethod",
         Collections.singletonList(spec("GHSA-m2", "com.example:lib", "1.0.0", "T", "safeMethod")));
 
-    byte[] modified = transformer.injectMethodCallbacks(original, callbacks);
+    byte[] modified = ScaMethodCallbackInjector.inject(original, callbacks);
     Class<?> cls = loadModified(modified);
     Object instance = cls.getDeclaredConstructor().newInstance();
 
@@ -172,8 +172,7 @@ class ScaReachabilityMethodLevelTest {
   }
 
   @Test
-  void injectMethodCallbacks_sameMethodNameInDifferentClassesProduceIndependentHits()
-      throws Exception {
+  void inject_sameMethodNameInDifferentClassesProduceIndependentHits() throws Exception {
     // Regression test for dedup key bug: if two classes in the same artifact share a method
     // name (e.g. ClassA.parse and ClassB.parse), both must be reported independently.
     // With the stateful RFC model, one hit per CVE is reported (first occurrence wins).
@@ -182,7 +181,7 @@ class ScaReachabilityMethodLevelTest {
     // This verifies that ClassB's hit does NOT cause a NullPointerException or error — it is
     // simply ignored since ClassA already provided the first callsite for GHSA-shared.
 
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacksClassA =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacksClassA =
         new HashMap<>();
     callbacksClassA.put(
         "vulnerableMethod",
@@ -194,7 +193,7 @@ class ScaReachabilityMethodLevelTest {
                 "com.example.ClassA",
                 "vulnerableMethod")));
 
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> callbacksClassB =
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> callbacksClassB =
         new HashMap<>();
     callbacksClassB.put(
         "vulnerableMethod",
@@ -207,8 +206,8 @@ class ScaReachabilityMethodLevelTest {
                 "vulnerableMethod")));
 
     byte[] original = bytecodeOf(TargetClass.class);
-    Class<?> clsA = loadModified(transformer.injectMethodCallbacks(original, callbacksClassA));
-    Class<?> clsB = loadModified(transformer.injectMethodCallbacks(original, callbacksClassB));
+    Class<?> clsA = loadModified(ScaMethodCallbackInjector.inject(original, callbacksClassA));
+    Class<?> clsB = loadModified(ScaMethodCallbackInjector.inject(original, callbacksClassB));
 
     clsA.getMethod("vulnerableMethod").invoke(clsA.getDeclaredConstructor().newInstance());
     clsB.getMethod("vulnerableMethod").invoke(clsB.getDeclaredConstructor().newInstance());
@@ -299,9 +298,9 @@ class ScaReachabilityMethodLevelTest {
     return result;
   }
 
-  private static Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> singleCallback(
+  private static Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> singleCallback(
       String methodName) {
-    Map<String, List<ScaReachabilityTransformer.MethodCallbackSpec>> m = new HashMap<>();
+    Map<String, List<ScaMethodCallbackInjector.MethodCallbackSpec>> m = new HashMap<>();
     m.put(
         methodName,
         Collections.singletonList(
@@ -314,9 +313,9 @@ class ScaReachabilityMethodLevelTest {
     return m;
   }
 
-  private static ScaReachabilityTransformer.MethodCallbackSpec spec(
+  private static ScaMethodCallbackInjector.MethodCallbackSpec spec(
       String vulnId, String artifact, String version, String dotClass, String method) {
-    return new ScaReachabilityTransformer.MethodCallbackSpec(
+    return new ScaMethodCallbackInjector.MethodCallbackSpec(
         vulnId, artifact, version, dotClass, method);
   }
 

@@ -24,7 +24,7 @@ import org.gradle.api.Project
 class ScaEnrichmentsPlugin : Plugin<Project> {
 
   companion object {
-    private const val SCA_ENRICHMENTS_API =
+    private const val SCA_ENRICHMENTS_API_DEFAULT =
         "https://api.github.com/repos/DataDog/sca-reachability-database/contents/enrichments"
   }
 
@@ -36,17 +36,24 @@ class ScaEnrichmentsPlugin : Plugin<Project> {
           description =
               "Downloads GHSA enrichments from sca-reachability-database and updates " +
                   "src/main/resources/sca_cves.json. Run with -PrefreshSca to force a refresh. " +
+                  "Override the source URL with -PscaEnrichmentsUrl=<url>. " +
                   "sca_cves.json is committed to the repo so CI does not need network access."
           group = "build"
           outputs.file(outputFile)
+          // upToDateWhen: when -PrefreshSca is set, always consider outputs stale (force re-run).
+          outputs.upToDateWhen { !project.hasProperty("refreshSca") }
+          // onlyIf: skip entirely when the file already exists and no refresh was requested,
+          // so that normal builds (no network, no -PrefreshSca) never touch GitHub.
           onlyIf { project.hasProperty("refreshSca") || !outputFile.exists() }
 
           doLast {
             val token = System.getenv("GITHUB_TOKEN")
+            val apiUrl =
+                project.findProperty("scaEnrichmentsUrl")?.toString() ?: SCA_ENRICHMENTS_API_DEFAULT
 
-            logger.lifecycle("Fetching GHSA enrichment index from GitHub...")
+            logger.lifecycle("Fetching GHSA enrichment index from $apiUrl ...")
             @Suppress("UNCHECKED_CAST")
-            val fileList = githubFetch(SCA_ENRICHMENTS_API, token) as List<Map<String, Any>>
+            val fileList = githubFetch(apiUrl, token) as List<Map<String, Any>>
             val ghsaFiles =
                 fileList.filter {
                   it["name"]?.toString()?.endsWith(".json") == true && it["type"] == "file"

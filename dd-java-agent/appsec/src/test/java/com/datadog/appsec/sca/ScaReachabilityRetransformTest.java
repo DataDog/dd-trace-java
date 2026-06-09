@@ -40,6 +40,7 @@ class ScaReachabilityRetransformTest {
 
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class, Target.class});
+    when(instr.isModifiableClass(Target.class)).thenReturn(true);
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
     ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
@@ -62,6 +63,7 @@ class ScaReachabilityRetransformTest {
 
     Instrumentation instr = mock(Instrumentation.class);
     when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class, Target.class});
+    when(instr.isModifiableClass(Target.class)).thenReturn(true);
     doThrow(new RuntimeException("retransform failed")).when(instr).retransformClasses(any());
 
     ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
@@ -74,5 +76,31 @@ class ScaReachabilityRetransformTest {
         2,
         t.pendingRetransform.size(),
         "both classes must be re-queued in pendingRetransform for the next heartbeat retry");
+  }
+
+  @Test
+  void performPendingRetransforms_skipsNonModifiableClasses() throws Exception {
+    // Non-modifiable classes (e.g. JDK classes, primitive wrappers) must be silently discarded
+    // from the pending set and never passed to retransformClasses. Without this guard they would
+    // loop forever: retransformClasses rejects them, the catch re-queues them, next heartbeat
+    // tries again, ad infinitum.
+    String internalName = Target.class.getName().replace('.', '/');
+
+    Instrumentation instr = mock(Instrumentation.class);
+    when(instr.getAllLoadedClasses()).thenReturn(new Class<?>[] {Target.class});
+    when(instr.isModifiableClass(Target.class)).thenReturn(false);
+
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader("{\"version\":1,\"entries\":[]}"));
+    ScaReachabilityTransformer t = new ScaReachabilityTransformer(db, instr);
+    t.pendingRetransformNames.add(internalName);
+
+    t.performPendingRetransforms();
+
+    assertTrue(
+        t.pendingRetransformNames.isEmpty(),
+        "non-modifiable class must be removed from pendingRetransformNames");
+    assertTrue(
+        t.pendingRetransform.isEmpty(),
+        "non-modifiable class must not be re-queued in pendingRetransform");
   }
 }

@@ -30,6 +30,7 @@ public final class ScaCveDatabase {
 
   private static final Logger log = LoggerFactory.getLogger(ScaCveDatabase.class);
   private static final String RESOURCE_PATH = "/sca_cves.json";
+  private static final int READ_BUFFER_SIZE = 8192;
 
   private final Map<String, List<ScaEntry>> index;
 
@@ -101,9 +102,21 @@ public final class ScaCveDatabase {
       log.debug("SCA Reachability: skipping malformed entry: {}", e);
       return null;
     }
+    // When a class appears with both class-level (method=null) and method-level symbols in the
+    // same entry, the class-level entry is redundant: the method-level callbacks are more precise
+    // and will report the hit when the specific method is called. Drop the class-level symbol to
+    // avoid the first-hit-wins semantics of hitRef filling up with the class-level callsite and
+    // silently discarding the more specific method callsite.
+    Set<String> classesWithMethodLevel = new HashSet<>();
+    for (SymbolJson s : e.symbols) {
+      if (s.className != null && s.method != null) {
+        classesWithMethodLevel.add(s.className);
+      }
+    }
     List<ScaSymbol> symbols = new ArrayList<>(e.symbols.size());
     for (SymbolJson s : e.symbols) {
       if (s.className == null) continue;
+      if (s.method == null && classesWithMethodLevel.contains(s.className)) continue;
       symbols.add(new ScaSymbol(s.className, s.method));
     }
     if (symbols.isEmpty()) return null;
@@ -125,7 +138,7 @@ public final class ScaCveDatabase {
 
   private static String readAll(Reader reader) throws IOException {
     StringBuilder sb = new StringBuilder();
-    char[] buf = new char[8192];
+    char[] buf = new char[READ_BUFFER_SIZE];
     int n;
     while ((n = reader.read(buf)) != -1) {
       sb.append(buf, 0, n);
