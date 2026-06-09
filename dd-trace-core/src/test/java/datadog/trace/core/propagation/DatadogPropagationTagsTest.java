@@ -4,12 +4,10 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
+import static datadog.trace.core.propagation.PropagationTags.factory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
-import datadog.trace.api.Config;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
 import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
 import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
@@ -21,18 +19,6 @@ import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class DatadogPropagationTagsTest extends DDJavaSpecification {
-
-  private PropagationTags.Factory factory;
-
-  private PropagationTags.Factory factory() {
-    if (factory == null) {
-      Config config = mock(Config.class);
-      when(config.getxDatadogTagsMaxLength()).thenReturn(512);
-      factory = PropagationTags.factory(config);
-    }
-    return factory;
-  }
-
   @TableTest({
     "scenario                          | headerValue                                                                                                                  | expectedHeaderValue                        | tags                                                      ",
     "null input                        |                                                                                                                              |                                            | [:]                                                       ",
@@ -130,8 +116,8 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   })
   void updatePropagationTagsSamplingMechanism(
       String originalTagSet,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
-      @ConvertWith(SamplingMechanismConverter.class) int mechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
+      @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       String expectedHeaderValue,
       Map<String, String> tags) {
     PropagationTags propagationTags = factory().fromHeaderValue(DATADOG, originalTagSet);
@@ -172,7 +158,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void extractionLimitExceeded() {
     String tags = "_dd.p.anytag=value";
     int limit = tags.length() - 1;
-    PropagationTags propagationTags = PropagationTags.factory(limit).fromHeaderValue(DATADOG, tags);
+    PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, tags);
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 
@@ -187,7 +173,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
   void injectionLimitExceeded() {
     String tags = "_dd.p.anytag=value";
     int limit = tags.length();
-    PropagationTags propagationTags = PropagationTags.factory(limit).fromHeaderValue(DATADOG, tags);
+    PropagationTags propagationTags = factory(limit).fromHeaderValue(DATADOG, tags);
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 
@@ -199,7 +185,7 @@ class DatadogPropagationTagsTest extends DDJavaSpecification {
 
   @Test
   void injectionLimitExceededLimit0() {
-    PropagationTags propagationTags = PropagationTags.factory(0).fromHeaderValue(DATADOG, "");
+    PropagationTags propagationTags = factory(0).fromHeaderValue(DATADOG, "");
 
     propagationTags.updateTraceSamplingPriority(USER_KEEP, MANUAL);
 

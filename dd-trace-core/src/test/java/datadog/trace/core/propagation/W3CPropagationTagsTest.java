@@ -302,8 +302,8 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   })
   void propagationTagsShouldBeUpdatedBySamplingAndOrigin(
       String headerValue,
-      @ConvertWith(PrioritySamplingConverter.class) int priority,
-      @ConvertWith(SamplingMechanismConverter.class) int mechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte priority,
+      @ConvertWith(SamplingMechanismConverter.class) byte mechanism,
       String origin,
       String expectedHeaderValue,
       Map<String, String> tags) {

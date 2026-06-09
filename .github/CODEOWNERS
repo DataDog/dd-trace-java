@@ -90,6 +90,8 @@
 /dd-trace-api/src/main/java/datadog/trace/api/EventTracker.java @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/gateway/          @DataDog/asm-java
 /internal-api/src/main/java/datadog/trace/api/http/             @DataDog/asm-java
+/internal-api/src/main/java/datadog/trace/api/telemetry/ScaReachability* @DataDog/asm-java
+/telemetry/src/main/java/datadog/telemetry/sca/                 @DataDog/asm-java
 **/appsec/                                                      @DataDog/asm-java
 **/*CallSite*.java                                              @DataDog/asm-java
 **/*CallSite*.groovy                                            @DataDog/asm-java

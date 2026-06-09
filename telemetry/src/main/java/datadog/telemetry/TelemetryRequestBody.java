@@ -271,6 +271,19 @@ public class TelemetryRequestBody extends RequestBody {
     bodyWriter.name("hash").value(d.hash); // optional
     bodyWriter.name("name").value(d.name);
     bodyWriter.name("version").value(d.version); // optional
+    if (d.reachabilityMetadata != null) {
+      // Write metadata array even when empty: empty list signals "SCA is active for this dep"
+      // (RFC: all deps get metadata:[] at startup when DD_APPSEC_SCA_ENABLED=true).
+      // Null means SCA is disabled; empty list means SCA is enabled but no CVEs detected yet.
+      bodyWriter.name("metadata").beginArray();
+      for (String value : d.reachabilityMetadata) {
+        bodyWriter.beginObject();
+        bodyWriter.name("type").value("reachability");
+        bodyWriter.name("value").value(value); // stringified JSON per RFC
+        bodyWriter.endObject();
+      }
+      bodyWriter.endArray();
+    }
     bodyWriter.endObject();
   }
 
