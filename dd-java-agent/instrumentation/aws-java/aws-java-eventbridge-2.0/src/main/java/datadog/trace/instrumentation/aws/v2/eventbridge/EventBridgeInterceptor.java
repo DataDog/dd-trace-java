@@ -87,14 +87,14 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       String detailType,
       long startTime) {
     Context context = executionAttributes.getAttribute(CONTEXT_ATTRIBUTE);
-    String resourceName = eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
+    String resourceName =
+        eventBusName == null || eventBusName.isEmpty() ? DEFAULT_EVENT_BUS_NAME : eventBusName;
     StringBuilder jsonBuilder = new StringBuilder();
     jsonBuilder.append('{');
 
     // Inject context
     if (traceConfig().isDataStreamsEnabled()) {
-      String dsmTopic = buildDataStreamsTopic(eventBusName, detailType);
-      DataStreamsTags tags = DataStreamsTags.create("eventbridge", OUTBOUND, dsmTopic);
+      DataStreamsTags tags = buildDataStreamsTags(eventBusName, detailType);
       DataStreamsContext dsmContext = DataStreamsContext.fromTags(tags);
       context = context.with(dsmContext);
     }
@@ -118,12 +118,22 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
     return jsonBuilder.toString();
   }
 
-  static String buildDataStreamsTopic(String eventBusName, String detailType) {
-    String normalizedEventBusName = normalizeEventBusName(eventBusName);
-    if (detailType == null || detailType.isEmpty()) {
-      return normalizedEventBusName;
-    }
-    return normalizedEventBusName + ":" + detailType;
+  static DataStreamsTags buildDataStreamsTags(String eventBusName, String detailType) {
+    return new DataStreamsTags(
+        null,
+        OUTBOUND,
+        normalizeEventBusName(eventBusName),
+        normalizeDetailType(detailType),
+        "eventbridge",
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null,
+        null);
   }
 
   static String normalizeEventBusName(String eventBusName) {
@@ -137,5 +147,12 @@ public class EventBridgeInterceptor implements ExecutionInterceptor {
       return eventBusName.substring(arnBusNameStart + EVENT_BUS_ARN_PREFIX.length());
     }
     return eventBusName;
+  }
+
+  static String normalizeDetailType(String detailType) {
+    if (detailType == null || detailType.isEmpty()) {
+      return null;
+    }
+    return detailType;
   }
 }
