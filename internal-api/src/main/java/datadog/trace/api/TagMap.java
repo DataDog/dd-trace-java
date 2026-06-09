@@ -253,6 +253,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
    */
   Entry getAndRemove(String tag);
 
+  /** Tag-id keyed removal (no prior value). See {@link #remove(String)}. */
+  boolean remove(long tagId);
+
+  /** Tag-id keyed removal returning the prior Entry. See {@link #getAndRemove(String)}. */
+  Entry getAndRemove(long tagId);
+
   /** Returns a mutable copy of this TagMap */
   TagMap copy();
 
@@ -310,6 +316,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       return new EntryRemoval(tag);
     }
 
+    public static final EntryRemoval newRemoval(long tagId) {
+      return new EntryRemoval(tagId);
+    }
+
     // tagId encoding: bits 63-48 = globalSerial (0 for unknown tags), bits 47-32 = fieldPos,
     // bits 31-0 = nameHash (_hash(tagName)). String-constructed entries have upper 32 bits zero
     // with the hash lazily populated on first hash(). tagId-constructed entries have all bits set
@@ -331,8 +341,15 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       this.tag = null; // resolved lazily via tag()
     }
 
-    public String tag() {
-      return this.tag;
+    // For tagId-constructed changes (entries and removals) the name is resolved lazily from the
+    // tagId via KnownTags and cached. Benign race: KnownTags.nameOf returns the same interned
+    // constant, so re-resolution is harmless.
+    public final String tag() {
+      String name = this.tag;
+      if (name != null) return name;
+      name = KnownTags.nameOf(this.tagId);
+      if (name != null) this.tag = name;
+      return name;
     }
 
     public final boolean matches(String tag) {
@@ -352,6 +369,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
   final class EntryRemoval extends EntryChange {
     EntryRemoval(String tag) {
       super(tag);
+    }
+
+    EntryRemoval(long tagId) {
+      super(tagId);
     }
 
     @Override
@@ -581,15 +602,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       hash = _hash(this.tag);
       this.tagId = hash & 0xFFFFFFFFL;
       return hash;
-    }
-
-    @Override
-    public String tag() {
-      String name = this.tag;
-      if (name != null) return name;
-      name = KnownTags.nameOf(this.tagId);
-      if (name != null) this.tag = name;
-      return name;
     }
 
     @Override
@@ -1160,6 +1172,10 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
       return this.recordRemoval(EntryChange.newRemoval(tag));
     }
 
+    public Ledger remove(long tagId) {
+      return this.recordRemoval(EntryChange.newRemoval(tagId));
+    }
+
     private Ledger recordEntry(Entry entry) {
       this.recordChange(entry);
       return this;
@@ -1243,7 +1259,12 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
         EntryChange change = entryChanges[i];
 
         if (change.isRemoval()) {
-          map.remove(change.tag());
+          // route tag-id removals by id (slot-aware, no name round-trip); string removals by name
+          if (KnownTags.globalSerial(change.tagId) != 0) {
+            map.remove(change.tagId);
+          } else {
+            map.remove(change.tag());
+          }
         } else {
           map.set((Entry) change);
         }
@@ -2131,6 +2152,24 @@ final class OptimizedTagMap implements TagMap {
 
   public boolean remove(String tag) {
     return (this.getAndRemove(tag) != null);
+  }
+
+  @Override
+  public boolean remove(long tagId) {
+    return (this.getAndRemove(tagId) != null);
+  }
+
+  @Override
+  public Entry getAndRemove(long tagId) {
+    this.checkWriteAccess();
+
+    // known tags live in their slot - clear there first (by id, no name needed)
+    Entry slotEntry = this.knownRemove(tagId);
+    if (slotEntry != null) return slotEntry;
+
+    // otherwise it may have collided into the buckets - look up by resolved name
+    String name = KnownTags.nameOf(tagId);
+    return name == null ? null : this.removeFromBuckets(name, KnownTags.nameHash(tagId));
   }
 
   @Override
@@ -3424,6 +3463,19 @@ final class LegacyTagMap extends HashMap<String, Object> implements TagMap {
   public TagMap.Entry getAndRemove(String tag) {
     Object prior = this.remove((Object) tag);
     return prior == null ? null : TagMap.Entry.newAnyEntry(tag, prior);
+  }
+
+  // Tag-id keyed removals: LegacyTagMap is name-keyed, so resolve the name and delegate.
+  @Override
+  public boolean remove(long tagId) {
+    String name = KnownTags.nameOf(tagId);
+    return name != null && this.remove(name);
+  }
+
+  @Override
+  public TagMap.Entry getAndRemove(long tagId) {
+    String name = KnownTags.nameOf(tagId);
+    return name == null ? null : this.getAndRemove(name);
   }
 
   @Override

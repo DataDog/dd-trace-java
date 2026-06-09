@@ -1,6 +1,7 @@
 package datadog.trace.api;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertSame;
@@ -171,5 +172,53 @@ public class TagMapTagIdTest {
     assertEquals("PUT", map.get(HTTP_METHOD));
     assertEquals("redis", map.get(DB_SYSTEM));
     assertEquals(2, map.size());
+  }
+
+  @Test
+  public void removeById_clearsAndReportsSize() {
+    TagMap map = TagMap.create();
+    map.set(HTTP_METHOD_ID, "GET");
+    assertEquals(1, map.size());
+
+    assertTrue(map.remove(HTTP_METHOD_ID));
+    assertNull(map.getEntry(HTTP_METHOD_ID));
+    assertNull(map.getEntry(HTTP_METHOD));
+    assertEquals(0, map.size());
+    assertFalse(map.remove(HTTP_METHOD_ID)); // already gone
+  }
+
+  @Test
+  public void getAndRemoveById_returnsPrior() {
+    TagMap map = TagMap.create();
+    map.set(HTTP_STATUS_ID, 404);
+
+    Entry prior = map.getAndRemove(HTTP_STATUS_ID);
+    assertNotNull(prior);
+    assertEquals(404, prior.intValue());
+    assertNull(map.getEntry(HTTP_STATUS_ID));
+  }
+
+  @Test
+  public void removeById_removesStringSetTag() {
+    // set by name, removed by id (id resolves to the same tag, slot or bucket)
+    TagMap map = TagMap.create();
+    map.set(DB_SYSTEM, "postgresql");
+
+    assertTrue(map.remove(DB_SYSTEM_ID));
+    assertNull(map.get(DB_SYSTEM));
+  }
+
+  @Test
+  public void ledger_removeById() {
+    TagMap map =
+        TagMap.ledger()
+            .set(HTTP_METHOD_ID, "GET")
+            .set(DB_SYSTEM_ID, "mysql")
+            .remove(DB_SYSTEM_ID)
+            .build();
+
+    assertEquals("GET", map.get(HTTP_METHOD));
+    assertNull(map.get(DB_SYSTEM));
+    assertEquals(1, map.size());
   }
 }

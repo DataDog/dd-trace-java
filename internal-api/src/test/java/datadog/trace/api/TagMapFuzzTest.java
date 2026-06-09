@@ -1062,6 +1062,7 @@ public final class TagMapFuzzTest {
         return randomChoice(
             () -> remove(randomKey()),
             () -> removeLight(randomKey()),
+            () -> removeById(randomKey()),
             () -> getAndRemove(randomKey()));
 
       default:
@@ -1115,6 +1116,10 @@ public final class TagMapFuzzTest {
 
   public static final MapAction removeLight(String key) {
     return new RemoveLight(key);
+  }
+
+  public static final MapAction removeById(String key) {
+    return new RemoveById(key);
   }
 
   public static final MapAction getAndRemove(String key) {
@@ -1676,6 +1681,39 @@ public final class TagMapFuzzTest {
     @Override
     public String toString() {
       return String.format("removeLight(%s)", literal(this.key));
+    }
+  }
+
+  static final class RemoveById extends ReturningAction<Object, Boolean> {
+    final String key;
+
+    RemoveById(String key) {
+      this.key = key;
+    }
+
+    @Override
+    protected Boolean _applyToTestMap(TagMap testMap) {
+      return testMap.remove(tagIdOf(this.key));
+    }
+
+    @Override
+    protected Object _applyToExpectedMap(Map<String, Object> expectedMap) {
+      return expectedMap.remove(this.key);
+    }
+
+    @Override
+    protected void _verifyResults(Object expected, Boolean actual) {
+      assertEquals((expected != null), actual);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      assertFalse(testMap.containsKey(this.key));
+    }
+
+    @Override
+    public String toString() {
+      return String.format("removeById(%s)", literal(this.key));
     }
   }
 
