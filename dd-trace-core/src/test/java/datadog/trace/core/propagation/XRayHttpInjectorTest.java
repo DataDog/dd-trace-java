@@ -2,6 +2,8 @@ package datadog.trace.core.propagation;
 
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
+import static datadog.trace.core.propagation.XRayHttpCodec.X_AMZN_TRACE_ID;
+import static datadog.trace.core.propagation.XRayTestHelper.zeroPadId;
 import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonMap;
 import static org.mockito.Mockito.clearInvocations;
@@ -39,7 +41,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
 
   @BeforeEach
   void setup() {
-    injector = XRayHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
+    this.injector = XRayHttpCodec.newInjector(singletonMap("some-baggage-key", "SOME_CUSTOM_HEADER"));
   }
 
   @TableTest({
@@ -108,15 +110,15 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
             .build();
     Map<String, String> headers =
         headers(
-            "X-Amzn-Trace-Id",
+            X_AMZN_TRACE_ID,
             "Root=1-00000000-00000000"
-                + padLeft(traceId, 16, '0')
+                + zeroPadId(traceId)
                 + ";Parent="
-                + padLeft(spanId, 16, '0'));
+                + zeroPadId(spanId));
     DynamicConfig<DynamicConfig.Snapshot> dynamicConfig =
         DynamicConfig.create().setHeaderTags(emptyMap()).setBaggageMapping(emptyMap()).apply();
     HttpCodec.Extractor extractor =
-        XRayHttpCodec.newExtractor(Config.get(), () -> dynamicConfig.captureTraceConfig());
+        XRayHttpCodec.newExtractor(Config.get(), dynamicConfig::captureTraceConfig);
     TagContext context = extractor.extract(headers, stringValuesMap());
     Map<String, String> baggage = new LinkedHashMap<>();
     baggage.put("k", "v");
@@ -130,7 +132,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     injector.inject(mockedContext, carrier, Map::put);
 
     verify(timeSource).getCurrentTimeMillis();
-    verify(carrier).put("X-Amzn-Trace-Id", expectedTraceHeader);
+    verify(carrier).put(X_AMZN_TRACE_ID, expectedTraceHeader);
     verifyNoMoreInteractions(timeSource, carrier);
 
     tracer.close();
@@ -168,7 +170,7 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     verify(timeSource, times(2)).getNanoTicks();
     verify(carrier)
         .put(
-            "X-Amzn-Trace-Id",
+            X_AMZN_TRACE_ID,
             "Root=1-633c7675-000000000000000000000001;Parent=0000000000000002;_dd.origin=fakeOrigin;t0=1664906869195;k=v");
     verifyNoMoreInteractions(timeSource, carrier);
 
@@ -201,13 +203,5 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
         NoopPathwayContext.INSTANCE,
         false,
         null);
-  }
-
-  private static String padLeft(String s, int size, char pad) {
-    if (s.length() >= size) return s;
-    StringBuilder sb = new StringBuilder(size);
-    for (int i = 0; i < size - s.length(); i++) sb.append(pad);
-    sb.append(s);
-    return sb.toString();
   }
 }
