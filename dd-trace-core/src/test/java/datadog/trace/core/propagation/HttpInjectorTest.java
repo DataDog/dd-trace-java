@@ -40,12 +40,12 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
   @BeforeEach
   void setup() {
     ListWriter writer = new ListWriter();
-    tracer = tracerBuilder().writer(writer).build();
+    this.tracer = tracerBuilder().writer(writer).build();
   }
 
   @AfterEach
   void tearDown() {
-    tracer.close();
+    this.tracer.close();
   }
 
   protected boolean tracePropagationB3Padding() {
@@ -53,21 +53,21 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                       | styles                       | samplingPriority              | origin  ",
-    "DATADOG,B3SINGLE unset         | [DATADOG, B3SINGLE]          | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3SINGLE keep saipan   | [DATADOG, B3SINGLE]          | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG only unset             | [DATADOG]                    | PrioritySampling.UNSET        |         ",
-    "DATADOG only keep saipan       | [DATADOG]                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE only unset            | [B3SINGLE]                   | PrioritySampling.UNSET        |         ",
-    "B3SINGLE only keep saipan      | [B3SINGLE]                   | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE,DATADOG keep saipan   | [B3SINGLE, DATADOG]          | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG,B3MULTI,B3SINGLE unset | [DATADOG, B3MULTI, B3SINGLE] | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3MULTI,B3SINGLE keep  | [DATADOG, B3MULTI, B3SINGLE] | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "DATADOG,B3MULTI unset          | [DATADOG, B3MULTI]           | PrioritySampling.UNSET        |         ",
-    "DATADOG,B3MULTI keep saipan    | [DATADOG, B3MULTI]           | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI only unset             | [B3MULTI]                    | PrioritySampling.UNSET        |         ",
-    "B3MULTI only keep saipan       | [B3MULTI]                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI,DATADOG keep saipan    | [B3MULTI, DATADOG]           | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario                       | styles                       | samplingPriority | origin  ",
+    "DATADOG,B3SINGLE unset         | [DATADOG, B3SINGLE]          | UNSET            |         ",
+    "DATADOG,B3SINGLE keep saipan   | [DATADOG, B3SINGLE]          | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG only unset             | [DATADOG]                    | UNSET            |         ",
+    "DATADOG only keep saipan       | [DATADOG]                    | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE only unset            | [B3SINGLE]                   | UNSET            |         ",
+    "B3SINGLE only keep saipan      | [B3SINGLE]                   | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE,DATADOG keep saipan   | [B3SINGLE, DATADOG]          | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG,B3MULTI,B3SINGLE unset | [DATADOG, B3MULTI, B3SINGLE] | UNSET            |         ",
+    "DATADOG,B3MULTI,B3SINGLE keep  | [DATADOG, B3MULTI, B3SINGLE] | SAMPLER_KEEP     | 'saipan'",
+    "DATADOG,B3MULTI unset          | [DATADOG, B3MULTI]           | UNSET            |         ",
+    "DATADOG,B3MULTI keep saipan    | [DATADOG, B3MULTI]           | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI only unset             | [B3MULTI]                    | UNSET            |         ",
+    "B3MULTI only keep saipan       | [B3MULTI]                    | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI,DATADOG keep saipan    | [B3MULTI, DATADOG]           | SAMPLER_KEEP     | 'saipan'"
   })
   void injectHttpHeadersUsingStyles(
       List<TracePropagationStyle> styles,
@@ -127,16 +127,16 @@ class HttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario               | style    | samplingPriority              | origin  ",
-    "DATADOG unset          | DATADOG  | PrioritySampling.UNSET        |         ",
-    "DATADOG keep no origin | DATADOG  | PrioritySampling.SAMPLER_KEEP |         ",
-    "DATADOG keep saipan    | DATADOG  | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3SINGLE unset         | B3SINGLE | PrioritySampling.UNSET        |         ",
-    "B3SINGLE keep no orig  | B3SINGLE | PrioritySampling.SAMPLER_KEEP |         ",
-    "B3SINGLE keep saipan   | B3SINGLE | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "B3MULTI unset          | B3MULTI  | PrioritySampling.UNSET        |         ",
-    "B3MULTI keep no origin | B3MULTI  | PrioritySampling.SAMPLER_KEEP |         ",
-    "B3MULTI keep saipan    | B3MULTI  | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario               | style    | samplingPriority | origin  ",
+    "DATADOG unset          | DATADOG  | UNSET            |         ",
+    "DATADOG keep no origin | DATADOG  | SAMPLER_KEEP     |         ",
+    "DATADOG keep saipan    | DATADOG  | SAMPLER_KEEP     | 'saipan'",
+    "B3SINGLE unset         | B3SINGLE | UNSET            |         ",
+    "B3SINGLE keep no orig  | B3SINGLE | SAMPLER_KEEP     |         ",
+    "B3SINGLE keep saipan   | B3SINGLE | SAMPLER_KEEP     | 'saipan'",
+    "B3MULTI unset          | B3MULTI  | UNSET            |         ",
+    "B3MULTI keep no origin | B3MULTI  | SAMPLER_KEEP     |         ",
+    "B3MULTI keep saipan    | B3MULTI  | SAMPLER_KEEP     | 'saipan'"
   })
   void injectHttpHeadersUsingStyle(
       TracePropagationStyle style,

@@ -60,12 +60,12 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario    | traceId          | spanId           | samplingPriority | expectedSamplingPriority     ",
-    "no sampling | 1                | 2                | ''               | PrioritySampling.UNSET       ",
-    "sampled 1   | 2                | 3                | ';Sampled=1'     | PrioritySampling.SAMPLER_KEEP",
-    "sampled 0   | 3                | 4                | ';Sampled=0'     | PrioritySampling.SAMPLER_DROP",
-    "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | PrioritySampling.SAMPLER_DROP",
-    "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | PrioritySampling.SAMPLER_KEEP"
+    "scenario    | traceId          | spanId           | samplingPriority | expectedSamplingPriority",
+    "no sampling | 1                | 2                | ''               | UNSET                   ",
+    "sampled 1   | 2                | 3                | ';Sampled=1'     | SAMPLER_KEEP            ",
+    "sampled 0   | 3                | 4                | ';Sampled=0'     | SAMPLER_DROP            ",
+    "max trace   | ffffffffffffffff | fffffffffffffffe | ';Sampled=0'     | SAMPLER_DROP            ",
+    "max span    | fffffffffffffffe | ffffffffffffffff | ';Sampled=1'     | SAMPLER_KEEP            "
   })
   void extractHttpHeaders(
       String traceId,

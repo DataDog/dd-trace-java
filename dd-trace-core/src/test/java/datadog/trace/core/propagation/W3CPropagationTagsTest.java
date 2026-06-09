@@ -288,12 +288,12 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario               | headerValue                       | priority                      | mechanism                           | origin | expectedHeaderValue                | tags                    ",
-    "sampler keep default   | 'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.DEFAULT           | other  | 'dd=s:0;o:other;t.dm:934086a686-4' | [_dd.p.dm: 934086a686-4]",
-    "user keep local rule   | 'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | same   | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | [_dd.p.dm: '-3']        ",
-    "user drop manual       | 'dd=s:0;o:some;x:unknown'         | PrioritySampling.USER_DROP    | SamplingMechanism.MANUAL            |        | 'dd=s:-1;x:unknown'                | [:]                     ",
-    "keep external override | 'dd=s:0;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:1;o:other;t.dm:-0'           | [_dd.p.dm: '-0']        ",
-    "drop external override | 'dd=s:1;o:some;t.dm:934086a686-4' | PrioritySampling.SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:0;o:other'                   | [:]                     "
+    "scenario               | headerValue                       | priority     | mechanism                           | origin | expectedHeaderValue                | tags                    ",
+    "sampler keep default   | 'dd=s:0;o:some;t.dm:934086a686-4' | SAMPLER_KEEP | SamplingMechanism.DEFAULT           | other  | 'dd=s:0;o:other;t.dm:934086a686-4' | [_dd.p.dm: 934086a686-4]",
+    "user keep local rule   | 'dd=s:0;o:some;x:unknown'         | USER_KEEP    | SamplingMechanism.LOCAL_USER_RULE   | same   | 'dd=s:2;o:same;t.dm:-3;x:unknown'  | [_dd.p.dm: '-3']        ",
+    "user drop manual       | 'dd=s:0;o:some;x:unknown'         | USER_DROP    | SamplingMechanism.MANUAL            |        | 'dd=s:-1;x:unknown'                | [:]                     ",
+    "keep external override | 'dd=s:0;o:some;t.dm:934086a686-4' | SAMPLER_KEEP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:1;o:other;t.dm:-0'           | [_dd.p.dm: '-0']        ",
+    "drop external override | 'dd=s:1;o:some;t.dm:934086a686-4' | SAMPLER_DROP | SamplingMechanism.EXTERNAL_OVERRIDE | other  | 'dd=s:0;o:other'                   | [:]                     "
   })
   void propagationTagsShouldBeUpdatedBySamplingAndOrigin(
       String headerValue,

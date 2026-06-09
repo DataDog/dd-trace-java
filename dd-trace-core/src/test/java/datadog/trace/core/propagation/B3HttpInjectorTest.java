@@ -62,14 +62,14 @@ class B3HttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId | spanId | samplingPriority              | expectedSamplingPriority     ",
-    "unset             | 1       | 2      | PrioritySampling.UNSET        |                              ",
-    "sampler keep      | 2       | 3      | PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP",
-    "sampler drop      | 4       | 5      | PrioritySampling.SAMPLER_DROP | PrioritySampling.SAMPLER_DROP",
-    "user keep         | 5       | 6      | PrioritySampling.USER_KEEP    | PrioritySampling.SAMPLER_KEEP",
-    "user drop         | 6       | 7      | PrioritySampling.USER_DROP    | PrioritySampling.SAMPLER_DROP",
-    "uint64 max unset  | -1      | -2     | PrioritySampling.UNSET        |                              ",
-    "uint64 max-1 keep | -2      | -1     | PrioritySampling.SAMPLER_KEEP | PrioritySampling.SAMPLER_KEEP"
+    "scenario          | traceId | spanId | samplingPriority | expectedSamplingPriority",
+    "unset             | 1       | 2      | UNSET            |                         ",
+    "sampler keep      | 2       | 3      | SAMPLER_KEEP     | SAMPLER_KEEP            ",
+    "sampler drop      | 4       | 5      | SAMPLER_DROP     | SAMPLER_DROP            ",
+    "user keep         | 5       | 6      | USER_KEEP        | SAMPLER_KEEP            ",
+    "user drop         | 6       | 7      | USER_DROP        | SAMPLER_DROP            ",
+    "uint64 max unset  | -1      | -2     | UNSET            |                         ",
+    "uint64 max-1 keep | -2      | -1     | SAMPLER_KEEP     | SAMPLER_KEEP            "
   })
   void injectHttpHeaders(
       long traceId,

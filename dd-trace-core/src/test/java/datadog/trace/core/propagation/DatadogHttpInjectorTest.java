@@ -51,11 +51,11 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId          | spanId           | samplingPriority              | origin  ",
-    "unset no origin   | '1'              | '2'              | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '1'              | '2'              | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | PrioritySampling.SAMPLER_KEEP |         "
+    "scenario          | traceId          | spanId           | samplingPriority | origin  ",
+    "unset no origin   | '1'              | '2'              | UNSET            |         ",
+    "keep with origin  | '1'              | '2'              | SAMPLER_KEEP     | 'saipan'",
+    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | UNSET            | 'saipan'",
+    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | SAMPLER_KEEP     |         "
   })
   void injectHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,

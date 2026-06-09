@@ -80,11 +80,11 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId          | spanId           | samplingPriority              | origin  ",
-    "unset no origin   | '1'              | '2'              | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '2'              | '3'              | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario          | traceId          | spanId           | samplingPriority | origin  ",
+    "unset no origin   | '1'              | '2'              | UNSET            |         ",
+    "keep with origin  | '2'              | '3'              | SAMPLER_KEEP     | 'saipan'",
+    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | UNSET            | 'saipan'",
+    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | SAMPLER_KEEP     | 'saipan'"
   })
   void extractHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,

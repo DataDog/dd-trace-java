@@ -1,5 +1,6 @@
 package datadog.trace.core.propagation;
 
+import static datadog.trace.api.sampling.PrioritySampling.UNSET;
 import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import static datadog.trace.api.sampling.SamplingMechanism.MANUAL;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
@@ -13,7 +14,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.datastreams.NoopPathwayContext;
-import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
@@ -49,12 +49,12 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario                | traceId        | spanId         | samplingPriority              | origin | tracestate                                    ",
-    "unset 1->2              | 1              | 2              | PrioritySampling.UNSET        |        | 'dd=p:0000000000000002;t.usr:123'             ",
-    "keep 1->4 saipan        | 1              | 4              | PrioritySampling.SAMPLER_KEEP | saipan | 'dd=s:1;o:saipan;p:0000000000000004;t.usr:123'",
-    "unset max->max-1 saipan | TRACE_ID_MAX   | TRACE_ID_MAX-1 | PrioritySampling.UNSET        | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
-    "keep max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | PrioritySampling.SAMPLER_KEEP |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
-    "drop max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | PrioritySampling.SAMPLER_DROP |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
+    "scenario                | traceId        | spanId         | samplingPriority | origin | tracestate                                    ",
+    "unset 1->2              | 1              | 2              | UNSET            |        | 'dd=p:0000000000000002;t.usr:123'             ",
+    "keep 1->4 saipan        | 1              | 4              | SAMPLER_KEEP     | saipan | 'dd=s:1;o:saipan;p:0000000000000004;t.usr:123'",
+    "unset max->max-1 saipan | TRACE_ID_MAX   | TRACE_ID_MAX-1 | UNSET            | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
+    "keep max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | SAMPLER_KEEP     |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
+    "drop max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | SAMPLER_DROP     |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
   })
   void injectHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -96,7 +96,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
         mockSpanContext(
             DDTraceId.from("1"),
             DDSpanId.from("2"),
-            PrioritySampling.UNSET,
+            UNSET,
             "fakeOrigin",
             baggage,
             PropagationTags.factory().fromHeaderValue(DATADOG, "_dd.p.dm=-4,_dd.p.anytag=value"));
@@ -106,7 +106,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     this.injector.inject(mockedContext, carrier, Map::put);
 
     Map<String, String> expected = new HashMap<>();
-    expected.put(TRACE_PARENT_KEY, buildTraceParent("1", "2", PrioritySampling.UNSET));
+    expected.put(TRACE_PARENT_KEY, buildTraceParent("1", "2", UNSET));
     expected.put(TRACE_STATE_KEY, "dd=o:fakeOrigin;p:0000000000000002;t.dm:-4;t.anytag:value");
     expected.put(
         OT_BAGGAGE_PREFIX + "t0", String.valueOf(mockedContext.getEndToEndStartTime() / 1000000L));
@@ -124,7 +124,7 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
         mockSpanContext(
             DDTraceId.from("1"),
             DDSpanId.from("2"),
-            PrioritySampling.UNSET,
+            UNSET,
             "fakeOrigin",
             baggage,
             PropagationTags.factory().empty());
