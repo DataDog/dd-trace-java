@@ -69,11 +69,6 @@ abstract class PubSubTest extends VersionedNamingTestBase {
     null
   }
 
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
-
   boolean shadowGrpcSpans() {
     true
   }

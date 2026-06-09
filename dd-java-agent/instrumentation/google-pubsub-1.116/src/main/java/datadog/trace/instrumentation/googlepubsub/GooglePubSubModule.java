@@ -1,9 +1,8 @@
 package datadog.trace.instrumentation.googlepubsub;
 
+import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.EXECUTOR;
 import static datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter.ExcludeType.RUNNABLE;
 import static java.util.Arrays.asList;
-import static java.util.Collections.singletonList;
-import static java.util.Collections.singletonMap;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.ExcludeFilterProvider;
@@ -11,6 +10,7 @@ import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.instrumentation.java.concurrent.ExcludeFilter;
 import java.util.Collection;
+import java.util.EnumMap;
 import java.util.List;
 import java.util.Map;
 
@@ -35,7 +35,16 @@ public class GooglePubSubModule extends InstrumenterModule.Tracing
 
   @Override
   public Map<ExcludeFilter.ExcludeType, ? extends Collection<String>> excludedClasses() {
-    return singletonMap(RUNNABLE, singletonList("com.google.api.gax.rpc.Watchdog"));
+    final List<String> gaxInternalRunnables =
+        asList(
+            "com.google.api.gax.rpc.Watchdog",
+            "com.google.api.gax.retrying.BasicRetryingFuture$CompletionListener",
+            "com.google.api.gax.retrying.CallbackChainRetryingFuture$AttemptCompletionListener");
+    final Map<ExcludeFilter.ExcludeType, Collection<String>> excluded =
+        new EnumMap<>(ExcludeFilter.ExcludeType.class);
+    excluded.put(RUNNABLE, gaxInternalRunnables);
+    excluded.put(EXECUTOR, gaxInternalRunnables);
+    return excluded;
   }
 
   @Override
