@@ -9,12 +9,6 @@ import datadog.metrics.api.Histograms
 import datadog.metrics.impl.DDSketchHistograms
 import datadog.trace.api.Config
 import datadog.trace.api.WellKnownTags
-import datadog.trace.common.metrics.AggregateEntry
-import datadog.trace.common.metrics.EventListener
-import datadog.trace.common.metrics.OkHttpSink
-import datadog.trace.common.metrics.PeerTagSchema
-import datadog.trace.common.metrics.SerializingMetricWriter
-import datadog.trace.common.metrics.SpanSnapshot
 import java.util.concurrent.CopyOnWriteArrayList
 import java.util.concurrent.CountDownLatch
 import okhttp3.HttpUrl
