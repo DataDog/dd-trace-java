@@ -25,6 +25,11 @@ tasks.named("compileVthread21TestJava", JavaCompile) {
 tasks.named("vthread21Test", Test) {
   testJvmConstraints {
     minJavaVersion = JavaVersion.VERSION_21
+    // Cap at 24 to match java-concurrent-21.0, which provides the virtual-thread scope propagation
+    // (TaskRunner/VirtualThread instrumentation) this suite relies on and is only supported through
+    // JDK 24. Without this, the suite runs on the JDK 25 / "tip" (26) CI shards and times out
+    // because that propagation chain isn't active there.
+    maxJavaVersion = JavaVersion.VERSION_24
   }
 }
 
