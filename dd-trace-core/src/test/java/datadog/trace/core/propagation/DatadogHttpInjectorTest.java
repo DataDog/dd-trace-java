@@ -23,6 +23,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -50,15 +51,15 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId                | spanId                 | samplingPriority              | origin  ",
-    "unset no origin   | '1'                    | '2'                    | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '1'                    | '2'                    | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | '18446744073709551615' | '18446744073709551614' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | '18446744073709551614' | '18446744073709551615' | PrioritySampling.SAMPLER_KEEP |         "
+    "scenario          | traceId          | spanId           | samplingPriority              | origin  ",
+    "unset no origin   | '1'              | '2'              | PrioritySampling.UNSET        |         ",
+    "keep with origin  | '1'              | '2'              | PrioritySampling.SAMPLER_KEEP | 'saipan'",
+    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | PrioritySampling.UNSET        | 'saipan'",
+    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | PrioritySampling.SAMPLER_KEEP |         "
   })
   void injectHttpHeaders(
-      String traceId,
-      String spanId,
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
       @ConvertWith(PrioritySamplingConverter.class) byte samplingPriority,
       String origin) {
     Map<String, String> baggage = new HashMap<>();
