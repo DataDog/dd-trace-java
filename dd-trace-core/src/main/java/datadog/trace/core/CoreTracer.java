@@ -115,7 +115,6 @@ import datadog.trace.lambda.LambdaHandler;
 import datadog.trace.util.AgentTaskScheduler;
 import java.io.IOException;
 import java.lang.ref.WeakReference;
-import java.math.BigInteger;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
@@ -140,11 +139,8 @@ import org.slf4j.LoggerFactory;
  */
 public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
   private static final Logger log = LoggerFactory.getLogger(CoreTracer.class);
-  // UINT64 max value
-  public static final BigInteger TRACE_ID_MAX =
-      BigInteger.valueOf(2).pow(64).subtract(BigInteger.ONE);
 
-  public static final CoreTracerBuilder builder() {
+  public static CoreTracerBuilder builder() {
     return new CoreTracerBuilder();
   }
 

@@ -65,6 +65,10 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   internal abstract val projectJars: ListProperty<NestedBuildProjectJar>
 
+  internal abstract val initScripts: ListProperty<String>
+
+  internal abstract val gradleProperties: MapProperty<String, String>
+
   init {
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
@@ -75,6 +79,28 @@ abstract class SmokeTestAppExtension @Inject constructor(
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
+      },
+    )
+
+    val isCi = project.providers.environmentVariable("CI")
+      .map { it.equals("true", ignoreCase = true) }
+      .orElse(false)
+    initScripts.convention(
+      isCi.map {
+        if (it) {
+          listOf(PROXY_REPOSITORIES_INIT_SCRIPT)
+        } else {
+          emptyList()
+        }
+      },
+    )
+    gradleProperties.convention(
+      isCi.map {
+        if (it) {
+          proxyGradleProperties()
+        } else {
+          emptyMap()
+        }
       },
     )
   }
@@ -188,6 +214,20 @@ abstract class SmokeTestAppExtension @Inject constructor(
         )
       },
     )
+  }
+
+  private fun proxyGradleProperties(): Map<String, String> {
+    val properties = mutableMapOf<String, String>()
+    addGradleProperty(properties, "gradlePluginProxy")
+    addGradleProperty(properties, "mavenRepositoryProxy")
+    return properties
+  }
+
+  private fun addGradleProperty(properties: MutableMap<String, String>, name: String) {
+    val value = project.providers.gradleProperty(name).orNull
+    if (!value.isNullOrBlank()) {
+      properties[name] = value
+    }
   }
 }
 
