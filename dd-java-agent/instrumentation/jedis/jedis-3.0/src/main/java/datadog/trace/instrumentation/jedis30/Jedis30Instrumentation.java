@@ -1,10 +1,13 @@
 package datadog.trace.instrumentation.jedis30;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.ClassLoaderMatchers.hasClassNamed;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.activateSpan;
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
-import static datadog.trace.instrumentation.jedis30.JedisClientDecorator.DECORATE;
+import static datadog.trace.instrumentation.jedis30.Jedis30ClientDecorator.COMPONENT_NAME;
+import static datadog.trace.instrumentation.jedis30.Jedis30ClientDecorator.DECORATE;
 import static net.bytebuddy.matcher.ElementMatchers.isMethod;
+import static net.bytebuddy.matcher.ElementMatchers.not;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
@@ -13,24 +16,26 @@ import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.bootstrap.CallDepthThreadLocalMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import java.nio.charset.StandardCharsets;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.matcher.ElementMatcher;
 import redis.clients.jedis.Connection;
 import redis.clients.jedis.Protocol;
 import redis.clients.jedis.commands.ProtocolCommand;
 
 @AutoService(InstrumenterModule.class)
-public final class JedisInstrumentation extends InstrumenterModule.Tracing
+public final class Jedis30Instrumentation extends InstrumenterModule.Tracing
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
-  public JedisInstrumentation() {
+  public Jedis30Instrumentation() {
     super("jedis", "redis");
   }
 
   @Override
-  public String[] helperClassNames() {
-    return new String[] {
-      packageName + ".JedisClientDecorator",
-    };
+  public ElementMatcher.Junction<ClassLoader> classLoaderMatcher() {
+    // Match Jedis 3.x only: ProtocolCommand exists in 3.x+, CommandObject exists in 4.x+
+    return hasClassNamed("redis.clients.jedis.commands.ProtocolCommand")
+        .and(not(hasClassNamed("redis.clients.jedis.CommandObject")));
   }
 
   @Override
@@ -39,16 +44,22 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
   }
 
   @Override
+  public String[] helperClassNames() {
+    return new String[] {
+      packageName + ".Jedis30ClientDecorator",
+    };
+  }
+
+  @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         isMethod()
             .and(named("sendCommand"))
             .and(takesArgument(0, named("redis.clients.jedis.commands.ProtocolCommand"))),
-        JedisInstrumentation.class.getName() + "$JedisAdvice");
-    // FIXME: This instrumentation only incorporates sending the command, not processing the result.
+        Jedis30Instrumentation.class.getName() + "$Jedis30Advice");
   }
 
-  public static class JedisAdvice {
+  public static class Jedis30Advice {
 
     @Advice.OnMethodEnter(suppress = Throwable.class)
     public static AgentScope onEnter(
@@ -56,16 +67,14 @@ public final class JedisInstrumentation extends InstrumenterModule.Tracing
       if (CallDepthThreadLocalMap.incrementCallDepth(Connection.class) > 0) {
         return null;
       }
-      final AgentSpan span = startSpan("redis-command", JedisClientDecorator.OPERATION_NAME);
+      final AgentSpan span =
+          startSpan(COMPONENT_NAME.toString(), Jedis30ClientDecorator.OPERATION_NAME);
       DECORATE.afterStart(span);
       DECORATE.onConnection(span, thiz);
-
       if (command instanceof Protocol.Command) {
         DECORATE.onStatement(span, ((Protocol.Command) command).name());
       } else {
-        // Protocol.Command is the only implementation in the Jedis lib as of 3.1 but this will save
-        // us if that changes
-        DECORATE.onStatement(span, new String(command.getRaw()));
+        DECORATE.onStatement(span, new String(command.getRaw(), StandardCharsets.UTF_8));
       }
       return activateSpan(span);
     }

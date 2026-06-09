@@ -51,7 +51,7 @@ public class JedisClientDecorator extends DBTypeProcessingDatabaseClientDecorato
   }
 
   @Override
-  protected String dbHostname(Connection connection) {
+  protected String dbHostname(final Connection connection) {
     return connection.getHost();
   }
 }
