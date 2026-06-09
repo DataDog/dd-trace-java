@@ -2,7 +2,6 @@ package datadog.trace.core.tagprocessor;
 
 import static datadog.trace.bootstrap.instrumentation.api.Tags.VERSION;
 import static org.junit.jupiter.api.Assertions.assertEquals;
-import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -70,21 +69,15 @@ class InternalTagsAdderTest extends DDJavaSpecification {
     assertEquals(expected, Objects.toString(unsafeTags.get(VERSION), null));
   }
 
-  // Regression: an explicitly-empty DD_SERVICE is valid (the config provider passes "" through).
-  // The version branch must still be reached when the span service also matches the empty value.
+  // Regression: empty DD_SERVICE is treated the same as unset — processTags exits early and
+  // writes no tags, regardless of the span's service name.
   @Test
-  void emptyDdServicePreservesVersionHandling() {
+  void emptyDdServiceWritesNoTags() {
     InternalTagsAdder adder = new InternalTagsAdder("", "1.0");
     DDSpanContext spanContext = mock(DDSpanContext.class);
 
-    when(spanContext.getServiceName()).thenReturn("");
     TagMap tags = TagMap.fromMap(Collections.emptyMap());
     adder.processTags(tags, spanContext, link -> {});
-    assertEquals("1.0", Objects.toString(tags.get(VERSION), null));
-
-    when(spanContext.getServiceName()).thenReturn("nonempty");
-    tags = TagMap.fromMap(Collections.emptyMap());
-    adder.processTags(tags, spanContext, link -> {});
-    assertNull(tags.get(VERSION));
+    assertTrue(tags.isEmpty());
   }
 }

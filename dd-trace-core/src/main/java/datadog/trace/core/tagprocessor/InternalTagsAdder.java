@@ -18,10 +18,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
 
   public InternalTagsAdder(@Nullable final String ddService, @Nullable final String version) {
     this.ddService = ddService != null ? UTF8BytesString.create(ddService) : null;
-    this.baseServiceEntry =
-        this.ddService != null && this.ddService.length() > 0
-            ? TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService)
-            : null;
+    this.baseServiceEntry = TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService);
     this.versionEntry =
         version != null && !version.isEmpty()
             ? TagMap.Entry.create(VERSION, UTF8BytesString.create(version))
@@ -31,18 +28,13 @@ public final class InternalTagsAdder extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    if (spanContext == null || ddService == null) {
+    if (spanContext == null || ddService == null || ddService.length() == 0) {
       return;
     }
 
     if (!ddService.toString().equalsIgnoreCase(spanContext.getServiceName())) {
       // service name != DD_SERVICE
-      if (baseServiceEntry != null) {
-        unsafeTags.set(baseServiceEntry);
-      } else {
-        // Empty DD_SERVICE: no prebuilt entry exists; preserve the original behavior.
-        unsafeTags.set(DDTags.BASE_SERVICE, ddService);
-      }
+      unsafeTags.set(baseServiceEntry);
     } else {
       // as per config consistency, the version tag is added across tracers only if
       // the service name is DD_SERVICE and version  tag is not manually set
