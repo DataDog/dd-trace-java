@@ -1,0 +1,37 @@
+muzzle {
+  pass {
+    name = "javax.jms"
+    group = "javax.jms"
+    module = "jms-api"
+    versions = "[,]"
+  }
+  pass {
+    name = "javax.jms"
+    group = "javax.jms"
+    module = "javax.jms-api"
+    versions = "[,]"
+  }
+}
+
+apply from: "$rootDir/gradle/java.gradle"
+
+addTestSuite('latestDepTest')
+
+dependencies {
+  compileOnly group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
+
+  testImplementation group: 'javax.jms', name: 'jms-api', version: '1.1-rev-1'
+  testImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.14.5'
+  // EmbeddedActiveMQBroker extends org.junit.rules.ExternalResource (JUnit 4)
+  testImplementation group: 'junit', name: 'junit', version: '4.13.2'
+  testImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.14.5'
+  testImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.14.5'
+
+  // required for Java 11+
+  testImplementation group: 'javax.annotation', name: 'javax.annotation-api', version: '1.2'
+
+  // latestDepTest uses ActiveMQ as a widely available JMS provider
+  latestDepTestImplementation group: 'org.apache.activemq', name: 'activemq-broker', version: '5.+'
+  latestDepTestImplementation group: 'org.apache.activemq', name: 'activemq-pool', version: '5.+'
+  latestDepTestImplementation group: 'org.apache.activemq.tooling', name: 'activemq-junit', version: '5.+'
+}
