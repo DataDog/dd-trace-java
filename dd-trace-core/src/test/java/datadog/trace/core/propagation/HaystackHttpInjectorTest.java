@@ -19,10 +19,12 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.params.converter.ConvertWith;
 import org.tabletest.junit.TableTest;
 
 class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
@@ -47,13 +49,17 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | traceId                | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'                    | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'                    | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "uint64 max trace    | '18446744073709551615' | '18446744073709551614' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
-    "uint64 max-1 trace  | '18446744073709551614' | '18446744073709551615' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
+    "scenario            | traceId          | spanId           | traceUuid                              | spanUuid                              ",
+    "small ids           | '1'              | '2'              | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "small ids duplicate | '1'              | '2'              | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "uint64 max trace    | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
+    "uint64 max-1 trace  | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
   })
-  void injectHttpHeaders(String traceId, String spanId, String traceUuid, String spanUuid) {
+  void injectHttpHeaders(
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      String traceUuid,
+      String spanUuid) {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
@@ -77,14 +83,17 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | traceId                | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'                    | '2'                    | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'                    | '2'                    | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "uint64 max trace    | '18446744073709551615' | '18446744073709551614' | '54617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
-    "uint64 max-1 trace  | '18446744073709551614' | '18446744073709551615' | '54617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
+    "scenario            | traceId          | spanId           | traceUuid                              | spanUuid                              ",
+    "small ids           | '1'              | '2'              | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "small ids duplicate | '1'              | '2'              | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "uint64 max trace    | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | '54617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
+    "uint64 max-1 trace  | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | '54617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
   })
   void injectHttpHeadersWithHaystackTraceIdInBaggage(
-      String traceId, String spanId, String traceUuid, String spanUuid) {
+      @ConvertWith(TraceIdConverter.class) String traceId,
+      @ConvertWith(TraceIdConverter.class) String spanId,
+      String traceUuid,
+      String spanUuid) {
     Map<String, String> baggage = new HashMap<>();
     baggage.put("k1", "v1");
     baggage.put("k2", "v2");
