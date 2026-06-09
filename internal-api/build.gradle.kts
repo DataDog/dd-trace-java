@@ -282,4 +282,16 @@ dependencies {
 jmh {
   jmhVersion = libs.versions.jmh.get()
   duplicateClassesStrategy = DuplicatesStrategy.EXCLUDE
+  if (project.hasProperty("jmhInclude")) {
+    includes.set(listOf(project.property("jmhInclude") as String))
+  }
+  if (project.hasProperty("jmhWarmup")) {
+    warmupIterations.set((project.property("jmhWarmup") as String).toInt())
+  }
+  if (project.hasProperty("jmhIterations")) {
+    iterations.set((project.property("jmhIterations") as String).toInt())
+  }
+  if (project.hasProperty("jmhFork")) {
+    fork.set((project.property("jmhFork") as String).toInt())
+  }
 }

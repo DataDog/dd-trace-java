@@ -13,12 +13,53 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ThreadLocalRandom;
 import java.util.function.Supplier;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 
 public final class TagMapFuzzTest {
   static final int NUM_KEYS = 128;
   static final int MAX_NUM_ACTIONS = 32;
   static final int MIN_NUM_ACTIONS = 8;
+
+  // Closed-form KnownTags resolver for the fuzz keys ("key-0".."key-(NUM_KEYS-1)"). Lets the
+  // tag-id keyed actions (setById / putAllLedgerById) resolve their names so id-bearing entries
+  // unify with string-keyed entries in the buckets and remain findable by name.
+  @BeforeAll
+  static void registerResolver() {
+    KnownTags.register(
+        new KnownTags.Resolver() {
+          @Override
+          public String nameOf(long tagId) {
+            int globalSerial = (int) (tagId >>> 48);
+            return globalSerial == 0 ? null : "key-" + (globalSerial - 1);
+          }
+
+          @Override
+          public long keyOf(String name) {
+            return isFuzzKey(name) ? tagIdOf(name) : 0L;
+          }
+        });
+  }
+
+  @AfterAll
+  static void clearResolver() {
+    KnownTags.register(null);
+  }
+
+  static boolean isFuzzKey(String name) {
+    return name != null && name.startsWith("key-");
+  }
+
+  static long tagIdOf(String key) {
+    int n = Integer.parseInt(key.substring("key-".length()));
+    long nameHash = TagMap.Entry._hash(key) & 0xFFFFFFFFL;
+    // globalSerial = n + 1 (non-zero, unique per key); fieldPos spreads keys across the slot array
+    // (n % CAPACITY), so distinct keys occupy distinct slots AND keys that share a fieldPos collide
+    // (first-writer-wins -> the rest fall to buckets), exercising both paths.
+    int fieldPos = n % OptimizedTagMap.KNOWN_ENTRIES_CAPACITY;
+    return ((long) (n + 1) << 48) | ((long) fieldPos << 32) | nameHash;
+  }
 
   @Test
   void test() {
@@ -958,7 +999,8 @@ public final class TagMapFuzzTest {
         return randomChoice(
             () -> putAll(randomKeysAndValues()),
             () -> putAllTagMap(randomKeysAndValues()),
-            () -> putAllLedger(randomKeysAndValues()));
+            () -> putAllLedger(randomKeysAndValues()),
+            () -> putAllLedgerById(randomKeysAndValues()));
 
       case 2:
         return randomChoice(
@@ -970,6 +1012,7 @@ public final class TagMapFuzzTest {
         return randomChoice(
             () -> put(randomKey(), randomValue()),
             () -> set(randomKey(), randomValue()),
+            () -> setById(randomKey(), randomValue()),
             () -> getAndSet(randomKey(), randomValue()));
     }
   }
@@ -980,6 +1023,10 @@ public final class TagMapFuzzTest {
 
   public static final MapAction set(String key, String value) {
     return new Set(key, value);
+  }
+
+  public static final MapAction setById(String key, String value) {
+    return new SetById(key, value);
   }
 
   public static final MapAction getAndSet(String key, String value) {
@@ -996,6 +1043,10 @@ public final class TagMapFuzzTest {
 
   public static final MapAction putAllLedger(String... keysAndValues) {
     return new PutAllLedger(keysAndValues);
+  }
+
+  public static final MapAction putAllLedgerById(String... keysAndValues) {
+    return new PutAllLedgerById(keysAndValues);
   }
 
   public static final MapAction clear() {
@@ -1119,6 +1170,17 @@ public final class TagMapFuzzTest {
       String value = keysAndValues[i + 1];
 
       ledger.set(key, value);
+    }
+    return ledger;
+  }
+
+  static final TagMap.Ledger ledgerByIdOf(String... keysAndValues) {
+    TagMap.Ledger ledger = TagMap.ledger();
+    for (int i = 0; i < keysAndValues.length; i += 2) {
+      String key = keysAndValues[i];
+      String value = keysAndValues[i + 1];
+
+      ledger.set(tagIdOf(key), value);
     }
     return ledger;
   }
@@ -1286,6 +1348,41 @@ public final class TagMapFuzzTest {
     }
   }
 
+  static final class SetById extends BasicAction {
+    final String key;
+    final String value;
+
+    SetById(String key, String value) {
+      this.key = key;
+      this.value = value;
+    }
+
+    @Override
+    protected void _applyToTestMap(TagMap testMap) {
+      testMap.set(tagIdOf(this.key), this.value);
+    }
+
+    @Override
+    protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      expectedMap.put(this.key, this.value);
+    }
+
+    @Override
+    public void verifyTestMap(TagMap testMap) {
+      // findable by name (read-path unification) ...
+      assertEquals(this.value, testMap.get(this.key));
+      // ... and by tag id
+      TagMap.Entry byId = testMap.getEntry(tagIdOf(this.key));
+      assertNotNull(byId);
+      assertEquals(this.value, byId.objectValue());
+    }
+
+    @Override
+    public String toString() {
+      return String.format("setById(%s,%s)", literal(this.key), literal(this.value));
+    }
+  }
+
   static final class GetAndSet extends ReturningAction<Object, TagMap.Entry> {
     final String key;
     final String value;
@@ -1425,6 +1522,43 @@ public final class TagMapFuzzTest {
     @Override
     public String toString() {
       return String.format("putAllLedger(%s)", literalVarArgs(this.keysAndValues));
+    }
+  }
+
+  static final class PutAllLedgerById extends BasicAction {
+    final String[] keysAndValues;
+    final TagMap.Ledger ledger;
+
+    PutAllLedgerById(String... keysAndValues) {
+      this.keysAndValues = keysAndValues;
+      this.ledger = ledgerByIdOf(keysAndValues);
+    }
+
+    @Override
+    protected void _applyToTestMap(TagMap testMap) {
+      this.ledger.fill(testMap);
+    }
+
+    @Override
+    protected void _applyToExpectedMap(Map<String, Object> expectedMap) {
+      for (TagMap.EntryChange change : this.ledger) {
+        // ledgerByIdOf doesn't produce removals, so this cast is safe
+        TagMap.Entry entry = (TagMap.Entry) change;
+        expectedMap.put(entry.tag(), entry.objectValue());
+      }
+    }
+
+    @Override
+    public void verifyTestMap(TagMap expectedMap) {
+      // ledger may contain multiple updates of the same key; compare against a built map
+      for (TagMap.EntryReader entry : this.ledger.buildImmutable()) {
+        assertEquals(entry.objectValue(), expectedMap.get(entry.tag()), "key=" + entry.tag());
+      }
+    }
+
+    @Override
+    public String toString() {
+      return String.format("putAllLedgerById(%s)", literalVarArgs(this.keysAndValues));
     }
   }
 
