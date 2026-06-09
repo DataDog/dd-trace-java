@@ -123,7 +123,18 @@ public final class ScaCveDatabase {
     return new ScaEntry(e.vulnId, e.artifact, e.versionRanges, symbols);
   }
 
-  /** Returns the entries associated with the given JVM internal class name, or null if none. */
+  /**
+   * Returns the entries associated with the given JVM internal class name, or null if none.
+   *
+   * <p>TODO: consider replacing this HashMap with a trie (e.g. {@code ClassNameTrie.Builder}) if
+   * the database grows significantly. {@code HashMap} lookup for {@code String} keys is O(length)
+   * on the first call for a new instance because {@code String.hashCode()} is not yet cached; a
+   * trie is also O(length) but can exit early on a prefix mismatch, which is the common case (most
+   * loaded classes are not in the CVE database). The project already has a runtime-constructable
+   * {@code ClassNameTrie.Builder} used by the debugger, so the infrastructure exists. Note that the
+   * current trie infrastructure uses prefix/glob patterns, so exact-match semantics would need to
+   * be verified before adopting it here.
+   */
   public List<ScaEntry> entriesForClass(String internalClassName) {
     return index.get(internalClassName);
   }
