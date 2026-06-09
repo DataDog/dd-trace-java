@@ -1729,7 +1729,9 @@ class ClientStatsAggregatorTest extends DDSpecification {
     cycle1Entries.count { it.getService().toString() == "blocked_by_tracer" } == 1
 
     when: "publish the overflow service in the next cycle after the cardinality reset"
-    aggregator.publish([new SimpleSpan("svc-${MetricCardinalityLimits.SERVICE}", "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)])
+    aggregator.publish([
+      new SimpleSpan("svc-${MetricCardinalityLimits.SERVICE}", "op", "resource", "web", false, true, false, 0, 100, HTTP_OK)
+    ])
     aggregator.report()
     latch2.await(2, SECONDS)
 
