@@ -320,15 +320,23 @@ public class AppSecConfigServiceImpl implements AppSecConfigService {
         }
       }
     } catch (InvalidRuleSetException e) {
-      log.debug(
+      log.warn(
           "Invalid rule during waf config update for config key {}: {}",
           configKey,
           e.wafDiagnostics);
       if (e.wafDiagnostics.getNumConfigError() > 0) {
         WafMetricCollector.get().addWafConfigError(e.wafDiagnostics.getNumConfigError());
       }
-      // TODO: Propagate diagostics back to remote config apply_error
-
+      // TODO: Propagate diagnostics back to remote config apply_error
+      if (e.wafDiagnostics.rulesetVersion != null
+          && !e.wafDiagnostics.rulesetVersion.isEmpty()
+          && (!defaultConfigActivated || currentRuleVersion == null)) {
+        currentRuleVersion = e.wafDiagnostics.rulesetVersion;
+        statsReporter.setRulesVersion(currentRuleVersion);
+        if (modulesToUpdateVersionIn != null) {
+          modulesToUpdateVersionIn.forEach(module -> module.setRuleVersion(currentRuleVersion));
+        }
+      }
       initReporter.setReportForPublication(e.wafDiagnostics);
       throw new RuntimeException(e);
     } catch (UnclassifiedWafException e) {
