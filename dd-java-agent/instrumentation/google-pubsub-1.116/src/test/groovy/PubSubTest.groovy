@@ -1,4 +1,3 @@
-
 import static datadog.trace.agent.test.utils.TraceUtils.basicSpan
 
 import com.google.api.gax.core.NoCredentialsProvider
@@ -34,12 +33,11 @@ import datadog.trace.core.datastreams.StatsGroup
 import datadog.trace.instrumentation.grpc.client.GrpcClientDecorator
 import io.grpc.ManagedChannel
 import io.grpc.ManagedChannelBuilder
+import java.nio.charset.StandardCharsets
+import java.util.concurrent.CountDownLatch
 import org.testcontainers.containers.PubSubEmulatorContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
-
-import java.nio.charset.StandardCharsets
-import java.util.concurrent.CountDownLatch
 
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
@@ -97,7 +95,7 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   }
 
   def setupSpec() {
-    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/cloud-sdk:495.0.0-emulators"))
+    emulator = new PubSubEmulatorContainer(DockerImageName.parse("gcr.io/google.com/cloudsdktool/google-cloud-cli:495.0.0-emulators"))
     emulator.start()
     channel = ManagedChannelBuilder.forTarget(emulator.getEmulatorEndpoint()).usePlaintext().build()
     transportChannelProvider = FixedTransportChannelProvider.create(GrpcTransportChannel.create(channel))

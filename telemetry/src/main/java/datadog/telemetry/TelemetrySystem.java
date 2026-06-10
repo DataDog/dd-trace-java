@@ -19,6 +19,7 @@ import datadog.telemetry.metric.OtelSpiMetricPeriodicAction;
 import datadog.telemetry.metric.WafMetricPeriodicAction;
 import datadog.telemetry.products.ProductChangeAction;
 import datadog.telemetry.rum.RumPeriodicAction;
+import datadog.telemetry.sca.ScaReachabilityPeriodicAction;
 import datadog.trace.api.Config;
 import datadog.trace.api.InstrumenterConfig;
 import datadog.trace.api.civisibility.config.BazelMode;
@@ -75,7 +76,14 @@ public class TelemetrySystem {
       }
     }
     if (null != dependencyService) {
-      actions.add(new DependencyPeriodicAction(dependencyService));
+      if (Config.get().isAppSecScaEnabled()) {
+        // ScaReachabilityPeriodicAction takes over all dep reporting when SCA is enabled:
+        // it merges DependencyService drains with CVE registry state into one entry per dep.
+        // DependencyPeriodicAction is skipped to avoid duplicate app-dependencies-loaded entries.
+        actions.add(new ScaReachabilityPeriodicAction(dependencyService));
+      } else {
+        actions.add(new DependencyPeriodicAction(dependencyService));
+      }
     }
     if (Config.get().isTelemetryLogCollectionEnabled()) {
       actions.add(new LogPeriodicAction());

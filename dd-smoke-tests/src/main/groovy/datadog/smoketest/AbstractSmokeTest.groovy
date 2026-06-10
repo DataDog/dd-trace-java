@@ -1,5 +1,6 @@
 package datadog.smoketest
 
+import static datadog.environment.OperatingSystem.architecture
 import static datadog.trace.agent.test.server.http.TestHttpServer.httpServer
 import static datadog.trace.api.ProtocolVersion.V0_4
 import static datadog.trace.api.ProtocolVersion.V0_5
@@ -251,6 +252,11 @@ abstract class AbstractSmokeTest extends ProcessManager {
       ret += "-XX:OnError=${tmpDir}/dd_crash_uploader.${extension} %p"
       // Unlike crash tracking smoke test, keep the default delay; otherwise, otherwise other tests will fail
       // ret += "-Ddd.dogstatsd.start-delay=0"
+    }
+
+    // Disable CDS to avoid SIGSEGVs on Linux arm64.
+    if (OperatingSystem.isLinux() && architecture().isArm64()) {
+      ret += "-Xshare:off"
     }
     ret as String[]
   }

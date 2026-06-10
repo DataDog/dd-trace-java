@@ -3,6 +3,7 @@ package datadog.trace.core.propagation;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
 import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
@@ -73,7 +74,7 @@ class PropagationTagsOpmTest {
     assertNull(tags.getOrgPropagationMarker());
     String header = tags.headerValue(W3C);
     if (header != null) {
-      assertTrue(!header.contains("t.opm"), "header still had t.opm: " + header);
+      assertFalse(header.contains("t.opm"), "header still had t.opm: " + header);
     }
   }
 
@@ -85,7 +86,7 @@ class PropagationTagsOpmTest {
     assertNull(stripped.getOrgPropagationMarker());
     String reEncoded = stripped.headerValue(W3C);
     assertNotNull(reEncoded);
-    assertTrue(!reEncoded.contains("dd="), "should drop dd member but was: " + reEncoded);
+    assertFalse(reEncoded.contains("dd="), "should drop dd member but was: " + reEncoded);
     assertTrue(reEncoded.contains("vendor1=abc"), "vendor1 missing: " + reEncoded);
     assertTrue(reEncoded.contains("vendor2=def"), "vendor2 missing: " + reEncoded);
   }

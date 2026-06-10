@@ -1,5 +1,6 @@
 package datadog.gradle.plugin.muzzle.tasks
 
+import datadog.gradle.plugin.HostPlatform
 import datadog.gradle.plugin.muzzle.MuzzleAction
 import datadog.gradle.plugin.muzzle.MuzzleDirective
 import datadog.gradle.plugin.muzzle.MuzzleExtension
@@ -101,6 +102,10 @@ abstract class MuzzleTask @Inject constructor(
           // datadog.trace.agent.tooling.muzzle.MuzzleVersionScanPlugin needs reflective access to ClassLoader.findLoadedClass
           if(javaLauncher.metadata.languageVersion > JavaLanguageVersion.of(9)) {
             jvmArgs("--add-opens=java.base/java.lang=ALL-UNNAMED")
+          }
+          if (HostPlatform.isLinuxArm64()) {
+            // Disable CDS to avoid SIGSEGVs on Linux arm64.
+            jvmArgs("-Xshare:off")
           }
           executable(javaLauncher.executablePath)
         }
