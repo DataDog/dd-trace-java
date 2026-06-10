@@ -2,8 +2,6 @@ package datadog.trace.instrumentation.lettuce5;
 
 import static datadog.trace.bootstrap.instrumentation.api.AgentTracer.startSpan;
 import static datadog.trace.instrumentation.lettuce5.LettuceClientDecorator.DECORATE;
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.disableAsyncPropagation;
-import static datadog.trace.instrumentation.lettuce5.LettuceInstrumentationUtil.restoreAsyncPropagation;
 
 import datadog.trace.bootstrap.InstrumentationContext;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
@@ -14,19 +12,19 @@ import net.bytebuddy.asm.Advice;
 
 public class ConnectionFutureAdvice {
   @Advice.OnMethodEnter(suppress = Throwable.class)
-  public static void onEnter(
-      @Advice.Argument(1) final RedisURI redisUri, @Advice.Local("ddSpan") AgentSpan span) {
-    span =
+  public static AgentSpan onEnter(@Advice.Argument(1) final RedisURI redisUri) {
+    final AgentSpan span =
         startSpan(
             LettuceClientDecorator.REDIS_CLIENT.toString(), LettuceClientDecorator.OPERATION_NAME);
     DECORATE.afterStart(span);
     span.setResourceName(DECORATE.resourceNameForConnection(redisUri));
     DECORATE.onConnection(span, redisUri);
+    return span;
   }
 
   @Advice.OnMethodExit(onThrowable = Throwable.class, suppress = Throwable.class)
   public static void stopSpan(
-      @Advice.Local("ddSpan") final AgentSpan span,
+      @Advice.Enter final AgentSpan span,
       @Advice.Thrown final Throwable throwable,
       @Advice.Argument(1) final RedisURI redisUri,
       @Advice.Return(readOnly = false)
@@ -40,17 +38,12 @@ public class ConnectionFutureAdvice {
       span.finish();
       return;
     }
-    final boolean restoreCompletionCallbackPropagation = disableAsyncPropagation();
-    try {
-      connectionFuture =
-          connectionFuture.whenComplete(
-              new ConnectionContextBiConsumer(
-                      redisUri,
-                      InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
-                  .andThen(new LettuceAsyncBiConsumer<>(span)));
-    } finally {
-      restoreAsyncPropagation(restoreCompletionCallbackPropagation);
-    }
+    connectionFuture =
+        connectionFuture.whenComplete(
+            new ConnectionContextBiConsumer(
+                    redisUri, InstrumentationContext.get(StatefulConnection.class, RedisURI.class))
+                .andThen(new LettuceAsyncBiConsumer<>(span)));
+
     // span finished by LettuceAsyncBiConsumer
   }
 }
