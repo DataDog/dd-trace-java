@@ -40,6 +40,7 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] OK_SUMMARY = "OkSummary".getBytes(ISO_8859_1);
   private static final byte[] ERROR_SUMMARY = "ErrorSummary".getBytes(ISO_8859_1);
   private static final byte[] PROCESS_TAGS = "ProcessTags".getBytes(ISO_8859_1);
+  private static final byte[] GIT_COMMIT_SHA = "GitCommitSha".getBytes(ISO_8859_1);
   private static final byte[] IS_TRACE_ROOT = "IsTraceRoot".getBytes(ISO_8859_1);
   private static final byte[] SPAN_KIND = "SpanKind".getBytes(ISO_8859_1);
   private static final byte[] PEER_TAGS = "PeerTags".getBytes(ISO_8859_1);
@@ -47,7 +48,6 @@ public final class SerializingMetricWriter implements MetricWriter {
   private static final byte[] HTTP_ENDPOINT = "HTTPEndpoint".getBytes(ISO_8859_1);
   private static final byte[] GRPC_STATUS_CODE = "GRPCStatusCode".getBytes(ISO_8859_1);
   private static final byte[] SERVICE_SOURCE = "srv_src".getBytes(ISO_8859_1);
-  private static final byte[] GIT_COMMIT_SHA = "GitCommitSha".getBytes(ISO_8859_1);
 
   // Constant declared here for compile-time folding
   public static final int TRISTATE_TRUE = TriState.TRUE.serialValue;

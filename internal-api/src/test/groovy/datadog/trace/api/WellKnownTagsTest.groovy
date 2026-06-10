@@ -15,5 +15,15 @@ class WellKnownTagsTest extends DDSpecification {
     wellKnownTags.getService() as String == "service"
     wellKnownTags.getVersion() as String == "version"
     wellKnownTags.getLanguage() as String == "language"
+    wellKnownTags.getGitCommitSha() as String == ""
+  }
+
+  def "well known tags with git commit sha"() {
+    given:
+    WellKnownTags wellKnownTags =
+      new WellKnownTags("runtimeid", "hostname", "env", "service", "version", "language", "abc123")
+    expect:
+    wellKnownTags.getRuntimeId() as String == "runtimeid"
+    wellKnownTags.getGitCommitSha() as String == "abc123"
   }
 }
