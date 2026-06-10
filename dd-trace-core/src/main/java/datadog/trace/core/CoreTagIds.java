@@ -30,6 +30,14 @@ public final class CoreTagIds {
   public static final int PARENT_ID_SERIAL = KnownTags.FIRST_STORED_SERIAL;
   public static final long PARENT_ID = KnownTags.tagId(PARENT_ID_SERIAL, 0, DDTags.PARENT_ID);
 
+  // common (process-constant) tags added by InternalTagsAdder to ~every span
+  public static final int BASE_SERVICE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 1;
+  public static final long BASE_SERVICE =
+      KnownTags.tagId(BASE_SERVICE_SERIAL, 1, DDTags.BASE_SERVICE);
+
+  public static final int VERSION_SERIAL = KnownTags.FIRST_STORED_SERIAL + 2;
+  public static final long VERSION = KnownTags.tagId(VERSION_SERIAL, 2, Tags.VERSION);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -39,6 +47,10 @@ public final class CoreTagIds {
               return Tags.ERROR;
             case PARENT_ID_SERIAL:
               return DDTags.PARENT_ID;
+            case BASE_SERVICE_SERIAL:
+              return DDTags.BASE_SERVICE;
+            case VERSION_SERIAL:
+              return Tags.VERSION;
             default:
               return null;
           }
@@ -51,6 +63,10 @@ public final class CoreTagIds {
               return ERROR;
             case DDTags.PARENT_ID:
               return PARENT_ID;
+            case DDTags.BASE_SERVICE:
+              return BASE_SERVICE;
+            case Tags.VERSION:
+              return VERSION;
             default:
               return 0L;
           }

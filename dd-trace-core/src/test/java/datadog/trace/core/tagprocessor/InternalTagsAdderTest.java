@@ -14,6 +14,7 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.Collections;
 import java.util.Objects;
+import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
 class InternalTagsAdderTest extends DDJavaSpecification {
@@ -66,5 +67,17 @@ class InternalTagsAdderTest extends DDJavaSpecification {
 
     verify(spanContext, times(1)).getServiceName();
     assertEquals(expected, Objects.toString(unsafeTags.get(VERSION), null));
+  }
+
+  // Regression: empty DD_SERVICE is treated the same as unset — processTags exits early and writes
+  // no tags, regardless of the span's service name (the prebuilt base.service entry is null).
+  @Test
+  void emptyDdServiceWritesNoTags() {
+    InternalTagsAdder adder = new InternalTagsAdder("", "1.0");
+    DDSpanContext spanContext = mock(DDSpanContext.class);
+
+    TagMap tags = TagMap.fromMap(Collections.emptyMap());
+    adder.processTags(tags, spanContext, link -> {});
+    assertTrue(tags.isEmpty());
   }
 }

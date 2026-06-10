@@ -455,6 +455,18 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
           : TagMap.Entry.newObjectEntry(tag, value);
     }
 
+    /** Tag-id keyed {@link #create(String, Object)}: null value yields null. */
+    public static final Entry create(long tagId, Object value) {
+      return (value == null) ? null : TagMap.Entry.newAnyEntry(tagId, value);
+    }
+
+    /** Tag-id keyed {@link #create(String, CharSequence)}: null/empty value yields null. */
+    public static final Entry create(long tagId, CharSequence value) {
+      return (value == null || value.length() == 0)
+          ? null
+          : TagMap.Entry.newObjectEntry(tagId, value);
+    }
+
     public static final Entry create(String tag, boolean value) {
       return TagMap.Entry.newBooleanEntry(tag, value);
     }
