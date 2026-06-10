@@ -25,14 +25,19 @@ public class BoxedValueConverter implements ArgumentConverter {
   @Override
   public Object convert(Object source, ParameterContext context)
       throws ArgumentConversionException {
-    if (source == null) return null;
+    if (source == null) {
+      return null;
+    }
 
     String s = source.toString();
-    if (s.isEmpty()) return null;
-
-    if ("true".equals(s)) return Boolean.TRUE;
-    if ("false".equals(s)) return Boolean.FALSE;
-
+    switch (s) {
+      case "":
+        return null;
+      case "true":
+        return Boolean.TRUE;
+      case "false":
+        return Boolean.FALSE;
+    }
     if (s.endsWith("f")) {
       try {
         return Float.parseFloat(s.substring(0, s.length() - 1));
