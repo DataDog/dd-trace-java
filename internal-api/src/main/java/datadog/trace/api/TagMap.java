@@ -1469,15 +1469,30 @@ final class OptimizedTagMap implements TagMap {
     return this.getObject((String) tag);
   }
 
+  // No-alloc dense lookup for the typed getters: for a known tag (keyOf resolves to a non-zero id),
+  // returns the raw stored value (primitives pre-boxed) so the caller can coerce it via
+  // TagValueConversions WITHOUT materializing an Entry. Returns null when the tag is not a present
+  // known tag (caller then falls back to the bucket lookup). Stored values are never null.
+  private Object knownRawValue(String tag) {
+    long tagId = KnownTags.keyOf(tag);
+    if (tagId == 0L) return null;
+    int i = this.knownIndexOf(tagId);
+    return i < 0 ? null : this.knownValues[i];
+  }
+
   /** Provides the corresponding entry value as an Object - boxing if necessary */
   public Object getObject(String tag) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return known;
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? null : entry.objectValue();
   }
 
   /** Provides the corresponding entry value as a String - calling toString if necessary */
   public String getString(String tag) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toString(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? null : entry.stringValue();
   }
 
@@ -1486,7 +1501,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public boolean getBooleanOrDefault(String tag, boolean defaultValue) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toBoolean(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? defaultValue : entry.booleanValue();
   }
 
@@ -1495,7 +1512,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public int getIntOrDefault(String tag, int defaultValue) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toInt(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? defaultValue : entry.intValue();
   }
 
@@ -1504,7 +1523,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public long getLongOrDefault(String tag, long defaultValue) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toLong(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? defaultValue : entry.longValue();
   }
 
@@ -1513,7 +1534,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public float getFloatOrDefault(String tag, float defaultValue) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toFloat(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? defaultValue : entry.floatValue();
   }
 
@@ -1522,7 +1545,9 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public double getDoubleOrDefault(String tag, double defaultValue) {
-    Entry entry = this.getEntry(tag);
+    Object known = this.knownRawValue(tag);
+    if (known != null) return TagValueConversions.toDouble(known);
+    Entry entry = this.getEntryFromBuckets(tag);
     return entry == null ? defaultValue : entry.doubleValue();
   }
 
@@ -1619,81 +1644,177 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public void set(TagMap.EntryReader newEntryReader) {
-    this.getAndSet(newEntryReader.entry());
+    this.checkWriteAccess();
+    // Cached-entry path (e.g. decorator componentEntry). entry() returns the reader's own Entry (no
+    // NEW allocation for a real Entry), carrying any id-encoded globalSerial. For a known tag we
+    // store its value in the dense store directly; otherwise the reader's entry goes to the bucket
+    // path. keyOf is a no-op until a resolver is registered (string-only entries keep their name).
+    Entry entry = newEntryReader.entry();
+    long tagId = entry.tagId;
+    if (KnownTags.globalSerial(tagId) == 0 && KnownTags.isActive()) {
+      long resolved = KnownTags.keyOf(entry.tag());
+      if (resolved != 0L) tagId = resolved;
+    }
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, entry.objectValue());
+    } else {
+      this.setInBuckets(entry);
+    }
   }
 
+  // String-keyed setters. Resolve the tag identity once: a registered KnownTags resolver maps known
+  // tag names to a non-zero id (carrying globalSerial), letting us store the value in the dense
+  // store with NO Entry allocation. Until a resolver is registered keyOf returns 0 and we fall back
+  // to the bucket path, preserving the name-keyed Entry behavior.
   @Override
   public void set(String tag, Object value) {
-    this.getAndSet(Entry.newAnyEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, value);
+    } else {
+      this.setInBuckets(Entry.newAnyEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, CharSequence value) {
-    this.getAndSet(Entry.newObjectEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, value);
+    } else {
+      this.setInBuckets(Entry.newObjectEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, boolean value) {
-    this.getAndSet(Entry.newBooleanEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, Boolean.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newBooleanEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, int value) {
-    this.getAndSet(Entry.newIntEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, Integer.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newIntEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, long value) {
-    this.getAndSet(Entry.newLongEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, Long.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newLongEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, float value) {
-    this.getAndSet(Entry.newFloatEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, Float.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newFloatEntry(tag, value));
+    }
   }
 
   @Override
   public void set(String tag, double value) {
-    this.getAndSet(Entry.newDoubleEntry(tag, value));
+    this.checkWriteAccess();
+    long id = KnownTags.keyOf(tag);
+    if (id != 0L) {
+      this.putKnownValue(id, Double.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newDoubleEntry(tag, value));
+    }
   }
 
-  // Tag-id keyed setters. Build a tag-id-bearing Entry (carrying globalSerial/fieldPos/nameHash);
-  // getAndSet routes known tags (non-zero globalSerial) into the dense store and everything else to
-  // the hash buckets. The Entry resolves its tag name lazily via KnownTags, so it remains findable
-  // by string name and serializes correctly once a KnownTags.Resolver is registered.
+  // Tag-id keyed setters. The id already carries the globalSerial, so a known tag (non-zero
+  // globalSerial) goes straight into the dense store via putKnownValue with NO Entry allocation
+  // (strings/objects by reference; primitives boxed once). An id without a globalSerial is not a
+  // known tag — fall back to the bucket path, which builds an Entry that resolves its name lazily.
   @Override
   public void set(long tagId, Object value) {
-    this.getAndSet(Entry.newAnyEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, value);
+    } else {
+      this.setInBuckets(Entry.newAnyEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, CharSequence value) {
-    this.getAndSet(Entry.newObjectEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, value);
+    } else {
+      this.setInBuckets(Entry.newObjectEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, boolean value) {
-    this.getAndSet(Entry.newBooleanEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, Boolean.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newBooleanEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, int value) {
-    this.getAndSet(Entry.newIntEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, Integer.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newIntEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, long value) {
-    this.getAndSet(Entry.newLongEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, Long.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newLongEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, float value) {
-    this.getAndSet(Entry.newFloatEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, Float.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newFloatEntry(tagId, value));
+    }
   }
 
   @Override
   public void set(long tagId, double value) {
-    this.getAndSet(Entry.newDoubleEntry(tagId, value));
+    this.checkWriteAccess();
+    if (KnownTags.globalSerial(tagId) != 0) {
+      this.putKnownValue(tagId, Double.valueOf(value));
+    } else {
+      this.setInBuckets(Entry.newDoubleEntry(tagId, value));
+    }
   }
 
   // Returns the dense index of the known tag matching tagId (by globalSerial), or -1 if absent.
@@ -1763,18 +1884,20 @@ final class OptimizedTagMap implements TagMap {
     return this.setInBuckets(newEntry);
   }
 
-  // Stores a known tag in the dense store: linear-scan by globalSerial and overwrite on a match,
-  // otherwise append (growing the parallel arrays). Returns the prior entry (materialized) or null.
-  private Entry setKnown(Entry newEntry, int globalSerial) {
+  // Dense-write core: store a known tag's value WITHOUT constructing an Entry. tagId must carry a
+  // non-zero globalSerial. Linear-scan [0, knownCount) by globalSerial; a match overwrites the
+  // stored id+value in place (no size change), otherwise we append (growing the parallel arrays).
+  // Primitives are expected pre-boxed by the caller; strings/objects are stored by reference.
+  private void putKnownValue(long tagId, Object value) {
+    int globalSerial = KnownTags.globalSerial(tagId);
     long[] ids = this.knownIds;
     int count = this.knownCount;
     for (int i = 0; i < count; ++i) {
       if (KnownTags.globalSerial(ids[i]) == globalSerial) {
         // same tag - overwrite in place, no size change
-        Entry prev = this.knownEntryAt(i);
-        this.knownIds[i] = newEntry.tagId;
-        this.knownValues[i] = newEntry.objectValue();
-        return prev;
+        this.knownIds[i] = tagId;
+        this.knownValues[i] = value;
+        return;
       }
     }
 
@@ -1787,11 +1910,20 @@ final class OptimizedTagMap implements TagMap {
       ids = this.knownIds = Arrays.copyOf(ids, newCapacity);
       this.knownValues = Arrays.copyOf(this.knownValues, newCapacity);
     }
-    ids[count] = newEntry.tagId;
-    this.knownValues[count] = newEntry.objectValue();
+    ids[count] = tagId;
+    this.knownValues[count] = value;
     this.knownCount = count + 1;
     this.size += 1;
-    return null;
+  }
+
+  // Stores a known tag in the dense store and returns the prior entry (materialized) or null. Used
+  // by the prior-returning getAndSet path; the void set(...) paths call putKnownValue directly to
+  // avoid even this Entry-materialization of the prior.
+  private Entry setKnown(Entry newEntry, int globalSerial) {
+    int i = this.knownIndexOf(newEntry.tagId);
+    Entry prev = (i < 0) ? null : this.knownEntryAt(i);
+    this.putKnownValue(newEntry.tagId, newEntry.objectValue());
+    return prev;
   }
 
   private Entry setInBuckets(Entry newEntry) {
