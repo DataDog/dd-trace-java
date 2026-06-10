@@ -241,10 +241,32 @@ covers the common write path.)
 5. **Memory floor for tiny spans** — spans with 1–2 known tags: do the 3 arrays cost more than they
    save? (lazy `prims`, and a small-size threshold, mitigate this.)
 
+## Performance: the trade, eyes open
+
+- **Write path (frequent): better** — set a bit + write one array slot, no per-tag `Entry`.
+- **Allocation / GC: better** — removes the 1.1% `Entry` lever; less GC (CPU the profile attributes
+  elsewhere). With lazy `prims`, a typical (string-heavy) span allocates fewer objects than today.
+- **Read / serialize: some extra CPU per tag** — flyweight reposition + array read + name resolve +
+  coercion dispatch, vs today's `Entry` that caches name and typed value. **This is intrinsic to a
+  generic, layout-driven store** — you cannot match direct-field access without generating the fields.
+  Mitigations (static `slotNames` index, lean flyweight, near-no-op coercion when the stored type
+  matches) narrow it but do not erase it.
+
+Why it's acceptable: the array-backed impl accepts that small read cost as the **price of generality**
+(any tag, no codegen, no span-type-at-creation); **POJOs recover it for hot span types** on the same
+interface. You pay the indirection only where you haven't specialized — i.e. where you don't care.
+The net is likely neutral-to-positive even pre-POJO (cheaper frequent writes + lower GC; serialize is
+a single pass per span); POJOs make it clearly positive where it counts.
+
 ## How we'll measure
 
-Per the agreed plan: **standalone JMH first** — `AttributeValueTable` vs `OptimizedTagMap` on a
-realistic PetClinic-like tag set (component, span.kind, db.*, http.*), measuring throughput and
-**allocation (`-prof gc`)**. Expect ~zero `Entry` allocs for known tags vs N today. If promising,
-integrate (incl. the serializer cursor) and re-run the PetClinic CPU/alloc A/B with the existing
-harness.
+**Standalone JMH first, three-way**, on a realistic PetClinic-like tag set (component, span.kind,
+db.*, http.*), measuring throughput and **allocation (`-prof gc`)**:
+1. today's `OptimizedTagMap` (`Entry[]`) — the baseline,
+2. array-backed `AttributeValueTable` — does it regress read CPU? how much alloc does it save?
+3. a **hand-written POJO** for one span type (e.g. `db.client`) — confirms the codegen endgame wins
+   enough to justify building the generator.
+
+If array-backed is promising (or break-even on CPU with the alloc win), integrate it (incl. the
+`EntryReader` serialize path) and re-run the PetClinic CPU/alloc A/B with the existing harness; build
+codegen POJOs for the hot span types once the hand-POJO confirms the payoff.
