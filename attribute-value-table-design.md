@@ -1,4 +1,4 @@
-# AttributeValueTable — design
+# Dense known-tag storage (a.k.a. AttributeValueTable) — design
 
 Branch: `dougqh/attribute-value-table` (off `dougqh/tagmap-tagid-experiment`)
 
@@ -13,24 +13,29 @@ fast-path made tag *placement* fast (positional slot vs hash bucket) but still a
 `Entry` object per tag. A span's known tags never materialize an `Entry`; the serializer reads
 `(name, type, value)` straight from the arrays.
 
-This is the runtime counterpart to the [`tag-conventions.yaml`](tag-conventions.yaml) spec: the
-generator assigns each known tag a `fieldPos`, and the `AttributeValueTable` is indexed by it.
+## Phasing
 
-## An interface, not one storage scheme
+- **Phase 1 (this design): replace `OptimizedTagMap`'s `Entry[] knownEntries` in place** with dense
+  `long[] ids` + `Object[] values`. No new type, no interface, no codegen. This is purely an internal
+  storage change to one class, and it *removes* machinery as much as it adds (see below). It's the
+  measurable step that kills the per-tag `Entry` for known tags.
+- **Phase 2 (later, if warranted): extract an `AttributeValueTable` interface + a codegen POJO** per
+  hot span type (real typed fields, no bounds checks, type-reject for free). Extracting the interface
+  from a *working* dense impl is an easy refactor — and we'll know its true shape from having built
+  it, rather than guessing now. The `set(long)→boolean` / `get(long)→EntryReader` contract below is
+  where that interface is headed; in phase 1 it's just how `OptimizedTagMap` works internally.
 
-`AttributeValueTable` is an **interface**. The opaque `set(long)→boolean` / `get(long)→EntryReader`
-contract leaks nothing about storage, so the same interface can be satisfied by either backing:
+Everything below describes **phase 1** unless marked otherwise.
 
-- **Array-backed** (generic, resolver-driven, dense `(id, value)` arrays) — the measurable first impl; no codegen.
-- **POJO-backed** (codegen, per span type) — a generated class with real typed fields + generated
-  `set`/`get` switches. Densest and most JIT-friendly (fields inline, no bounds checks); type-reject
-  falls out for free (a wrong-type `set` finds no matching field → returns `false`). Lazily-created
-  mixin sub-POJOs for products.
+## What phase 1 removes
 
-Callers (`OptimizedTagMap`) are impl-agnostic — the array impl ships first, the POJO impl can replace
-it per span type later with no caller change.
+Replacing the positional `Entry[] knownEntries` with a dense scan-by-id store deletes the collision
+machinery the positional slot model needed: first-writer-wins occupancy, the `collidedSlots` bitmask,
+and bucket-eviction-on-reclaim. Dense `(id, value)` pairs have no positional collisions — you match by
+id. `fieldPos`/`slotCount` stop mattering for storage (identity, name, and hash all come from the id);
+they stay in the tagId for the eventual POJO but the dense store ignores them.
 
-## Storage (array-backed impl) — dense parallel arrays
+## Storage — dense parallel arrays
 
 A **dense association list of only the tags actually present** — not arrays sized to the slot count:
 
