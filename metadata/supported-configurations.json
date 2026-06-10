@@ -393,6 +393,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_STACKTRACE_ENABLED": [
       {
         "version": "A",
@@ -8605,6 +8613,30 @@
       {
         "version": "A",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_STRICT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
+      {
+        "version": "A",
+        "type": "array",
         "default": null,
         "aliases": []
       }

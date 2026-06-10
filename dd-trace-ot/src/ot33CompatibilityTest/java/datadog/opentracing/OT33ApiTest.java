@@ -82,9 +82,9 @@ class OT33ApiTest extends DDJavaSpecification {
   })
   void testInjectExtract(
       String scenario,
-      @ConvertWith(PrioritySamplingConverter.class) int contextPriority,
-      @ConvertWith(SamplingMechanismConverter.class) int samplingMechanism,
-      @ConvertWith(PrioritySamplingConverter.class) int propagatedPriority)
+      @ConvertWith(PrioritySamplingConverter.class) byte contextPriority,
+      @ConvertWith(SamplingMechanismConverter.class) byte samplingMechanism,
+      @ConvertWith(PrioritySamplingConverter.class) byte propagatedPriority)
       throws Exception {
     io.opentracing.Span span = tracer.buildSpan("some name").start();
     io.opentracing.SpanContext context = span.context();

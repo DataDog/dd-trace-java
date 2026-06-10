@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation.ptags;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNotSame;
 import static org.junit.jupiter.api.Assertions.assertSame;
 
@@ -8,7 +9,6 @@ import datadog.trace.core.propagation.ptags.TagElement.Encoding;
 import org.tabletest.junit.TableTest;
 
 class TagKeyTest {
-
   @TableTest({
     "scenario      | seq1          | enc1    | seq2          | enc2    | same ",
     "DD/DD same    | '_dd.p.foo1'  | DATADOG | '_dd.p.foo1'  | DATADOG | true ",
@@ -25,11 +25,13 @@ class TagKeyTest {
     TagKey tk1 = TagKey.from(enc1, seq1);
     TagKey tk2 = TagKey.from(enc2, seq2);
 
-    assertEquals(seq1, tk1.forType(enc1).toString());
-    assertEquals(seq2, tk2.forType(enc2).toString());
+    assertNotNull(tk1);
+    assertNotNull(tk2);
+    assertEquals(seq1, tk1.forType(enc1));
+    assertEquals(seq2, tk2.forType(enc2));
     if (same) {
       assertSame(tk1, tk2);
-      assertEquals(seq2, tk1.forType(enc2).toString());
+      assertEquals(seq2, tk1.forType(enc2));
     } else {
       assertNotSame(tk1, tk2);
     }
@@ -58,11 +60,13 @@ class TagKeyTest {
     TagKey tk2 = TagKey.from(enc2, seq2, s2, e2);
     String sub2 = seq2.substring(s2, e2);
 
-    assertEquals(sub1, tk1.forType(enc1).toString());
-    assertEquals(sub2, tk2.forType(enc2).toString());
+    assertNotNull(tk1);
+    assertNotNull(tk2);
+    assertEquals(sub1, tk1.forType(enc1));
+    assertEquals(sub2, tk2.forType(enc2));
     if (same) {
       assertSame(tk1, tk2);
-      assertEquals(sub2, tk1.forType(enc2).toString());
+      assertEquals(sub2, tk1.forType(enc2));
     } else {
       assertNotSame(tk1, tk2);
     }
