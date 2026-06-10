@@ -676,6 +676,7 @@ public class Agent {
       }
 
       maybeStartAppSec(scoClass, sco);
+      maybeStartScaReachability(instrumentation);
       maybeStartCiVisibility(instrumentation, scoClass, sco);
       maybeStartLLMObs(instrumentation, scoClass, sco);
       // Start RC-backed products before remote config so their products and capabilities are
@@ -1072,6 +1073,27 @@ public class Agent {
     // Still return true in other if unexpected cases (e.g. SunOS), and we'll handle loading errors
     // during AppSec startup.
     return true;
+  }
+
+  private static void maybeStartScaReachability(Instrumentation instrumentation) {
+    if (!Config.get().isAppSecScaEnabled()) {
+      return;
+    }
+    if (!telemetryEnabled || !Config.get().isTelemetryDependencyServiceEnabled()) {
+      log.warn(
+          "Not starting SCA Reachability subsystem: telemetry or dependency collection disabled");
+      return;
+    }
+    StaticEventLogger.begin("ScaReachability");
+    try {
+      final Class<?> scaClass =
+          AGENT_CLASSLOADER.loadClass("com.datadog.appsec.sca.ScaReachabilitySystem");
+      final Method startMethod = scaClass.getMethod("start", Instrumentation.class);
+      startMethod.invoke(null, instrumentation);
+    } catch (final Throwable ex) {
+      log.warn("Not starting SCA Reachability subsystem: {}", ex.getMessage());
+    }
+    StaticEventLogger.end("ScaReachability");
   }
 
   private static void maybeStartIast(Instrumentation instrumentation) {

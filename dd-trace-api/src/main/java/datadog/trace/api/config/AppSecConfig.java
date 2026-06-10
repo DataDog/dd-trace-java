@@ -52,6 +52,8 @@ public final class AppSecConfig {
       "appsec.max.stacktrace.depth"; // old non-standard as a fallback alias
   public static final String APPSEC_MAX_FILE_CONTENT_BYTES = "appsec.max.file-content.bytes";
   public static final String APPSEC_MAX_FILE_CONTENT_COUNT = "appsec.max.file-content.count";
+  public static final String APPSEC_SCA_MAX_TRACKED_DEPENDENCIES =
+      "appsec.sca.max-tracked-dependencies";
 
   private AppSecConfig() {}
 }

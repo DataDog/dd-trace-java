@@ -49,6 +49,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
 
+    create("test-jvm-constraints-plugin") {
+      id = "dd-trace-java.test-jvm-constraints"
+      implementationClass = "datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsPlugin"
+    }
+
     create("supported-config-generation") {
       id = "dd-trace-java.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
@@ -62,6 +67,11 @@ gradlePlugin {
     create("instrumentation-naming") {
       id = "dd-trace-java.instrumentation-naming"
       implementationClass = "datadog.gradle.plugin.naming.InstrumentationNamingPlugin"
+    }
+
+    create("sca-enrichments-plugin") {
+      id = "dd-trace-java.sca-enrichments"
+      implementationClass = "datadog.gradle.plugin.sca.ScaEnrichmentsPlugin"
     }
   }
 }
