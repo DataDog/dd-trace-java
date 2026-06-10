@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.nameStartsWith;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.jfr.llm.AiServiceEvent;
+import datadog.trace.bootstrap.instrumentation.llm.LlmObsHandle;
 import java.lang.reflect.Method;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -42,23 +42,33 @@ public class AiServicesInstrumentation
 
   public static final class InvokeAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static AiServiceEvent enter(@Advice.Argument(1) Method method) {
-      if (method == null) return null;
-      if (method.getDeclaringClass() == Object.class) return null;
+    public static void enter(
+        @Advice.Argument(1) Method method,
+        @Advice.Argument(2) Object[] args,
+        @Advice.Local("handle") LlmObsHandle handle) {
+      if (method == null) return;
+      if (method.getDeclaringClass() == Object.class) return;
       // Skip streaming/async return types that return before LLM work completes
       Class<?> returnType = method.getReturnType();
       if (returnType.getName().contains("TokenStream")
-          || returnType.getName().contains("CompletableFuture")) return null;
-      return new AiServiceEvent(method.getDeclaringClass().getSimpleName(), method.getName());
+          || returnType.getName().contains("CompletableFuture")) return;
+      handle =
+          LangChain4jLlmObsIntegration.INSTANCE.startWorkflow(
+              method.getDeclaringClass().getSimpleName(), method.getName());
+      if (args != null && args.length > 0 && args[0] != null) {
+        handle.withInput(args[0].toString());
+      }
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.Enter AiServiceEvent event) {
-      if (event == null) return;
-      event.end();
-      if (event.shouldCommit()) {
-        event.commit();
-      }
+    public static void exit(
+        @Advice.Local("handle") LlmObsHandle handle,
+        @Advice.Return Object result,
+        @Advice.Thrown Throwable err) {
+      if (handle == null) return;
+      if (result != null) handle.withOutput(result.toString());
+      if (err != null) handle.withError(err);
+      handle.finish();
     }
   }
 }

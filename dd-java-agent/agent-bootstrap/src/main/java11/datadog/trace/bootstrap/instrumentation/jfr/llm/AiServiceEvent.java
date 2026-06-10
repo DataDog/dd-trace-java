@@ -21,9 +21,20 @@ public class AiServiceEvent extends Event {
   @Label("Method Name")
   private final String methodName;
 
+  @Label("Trace ID")
+  private String traceId;
+
+  @Label("Span ID")
+  private String spanId;
+
   public AiServiceEvent(String serviceType, String methodName) {
     this.serviceType = serviceType;
     this.methodName = methodName;
     begin();
+  }
+
+  public void setSpanContext(String traceId, String spanId) {
+    this.traceId = traceId;
+    this.spanId = spanId;
   }
 }

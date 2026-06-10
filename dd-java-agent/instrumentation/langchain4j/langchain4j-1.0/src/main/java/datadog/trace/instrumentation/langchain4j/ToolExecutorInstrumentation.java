@@ -6,7 +6,7 @@ import static net.bytebuddy.matcher.ElementMatchers.isMethod;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import datadog.trace.agent.tooling.Instrumenter;
-import datadog.trace.bootstrap.instrumentation.jfr.llm.ToolExecutorEvent;
+import datadog.trace.bootstrap.instrumentation.llm.LlmObsHandle;
 import dev.langchain4j.agent.tool.ToolExecutionRequest;
 import net.bytebuddy.asm.Advice;
 import net.bytebuddy.description.type.TypeDescription;
@@ -36,17 +36,21 @@ public class ToolExecutorInstrumentation
 
   public static final class ExecuteAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static ToolExecutorEvent enter(@Advice.Argument(0) ToolExecutionRequest request) {
-      return new ToolExecutorEvent(request.name());
+    public static void enter(
+        @Advice.Argument(0) ToolExecutionRequest request,
+        @Advice.Local("handle") LlmObsHandle handle) {
+      handle = LangChain4jLlmObsIntegration.INSTANCE.startTool(request.name());
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
-    public static void exit(@Advice.Enter ToolExecutorEvent event) {
-      if (event == null) return;
-      event.end();
-      if (event.shouldCommit()) {
-        event.commit();
-      }
+    public static void exit(
+        @Advice.Local("handle") LlmObsHandle handle,
+        @Advice.Return String result,
+        @Advice.Thrown Throwable err) {
+      if (handle == null) return;
+      if (result != null) handle.withOutput(result);
+      if (err != null) handle.withError(err);
+      handle.finish();
     }
   }
 }
