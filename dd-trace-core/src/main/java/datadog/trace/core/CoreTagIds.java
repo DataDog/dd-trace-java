@@ -22,8 +22,8 @@ public final class CoreTagIds {
   // place them in a positional slot
   static final int RESERVED_FIELD_POS = 0xFFFF;
 
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..5 (PARENT_ID..DSM_ENABLED).
-  static final int SLOT_COUNT = 6;
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..8.
+  static final int SLOT_COUNT = 9;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
@@ -53,6 +53,19 @@ public final class CoreTagIds {
   public static final int DSM_ENABLED_SERIAL = KnownTags.FIRST_STORED_SERIAL + 5;
   public static final long DSM_ENABLED = KnownTags.tagId(DSM_ENABLED_SERIAL, 5, DDTags.DSM_ENABLED);
 
+  // common tags added by the tag post-processors (RemoteHostnameAdder / IntegrationAdder /
+  // ServiceNameSourceAdder). Not intercepted; stored.
+  public static final int TRACER_HOST_SERIAL = KnownTags.FIRST_STORED_SERIAL + 6;
+  public static final long TRACER_HOST_ID =
+      KnownTags.tagId(TRACER_HOST_SERIAL, 6, DDTags.TRACER_HOST);
+
+  public static final int INTEGRATION_SERIAL = KnownTags.FIRST_STORED_SERIAL + 7;
+  public static final long INTEGRATION_ID =
+      KnownTags.tagId(INTEGRATION_SERIAL, 7, DDTags.DD_INTEGRATION);
+
+  public static final int SVC_SRC_SERIAL = KnownTags.FIRST_STORED_SERIAL + 8;
+  public static final long SVC_SRC_ID = KnownTags.tagId(SVC_SRC_SERIAL, 8, DDTags.DD_SVC_SRC);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -72,6 +85,12 @@ public final class CoreTagIds {
               return DDTags.DJM_ENABLED;
             case DSM_ENABLED_SERIAL:
               return DDTags.DSM_ENABLED;
+            case TRACER_HOST_SERIAL:
+              return DDTags.TRACER_HOST;
+            case INTEGRATION_SERIAL:
+              return DDTags.DD_INTEGRATION;
+            case SVC_SRC_SERIAL:
+              return DDTags.DD_SVC_SRC;
             default:
               return null;
           }
@@ -99,6 +118,12 @@ public final class CoreTagIds {
               return DJM_ENABLED;
             case DDTags.DSM_ENABLED:
               return DSM_ENABLED;
+            case DDTags.TRACER_HOST:
+              return TRACER_HOST_ID;
+            case DDTags.DD_INTEGRATION:
+              return INTEGRATION_ID;
+            case DDTags.DD_SVC_SRC:
+              return SVC_SRC_ID;
             default:
               return 0L;
           }
