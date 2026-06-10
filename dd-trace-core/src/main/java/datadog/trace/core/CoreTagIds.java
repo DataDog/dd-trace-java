@@ -38,6 +38,18 @@ public final class CoreTagIds {
   public static final int VERSION_SERIAL = KnownTags.FIRST_STORED_SERIAL + 2;
   public static final long VERSION = KnownTags.tagId(VERSION_SERIAL, 2, Tags.VERSION);
 
+  // build-time-known constant tags merged into defaultSpanTags (see CoreTracer.withTracerTags).
+  // "env" is a base-mixin tag; the *_ENABLED flags are product-mixin tags. Hand-assigned for now.
+  public static final String ENV = "env";
+  public static final int ENV_SERIAL = KnownTags.FIRST_STORED_SERIAL + 3;
+  public static final long ENV_ID = KnownTags.tagId(ENV_SERIAL, 3, ENV);
+
+  public static final int DJM_ENABLED_SERIAL = KnownTags.FIRST_STORED_SERIAL + 4;
+  public static final long DJM_ENABLED = KnownTags.tagId(DJM_ENABLED_SERIAL, 4, DDTags.DJM_ENABLED);
+
+  public static final int DSM_ENABLED_SERIAL = KnownTags.FIRST_STORED_SERIAL + 5;
+  public static final long DSM_ENABLED = KnownTags.tagId(DSM_ENABLED_SERIAL, 5, DDTags.DSM_ENABLED);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -51,6 +63,12 @@ public final class CoreTagIds {
               return DDTags.BASE_SERVICE;
             case VERSION_SERIAL:
               return Tags.VERSION;
+            case ENV_SERIAL:
+              return ENV;
+            case DJM_ENABLED_SERIAL:
+              return DDTags.DJM_ENABLED;
+            case DSM_ENABLED_SERIAL:
+              return DDTags.DSM_ENABLED;
             default:
               return null;
           }
@@ -67,6 +85,12 @@ public final class CoreTagIds {
               return BASE_SERVICE;
             case Tags.VERSION:
               return VERSION;
+            case ENV:
+              return ENV_ID;
+            case DDTags.DJM_ENABLED:
+              return DJM_ENABLED;
+            case DDTags.DSM_ENABLED:
+              return DSM_ENABLED;
             default:
               return 0L;
           }

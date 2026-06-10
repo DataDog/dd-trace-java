@@ -23,6 +23,7 @@ import static datadog.trace.core.DDSpanContext.SPAN_SAMPLING_RULE_RATE_TAG;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
@@ -94,6 +95,25 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     context.setTag(CoreTagIds.ERROR, true);
     assertTrue(context.getErrorFlag());
     assertNull(context.getTags().get(Tags.ERROR));
+
+    span.finish();
+  }
+
+  @Test
+  void commonTags_slotByNameViaCommonLayout() {
+    // env / product flags are build-time-known common tags (CoreTagIds). Set by name they resolve
+    // to their id and land in the common slot layout, and remain findable by both name and id.
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    DDSpanContext context = (DDSpanContext) span.context();
+
+    context.setTag("env", "prod");
+    context.setTag(DDTags.DJM_ENABLED, 1);
+
+    assertEquals("prod", context.getTags().get("env"));
+    assertEquals(1, context.getTags().get(DDTags.DJM_ENABLED));
+    // proves they occupy the shared slot layout (findable by id)
+    assertNotNull(context.getTags().getEntry(CoreTagIds.ENV_ID));
+    assertNotNull(context.getTags().getEntry(CoreTagIds.DJM_ENABLED));
 
     span.finish();
   }
