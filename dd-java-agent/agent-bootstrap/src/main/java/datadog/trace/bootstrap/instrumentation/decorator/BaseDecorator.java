@@ -7,6 +7,7 @@ import datadog.context.ContextScope;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.cache.QualifiedClassNameCache;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
@@ -165,12 +166,12 @@ public abstract class BaseDecorator {
     if (remoteAddress != null) {
       String ip = remoteAddress.getHostAddress();
       if (resolved && Config.get().isPeerHostNameEnabled()) {
-        span.setTag(Tags.PEER_HOSTNAME, hostName(remoteAddress, ip));
+        span.setTag(KnownTagIds.PEER_HOSTNAME, hostName(remoteAddress, ip));
       }
       if (remoteAddress instanceof Inet4Address) {
-        span.setTag(Tags.PEER_HOST_IPV4, ip);
+        span.setTag(KnownTagIds.PEER_HOST_IPV4, ip);
       } else if (remoteAddress instanceof Inet6Address) {
-        span.setTag(Tags.PEER_HOST_IPV6, ip);
+        span.setTag(KnownTagIds.PEER_HOST_IPV6, ip);
       }
     }
     return span;

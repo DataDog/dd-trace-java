@@ -10,6 +10,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.Functions;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProcessTags;
 import datadog.trace.api.TagMap;
@@ -385,7 +386,7 @@ public class DDSpanContext
     if (samplingPriority != PrioritySampling.UNSET) {
       setSamplingPriority(samplingPriority, SamplingMechanism.UNKNOWN);
     }
-    setTag(CoreTagIds.PARENT_ID, this.propagationTags.getLastParentId());
+    setTag(KnownTagIds.PARENT_ID, this.propagationTags.getLastParentId());
   }
 
   @Override

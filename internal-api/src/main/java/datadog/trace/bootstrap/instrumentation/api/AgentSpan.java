@@ -83,6 +83,18 @@ public interface AgentSpan
 
   AgentSpan setTag(String key, Object value);
 
+  /**
+   * Sets a tag by its generated tag id (see {@link datadog.trace.api.KnownTags}). The default
+   * resolves the id to its name and delegates to {@link #setTag(String, Object)}, so every span
+   * implementation works unchanged; mutable spans backed by {@code DDSpanContext} override this to
+   * take the id fast-path (no name hashing / interceptor string switch). If the id cannot be
+   * resolved (no resolver registered) the tag is left unchanged.
+   */
+  default AgentSpan setTag(long tagId, Object value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
 

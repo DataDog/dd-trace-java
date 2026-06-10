@@ -1,8 +1,8 @@
 package datadog.trace.core.tagprocessor;
 
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
-import datadog.trace.core.CoreTagIds;
 import datadog.trace.core.DDSpanContext;
 import java.util.function.Supplier;
 
@@ -33,7 +33,7 @@ public final class RemoteHostnameAdder extends TagsPostProcessor {
       return;
     }
 
-    TagMap.Entry newEntry = TagMap.Entry.create(CoreTagIds.TRACER_HOST_ID, hostname);
+    TagMap.Entry newEntry = TagMap.Entry.create(KnownTagIds.TRACER_HOST_ID, hostname);
     unsafeTags.set(newEntry);
     this.cachedHostEntry = newEntry;
   }

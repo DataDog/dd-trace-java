@@ -1,12 +1,12 @@
-package datadog.trace.core;
+package datadog.trace.api;
 
-import datadog.trace.api.DDTags;
-import datadog.trace.api.KnownTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 
 /**
- * Hand-assigned tag-id constants for tracer-core tags, plus the {@link KnownTags.Resolver} that
- * resolves them.
+ * Hand-assigned tag-id constants for well-known tags, plus the {@link KnownTags.Resolver} that
+ * resolves them. This is the single registry shared by the tracer core and by instrumentation
+ * (decorators) — it lives in {@code internal-api} so both layers can reference the ids; the
+ * eventual code generator will replace the hand assignment here.
  *
  * <p>Reserved serials {@code [1, KnownTags.FIRST_STORED_SERIAL)} name "virtual" tags handled by the
  * tag interceptor / span fields and are NOT stored in the {@code TagMap}; their {@code fieldPos} is
@@ -17,9 +17,9 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  * <p>The resolver registers on class initialization, so simply referencing any constant here makes
  * tag-id resolution live before the first span is built.
  */
-public final class CoreTagIds {
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..13.
-  static final int SLOT_COUNT = 14;
+public final class KnownTagIds {
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..16.
+  static final int SLOT_COUNT = 17;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
@@ -84,6 +84,20 @@ public final class CoreTagIds {
   public static final int HTTP_URL_SERIAL = KnownTags.FIRST_STORED_SERIAL + 13;
   public static final long HTTP_URL = KnownTags.tagId(HTTP_URL_SERIAL, 13, Tags.HTTP_URL);
 
+  // peer connection tags set by BaseDecorator.onPeerConnection on ~every client/producer span.
+  // Not intercepted; stored. Slotted (common across client instrumentations).
+  public static final int PEER_HOSTNAME_SERIAL = KnownTags.FIRST_STORED_SERIAL + 14;
+  public static final long PEER_HOSTNAME =
+      KnownTags.tagId(PEER_HOSTNAME_SERIAL, 14, Tags.PEER_HOSTNAME);
+
+  public static final int PEER_HOST_IPV4_SERIAL = KnownTags.FIRST_STORED_SERIAL + 15;
+  public static final long PEER_HOST_IPV4 =
+      KnownTags.tagId(PEER_HOST_IPV4_SERIAL, 15, Tags.PEER_HOST_IPV4);
+
+  public static final int PEER_HOST_IPV6_SERIAL = KnownTags.FIRST_STORED_SERIAL + 16;
+  public static final long PEER_HOST_IPV6 =
+      KnownTags.tagId(PEER_HOST_IPV6_SERIAL, 16, Tags.PEER_HOST_IPV6);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -119,6 +133,12 @@ public final class CoreTagIds {
               return Tags.HTTP_ROUTE;
             case HTTP_URL_SERIAL:
               return Tags.HTTP_URL;
+            case PEER_HOSTNAME_SERIAL:
+              return Tags.PEER_HOSTNAME;
+            case PEER_HOST_IPV4_SERIAL:
+              return Tags.PEER_HOST_IPV4;
+            case PEER_HOST_IPV6_SERIAL:
+              return Tags.PEER_HOST_IPV6;
             default:
               return null;
           }
@@ -162,6 +182,12 @@ public final class CoreTagIds {
               return HTTP_ROUTE;
             case Tags.HTTP_URL:
               return HTTP_URL;
+            case Tags.PEER_HOSTNAME:
+              return PEER_HOSTNAME;
+            case Tags.PEER_HOST_IPV4:
+              return PEER_HOST_IPV4;
+            case Tags.PEER_HOST_IPV6:
+              return PEER_HOST_IPV6;
             default:
               return 0L;
           }
@@ -172,5 +198,5 @@ public final class CoreTagIds {
     KnownTags.register(RESOLVER);
   }
 
-  private CoreTagIds() {}
+  private KnownTagIds() {}
 }

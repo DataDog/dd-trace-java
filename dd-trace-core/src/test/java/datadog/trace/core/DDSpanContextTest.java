@@ -33,6 +33,7 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
@@ -79,7 +80,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     // PARENT_ID is a stored tag (serial >= FIRST_STORED_SERIAL): set by id, it lands in the map and
     // is findable / serialized by its resolved name.
-    context.setTag(CoreTagIds.PARENT_ID, "p123");
+    context.setTag(KnownTagIds.PARENT_ID, "p123");
     assertEquals("p123", context.getTags().get(DDTags.PARENT_ID));
 
     span.finish();
@@ -92,7 +93,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
     // ERROR is a reserved (virtual) tag: setting it by id dispatches through the interceptor
     // (id-keyed), which sets the error flag and does NOT store an "error" tag.
-    context.setTag(CoreTagIds.ERROR, true);
+    context.setTag(KnownTagIds.ERROR, true);
     assertTrue(context.getErrorFlag());
     assertNull(context.getTags().get(Tags.ERROR));
 
@@ -101,7 +102,7 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
 
   @Test
   void commonTags_slotByNameViaCommonLayout() {
-    // env / product flags are build-time-known common tags (CoreTagIds). Set by name they resolve
+    // env / product flags are build-time-known common tags (KnownTagIds). Set by name they resolve
     // to their id and land in the common slot layout, and remain findable by both name and id.
     AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
     DDSpanContext context = (DDSpanContext) span.context();
@@ -112,8 +113,8 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
     assertEquals("prod", context.getTags().get("env"));
     assertEquals(1, context.getTags().get(DDTags.DJM_ENABLED));
     // proves they occupy the shared slot layout (findable by id)
-    assertNotNull(context.getTags().getEntry(CoreTagIds.ENV_ID));
-    assertNotNull(context.getTags().getEntry(CoreTagIds.DJM_ENABLED));
+    assertNotNull(context.getTags().getEntry(KnownTagIds.ENV_ID));
+    assertNotNull(context.getTags().getEntry(KnownTagIds.DJM_ENABLED));
 
     span.finish();
   }

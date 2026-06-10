@@ -1,10 +1,10 @@
 package datadog.trace.core.tagprocessor;
 
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
-import datadog.trace.core.CoreTagIds;
 import datadog.trace.core.DDSpanContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -58,13 +58,13 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
       return;
     }
 
-    if (unsafeTags.getEntry(CoreTagIds.HTTP_METHOD) == null) {
+    if (unsafeTags.getEntry(KnownTagIds.HTTP_METHOD) == null) {
       return;
     }
 
     try {
-      String httpRoute = stringValue(unsafeTags, CoreTagIds.HTTP_ROUTE);
-      String httpUrl = stringValue(unsafeTags, CoreTagIds.HTTP_URL);
+      String httpRoute = stringValue(unsafeTags, KnownTagIds.HTTP_ROUTE);
+      String httpUrl = stringValue(unsafeTags, KnownTagIds.HTTP_URL);
       endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
     } catch (Throwable t) {
       log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);

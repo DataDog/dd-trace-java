@@ -1,12 +1,12 @@
 package datadog.trace.core.tagprocessor;
 
 import datadog.trace.api.Config;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.TagMap;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.naming.NamingSchema;
 import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
-import datadog.trace.core.CoreTagIds;
 import datadog.trace.core.DDSpanContext;
 import java.util.Map;
 import javax.annotation.Nonnull;
@@ -52,7 +52,7 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
   }
 
   private static Object peerService(TagMap unsafeTags) {
-    TagMap.Entry entry = unsafeTags.getEntry(CoreTagIds.PEER_SERVICE);
+    TagMap.Entry entry = unsafeTags.getEntry(KnownTagIds.PEER_SERVICE);
     return entry == null ? null : entry.objectValue();
   }
 
@@ -60,8 +60,8 @@ public final class PeerServiceCalculator extends TagsPostProcessor {
     if (value != null) {
       String mapped = peerServiceMapping.get(value);
       if (mapped != null) {
-        unsafeTags.set(CoreTagIds.PEER_SERVICE, mapped);
-        unsafeTags.set(CoreTagIds.PEER_SERVICE_REMAPPED_FROM, value);
+        unsafeTags.set(KnownTagIds.PEER_SERVICE, mapped);
+        unsafeTags.set(KnownTagIds.PEER_SERVICE_REMAPPED_FROM, value);
       }
     }
   }
