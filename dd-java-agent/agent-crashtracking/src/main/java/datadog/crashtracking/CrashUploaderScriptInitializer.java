@@ -4,6 +4,7 @@ import static datadog.crashtracking.ConfigManager.writeConfigToPath;
 import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getCrashUploaderTemplate;
+import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 import static java.util.Locale.ROOT;
 
@@ -20,6 +21,9 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 
 public final class CrashUploaderScriptInitializer {
   private static final String SETUP_FAILURE_MESSAGE = "Crash tracking will not work properly.";
@@ -69,23 +73,36 @@ public final class CrashUploaderScriptInitializer {
       File scriptFile, String onErrorFile, String agentJar) {
     File scriptDirectory = scriptFile.getParentFile();
     if (!scriptDirectory.exists()) {
-      if (!scriptDirectory.mkdirs()) {
+      try {
+        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+          Files.createDirectories(
+              scriptDirectory.toPath(),
+              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        } else {
+          if (!scriptDirectory.mkdirs()) {
+            LOG.warn(
+                SEND_TELEMETRY,
+                "Failed to create writable crash tracking script folder {}. "
+                    + SETUP_FAILURE_MESSAGE,
+                scriptDirectory);
+            return false;
+          }
+        }
+      } catch (IOException e) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable crash tracking script folder {}. " + SETUP_FAILURE_MESSAGE,
             scriptDirectory);
         return false;
       }
-      boolean permissionFailure = false;
-      permissionFailure |= !scriptDirectory.setReadable(true, false);
-      permissionFailure |= !scriptDirectory.setWritable(true, false);
-      permissionFailure |= !scriptDirectory.setExecutable(true, false);
-      if (permissionFailure) {
+    } else {
+      if (!isOwnedAndPrivate(scriptDirectory)) {
         LOG.warn(
             SEND_TELEMETRY,
-            "Failed to set permissions on crash tracking script folder {}. {}",
-            scriptDirectory,
-            SETUP_FAILURE_MESSAGE);
+            "Untrusted crash tracking script folder {} (wrong owner or group/world bits set). "
+                + SETUP_FAILURE_MESSAGE,
+            scriptDirectory);
+        return false;
       }
     }
     if (!scriptDirectory.canWrite()) {
@@ -95,6 +112,9 @@ public final class CrashUploaderScriptInitializer {
     try {
       LOG.debug("Writing crash uploader script: {}", scriptFile);
       writeCrashUploaderScript(getCrashUploaderTemplate(), scriptFile, agentJar, onErrorFile);
+    } catch (UntrustedScriptException e) {
+      LOG.warn(SEND_TELEMETRY, "{} {}", e.getMessage(), SETUP_FAILURE_MESSAGE);
+      return false;
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
@@ -103,6 +123,17 @@ public final class CrashUploaderScriptInitializer {
       return false;
     }
     return true;
+  }
+
+  /**
+   * Writes the crash uploader script if it does not already exist. When the script already exists
+   * it is validated for POSIX ownership and permissions before reuse; an untrusted script causes
+   * this method to throw {@link UntrustedScriptException} so the caller can return {@code false}.
+   */
+  static class UntrustedScriptException extends IOException {
+    UntrustedScriptException(String msg) {
+      super(msg);
+    }
   }
 
   private static void writeCrashUploaderScript(
@@ -120,9 +151,14 @@ public final class CrashUploaderScriptInitializer {
           bw.newLine();
         }
       }
-      scriptFile.setReadable(true, false);
+      scriptFile.setReadable(true, true);
       scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, false);
+      scriptFile.setExecutable(true, true);
+    } else {
+      if (!isOwnedAndPrivate(scriptFile)) {
+        throw new UntrustedScriptException(
+            "Untrusted crash uploader script (wrong owner or group/world-writable): " + scriptFile);
+      }
     }
   }
 

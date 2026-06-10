@@ -12,11 +12,18 @@ import datadog.libs.ddprof.DdprofLibraryLoader;
 import datadog.trace.api.Platform;
 import datadog.trace.util.TempLocationManager;
 import java.io.File;
+import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermission;
+import java.nio.file.attribute.UserPrincipal;
 import java.util.Arrays;
+import java.util.EnumSet;
 import java.util.List;
+import java.util.Set;
 import java.util.StringTokenizer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -426,6 +433,45 @@ public final class Initializer {
 
   private static String getScriptFileName(String scriptName) {
     return scriptName + "." + (OperatingSystem.isWindows() ? "bat" : "sh");
+  }
+
+  private static final Set<PosixFilePermission> GROUP_WORLD_BITS =
+      EnumSet.of(
+          PosixFilePermission.GROUP_READ,
+          PosixFilePermission.GROUP_WRITE,
+          PosixFilePermission.GROUP_EXECUTE,
+          PosixFilePermission.OTHERS_READ,
+          PosixFilePermission.OTHERS_WRITE,
+          PosixFilePermission.OTHERS_EXECUTE);
+
+  /**
+   * Returns {@code true} when {@code f} is safe to trust: on non-POSIX file systems always returns
+   * {@code true}; on POSIX returns {@code true} only when the path is owned by the current JVM user
+   * and has no group or world permission bits set (effective {@code 0700} for dirs, {@code 0600} or
+   * stricter for files).
+   */
+  static boolean isOwnedAndPrivate(File f) {
+    if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+      return true;
+    }
+    try {
+      String userName = SystemProperties.get("user.name");
+      if (userName == null) {
+        return false;
+      }
+      java.nio.file.Path path = f.toPath();
+      UserPrincipal owner = Files.getOwner(path);
+      UserPrincipal jvmUser =
+          FileSystems.getDefault().getUserPrincipalLookupService().lookupPrincipalByName(userName);
+      if (!jvmUser.equals(owner)) {
+        return false;
+      }
+      Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
+      return perms.stream().noneMatch(GROUP_WORLD_BITS::contains);
+    } catch (IOException e) {
+      LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
+      return false;
+    }
   }
 
   private static void logInitializationError(String msg, Throwable t) {

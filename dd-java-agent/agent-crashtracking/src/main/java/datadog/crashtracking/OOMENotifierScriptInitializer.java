@@ -5,6 +5,7 @@ import static datadog.crashtracking.Initializer.LOG;
 import static datadog.crashtracking.Initializer.findAgentJar;
 import static datadog.crashtracking.Initializer.getOomeNotifierTemplate;
 import static datadog.crashtracking.Initializer.getScriptPathFromArg;
+import static datadog.crashtracking.Initializer.isOwnedAndPrivate;
 import static datadog.crashtracking.Initializer.pidFromSpecialFileName;
 import static datadog.trace.api.telemetry.LogCollector.SEND_TELEMETRY;
 
@@ -14,6 +15,9 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.file.FileSystems;
+import java.nio.file.Files;
+import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
 public final class OOMENotifierScriptInitializer {
@@ -58,12 +62,17 @@ public final class OOMENotifierScriptInitializer {
   private static boolean copyOOMEscript(File scriptFile) {
     File scriptDirectory = scriptFile.getParentFile();
 
-    // cleanup all stale process-specific generated files in the parent folder of the given OOME
-    // notifier script
-    runScriptCleanup(scriptDirectory);
-
     if (scriptDirectory.exists()) {
-      // can be safely ignored; if the folder exists we will just reuse it
+      if (!isOwnedAndPrivate(scriptDirectory)) {
+        LOG.warn(
+            SEND_TELEMETRY,
+            "Untrusted OOME script folder {} (wrong owner or group/world bits set). OOME notification will not work properly.",
+            scriptDirectory);
+        return false;
+      }
+      // cleanup all stale process-specific generated files in the parent folder of the given OOME
+      // notifier script
+      runScriptCleanup(scriptDirectory);
       if (!scriptDirectory.canWrite()) {
         LOG.warn(
             SEND_TELEMETRY,
@@ -72,26 +81,45 @@ public final class OOMENotifierScriptInitializer {
         return false;
       }
     } else {
-      if (!scriptDirectory.mkdirs()) {
+      try {
+        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+          Files.createDirectories(
+              scriptDirectory.toPath(),
+              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
+        } else {
+          if (!scriptDirectory.mkdirs()) {
+            LOG.warn(
+                SEND_TELEMETRY,
+                "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
+                scriptDirectory);
+            return false;
+          }
+        }
+      } catch (IOException e) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
             scriptDirectory);
         return false;
       }
-      scriptDirectory.setReadable(true, false);
-      scriptDirectory.setWritable(true, false);
-      scriptDirectory.setExecutable(true, false);
     }
 
     try {
       // do not overwrite existing
       if (!scriptFile.exists()) {
         copyStream(getOomeNotifierTemplate(), scriptFile);
+        scriptFile.setReadable(true, true);
+        scriptFile.setWritable(false, false);
+        scriptFile.setExecutable(true, true);
+      } else {
+        if (!isOwnedAndPrivate(scriptFile)) {
+          LOG.warn(
+              SEND_TELEMETRY,
+              "Untrusted OOME script {} (wrong owner or group/world-writable). OOME notification will not work properly.",
+              scriptFile);
+          return false;
+        }
       }
-      scriptFile.setReadable(true, false);
-      scriptFile.setWritable(false, false);
-      scriptFile.setExecutable(true, false);
     } catch (IOException e) {
       LOG.warn(
           SEND_TELEMETRY,
