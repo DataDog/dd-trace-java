@@ -41,7 +41,7 @@ class ScaReachabilityTransformerJava9Test {
           + "\"vuln_id\":\"GHSA-test-jackson\","
           + "\"artifact\":\"com.fasterxml.jackson.core:jackson-databind\","
           + "\"version_ranges\":[\"< 999.0.0\"],"
-          + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":null}]"
+          + "\"symbols\":[{\"class\":\"com/fasterxml/jackson/databind/ObjectMapper\",\"method\":\"readValue\"}]"
           + "}]}";
 
   @Test

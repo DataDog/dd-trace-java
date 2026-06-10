@@ -102,21 +102,13 @@ public final class ScaCveDatabase {
       log.debug("SCA Reachability: skipping malformed entry: {}", e);
       return null;
     }
-    // When a class appears with both class-level (method=null) and method-level symbols in the
-    // same entry, the class-level entry is redundant: the method-level callbacks are more precise
-    // and will report the hit when the specific method is called. Drop the class-level symbol to
-    // avoid the first-hit-wins semantics of hitRef filling up with the class-level callsite and
-    // silently discarding the more specific method callsite.
-    Set<String> classesWithMethodLevel = new HashSet<>();
-    for (SymbolJson s : e.symbols) {
-      if (s.className != null && s.method != null) {
-        classesWithMethodLevel.add(s.className);
-      }
-    }
     List<ScaSymbol> symbols = new ArrayList<>(e.symbols.size());
     for (SymbolJson s : e.symbols) {
       if (s.className == null) continue;
-      if (s.method == null && classesWithMethodLevel.contains(s.className)) continue;
+      if (s.method == null) {
+        log.debug("SCA Reachability: skipping symbol with null method in entry {}", e.vulnId);
+        continue;
+      }
       symbols.add(new ScaSymbol(s.className, s.method));
     }
     if (symbols.isEmpty()) return null;
