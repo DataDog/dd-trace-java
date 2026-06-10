@@ -1,0 +1,159 @@
+# Tag conventions — span-type inheritance + product mixins (draft)
+# ---------------------------------------------------------------------------
+# Source: the OTel-convention prototype (DatadogBase / Http / Client / DataSource
+# hierarchy in TracerProto) reconciled with the tags Spring PetClinic emits.
+# Language-agnostic spec the code generator consumes to emit per-language tag-id
+# constants, the id<->name resolver, and the slot layout.
+#
+# TWO COMPOSITION MECHANISMS
+#   inheritance (`extends`) — the structural "is-a" chain of span types that
+#       carries COMMON tags down to specific types. The root (`base`) is implicitly
+#       in every span. `extends` may list MULTIPLE parents (e.g. an http client span
+#       is both `http` and `client`). This is core tracing structure.
+#
+#   mixins (`mixins: [..]`) — PRODUCT / enrichment overlays composed ON THE SIDE,
+#       orthogonal to the span-type chain: CI Visibility, AppSec (ASM), Data Streams
+#       (DSM), profiling, etc. Each is gated by its product being enabled and may
+#       apply to all spans (implicitly) or to specific span types.
+#
+#   resolved tags(span_type) = own tags
+#                            + tags inherited up every `extends` parent (incl. base)
+#                            + tags from product mixins whose `applies` matches
+#
+# `abstract: true` marks a structural layer that is never a span on its own
+# (base, client, http) — it exists only to be extended.
+#
+# tag fields:
+#   tag        canonical tag name written to the span
+#   type       string | int | long | boolean | double            (language-agnostic)
+#   required   required | conditional | recommended | optional | opt_in
+#   aliases    other names resolving to the same tag (e.g. OTel semconv names)
+#   -- tracer-implementation hints (layered out of the shared spec cross-language) --
+#   slot       true (default) = fast positional slot; false = id-only, lives in buckets
+#   intercepted true = setting it triggers tracer side-effects (must run the interceptor)
+#   source     core (tracer sets once per span) | inst (instrumentation)   [default inst]
+# ---------------------------------------------------------------------------
+
+# ===== Structural span types (inheritance) ==================================
+span_types:
+
+  # ---- root: common tags, implicitly in EVERY span ----
+  base:
+    abstract: true
+    tags:
+      - { tag: component, type: string, required: required }
+      - { tag: span.kind, type: string, required: required, intercepted: true }   # otel: kind
+      - { tag: _dd.base_service,       type: string, required: required,    source: core }
+      - { tag: version,                type: string, required: recommended, source: core }
+      - { tag: env,                    type: string, required: recommended, source: core }
+      - { tag: language,               type: string, required: required,    source: core }
+      - { tag: runtime-id,             type: string, required: required,    source: core }
+      - { tag: _dd.integration,        type: string, required: optional,    source: core, slot: false }
+      - { tag: _dd.git.commit.sha,     type: string, required: optional,    source: core, slot: false }
+      - { tag: _dd.git.repository_url, type: string, required: optional,    source: core, slot: false }
+      # error enrichment — any span can fail; present only on failure, hence slot:false
+      - { tag: error.type,    type: string, required: recommended, slot: false }
+      - { tag: error.message, type: string, required: recommended, slot: false }
+      - { tag: error.stack,   type: string, required: recommended, slot: false }
+
+  # ---- client/outbound: anything that calls a remote peer (proto: Client) ----
+  # OPEN QUESTION: is "peer" best as this structural abstract type (an outbound span
+  # is-a client), or folded directly into db.client/http.client, or something else?
+  # Kept as a structural layer for now; revisit.
+  client:
+    abstract: true
+    extends: base
+    tags:
+      - { tag: peer.service,            type: string, required: recommended, intercepted: true }
+      - { tag: _dd.peer.service.source, type: string, required: recommended }
+      - { tag: peer.hostname,           type: string, required: recommended }
+      - { tag: peer.ipv4,               type: string }
+      - { tag: peer.ipv6,               type: string }
+      - { tag: peer.port,               type: int }
+
+  # ---- HTTP family ----
+  http:
+    abstract: true
+    extends: base
+    tags:
+      - { tag: http.method,      type: string, required: required,    intercepted: true, aliases: [http.request.method] }
+      - { tag: http.status_code, type: int,    required: conditional, aliases: [http.response.status_code] }
+      - { tag: network.protocol.version, type: string, required: recommended, slot: false }
+
+  http.server:                       # servlet.request
+    extends: http
+    tags:
+      - { tag: http.url,           type: string, required: required,    intercepted: true, aliases: [url.full] }
+      - { tag: http.route,         type: string, required: conditional }
+      - { tag: http.hostname,      type: string, required: required,    aliases: [server.address] }
+      - { tag: http.useragent,     type: string, required: recommended, slot: false }
+      - { tag: http.query.string,  type: string, required: recommended, slot: false, aliases: [url.query] }
+      - { tag: servlet.path,       type: string, required: optional,    slot: false }
+      - { tag: servlet.context,    type: string, required: optional,    slot: false, intercepted: true }
+
+  http.client:
+    extends: [ http, client ]        # multiple inheritance: an http span AND a peer client
+    tags:
+      - { tag: http.url,           type: string, required: required,    intercepted: true, aliases: [url.full] }
+      - { tag: http.resend_count,  type: int,    required: recommended, slot: false }
+
+  # ---- Database client (h2.query, jdbc) ----
+  db.client:
+    extends: client
+    tags:
+      - { tag: db.type,      type: string, required: required, aliases: [db.system] }
+      - { tag: db.instance,  type: string, required: recommended }
+      - { tag: db.operation, type: string, required: recommended, aliases: [db.operation.name] }
+      - { tag: db.user,      type: string, required: recommended }
+      - { tag: db.pool.name, type: string, required: optional }
+      - { tag: db.statement, type: string, required: recommended, slot: false, intercepted: true, aliases: [db.query.text] }
+
+  # ---- View render (response.render) ----
+  view.render:
+    extends: base
+    tags:
+      - { tag: view.name, type: string, required: recommended, slot: false }
+
+# ===== Product / enrichment mixins (on the side) ============================
+# Composed orthogonally when the product is enabled. `applies: all` => overlaid on
+# every span (implicitly); `applies: [types]` => only those span types.
+# Tag lists below are ILLUSTRATIVE — each product team owns the authoritative set.
+mixins:
+
+  profiling:
+    enabled_by: dd.profiling.enabled
+    applies: all
+    tags:
+      - { tag: _dd.profiling.enabled, type: boolean, source: core }
+
+  dsm:                               # Data Streams Monitoring
+    enabled_by: dd.data.streams.enabled
+    applies: all
+    tags:
+      - { tag: _dd.dsm.enabled, type: boolean, source: core }
+      # + pathway / checkpoint tags on messaging spans (owned by DSM)
+
+  appsec:                            # ASM
+    enabled_by: dd.appsec.enabled
+    applies: [ http.server ]
+    tags:
+      - { tag: _dd.appsec.enabled, type: boolean, source: core, slot: false }
+      # + appsec event / threat tags (owned by AppSec)
+
+  ci_visibility:                     # CI Visibility (test spans)
+    enabled_by: dd.civisibility.enabled
+    applies: [ test ]                # a `test` span type (not modeled here yet)
+    tags:
+      - { tag: test.name,      type: string, slot: false }
+      - { tag: test.suite,     type: string, slot: false }
+      - { tag: test.status,    type: string, slot: false }
+      - { tag: test.framework, type: string, slot: false }
+
+# ---------------------------------------------------------------------------
+# Notes
+# - `span.kind` enumerates: server | client | producer | consumer | internal | broker.
+# - "virtual" tags (sampling.priority, resource.name, service, manual.keep/drop,
+#   span.type, measured, origin, analytics.sample_rate, error flag) are handled
+#   entirely by the interceptor / span fields and are NOT stored; they'd be declared
+#   with `virtual: true` (reserved-tier id, no slot). Omitted here for now.
+# ---------------------------------------------------------------------------
