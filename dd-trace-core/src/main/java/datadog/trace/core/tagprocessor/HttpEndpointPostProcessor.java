@@ -1,13 +1,10 @@
 package datadog.trace.core.tagprocessor;
 
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_ROUTE;
-import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
-
 import datadog.trace.api.TagMap;
 import datadog.trace.api.endpoint.EndpointResolver;
 import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
+import datadog.trace.core.CoreTagIds;
 import datadog.trace.core.DDSpanContext;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -61,16 +58,21 @@ public class HttpEndpointPostProcessor extends TagsPostProcessor {
       return;
     }
 
-    if (unsafeTags.getObject(HTTP_METHOD) == null) {
+    if (unsafeTags.getEntry(CoreTagIds.HTTP_METHOD) == null) {
       return;
     }
 
     try {
-      String httpRoute = unsafeTags.getString(HTTP_ROUTE);
-      String httpUrl = unsafeTags.getString(HTTP_URL);
+      String httpRoute = stringValue(unsafeTags, CoreTagIds.HTTP_ROUTE);
+      String httpUrl = stringValue(unsafeTags, CoreTagIds.HTTP_URL);
       endpointResolver.resolveEndpoint(unsafeTags, httpRoute, httpUrl);
     } catch (Throwable t) {
       log.debug("Error processing HTTP endpoint for span {}", spanContext.getSpanId(), t);
     }
+  }
+
+  private static String stringValue(TagMap unsafeTags, long tagId) {
+    TagMap.Entry entry = unsafeTags.getEntry(tagId);
+    return entry == null ? null : entry.stringValue();
   }
 }

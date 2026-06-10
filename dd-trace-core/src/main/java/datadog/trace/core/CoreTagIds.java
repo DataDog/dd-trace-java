@@ -22,8 +22,8 @@ public final class CoreTagIds {
   // place them in a positional slot
   static final int RESERVED_FIELD_POS = 0xFFFF;
 
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..8.
-  static final int SLOT_COUNT = 9;
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..13.
+  static final int SLOT_COUNT = 14;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
@@ -66,6 +66,28 @@ public final class CoreTagIds {
   public static final int SVC_SRC_SERIAL = KnownTags.FIRST_STORED_SERIAL + 8;
   public static final long SVC_SRC_ID = KnownTags.tagId(SVC_SRC_SERIAL, 8, DDTags.DD_SVC_SRC);
 
+  // peer.service tags, read/written by PeerServiceCalculator (post-processor; uses Map put/get that
+  // bypass the interceptor). peer.service is intercepted on the set-path but STORED, so it slots.
+  public static final int PEER_SERVICE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 9;
+  public static final long PEER_SERVICE =
+      KnownTags.tagId(PEER_SERVICE_SERIAL, 9, Tags.PEER_SERVICE);
+
+  public static final int PEER_SERVICE_REMAPPED_FROM_SERIAL = KnownTags.FIRST_STORED_SERIAL + 10;
+  public static final long PEER_SERVICE_REMAPPED_FROM =
+      KnownTags.tagId(PEER_SERVICE_REMAPPED_FROM_SERIAL, 10, DDTags.PEER_SERVICE_REMAPPED_FROM);
+
+  // HTTP tags read by HttpEndpointPostProcessor. http.method/http.url are intercepted-but-stored
+  // (interceptTag side-effects then returns false → stored); http.route is not intercepted. All
+  // stored, so the string set-path slots them via keyOf and the id reads here find them.
+  public static final int HTTP_METHOD_SERIAL = KnownTags.FIRST_STORED_SERIAL + 11;
+  public static final long HTTP_METHOD = KnownTags.tagId(HTTP_METHOD_SERIAL, 11, Tags.HTTP_METHOD);
+
+  public static final int HTTP_ROUTE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 12;
+  public static final long HTTP_ROUTE = KnownTags.tagId(HTTP_ROUTE_SERIAL, 12, Tags.HTTP_ROUTE);
+
+  public static final int HTTP_URL_SERIAL = KnownTags.FIRST_STORED_SERIAL + 13;
+  public static final long HTTP_URL = KnownTags.tagId(HTTP_URL_SERIAL, 13, Tags.HTTP_URL);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -91,6 +113,16 @@ public final class CoreTagIds {
               return DDTags.DD_INTEGRATION;
             case SVC_SRC_SERIAL:
               return DDTags.DD_SVC_SRC;
+            case PEER_SERVICE_SERIAL:
+              return Tags.PEER_SERVICE;
+            case PEER_SERVICE_REMAPPED_FROM_SERIAL:
+              return DDTags.PEER_SERVICE_REMAPPED_FROM;
+            case HTTP_METHOD_SERIAL:
+              return Tags.HTTP_METHOD;
+            case HTTP_ROUTE_SERIAL:
+              return Tags.HTTP_ROUTE;
+            case HTTP_URL_SERIAL:
+              return Tags.HTTP_URL;
             default:
               return null;
           }
@@ -124,6 +156,16 @@ public final class CoreTagIds {
               return INTEGRATION_ID;
             case DDTags.DD_SVC_SRC:
               return SVC_SRC_ID;
+            case Tags.PEER_SERVICE:
+              return PEER_SERVICE;
+            case DDTags.PEER_SERVICE_REMAPPED_FROM:
+              return PEER_SERVICE_REMAPPED_FROM;
+            case Tags.HTTP_METHOD:
+              return HTTP_METHOD;
+            case Tags.HTTP_ROUTE:
+              return HTTP_ROUTE;
+            case Tags.HTTP_URL:
+              return HTTP_URL;
             default:
               return 0L;
           }
