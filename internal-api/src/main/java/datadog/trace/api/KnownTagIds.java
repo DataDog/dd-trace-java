@@ -18,8 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  * tag-id resolution live before the first span is built.
  */
 public final class KnownTagIds {
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..17.
-  static final int SLOT_COUNT = 18;
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..25.
+  static final int SLOT_COUNT = 26;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   // Reserved tags are always intercepted -> set the INTERCEPTED flag.
@@ -104,6 +104,37 @@ public final class KnownTagIds {
   public static final int PEER_PORT_SERIAL = KnownTags.FIRST_STORED_SERIAL + 17;
   public static final long PEER_PORT = KnownTags.tagId(PEER_PORT_SERIAL, 17, Tags.PEER_PORT);
 
+  // Universal decorator tags — set on ~every span (component/span.kind via Base/Server/Client
+  // decorators, language via ServerDecorator). span.kind is intercepted (setSpanKindOrdinal).
+  public static final int COMPONENT_SERIAL = KnownTags.FIRST_STORED_SERIAL + 18;
+  public static final long COMPONENT = KnownTags.tagId(COMPONENT_SERIAL, 18, Tags.COMPONENT);
+
+  public static final int SPAN_KIND_SERIAL = KnownTags.FIRST_STORED_SERIAL + 19;
+  public static final long SPAN_KIND =
+      KnownTags.intercepted(KnownTags.tagId(SPAN_KIND_SERIAL, 19, Tags.SPAN_KIND));
+
+  public static final int LANGUAGE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 20;
+  public static final long LANGUAGE = KnownTags.tagId(LANGUAGE_SERIAL, 20, DDTags.LANGUAGE_TAG_KEY);
+
+  // JDBC / database-client tags — set on every db span (58% of petclinic spans). Not intercepted
+  // (only db.statement is, and that's handled separately).
+  public static final int DB_TYPE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 21;
+  public static final long DB_TYPE = KnownTags.tagId(DB_TYPE_SERIAL, 21, Tags.DB_TYPE);
+
+  public static final int DB_INSTANCE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 22;
+  public static final long DB_INSTANCE = KnownTags.tagId(DB_INSTANCE_SERIAL, 22, Tags.DB_INSTANCE);
+
+  public static final int DB_USER_SERIAL = KnownTags.FIRST_STORED_SERIAL + 23;
+  public static final long DB_USER = KnownTags.tagId(DB_USER_SERIAL, 23, Tags.DB_USER);
+
+  public static final int DB_OPERATION_SERIAL = KnownTags.FIRST_STORED_SERIAL + 24;
+  public static final long DB_OPERATION =
+      KnownTags.tagId(DB_OPERATION_SERIAL, 24, Tags.DB_OPERATION);
+
+  public static final int DB_POOL_NAME_SERIAL = KnownTags.FIRST_STORED_SERIAL + 25;
+  public static final long DB_POOL_NAME =
+      KnownTags.tagId(DB_POOL_NAME_SERIAL, 25, Tags.DB_POOL_NAME);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -147,6 +178,22 @@ public final class KnownTagIds {
               return Tags.PEER_HOST_IPV6;
             case PEER_PORT_SERIAL:
               return Tags.PEER_PORT;
+            case COMPONENT_SERIAL:
+              return Tags.COMPONENT;
+            case SPAN_KIND_SERIAL:
+              return Tags.SPAN_KIND;
+            case LANGUAGE_SERIAL:
+              return DDTags.LANGUAGE_TAG_KEY;
+            case DB_TYPE_SERIAL:
+              return Tags.DB_TYPE;
+            case DB_INSTANCE_SERIAL:
+              return Tags.DB_INSTANCE;
+            case DB_USER_SERIAL:
+              return Tags.DB_USER;
+            case DB_OPERATION_SERIAL:
+              return Tags.DB_OPERATION;
+            case DB_POOL_NAME_SERIAL:
+              return Tags.DB_POOL_NAME;
             default:
               return null;
           }
@@ -198,6 +245,22 @@ public final class KnownTagIds {
               return PEER_HOST_IPV6;
             case Tags.PEER_PORT:
               return PEER_PORT;
+            case Tags.COMPONENT:
+              return COMPONENT;
+            case Tags.SPAN_KIND:
+              return SPAN_KIND;
+            case DDTags.LANGUAGE_TAG_KEY:
+              return LANGUAGE;
+            case Tags.DB_TYPE:
+              return DB_TYPE;
+            case Tags.DB_INSTANCE:
+              return DB_INSTANCE;
+            case Tags.DB_USER:
+              return DB_USER;
+            case Tags.DB_OPERATION:
+              return DB_OPERATION;
+            case Tags.DB_POOL_NAME:
+              return DB_POOL_NAME;
             default:
               return 0L;
           }
