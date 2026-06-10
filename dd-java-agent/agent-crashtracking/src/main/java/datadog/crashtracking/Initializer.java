@@ -18,6 +18,7 @@ import java.lang.management.ManagementFactory;
 import java.net.URL;
 import java.nio.file.FileSystems;
 import java.nio.file.Files;
+import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
 import java.nio.file.attribute.UserPrincipal;
 import java.util.Arrays;
@@ -455,20 +456,15 @@ public final class Initializer {
       return true;
     }
     try {
-      String userName = SystemProperties.get("user.name");
-      if (userName == null) {
-        return false;
-      }
-      java.nio.file.Path path = f.toPath();
+      Path path = f.toPath();
       UserPrincipal owner = Files.getOwner(path);
-      UserPrincipal jvmUser =
-          FileSystems.getDefault().getUserPrincipalLookupService().lookupPrincipalByName(userName);
+      UserPrincipal jvmUser = Files.getOwner(TempLocationManager.getInstance().getTempDir());
       if (!jvmUser.equals(owner)) {
         return false;
       }
       Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);
       return perms.stream().noneMatch(GROUP_WORLD_BITS::contains);
-    } catch (IOException e) {
+    } catch (IOException | IllegalStateException e) {
       LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
       return false;
     }

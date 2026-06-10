@@ -26,12 +26,12 @@ public final class OOMENotifierScriptInitializer {
   private OOMENotifierScriptInitializer() {}
 
   @VisibleForTesting
-  static void initialize(String onOutOfMemoryVal) {
+  static boolean initialize(String onOutOfMemoryVal) {
     if (onOutOfMemoryVal == null || onOutOfMemoryVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY,
           "'-XX:OnOutOfMemoryError' argument was not provided. OOME tracking is disabled.");
-      return;
+      return false;
     }
     File scriptFile = getOOMEScriptFile(onOutOfMemoryVal);
     if (scriptFile == null) {
@@ -39,19 +39,20 @@ public final class OOMENotifierScriptInitializer {
           SEND_TELEMETRY,
           "OOME notifier script value ({}) does not follow the expected format: <path>/dd_oome_notifier.(sh|bat) %p. OOME tracking is disabled.",
           onOutOfMemoryVal);
-      return;
+      return false;
     }
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(
           SEND_TELEMETRY,
           "Unable to locate the agent jar. OOME notification will not work properly.");
-      return;
+      return false;
     }
     if (!copyOOMEscript(scriptFile)) {
-      return;
+      return false;
     }
     writeConfigToPath(scriptFile, "agent", agentJar);
+    return true;
   }
 
   private static File getOOMEScriptFile(String onOutOfMemoryVal) {

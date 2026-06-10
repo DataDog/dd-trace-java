@@ -31,16 +31,16 @@ public final class CrashUploaderScriptInitializer {
   private CrashUploaderScriptInitializer() {}
 
   @VisibleForTesting
-  static void initialize(String onErrorVal, String onErrorFile) {
-    initialize(onErrorVal, onErrorFile, null);
+  static boolean initialize(String onErrorVal, String onErrorFile) {
+    return initialize(onErrorVal, onErrorFile, null);
   }
 
   @VisibleForTesting
-  static void initialize(String onErrorVal, String onErrorFile, String javacorePath) {
+  static boolean initialize(String onErrorVal, String onErrorFile, String javacorePath) {
     if (onErrorVal == null || onErrorVal.isEmpty()) {
       LOG.debug(
           SEND_TELEMETRY, "'-XX:OnError' argument was not provided. Crash tracking is disabled.");
-      return;
+      return false;
     }
     if (onErrorFile == null || onErrorFile.isEmpty()) {
       onErrorFile = SystemProperties.get("user.dir") + "/hs_err_pid" + PidHelper.getPid() + ".log";
@@ -52,14 +52,14 @@ public final class CrashUploaderScriptInitializer {
     String agentJar = findAgentJar();
     if (agentJar == null) {
       LOG.warn(SEND_TELEMETRY, "Unable to locate the agent jar. " + SETUP_FAILURE_MESSAGE);
-      return;
+      return false;
     }
 
     File scriptFile = new File(onErrorVal.replace(" %p", ""));
     boolean isDDCrashUploader =
         scriptFile.getName().toLowerCase(ROOT).contains("dd_crash_uploader");
     if (isDDCrashUploader && !copyCrashUploaderScript(scriptFile, onErrorFile, agentJar)) {
-      return;
+      return false;
     }
 
     if (javacorePath != null && !javacorePath.isEmpty()) {
@@ -67,6 +67,7 @@ public final class CrashUploaderScriptInitializer {
     } else {
       writeConfigToPath(scriptFile, "agent", agentJar, "hs_err", onErrorFile);
     }
+    return true;
   }
 
   private static boolean copyCrashUploaderScript(
