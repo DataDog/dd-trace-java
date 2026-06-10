@@ -2,6 +2,7 @@ package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
+import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -15,10 +16,12 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
+import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProductTraceSource;
+import datadog.trace.api.env.CapturedEnvironment;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
 import datadog.trace.api.sampling.PrioritySampling;
@@ -38,7 +41,7 @@ import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.ConfigDefaultsConverter;
+import datadog.trace.junit.utils.converter.ConfigDefaultsConverter;
 import datadog.trace.junit.utils.tabletest.DDTagsConverter;
 import java.util.Collections;
 import java.util.Map;
@@ -149,6 +152,9 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   })
   void settingServiceNameAsPropertyDisablesServletContext(
       String context, @ConvertWith(ConfigDefaultsConverter.class) String serviceName) {
+    if ("ENV_SERVICE_NAME".equals(serviceName)) {
+      serviceName = CapturedEnvironment.get().getProperties().get(SERVICE_NAME);
+    }
     injectSysConfig("service", serviceName);
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
     AgentSpan span = tracer.buildSpan("datadog", "test").start();
@@ -157,15 +163,10 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals(serviceName, span.getServiceName());
   }
 
-  @TableTest({
-    "scenario        | context         | serviceName            | mapping                            ",
-    "default service | '/some-context' | 'DEFAULT_SERVICE_NAME' | [DEFAULT_SERVICE_NAME: new-service]",
-    "my-service      | '/some-context' | 'my-service'           | [my-service: new-service]          "
-  })
-  void mappingCausesServletContextToNotChangeServiceName(
-      String context,
-      @ConvertWith(ConfigDefaultsConverter.class) String serviceName,
-      @ConvertWith(ConfigDefaultsConverter.class) Map<String, String> mapping) {
+  @ParameterizedTest
+  @ValueSource(strings = {ConfigDefaults.DEFAULT_SERVICE_NAME, "my-service"})
+  void mappingCausesServletContextToNotChangeServiceName(String serviceName) {
+    Map<String, String> mapping = Collections.singletonMap(serviceName, "new-service");
     CoreTracer tracer =
         tracerBuilder()
             .serviceName(serviceName)
@@ -175,7 +176,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
             .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
-    span.setTag("servlet.context", context);
+    span.setTag("servlet.context", "/some-context");
     span.finish();
 
     assertEquals("new-service", span.getServiceName());

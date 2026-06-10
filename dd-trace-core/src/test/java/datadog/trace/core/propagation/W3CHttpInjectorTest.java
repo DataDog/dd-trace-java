@@ -21,7 +21,7 @@ import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.TraceIdConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -52,9 +52,9 @@ class W3CHttpInjectorTest extends DDCoreJavaSpecification {
     "scenario                | traceId        | spanId         | samplingPriority | origin | tracestate                                    ",
     "unset 1->2              | 1              | 2              | UNSET            |        | 'dd=p:0000000000000002;t.usr:123'             ",
     "keep 1->4 saipan        | 1              | 4              | SAMPLER_KEEP     | saipan | 'dd=s:1;o:saipan;p:0000000000000004;t.usr:123'",
-    "unset max->max-1 saipan | TRACE_ID_MAX   | TRACE_ID_MAX-1 | UNSET            | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
-    "keep max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | SAMPLER_KEEP     |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
-    "drop max-1->max         | TRACE_ID_MAX-1 | TRACE_ID_MAX   | SAMPLER_DROP     |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
+    "unset max->max-1 saipan | MAX   | MAX-1 | UNSET            | saipan | 'dd=o:saipan;p:fffffffffffffffe;t.usr:123'    ",
+    "keep max-1->max         | MAX-1 | MAX   | SAMPLER_KEEP     |        | 'dd=s:1;p:ffffffffffffffff;t.usr:123'         ",
+    "drop max-1->max         | MAX-1 | MAX   | SAMPLER_DROP     |        | 'dd=s:0;p:ffffffffffffffff;t.usr:123'         "
   })
   void injectHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,

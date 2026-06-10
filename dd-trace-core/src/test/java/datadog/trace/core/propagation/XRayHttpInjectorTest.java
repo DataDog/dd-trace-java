@@ -24,7 +24,7 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
 import datadog.trace.core.datastreams.DataStreamsMonitoring;
 import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.TraceIdConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.AfterEach;
@@ -65,8 +65,8 @@ class XRayHttpInjectorTest extends DDCoreJavaSpecification {
     "drop 4->5        | 4              | 5              | SAMPLER_DROP     | 'Root=1-633c7675-000000000000000000000004;Parent=0000000000000005;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
     "user keep 5->6   | 5              | 6              | USER_KEEP        | 'Root=1-633c7675-000000000000000000000005;Parent=0000000000000006;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
     "user drop 6->7   | 6              | 7              | USER_DROP        | 'Root=1-633c7675-000000000000000000000006;Parent=0000000000000007;Sampled=0;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'",
-    "unset max->max-1 | TRACE_ID_MAX   | TRACE_ID_MAX-1 | UNSET            | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
-    "keep max-1->max  | TRACE_ID_MAX-1 | TRACE_ID_MAX   | SAMPLER_KEEP     | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'"
+    "unset max->max-1 | MAX   | MAX-1 | UNSET            | 'Root=1-633c7675-00000000ffffffffffffffff;Parent=fffffffffffffffe;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'          ",
+    "keep max-1->max  | MAX-1 | MAX   | SAMPLER_KEEP     | 'Root=1-633c7675-00000000fffffffffffffffe;Parent=ffffffffffffffff;Sampled=1;_dd.origin=fakeOrigin;SOME_CUSTOM_HEADER=some-value;k=v'"
   })
   void injectHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,

@@ -1,4 +1,4 @@
-package datadog.trace.junit.utils.tabletest;
+package datadog.trace.junit.utils.converter;
 
 import static java.math.BigInteger.ONE;
 
@@ -14,9 +14,9 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
  * <p>Supported names:
  *
  * <ul>
- *   <li>{@code TRACE_ID_MAX} — max unsigned 64-bit value (18446744073709551615 = 2⁶⁴ − 1)
- *   <li>{@code TRACE_ID_MAX-1} — max minus one (18446744073709551614 = 2⁶⁴ − 2)
- *   <li>{@code TRACE_ID_MAX+1} — first out-of-range value (18446744073709551616 = 2⁶⁴)
+ *   <li>{@code MAX} — max unsigned 64-bit value (18446744073709551615 = 2⁶⁴ − 1)
+ *   <li>{@code MAX-1} — max minus one (18446744073709551614 = 2⁶⁴ − 2)
+ *   <li>{@code MAX+1} — first out-of-range value (18446744073709551616 = 2⁶⁴)
  * </ul>
  *
  * <p>All other values are passed through unchanged.
@@ -38,13 +38,13 @@ public class TraceIdConverter implements ArgumentConverter {
     String s = source.toString();
     String traceId;
     switch (s) {
-      case "TRACE_ID_MAX":
+      case "MAX":
         traceId = TRACE_ID_MAX;
         break;
-      case "TRACE_ID_MAX-1":
+      case "MAX-1":
         traceId = TRACE_ID_MAX_MINUS_1;
         break;
-      case "TRACE_ID_MAX+1":
+      case "MAX+1":
         traceId = TRACE_ID_MAX_PLUS_1;
         break;
       default:

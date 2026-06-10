@@ -1,9 +1,10 @@
-package datadog.trace.junit.utils.tabletest;
+package datadog.trace.junit.utils.converter;
+
+import static datadog.trace.junit.utils.converter.MapBasedConverter.handleMap;
 
 import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.env.CapturedEnvironment;
-import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -13,13 +14,8 @@ public class ConfigDefaultsConverter implements ArgumentConverter {
   @Override
   public Object convert(Object source, ParameterContext context)
       throws ArgumentConversionException {
-    if (source instanceof Map) {
-      // convert keys and values from the map
-      Map<? super Object, ? super Object> map = new HashMap<>();
-      for (Map.Entry<? super Object, ? super Object> e :
-          ((Map<? super Object, ? super Object>) source).entrySet()) {
-        map.put(convert(e.getKey(), context), convert(e.getValue(), context));
-      }
+    Map<? super Object, ? super Object> map = handleMap(source, context, this);
+    if (map != null) {
       return map;
     }
     if (source.toString().startsWith("DEFAULT_")) {
@@ -32,9 +28,7 @@ public class ConfigDefaultsConverter implements ArgumentConverter {
           throw new ArgumentConversionException("Cannot convert " + source);
       }
     }
-    if ("ENV_SERVICE_NAME".equals(source.toString())) {
-      return CapturedEnvironment.get().getProperties().get(GeneralConfig.SERVICE_NAME);
-    }
     return source.toString();
   }
+
 }
