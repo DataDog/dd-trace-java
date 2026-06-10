@@ -2,6 +2,7 @@ package datadog.trace.junit.utils.tabletest;
 
 import static java.math.BigInteger.ONE;
 
+import datadog.trace.api.DDTraceId;
 import java.math.BigInteger;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -34,15 +35,29 @@ public class TraceIdConverter implements ArgumentConverter {
     if (source == null) {
       return null;
     }
-    switch (source.toString()) {
+    String s = source.toString();
+    String traceId;
+    switch (s) {
       case "TRACE_ID_MAX":
-        return TRACE_ID_MAX;
+        traceId = TRACE_ID_MAX;
+        break;
       case "TRACE_ID_MAX-1":
-        return TRACE_ID_MAX_MINUS_1;
+        traceId = TRACE_ID_MAX_MINUS_1;
+        break;
       case "TRACE_ID_MAX+1":
-        return TRACE_ID_MAX_PLUS_1;
+        traceId = TRACE_ID_MAX_PLUS_1;
+        break;
       default:
-        return source.toString();
+        traceId = s;
+    }
+
+    Class<?> parameterType = context.getParameter().getType();
+    if (parameterType.isAssignableFrom(DDTraceId.class)) {
+      return DDTraceId.from(s);
+    } else if (parameterType.isAssignableFrom(Long.class)) {
+      return DDTraceId.from(s).toLong();
+    } else {
+      return traceId;
     }
   }
 }
