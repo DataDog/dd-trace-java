@@ -22,8 +22,9 @@ public final class KnownTagIds {
   static final int SLOT_COUNT = 18;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
+  // Reserved tags are always intercepted -> set the INTERCEPTED flag.
   public static final int ERROR_SERIAL = 1;
-  public static final long ERROR = KnownTags.tagId(ERROR_SERIAL, Tags.ERROR);
+  public static final long ERROR = KnownTags.intercepted(KnownTags.tagId(ERROR_SERIAL, Tags.ERROR));
 
   // ---- stored (slotted / bucketed) ----
   public static final int PARENT_ID_SERIAL = KnownTags.FIRST_STORED_SERIAL;
@@ -66,7 +67,7 @@ public final class KnownTagIds {
   // bypass the interceptor). peer.service is intercepted on the set-path but STORED, so it slots.
   public static final int PEER_SERVICE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 9;
   public static final long PEER_SERVICE =
-      KnownTags.tagId(PEER_SERVICE_SERIAL, 9, Tags.PEER_SERVICE);
+      KnownTags.intercepted(KnownTags.tagId(PEER_SERVICE_SERIAL, 9, Tags.PEER_SERVICE));
 
   public static final int PEER_SERVICE_REMAPPED_FROM_SERIAL = KnownTags.FIRST_STORED_SERIAL + 10;
   public static final long PEER_SERVICE_REMAPPED_FROM =
@@ -76,13 +77,15 @@ public final class KnownTagIds {
   // (interceptTag side-effects then returns false → stored); http.route is not intercepted. All
   // stored, so the string set-path slots them via keyOf and the id reads here find them.
   public static final int HTTP_METHOD_SERIAL = KnownTags.FIRST_STORED_SERIAL + 11;
-  public static final long HTTP_METHOD = KnownTags.tagId(HTTP_METHOD_SERIAL, 11, Tags.HTTP_METHOD);
+  public static final long HTTP_METHOD =
+      KnownTags.intercepted(KnownTags.tagId(HTTP_METHOD_SERIAL, 11, Tags.HTTP_METHOD));
 
   public static final int HTTP_ROUTE_SERIAL = KnownTags.FIRST_STORED_SERIAL + 12;
   public static final long HTTP_ROUTE = KnownTags.tagId(HTTP_ROUTE_SERIAL, 12, Tags.HTTP_ROUTE);
 
   public static final int HTTP_URL_SERIAL = KnownTags.FIRST_STORED_SERIAL + 13;
-  public static final long HTTP_URL = KnownTags.tagId(HTTP_URL_SERIAL, 13, Tags.HTTP_URL);
+  public static final long HTTP_URL =
+      KnownTags.intercepted(KnownTags.tagId(HTTP_URL_SERIAL, 13, Tags.HTTP_URL));
 
   // peer connection tags set by BaseDecorator.onPeerConnection on ~every client/producer span.
   // Not intercepted; stored. Slotted (common across client instrumentations).

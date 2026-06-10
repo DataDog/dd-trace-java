@@ -5,6 +5,7 @@ import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.params.provider.Arguments.arguments;
@@ -16,6 +17,8 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagIds;
+import datadog.trace.api.KnownTags;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
@@ -686,6 +689,37 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     } finally {
       ServiceNameCollectorTestBridge.setInstance(origServiceNameCollector);
     }
+  }
+
+  @Test
+  void knownTagIdInterceptedFlagMatchesNameBasedNeedsIntercept() throws Exception {
+    // No-regression guard: the INTERCEPTED bit baked into each KnownTagIds id must agree with the
+    // interceptor's name-based needsIntercept(name). If a new id is added (or interception of a
+    // name changes) without keeping the flag in sync, DDSpanContext.setTag(long) would either skip
+    // a needed interception or pointlessly intercept — this catches the drift.
+    RuleFlags ruleFlags = mock(RuleFlags.class);
+    when(ruleFlags.isEnabled(any())).thenReturn(true);
+    TagInterceptor interceptor = new TagInterceptor(ruleFlags);
+
+    int checked = 0;
+    for (java.lang.reflect.Field field : KnownTagIds.class.getDeclaredFields()) {
+      if (field.getType() != long.class) {
+        continue; // ids are the long constants; skip *_SERIAL ints, ENV string, etc.
+      }
+      long tagId = field.getLong(null);
+      String name = KnownTags.nameOf(tagId);
+      assertNotNull(name, "id " + field.getName() + " should resolve to a name");
+      assertEquals(
+          interceptor.needsIntercept(name),
+          KnownTags.isIntercepted(tagId),
+          "INTERCEPTED flag for "
+              + field.getName()
+              + " (\""
+              + name
+              + "\") disagrees with needsIntercept");
+      checked++;
+    }
+    assertTrue(checked > 0, "expected to check at least one tag id");
   }
 
   @Test

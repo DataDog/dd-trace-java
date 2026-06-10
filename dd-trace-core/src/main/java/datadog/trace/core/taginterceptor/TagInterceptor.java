@@ -134,10 +134,12 @@ public class TagInterceptor {
   }
 
   /**
-   * Id-dispatched variant of {@link #interceptTag(DDSpanContext, String, Object)}: switches on the
-   * tagId's globalSerial (an int) instead of the tag-name string. Used by {@code
-   * DDSpanContext.setTag(long, Object)} for reserved (virtual) tags. Falls back to the string path
-   * for any reserved id without a dedicated case.
+   * Id-dispatched (fast) variant of {@link #interceptTag(DDSpanContext, String, Object)}: switches
+   * on the tagId's globalSerial (an int) instead of the tag-name string. Used by {@code
+   * DDSpanContext.setTag(long, Object)} for any {@link KnownTags#isIntercepted} id — reserved
+   * "virtual" tags AND intercepted-but-stored tags (e.g. http.method/url, peer.service). Hot tags
+   * get a dedicated case; the default falls back to resolving the name and running the (slower)
+   * string interception, so behavior matches the string set-path exactly.
    */
   public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
     switch (KnownTags.globalSerial(tagId)) {

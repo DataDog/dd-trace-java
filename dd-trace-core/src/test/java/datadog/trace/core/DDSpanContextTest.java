@@ -101,6 +101,23 @@ public class DDSpanContextTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void setTagById_interceptedButStoredTagRunsInterceptor() {
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    DDSpanContext context = (DDSpanContext) span.context();
+
+    // peer.service is intercepted-but-stored (case c): setting it by id must run the interceptor
+    // side-effect (which records the peer.service source) AND store the value, exactly like the
+    // string set-path. The id carries the INTERCEPTED flag so setTag(long) routes through the
+    // interceptor.
+    context.setTag(KnownTagIds.PEER_SERVICE, "my-remote-svc");
+
+    assertEquals(Tags.PEER_SERVICE, context.getTags().get(DDTags.PEER_SERVICE_SOURCE));
+    assertEquals("my-remote-svc", context.getTags().get(Tags.PEER_SERVICE));
+
+    span.finish();
+  }
+
+  @Test
   void commonTags_slotByNameViaCommonLayout() {
     // env / product flags are build-time-known common tags (KnownTagIds). Set by name they resolve
     // to their id and land in the common slot layout, and remain findable by both name and id.

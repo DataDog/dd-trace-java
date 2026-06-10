@@ -20,15 +20,36 @@ public final class KnownTags {
   }
 
   /*
-   * tagId bit layout: [63-48 globalSerial] [47-32 fieldPos] [31-0 nameHash].
-   * globalSerial is globally unique per known tag; fieldPos is its slot in the global positional
-   * layout (TagMap.knownEntries index); nameHash is TagMap.Entry#_hash(name) and is
-   * layout-independent. Unknown (string-only) tags have the upper 32 bits zero. NOTE: TagMap.Entry
-   * decodes nameHash inline as (int) tagId on its hot path, so the low-32 encoding here must stay
-   * in sync with that.
+   * tagId bit layout: [63 intercepted] [62-48 globalSerial (15 bits)] [47-32 fieldPos]
+   * [31-0 nameHash]. Bit 63 (the sign bit) marks a tag the tag interceptor must see, so the check
+   * is a single {@code tagId < 0}. globalSerial is globally unique per known tag; fieldPos is its
+   * slot in the global positional layout (TagMap.knownEntries index); nameHash is
+   * TagMap.Entry#_hash(name) and is layout-independent. Unknown (string-only) tags have the upper
+   * 32 bits zero. NOTE: TagMap.Entry decodes nameHash inline as (int) tagId on its hot path, so the
+   * low-32 encoding here must stay in sync with that.
    */
   public static int globalSerial(long tagId) {
-    return (int) (tagId >>> 48);
+    return (int) ((tagId >>> 48) & 0x7FFF);
+  }
+
+  /**
+   * Flag bit (the sign bit) marking a tag the tag interceptor must process — reserved/"virtual"
+   * tags AND intercepted-but-stored tags (e.g. http.method, which the interceptor side-effects and
+   * also stores). Encoded in the id so {@code DDSpanContext.setTag(long)} can route with a single
+   * sign test ({@link #isIntercepted}) instead of resolving the name. Non-intercepted tags (peer.*,
+   * base.service, …) leave it clear and take the fast store path. Must agree with the interceptor's
+   * name-based {@code needsIntercept} for every assigned id.
+   */
+  public static final long INTERCEPTED = Long.MIN_VALUE; // 1L << 63
+
+  /** True if the tagId is flagged for tag-interceptor processing. */
+  public static boolean isIntercepted(long tagId) {
+    return tagId < 0L;
+  }
+
+  /** Returns the tagId with the {@link #INTERCEPTED} flag set. */
+  public static long intercepted(long tagId) {
+    return tagId | INTERCEPTED;
   }
 
   public static int fieldPos(long tagId) {

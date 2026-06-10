@@ -903,10 +903,11 @@ public class DDSpanContext
   }
 
   /**
-   * Sets a tag by its generated tag id. Reserved "virtual" tags (interceptor-handled, not stored)
-   * are routed to the interceptor via an id dispatch; stored tags go straight to the map (slot or
-   * bucket) keyed by id, bypassing the per-tag interceptor string switch. The id classification is
-   * a single range check (see {@link KnownTags#isReserved}).
+   * Sets a tag by its generated tag id. Three cases, classified by a single sign test on the id
+   * ({@link KnownTags#isIntercepted}): (a) reserved "virtual" tags and (c) intercepted-but-stored
+   * tags (e.g. http.method) are routed to the interceptor via an id dispatch, then stored if the
+   * interceptor didn't fully handle them; (b) non-intercepted stored tags go straight to the map
+   * (slot or bucket) keyed by id, bypassing the per-tag interceptor string switch.
    */
   public void setTag(final long tagId, final Object value) {
     if (null == value) {
@@ -916,7 +917,7 @@ public class DDSpanContext
       }
       return;
     }
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
@@ -937,7 +938,7 @@ public class DDSpanContext
       }
       return;
     }
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
@@ -951,7 +952,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final boolean value) {
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       // boxes on the (rare) reserved/intercepted path only
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
@@ -966,7 +967,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final int value) {
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
@@ -980,7 +981,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final long value) {
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
@@ -994,7 +995,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final float value) {
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
@@ -1008,7 +1009,7 @@ public class DDSpanContext
   }
 
   public void setTag(final long tagId, final double value) {
-    if (KnownTags.isReserved(tagId)) {
+    if (KnownTags.isIntercepted(tagId)) {
       if (!tagInterceptor.interceptTag(this, tagId, value)) {
         synchronized (unsafeTags) {
           unsafeTags.set(tagId, value);
