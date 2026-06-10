@@ -6,9 +6,9 @@ import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
+  id 'base'
   id 'com.gradleup.shadow'
   id("dd-trace-java.instrumentation-naming")
-  id 'dd-trace-java.muzzle' apply false
 }
 
 // This project has no sources, but it resolves instrumentationBundleClasspath for shadowJar/index generation.
@@ -117,8 +117,26 @@ dependencies {
   instrumentationBundleClasspath project(':dd-java-agent:agent-installer')
 }
 
-if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  plugins.apply('dd-trace-java.muzzle')
+def mergedMuzzleReportFile = rootProject.layout.buildDirectory.file('muzzle-deps-results/dd-java-agent_instrumentation.csv')
+
+tasks.register('mergeMuzzleReports') {
+  outputs.file(mergedMuzzleReportFile)
+  doLast {
+    def reportFile = mergedMuzzleReportFile.get().asFile
+    reportFile.parentFile.mkdirs()
+    reportFile.withWriter { writer ->
+      writer.writeLine('instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion')
+      fileTree(reportFile.parentFile) {
+        include '*.csv'
+        exclude reportFile.name
+      }.files.sort { it.name }.each { partialReport ->
+        partialReport.readLines().drop(1).each { writer.writeLine(it) }
+      }
+    }
+  }
+}
+
+if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") || it.endsWith("muzzleInstrumentationReport") }) {
   tasks.register('muzzleInstrumentationReport') {
     dependsOn(subprojects.collect { p ->
       p.tasks.matching {
