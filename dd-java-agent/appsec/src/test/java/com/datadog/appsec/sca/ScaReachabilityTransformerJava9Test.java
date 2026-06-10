@@ -1,11 +1,15 @@
 package com.datadog.appsec.sca;
 
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
+import datadog.telemetry.dependency.Dependency;
 import java.io.StringReader;
 import java.net.URLClassLoader;
+import java.util.Arrays;
+import java.util.Collections;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.condition.EnabledForJreRange;
 import org.junit.jupiter.api.condition.JRE;
@@ -84,6 +88,60 @@ class ScaReachabilityTransformerJava9Test {
     String version = transformer.findArtifactVersionInClasspath("com.example:nonexistent-artifact");
 
     assertNull(version, "Unknown artifacts must return null");
+  }
+
+  // ---------------------------------------------------------------------------
+  // matchVersion: artifact-ID-only fallback for JARs without pom.properties
+  // ---------------------------------------------------------------------------
+
+  @Test
+  void matchVersion_exactMatchReturnsVersion() {
+    Dependency dep = new Dependency("com.github.junrar:junrar", "7.5.5", "junrar-7.5.5.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)));
+  }
+
+  @Test
+  void matchVersion_artifactIdOnlyFallbackForNoPomJar() {
+    // Models guessFallbackNoPom result: no pom.properties in junrar-7.5.5.jar,
+    // so DependencyResolver extracts only the artifact ID from the filename.
+    Dependency dep = new Dependency("junrar", "7.5.5", "junrar-7.5.5.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        "artifact-ID fallback must match 'junrar' against 'com.github.junrar:junrar'");
+  }
+
+  @Test
+  void matchVersion_artifactIdFallbackDoesNotMatchWhenGroupIdPresent() {
+    // If dep.name already contains ':' (from pom.properties), artifact-ID fallback must not fire:
+    // "org.other:junrar" should NOT match "com.github.junrar:junrar".
+    Dependency dep = new Dependency("org.other:junrar", "1.0.0", "junrar-1.0.0.jar", null);
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.singletonList(dep)),
+        "artifact-ID fallback must not fire when dep.name already has a group ID");
+  }
+
+  @Test
+  void matchVersion_emptyListReturnsNull() {
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Collections.emptyList()));
+  }
+
+  @Test
+  void matchVersion_exactMatchTakesPrecedenceOverFallback() {
+    // Exact match must win even when an artifact-ID-only dep is also present.
+    Dependency exact = new Dependency("com.github.junrar:junrar", "7.5.5", "a.jar", null);
+    Dependency fallback = new Dependency("junrar", "1.0.0", "b.jar", null);
+    assertEquals(
+        "7.5.5",
+        ScaReachabilityTransformer.matchVersion(
+            "com.github.junrar:junrar", Arrays.asList(fallback, exact)));
   }
 
   /**

@@ -340,21 +340,48 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   @VisibleForTesting
   String resolveVersionForArtifact(String artifactName, List<Dependency> classJarDeps) {
-    for (Dependency dep : classJarDeps) {
-      if (artifactName.equals(dep.name)) {
-        return dep.version;
-      }
+    String version = matchVersion(artifactName, classJarDeps);
+    if (version != null) {
+      return version;
     }
     // Classpath fallback: check cache first, then scan.
     String cached = classpathArtifactCache.get(artifactName);
     if (cached != null) {
       return cached;
     }
-    String version = findArtifactVersionInClasspath(artifactName);
+    version = findArtifactVersionInClasspath(artifactName);
     if (version != null) {
       classpathArtifactCache.put(artifactName, version); // only cache hits; misses are retried
     }
     return version;
+  }
+
+  /**
+   * Matches {@code artifactName} (groupId:artifactId format) against a list of dependencies.
+   *
+   * <p>First tries an exact name match. If that fails, falls back to matching by artifact ID only.
+   * The fallback handles JARs without {@code pom.properties}: {@code Dependency.guessFallbackNoPom}
+   * can only extract the artifact ID from the filename (no group ID), producing names like {@code
+   * "junrar"} for {@code com.github.junrar:junrar}.
+   */
+  @VisibleForTesting
+  static String matchVersion(String artifactName, List<Dependency> deps) {
+    for (Dependency dep : deps) {
+      if (artifactName.equals(dep.name)) {
+        return dep.version;
+      }
+    }
+    int colonIdx = artifactName.lastIndexOf(':');
+    if (colonIdx < 0) {
+      return null;
+    }
+    String artifactId = artifactName.substring(colonIdx + 1);
+    for (Dependency dep : deps) {
+      if (!dep.name.contains(":") && artifactId.equals(dep.name) && dep.version != null) {
+        return dep.version;
+      }
+    }
+    return null;
   }
 
   @VisibleForTesting
@@ -389,12 +416,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
   }
 
   private String findArtifactInUrl(String artifactName, URL url) {
-    for (Dependency dep : resolveDependencies(url)) {
-      if (artifactName.equals(dep.name) && dep.version != null) {
-        return dep.version;
-      }
-    }
-    return null;
+    return matchVersion(artifactName, resolveDependencies(url));
   }
 
   private List<Dependency> resolveDependencies(URL url) {
