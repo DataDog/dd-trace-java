@@ -9,7 +9,7 @@ Eliminate the **per-tag `TagMap$Entry` allocation** — the #1 remaining tracer 
 fast-path made tag *placement* fast (positional slot vs hash bucket) but still allocates one
 `Entry` wrapper per tag set, and keeps it alive until serialize.
 
-**Idea:** for known (slotted) tags, store the *values* positionally in typed arrays — no
+**Idea:** for known tags, store the *values* in a dense `(id, value)` pair array — no
 `Entry` object per tag. A span's known tags never materialize an `Entry`; the serializer reads
 `(name, type, value)` straight from the arrays.
 
@@ -21,7 +21,7 @@ generator assigns each known tag a `fieldPos`, and the `AttributeValueTable` is 
 `AttributeValueTable` is an **interface**. The opaque `set(long)→boolean` / `get(long)→EntryReader`
 contract leaks nothing about storage, so the same interface can be satisfied by either backing:
 
-- **Array/segment-backed** (generic, resolver-driven) — the measurable first impl; no codegen.
+- **Array-backed** (generic, resolver-driven, dense `(id, value)` arrays) — the measurable first impl; no codegen.
 - **POJO-backed** (codegen, per span type) — a generated class with real typed fields + generated
   `set`/`get` switches. Densest and most JIT-friendly (fields inline, no bounds checks); type-reject
   falls out for free (a wrong-type `set` finds no matching field → returns `false`). Lazily-created
@@ -196,11 +196,11 @@ covers the common write path.)
 
 `TagMap` is a large `Entry`-centric interface. Plan:
 1. Implement `AttributeValueTable` as an alternative storage *inside* `OptimizedTagMap`
-   (replace the `Entry[] knownEntries` with the three arrays), rather than a new top-level type —
-   keeps the whole interface working.
-2. Slot get/set/remove/iterate operate on the arrays; bucket paths unchanged.
-3. `Entry`-returning methods materialize lazily.
-4. Add the `forEachKnown` cursor and wire the serializer.
+   (replace the `Entry[] knownEntries` with the dense `ids`/`values` arrays), rather than a new
+   top-level type — keeps the whole interface working.
+2. Known-tag get/set/remove/iterate operate on the dense arrays; bucket paths unchanged.
+3. `Entry`-returning methods materialize lazily via `EntryReader.entry()`.
+4. Reuse the existing `Iterable<EntryReader>` serialize path (flyweight per entry) — no new cursor.
 
 ## Open questions
 
