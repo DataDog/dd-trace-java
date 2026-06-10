@@ -18,9 +18,12 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  * tag-id resolution live before the first span is built.
  */
 public final class CoreTagIds {
-  // sentinel fieldPos for reserved (non-stored) tags: >= TagMap KNOWN_ENTRIES_CAPACITY, so set()
-  // can never place them in a positional slot
+  // sentinel fieldPos for reserved (non-stored) tags: far beyond SLOT_COUNT, so set() can never
+  // place them in a positional slot
   static final int RESERVED_FIELD_POS = 0xFFFF;
+
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..5 (PARENT_ID..DSM_ENABLED).
+  static final int SLOT_COUNT = 6;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
@@ -72,6 +75,11 @@ public final class CoreTagIds {
             default:
               return null;
           }
+        }
+
+        @Override
+        public int slotCount() {
+          return SLOT_COUNT;
         }
 
         @Override

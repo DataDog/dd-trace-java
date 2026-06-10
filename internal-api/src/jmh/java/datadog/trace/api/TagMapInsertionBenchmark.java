@@ -92,6 +92,11 @@ public class TagMapInsertionBenchmark {
             Long id = nameToId.get(name);
             return id == null ? 0L : id;
           }
+
+          @Override
+          public int slotCount() {
+            return NAMES.length; // fieldPos 0..NAMES.length-1
+          }
         });
 
     // pre-populate the read map by id (entries land in their slots)

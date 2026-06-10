@@ -21,11 +21,11 @@ public final class KnownTags {
 
   /*
    * tagId bit layout: [63-48 globalSerial] [47-32 fieldPos] [31-0 nameHash].
-   * globalSerial is globally unique per known tag; fieldPos is the slot within a single span
-   * type's positional table (layout-relative — only meaningful within its own Prototype); nameHash
-   * is TagMap.Entry#_hash(name) and is layout-independent. Unknown (string-only) tags have the
-   * upper 32 bits zero. NOTE: TagMap.Entry decodes nameHash inline as (int) tagId on its hot path,
-   * so the low-32 encoding here must stay in sync with that.
+   * globalSerial is globally unique per known tag; fieldPos is its slot in the global positional
+   * layout (TagMap.knownEntries index); nameHash is TagMap.Entry#_hash(name) and is
+   * layout-independent. Unknown (string-only) tags have the upper 32 bits zero. NOTE: TagMap.Entry
+   * decodes nameHash inline as (int) tagId on its hot path, so the low-32 encoding here must stay
+   * in sync with that.
    */
   public static int globalSerial(long tagId) {
     return (int) (tagId >>> 48);
@@ -72,14 +72,28 @@ public final class KnownTags {
     return ((long) globalSerial << 48) | ((long) (fieldPos & 0xFFFF) << 32) | nameHash;
   }
 
+  // Number of positional slots in the global layout = (max stored fieldPos) + 1, declared by the
+  // registered provider. Captured once at registration and read as a dynamic constant; TagMap sizes
+  // its knownEntries array to exactly this rather than a hardcoded max. 0 when no resolver.
+  private static int slotCount;
+
+  /** Slot count of the registered provider (max stored fieldPos + 1); 0 if none. */
+  public static int slotCount() {
+    return slotCount;
+  }
+
   public interface Resolver {
     String nameOf(long tagId);
 
     long keyOf(String name);
+
+    /** Number of positional slots this provider uses: (max stored fieldPos) + 1. */
+    int slotCount();
   }
 
   public static void register(Resolver resolver) {
     KnownTags.resolver = resolver; // volatile write publishes the resolver
+    KnownTags.slotCount = (resolver != null) ? resolver.slotCount() : 0;
     KnownTags.active = (resolver != null); // plain write; readers re-read resolver volatile anyway
   }
 

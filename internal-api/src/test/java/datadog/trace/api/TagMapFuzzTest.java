@@ -74,6 +74,10 @@ public final class TagMapFuzzTest {
   // Closed-form KnownTags resolver for the fuzz keys ("key-0".."key-(NUM_KEYS-1)"). Lets the
   // tag-id keyed actions (setById / putAllLedgerById) resolve their names so id-bearing entries
   // unify with string-keyed entries in the buckets and remain findable by name.
+  // slot count for the fuzz layout; fieldPos = n % SLOT_COUNT so keys spread across slots and some
+  // collide (first-writer-wins -> the rest fall to buckets), exercising both paths.
+  static final int SLOT_COUNT = 32;
+
   @BeforeAll
   static void registerResolver() {
     KnownTags.register(
@@ -87,6 +91,11 @@ public final class TagMapFuzzTest {
           @Override
           public long keyOf(String name) {
             return isFuzzKey(name) ? tagIdOf(name) : 0L;
+          }
+
+          @Override
+          public int slotCount() {
+            return SLOT_COUNT;
           }
         });
   }
@@ -102,10 +111,8 @@ public final class TagMapFuzzTest {
 
   static long tagIdOf(String key) {
     int n = Integer.parseInt(key.substring("key-".length()));
-    // globalSerial = n + 1 (non-zero, unique per key); fieldPos spreads keys across the slot array
-    // (n % CAPACITY), so distinct keys occupy distinct slots AND keys that share a fieldPos collide
-    // (first-writer-wins -> the rest fall to buckets), exercising both paths.
-    return KnownTags.tagId(n + 1, n % OptimizedTagMap.KNOWN_ENTRIES_CAPACITY, key);
+    // globalSerial = n + 1 (non-zero, unique per key); fieldPos = n % SLOT_COUNT
+    return KnownTags.tagId(n + 1, n % SLOT_COUNT, key);
   }
 
   // Number of random sequences per @Test run. Default 1 (fast CI); crank via

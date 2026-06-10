@@ -583,6 +583,11 @@ public class TagMapEntryTest {
             }
             return 0L;
           }
+
+          @Override
+          public int slotCount() {
+            return TAG_NAMES.length; // fieldPos 0..TAG_NAMES.length-1
+          }
         });
   }
 

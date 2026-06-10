@@ -71,10 +71,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     return TagMapFactory.INSTANCE.create(size);
   }
 
-  static TagMap create(TagMap.Prototype proto) {
-    return new OptimizedTagMap(proto);
-  }
-
   /** Creates a new TagMap.Ledger */
   static Ledger ledger() {
     return new Ledger();
@@ -1070,19 +1066,6 @@ public interface TagMap extends Map<String, Object>, Iterable<TagMap.EntryReader
     }
   }
 
-  /**
-   * Per-span-type factory for an {@link OptimizedTagMap} backed by a positional {@link Entry}
-   * array. Known tags for the span type are stored directly at their {@code fieldPos} slot (O(1),
-   * no hashing); unexpected tags fall back to the hash buckets.
-   *
-   * <p>For now this just vends a blank positional {@code Entry[]} sized for the span type's layout.
-   * Later it will stamp out a prepopulated template (constant-valued entries copied per span) and
-   * may cache shared Entry instances for common values.
-   */
-  abstract class Prototype {
-    public abstract Entry[] createKnownEntries();
-  }
-
   /*
    * An in-order ledger of changes to be made to a TagMap.
    * Ledger can also serves as a builder for TagMap-s via build & buildImmutable.
@@ -1427,19 +1410,14 @@ final class OptimizedTagMap implements TagMap {
     static final OptimizedTagMap EMPTY = new OptimizedTagMap(new Object[1], 0);
   }
 
-  // Default capacity for the lazily-allocated knownEntries array (one slot per fieldPos). Known
-  // tags' fieldPos values are small (a span type carries well under this many tags); a tagId whose
-  // fieldPos is >= the array length simply falls back to the hash buckets.
-  static final int KNOWN_ENTRIES_CAPACITY = 32;
-
   private final Object[] buckets;
   private int size;
   private boolean frozen;
 
   // Positional store for known tags, indexed by fieldPos. Lazily allocated on the first known-tag
-  // write (or supplied up front by a Prototype). A known tag claims its slot first-writer-wins;
-  // colliding tags (a different globalSerial already owns the slot) fall back to the hash buckets.
-  // Entries are self-describing (carry their tagId), so a bucketed tag still serializes correctly.
+  // write. A known tag claims its slot first-writer-wins; colliding tags (a different globalSerial
+  // already owns the slot) fall back to the hash buckets. Entries are self-describing (carry their
+  // tagId), so a bucketed tag still serializes correctly.
   private TagMap.Entry[] knownEntries;
 
   // Bitmask of fieldPos slots that have ever had a collision (a known tag diverted to the buckets
@@ -1453,13 +1431,6 @@ final class OptimizedTagMap implements TagMap {
     this.size = 0;
     this.frozen = false;
     this.knownEntries = null;
-  }
-
-  public OptimizedTagMap(TagMap.Prototype proto) {
-    this.buckets = new Object[1 << 4];
-    this.size = 0;
-    this.frozen = false;
-    this.knownEntries = proto.createKnownEntries();
   }
 
   /** Used for inexpensive immutable */
@@ -1785,10 +1756,13 @@ final class OptimizedTagMap implements TagMap {
   // (a different tag owns the slot) or out-of-range fieldPos, falls back to the hash buckets.
   private Entry setKnown(Entry newEntry, int globalSerial) {
     int pos = KnownTags.fieldPos(newEntry.tagId);
-    if (pos < KNOWN_ENTRIES_CAPACITY) {
+    // knownEntries is sized to the registered provider's slot count (max stored fieldPos + 1); a
+    // larger fieldPos (e.g. a reserved tag's sentinel) routes to the buckets.
+    int slotCount = KnownTags.slotCount();
+    if (pos < slotCount) {
       Entry[] known = this.knownEntries;
       if (known == null) {
-        known = this.knownEntries = new Entry[KNOWN_ENTRIES_CAPACITY];
+        known = this.knownEntries = new Entry[slotCount];
       }
       if (pos < known.length) {
         Entry occupant = known[pos];

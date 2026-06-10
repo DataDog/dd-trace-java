@@ -69,6 +69,11 @@ public class TagMapTagIdTest {
             Long id = idByName.get(name);
             return id == null ? 0L : id;
           }
+
+          @Override
+          public int slotCount() {
+            return 6; // max stored fieldPos (HTTP_STATUS=5) + 1
+          }
         });
   }
 
