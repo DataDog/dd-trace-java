@@ -10,24 +10,20 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  *
  * <p>Reserved serials {@code [1, KnownTags.FIRST_STORED_SERIAL)} name "virtual" tags handled by the
  * tag interceptor / span fields and are NOT stored in the {@code TagMap}; their {@code fieldPos} is
- * a sentinel ({@link #RESERVED_FIELD_POS}) that is out of slot range, so any incidental store
- * routes to the hash buckets rather than a positional slot. Serials {@code >= FIRST_STORED_SERIAL}
- * name stored tags that slot/bucket normally.
+ * the {@link KnownTags#NO_SLOT} sentinel that is out of slot range, so any incidental store routes
+ * to the hash buckets rather than a positional slot. Serials {@code >= FIRST_STORED_SERIAL} name
+ * stored tags that slot/bucket normally (or, with {@code NO_SLOT}, are stored bucket-only).
  *
  * <p>The resolver registers on class initialization, so simply referencing any constant here makes
  * tag-id resolution live before the first span is built.
  */
 public final class CoreTagIds {
-  // sentinel fieldPos for reserved (non-stored) tags: far beyond SLOT_COUNT, so set() can never
-  // place them in a positional slot
-  static final int RESERVED_FIELD_POS = 0xFFFF;
-
   // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..13.
   static final int SLOT_COUNT = 14;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
-  public static final long ERROR = KnownTags.tagId(ERROR_SERIAL, RESERVED_FIELD_POS, Tags.ERROR);
+  public static final long ERROR = KnownTags.tagId(ERROR_SERIAL, Tags.ERROR);
 
   // ---- stored (slotted / bucketed) ----
   public static final int PARENT_ID_SERIAL = KnownTags.FIRST_STORED_SERIAL;

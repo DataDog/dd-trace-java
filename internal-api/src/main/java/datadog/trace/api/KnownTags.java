@@ -61,6 +61,30 @@ public final class KnownTags {
   }
 
   /**
+   * Sentinel {@code fieldPos} meaning "no positional slot". It is the maximum value the 16-bit
+   * fieldPos field can hold, so it always compares {@code >= slotCount()} and routes to the hash
+   * buckets rather than the fast positional array. Two kinds of tagId use it:
+   *
+   * <ul>
+   *   <li>Reserved/virtual tags ({@code globalSerial < FIRST_STORED_SERIAL}) — not stored at all;
+   *       the sentinel just guarantees an incidental store never lands in a slot.
+   *   <li>Unslotted stored tags ({@code globalSerial >= FIRST_STORED_SERIAL}) — "low-priority" tags
+   *       that get a stable id (and so {@code keyOf}/{@code nameOf} unification with their string
+   *       form) but are deliberately not given a slot, so they live in the buckets and don't widen
+   *       {@code knownEntries[]} for every span. {@code getEntry(long)} for these resolves the name
+   *       and rehashes — the cost of not owning a slot.
+   * </ul>
+   */
+  public static final int NO_SLOT = 0xFFFF;
+
+  /**
+   * True if the tagId names a stored tag that deliberately has no positional slot (bucket-only).
+   */
+  public static boolean isUnslotted(long tagId) {
+    return isStored(tagId) && fieldPos(tagId) == NO_SLOT;
+  }
+
+  /**
    * Builds a tagId from its parts: {@code globalSerial} (globally unique per known tag), {@code
    * fieldPos} (the tag's slot within its span type's positional table), and the tag {@code name}
    * (whose hash is computed via the same function the runtime uses, so the low 32 bits match {@link
@@ -70,6 +94,15 @@ public final class KnownTags {
   public static long tagId(int globalSerial, int fieldPos, String name) {
     long nameHash = TagMap.Entry._hash(name) & 0xFFFFFFFFL;
     return ((long) globalSerial << 48) | ((long) (fieldPos & 0xFFFF) << 32) | nameHash;
+  }
+
+  /**
+   * Builds a tagId with no positional slot ({@code fieldPos == }{@link #NO_SLOT}). Use for reserved
+   * "virtual" tags and for "low-priority" stored tags that get a stable id but are intentionally
+   * kept out of the fast slot array (they route to the hash buckets). See {@link #NO_SLOT}.
+   */
+  public static long tagId(int globalSerial, String name) {
+    return tagId(globalSerial, NO_SLOT, name);
   }
 
   // Number of positional slots in the global layout = (max stored fieldPos) + 1, declared by the

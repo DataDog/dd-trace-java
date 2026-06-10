@@ -29,10 +29,16 @@ public class TagMapTagIdTest {
   static final String HTTP_METHOD = "http.request.method";
   static final String HTTP_STATUS = "http.response.status_code";
   static final String DB_SYSTEM = "db.system";
+  // a "low-priority" stored tag: has an id, but deliberately no positional slot (NO_SLOT) so it
+  // lives in the hash buckets rather than widening knownEntries[].
+  static final String MESSAGING_SYSTEM = "messaging.system";
 
   static final long HTTP_METHOD_ID = tagId(1, 2, HTTP_METHOD);
   static final long HTTP_STATUS_ID = tagId(2, 5, HTTP_STATUS);
   static final long DB_SYSTEM_ID = tagId(3, 0, DB_SYSTEM);
+  // stored-range serial (>= FIRST_STORED_SERIAL) so it is an *unslotted stored* tag, not a reserved
+  static final long MESSAGING_SYSTEM_ID =
+      KnownTags.tagId(KnownTags.FIRST_STORED_SERIAL + 4, MESSAGING_SYSTEM);
 
   static long tagId(int globalSerial, int fieldPos, String name) {
     return KnownTags.tagId(globalSerial, fieldPos, name);
@@ -50,12 +56,12 @@ public class TagMapTagIdTest {
   public void registerResolver() {
     Map<Long, String> nameById = new HashMap<>();
     Map<String, Long> idByName = new HashMap<>();
-    for (long id : new long[] {HTTP_METHOD_ID, HTTP_STATUS_ID, DB_SYSTEM_ID}) {
-      // resolve name from the tag's own definition above
-      String name =
-          id == HTTP_METHOD_ID ? HTTP_METHOD : id == HTTP_STATUS_ID ? HTTP_STATUS : DB_SYSTEM;
-      nameById.put(id, name);
-      idByName.put(name, id);
+    nameById.put(HTTP_METHOD_ID, HTTP_METHOD);
+    nameById.put(HTTP_STATUS_ID, HTTP_STATUS);
+    nameById.put(DB_SYSTEM_ID, DB_SYSTEM);
+    nameById.put(MESSAGING_SYSTEM_ID, MESSAGING_SYSTEM);
+    for (Map.Entry<Long, String> e : nameById.entrySet()) {
+      idByName.put(e.getValue(), e.getKey());
     }
     KnownTags.register(
         new KnownTags.Resolver() {
@@ -225,5 +231,55 @@ public class TagMapTagIdTest {
     assertEquals("GET", map.get(HTTP_METHOD));
     assertNull(map.get(DB_SYSTEM));
     assertEquals(1, map.size());
+  }
+
+  @Test
+  public void noSlotOverload_stampsNoSlotSentinel() {
+    long id = KnownTags.tagId(KnownTags.FIRST_STORED_SERIAL + 4, MESSAGING_SYSTEM);
+    assertEquals(KnownTags.FIRST_STORED_SERIAL + 4, KnownTags.globalSerial(id));
+    assertEquals(KnownTags.NO_SLOT, KnownTags.fieldPos(id));
+    assertEquals(Entry._hash(MESSAGING_SYSTEM), KnownTags.nameHash(id));
+    // a stored serial + NO_SLOT fieldPos == an unslotted (bucket-only) stored tag
+    assertTrue(KnownTags.isStored(id));
+    assertTrue(KnownTags.isUnslotted(id));
+  }
+
+  @Test
+  public void unslotted_setFindableByIdAndName() {
+    TagMap map = TagMap.create();
+    map.set(MESSAGING_SYSTEM_ID, "kafka");
+
+    Entry byId = map.getEntry(MESSAGING_SYSTEM_ID);
+    assertNotNull(byId);
+    assertEquals("kafka", byId.stringValue());
+    // NO_SLOT survives on the stored entry — it lives in the buckets, not a slot
+    assertEquals(KnownTags.NO_SLOT, KnownTags.fieldPos(byId.tagId));
+    assertEquals(MESSAGING_SYSTEM, byId.tag());
+
+    // string read of the same tag unifies with the id-stored entry
+    assertSame(byId, map.getEntry(MESSAGING_SYSTEM));
+    assertEquals("kafka", map.get(MESSAGING_SYSTEM));
+  }
+
+  @Test
+  public void unslotted_stringSetFindableById() {
+    TagMap map = TagMap.create();
+    map.set(MESSAGING_SYSTEM, "rabbitmq");
+
+    Entry byId = map.getEntry(MESSAGING_SYSTEM_ID);
+    assertNotNull(byId);
+    assertEquals("rabbitmq", byId.stringValue());
+  }
+
+  @Test
+  public void unslotted_removeById() {
+    TagMap map = TagMap.create();
+    map.set(MESSAGING_SYSTEM_ID, "kafka");
+    assertEquals(1, map.size());
+
+    assertTrue(map.remove(MESSAGING_SYSTEM_ID));
+    assertNull(map.getEntry(MESSAGING_SYSTEM_ID));
+    assertNull(map.get(MESSAGING_SYSTEM));
+    assertEquals(0, map.size());
   }
 }
