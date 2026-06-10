@@ -161,7 +161,8 @@ public final class Initializer {
         return false;
       }
     } catch (Throwable t) {
-      logInitializationError(
+      LOG.warn(
+          SEND_TELEMETRY,
           "Unexpected exception while initializing J9 crash tracking. Crash tracking will not work.",
           t);
     }
@@ -379,7 +380,8 @@ public final class Initializer {
         }
       }
     } catch (Throwable t) {
-      logInitializationError(
+      LOG.warn(
+          SEND_TELEMETRY,
           "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
           t);
     }
@@ -419,8 +421,10 @@ public final class Initializer {
         }
       }
     } catch (Throwable t) {
-      logInitializationError(
-          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.", t);
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.",
+          t);
     }
   }
 
@@ -466,18 +470,6 @@ public final class Initializer {
     } catch (IOException | IllegalStateException e) {
       LOG.debug("Unable to check ownership/permissions for {}: {}", f, e.getMessage());
       return false;
-    }
-  }
-
-  private static void logInitializationError(String msg, Throwable t) {
-    if (LOG.isDebugEnabled()) {
-      LOG.warn(SEND_TELEMETRY, msg, t);
-    } else {
-      LOG.warn(
-          SEND_TELEMETRY,
-          "{} [{}] (Change the logging level to debug to see the full stacktrace)",
-          msg,
-          t.getMessage());
     }
   }
 }

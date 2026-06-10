@@ -99,7 +99,11 @@ public final class CrashUploaderScriptInitializer {
       LOG.debug("Writing crash uploader script: {}", scriptFile);
       writeCrashUploaderScript(getCrashUploaderTemplate(), scriptFile, agentJar, onErrorFile);
     } catch (UntrustedScriptException e) {
-      LOG.warn(SEND_TELEMETRY, "{} {}", e.getMessage(), SETUP_FAILURE_MESSAGE);
+      LOG.warn(
+          SEND_TELEMETRY,
+          "Untrusted crash uploader script {} (wrong owner or group/world-writable). "
+              + SETUP_FAILURE_MESSAGE,
+          scriptFile);
       return false;
     } catch (IOException e) {
       LOG.warn(
@@ -111,17 +115,13 @@ public final class CrashUploaderScriptInitializer {
     return true;
   }
 
+  static class UntrustedScriptException extends IOException {}
+
   /**
    * Writes the crash uploader script if it does not already exist. When the script already exists
    * it is validated for POSIX ownership and permissions before reuse; an untrusted script causes
    * this method to throw {@link UntrustedScriptException} so the caller can return {@code false}.
    */
-  static class UntrustedScriptException extends IOException {
-    UntrustedScriptException(String msg) {
-      super(msg);
-    }
-  }
-
   private static void writeCrashUploaderScript(
       InputStream template, File scriptFile, String execClass, String crashFile)
       throws IOException {
@@ -142,8 +142,7 @@ public final class CrashUploaderScriptInitializer {
       scriptFile.setExecutable(true, true);
     } else {
       if (!isOwnedAndPrivate(scriptFile)) {
-        throw new UntrustedScriptException(
-            "Untrusted crash uploader script (wrong owner or group/world-writable): " + scriptFile);
+        throw new UntrustedScriptException();
       }
     }
   }

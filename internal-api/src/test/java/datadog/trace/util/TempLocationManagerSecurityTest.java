@@ -25,8 +25,7 @@ import org.junit.jupiter.params.provider.ValueSource;
  * Acceptance tests for the predictable-temp-path hardening (spec:
  * crashtracking-temp-script-hijack-enables-loca).
  *
- * <p>Tests 1-5 from the tester plan — all POSIX-only; skipped automatically on non-POSIX file
- * systems.
+ * <p>All tests are POSIX-only; skipped automatically on non-POSIX file systems.
  */
 public class TempLocationManagerSecurityTest {
 
