@@ -1,8 +1,8 @@
 import groovy.lang.Closure
 
 plugins {
-  id("dd-trace-java.module.distributable.api")
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.distributable.api")
   id("me.champeau.jmh")
 }
 
