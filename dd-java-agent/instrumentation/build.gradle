@@ -6,25 +6,13 @@ import datadog.gradle.plugin.instrument.BuildTimeInstrumentationExtension
 import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
-  id 'base'
   id 'com.gradleup.shadow'
   id("dd-trace-java.instrumentation-naming")
 }
+apply from: "$rootDir/gradle/java.gradle"
 
-// This project has no sources, but it resolves instrumentationBundleClasspath for shadowJar/index generation.
-apply from: "$rootDir/gradle/repositories.gradle"
 
-def instrumentationBundleClasspathConfiguration = configurations.register('instrumentationBundleClasspath') {
-  canBeConsumed = false
-  canBeResolved = true
-}
-
-def shadowJarTask = tasks.findByName('shadowJar') == null
-  ? tasks.register('shadowJar', ShadowJar) {
-    group = LifecycleBasePlugin.BUILD_GROUP
-    description = 'Create the instrumentation shadow jar.'
-  }
-  : tasks.named('shadowJar', ShadowJar)
+tasks.register("latestDepTest", Test)
 
 Project parent_project = project
 subprojects { Project subProj ->
@@ -104,39 +92,21 @@ subprojects { Project subProj ->
       }
 
       parent_project.dependencies {
-        addProvider("instrumentationBundleClasspath", providers.provider { project(subProj.path) })
+        addProvider("implementation", providers.provider { project(subProj.path) })
       }
     }
   }
 }
 
 dependencies {
-  instrumentationBundleClasspath(project(':dd-java-agent:agent-tooling')) {
+  implementation(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
-  instrumentationBundleClasspath project(':dd-java-agent:agent-installer')
+  implementation project(':dd-java-agent:agent-installer')
 }
 
-def mergedMuzzleReportFile = rootProject.layout.buildDirectory.file('muzzle-deps-results/dd-java-agent_instrumentation.csv')
-
-tasks.register('mergeMuzzleReports') {
-  outputs.file(mergedMuzzleReportFile)
-  doLast {
-    def reportFile = mergedMuzzleReportFile.get().asFile
-    reportFile.parentFile.mkdirs()
-    reportFile.withWriter { writer ->
-      writer.writeLine('instrumentation,jarGroupId,jarArtifactId,lowestVersion,highestVersion')
-      fileTree(reportFile.parentFile) {
-        include '*.csv'
-        exclude reportFile.name
-      }.files.sort { it.name }.each { partialReport ->
-        partialReport.readLines().drop(1).each { writer.writeLine(it) }
-      }
-    }
-  }
-}
-
-if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") || it.endsWith("muzzleInstrumentationReport") }) {
+if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
+  apply plugin: 'dd-trace-java.muzzle'
   tasks.register('muzzleInstrumentationReport') {
     dependsOn(subprojects.collect { p ->
       p.tasks.matching {
@@ -147,9 +117,8 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
   }
 }
 
-shadowJarTask.configure {
+tasks.named('shadowJar', ShadowJar) {
   duplicatesStrategy = DuplicatesStrategy.FAIL
-  configurations = [instrumentationBundleClasspathConfiguration.get()]
   dependencies {
     // the tracer is now in a separate shadow jar
     exclude(project(":dd-trace-core"))
@@ -164,23 +133,17 @@ project.configurations.register('slf4j-simple') {
   it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
 }
 
-TaskProvider<JavaExec> registerIndexTask(
-  String indexTaskName,
-  String indexer,
-  String description,
-  TaskProvider<ShadowJar> shadowJarTask,
-  def bundleClasspathConfiguration
-) {
+TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, String description ) {
   def indexTask = tasks.register(indexTaskName, JavaExec) {
     def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
 
     it.group = LifecycleBasePlugin.BUILD_GROUP
     it.description = description
     it.mainClass = indexer
-    def indexClasspath = objects.fileCollection()
-    indexClasspath.from(bundleClasspathConfiguration)
-    indexClasspath.from(project.configurations.named('slf4j-simple'))
-    it.classpath = indexClasspath
+    it.classpath = objects.fileCollection().tap {
+      it.from(project.configurations.named("runtimeClasspath"))
+      it.from(project.configurations.named('slf4j-simple'))
+    }
     it.inputs.files(it.classpath)
     it.outputs.dir(destinationDir)
     it.argumentProviders.add(new CommandLineArgumentProvider() {
@@ -190,9 +153,7 @@ TaskProvider<JavaExec> registerIndexTask(
         }
       })
   }
-  shadowJarTask.configure {
-    from(indexTask)
-  }
+  sourceSets.main.resources.srcDir(indexTask)
   return indexTask
 }
 
@@ -204,15 +165,11 @@ instrumentationNaming {
 registerIndexTask(
   'generateInstrumenterIndex',
   'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator',
-  'Generate instrumenter.index',
-  shadowJarTask,
-  instrumentationBundleClasspathConfiguration
+  'Generate instrumenter.index'
   )
 
 registerIndexTask(
   'generateKnownTypesIndex',
   'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator',
-  'Generate known-types.index',
-  shadowJarTask,
-  instrumentationBundleClasspathConfiguration
+  'Generate known-types.index'
   )
