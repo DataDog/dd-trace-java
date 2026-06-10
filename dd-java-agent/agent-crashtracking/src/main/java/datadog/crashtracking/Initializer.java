@@ -368,16 +368,16 @@ public final class Initializer {
         }
       }
 
-      // set the JVM flag
-      boolean rslt = flags.setValue("OnError", onErrorVal);
-      if (!rslt && LOG.isDebugEnabled()) {
-        LOG.debug(
-            SEND_TELEMETRY,
-            "Unable to set OnError flag to {}. Crash-tracking may not work.",
-            onErrorVal);
+      if (CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile)) {
+        // set the JVM flag only if the script was successfully initialized
+        boolean rslt = flags.setValue("OnError", onErrorVal);
+        if (!rslt && LOG.isDebugEnabled()) {
+          LOG.debug(
+              SEND_TELEMETRY,
+              "Unable to set OnError flag to {}. Crash-tracking may not work.",
+              onErrorVal);
+        }
       }
-
-      CrashUploaderScriptInitializer.initialize(uploadScript, onErrorFile);
     } catch (Throwable t) {
       logInitializationError(
           "Unexpected exception while creating custom crash upload script. Crash tracking will not work properly.",
@@ -408,16 +408,16 @@ public final class Initializer {
         }
       }
 
-      // set the JVM flag
-      boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
-      if (!rslt && LOG.isDebugEnabled()) {
-        LOG.debug(
-            SEND_TELEMETRY,
-            "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
-            onOutOfMemoryVal);
+      if (OOMENotifierScriptInitializer.initialize(notifierScript)) {
+        // set the JVM flag only if the script was successfully initialized
+        boolean rslt = flags.setValue("OnOutOfMemoryError", onOutOfMemoryVal);
+        if (!rslt && LOG.isDebugEnabled()) {
+          LOG.debug(
+              SEND_TELEMETRY,
+              "Unable to set OnOutOfMemoryError flag to {}. OOME tracking may not work.",
+              onOutOfMemoryVal);
+        }
       }
-
-      OOMENotifierScriptInitializer.initialize(notifierScript);
     } catch (Throwable t) {
       logInitializationError(
           "Unexpected exception while initializing OOME notifier. OOMEs will not be tracked.", t);
