@@ -1,10 +1,12 @@
 package datadog.trace.core.taginterceptor;
 
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -16,7 +18,6 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-import datadog.trace.api.ConfigDefaults;
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
 import datadog.trace.api.DDTraceId;
@@ -74,7 +75,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   @WithConfig(key = "dd.trace.PeerServiceTagInterceptor.enabled", value = "true", addPrefix = false)
   void setServiceName(
       @ConvertWith(DDTagsConverter.class) String tag, String name, String expected) {
-    Map<String, String> mapping = Collections.singletonMap("some-service", "new-service");
+    Map<String, String> mapping = singletonMap("some-service", "new-service");
     CoreTracer tracer =
         tracerBuilder()
             .serviceName("wrong-service")
@@ -89,16 +90,10 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     assertEquals(expected, span.getServiceName());
   }
 
-  @TableTest({
-    "scenario                   | serviceName            | expected               | mapping                              ",
-    "default service / no match | 'DEFAULT_SERVICE_NAME' | 'DEFAULT_SERVICE_NAME' | [other-service-name: other-service]  ",
-    "default service / match    | 'DEFAULT_SERVICE_NAME' | 'new-service'          | ['DEFAULT_SERVICE_NAME': new-service]",
-    "custom service / match     | 'other-service-name'   | 'other-service'        | [other-service-name: other-service]  "
-  })
+  @ParameterizedTest
+  @MethodSource("defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTagArguments")
   void defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTag(
-      @ConvertWith(ConfigDefaultsConverter.class) String serviceName,
-      @ConvertWith(ConfigDefaultsConverter.class) String expected,
-      @ConvertWith(ConfigDefaultsConverter.class) Map<String, String> mapping) {
+      String serviceName, String expected, Map<String, String> mapping) {
     CoreTracer tracer =
         tracerBuilder()
             .serviceName(serviceName)
@@ -110,6 +105,16 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.finish();
 
     assertEquals(expected, span.getServiceName());
+  }
+
+  static Stream<Arguments> defaultOrConfiguredServiceNameCanBeRemappedWithoutSettingTagArguments() {
+    return Stream.of(
+        // spotless:off
+        arguments(DEFAULT_SERVICE_NAME, DEFAULT_SERVICE_NAME, singletonMap("other-service-name", "other-service")),
+        arguments(DEFAULT_SERVICE_NAME, "new-service",        singletonMap(DEFAULT_SERVICE_NAME, "new-service")),
+        arguments("other-service-name", "other-service",      singletonMap("other-service-name", "other-service"))
+        // spotless:on
+    );
   }
 
   @TableTest({
@@ -164,9 +169,9 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @ParameterizedTest
-  @ValueSource(strings = {ConfigDefaults.DEFAULT_SERVICE_NAME, "my-service"})
+  @ValueSource(strings = {DEFAULT_SERVICE_NAME, "my-service"})
   void mappingCausesServletContextToNotChangeServiceName(String serviceName) {
-    Map<String, String> mapping = Collections.singletonMap(serviceName, "new-service");
+    Map<String, String> mapping = singletonMap(serviceName, "new-service");
     CoreTracer tracer =
         tracerBuilder()
             .serviceName(serviceName)

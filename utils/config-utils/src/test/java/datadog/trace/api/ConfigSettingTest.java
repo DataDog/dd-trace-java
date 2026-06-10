@@ -85,8 +85,8 @@ public class ConfigSettingTest {
 
   /**
    * Converts a String cell value to the most specific boxed Java primitive type. Use with
-   * {@code @ConvertWith(BoxedValueConverter.class)} on {@code Object}-typed parameters when the test
-   * needs actual typed values (e.g. {@code Float} not {@code String "2.33f"}).
+   * {@code @ConvertWith(BoxedValueConverter.class)} on {@code Object}-typed parameters when the
+   * test needs actual typed values (e.g. {@code Float} not {@code String "2.33f"}).
    *
    * <p>Conversion rules:
    *

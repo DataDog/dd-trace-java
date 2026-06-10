@@ -9,7 +9,8 @@ import org.junit.jupiter.params.converter.ArgumentConverter;
 public final class MapBasedConverter {
 
   @Nullable
-  static Map<? super Object, ? super Object> handleMap(Object source, ParameterContext context, ArgumentConverter converter) {
+  static Map<? super Object, ? super Object> handleMap(
+      Object source, ParameterContext context, ArgumentConverter converter) {
     if (source instanceof Map) {
       // convert keys and values from the map
       Map<Object, Object> map = new HashMap<>();

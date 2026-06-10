@@ -51,9 +51,9 @@ class DatadogHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId          | spanId           | samplingPriority | origin  ",
-    "unset no origin   | '1'              | '2'              | UNSET            |         ",
-    "keep with origin  | '1'              | '2'              | SAMPLER_KEEP     | 'saipan'",
+    "scenario          | traceId | spanId  | samplingPriority | origin  ",
+    "unset no origin   | '1'     | '2'     | UNSET            |         ",
+    "keep with origin  | '1'     | '2'     | SAMPLER_KEEP     | 'saipan'",
     "uint64 max unset  | 'MAX'   | 'MAX-1' | UNSET            | 'saipan'",
     "uint64 max-1 keep | 'MAX-1' | 'MAX'   | SAMPLER_KEEP     |         "
   })

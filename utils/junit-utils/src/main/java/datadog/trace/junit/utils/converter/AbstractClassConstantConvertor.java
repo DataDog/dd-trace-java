@@ -1,7 +1,5 @@
 package datadog.trace.junit.utils.converter;
 
-import static datadog.trace.junit.utils.converter.MapBasedConverter.handleMap;
-
 import java.util.Map;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -35,7 +33,8 @@ public abstract class AbstractClassConstantConvertor<T> implements ArgumentConve
     }
     T mappedValue = mapping().get(s);
     if (mappedValue == null) {
-      throw new ArgumentConversionException("Unsupported constant " + source + " from " + className);
+      throw new ArgumentConversionException(
+          "Unsupported constant " + source + " from " + className);
     }
     return mappedValue;
   }

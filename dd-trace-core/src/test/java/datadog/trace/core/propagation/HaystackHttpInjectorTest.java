@@ -49,9 +49,9 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | traceId          | spanId           | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'              | '2'              | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'              | '2'              | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "scenario            | traceId | spanId  | traceUuid                              | spanUuid                              ",
+    "small ids           | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "small ids duplicate | '1'     | '2'     | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
     "uint64 max trace    | 'MAX'   | 'MAX-1' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
     "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
   })
@@ -83,9 +83,9 @@ class HaystackHttpInjectorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario            | traceId          | spanId           | traceUuid                              | spanUuid                              ",
-    "small ids           | '1'              | '2'              | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "small ids duplicate | '1'              | '2'              | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "scenario            | traceId | spanId  | traceUuid                              | spanUuid                              ",
+    "small ids           | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "small ids duplicate | '1'     | '2'     | '54617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
     "uint64 max trace    | 'MAX'   | 'MAX-1' | '54617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffffe'",
     "uint64 max-1 trace  | 'MAX-1' | 'MAX'   | '54617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-ffffffffffff'"
   })

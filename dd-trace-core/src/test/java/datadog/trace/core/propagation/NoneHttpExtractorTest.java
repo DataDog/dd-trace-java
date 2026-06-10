@@ -75,8 +75,8 @@ class NoneHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario     | traceId          | spanId          ",
-    "no origin    | '1'              | '2'             ",
+    "scenario     | traceId | spanId ",
+    "no origin    | '1'     | '2'    ",
     "uint64 max   | 'MAX'   | 'MAX-1'",
     "uint64 max-1 | 'MAX-1' | 'MAX'  "
   })

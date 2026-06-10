@@ -80,9 +80,9 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId          | spanId           | samplingPriority | origin  ",
-    "unset no origin   | '1'              | '2'              | UNSET            |         ",
-    "keep with origin  | '2'              | '3'              | SAMPLER_KEEP     | 'saipan'",
+    "scenario          | traceId | spanId  | samplingPriority | origin  ",
+    "unset no origin   | '1'     | '2'     | UNSET            |         ",
+    "keep with origin  | '2'     | '3'     | SAMPLER_KEEP     | 'saipan'",
     "uint64 max unset  | 'MAX'   | 'MAX-1' | UNSET            | 'saipan'",
     "uint64 max-1 keep | 'MAX-1' | 'MAX'   | SAMPLER_KEEP     | 'saipan'"
   })
@@ -362,15 +362,15 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | traceId          | spanId           | expectExtraction",
-    "negative traceId     | '-1'             | '1'              | false           ",
-    "negative spanId      | '1'              | '-1'             | false           ",
-    "zero traceId         | '0'              | '1'              | false           ",
-    "zero spanId          | '1'              | '0'              | true            ",
-    "uint64 max traceId   | 'MAX'   | '1'              | true            ",
-    "out-of-range traceId | 'MAX+1' | '1'              | false           ",
-    "uint64 max spanId    | '1'              | 'MAX'   | true            ",
-    "out-of-range spanId  | '1'              | 'MAX+1' | false           "
+    "scenario             | traceId | spanId  | expectExtraction",
+    "negative traceId     | '-1'    | '1'     | false           ",
+    "negative spanId      | '1'     | '-1'    | false           ",
+    "zero traceId         | '0'     | '1'     | false           ",
+    "zero spanId          | '1'     | '0'     | true            ",
+    "uint64 max traceId   | 'MAX'   | '1'     | true            ",
+    "out-of-range traceId | 'MAX+1' | '1'     | false           ",
+    "uint64 max spanId    | '1'     | 'MAX'   | true            ",
+    "out-of-range spanId  | '1'     | 'MAX+1' | false           "
   })
   void moreIdRangeValidation(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -430,10 +430,10 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId          | spanId           | ctxCreated",
-    "negative traceId | '-1'             | '1'              | false     ",
-    "negative spanId  | '1'              | '-1'             | false     ",
-    "zero traceId     | '0'              | '1'              | true      ",
+    "scenario         | traceId | spanId  | ctxCreated",
+    "negative traceId | '-1'    | '1'     | false     ",
+    "negative spanId  | '1'     | '-1'    | false     ",
+    "zero traceId     | '0'     | '1'     | true      ",
     "uint64 max-1 ids | 'MAX-1' | 'MAX-1' | true      "
   })
   void baggageIsMappedOnContextCreation(

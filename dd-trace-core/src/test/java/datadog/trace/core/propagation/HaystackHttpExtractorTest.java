@@ -72,9 +72,9 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId          | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids        | '1'              | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "incrementing ids | '2'              | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
+    "scenario         | traceId | spanId                 | traceUuid                              | spanUuid                              ",
+    "small ids        | '1'     | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "incrementing ids | '2'     | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
     "uint64 max       | 'MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
     "uint64 max-1     | 'MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
   })

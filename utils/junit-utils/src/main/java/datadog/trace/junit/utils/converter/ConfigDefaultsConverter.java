@@ -3,8 +3,6 @@ package datadog.trace.junit.utils.converter;
 import static datadog.trace.junit.utils.converter.MapBasedConverter.handleMap;
 
 import datadog.trace.api.ConfigDefaults;
-import datadog.trace.api.config.GeneralConfig;
-import datadog.trace.api.env.CapturedEnvironment;
 import java.util.Map;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConversionException;
@@ -30,5 +28,4 @@ public class ConfigDefaultsConverter implements ArgumentConverter {
     }
     return source.toString();
   }
-
 }
