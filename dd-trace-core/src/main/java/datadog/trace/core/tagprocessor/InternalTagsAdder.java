@@ -7,17 +7,18 @@ import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.DDSpanContext;
+import javax.annotation.Nonnull;
 import javax.annotation.Nullable;
 
 public final class InternalTagsAdder extends TagsPostProcessor {
   private final UTF8BytesString ddService;
 
-  // Prebuilt once; null when ddService is null or empty (Entry.create rejects empty values).
-  @Nullable private final TagMap.Entry baseServiceEntry;
+  // Prebuilt once to avoid per-span Entry allocation.
+  private final TagMap.Entry baseServiceEntry;
   @Nullable private final TagMap.Entry versionEntry;
 
-  public InternalTagsAdder(@Nullable final String ddService, @Nullable final String version) {
-    this.ddService = ddService != null ? UTF8BytesString.create(ddService) : null;
+  public InternalTagsAdder(@Nonnull final String ddService, @Nullable final String version) {
+    this.ddService = UTF8BytesString.create(ddService);
     this.baseServiceEntry = TagMap.Entry.create(DDTags.BASE_SERVICE, this.ddService);
     this.versionEntry =
         version != null && !version.isEmpty()
@@ -28,7 +29,7 @@ public final class InternalTagsAdder extends TagsPostProcessor {
   @Override
   public void processTags(
       TagMap unsafeTags, DDSpanContext spanContext, AppendableSpanLinks spanLinks) {
-    if (spanContext == null || ddService == null || ddService.length() == 0) {
+    if (spanContext == null) {
       return;
     }
 
