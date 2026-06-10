@@ -8,9 +8,9 @@ import static datadog.trace.core.propagation.PropagationTags.factory;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
-import datadog.trace.junit.utils.tabletest.SamplingMechanismConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.ProductTraceSourceConverter;
+import datadog.trace.junit.utils.converter.SamplingMechanismConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;

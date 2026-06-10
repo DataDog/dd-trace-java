@@ -1,10 +1,10 @@
-package datadog.trace.junit.utils.tabletest;
+package datadog.trace.junit.utils.converter;
 
 import java.util.Map;
 import org.junit.jupiter.api.extension.ParameterContext;
 import org.junit.jupiter.params.converter.ArgumentConverter;
 
-public abstract class ClassConstantConvertor<T> implements ArgumentConverter {
+public abstract class AbstractClassConstantConvertor<T> implements ArgumentConverter {
   /**
    * Returns the class name (simple class name, not fully qualified) of the constants to convert.
    *

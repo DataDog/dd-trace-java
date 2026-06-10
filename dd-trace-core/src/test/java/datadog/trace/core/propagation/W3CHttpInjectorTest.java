@@ -20,7 +20,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.junit.utils.tabletest.TraceIdConverter;
 import java.util.HashMap;
 import java.util.Map;

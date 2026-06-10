@@ -18,7 +18,7 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;

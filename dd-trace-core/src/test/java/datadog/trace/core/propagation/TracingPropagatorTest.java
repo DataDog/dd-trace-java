@@ -25,7 +25,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.ProductTraceSourceConverter;
+import datadog.trace.junit.utils.converter.ProductTraceSourceConverter;
 import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.BeforeEach;

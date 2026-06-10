@@ -1,4 +1,4 @@
-package datadog.trace.junit.utils.tabletest;
+package datadog.trace.junit.utils.converter;
 
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_DROP;
 import static datadog.trace.api.sampling.PrioritySampling.SAMPLER_KEEP;
@@ -9,7 +9,7 @@ import static datadog.trace.api.sampling.PrioritySampling.USER_KEEP;
 import java.util.HashMap;
 import java.util.Map;
 
-public class PrioritySamplingConverter extends ClassConstantConvertor<Byte> {
+public class PrioritySamplingConverter extends AbstractClassConstantConvertor<Byte> {
   private static final Map<String, Byte> MAPPING;
 
   static {

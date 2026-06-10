@@ -23,7 +23,7 @@ import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpanContext;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import java.util.HashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
