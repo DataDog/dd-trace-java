@@ -61,15 +61,16 @@ Why dense rather than positional-by-`fieldPos`:
 Trade-offs (accepted): **O(n) scan** instead of O(1)-by-position — fine in the small-map regime
 (spans carry ~5–15 tags; a packed `long[]` scan is cache-friendly, and the common path is set-once +
 one dense serialize pass). **Boxing** of the few primitive tags (status_code, port) — most tags are
-strings (no box), and a boxed `Integer` is smaller than the `Entry` it replaces, so still a net win;
-if a primitive-heavy span type shows it in the JMH, add a parallel `long[] prims` aligned with `ids`
-(value in `prims` when primitive, `values[i] = null`).
+strings (no box), and a boxed `Integer` is smaller than the `Entry` it replaces, so still a net win.
 
-Prebuilt/shared `Entry`s holding a primitive are **not** a loss: `Entry` caches its boxed value, so a
-write sourced from a prebuilt `EntryReader` stores that *shared* box (`entry.objectValue()`) — zero
-per-span allocation, same as today. The only residual boxing is a **fresh, per-span-varying primitive**
-set via the typed `set(long, int/...)` overloads (status_code, port) — a tiny small-box cost,
-removable later via the parallel `long[] prims` if it ever shows. So no real regression.
+A parallel `long[] prims` to avoid that boxing was **considered and rejected**: it adds a whole extra
+per-span array *and* per-entry type tracking (which array holds the value), which costs more than the
+handful of small boxes it would save. Single `Object[] values`, box the few fresh primitives.
+
+Prebuilt/shared `Entry`s holding a primitive are **not** a loss either: `Entry` caches its boxed value,
+so a write sourced from a prebuilt `EntryReader` stores that *shared* box (`entry.objectValue()`) —
+zero per-span allocation, same as today. So the only boxing is a fresh, per-span-varying primitive set
+via the typed `set(long, int/...)` overloads — negligible. No real regression.
 
 ### Type discipline
 
@@ -203,29 +204,27 @@ covers the common write path.)
 
 ## Open questions
 
-1. **Global vs per-span-type layout.** Global (today) is simplest and needs no span-type at
-   creation, but sizes every span's arrays to the union of all known tags (~40+ with full
-   conventions). Per-span-type layout (from the YAML) is tighter but requires knowing the span type
-   when the span is created — a bigger change. *Recommend: start global, measure, then evaluate
-   per-type.*
-2. **Serializer integration depth.** The `forEachKnown` cursor is the crux of the allocation win;
-   without it we only save on the write path. Worth doing for the real number.
-3. **Primitive packing layout.** Single `long[] prims` + `byte[] types`, vs a tagged `Object[]`
-   with boxing — measure whether the extra arrays pay off vs just `Object[]` + box.
-4. **`Ledger` / builder path** — how accumulated changes apply to arrays.
-5. **Memory floor for tiny spans** — spans with 1–2 known tags: do the 3 arrays cost more than they
-   save? (lazy `prims`, and a small-size threshold, mitigate this.)
+1. **Initial array capacity / growth.** Starting size for `ids`/`values` and growth policy (spans
+   carry ~5–15 tags; pick a sensible default to avoid resizes without over-allocating tiny spans).
+2. **`Ledger` / builder path** — how accumulated changes apply to the dense arrays.
+3. **Scan vs index at larger N.** If some span types carry many tags, confirm the linear scan still
+   wins; otherwise a small index is an option (but adds cost the dense form is trying to avoid).
+
+Resolved during design: dense parallel arrays over positional-by-`fieldPos` (mixins become plain
+pairs); single `Object[] values` over a parallel `long[] prims` (the extra array + type tracking
+cost more than the few boxes); reads/serialize via the existing `EntryReader` rather than a bespoke
+visitor; no separate `Layout` (consult the resolver, + `typeOf`).
 
 ## Performance: the trade, eyes open
 
-- **Write path (frequent): better** — set a bit + write one array slot, no per-tag `Entry`.
+- **Write path (frequent): better** — scan + append into `ids`/`values`, no per-tag `Entry`.
 - **Allocation / GC: better** — removes the 1.1% `Entry` lever; less GC (CPU the profile attributes
-  elsewhere). With lazy `prims`, a typical (string-heavy) span allocates fewer objects than today.
-- **Read / serialize: some extra CPU per tag** — flyweight reposition + array read + name resolve +
+  elsewhere). A typical (string-heavy) span allocates two arrays instead of N `Entry`s.
+- **Read / serialize: some extra CPU per tag** — flyweight reposition + array read + `nameOf` +
   coercion dispatch, vs today's `Entry` that caches name and typed value. **This is intrinsic to a
-  generic, layout-driven store** — you cannot match direct-field access without generating the fields.
-  Mitigations (static `slotNames` index, lean flyweight, near-no-op coercion when the stored type
-  matches) narrow it but do not erase it.
+  generic store** — you cannot match direct-field access without generating the fields (the POJO
+  endgame). Mitigations (lean flyweight, near-no-op coercion when the stored type matches) narrow it
+  but do not erase it.
 
 Why it's acceptable: the array-backed impl accepts that small read cost as the **price of generality**
 (any tag, no codegen, no span-type-at-creation); **POJOs recover it for hot span types** on the same
