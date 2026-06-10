@@ -49,6 +49,11 @@ gradlePlugin {
       implementationClass = "datadog.gradle.plugin.dump.DumpHangedTestPlugin"
     }
 
+    create("test-jvm-constraints-plugin") {
+      id = "dd-trace-java.test-jvm-constraints"
+      implementationClass = "datadog.gradle.plugin.testJvmConstraints.TestJvmConstraintsPlugin"
+    }
+
     create("supported-config-generation") {
       id = "dd-trace-java.supported-config-generator"
       implementationClass = "datadog.gradle.plugin.config.SupportedConfigPlugin"
