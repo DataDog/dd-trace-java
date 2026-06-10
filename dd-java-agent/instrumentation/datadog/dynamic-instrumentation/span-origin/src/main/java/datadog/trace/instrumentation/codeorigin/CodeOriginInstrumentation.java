@@ -56,6 +56,8 @@ public abstract class CodeOriginInstrumentation extends Tracing
   }
 
   @Override
+  @SuppressForbidden // Existing direct ElementMatchers usage differs from HierarchyMatchers
+  // behavior
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
         HierarchyMatchers.isAnnotatedWith(matcher),
