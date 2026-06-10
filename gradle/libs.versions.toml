@@ -42,7 +42,7 @@ jmc = "8.1.0"
 jafar = "0.16.0"
 
 # Web & Network
-jnr-unixsocket = "0.38.24"
+jnr-unixsocket = "0.38.25"
 okhttp-legacy = "[3.0,3.12.12]" # 3.12.x is last version to support Java7
 okio = "1.17.6" # Datadog fork
 
