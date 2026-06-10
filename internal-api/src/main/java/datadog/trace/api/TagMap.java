@@ -1414,23 +1414,26 @@ final class OptimizedTagMap implements TagMap {
   private int size;
   private boolean frozen;
 
-  // Positional store for known tags, indexed by fieldPos. Lazily allocated on the first known-tag
-  // write. A known tag claims its slot first-writer-wins; colliding tags (a different globalSerial
-  // already owns the slot) fall back to the hash buckets. Entries are self-describing (carry their
-  // tagId), so a bucketed tag still serializes correctly.
-  private TagMap.Entry[] knownEntries;
+  // Dense store for known tags (any tag with a non-zero globalSerial), kept in insertion order.
+  // Lazily allocated on the first known-tag write. Parallel arrays: knownIds[i] is the tagId of the
+  // i-th present known tag and knownValues[i] its value (Object; primitives boxed). On set we
+  // linear-scan [0, knownCount) by globalSerial; a match overwrites, otherwise we append (growing
+  // the arrays). There are no positional collisions: every known tag simply gets a dense slot.
+  // Unknown tags (globalSerial == 0) still live in the hash buckets.
+  private long[] knownIds;
+  private Object[] knownValues;
+  private int knownCount;
 
-  // Bitmask of fieldPos slots that have ever had a collision (a known tag diverted to the buckets
-  // because a different tag owned the slot). Used to detect when claiming a freed slot might
-  // orphan a stale bucket copy of the same tag. Bit N covers slot N (capacity <= 32).
-  private int collidedSlots;
+  private static final int KNOWN_INITIAL_CAPACITY = 8;
 
   public OptimizedTagMap() {
     // needs to be a power of 2 for bucket masking calculation to work as intended
     this.buckets = new Object[1 << 4];
     this.size = 0;
     this.frozen = false;
-    this.knownEntries = null;
+    this.knownIds = null;
+    this.knownValues = null;
+    this.knownCount = 0;
   }
 
   /** Used for inexpensive immutable */
@@ -1438,7 +1441,9 @@ final class OptimizedTagMap implements TagMap {
     this.buckets = buckets;
     this.size = size;
     this.frozen = true;
-    this.knownEntries = null;
+    this.knownIds = null;
+    this.knownValues = null;
+    this.knownCount = 0;
   }
 
   @Override
@@ -1564,22 +1569,22 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public Entry getEntry(String tag) {
-    // Known tags live in their slot; resolve identity and check there first. keyOf is a no-op
+    // Known tags live in the dense store; resolve identity and check there first. keyOf is a no-op
     // until a resolver is registered, so this is just a hash-bucket lookup in the common case.
     long tagId = KnownTags.keyOf(tag);
     if (tagId != 0L) {
-      Entry slot = this.knownGet(tagId);
-      if (slot != null) return slot;
+      Entry known = this.knownGet(tagId);
+      if (known != null) return known;
     }
     return this.getEntryFromBuckets(tag);
   }
 
   @Override
   public Entry getEntry(long tagId) {
-    Entry slot = this.knownGet(tagId);
-    if (slot != null) return slot;
+    Entry known = this.knownGet(tagId);
+    if (known != null) return known;
 
-    // not slotted (unknown tag id, or it collided into the buckets) - look up by resolved name
+    // not a known tag (unknown tag id) - look up by resolved name
     String name = KnownTags.nameOf(tagId);
     return name == null ? null : this.getEntryFromBuckets(name);
   }
@@ -1652,10 +1657,10 @@ final class OptimizedTagMap implements TagMap {
     this.getAndSet(Entry.newDoubleEntry(tag, value));
   }
 
-  // Tag-id keyed setters. Build a tag-id-bearing Entry (carrying globalSerial/fieldPos/nameHash)
-  // and store it in the hash buckets like any other entry; positional knownEntries routing comes
-  // in a later PR. The Entry resolves its tag name lazily via KnownTags, so it remains findable by
-  // string name and serializes correctly once a KnownTags.Resolver is registered.
+  // Tag-id keyed setters. Build a tag-id-bearing Entry (carrying globalSerial/fieldPos/nameHash);
+  // getAndSet routes known tags (non-zero globalSerial) into the dense store and everything else to
+  // the hash buckets. The Entry resolves its tag name lazily via KnownTags, so it remains findable
+  // by string name and serializes correctly once a KnownTags.Resolver is registered.
   @Override
   public void set(long tagId, Object value) {
     this.getAndSet(Entry.newAnyEntry(tagId, value));
@@ -1691,41 +1696,47 @@ final class OptimizedTagMap implements TagMap {
     this.getAndSet(Entry.newDoubleEntry(tagId, value));
   }
 
-  // Returns the slot entry for tagId if a known tag owns its fieldPos slot, else null.
-  private Entry knownGet(long tagId) {
-    Entry[] known = this.knownEntries;
-    if (known == null) return null;
-
+  // Returns the dense index of the known tag matching tagId (by globalSerial), or -1 if absent.
+  private int knownIndexOf(long tagId) {
     int globalSerial = KnownTags.globalSerial(tagId);
-    if (globalSerial == 0) return null;
+    if (globalSerial == 0) return -1;
 
-    int pos = KnownTags.fieldPos(tagId);
-    if (pos >= known.length) return null;
-
-    Entry occupant = known[pos];
-    return (occupant != null && KnownTags.globalSerial(occupant.tagId) == globalSerial)
-        ? occupant
-        : null;
+    long[] ids = this.knownIds;
+    int count = this.knownCount;
+    for (int i = 0; i < count; ++i) {
+      if (KnownTags.globalSerial(ids[i]) == globalSerial) return i;
+    }
+    return -1;
   }
 
-  // Clears and returns the slot entry for tagId if a known tag owns its slot, else null.
+  // Materializes a real Entry for the dense entry at index i (carrying the stored tagId so it
+  // resolves its name and serializes correctly).
+  private Entry knownEntryAt(int i) {
+    return Entry.newAnyEntry(this.knownIds[i], this.knownValues[i]);
+  }
+
+  // Returns a materialized entry for tagId if a known tag with that globalSerial is present, else
+  // null. (Explicit getEntry path - materializing here is fine, this is not iteration.)
+  private Entry knownGet(long tagId) {
+    int i = this.knownIndexOf(tagId);
+    return i < 0 ? null : this.knownEntryAt(i);
+  }
+
+  // Removes and returns (materialized) the known tag matching tagId, else null. Compacts the dense
+  // store by swapping the last element into the removed slot (order need not be stable on remove).
   private Entry knownRemove(long tagId) {
-    Entry[] known = this.knownEntries;
-    if (known == null) return null;
+    int i = this.knownIndexOf(tagId);
+    if (i < 0) return null;
 
-    int globalSerial = KnownTags.globalSerial(tagId);
-    if (globalSerial == 0) return null;
-
-    int pos = KnownTags.fieldPos(tagId);
-    if (pos >= known.length) return null;
-
-    Entry occupant = known[pos];
-    if (occupant != null && KnownTags.globalSerial(occupant.tagId) == globalSerial) {
-      known[pos] = null;
-      this.size -= 1;
-      return occupant;
-    }
-    return null;
+    Entry removed = this.knownEntryAt(i);
+    int last = this.knownCount - 1;
+    this.knownIds[i] = this.knownIds[last];
+    this.knownValues[i] = this.knownValues[last];
+    this.knownIds[last] = 0L;
+    this.knownValues[last] = null;
+    this.knownCount = last;
+    this.size -= 1;
+    return removed;
   }
 
   @Override
@@ -1752,41 +1763,35 @@ final class OptimizedTagMap implements TagMap {
     return this.setInBuckets(newEntry);
   }
 
-  // Routes a known tag to its positional slot (first-writer-wins, same-tag overwrite). On collision
-  // (a different tag owns the slot) or out-of-range fieldPos, falls back to the hash buckets.
+  // Stores a known tag in the dense store: linear-scan by globalSerial and overwrite on a match,
+  // otherwise append (growing the parallel arrays). Returns the prior entry (materialized) or null.
   private Entry setKnown(Entry newEntry, int globalSerial) {
-    int pos = KnownTags.fieldPos(newEntry.tagId);
-    // knownEntries is sized to the registered provider's slot count (max stored fieldPos + 1); a
-    // larger fieldPos (e.g. a reserved tag's sentinel) routes to the buckets.
-    int slotCount = KnownTags.slotCount();
-    if (pos < slotCount) {
-      Entry[] known = this.knownEntries;
-      if (known == null) {
-        known = this.knownEntries = new Entry[slotCount];
-      }
-      if (pos < known.length) {
-        Entry occupant = known[pos];
-        if (occupant == null) {
-          // claim the empty slot
-          Entry prev = null;
-          if ((this.collidedSlots & (1 << pos)) != 0) {
-            // this slot previously collided, so a stale copy of this tag may be orphaned in the
-            // buckets (the slot was freed by a remove). Evict it to avoid a slot+bucket duplicate.
-            prev = this.removeFromBuckets(newEntry.tag(), newEntry.hash());
-          }
-          known[pos] = newEntry;
-          this.size += 1; // if prev != null, removeFromBuckets already decremented -> net no change
-          return prev;
-        } else if (KnownTags.globalSerial(occupant.tagId) == globalSerial) {
-          // same tag - overwrite in place, no size change
-          known[pos] = newEntry;
-          return occupant;
-        }
-        // a different known tag owns this slot - record the collision and fall to the buckets
-        this.collidedSlots |= (1 << pos);
+    long[] ids = this.knownIds;
+    int count = this.knownCount;
+    for (int i = 0; i < count; ++i) {
+      if (KnownTags.globalSerial(ids[i]) == globalSerial) {
+        // same tag - overwrite in place, no size change
+        Entry prev = this.knownEntryAt(i);
+        this.knownIds[i] = newEntry.tagId;
+        this.knownValues[i] = newEntry.objectValue();
+        return prev;
       }
     }
-    return this.setInBuckets(newEntry);
+
+    // append - grow if necessary
+    if (ids == null) {
+      ids = this.knownIds = new long[KNOWN_INITIAL_CAPACITY];
+      this.knownValues = new Object[KNOWN_INITIAL_CAPACITY];
+    } else if (count == ids.length) {
+      int newCapacity = count << 1;
+      ids = this.knownIds = Arrays.copyOf(ids, newCapacity);
+      this.knownValues = Arrays.copyOf(this.knownValues, newCapacity);
+    }
+    ids[count] = newEntry.tagId;
+    this.knownValues[count] = newEntry.objectValue();
+    this.knownCount = count + 1;
+    this.size += 1;
+    return null;
   }
 
   private Entry setInBuckets(Entry newEntry) {
@@ -1911,13 +1916,11 @@ final class OptimizedTagMap implements TagMap {
 
   private void putAllOptimizedMap(OptimizedTagMap that) {
     if (this.size == 0) {
-      // empty dest: clone source buckets + slots wholesale (no duplication possible)
+      // empty dest: clone source buckets + dense store wholesale (no duplication possible)
       this.putAllIntoEmptyMap(that);
-    } else if (this.knownEntries != null || that.knownEntries != null) {
-      // slots in play with a non-empty dest: the fast bucket-aligned merge could place a known tag
-      // into a bucket while dest already holds it in a slot (or vice versa). Route every source
-      // entry through getAndSet so slot/bucket placement stays consistent. getAndSet is
-      // order-independent for collisions.
+    } else if (this.knownCount != 0 || that.knownCount != 0) {
+      // known tags in play with a non-empty dest: route every source entry through getAndSet so the
+      // dense store stays deduplicated against this map's existing entries.
       this.putAllByEntry(that);
     } else {
       this.putAllMerge(that);
@@ -2068,22 +2071,23 @@ final class OptimizedTagMap implements TagMap {
       }
     }
 
-    // dest is empty, so the source's positional slots transfer directly (entries are shared, as
-    // with buckets above). size is copied wholesale below and already accounts for slot entries.
-    if (that.knownEntries != null) {
-      this.knownEntries = that.knownEntries.clone();
+    // dest is empty, so the source's dense store transfers directly (values are shared, as with
+    // buckets above). size is copied wholesale below and already accounts for known entries.
+    if (that.knownCount != 0) {
+      this.knownIds = that.knownIds.clone();
+      this.knownValues = that.knownValues.clone();
+      this.knownCount = that.knownCount;
     }
-    this.collidedSlots = that.collidedSlots;
 
     this.size = that.size;
   }
 
   public void fillMap(Map<? super String, Object> map) {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) map.put(slotEntry.tag(), slotEntry.objectValue());
-      }
+    long[] ids = this.knownIds;
+    Object[] values = this.knownValues;
+    int count = this.knownCount;
+    for (int i = 0; i < count; ++i) {
+      map.put(KnownTags.nameOf(ids[i]), values[i]);
     }
 
     Object[] thisBuckets = this.buckets;
@@ -2104,11 +2108,11 @@ final class OptimizedTagMap implements TagMap {
   }
 
   public void fillStringMap(Map<? super String, ? super String> stringMap) {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) stringMap.put(slotEntry.tag(), slotEntry.stringValue());
-      }
+    long[] ids = this.knownIds;
+    Object[] values = this.knownValues;
+    int count = this.knownCount;
+    for (int i = 0; i < count; ++i) {
+      stringMap.put(KnownTags.nameOf(ids[i]), TagValueConversions.toString(values[i]));
     }
 
     Object[] thisBuckets = this.buckets;
@@ -2237,10 +2241,14 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public void forEach(Consumer<? super TagMap.EntryReader> consumer) {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) consumer.accept(slotEntry);
+    long[] ids = this.knownIds;
+    Object[] values = this.knownValues;
+    int count = this.knownCount;
+    if (count != 0) {
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < count; ++i) {
+        reader.set(KnownTags.nameOf(ids[i]), values[i]);
+        consumer.accept(reader);
       }
     }
 
@@ -2263,10 +2271,14 @@ final class OptimizedTagMap implements TagMap {
 
   @Override
   public <T> void forEach(T thisObj, BiConsumer<T, ? super TagMap.EntryReader> consumer) {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) consumer.accept(thisObj, slotEntry);
+    long[] ids = this.knownIds;
+    Object[] values = this.knownValues;
+    int count = this.knownCount;
+    if (count != 0) {
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < count; ++i) {
+        reader.set(KnownTags.nameOf(ids[i]), values[i]);
+        consumer.accept(thisObj, reader);
       }
     }
 
@@ -2290,10 +2302,14 @@ final class OptimizedTagMap implements TagMap {
   @Override
   public <T, U> void forEach(
       T thisObj, U otherObj, TriConsumer<T, U, ? super TagMap.EntryReader> consumer) {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) consumer.accept(thisObj, otherObj, slotEntry);
+    long[] ids = this.knownIds;
+    Object[] values = this.knownValues;
+    int count = this.knownCount;
+    if (count != 0) {
+      EntryReadingHelper reader = new EntryReadingHelper();
+      for (int i = 0; i < count; ++i) {
+        reader.set(KnownTags.nameOf(ids[i]), values[i]);
+        consumer.accept(thisObj, otherObj, reader);
       }
     }
 
@@ -2318,11 +2334,12 @@ final class OptimizedTagMap implements TagMap {
     this.checkWriteAccess();
 
     Arrays.fill(this.buckets, null);
-    if (this.knownEntries != null) {
-      Arrays.fill(this.knownEntries, null);
+    if (this.knownCount != 0) {
+      Arrays.fill(this.knownIds, 0, this.knownCount, 0L);
+      Arrays.fill(this.knownValues, 0, this.knownCount, null);
+      this.knownCount = 0;
     }
     this.size = 0;
-    this.collidedSlots = 0;
   }
 
   public OptimizedTagMap freeze() {
@@ -2344,17 +2361,17 @@ final class OptimizedTagMap implements TagMap {
     // That was done to avoid the extra static initialization needed for an assertion
     // While that's probably an unnecessary optimization, this method is only called in tests
 
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (int i = 0; i < known.length; ++i) {
-        Entry slotEntry = known[i];
-        if (slotEntry == null) continue;
-
-        if (KnownTags.globalSerial(slotEntry.tagId) == 0) {
-          throw new IllegalStateException("slotted entry without globalSerial");
-        }
-        if (KnownTags.fieldPos(slotEntry.tagId) != i) {
-          throw new IllegalStateException("incorrect slot");
+    long[] ids = this.knownIds;
+    int knownCount = this.knownCount;
+    for (int i = 0; i < knownCount; ++i) {
+      long id = ids[i];
+      if (KnownTags.globalSerial(id) == 0) {
+        throw new IllegalStateException("known entry without globalSerial");
+      }
+      // no duplicate globalSerials in the dense store
+      for (int j = i + 1; j < knownCount; ++j) {
+        if (KnownTags.globalSerial(ids[j]) == KnownTags.globalSerial(id)) {
+          throw new IllegalStateException("duplicate known entry");
         }
       }
     }
@@ -2401,14 +2418,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   int computeSize() {
-    int size = 0;
-
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) size += 1;
-      }
-    }
+    int size = this.knownCount;
 
     Object[] thisBuckets = this.buckets;
     for (int i = 0; i < thisBuckets.length; ++i) {
@@ -2425,12 +2435,7 @@ final class OptimizedTagMap implements TagMap {
   }
 
   boolean checkIfEmpty() {
-    Entry[] known = this.knownEntries;
-    if (known != null) {
-      for (Entry slotEntry : known) {
-        if (slotEntry != null) return false;
-      }
-    }
+    if (this.knownCount != 0) return false;
 
     Object[] thisBuckets = this.buckets;
 
@@ -2527,10 +2532,19 @@ final class OptimizedTagMap implements TagMap {
   }
 
   abstract static class IteratorBase {
-    private final Entry[] knownEntries;
+    private final long[] knownIds;
+    private final Object[] knownValues;
+    private final int knownCount;
     private final Object[] buckets;
 
-    private Entry nextEntry;
+    // Reused flyweight reader for dense (known) entries - no per-tag Entry allocation. Lazily
+    // created on the first dense entry. Consumers that need to RETAIN a yielded reader across
+    // iteration steps must capture a copy via reader.entry().
+    private EntryReadingHelper knownReader;
+
+    // The pending reader (either the reused flyweight for dense entries, or a bucket Entry which is
+    // itself an EntryReader). null means none pending.
+    private EntryReader nextReader;
 
     private int knownIndex = -1;
     private int bucketIndex = -1;
@@ -2539,53 +2553,61 @@ final class OptimizedTagMap implements TagMap {
     private int groupIndex = 0;
 
     IteratorBase(OptimizedTagMap map) {
-      this.knownEntries = map.knownEntries;
+      this.knownIds = map.knownIds;
+      this.knownValues = map.knownValues;
+      this.knownCount = map.knownCount;
       this.buckets = map.buckets;
     }
 
     public final boolean hasNext() {
-      if (this.nextEntry != null) return true;
+      if (this.nextReader != null) return true;
 
-      while (this.bucketIndex < this.buckets.length) {
-        this.nextEntry = this.advance();
-        if (this.nextEntry != null) return true;
-      }
-
-      return false;
+      this.nextReader = this.advance();
+      return this.nextReader != null;
     }
 
-    final Entry nextEntryOrThrowNoSuchElement() {
-      if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
-        this.nextEntry = null;
-        return nextEntry;
+    final EntryReader nextEntryOrThrowNoSuchElement() {
+      if (this.nextReader != null) {
+        EntryReader nextReader = this.nextReader;
+        this.nextReader = null;
+        return nextReader;
       }
 
       if (this.hasNext()) {
-        return this.nextEntry;
+        EntryReader nextReader = this.nextReader;
+        this.nextReader = null;
+        return nextReader;
       } else {
         throw new NoSuchElementException();
       }
     }
 
-    final Entry nextEntryOrNull() {
-      if (this.nextEntry != null) {
-        Entry nextEntry = this.nextEntry;
-        this.nextEntry = null;
-        return nextEntry;
+    final EntryReader nextEntryOrNull() {
+      if (this.nextReader != null) {
+        EntryReader nextReader = this.nextReader;
+        this.nextReader = null;
+        return nextReader;
       }
 
-      return this.hasNext() ? this.nextEntry : null;
+      if (this.hasNext()) {
+        EntryReader nextReader = this.nextReader;
+        this.nextReader = null;
+        return nextReader;
+      }
+      return null;
     }
 
-    private final Entry advance() {
-      // drain the positional known-entries slots first
-      Entry[] known = this.knownEntries;
-      if (known != null) {
-        for (++this.knownIndex; this.knownIndex < known.length; ++this.knownIndex) {
-          Entry slotEntry = known[this.knownIndex];
-          if (slotEntry != null) return slotEntry;
+    private final EntryReader advance() {
+      // drain the dense known entries first, via the reused flyweight reader
+      if (this.knownIndex + 1 < this.knownCount) {
+        ++this.knownIndex;
+        EntryReadingHelper reader = this.knownReader;
+        if (reader == null) {
+          reader = this.knownReader = new EntryReadingHelper();
         }
+        reader.set(
+            KnownTags.nameOf(this.knownIds[this.knownIndex]), this.knownValues[this.knownIndex]);
+        return reader;
       }
 
       while (this.bucketIndex < this.buckets.length) {
@@ -3118,9 +3140,22 @@ final class OptimizedTagMap implements TagMap {
 
     @Override
     public Iterator<Map.Entry<String, Object>> iterator() {
-      @SuppressWarnings({"rawtypes", "unchecked"})
-      Iterator<Map.Entry<String, Object>> iter = (Iterator) this.map.iterator();
-      return iter;
+      return new EntriesIterator(this.map);
+    }
+  }
+
+  // Map.Entry view over the iterator. Dense entries are yielded as a reused flyweight EntryReader
+  // (not a Map.Entry), so materialize a real Map.Entry per element here via mapEntry(). Bucket
+  // Entry-s are themselves Map.Entry, so mapEntry() returns them directly without allocating.
+  static final class EntriesIterator extends IteratorBase
+      implements Iterator<Map.Entry<String, Object>> {
+    EntriesIterator(OptimizedTagMap map) {
+      super(map);
+    }
+
+    @Override
+    public Map.Entry<String, Object> next() {
+      return this.nextEntryOrThrowNoSuchElement().mapEntry();
     }
   }
 

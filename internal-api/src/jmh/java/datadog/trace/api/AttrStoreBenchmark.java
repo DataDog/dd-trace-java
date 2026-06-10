@@ -24,8 +24,8 @@ import org.openjdk.jmh.infra.Blackhole;
  *       {@code Entry} allocated per tag.
  *   <li>{@code dense}: dense {@code long[] ids + Object[] values} — no per-tag Entry (boxes the one
  *       int tag). The phase-1 design.
- *   <li>{@code pojo}: a hand-written class with typed fields — the phase-2 codegen endgame (no Entry,
- *       no boxing, no arrays-per-tag).
+ *   <li>{@code pojo}: a hand-written class with typed fields — the phase-2 codegen endgame (no
+ *       Entry, no boxing, no arrays-per-tag).
  * </ol>
  *
  * Tag set is db.client-like (the dominant PetClinic span): 11 strings + 1 int.
@@ -39,9 +39,18 @@ import org.openjdk.jmh.infra.Blackhole;
 @State(Scope.Benchmark)
 public class AttrStoreBenchmark {
   static final String[] NAMES = {
-    "component", "span.kind", "language", "_dd.base_service",
-    "db.type", "db.instance", "db.operation", "db.user", "db.pool.name",
-    "peer.hostname", "peer.ipv4", "peer.port", // last is the int
+    "component",
+    "span.kind",
+    "language",
+    "_dd.base_service",
+    "db.type",
+    "db.instance",
+    "db.operation",
+    "db.user",
+    "db.pool.name",
+    "peer.hostname",
+    "peer.ipv4",
+    "peer.port", // last is the int
   };
   static final int PORT_IDX = 11;
   static final int N = NAMES.length;
@@ -181,24 +190,56 @@ public class AttrStoreBenchmark {
 
   /** Hand-written POJO — phase-2 codegen endgame. serial = fieldPos+1 here. */
   static final class DbPojo {
-    String component, spanKind, language, baseService, dbType, dbInstance, dbOperation, dbUser,
-        dbPoolName, peerHostname, peerIpv4;
+    String component,
+        spanKind,
+        language,
+        baseService,
+        dbType,
+        dbInstance,
+        dbOperation,
+        dbUser,
+        dbPoolName,
+        peerHostname,
+        peerIpv4;
     int peerPort;
 
     void set(long id, Object v) {
       switch ((int) ((id >>> 48) & 0x7FFF)) {
-        case 1: component = (String) v; break;
-        case 2: spanKind = (String) v; break;
-        case 3: language = (String) v; break;
-        case 4: baseService = (String) v; break;
-        case 5: dbType = (String) v; break;
-        case 6: dbInstance = (String) v; break;
-        case 7: dbOperation = (String) v; break;
-        case 8: dbUser = (String) v; break;
-        case 9: dbPoolName = (String) v; break;
-        case 10: peerHostname = (String) v; break;
-        case 11: peerIpv4 = (String) v; break;
-        default: /* off-type / unknown -> would bucket */ break;
+        case 1:
+          component = (String) v;
+          break;
+        case 2:
+          spanKind = (String) v;
+          break;
+        case 3:
+          language = (String) v;
+          break;
+        case 4:
+          baseService = (String) v;
+          break;
+        case 5:
+          dbType = (String) v;
+          break;
+        case 6:
+          dbInstance = (String) v;
+          break;
+        case 7:
+          dbOperation = (String) v;
+          break;
+        case 8:
+          dbUser = (String) v;
+          break;
+        case 9:
+          dbPoolName = (String) v;
+          break;
+        case 10:
+          peerHostname = (String) v;
+          break;
+        case 11:
+          peerIpv4 = (String) v;
+          break;
+        default: /* off-type / unknown -> would bucket */
+          break;
       }
     }
 

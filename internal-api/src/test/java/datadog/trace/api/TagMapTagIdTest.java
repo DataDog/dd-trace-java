@@ -4,7 +4,6 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
-import static org.junit.jupiter.api.Assertions.assertSame;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.api.TagMap.Entry;
@@ -98,9 +97,13 @@ public class TagMapTagIdTest {
     assertNotNull(byId);
     assertEquals("GET", byId.stringValue());
 
-    // findable by the resolved string name (read-path unification)
+    // findable by the resolved string name (read-path unification). getEntry materializes a fresh
+    // Entry from the dense store on each call, so identity is not preserved across calls; the
+    // logical entry (tag + value) is.
     Entry byName = map.getEntry(HTTP_METHOD);
-    assertSame(byId, byName);
+    assertNotNull(byName);
+    assertEquals(byId.tag(), byName.tag());
+    assertEquals(byId.stringValue(), byName.stringValue());
     assertEquals("GET", map.get(HTTP_METHOD));
   }
 
@@ -256,8 +259,12 @@ public class TagMapTagIdTest {
     assertEquals(KnownTags.NO_SLOT, KnownTags.fieldPos(byId.tagId));
     assertEquals(MESSAGING_SYSTEM, byId.tag());
 
-    // string read of the same tag unifies with the id-stored entry
-    assertSame(byId, map.getEntry(MESSAGING_SYSTEM));
+    // string read of the same tag unifies with the id-stored entry (logically; getEntry
+    // materializes a fresh Entry per call so identity is not preserved)
+    Entry byName = map.getEntry(MESSAGING_SYSTEM);
+    assertNotNull(byName);
+    assertEquals(byId.tag(), byName.tag());
+    assertEquals(byId.stringValue(), byName.stringValue());
     assertEquals("kafka", map.get(MESSAGING_SYSTEM));
   }
 
