@@ -403,7 +403,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       try {
         URI uri = new File(entry).toURI();
         if (scanned.add(uri)) {
-          String version = findArtifactInUrl(artifactName, uri.toURL());
+          String version = matchVersion(artifactName, resolveDependencies(uri.toURL()));
           if (version != null) {
             return version;
           }
@@ -413,10 +413,6 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
     }
     return null;
-  }
-
-  private String findArtifactInUrl(String artifactName, URL url) {
-    return matchVersion(artifactName, resolveDependencies(url));
   }
 
   private List<Dependency> resolveDependencies(URL url) {
