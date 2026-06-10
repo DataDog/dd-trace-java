@@ -19,8 +19,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 /**
- * Acceptance tests for the predictable-temp-path hardening spec:
- * crashtracking-temp-script-hijack-enables-loca.
+ * Security tests for crashtracking script initializer ownership and permission validation.
  *
  * <p>POSIX-only (skipped automatically on non-POSIX).
  */

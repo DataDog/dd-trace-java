@@ -22,8 +22,7 @@ import org.junit.jupiter.params.ParameterizedTest;
 import org.junit.jupiter.params.provider.ValueSource;
 
 /**
- * Acceptance tests for the predictable-temp-path hardening (spec:
- * crashtracking-temp-script-hijack-enables-loca).
+ * Security tests for {@link TempLocationManager} ownership and permission validation.
  *
  * <p>All tests are POSIX-only; skipped automatically on non-POSIX file systems.
  */
