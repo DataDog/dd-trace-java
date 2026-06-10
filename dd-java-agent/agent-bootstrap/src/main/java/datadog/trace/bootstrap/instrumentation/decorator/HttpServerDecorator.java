@@ -13,6 +13,7 @@ import datadog.context.Context;
 import datadog.context.propagation.Propagators;
 import datadog.trace.api.Config;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.KnownTagIds;
 import datadog.trace.api.datastreams.DataStreamsTransactionExtractor;
 import datadog.trace.api.datastreams.DataStreamsTransactionTracker;
 import datadog.trace.api.function.TriConsumer;
@@ -314,7 +315,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
 
     if (request != null) {
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      span.setTag(KnownTagIds.HTTP_METHOD, method);
 
       // Copy of HttpClientDecorator url handling
       try {
@@ -326,9 +327,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           String path = encoded ? url.rawPath() : url.path();
           if (valid) {
             span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+                KnownTagIds.HTTP_URL,
+                URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
           } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+            span.setTag(KnownTagIds.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
           }
           if (extracted != null && extracted.getXForwardedHost() != null) {
             span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
