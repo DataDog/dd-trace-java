@@ -46,7 +46,7 @@ subprojects { Project subProj ->
 
       subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-      // Add instrumentation-specific forbiddenApi rules
+      // Add instrumentation-specific forbiddenApi rules.
       subProj.tasks.withType(CheckForbiddenApis).configureEach {
         signaturesFiles = subProj.files(
           "$rootDir/gradle/forbiddenApiFilters/main.txt",
