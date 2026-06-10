@@ -305,4 +305,7 @@ jmh {
   if (project.hasProperty("jmhFork")) {
     fork.set((project.property("jmhFork") as String).toInt())
   }
+  if (project.hasProperty("jmhProfilers")) {
+    profilers.set((project.property("jmhProfilers") as String).split(",").toList())
+  }
 }
