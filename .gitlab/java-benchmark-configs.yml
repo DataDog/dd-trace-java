@@ -40,7 +40,7 @@
 
 # TODO: remove APM_SDKS_BENCHMARKS_BRANCH overrides after apm-sdks-benchmarks PR merges.
 .benchmark_branch_override: &benchmark_branch_override
-  APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/improve-startup-stability"
+  APM_SDKS_BENCHMARKS_BRANCH: "sarahchen6/improve-load-stability"
 
 # Ensure the tracer artifact publish finishes before the benchmark jobs start.
 linux-java-spring-petclinic-parallel:
