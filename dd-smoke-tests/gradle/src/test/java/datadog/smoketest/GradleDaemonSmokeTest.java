@@ -64,7 +64,7 @@ class GradleDaemonSmokeTest extends AbstractGradleTest {
 
   @TableTest({
     "scenario                    | gradleVersion | projectName                                      | successExpected | expectedTraces | expectedCoverages",
-    "succeed-old-gradle-3.5      | 3.5           | test-succeed-old-gradle                          | true            | 5              | 1                ",
+    "succeed-old-gradle-4.10     | 4.10          | test-succeed-old-gradle                          | true            | 5              | 1                ",
     "succeed-legacy              | 7.6.4         | test-succeed-legacy-instrumentation              | true            | 5              | 1                ",
     "succeed-multi-module-legacy | 7.6.4         | test-succeed-multi-module-legacy-instrumentation | true            | 7              | 2                ",
     "succeed-multi-forks-legacy  | 7.6.4         | test-succeed-multi-forks-legacy-instrumentation  | true            | 6              | 2                ",
