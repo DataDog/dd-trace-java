@@ -15,9 +15,6 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.attribute.PosixFilePermissions;
 import java.util.Set;
 
 public final class OOMENotifierScriptInitializer {
@@ -82,27 +79,16 @@ public final class OOMENotifierScriptInitializer {
         return false;
       }
     } else {
-      try {
-        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-          Files.createDirectories(
-              scriptDirectory.toPath(),
-              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-        } else {
-          if (!scriptDirectory.mkdirs()) {
-            LOG.warn(
-                SEND_TELEMETRY,
-                "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
-                scriptDirectory);
-            return false;
-          }
-        }
-      } catch (IOException e) {
+      if (!scriptDirectory.mkdirs()) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable OOME script folder {}. OOME notification will not work properly.",
             scriptDirectory);
         return false;
       }
+      scriptDirectory.setReadable(true, true);
+      scriptDirectory.setWritable(true, true);
+      scriptDirectory.setExecutable(true, true);
     }
 
     try {

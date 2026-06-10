@@ -21,9 +21,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStreamWriter;
 import java.nio.charset.StandardCharsets;
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.attribute.PosixFilePermissions;
 
 public final class CrashUploaderScriptInitializer {
   private static final String SETUP_FAILURE_MESSAGE = "Crash tracking will not work properly.";
@@ -74,28 +71,16 @@ public final class CrashUploaderScriptInitializer {
       File scriptFile, String onErrorFile, String agentJar) {
     File scriptDirectory = scriptFile.getParentFile();
     if (!scriptDirectory.exists()) {
-      try {
-        if (FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
-          Files.createDirectories(
-              scriptDirectory.toPath(),
-              PosixFilePermissions.asFileAttribute(PosixFilePermissions.fromString("rwx------")));
-        } else {
-          if (!scriptDirectory.mkdirs()) {
-            LOG.warn(
-                SEND_TELEMETRY,
-                "Failed to create writable crash tracking script folder {}. "
-                    + SETUP_FAILURE_MESSAGE,
-                scriptDirectory);
-            return false;
-          }
-        }
-      } catch (IOException e) {
+      if (!scriptDirectory.mkdirs()) {
         LOG.warn(
             SEND_TELEMETRY,
             "Failed to create writable crash tracking script folder {}. " + SETUP_FAILURE_MESSAGE,
             scriptDirectory);
         return false;
       }
+      scriptDirectory.setReadable(true, true);
+      scriptDirectory.setWritable(true, true);
+      scriptDirectory.setExecutable(true, true);
     } else {
       if (!isOwnedAndPrivate(scriptDirectory)) {
         LOG.warn(

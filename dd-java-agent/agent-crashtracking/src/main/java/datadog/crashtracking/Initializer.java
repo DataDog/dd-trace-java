@@ -16,7 +16,6 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.lang.management.ManagementFactory;
 import java.net.URL;
-import java.nio.file.FileSystems;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.attribute.PosixFilePermission;
@@ -452,7 +451,7 @@ public final class Initializer {
    * stricter for files).
    */
   static boolean isOwnedAndPrivate(File f) {
-    if (!FileSystems.getDefault().supportedFileAttributeViews().contains("posix")) {
+    if (OperatingSystem.isWindows()) {
       return true;
     }
     try {
