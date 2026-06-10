@@ -1,23 +1,24 @@
 plugins {
   id("me.champeau.jmh")
   id("java-library")
+  id("dd-trace-java.module.internal-component")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["minimumBranchCoverage"] = 0.6
-extra["minimumInstructionCoverage"] = 0.8
-extra["excludedClassesCoverage"] = listOf(
-  "datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl",
-  "datadog.telemetry.HostInfo",
-  "datadog.telemetry.HostInfo.Os",
-  "datadog.telemetry.dependency.LocationsCollectingTransformer",
-  "datadog.telemetry.dependency.JbossVirtualFileHelper",
-  "datadog.telemetry.RequestBuilder.NumberJsonAdapter",
-  "datadog.telemetry.RequestBuilderSupplier",
-  "datadog.telemetry.TelemetrySystem",
-  "datadog.telemetry.api.*",
-  "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
+val minimumBranchCoverage by extra(0.6)
+val minimumInstructionCoverage by extra(0.8)
+val excludedClassesCoverage by extra(
+  listOf(
+    "datadog.telemetry.TelemetryRunnable.ThreadSleeperImpl",
+    "datadog.telemetry.HostInfo",
+    "datadog.telemetry.HostInfo.Os",
+    "datadog.telemetry.dependency.LocationsCollectingTransformer",
+    "datadog.telemetry.dependency.JbossVirtualFileHelper",
+    "datadog.telemetry.RequestBuilder.NumberJsonAdapter",
+    "datadog.telemetry.RequestBuilderSupplier",
+    "datadog.telemetry.TelemetrySystem",
+    "datadog.telemetry.api.*",
+    "datadog.telemetry.metric.CiVisibilityMetricPeriodicAction"
+  )
 )
 extra["excludedClassesBranchCoverage"] = listOf(
   "datadog.telemetry.PolymorphicAdapterFactory.1",

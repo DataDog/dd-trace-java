@@ -7,9 +7,8 @@ plugins {
   id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
   id 'dd-trace-java.version-file'
+  id 'dd-trace-java.module.sub-agent'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 tasks.withType(AbstractCompile).configureEach {
   configureCompiler(it, 11, JavaVersion.VERSION_1_8, "Ensure no APIs beyond JDK8 are used")

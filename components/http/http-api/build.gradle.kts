@@ -1,9 +1,8 @@
 plugins {
   `java-library`
   `java-test-fixtures`
+  id("dd-trace-java.module.internal-component")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 description = "HTTP Client API"
 

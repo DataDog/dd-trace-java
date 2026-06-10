@@ -1,9 +1,8 @@
 plugins {
   `java-library`
   id("com.gradleup.shadow")
+  id("dd-trace-java.module.internal-component")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 dependencies {
   compileOnly(project(":components:annotations"))

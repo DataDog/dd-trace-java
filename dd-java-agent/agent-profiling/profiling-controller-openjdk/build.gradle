@@ -1,5 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
+plugins {
+  id 'dd-trace-java.module.sub-agent'
+  id 'idea'
+}
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11) {

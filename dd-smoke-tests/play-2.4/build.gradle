@@ -1,8 +1,7 @@
 plugins {
   id 'org.gradle.playframework'
+  id 'dd-trace-java.module.smoke-test'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // TODO Java 17: This version of play doesn't support Java 17

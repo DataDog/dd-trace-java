@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.apache.kafka"
@@ -6,8 +10,6 @@ muzzle {
     // TODO shouldn't there be an assertInverse here, or do we support 3.x?
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuite('latestDepTest')
 

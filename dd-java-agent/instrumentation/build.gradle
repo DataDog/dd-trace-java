@@ -8,106 +8,117 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 plugins {
   id 'com.gradleup.shadow'
   id("dd-trace-java.instrumentation-naming")
+  id 'dd-trace-java.muzzle' apply false
 }
-apply from: "$rootDir/gradle/java.gradle"
 
+// This project has no sources, but it resolves instrumentationBundleClasspath for shadowJar/index generation.
+apply from: "$rootDir/gradle/repositories.gradle"
 
-tasks.register("latestDepTest", Test)
+def instrumentationBundleClasspathConfiguration = configurations.register('instrumentationBundleClasspath') {
+  canBeConsumed = false
+  canBeResolved = true
+}
+
+def shadowJarTask = tasks.findByName('shadowJar') == null
+  ? tasks.register('shadowJar', ShadowJar) {
+    group = LifecycleBasePlugin.BUILD_GROUP
+    description = 'Create the instrumentation shadow jar.'
+  }
+  : tasks.named('shadowJar', ShadowJar)
 
 Project parent_project = project
 subprojects { Project subProj ->
-  subProj.pluginManager.withPlugin("dd-trace-java.build-time-instrumentation") {
-    subProj.extensions.configure(BuildTimeInstrumentationExtension) {
-      it.plugins.addAll(
-        'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
-        'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
-        'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
-        )
-    }
+  subProj.pluginManager.withPlugin("dd-trace-java.module.instrumentation") {
+    subProj.pluginManager.apply('dd-trace-java.build-time-instrumentation')
+    subProj.pluginManager.apply('dd-trace-java.muzzle')
 
-    subProj.configurations.named('buildTimeInstrumentationPlugin') {
-      it.dependencies.add(subProj.dependencies.project(
-        path: ':dd-java-agent:agent-tooling',
-        configuration: 'buildTimeInstrumentationToolingPlugins'
-        ))
-    }
-  }
+    subProj.pluginManager.withPlugin("dd-trace-java.build-time-instrumentation") {
+      subProj.extensions.configure(BuildTimeInstrumentationExtension) {
+        it.plugins.addAll(
+          'datadog.trace.agent.tooling.muzzle.MuzzleGradlePlugin',
+          'datadog.trace.agent.tooling.bytebuddy.NewTaskForGradlePlugin',
+          'datadog.trace.agent.tooling.bytebuddy.reqctx.RewriteRequestContextAdvicePlugin',
+          )
+      }
 
-  subProj.pluginManager.withPlugin("java") {
-    subProj.pluginManager.withPlugin("dd-trace-java.muzzle") {
-      subProj.configurations.matching { it.name == 'muzzleBootstrap' }.configureEach {
-        exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+      subProj.configurations.named('buildTimeInstrumentationPlugin') {
+        it.dependencies.add(subProj.dependencies.project(
+          path: ':dd-java-agent:agent-tooling',
+          configuration: 'buildTimeInstrumentationToolingPlugins'
+          ))
       }
     }
 
-    subProj.tasks.withType(Javadoc).configureEach { enabled = false }
-
-    // Add instrumentation-specific forbiddenApi rules
-    subProj.tasks.withType(CheckForbiddenApis).configureEach {
-      signaturesFiles = subProj.files(
-        "$rootDir/gradle/forbiddenApiFilters/main.txt",
-        "$rootDir/gradle/forbiddenApiFilters/instrumentation.txt")
-    }
-
-
-    // Configures base dependencies for additional sourceSet
-    subProj.configurations
-      .matching { it.name.matches("${MAIN_SOURCE_SET_NAME}_java\\d+${IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
-      .configureEach {
-        it.dependencies.add(subProj.dependencyFactory.create(project(':dd-trace-api')))
-        it.dependencies.add(subProj.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
-        it.dependencies.addLater(libs.bytebuddy)
+    subProj.pluginManager.withPlugin("java") {
+      subProj.pluginManager.withPlugin("dd-trace-java.muzzle") {
+        subProj.configurations.matching { it.name == 'muzzleBootstrap' }.configureEach {
+          exclude group: 'org.snakeyaml', module: 'snakeyaml-engine' // we vendor this in the agent jar
+        }
       }
 
-    dependencies {
-      // Main
-      annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
-      annotationProcessor libs.autoservice.processor
-      compileOnly libs.autoservice.annotation
+      subProj.tasks.withType(Javadoc).configureEach { enabled = false }
 
-      // Apply common dependencies for instrumentation.
-      implementation project(':dd-trace-api')
-      implementation project(':dd-java-agent:agent-tooling')
-      implementation libs.bytebuddy
-
-      // Tests
-      testAnnotationProcessor libs.autoservice.processor
-      testCompileOnly libs.autoservice.annotation
-
-      // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
-      testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
-      testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8')
-
-      testImplementation project(':dd-java-agent:instrumentation-testing')
-    }
-
-    subProj.tasks.withType(Test).configureEach { subTask ->
-      if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
-        subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
+      // Add instrumentation-specific forbiddenApi rules
+      subProj.tasks.withType(CheckForbiddenApis).configureEach {
+        signaturesFiles = subProj.files(
+          "$rootDir/gradle/forbiddenApiFilters/main.txt",
+          "$rootDir/gradle/forbiddenApiFilters/instrumentation.txt")
       }
-    }
 
-    if (subProj.path != ':dd-java-agent:instrumentation:vertx:vertx-redis-client:vertx-redis-client-stubs') {
-      // don't include the redis RequestImpl stubs
+
+      // Configures base dependencies for additional sourceSet
+      subProj.configurations
+        .matching { it.name.matches("${MAIN_SOURCE_SET_NAME}_java\\d+${IMPLEMENTATION_CONFIGURATION_NAME.capitalize()}") }
+        .configureEach {
+          it.dependencies.add(subProj.dependencyFactory.create(project(':dd-trace-api')))
+          it.dependencies.add(subProj.dependencyFactory.create(project(':dd-java-agent:agent-tooling')))
+          it.dependencies.addLater(libs.bytebuddy)
+        }
+
+      dependencies {
+        // Main
+        annotationProcessor project(':dd-java-agent:instrumentation-annotation-processor')
+        annotationProcessor libs.autoservice.processor
+        compileOnly libs.autoservice.annotation
+
+        // Apply common dependencies for instrumentation.
+        implementation project(':dd-trace-api')
+        implementation project(':dd-java-agent:agent-tooling')
+        implementation libs.bytebuddy
+
+        // Tests
+        testAnnotationProcessor libs.autoservice.processor
+        testCompileOnly libs.autoservice.annotation
+
+        // Include instrumentations instrumenting core JDK classes to ensure interoperability with other instrumentation
+        testImplementation project(':dd-java-agent:instrumentation:java:java-concurrent:java-concurrent-1.8')
+        testImplementation project(':dd-java-agent:instrumentation:java:java-lang:java-lang-classloading-1.8')
+
+        testImplementation project(':dd-java-agent:instrumentation-testing')
+      }
+
+      subProj.tasks.withType(Test).configureEach { subTask ->
+        if (subTask.name in ['latestDepTest', 'latestDepForkedTest']) {
+          subTask.jvmArgs '-Dtest.dd.latestDepTest=true'
+        }
+      }
+
       parent_project.dependencies {
-        addProvider("implementation", providers.provider { project(subProj.path) })
+        addProvider("instrumentationBundleClasspath", providers.provider { project(subProj.path) })
       }
     }
   }
-
-  subProj.apply plugin: 'dd-trace-java.build-time-instrumentation'
-  subProj.apply plugin: 'dd-trace-java.muzzle'
 }
 
 dependencies {
-  implementation(project(':dd-java-agent:agent-tooling')) {
+  instrumentationBundleClasspath(project(':dd-java-agent:agent-tooling')) {
     exclude module: ':dd-java-agent:agent-bootstrap'
   }
-  implementation project(':dd-java-agent:agent-installer')
+  instrumentationBundleClasspath project(':dd-java-agent:agent-installer')
 }
 
 if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleReport") }) {
-  apply plugin: 'dd-trace-java.muzzle'
+  plugins.apply('dd-trace-java.muzzle')
   tasks.register('muzzleInstrumentationReport') {
     dependsOn(subprojects.collect { p ->
       p.tasks.matching {
@@ -118,8 +129,9 @@ if (project.gradle.startParameter.taskNames.any { it.endsWith("generateMuzzleRep
   }
 }
 
-tasks.named('shadowJar', ShadowJar) {
+shadowJarTask.configure {
   duplicatesStrategy = DuplicatesStrategy.FAIL
+  configurations = [instrumentationBundleClasspathConfiguration.get()]
   dependencies {
     // the tracer is now in a separate shadow jar
     exclude(project(":dd-trace-core"))
@@ -134,17 +146,23 @@ project.configurations.register('slf4j-simple') {
   it.dependencies.add(project.dependencyFactory.create("org.slf4j:slf4j-simple:${libs.versions.slf4j.get()}"))
 }
 
-TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, String description ) {
+TaskProvider<JavaExec> registerIndexTask(
+  String indexTaskName,
+  String indexer,
+  String description,
+  TaskProvider<ShadowJar> shadowJarTask,
+  def bundleClasspathConfiguration
+) {
   def indexTask = tasks.register(indexTaskName, JavaExec) {
     def destinationDir = project.layout.buildDirectory.dir("generated/${it.name}")
 
     it.group = LifecycleBasePlugin.BUILD_GROUP
     it.description = description
     it.mainClass = indexer
-    it.classpath = objects.fileCollection().tap {
-      it.from(project.configurations.named("runtimeClasspath"))
-      it.from(project.configurations.named('slf4j-simple'))
-    }
+    def indexClasspath = objects.fileCollection()
+    indexClasspath.from(bundleClasspathConfiguration)
+    indexClasspath.from(project.configurations.named('slf4j-simple'))
+    it.classpath = indexClasspath
     it.inputs.files(it.classpath)
     it.outputs.dir(destinationDir)
     it.argumentProviders.add(new CommandLineArgumentProvider() {
@@ -154,7 +172,9 @@ TaskProvider<JavaExec> registerIndexTask(String indexTaskName, String indexer, S
         }
       })
   }
-  sourceSets.main.resources.srcDir(indexTask)
+  shadowJarTask.configure {
+    from(indexTask)
+  }
   return indexTask
 }
 
@@ -166,11 +186,15 @@ instrumentationNaming {
 registerIndexTask(
   'generateInstrumenterIndex',
   'datadog.trace.agent.tooling.InstrumenterIndex$IndexGenerator',
-  'Generate instrumenter.index'
+  'Generate instrumenter.index',
+  shadowJarTask,
+  instrumentationBundleClasspathConfiguration
   )
 
 registerIndexTask(
   'generateKnownTypesIndex',
   'datadog.trace.agent.tooling.KnownTypesIndex$IndexGenerator',
-  'Generate known-types.index'
+  'Generate known-types.index',
+  shadowJarTask,
+  instrumentationBundleClasspathConfiguration
   )

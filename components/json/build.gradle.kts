@@ -1,8 +1,7 @@
 plugins {
   id("me.champeau.jmh")
+  id("dd-trace-java.module.internal-component")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 jmh {
   jmhVersion = libs.versions.jmh.get()

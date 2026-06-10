@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'scala'
+}
 
 muzzle {
   pass {
@@ -21,9 +25,6 @@ spotless {
   }
 }
 project.ext.groovySkipJavaExclude = true
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'scala' // Don't use test-with-scala since we want to pick our own version.
 
 // Ensure the common project is evaluated before we access its source sets
 evaluationDependsOn(':dd-java-agent:instrumentation:scala:scala-promise:scala-promise-common')

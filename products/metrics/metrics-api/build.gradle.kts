@@ -1,10 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-component")
 }
 
 description = "Metrics API"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   implementation(libs.slf4j)

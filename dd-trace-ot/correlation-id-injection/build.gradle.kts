@@ -1,10 +1,8 @@
 plugins {
-  `java-library`
+  id("dd-trace-java.module.internal-component")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["minimumBranchCoverage"] = 0.8
+val minimumBranchCoverage by extra(0.8)
 
 extra["excludedClassesCoverage"] = listOf(
   "datadog.trace.correlation.CorrelationIdInjectors",

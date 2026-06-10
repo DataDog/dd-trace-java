@@ -4,9 +4,8 @@ plugins {
   id 'com.gradleup.shadow'
   id 'dd-trace-java.version-file'
   id 'java-test-fixtures'
+  id 'dd-trace-java.module.sub-agent'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 minimumInstructionCoverage = 0.1
 minimumBranchCoverage = 0.6

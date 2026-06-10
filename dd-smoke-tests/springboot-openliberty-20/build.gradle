@@ -1,4 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.smoke-test'
+}
+
 description = 'SpringBoot Open Liberty 20-22 Smoke Tests'
 
 dependencies {

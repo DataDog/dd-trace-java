@@ -4,6 +4,7 @@ import org.jetbrains.kotlin.gradle.dsl.KotlinVersion
 plugins {
   id 'java-test-fixtures'
   id 'org.jetbrains.kotlin.jvm'
+  id 'dd-trace-java.module.instrumentation'
 }
 
 muzzle {
@@ -25,7 +26,6 @@ muzzle {
   }
 }
 
-apply from: "$rootDir/gradle/java.gradle"
 apply from: "$rootDir/gradle/test-with-kotlin.gradle"
 
 kotlin {

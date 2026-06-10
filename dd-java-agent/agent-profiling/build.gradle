@@ -2,9 +2,8 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.sub-agent'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 excludedClassesCoverage += [
   'com.datadog.profiling.agent.CompositeController',

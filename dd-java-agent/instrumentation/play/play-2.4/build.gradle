@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   extraRepository("typesafe", "https://repo.typesafe.com/typesafe/maven-releases/")
 
@@ -18,8 +22,6 @@ muzzle {
     versions = '[,]'
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 testJvmConstraints {
   // Play doesn't work with Java 9+ until 2.6.12

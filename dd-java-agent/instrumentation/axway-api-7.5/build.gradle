@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
 
 dependencies {
   // It's difficult to split jars from axway apigateway monolith:

@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 /*
  Note: The Interceptor class for OkHttp was not introduced until 2.2+, so we need to make sure the
  instrumentation is not loaded unless the dependency is 2.2+.
@@ -16,8 +20,6 @@ muzzle {
     versions = "[2.4,3)"
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
 

@@ -1,5 +1,7 @@
 plugins {
   id 'com.google.protobuf' version '0.10.0'
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
 }
 
 muzzle {
@@ -11,9 +13,6 @@ muzzle {
     skipVersions += "1.3.0" // com.linecorp.armeria.common.grpc.protocol.ArmeriaMessageDeframer is missing in this one version
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: 'idea'
 
 // First version with Mac M1 support
 def protocVersion = '3.17.3'

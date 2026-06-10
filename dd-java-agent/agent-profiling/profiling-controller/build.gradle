@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.sub-agent'
+}
 
 // We have some general logging paths that are hard to test
 minimumInstructionCoverage = 0.8

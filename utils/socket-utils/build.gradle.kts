@@ -4,9 +4,8 @@ import org.gradle.kotlin.dsl.extra
 plugins {
   `java-library`
   idea
+  id("dd-trace-java.module.internal-component")
 }
-
-apply(from = "$rootDir/gradle/java.gradle")
 
 extensions.getByName("tracerJava").withGroovyBuilder {
   invokeMethod("addSourceSetFor", arrayOf(JavaVersion.VERSION_17, mapOf("compileOnly" to true)))

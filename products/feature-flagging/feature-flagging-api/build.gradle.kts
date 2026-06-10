@@ -5,9 +5,9 @@ plugins {
   `java-library`
   idea
   `maven-publish`
+  id("dd-trace-java.module.internal-component")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
 apply(from = "$rootDir/gradle/publish.gradle")
 
 configure<TestJvmConstraintsExtension> {

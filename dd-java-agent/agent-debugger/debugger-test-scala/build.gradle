@@ -1,8 +1,7 @@
 plugins {
   id 'scala'
+  id 'dd-trace-java.module.sub-agent'
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 dependencies {
   implementation group: 'org.scala-lang', name: 'scala-compiler', version: '2.13.3'

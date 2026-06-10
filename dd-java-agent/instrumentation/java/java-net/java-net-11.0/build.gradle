@@ -1,11 +1,13 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+  id 'idea'
+}
+
 muzzle {
   pass {
     coreJdk('11')
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
 
 tracerJava {
   addSourceSetFor(JavaVersion.VERSION_11)

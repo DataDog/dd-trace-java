@@ -1,3 +1,7 @@
+plugins {
+  id 'dd-trace-java.module.instrumentation'
+}
+
 muzzle {
   pass {
     group = "org.apache.spark"
@@ -12,8 +16,6 @@ muzzle {
     assertInverse = true
   }
 }
-
-apply from: "$rootDir/gradle/java.gradle"
 
 // Since we are using different scala versions for different test sets,
 // we put the test classes in the baseTest test set so that the scala

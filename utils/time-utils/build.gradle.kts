@@ -1,12 +1,13 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-component")
 }
 
-apply(from = "$rootDir/gradle/java.gradle")
-
-extra["excludedClassesCoverage"] = listOf(
-  "datadog.trace.api.time.ControllableTimeSource:",
-  "datadog.trace.api.time.SystemTimeSource"
+val excludedClassesCoverage by extra(
+  listOf(
+    "datadog.trace.api.time.ControllableTimeSource:",
+    "datadog.trace.api.time.SystemTimeSource"
+  )
 )
 
 dependencies {

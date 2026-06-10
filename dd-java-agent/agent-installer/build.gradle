@@ -1,5 +1,7 @@
-apply from: "$rootDir/gradle/java.gradle"
-apply plugin: "idea"
+plugins {
+  id 'dd-trace-java.module.sub-agent'
+  id 'idea'
+}
 
 minimumBranchCoverage = 0.6
 excludedClassesCoverage += ['datadog.trace.agent.tooling.*']

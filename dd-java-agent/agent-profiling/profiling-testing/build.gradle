@@ -1,4 +1,6 @@
-apply from: "$rootDir/gradle/java.gradle"
+plugins {
+  id 'dd-trace-java.module.sub-agent'
+}
 
 excludedClassesCoverage += [// These classes are using only for testing
   'com.datadog.profiling.testing.*',]

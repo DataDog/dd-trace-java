@@ -1,10 +1,9 @@
 plugins {
   `java-library`
+  id("dd-trace-java.module.internal-component")
 }
 
 description = "Metrics agent"
-
-apply(from = rootDir.resolve("gradle/java.gradle"))
 
 dependencies {
   api(project(":products:metrics:metrics-api"))
