@@ -144,6 +144,15 @@ class ScaReachabilityTransformerJava9Test {
             "com.github.junrar:junrar", Arrays.asList(fallback, exact)));
   }
 
+  @Test
+  void matchVersion_nullDepNameDoesNotThrow() {
+    // guessFallbackNoPom can produce Dependency(name=null, ...) for JARs with unrecognizable names.
+    Dependency nullName = new Dependency(null, "1.0", "foo.jar", null);
+    assertNull(
+        ScaReachabilityTransformer.matchVersion(
+            "com.example:foo", Collections.singletonList(nullName)));
+  }
+
   /**
    * Validates that {@code findArtifactVersionInClasspath} works correctly when the context
    * classloader is {@code null} — which is the actual runtime condition on agent threads, because

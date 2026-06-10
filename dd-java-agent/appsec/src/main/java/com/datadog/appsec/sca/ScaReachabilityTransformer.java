@@ -377,7 +377,7 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     }
     String artifactId = artifactName.substring(colonIdx + 1);
     for (Dependency dep : deps) {
-      if (!dep.name.contains(":") && artifactId.equals(dep.name) && dep.version != null) {
+      if (dep.name != null && !dep.name.contains(":") && artifactId.equals(dep.name) && dep.version != null) {
         return dep.version;
       }
     }
