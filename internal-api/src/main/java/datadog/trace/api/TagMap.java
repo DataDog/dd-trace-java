@@ -1407,10 +1407,13 @@ final class OptimizedTagMap implements TagMap {
   }
 
   private static final class EmptyHolder {
-    static final OptimizedTagMap EMPTY = new OptimizedTagMap(new Object[1], 0);
+    static final OptimizedTagMap EMPTY = new OptimizedTagMap(null, 0);
   }
 
-  private final Object[] buckets;
+  // Hash buckets for unknown tags (globalSerial == 0). Lazily allocated on the first unknown-tag
+  // insertion; an all-known map never allocates it. A null buckets array means "no bucketed
+  // entries" and must be treated as empty everywhere it is read/scanned.
+  private Object[] buckets;
   private int size;
   private boolean frozen;
 
@@ -1427,8 +1430,8 @@ final class OptimizedTagMap implements TagMap {
   private static final int KNOWN_INITIAL_CAPACITY = 8;
 
   public OptimizedTagMap() {
-    // needs to be a power of 2 for bucket masking calculation to work as intended
-    this.buckets = new Object[1 << 4];
+    // buckets stay null until the first unknown-tag insertion (see setInBuckets)
+    this.buckets = null;
     this.size = 0;
     this.frozen = false;
     this.knownIds = null;
@@ -1616,6 +1619,7 @@ final class OptimizedTagMap implements TagMap {
 
   private Entry getEntryFromBuckets(String tag) {
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return null;
 
     int hash = TagMap.Entry._hash(tag);
     int bucketIndex = hash & (thisBuckets.length - 1);
@@ -1928,6 +1932,11 @@ final class OptimizedTagMap implements TagMap {
 
   private Entry setInBuckets(Entry newEntry) {
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) {
+      // first unknown-tag insertion - lazily allocate the bucket array
+      // needs to be a power of 2 for bucket masking calculation to work as intended
+      thisBuckets = this.buckets = new Object[1 << 4];
+    }
 
     int newHash = newEntry.hash();
     int bucketIndex = newHash & (thisBuckets.length - 1);
@@ -2065,8 +2074,16 @@ final class OptimizedTagMap implements TagMap {
   }
 
   private void putAllMerge(OptimizedTagMap that) {
-    Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
+    // nothing bucketed in the source - nothing to merge
+    if (thatBuckets == null) return;
+
+    Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) {
+      // dest has no bucket array yet (its size came from the dense store, but putAllMerge is only
+      // reached when both maps have knownCount == 0); allocate to receive the source's buckets
+      thisBuckets = this.buckets = new Object[1 << 4];
+    }
 
     // Since TagMap-s don't support expansion, buckets are perfectly aligned
     // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
@@ -2182,24 +2199,32 @@ final class OptimizedTagMap implements TagMap {
    * Specially optimized version of putAll for the common case of destination map being empty
    */
   private void putAllIntoEmptyMap(OptimizedTagMap that) {
-    Object[] thisBuckets = this.buckets;
     Object[] thatBuckets = that.buckets;
 
-    // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound check
-    // elimination
-    for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
-      Object thatBucket = thatBuckets[i];
+    // source has bucketed entries - lazily allocate dest buckets and clone them in. A source with
+    // null buckets leaves dest buckets null (still empty until something buckets).
+    if (thatBuckets != null) {
+      Object[] thisBuckets = this.buckets;
+      if (thisBuckets == null) {
+        thisBuckets = this.buckets = new Object[1 << 4];
+      }
 
-      // faster to explicitly null check first, then do instanceof
-      if (thatBucket == null) {
-        // do nothing
-      } else if (thatBucket instanceof BucketGroup) {
-        // if it is a BucketGroup, then need to clone
-        BucketGroup thatGroup = (BucketGroup) thatBucket;
+      // Check against both thisBuckets.length && thatBuckets.length is to help the JIT do bound
+      // check elimination
+      for (int i = 0; i < thisBuckets.length && i < thatBuckets.length; ++i) {
+        Object thatBucket = thatBuckets[i];
 
-        thisBuckets[i] = thatGroup.cloneChain();
-      } else { // if ( thatBucket instanceof Entry )
-        thisBuckets[i] = thatBucket;
+        // faster to explicitly null check first, then do instanceof
+        if (thatBucket == null) {
+          // do nothing
+        } else if (thatBucket instanceof BucketGroup) {
+          // if it is a BucketGroup, then need to clone
+          BucketGroup thatGroup = (BucketGroup) thatBucket;
+
+          thisBuckets[i] = thatGroup.cloneChain();
+        } else { // if ( thatBucket instanceof Entry )
+          thisBuckets[i] = thatBucket;
+        }
       }
     }
 
@@ -2223,6 +2248,7 @@ final class OptimizedTagMap implements TagMap {
     }
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
@@ -2248,6 +2274,7 @@ final class OptimizedTagMap implements TagMap {
     }
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
@@ -2312,6 +2339,7 @@ final class OptimizedTagMap implements TagMap {
   // or null.
   private Entry removeFromBuckets(String tag, int hash) {
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return null;
 
     int bucketIndex = hash & (thisBuckets.length - 1);
 
@@ -2385,6 +2413,7 @@ final class OptimizedTagMap implements TagMap {
     }
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
@@ -2415,6 +2444,7 @@ final class OptimizedTagMap implements TagMap {
     }
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
@@ -2446,6 +2476,7 @@ final class OptimizedTagMap implements TagMap {
     }
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
@@ -2465,7 +2496,8 @@ final class OptimizedTagMap implements TagMap {
   public void clear() {
     this.checkWriteAccess();
 
-    Arrays.fill(this.buckets, null);
+    // drop the bucket array entirely - it will be lazily re-allocated on the next unknown-tag write
+    this.buckets = null;
     if (this.knownCount != 0) {
       Arrays.fill(this.knownIds, 0, this.knownCount, 0L);
       Arrays.fill(this.knownValues, 0, this.knownCount, null);
@@ -2510,7 +2542,7 @@ final class OptimizedTagMap implements TagMap {
 
     Object[] thisBuckets = this.buckets;
 
-    for (int i = 0; i < thisBuckets.length; ++i) {
+    for (int i = 0; thisBuckets != null && i < thisBuckets.length; ++i) {
       Object thisBucket = thisBuckets[i];
 
       if (thisBucket instanceof Entry) {
@@ -2553,7 +2585,7 @@ final class OptimizedTagMap implements TagMap {
     int size = this.knownCount;
 
     Object[] thisBuckets = this.buckets;
-    for (int i = 0; i < thisBuckets.length; ++i) {
+    for (int i = 0; thisBuckets != null && i < thisBuckets.length; ++i) {
       Object curBucket = thisBuckets[i];
 
       if (curBucket instanceof Entry) {
@@ -2570,6 +2602,7 @@ final class OptimizedTagMap implements TagMap {
     if (this.knownCount != 0) return false;
 
     Object[] thisBuckets = this.buckets;
+    if (thisBuckets == null) return true;
 
     for (int i = 0; i < thisBuckets.length; ++i) {
       Object curBucket = thisBuckets[i];
@@ -2643,7 +2676,7 @@ final class OptimizedTagMap implements TagMap {
     Object[] thisBuckets = this.buckets;
 
     StringBuilder ledger = new StringBuilder(128);
-    for (int i = 0; i < thisBuckets.length; ++i) {
+    for (int i = 0; thisBuckets != null && i < thisBuckets.length; ++i) {
       ledger.append('[').append(i).append("] = ");
 
       Object thisBucket = thisBuckets[i];
@@ -2741,6 +2774,8 @@ final class OptimizedTagMap implements TagMap {
             KnownTags.nameOf(this.knownIds[this.knownIndex]), this.knownValues[this.knownIndex]);
         return reader;
       }
+
+      if (this.buckets == null) return null;
 
       while (this.bucketIndex < this.buckets.length) {
         if (this.group != null) {
