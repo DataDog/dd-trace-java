@@ -18,8 +18,8 @@ import datadog.trace.bootstrap.instrumentation.api.Tags;
  * tag-id resolution live before the first span is built.
  */
 public final class KnownTagIds {
-  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..16.
-  static final int SLOT_COUNT = 17;
+  // slot count = (max stored fieldPos) + 1. Stored tags use fieldPos 0..17.
+  static final int SLOT_COUNT = 18;
 
   // ---- reserved / virtual (tag-interceptor handled, not stored) ----
   public static final int ERROR_SERIAL = 1;
@@ -98,6 +98,9 @@ public final class KnownTagIds {
   public static final long PEER_HOST_IPV6 =
       KnownTags.tagId(PEER_HOST_IPV6_SERIAL, 16, Tags.PEER_HOST_IPV6);
 
+  public static final int PEER_PORT_SERIAL = KnownTags.FIRST_STORED_SERIAL + 17;
+  public static final long PEER_PORT = KnownTags.tagId(PEER_PORT_SERIAL, 17, Tags.PEER_PORT);
+
   static final KnownTags.Resolver RESOLVER =
       new KnownTags.Resolver() {
         @Override
@@ -139,6 +142,8 @@ public final class KnownTagIds {
               return Tags.PEER_HOST_IPV4;
             case PEER_HOST_IPV6_SERIAL:
               return Tags.PEER_HOST_IPV6;
+            case PEER_PORT_SERIAL:
+              return Tags.PEER_PORT;
             default:
               return null;
           }
@@ -188,6 +193,8 @@ public final class KnownTagIds {
               return PEER_HOST_IPV4;
             case Tags.PEER_HOST_IPV6:
               return PEER_HOST_IPV6;
+            case Tags.PEER_PORT:
+              return PEER_PORT;
             default:
               return 0L;
           }

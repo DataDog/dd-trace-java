@@ -519,6 +519,42 @@ public class DDSpan implements AgentSpan, CoreSpan<DDSpan>, AttachableWrapper {
   }
 
   @Override
+  public DDSpan setTag(final long tagId, final CharSequence value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final boolean value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final int value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final long value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final float value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
+  public DDSpan setTag(final long tagId, final double value) {
+    context.setTag(tagId, value);
+    return this;
+  }
+
+  @Override
   public AgentSpan setAllTags(Map<String, ?> map) {
     context.setAllTags(map);
     return this;

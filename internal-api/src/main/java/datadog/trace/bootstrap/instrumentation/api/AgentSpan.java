@@ -95,6 +95,36 @@ public interface AgentSpan
     return name == null ? this : setTag(name, value);
   }
 
+  default AgentSpan setTag(long tagId, CharSequence value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
+  default AgentSpan setTag(long tagId, boolean value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
+  default AgentSpan setTag(long tagId, int value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
+  default AgentSpan setTag(long tagId, long value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
+  default AgentSpan setTag(long tagId, float value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
+  default AgentSpan setTag(long tagId, double value) {
+    String name = datadog.trace.api.KnownTags.nameOf(tagId);
+    return name == null ? this : setTag(name, value);
+  }
+
   /** entry may be null - in which case the tags remained unchanged */
   AgentSpan setTag(TagMap.EntryReader entry);
 

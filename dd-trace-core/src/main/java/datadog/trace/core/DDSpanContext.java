@@ -929,6 +929,98 @@ public class DDSpanContext
     }
   }
 
+  public void setTag(final long tagId, final CharSequence value) {
+    if (null == value) {
+      String name = KnownTags.nameOf(tagId);
+      if (name != null) {
+        removeTag(name);
+      }
+      return;
+    }
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final boolean value) {
+    if (KnownTags.isReserved(tagId)) {
+      // boxes on the (rare) reserved/intercepted path only
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final int value) {
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final long value) {
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final float value) {
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
+  public void setTag(final long tagId, final double value) {
+    if (KnownTags.isReserved(tagId)) {
+      if (!tagInterceptor.interceptTag(this, tagId, value)) {
+        synchronized (unsafeTags) {
+          unsafeTags.set(tagId, value);
+        }
+      }
+    } else {
+      synchronized (unsafeTags) {
+        unsafeTags.set(tagId, value);
+      }
+    }
+  }
+
   public void setTag(TagMap.EntryReader entry) {
     if (entry == null) {
       return;

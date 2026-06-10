@@ -55,7 +55,7 @@ class BaseDecoratorTest extends DDSpecification {
     if (!connection.isUnresolved()) {
       1 * span.setTag(KnownTagIds.PEER_HOSTNAME, connection.hostName)
     }
-    1 * span.setTag(Tags.PEER_PORT, connection.port)
+    1 * span.setTag(KnownTagIds.PEER_PORT, connection.port)
     if (connection.address instanceof Inet4Address) {
       1 * span.setTag(KnownTagIds.PEER_HOST_IPV4, connection.address.hostAddress)
     }

@@ -178,14 +178,14 @@ public abstract class BaseDecorator {
   }
 
   public AgentSpan setPeerPort(AgentSpan span, String port) {
-    span.setTag(Tags.PEER_PORT, port);
+    span.setTag(KnownTagIds.PEER_PORT, (CharSequence) port);
 
     return span;
   }
 
   public AgentSpan setPeerPort(AgentSpan span, int port) {
     if (port > UNSET_PORT) {
-      span.setTag(Tags.PEER_PORT, port);
+      span.setTag(KnownTagIds.PEER_PORT, port);
     }
     return span;
   }
