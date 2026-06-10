@@ -16,41 +16,69 @@ fast-path made tag *placement* fast (positional slot vs hash bucket) but still a
 This is the runtime counterpart to the [`tag-conventions.yaml`](tag-conventions.yaml) spec: the
 generator assigns each known tag a `fieldPos`, and the `AttributeValueTable` is indexed by it.
 
-## Storage
+## An interface, not one storage scheme
 
-One global slot layout (today's model — all span types share the slot numbering; per-span-type
-layouts are an open question, below). Sized to `KnownTags.slotCount()`.
+`AttributeValueTable` is an **interface**. The opaque `set(long)→boolean` / `get(long)→EntryReader`
+contract leaks nothing about storage, so the same interface can be satisfied by either backing:
+
+- **Array/segment-backed** (generic, resolver-driven) — the measurable first impl; no codegen.
+- **POJO-backed** (codegen, per span type) — a generated class with real typed fields + generated
+  `set`/`get` switches. Densest and most JIT-friendly (fields inline, no bounds checks); type-reject
+  falls out for free (a wrong-type `set` finds no matching field → returns `false`). Lazily-created
+  mixin sub-POJOs for products.
+
+Callers (`OptimizedTagMap`) are impl-agnostic — the array impl ships first, the POJO impl can replace
+it per span type later with no caller change.
+
+## Storage (array-backed impl)
+
+Slots are organized into lazily-allocated **segments** (segment 0 = structural, 1+ = product mixins;
+see "How product mixins interact"). Each slot's **type is declared by the resolver** (`typeOf`, from the YAML `type:`) and is therefore static — the table stores no per-span type array. Per segment:
 
 ```
-byte[]   types   // per slot: UNSET=0 | OBJECT | CHARSEQUENCE | BOOLEAN | INT | LONG | FLOAT | DOUBLE
-long[]   prims   // per slot: boolean(0/1) / int / long / float-bits / double-bits   (no boxing)
-Object[] objs    // per slot: String/CharSequence/Object values; null for primitive slots
+long     present  // presence bitmask (long[] if the segment has > 64 slots) — 0 is a valid primitive
+Object[] objs     // object/CharSequence-typed slots
+long[]   prims    // primitive-typed slots: boolean(0/1)/int/long/float-bits/double-bits  (no boxing)
 ```
 
-- **Presence** = `types[slot] != UNSET`. `size` maintained as a counter (+ bucket count).
-- **Lazily allocated** on first known-tag write (like today's `knownEntries`).
-- **Primitive arrays optional:** `prims` can be allocated lazily — most tags are strings (`objs`),
-  so a primitive-free span never allocates `prims`.
-- **Unknown tags** (no slot: `globalSerial == 0` or `fieldPos == NO_SLOT`) fall back to the
-  existing hash buckets, which still use `Entry`. These are the minority (dynamic / rare tags);
-  the common known tags are the ones we de-allocate.
+- **Type is static per slot** (`KnownTags` `typeOf`); the flyweight reader derives `type()` from it.
+- **Lazily allocated** per segment on first write; `objs`/`prims` each lazy (a primitive-free segment
+  never allocates `prims`). `size` = popcount(present) + bucket count.
+- **Unknown tags** (`globalSerial == 0`, `fieldPos == NO_SLOT`) and **type mismatches** fall back to
+  the hash buckets (still `Entry`) — the minority; correctly-typed known tags are what we de-allocate.
 
-Memory: trades *N* per-tag `Entry` objects (N = known tags on the span) for up to 3 fixed
-per-span arrays. Net win when a span carries more than ~2–3 known tags (PetClinic spans carry
-5–10) and especially on the serialize path (zero transient `Entry`).
+### Type discipline
+
+The resolver declares each slot's type (`typeOf`). `set` accepts a value only if it matches; otherwise it returns
+`false` and the caller buckets it as a normal `Entry`. Slots stay mono-typed (so type need not be
+stored per span) and off-type writes degrade gracefully instead of corrupting a slot. Type *coercion
+on read* (e.g. int → string for serialization) is `EntryReader`'s job (via `TagValueConversions`),
+not a widening of the stored value.
+
+### Reuse (read side already exists)
+
+The flyweight reader is the `EntryReadingHelper` pattern already used by `LegacyTagMap`: a reusable
+`EntryReader` repositioned per slot, coercion delegated to `TagValueConversions`, and
+`EntryReader.entry()` for materialize-on-demand. No new reader, visitor, or coercion code.
+
+Memory: trades *N* per-tag `Entry` objects (N = known tags on the span) for a small presence bitmask
+plus up to two lazily-allocated arrays per occupied segment. Net win when a span carries more than
+~2–3 known tags (PetClinic spans carry 5–10) and especially on the serialize path (zero transient
+`Entry`).
 
 ## Write path
 
 ```
-set(long id, value):
+table.set(long id, value):                   // returns true iff stored in a slot
   pos = fieldPos(id)
-  if pos < slotCount:  types[pos]=T; prims[pos]=packed  OR  objs[pos]=value   // no Entry
-  else:                bucketSet(id, value)                                   // Entry (unknown)
+  if pos < slotCount && typeMatches(id, value):
+      present |= bit(pos);  prims[pos]=packed  OR  objs[pos]=value    // no Entry
+      return true
+  return false                                // no slot or wrong type
 
-set(String name, value):
-  id = keyOf(name)                 // resolver
-  if id != 0: set(id, value)       // known string set ALSO avoids Entry now
-  else:       bucketSet(name,...)  // unknown
+// caller (OptimizedTagMap):
+if (!table.set(id, value)) setInBuckets(id, value)                    // Entry (unknown / off-type)
+// string set: id = keyOf(name); known -> table.set; else -> buckets
 ```
 
 Interception (the 3-case routing in `DDSpanContext.setTag`) is unchanged and sits *above* this —
@@ -58,29 +86,20 @@ the table is just the storage the non-intercepted / post-interceptor write lands
 
 ## Read path
 
-- **Typed getters** (`getString(id)`, `getInt(id)`, `getBoolean(id)`…) read the arrays directly —
-  no allocation (boxing only if `getObject` is called on a primitive slot).
-- **`getEntry(id)` / `getEntry(String)`** (API compat): materialize an `Entry` *on demand* from the
-  slot — allocation happens only when a caller explicitly asks for an `Entry`, which is rare on the
-  hot path now that typed getters and the serializer cursor exist.
+All reads go through **`get(long) → EntryReader`** (a repositioned flyweight, the `EntryReadingHelper`
+pattern). `EntryReader`'s own accessors + `TagValueConversions` provide value reads and type coercion
+(e.g. int → string for serialization) in one place — so there are no separate typed getters on the
+table, and slot-stored vs bucket-stored values coerce identically. Materialize a retainable `Entry`
+only when a caller needs to hold one, via the existing `EntryReader.entry()`.
 
 ## The payoff: no-`Entry` serialize
 
-The real allocation win needs the **serializer to consume the table without materializing `Entry`**.
-Add a no-alloc cursor:
-
-```
-forEachKnown(visitor):              // visitor.accept(name, type, primValue, objValue)
-  for pos in 0..slotCount:
-    if types[pos] != UNSET:
-      visitor.accept(slotName(pos), types[pos], prims[pos], objs[pos])
-```
-
-`slotName(pos)` comes from the layout (generated `String[] slotNames`, or
-`KnownTags.Resolver.nameOfSlot(int)`). The msgpack `TraceMapper` is adapted to write
-`(name, typed value)` from this cursor instead of iterating `Entry` objects. Unknown/bucket tags
-are iterated separately (they still have `Entry`s). Result: a span's known tags serialize with
-**zero `Entry` allocation**.
+`TagMap` is already `Iterable<EntryReader>` and the msgpack `TraceMapper` already consumes
+`EntryReader` — so the table reuses that contract with **no serializer change and no bespoke visitor**.
+`iterator()` walks occupied slots and yields the repositioned flyweight `EntryReader` (name via
+`resolver.tagIdAt(pos)` → `nameOf`, value from the arrays). `OptimizedTagMap` chains the table's slot
+readers then its bucket `Entry`s (also `EntryReader`s). Result: a span's known tags serialize with
+**zero `Entry` allocation**; only unknown/bucket tags retain `Entry`s.
 
 ## How product mixins interact with the layout
 
@@ -107,9 +126,95 @@ they consume slots. Three models:
    Requires the span type at creation — the bigger change.
 
 `applies` is exactly the composer's signal: `all` → universal-region candidate; `[types]` → per-type
-(or bucket). **Recommendation: model #1 for the experiment** (products don't perturb the AVT layout),
-promote a hot `applies: all` product via #2 if measurement warrants, treat #3 as the long-term tight
-design alongside span-type-at-creation.
+(or bucket).
+
+### Recommended: lazy per-mixin segments
+
+Because `set(tagId)→bool` / `get(tagId)→EntryReader` hide the storage strategy from callers, the table
+can organize itself as **segments**, each lazily allocated:
+
+```
+segment 0  = structural tags (base + the span type's inherited/own tags)   — the common case
+segment 1+ = one per product mixin (profiling, dsm, appsec, ci, …)         — allocated on first touch
+```
+
+- The `fieldPos` field partitions into `[segment : 4][offset : 12]`, so a `tagId` names its segment
+  and intra-segment offset directly — no extra lookup.
+- `set` routes to `Segment[segOf(fieldPos)]`, allocating a mixin segment **on its first touch on this
+  span**; a span that never sets a product's tag never allocates that segment.
+- `get`/iteration walk segment 0 + whatever mixin segments exist.
+
+This beats the three models above: product tags get positional, no-`Entry` storage *when present*
+(unlike "always bucket"), with zero per-span cost *when absent* — decided **per span**, with no
+registration-time composition and no need for the span type at creation. Each mixin = a segment in
+codegen; `applies` tells codegen which span types can light up which segments; structural inheritance
+is segment 0. Cost: one extra indirection (segment index + null-check) on `set`/`get`; the common
+path (segment 0 only) is a single array deref either way.
+
+## API
+
+`AttributeValueTable` is the **slotted-only** store; `OptimizedTagMap` owns the hash buckets and
+the composition. The key shape: **`set` returns whether it stored the value** — a `false` tells the
+caller to place it in the buckets. The table knows nothing about buckets; routing is explicit and
+the "did it slot?" check happens once, inside `set`.
+
+The table consults the registered `KnownTags.Resolver` directly (like `OptimizedTagMap` already uses
+`KnownTags.slotCount()`) — no separate `Layout` object. The resolver gains two additions the codegen
+already knows: `typeOf(long)` (for type-reject + the reader's `type()`) and `tagIdAt(int fieldPos)`
+(only for iteration, to name a slot walked by index).
+
+```java
+public final class AttributeValueTable {        // backed by KnownTags.Resolver (global layout)
+
+  // write: @return true if stored in a slot; false => caller must bucket it
+  public boolean set(long tagId, CharSequence value);
+  public boolean set(long tagId, Object value);
+  public boolean set(long tagId, boolean value);
+  public boolean set(long tagId, int value);
+  public boolean set(long tagId, long value);
+  public boolean set(long tagId, float value);
+  public boolean set(long tagId, double value);
+
+  public boolean remove(long tagId);   // @return true if a slot was cleared
+  public void clear();
+
+  public boolean remove(long tagId);
+  public boolean contains(long tagId);
+  public int size();
+
+  // read: returns a FLYWEIGHT EntryReader positioned at the slot (or null if absent).
+  // EntryReader's own type()/objectValue()/<typed> accessors cover value reads, so no
+  // separate getString/getInt/... and no separate Visitor are needed.
+  // NOTE: transient view — valid until the next table op; not retainable.
+  public TagMap.EntryReader get(long tagId);
+
+  // iteration yields the repositioned flyweight EntryReader -> plugs into the existing
+  // Iterable<EntryReader> serialize path with ZERO per-tag allocation.
+  public Iterator<TagMap.EntryReader> iterator();
+}
+```
+
+Read model: `TagMap` is already `Iterable<EntryReader>` and the msgpack writer already consumes
+`EntryReader`, so the table reuses that contract — no bespoke visitor and no separate typed getters
+(`EntryReader`'s own coercion covers reads, shared via `TagValueConversions`). `get`/`iterator`
+return a **flyweight** `EntryReader` (the `EntryReadingHelper` pattern — one reusable cursor
+repositioned per slot), so no `Entry` per tag. `OptimizedTagMap`'s iterator chains the table's slot
+readers then its bucket `Entry`s (also `EntryReader`s) — uniform. Materialize a retainable `Entry`
+via the existing `EntryReader.entry()` when a caller needs to hold it (the flyweight is otherwise a
+transient view, valid until the next table op).
+
+Composition + the three tiers:
+
+```java
+// OptimizedTagMap.set(long id, <type> value)
+if (!table.set(id, value)) setInBuckets(id, value);
+//   slotted known    -> table stores, returns true
+//   unslotted known  -> table returns false -> bucket (id-bearing Entry)
+//   unknown (keyOf==0)-> caller buckets directly
+```
+
+(Open: add a `getAndSet`-style variant only if a caller needs the prior value; `set->boolean`
+covers the common write path.)
 
 ## API-compat strategy
 
