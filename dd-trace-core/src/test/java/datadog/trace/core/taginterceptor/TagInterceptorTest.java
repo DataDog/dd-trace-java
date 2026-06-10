@@ -634,6 +634,23 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @Test
+  void urlAsResourceNameRuleViaTagId() {
+    // Drives the specialized HTTP_METHOD_SERIAL / HTTP_URL_SERIAL arms of interceptTag(long):
+    // setting http.method + http.url BY ID must run the same url-as-resource rule as the string
+    // path and produce the same resource name.
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+
+    AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
+    try {
+      span.setTag(KnownTagIds.HTTP_METHOD, "POST");
+      span.setTag(KnownTagIds.HTTP_URL, "/with-method");
+      assertEquals("POST /with-method", span.getResourceName().toString());
+    } finally {
+      span.finish();
+    }
+  }
+
+  @Test
   void whenUserSetsPeerServiceTheSourceShouldBePeerService() {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 

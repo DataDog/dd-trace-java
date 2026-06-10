@@ -142,9 +142,21 @@ public class TagInterceptor {
    * string interception, so behavior matches the string set-path exactly.
    */
   public boolean interceptTag(DDSpanContext span, long tagId, Object value) {
+    // Hot intercepted tags get a dedicated arm so the id path is fully string-free (no nameOf, no
+    // string switch). The serial already distinguishes http.method from http.url, so the
+    // url-as-resource rule is called with the known name constant directly. Any other intercepted
+    // id falls back to resolving the name and running the string interception (same behavior).
     switch (KnownTags.globalSerial(tagId)) {
       case KnownTagIds.ERROR_SERIAL:
         return interceptError(span, value);
+      case KnownTagIds.HTTP_METHOD_SERIAL:
+        return interceptUrlResourceAsNameRule(span, HTTP_METHOD, value);
+      case KnownTagIds.HTTP_URL_SERIAL:
+        return interceptUrlResourceAsNameRule(span, HTTP_URL, value);
+      case KnownTagIds.PEER_SERVICE_SERIAL:
+        // mirrors the Tags.PEER_SERVICE arm of the string switch
+        span.setTag(DDTags.PEER_SERVICE_SOURCE, Tags.PEER_SERVICE);
+        return interceptServiceName(PEER_SERVICE, span, value);
       default:
         String name = KnownTags.nameOf(tagId);
         return name != null && interceptTag(span, name, value);
