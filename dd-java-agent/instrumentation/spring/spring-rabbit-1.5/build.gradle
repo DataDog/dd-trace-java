@@ -8,13 +8,15 @@ muzzle {
   }
 }
 
-testJvmConstraints {
-  minJavaVersion = JavaVersion.VERSION_17
-}
-
 apply from: "$rootDir/gradle/java.gradle"
 
 addTestSuiteForDir('latestDepTest', 'test')
+
+tasks.named('latestDepTest', Test) {
+  testJvmConstraints {
+    minJavaVersion = JavaVersion.VERSION_17
+  }
+}
 
 dependencies {
   compileOnly group: 'org.springframework.amqp', name: 'spring-rabbit', version: '2.0.0.RELEASE'
