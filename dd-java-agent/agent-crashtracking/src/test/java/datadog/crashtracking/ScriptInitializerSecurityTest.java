@@ -57,9 +57,6 @@ public class ScriptInitializerSecurityTest {
     }
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 6: Fresh dir — crash uploader script and directory are owner-restricted
-  // ---------------------------------------------------------------------------
   @Test
   void crashUploaderFreshDirIsOwnerRestricted() throws Exception {
     Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
@@ -70,9 +67,6 @@ public class ScriptInitializerSecurityTest {
     assertNoGroupWorldWriteBit(tempDir);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 7: Hijacked crash uploader script (group/world-writable) is not trusted
-  // ---------------------------------------------------------------------------
   @Test
   void crashUploaderHijackedScriptIsRefused() throws Exception {
     Path scriptFile = tempDir.resolve("dd_crash_uploader.sh");
@@ -99,9 +93,6 @@ public class ScriptInitializerSecurityTest {
         "Hijacked script must not be overwritten by the initializer (size changed)");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 8: Hijacked crash uploader directory (group/world-writable) causes refusal
-  // ---------------------------------------------------------------------------
   @Test
   void crashUploaderHijackedDirectoryIsRefused() throws Exception {
     // Create the script dir with world-writable perms to simulate hijack
@@ -117,9 +108,6 @@ public class ScriptInitializerSecurityTest {
     assertFalse(Files.exists(scriptFile), "Script must not be written into a hijacked directory");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 9: Fresh OOME dir — generated script and directory are owner-restricted
-  // ---------------------------------------------------------------------------
   @Test
   void oomeNotifierFreshDirIsOwnerRestricted() throws Exception {
     Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
@@ -130,9 +118,6 @@ public class ScriptInitializerSecurityTest {
     assertNoGroupWorldWriteBit(tempDir);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 10: Hijacked OOME script (group/world-writable) is not reused
-  // ---------------------------------------------------------------------------
   @Test
   void oomeNotifierHijackedScriptIsRefused() throws Exception {
     Path scriptFile = tempDir.resolve("dd_oome_notifier.sh");
@@ -155,9 +140,6 @@ public class ScriptInitializerSecurityTest {
         sizeAfter == sizeBefore, "Hijacked OOME script must not be overwritten by the initializer");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 11: Hijacked OOME directory (group/world-writable) causes refusal
-  // ---------------------------------------------------------------------------
   @Test
   void oomeNotifierHijackedDirectoryIsRefused() throws Exception {
     Path scriptDir = tempDir.resolve("hijacked_oome_dir");
@@ -170,10 +152,6 @@ public class ScriptInitializerSecurityTest {
     assertFalse(Files.exists(scriptFile), "Script must not be written into a hijacked directory");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 12: Regression — end-to-end init on a clean POSIX tree produces
-  //          working uploader and notifier scripts plus their .cfg files
-  // ---------------------------------------------------------------------------
   @Test
   void cleanPosixTreeEndToEndInitProducesScriptsAndConfigs() throws Exception {
     Path crashScript = tempDir.resolve("dd_crash_uploader.sh");
@@ -197,10 +175,6 @@ public class ScriptInitializerSecurityTest {
         Files.list(tempDir).anyMatch(p -> p.getFileName().toString().endsWith(".cfg"));
     assertTrue(crashCfgWritten, "Crash uploader .cfg file must be written in the clean flow");
   }
-
-  // ---------------------------------------------------------------------------
-  // helpers
-  // ---------------------------------------------------------------------------
 
   private static void assertNoGroupWorldWriteBit(Path path) throws IOException {
     Set<PosixFilePermission> perms = Files.getPosixFilePermissions(path);

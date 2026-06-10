@@ -37,9 +37,6 @@ public class TempLocationManagerSecurityTest {
         "Skipping POSIX-only security tests on non-POSIX file system");
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 1: Happy path — fresh base dir produces a 0700 per-process temp dir
-  // ---------------------------------------------------------------------------
   @Test
   void freshTempDirIsCreatedWithOwnerOnlyPermissions() throws Exception {
     TempLocationManager mgr = instance(baseDir);
@@ -48,9 +45,6 @@ public class TempLocationManagerSecurityTest {
     assertTrue0700(tempDir);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 2: Pre-existing secure (0700, owner-owned) dir is accepted
-  // ---------------------------------------------------------------------------
   @Test
   void preExistingOwnerOwnedSecureDirIsAccepted() throws Exception {
     // Create the full per-process tree with 0700 before constructing the manager
@@ -70,10 +64,6 @@ public class TempLocationManagerSecurityTest {
     assertNotNull(tempDir);
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 3: Pre-existing dir with group/world bits is rejected with
-  //         IllegalStateException
-  // ---------------------------------------------------------------------------
   @ParameterizedTest
   @ValueSource(strings = {"rwxrwxrwx", "rwxr-xr-x", "rwxrwx---"})
   void preExistingDirWithGroupWorldBitsIsRejected(String perms) throws Exception {
@@ -102,10 +92,6 @@ public class TempLocationManagerSecurityTest {
     assertThrows(IllegalStateException.class, () -> instance(baseDir));
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 4: getTempDir(subPath, false) validates a pre-existing group/world-
-  //         accessible subdir and rejects it
-  // ---------------------------------------------------------------------------
   @Test
   void getTempDirWithExistingSubdirGroupWorldBitsIsRejected() throws Exception {
     // First build a clean tree so the manager initialises without error
@@ -122,22 +108,12 @@ public class TempLocationManagerSecurityTest {
         IllegalStateException.class, () -> mgr.getTempDir(tempDir.relativize(subDir), false));
   }
 
-  // ---------------------------------------------------------------------------
-  // Test 5: Non-POSIX path is unaffected — this test body is intentionally
-  //         empty because requirePosix() skips the whole class on non-POSIX
-  //         systems; the behaviour is preserved by not adding any POSIX
-  //         logic on non-POSIX file systems (verified by the assumeTrue guard).
-  // ---------------------------------------------------------------------------
   @Test
   void nonPosixBehaviourIsUnchanged() {
     // Guard already applied in @BeforeEach; if we reach here the FS is POSIX.
     // The non-POSIX case is covered by the assumeTrue skip above.
     // Nothing to assert — the test documents the requirement.
   }
-
-  // ---------------------------------------------------------------------------
-  // helpers
-  // ---------------------------------------------------------------------------
 
   private TempLocationManager instance(Path base) {
     Properties props = new Properties();
