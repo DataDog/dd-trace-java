@@ -2,6 +2,7 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SERIALIZATION;
 import static datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult.ENQUEUED_FOR_SINGLE_SPAN_SAMPLING;
+import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
@@ -23,11 +24,10 @@ import datadog.trace.core.DDCoreJavaSpecification;
 import datadog.trace.core.DDSpan;
 import datadog.trace.core.monitor.HealthMetrics;
 import datadog.trace.core.propagation.PropagationTags;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.concurrent.TimeUnit;
 import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.tabletest.junit.TableTest;
 
@@ -37,25 +37,18 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
   TraceProcessingWorker worker = mock(TraceProcessingWorker.class);
   DDAgentFeaturesDiscovery discovery = mock(DDAgentFeaturesDiscovery.class);
   DDAgentApi api = mock(DDAgentApi.class);
-  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, TimeUnit.SECONDS);
+  MonitoringImpl monitoring = new MonitoringImpl(StatsDClient.NO_OP, 1, SECONDS);
   PayloadDispatcherImpl dispatcher =
       new PayloadDispatcherImpl(new DDAgentMapperDiscovery(discovery), api, monitor, monitoring);
-  DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, TimeUnit.SECONDS, false);
+  DDAgentWriter writer = new DDAgentWriter(worker, dispatcher, monitor, 1, SECONDS, false);
 
   // Only used to create spans
-  CoreTracer dummyTracer;
-
-  @BeforeEach
-  void setup() {
-    dummyTracer = tracerBuilder().writer(new ListWriter()).build();
-  }
+  CoreTracer dummyTracer = tracerBuilder().writer(new ListWriter()).build();
 
   @AfterEach
   void cleanup() {
     writer.close();
-    if (dummyTracer != null) {
-      dummyTracer.close();
-    }
+    dummyTracer.close();
   }
 
   @Test
@@ -91,13 +84,13 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
 
   @Test
   void testWriterFlush() {
-    when(worker.flush(1, TimeUnit.SECONDS)).thenReturn(true, false);
+    when(worker.flush(1, SECONDS)).thenReturn(true, false);
 
     // first flush succeeds
     writer.flush();
 
     // monitor is notified
-    verify(worker).flush(1, TimeUnit.SECONDS);
+    verify(worker).flush(1, SECONDS);
     verify(monitor).onFlush(false);
     verifyNoMoreInteractions(monitor, worker, discovery, api);
 
@@ -107,7 +100,7 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     writer.flush();
 
     // no additional monitor notifications
-    verify(worker).flush(1, TimeUnit.SECONDS);
+    verify(worker).flush(1, SECONDS);
     verifyNoMoreInteractions(monitor, worker, discovery, api);
   }
 
@@ -207,10 +200,9 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     HealthMetrics localMonitor = mock(HealthMetrics.class);
     PayloadDispatcherImpl localDispatcher = mock(PayloadDispatcherImpl.class);
     DDAgentWriter localWriter =
-        new DDAgentWriter(localWorker, localDispatcher, localMonitor, 1, TimeUnit.SECONDS, false);
+        new DDAgentWriter(localWorker, localDispatcher, localMonitor, 1, SECONDS, false);
 
-    DDSpan p0 = newSpan();
-    List<DDSpan> trace = java.util.Arrays.asList(p0, newSpan());
+    List<DDSpan> trace = Arrays.asList(newSpan(), newSpan());
 
     when(localWorker.publish(eq(trace.get(0)), anyInt(), eq(trace))).thenReturn(publishResult);
     localWriter.write(trace);

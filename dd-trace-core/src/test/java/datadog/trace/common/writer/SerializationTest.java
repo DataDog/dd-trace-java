@@ -19,17 +19,14 @@ class SerializationTest extends DDJavaSpecification {
 
   @Test
   void testJsonMapperSerialization() throws Exception {
-    // setup
     ObjectMapper mapper = new ObjectMapper();
     Map<String, String> map = singletonMap("key1", "val1");
     byte[] serializedMap = mapper.writeValueAsBytes(map);
     byte[] serializedList = ("[" + new String(serializedMap) + "]").getBytes();
 
-    // when
     List<Map<String, String>> result =
         mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {});
 
-    // then
     assertEquals(Collections.singletonList(map), result);
     assertEquals("[{\"key1\":\"val1\"}]", new String(serializedList));
   }
@@ -55,11 +52,9 @@ class SerializationTest extends DDJavaSpecification {
     }
     byte[] serializedList = packer.toByteArray();
 
-    // when
     List<Map<String, String>> result =
         mapper.readValue(serializedList, new TypeReference<List<Map<String, String>>>() {});
 
-    // then
     assertEquals(input, result);
   }
 }

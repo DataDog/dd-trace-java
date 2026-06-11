@@ -442,10 +442,6 @@ class TraceMapperV04PayloadTest extends DDJavaSpecification {
   }
 
   private static void assertEqualsWithNullAsEmpty(CharSequence expected, CharSequence actual) {
-    if (null == expected) {
-      assertEquals("", actual);
-    } else {
-      assertEquals(expected.toString(), actual.toString());
-    }
+    assertEquals(expected == null ? "" : expected.toString(), actual.toString());
   }
 }
