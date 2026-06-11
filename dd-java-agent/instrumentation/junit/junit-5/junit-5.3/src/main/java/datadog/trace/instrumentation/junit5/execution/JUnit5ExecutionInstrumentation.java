@@ -1,6 +1,7 @@
 package datadog.trace.instrumentation.junit5.execution;
 
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.namedOneOf;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
 import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 import static net.bytebuddy.matcher.ElementMatchers.takesNoArguments;
@@ -27,6 +28,8 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.asm.ModifierAdjustment;
+import net.bytebuddy.description.modifier.FieldManifestation;
 import org.junit.platform.engine.TestDescriptor;
 import org.junit.platform.engine.support.hierarchical.EngineExecutionContext;
 import org.junit.platform.engine.support.hierarchical.HierarchicalTestExecutorService;
@@ -35,7 +38,9 @@ import org.junit.platform.engine.support.hierarchical.ThrowableCollector;
 
 @AutoService(InstrumenterModule.class)
 public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForSingleType,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
 
   private final String parentPackageName =
       Strings.getPackageName(JUnitPlatformUtils.class.getName());
@@ -82,6 +87,20 @@ public class JUnit5ExecutionInstrumentation extends InstrumenterModule.CiVisibil
             .withMethod(new String[0], 0, "execute", "V")
             .build());
     return additionalReferences.toArray(new Reference[0]);
+  }
+
+  /**
+   * Strips the {@code final} modifier from the fields that {@link TestTaskHandle} mutates when
+   * setting up test retries. Mutating final fields via reflection or method handles is forbidden by
+   * <a href="https://openjdk.org/jeps/500">JEP 500</a>, while mutating non-final fields remains
+   * legal. The modifier is stripped when the class is loaded, before any instance is created, so
+   * the JVM never relies on the fields being final.
+   */
+  @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(
+        new ModifierAdjustment()
+            .withFieldModifiers(namedOneOf("testDescriptor", "node"), FieldManifestation.PLAIN));
   }
 
   @Override

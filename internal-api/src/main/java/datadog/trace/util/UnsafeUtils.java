@@ -1,6 +1,5 @@
 package datadog.trace.util;
 
-import de.thetaphi.forbiddenapis.SuppressForbidden;
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
 import org.slf4j.Logger;
@@ -58,16 +57,39 @@ public abstract class UnsafeUtils {
     }
   }
 
-  // TODO: JEP 500 - avoid mutating final fields
-  @SuppressForbidden
-  private static void cloneFields(Class<?> clazz, Object original, Object clone) throws Exception {
+  /**
+   * Copies field values using {@link Unsafe} field offsets instead of core reflection or method
+   * handles: mutating final fields with those APIs is forbidden by <a
+   * href="https://openjdk.org/jeps/500">JEP 500</a>, while Unsafe memory access is not affected by
+   * it (and the clone is a fresh, unpublished instance allocated with {@link
+   * Unsafe#allocateInstance(Class)}, so the writes are safe).
+   */
+  private static void cloneFields(Class<?> clazz, Object original, Object clone) {
     for (Field field : clazz.getDeclaredFields()) {
       if ((field.getModifiers() & Modifier.STATIC) != 0) {
         continue;
       }
-      field.setAccessible(true);
-      Object fieldValue = field.get(original);
-      field.set(clone, fieldValue);
+      long offset = UNSAFE.objectFieldOffset(field);
+      Class<?> type = field.getType();
+      if (!type.isPrimitive()) {
+        UNSAFE.putObject(clone, offset, UNSAFE.getObject(original, offset));
+      } else if (type == int.class) {
+        UNSAFE.putInt(clone, offset, UNSAFE.getInt(original, offset));
+      } else if (type == long.class) {
+        UNSAFE.putLong(clone, offset, UNSAFE.getLong(original, offset));
+      } else if (type == boolean.class) {
+        UNSAFE.putBoolean(clone, offset, UNSAFE.getBoolean(original, offset));
+      } else if (type == byte.class) {
+        UNSAFE.putByte(clone, offset, UNSAFE.getByte(original, offset));
+      } else if (type == char.class) {
+        UNSAFE.putChar(clone, offset, UNSAFE.getChar(original, offset));
+      } else if (type == short.class) {
+        UNSAFE.putShort(clone, offset, UNSAFE.getShort(original, offset));
+      } else if (type == float.class) {
+        UNSAFE.putFloat(clone, offset, UNSAFE.getFloat(original, offset));
+      } else if (type == double.class) {
+        UNSAFE.putDouble(clone, offset, UNSAFE.getDouble(original, offset));
+      }
     }
   }
 }

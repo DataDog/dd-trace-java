@@ -21,10 +21,14 @@ import datadog.trace.bootstrap.InstrumentationContext;
 import java.util.Collections;
 import java.util.Map;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.asm.ModifierAdjustment;
+import net.bytebuddy.description.modifier.FieldManifestation;
 
 @AutoService(InstrumenterModule.class)
 public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibility
-    implements Instrumenter.ForKnownTypes, Instrumenter.HasMethodAdvice {
+    implements Instrumenter.ForKnownTypes,
+        Instrumenter.HasTypeAdvice,
+        Instrumenter.HasMethodAdvice {
 
   public KarateExecutionInstrumentation() {
     super("ci-visibility", "karate", "test-retry");
@@ -56,6 +60,21 @@ public class KarateExecutionInstrumentation extends InstrumenterModule.CiVisibil
   public Map<String, String> contextStore() {
     return Collections.singletonMap(
         "com.intuit.karate.core.Scenario", packageName + ".ExecutionContext");
+  }
+
+  /**
+   * Strips the {@code final} modifier from {@code ScenarioRuntime#result} when the class is loaded
+   * ({@code ScenarioResult} has no field with that name, so this is a no-op there). {@link
+   * KarateUtils#setResult(ScenarioRuntime, ScenarioResult)} overwrites the field after retries so
+   * that the last execution result is reported, and mutating final fields via reflection or method
+   * handles is forbidden by <a href="https://openjdk.org/jeps/500">JEP 500</a>. Mutating non-final
+   * fields remains legal, and since the modifier is stripped before any instance of the class is
+   * created, the JVM never relies on the field being final.
+   */
+  @Override
+  public void typeAdvice(TypeTransformer transformer) {
+    transformer.applyAdvice(
+        new ModifierAdjustment().withFieldModifiers(named("result"), FieldManifestation.PLAIN));
   }
 
   @Override

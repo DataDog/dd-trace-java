@@ -1,12 +1,12 @@
 package datadog.trace.instrumentation.weaver;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static net.bytebuddy.matcher.ElementMatchers.isConstructor;
+import static net.bytebuddy.matcher.ElementMatchers.takesArgument;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import de.thetaphi.forbiddenapis.SuppressForbidden;
-import java.lang.reflect.Field;
 import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 import net.bytebuddy.asm.Advice;
@@ -36,36 +36,42 @@ public class WeaverInstrumentation extends InstrumenterModule.CiVisibility
     };
   }
 
+  /**
+   * The suite event queue is wrapped by replacing the constructor argument before the constructor
+   * body assigns it to the {@code queue} field. The field is final, so it cannot be overwritten
+   * after construction: mutating final fields via reflection or method handles is forbidden by <a
+   * href="https://openjdk.org/jeps/500">JEP 500</a>.
+   */
   @Override
   public void methodAdvice(MethodTransformer transformer) {
+    // typelevel's implementation (0.9+) uses a LinkedBlockingQueue
     transformer.applyAdvice(
-        isConstructor(), WeaverInstrumentation.class.getName() + "$SbtTaskCreationAdvice");
+        isConstructor().and(takesArgument(5, named("java.util.concurrent.LinkedBlockingQueue"))),
+        WeaverInstrumentation.class.getName() + "$LinkedBlockingQueueAdvice");
+    // disney's implementation (0.8.4+) uses a ConcurrentLinkedQueue
+    transformer.applyAdvice(
+        isConstructor().and(takesArgument(5, named("java.util.concurrent.ConcurrentLinkedQueue"))),
+        WeaverInstrumentation.class.getName() + "$ConcurrentLinkedQueueAdvice");
   }
 
-  public static class SbtTaskCreationAdvice {
-    // TODO: JEP 500 - avoid mutating final fields
-    @SuppressForbidden
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void onTaskCreation(
-        @Advice.This Object sbtTask, @Advice.FieldValue("taskDef") TaskDef taskDef) {
-      try {
-        Field queueField = sbtTask.getClass().getDeclaredField("queue");
-        queueField.setAccessible(true);
-        Object queue = queueField.get(sbtTask);
-        if (queue instanceof ConcurrentLinkedQueue) {
-          // disney's implementation (0.8.4+) uses a ConcurrentLinkedQueue for the field
-          queueField.set(
-              sbtTask,
-              new TaskDefAwareConcurrentLinkedQueueProxy<SuiteEvent>(
-                  taskDef, (ConcurrentLinkedQueue<SuiteEvent>) queue));
-        } else if (queue instanceof LinkedBlockingQueue) {
-          // typelevel's implementation (0.9+) uses a LinkedBlockingQueue for the field
-          queueField.set(
-              sbtTask,
-              new TaskDefAwareLinkedBlockingQueueProxy<SuiteEvent>(
-                  taskDef, (LinkedBlockingQueue<SuiteEvent>) queue));
-        }
-      } catch (Exception ignored) {
+  public static class LinkedBlockingQueueAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void wrapQueue(
+        @Advice.Argument(0) TaskDef taskDef,
+        @Advice.Argument(value = 5, readOnly = false) LinkedBlockingQueue<SuiteEvent> queue) {
+      if (!(queue instanceof TaskDefAwareLinkedBlockingQueueProxy)) {
+        queue = new TaskDefAwareLinkedBlockingQueueProxy<>(taskDef, queue);
+      }
+    }
+  }
+
+  public static class ConcurrentLinkedQueueAdvice {
+    @Advice.OnMethodEnter(suppress = Throwable.class)
+    public static void wrapQueue(
+        @Advice.Argument(0) TaskDef taskDef,
+        @Advice.Argument(value = 5, readOnly = false) ConcurrentLinkedQueue<SuiteEvent> queue) {
+      if (!(queue instanceof TaskDefAwareConcurrentLinkedQueueProxy)) {
+        queue = new TaskDefAwareConcurrentLinkedQueueProxy<>(taskDef, queue);
       }
     }
   }
