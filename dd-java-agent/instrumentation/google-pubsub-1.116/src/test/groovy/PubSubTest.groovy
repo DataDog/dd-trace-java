@@ -21,6 +21,7 @@ import com.google.pubsub.v1.SubscriptionName
 import com.google.pubsub.v1.TopicName
 import datadog.trace.agent.test.asserts.TraceAssert
 import datadog.trace.agent.test.naming.VersionedNamingTestBase
+import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 import datadog.trace.agent.test.utils.TraceUtils
 import datadog.trace.api.DDSpanTypes
 import datadog.trace.api.DDTags
@@ -39,6 +40,9 @@ import org.testcontainers.containers.PubSubEmulatorContainer
 import org.testcontainers.utility.DockerImageName
 import spock.lang.Shared
 
+import java.nio.charset.StandardCharsets
+
+@TrackScopeContinuations
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
 

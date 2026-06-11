@@ -1,0 +1,145 @@
+package datadog.trace.agent.test.scopediag;
+
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+
+import datadog.trace.api.DDTraceId;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+import org.junit.jupiter.api.Test;
+
+class ScopeDiagnosticsReportTest {
+
+  private static final StackTraceElement[] STACK = {
+    new StackTraceElement("com.app.Worker", "submit", "Worker.java", 42)
+  };
+
+  private static ScopeEvent event(ScopeEvent.Type type, String thread, long nanos) {
+    return new ScopeEvent(type, thread, nanos, STACK);
+  }
+
+  private static ContinuationRecord record(long seq, DDTraceId trace) {
+    return new ContinuationRecord(
+        seq, trace, 7L, (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
+  }
+
+  @Test
+  void resolvedContinuationHasNoFlags() {
+    ContinuationRecord r = record(0, DDTraceId.from(10));
+    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(0, report.leakCount());
+    assertEquals(0, report.lateCount());
+    assertEquals(0, report.doubleCount());
+    assertFalse(report.hasProblems());
+  }
+
+  @Test
+  void neverResolvedIsFlaggedAsLeak() {
+    ContinuationRecord r = record(0, DDTraceId.from(11));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(1, report.leakCount());
+    assertTrue(report.hasProblems());
+    assertTrue(report.renderSummary().contains("LEAK"));
+    assertTrue(report.renderGantt().contains("Worker.java:42"));
+  }
+
+  @Test
+  void resolutionAfterRootWriteIsFlaggedLate() {
+    DDTraceId trace = DDTraceId.from(12);
+    ContinuationRecord r = record(0, trace);
+    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 5000));
+    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 6000));
+
+    Map<DDTraceId, Long> rootWritten = map();
+    rootWritten.put(trace, 4000L); // root written before the activation/resolution
+
+    ScopeDiagnosticsReport report = report(list(r), rootWritten);
+
+    assertEquals(1, report.lateCount());
+    assertEquals(0, report.leakCount()); // it is resolved, just late
+  }
+
+  @Test
+  void multipleResolutionsAreFlaggedDouble() {
+    ContinuationRecord r = record(0, DDTraceId.from(13));
+    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3500));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(1, report.doubleCount());
+    assertTrue(report.hasProblems());
+  }
+
+  @Test
+  void activationAfterResolutionIsFlaggedDouble() {
+    ContinuationRecord r = record(0, DDTraceId.from(14));
+    r.addResolution(event(ScopeEvent.Type.RESOLVE_CANCEL, "pool-1", 2000));
+    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000)); // activate after cancel
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(1, report.doubleCount());
+  }
+
+  @Test
+  void jsonContainsSummaryAndRecords() {
+    ContinuationRecord r = record(0, DDTraceId.from(15));
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    String json = report.toJson();
+    assertTrue(json.contains("\"summary\""));
+    assertTrue(json.contains("\"leaked\":1"));
+    assertTrue(json.contains("\"flags\":[\"LEAK\"]"));
+  }
+
+  @Test
+  void mermaidGanttGroupsByThreadAndMarksLeakCrit() {
+    DDTraceId trace = DDTraceId.from(20);
+    ContinuationRecord resolved = record(0, trace);
+    resolved.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    resolved.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+    ContinuationRecord leak = record(1, trace); // capture only -> leak
+
+    String mermaid = report(list(resolved, leak), map()).toMermaidGantt();
+
+    assertTrue(mermaid.startsWith("```mermaid"));
+    assertTrue(mermaid.contains("gantt"));
+    assertTrue(mermaid.contains("dateFormat x"));
+    assertTrue(mermaid.contains("section main")); // capture lane = capture thread
+    assertTrue(mermaid.contains("section pool-1")); // run lane = resolution thread
+    assertTrue(mermaid.contains("cap #0 Worker.submit :milestone")); // where captured
+    assertTrue(mermaid.contains("#0 fin Worker.submit :done")); // where finished
+    assertTrue(mermaid.contains("#1 LEAK cap Worker.submit :crit")); // leak in capture lane
+    assertTrue(mermaid.trim().endsWith("```"));
+  }
+
+  // ---- helpers -------------------------------------------------------------
+
+  private static ScopeDiagnosticsReport report(
+      List<ContinuationRecord> records, Map<DDTraceId, Long> rootWritten) {
+    return new ScopeDiagnosticsReport(records, rootWritten);
+  }
+
+  private static List<ContinuationRecord> list(ContinuationRecord... rs) {
+    List<ContinuationRecord> l = new ArrayList<>();
+    for (ContinuationRecord r : rs) {
+      l.add(r);
+    }
+    return l;
+  }
+
+  private static Map<DDTraceId, Long> map() {
+    return new HashMap<>();
+  }
+}

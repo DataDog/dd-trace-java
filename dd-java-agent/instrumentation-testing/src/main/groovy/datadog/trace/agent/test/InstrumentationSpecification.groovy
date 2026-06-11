@@ -34,6 +34,8 @@ import datadog.metrics.impl.DDSketchHistograms
 import datadog.metrics.impl.MonitoringImpl
 import datadog.trace.agent.test.asserts.ListWriterAssert
 import datadog.trace.agent.test.asserts.TagsAssert
+import datadog.trace.agent.test.scopediag.ScopeDiagnostics
+import datadog.trace.agent.test.scopediag.TrackScopeContinuations
 import datadog.trace.agent.test.datastreams.MockFeaturesDiscovery
 import datadog.trace.agent.test.datastreams.RecordingDatastreamsPayloadWriter
 import datadog.trace.agent.tooling.AgentInstaller
@@ -466,6 +468,9 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
 
     TEST_WRITER.start()
+    if (scopeDiagConfig() != null) {
+      ScopeDiagnostics.startRecording()
+    }
     TEST_DATA_STREAMS_WRITER.clear()
     TEST_DATA_STREAMS_MONITORING.clear()
 
@@ -499,6 +504,8 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
     }
     TEST_TRACER.flush()
 
+    reportScopeDiagnostics()
+
     def util = new MockUtil()
     util.detachMock(STATS_D_CLIENT)
 
@@ -520,6 +527,39 @@ abstract class InstrumentationSpecification extends DDSpecification implements A
 
     // check for instrumentation issues while running each test
     assert InstrumentationErrors.noErrors(): InstrumentationErrors.describeErrors()
+  }
+
+  /** Resolves the {@link TrackScopeContinuations} annotation from the feature method or spec class. */
+  private TrackScopeContinuations scopeDiagConfig() {
+    def method = specificationContext?.currentFeature?.featureMethod?.reflection
+    def ann = method?.getAnnotation(TrackScopeContinuations)
+    if (ann == null) {
+      ann = this.class.getAnnotation(TrackScopeContinuations)
+    }
+    return ann
+  }
+
+  private void reportScopeDiagnostics() {
+    def config = scopeDiagConfig()
+    if (config == null) {
+      return
+    }
+    ScopeDiagnostics.stop()
+    def report = ScopeDiagnostics.report()
+    println(config.gantt() ? report.renderGantt() : report.renderSummary())
+    if (config.json()) {
+      ScopeDiagnostics.writeJson(specificationContext.currentIteration.name)
+    }
+    if (config.mermaid()) {
+      println("Mermaid timeline written to " + ScopeDiagnostics.writeMermaid(specificationContext.currentIteration.name))
+    }
+    try {
+      if (config.failOnLeak()) {
+        ScopeDiagnostics.assertNoLeaks()
+      }
+    } finally {
+      ScopeDiagnostics.reset()
+    }
   }
 
   private void doCheckRepeatedFinish() {
