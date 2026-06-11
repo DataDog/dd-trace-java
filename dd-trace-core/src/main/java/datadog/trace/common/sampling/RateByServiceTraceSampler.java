@@ -2,6 +2,7 @@ package datadog.trace.common.sampling;
 
 import datadog.trace.api.cache.DDCache;
 import datadog.trace.api.cache.DDCaches;
+import datadog.trace.api.internal.VisibleForTesting;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.api.time.SystemTimeSource;
@@ -75,6 +76,16 @@ public class RateByServiceTraceSampler implements Sampler, PrioritySampler, Remo
 
   private <T extends CoreSpan<T>> String getSpanEnv(final T span) {
     return span.getTag("env", "");
+  }
+
+  @VisibleForTesting
+  double sampleRateFor(String env, String service) {
+    return serviceRates.getSampler(env, service).getSampleRate();
+  }
+
+  @VisibleForTesting
+  double fallbackSampleRate() {
+    return serviceRates.getFallbackSampler().getSampleRate();
   }
 
   static boolean shouldCap(double oldRate, double newRate) {
