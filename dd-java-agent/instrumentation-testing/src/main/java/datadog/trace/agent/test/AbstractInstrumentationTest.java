@@ -7,6 +7,7 @@ import static org.junit.jupiter.api.Assertions.assertTrue;
 import datadog.instrument.classinject.ClassInjector;
 import datadog.trace.agent.test.assertions.TraceAssertions;
 import datadog.trace.agent.test.assertions.TraceMatcher;
+import datadog.trace.agent.test.scopediag.ScopeDiagnosticsExtension;
 import datadog.trace.agent.tooling.AgentInstaller;
 import datadog.trace.agent.tooling.InstrumenterModule;
 import datadog.trace.agent.tooling.TracerInstaller;
@@ -58,7 +59,8 @@ import org.opentest4j.AssertionFailedError;
 @ExtendWith({
   TestClassShadowingExtension.class,
   AllowContextTestingExtension.class,
-  LegacyContextTestingExtension.class
+  LegacyContextTestingExtension.class,
+  ScopeDiagnosticsExtension.class
 })
 public abstract class AbstractInstrumentationTest {
   static final Instrumentation INSTRUMENTATION = ByteBuddyAgent.getInstrumentation();
