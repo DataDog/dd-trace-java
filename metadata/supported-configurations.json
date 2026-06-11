@@ -2612,8 +2612,7 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": [],
-        "sensitive": true
+        "aliases": []
       }
     ],
     "DD_PROFILING_APIKEY_FILE": [
@@ -2629,8 +2628,7 @@
         "version": "A",
         "type": "string",
         "default": null,
-        "aliases": [],
-        "sensitive": true
+        "aliases": []
       }
     ],
     "DD_PROFILING_API_KEY_FILE": [

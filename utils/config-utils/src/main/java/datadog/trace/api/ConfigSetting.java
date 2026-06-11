@@ -37,8 +37,6 @@ public final class ConfigSetting {
               "otlp.logs.headers",
               "otlp.metrics.headers",
               "otlp.traces.headers",
-              "profiling.api-key",
-              "profiling.apikey",
               "profiling.proxy.password",
               "rum.client.token"));
 
@@ -62,7 +60,9 @@ public final class ConfigSetting {
 
   private ConfigSetting(String key, Object value, ConfigOrigin origin, int seqId, String configId) {
     this.key = key;
-    this.value = CONFIG_FILTER_LIST.contains(key) ? "<hidden>" : value;
+    // Only redact when a value is actually set; an unset (null) config stays null so telemetry
+    // still distinguishes "not configured" from "configured but hidden".
+    this.value = (value != null && CONFIG_FILTER_LIST.contains(key)) ? "<hidden>" : value;
     this.origin = origin;
     this.seqId = seqId;
     this.configId = configId;

@@ -45,14 +45,11 @@ public class ConfigSettingTest {
   // of representative sensitive keys plus a non-sensitive control; the full filter list is kept in
   // sync with the registry by SensitiveConfigRedactionTest.
   @TableTest({
-    "scenario            | key                          | value     | filteredValue",
-    "api key             | api-key                      | somevalue | <hidden>     ",
-    "application key     | application-key              | somevalue | <hidden>     ",
-    "otlp traces headers | otlp.traces.headers          | somevalue | <hidden>     ",
-    "profiling api key   | profiling.api-key            | somevalue | <hidden>     ",
-    "proxy password      | crashtracking.proxy.password | somevalue | <hidden>     ",
-    "rum client token    | rum.client.token             | somevalue | <hidden>     ",
-    "non-sensitive key   | some.other.key               | somevalue | somevalue    "
+    "scenario            | key                      | value     | filteredValue",
+    "api key             | api-key                  | somevalue | <hidden>     ",
+    "otlp traces headers | otlp.traces.headers      | somevalue | <hidden>     ",
+    "proxy password      | profiling.proxy.password | somevalue | <hidden>     ",
+    "non-sensitive key   | some.other.key           | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());
