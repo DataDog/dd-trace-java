@@ -1,6 +1,7 @@
 package datadog.trace.core.taginterceptor;
 
 import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
+import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static org.junit.jupiter.api.Assertions.assertEquals;
@@ -16,11 +17,14 @@ import static org.mockito.Mockito.when;
 
 import datadog.trace.api.DDSpanTypes;
 import datadog.trace.api.DDTags;
+import datadog.trace.api.DDTraceId;
 import datadog.trace.api.ProductTraceSource;
 import datadog.trace.api.remoteconfig.ServiceNameCollector;
 import datadog.trace.api.remoteconfig.ServiceNameCollectorTestBridge;
 import datadog.trace.api.sampling.PrioritySampling;
+import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
 import datadog.trace.bootstrap.instrumentation.api.InstrumentationTags;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.common.sampling.AllSampler;
@@ -29,7 +33,10 @@ import datadog.trace.common.writer.LoggingWriter;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.CoreTracer;
 import datadog.trace.core.DDCoreJavaSpecification;
+import datadog.trace.core.DDSpan;
 import datadog.trace.core.DDSpanContext;
+import datadog.trace.core.propagation.ExtractedContext;
+import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.tabletest.ConfigDefaultsConverter;
 import datadog.trace.junit.utils.tabletest.DDTagsConverter;
@@ -413,6 +420,55 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     span.setTag(tag, value);
 
     assertEquals(expected, span.getSamplingPriority());
+  }
+
+  @Test
+  void samplingPriorityPositiveTagOverridesLockedPriority() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
+
+    // Simulate upstream propagation of x-datadog-sampling-priority: -1 (USER_DROP)
+    span.setSamplingPriority(PrioritySampling.USER_DROP, SamplingMechanism.UNKNOWN);
+    assertEquals((int) PrioritySampling.USER_DROP, span.getSamplingPriority());
+
+    // positive sampling.priority overrides the propagated locked priority
+    span.setTag(Tags.SAMPLING_PRIORITY, 2);
+    assertEquals((int) PrioritySampling.USER_KEEP, span.getSamplingPriority());
+  }
+
+  @Test
+  void samplingPriorityNonPositiveTagDoesNotOverrideLockedPriority() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    AgentSpan span = tracer.buildSpan("datadog", "test").start();
+
+    // Simulate upstream propagation of x-datadog-sampling-priority: 2 (USER_KEEP)
+    span.setSamplingPriority(PrioritySampling.USER_KEEP, SamplingMechanism.UNKNOWN);
+    assertEquals((int) PrioritySampling.USER_KEEP, span.getSamplingPriority());
+
+    // non-positive sampling.priority respects the propagated locked priority
+    span.setTag(Tags.SAMPLING_PRIORITY, 0);
+    assertEquals((int) PrioritySampling.USER_KEEP, span.getSamplingPriority());
+  }
+
+  @Test
+  void samplingPriorityPositiveTagOverridesDecisionMakerFromUpstreamPropagation() {
+    CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
+    // Upstream service dropped with LOCAL_USER_RULE and propagated _dd.p.dm=-3
+    PropagationTags propagationTags =
+        PropagationTags.factory()
+            .fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.dm=-3");
+    AgentSpanContext extracted =
+        new ExtractedContext(
+            DDTraceId.from(123), 456L, PrioritySampling.USER_DROP, null, propagationTags, DATADOG);
+    DDSpan span = (DDSpan) tracer.buildSpan("datadog", "test").asChildOf(extracted).start();
+
+    // positive sampling.priority overrides locked priority and sets _dd.p.dm to MANUAL
+    span.setTag(Tags.SAMPLING_PRIORITY, 2);
+
+    assertEquals((int) PrioritySampling.USER_KEEP, span.getSamplingPriority());
+    assertEquals(
+        "_dd.p.dm=-4",
+        span.context().getPropagationTags().headerValue(PropagationTags.HeaderType.DATADOG));
   }
 
   @ParameterizedTest
