@@ -16,6 +16,7 @@ import datadog.trace.api.config.CiVisibilityConfig;
 import datadog.trace.api.config.GeneralConfig;
 import datadog.trace.api.config.IastConfig;
 import datadog.trace.api.config.JmxFetchConfig;
+import datadog.trace.api.config.ProfilingConfig;
 import datadog.trace.api.config.TraceInstrumentationConfig;
 import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.iast.telemetry.Verbosity;
@@ -54,6 +55,8 @@ public class ConfigCollectorTest extends DDJavaSpecification {
         // ConfigProvider.getStringExcludingSource, redacted from configuration telemetry
         arguments(GeneralConfig.APPLICATION_KEY, "app-key", "<hidden>"),
         arguments(GeneralConfig.API_KEY, "some-api-key", "<hidden>"),
+        // ConfigProvider.getString, redacted from configuration telemetry
+        arguments(ProfilingConfig.PROFILING_PROXY_PASSWORD, "some-proxy-password", "<hidden>"),
         // ConfigProvider.getBoolean
         arguments(TraceInstrumentationConfig.RESOLVER_USE_URL_CACHES, "true", null),
         // ConfigProvider.getInteger
@@ -243,13 +246,13 @@ public class ConfigCollectorTest extends DDJavaSpecification {
   }
 
   @Test
-  void hidePiiConfigurationData() {
+  void redactsSensitiveConfigurationValues() {
     ConfigCollector.get().collect();
 
-    ConfigCollector.get().put("DD_API_KEY", "sensitive data", ConfigOrigin.ENV, ABSENT_SEQ_ID);
+    ConfigCollector.get().put("api-key", "somevalue", ConfigOrigin.ENV, ABSENT_SEQ_ID);
 
     Map<ConfigOrigin, Map<String, ConfigSetting>> collected = ConfigCollector.get().collect();
-    assertEquals("<hidden>", collected.get(ConfigOrigin.ENV).get("DD_API_KEY").stringValue());
+    assertEquals("<hidden>", collected.get(ConfigOrigin.ENV).get("api-key").stringValue());
   }
 
   @TableTest({

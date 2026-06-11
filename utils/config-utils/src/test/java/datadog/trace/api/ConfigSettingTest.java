@@ -41,28 +41,18 @@ public class ConfigSettingTest {
     }
   }
 
+  // Sensitive values are redacted by the property-name key under which they are collected. A couple
+  // of representative sensitive keys plus a non-sensitive control; the full filter list is kept in
+  // sync with the registry by SensitiveConfigRedactionTest.
   @TableTest({
-    "scenario              | key                                | value     | filteredValue",
-    "dd api key env        | DD_API_KEY                         | somevalue | <hidden>     ",
-    "dd api key prop       | dd.api-key                         | somevalue | <hidden>     ",
-    "api key name          | api-key                            | somevalue | <hidden>     ",
-    "profiling api key     | dd.profiling.api-key               | somevalue | <hidden>     ",
-    "profiling apikey      | dd.profiling.apikey                | somevalue | <hidden>     ",
-    "profiling api key env | DD_PROFILING_API_KEY               | somevalue | <hidden>     ",
-    "profiling apikey env  | DD_PROFILING_APIKEY                | somevalue | <hidden>     ",
-    "application key name  | application-key                    | somevalue | <hidden>     ",
-    "application key prop  | dd.application-key                 | somevalue | <hidden>     ",
-    "application key env   | DD_APPLICATION_KEY                 | somevalue | <hidden>     ",
-    "app key alias name    | app-key                            | somevalue | <hidden>     ",
-    "app key alias prop    | dd.app-key                         | somevalue | <hidden>     ",
-    "otlp traces headers   | otlp.traces.headers                | somevalue | <hidden>     ",
-    "otlp metrics headers  | otlp.metrics.headers               | somevalue | <hidden>     ",
-    "otlp logs headers     | otlp.logs.headers                  | somevalue | <hidden>     ",
-    "otel otlp headers     | OTEL_EXPORTER_OTLP_HEADERS         | somevalue | <hidden>     ",
-    "otel traces headers   | OTEL_EXPORTER_OTLP_TRACES_HEADERS  | somevalue | <hidden>     ",
-    "otel metrics headers  | OTEL_EXPORTER_OTLP_METRICS_HEADERS | somevalue | <hidden>     ",
-    "otel logs headers     | OTEL_EXPORTER_OTLP_LOGS_HEADERS    | somevalue | <hidden>     ",
-    "other key             | some.other.key                     | somevalue | somevalue    "
+    "scenario            | key                          | value     | filteredValue",
+    "api key             | api-key                      | somevalue | <hidden>     ",
+    "application key     | application-key              | somevalue | <hidden>     ",
+    "otlp traces headers | otlp.traces.headers          | somevalue | <hidden>     ",
+    "profiling api key   | profiling.api-key            | somevalue | <hidden>     ",
+    "proxy password      | crashtracking.proxy.password | somevalue | <hidden>     ",
+    "rum client token    | rum.client.token             | somevalue | <hidden>     ",
+    "non-sensitive key   | some.other.key               | somevalue | somevalue    "
   })
   void filtersKeyValues(String key, String value, String filteredValue) {
     assertEquals(filteredValue, ConfigSetting.of(key, value, ConfigOrigin.DEFAULT).stringValue());

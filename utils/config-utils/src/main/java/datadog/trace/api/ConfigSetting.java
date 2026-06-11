@@ -23,32 +23,24 @@ public final class ConfigSetting {
   /** The config ID associated with this setting, or {@code null} if not applicable. */
   public final String configId;
 
-  // Configuration keys whose values are excluded from configuration telemetry by replacing them
-  // with "<hidden>". Keys are listed in every form that may reach this constructor: the dotted
-  // configuration name (used by ConfigProvider) and the environment-variable name. Keep this list
-  // in sync with the "sensitive": true entries in metadata/supported-configurations.json.
+  // Configuration property names whose values are excluded from configuration telemetry by
+  // replacing them with "<hidden>". These are the keys under which the values are collected (the
+  // property-name form used by ConfigProvider); every sensitive setting is collected under one of
+  // these regardless of which env-var/alias the user set. Keep in sync with the "sensitive": true
+  // entries in metadata/supported-configurations.json.
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
           Arrays.asList(
-              "DD_API_KEY",
-              "DD_APPLICATION_KEY",
-              "DD_PROFILING_API_KEY",
-              "DD_PROFILING_APIKEY",
-              "OTEL_EXPORTER_OTLP_HEADERS",
-              "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
-              "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
-              "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
               "api-key",
-              "app-key",
               "application-key",
-              "dd.api-key",
-              "dd.app-key",
-              "dd.application-key",
-              "dd.profiling.api-key",
-              "dd.profiling.apikey",
+              "crashtracking.proxy.password",
               "otlp.logs.headers",
               "otlp.metrics.headers",
-              "otlp.traces.headers"));
+              "otlp.traces.headers",
+              "profiling.api-key",
+              "profiling.apikey",
+              "profiling.proxy.password",
+              "rum.client.token"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
