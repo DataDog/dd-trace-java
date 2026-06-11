@@ -704,7 +704,9 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
 
     this.dynamicConfig =
         DynamicConfig.create(ConfigSnapshot::new)
-            .setTracingEnabled(true) // implied by installation of CoreTracer
+            // tracing is implied by the installation of CoreTracer, unless the tracer is only
+            // installed to propagate context without reporting traces
+            .setTracingEnabled(!config.isContextPropagationOnly())
             .setRuntimeMetricsEnabled(config.isRuntimeMetricsEnabled())
             .setLogsInjectionEnabled(config.isLogsInjectionEnabled())
             .setDataStreamsEnabled(config.isDataStreamsEnabled())

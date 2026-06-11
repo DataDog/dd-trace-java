@@ -22,7 +22,9 @@ public class TracerInstaller {
   public static synchronized void installGlobalTracer(
       SharedCommunicationObjects sharedCommunicationObjects,
       ProfilingContextIntegration profilingContextIntegration) {
-    if (Config.get().isTraceEnabled() || Config.get().isCiVisibilityEnabled()) {
+    if (Config.get().isTraceEnabled()
+        || Config.get().isCiVisibilityEnabled()
+        || Config.get().isPropagateContextEnabled()) {
       if (!(GlobalTracer.get() instanceof CoreTracer)) {
         CoreTracer tracer =
             CoreTracer.builder()
