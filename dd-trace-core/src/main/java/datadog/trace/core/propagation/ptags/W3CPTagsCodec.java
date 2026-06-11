@@ -344,9 +344,10 @@ public class W3CPTagsCodec extends PTagsCodec {
       pos++;
       if (pos < end) {
         c = s.charAt(pos);
-        // It's not allowed to have the separator as the last character so only check
-        // if there is something after the separator
-        if (pos < end - 1 && c == separator) {
+        // Stop at the separator wherever it appears, including as the last character. A
+        // trailing separator (e.g. a tracestate "dd=p:<id>;") yields an empty final element
+        // that we tolerate and ignore, rather than treating the header as malformed.
+        if (c == separator) {
           break;
         }
       }
