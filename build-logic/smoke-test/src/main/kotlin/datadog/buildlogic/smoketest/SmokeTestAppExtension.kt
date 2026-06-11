@@ -41,6 +41,12 @@ abstract class SmokeTestAppExtension @Inject constructor(
   abstract val gradleVersion: Property<String>
 
   /**
+   * Optional base URL for Gradle distribution downloads. Defaults to the CI-provided MASS read
+   * URL when present, so Tooling API downloads go through the pull-through cache.
+   */
+  abstract val gradleDistributionBaseUrl: Property<String>
+
+  /**
    * JDK used by the nested daemon. Defaults to a [DEFAULT_NESTED_JAVA_VERSION] toolchain;
    * override to pin a different JDK if the nested application's plugin chain requires it.
    * The inner build script is responsible for pinning the produced bytecode level (e.g.
@@ -59,13 +65,42 @@ abstract class SmokeTestAppExtension @Inject constructor(
 
   internal abstract val projectJars: ListProperty<NestedBuildProjectJar>
 
+  internal abstract val initScripts: ListProperty<String>
+
+  internal abstract val gradleProperties: MapProperty<String, String>
+
   init {
     applicationDir.convention(project.layout.projectDirectory.dir("application"))
     applicationBuildDir.convention(project.layout.buildDirectory.dir("application"))
     gradleVersion.convention(DEFAULT_NESTED_GRADLE_VERSION)
+    gradleDistributionBaseUrl.convention(
+      project.providers.environmentVariable(MASS_READ_URL_ENV),
+    )
     javaLauncher.convention(
       javaToolchains.launcherFor {
         languageVersion.set(JavaLanguageVersion.of(DEFAULT_NESTED_JAVA_VERSION))
+      },
+    )
+
+    val isCi = project.providers.environmentVariable("CI")
+      .map { it.equals("true", ignoreCase = true) }
+      .orElse(false)
+    initScripts.convention(
+      isCi.map {
+        if (it) {
+          listOf(PROXY_REPOSITORIES_INIT_SCRIPT)
+        } else {
+          emptyList()
+        }
+      },
+    )
+    gradleProperties.convention(
+      isCi.map {
+        if (it) {
+          proxyGradleProperties()
+        } else {
+          emptyMap()
+        }
       },
     )
   }
@@ -94,6 +129,7 @@ abstract class SmokeTestAppExtension @Inject constructor(
         applicationDir.set(this@SmokeTestAppExtension.applicationDir)
         applicationBuildDir.set(this@SmokeTestAppExtension.applicationBuildDir)
         gradleVersion.set(this@SmokeTestAppExtension.gradleVersion)
+        gradleDistributionBaseUrl.set(this@SmokeTestAppExtension.gradleDistributionBaseUrl)
         javaLauncher.set(this@SmokeTestAppExtension.javaLauncher)
         tasksToRun.set(nestedTasks)
         buildArguments.set(spec.buildArguments)
@@ -179,6 +215,20 @@ abstract class SmokeTestAppExtension @Inject constructor(
       },
     )
   }
+
+  private fun proxyGradleProperties(): Map<String, String> {
+    val properties = mutableMapOf<String, String>()
+    addGradleProperty(properties, "gradlePluginProxy")
+    addGradleProperty(properties, "mavenRepositoryProxy")
+    return properties
+  }
+
+  private fun addGradleProperty(properties: MutableMap<String, String>, name: String) {
+    val value = project.providers.gradleProperty(name).orNull
+    if (!value.isNullOrBlank()) {
+      properties[name] = value
+    }
+  }
 }
 
 /** DSL describing the nested-build invocation for one smoke-test application. */
@@ -204,9 +254,10 @@ abstract class ApplicationSpec @Inject constructor() {
   abstract val buildArguments: ListProperty<String>
 
   /**
-   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the
-   * outer process environment — entries here override any inherited values with the same key.
-   * Use this for nested tooling that reads `JAVA_HOME`, `GRAALVM_HOME`, etc. from the env.
+   * Extra environment variables exposed to the nested Gradle daemon. Merged on top of the outer
+   * process environment; Gradle launcher variables are reserved by the nested build task so CI
+   * settings do not leak into pinned Gradle versions. Use this for nested tooling that reads
+   * `JAVA_HOME`, `GRAALVM_HOME`, etc. from the env.
    */
   abstract val environment: MapProperty<String, String>
 

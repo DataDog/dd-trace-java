@@ -1,12 +1,11 @@
 package datadog.crashtracking.buildid;
 
-import static datadog.environment.OperatingSystem.Architecture.ARM64;
+import static datadog.environment.OperatingSystem.architecture;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.junit.jupiter.api.Assumptions.assumeFalse;
 
-import datadog.environment.OperatingSystem;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -138,7 +137,7 @@ public class BuildIdExtractorIntegrationTest {
   @MethodSource("elfBinaries")
   void testElfBuildIdExtraction(String containerPath, String description) throws Exception {
     // TODO: check if arm64 can be supported too.
-    assumeFalse(OperatingSystem.architecture() == ARM64, "Skipping for arm64");
+    assumeFalse(architecture().isArm64(), "Skipping for arm64");
     Path localBinary = copyFromContainer(linuxContainer, containerPath);
 
     ElfBuildIdExtractor extractor = new ElfBuildIdExtractor();

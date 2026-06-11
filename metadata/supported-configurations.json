@@ -393,6 +393,14 @@
         "aliases": []
       }
     ],
+    "DD_APPSEC_SCA_MAX_TRACKED_DEPENDENCIES": [
+      {
+        "version": "A",
+        "type": "int",
+        "default": "1000",
+        "aliases": []
+      }
+    ],
     "DD_APPSEC_STACKTRACE_ENABLED": [
       {
         "version": "A",
@@ -7497,14 +7505,6 @@
         "aliases": ["DD_JMXFETCH_WEBSPHERE_ENABLED"]
       }
     ],
-    "DD_TRACE_JMXFETCH_{CHECK_NAME}_ENABLED": [
-      {
-        "version": "B",
-        "type": "boolean",
-        "default": "false",
-        "aliases": ["DD_JMXFETCH_{CHECK_NAME}_ENABLED"]
-      }
-    ],
     "DD_TRACE_JMX_TAGS": [
       {
         "version": "A",
@@ -8613,6 +8613,30 @@
       {
         "version": "A",
         "type": "string",
+        "default": null,
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_STRICT": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "false",
+        "aliases": []
+      }
+    ],
+    "DD_TRACE_ORG_GUARD_TRUSTED_OPMS": [
+      {
+        "version": "A",
+        "type": "array",
         "default": null,
         "aliases": []
       }
@@ -10923,9 +10947,9 @@
     ],
     "DD_TRACE_TRACER_METRICS_MAX_PENDING": [
       {
-        "version": "A",
+        "version": "B",
         "type": "int",
-        "default": "2048",
+        "default": "128",
         "aliases": []
       }
     ],

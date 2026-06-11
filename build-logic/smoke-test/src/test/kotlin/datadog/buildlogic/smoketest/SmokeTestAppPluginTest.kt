@@ -68,6 +68,74 @@ class SmokeTestAppPluginTest {
   }
 
   @Test
+  fun `application block registers NestedGradleBuild task with configured inputs`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.gradleVersion.set("8.14.5")
+    extension.gradleDistributionBaseUrl.set("https://mass.example")
+    extension.application {
+      taskName.set("packageApp")
+      artifactPath.set("libs/test.jar")
+      sysProperty.set("test.path")
+      nestedTasks.set(listOf("assemble", "check"))
+      buildArguments.add("-Ddemo=true")
+      environment.put("DEMO_ENV", "true")
+      buildCacheEnabled.set(true)
+    }
+
+    val task = project.tasks.getByName("packageApp") as NestedGradleBuild
+
+    assertThat(task.applicationDir.get().asFile)
+      .isEqualTo(project.layout.projectDirectory.dir("application").asFile)
+    assertThat(task.applicationBuildDir.get().asFile)
+      .isEqualTo(project.layout.buildDirectory.dir("application").get().asFile)
+    assertThat(task.gradleVersion.get()).isEqualTo("8.14.5")
+    assertThat(task.gradleDistributionBaseUrl.get()).isEqualTo("https://mass.example")
+    assertThat(task.tasksToRun.get()).containsExactly("assemble", "check")
+    assertThat(task.buildArguments.get()).containsExactly("-Ddemo=true")
+    assertThat(task.environment.get()).containsEntry("DEMO_ENV", "true")
+    assertThat(task.buildCacheEnabled.get()).isTrue()
+  }
+
+  @Test
+  fun `manual NestedGradleBuild task receives smokeTestApp conventions`() {
+    val project = ProjectBuilder.builder().build()
+    project.apply<JavaPlugin>()
+    project.plugins.apply("dd-trace-java.smoke-test-app")
+
+    val extension = project.extensions.getByType<SmokeTestAppExtension>()
+    extension.initScripts.set(listOf("init-script"))
+    extension.gradleProperties.set(
+      mapOf("mavenRepositoryProxy" to "https://repo.example"),
+    )
+
+    val task = project.tasks.register("customBuild", NestedGradleBuild::class.java) {
+      applicationDir.set(project.layout.projectDirectory.dir("application"))
+      applicationBuildDir.set(project.layout.buildDirectory.dir("application"))
+      tasksToRun.set(listOf("buildJar"))
+    }.get()
+
+    assertThat(task.initScripts.get()).containsExactly("init-script")
+    assertThat(task.gradleProperties.get())
+      .containsEntry("mavenRepositoryProxy", "https://repo.example")
+  }
+
+  @Test
+  fun `Gradle distribution URI routes through MASS artifact path`() {
+    assertThat(gradleDistributionUri("https://mass.example", "8.14.5").toString())
+      .isEqualTo(
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      )
+    assertThat(gradleDistributionUri("https://mass.example/", "8.14.5").toString())
+      .isEqualTo(
+        "https://mass.example/internal/artifact/services.gradle.org/distributions/gradle-8.14.5-bin.zip",
+      )
+  }
+
+  @Test
   fun `extension defaults javaLauncher to a JDK 21 toolchain`() {
     // JavaToolchainService is contributed by the `java-base` plugin; apply something that
     // pulls it in so ProjectBuilder can resolve the convention.

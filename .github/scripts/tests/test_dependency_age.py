@@ -3,13 +3,20 @@ import os
 import re
 import shutil
 import subprocess
+import sys
 import tempfile
 import unittest
 from pathlib import Path
 
-
 REPO_ROOT = Path(__file__).resolve().parents[3]
 SCRIPT = REPO_ROOT / ".github/scripts/dependency_age.py"
+
+# dependency_age.py is a loose script (not a package); add its dir to sys.path
+# so its helpers can be imported and unit-tested.
+sys.path.insert(0, str(SCRIPT.parent))
+import dependency_age
+
+
 FIXTURES = Path(__file__).resolve().parent / "fixtures"
 NOW = "2026-04-24T12:00:00Z"
 OUTPUT_PATTERN = re.compile(
@@ -372,6 +379,50 @@ class DependencyAgeScriptTest(unittest.TestCase):
         outputs = self.parse_outputs(result.stdout)
         self.assertEqual(outputs["reverted_files"], "1")
         self.assertEqual((current_dir / "module/gradle.lockfile").read_text(encoding="utf-8"), baseline_content)
+
+    def test_is_instrumentation_path_classifies_prefixes(self) -> None:
+        self.assertTrue(dependency_age.is_instrumentation_path("dd-smoke-tests/foo/gradle.lockfile"))
+        self.assertTrue(dependency_age.is_instrumentation_path("dd-java-agent/instrumentation/bar/gradle.lockfile"))
+        # core modules are not instrumentation
+        self.assertFalse(dependency_age.is_instrumentation_path("dd-trace-core/gradle.lockfile"))
+        self.assertFalse(dependency_age.is_instrumentation_path("dd-java-agent/agent-bootstrap/gradle.lockfile"))
+        # real sibling modules that share the "dd-java-agent/instrumentation" stem but are
+        # NOT under the "dd-java-agent/instrumentation/" prefix — the trailing slash excludes them
+        self.assertFalse(dependency_age.is_instrumentation_path("dd-java-agent/instrumentation-testing/gradle.lockfile"))
+        self.assertFalse(dependency_age.is_instrumentation_path("dd-java-agent/instrumentation-annotation-processor/gradle.lockfile"))
+
+    def _summary(self, *, path_filter) -> str:
+        # one too-new violation in a core module, one in an instrumentation module
+        return dependency_age.build_validation_summary(
+            violations_by_file={
+                "dd-trace-core/gradle.lockfile": [("com.example:core-lib:2.0.0", "too_new", 5)],
+                "dd-java-agent/instrumentation/foo/gradle.lockfile": [("com.example:inst-lib:3.0.0", "too_new", 7)],
+            },
+            replacements_by_file={},
+            baseline_lockfiles={},
+            min_age_hours=48,
+            path_filter=path_filter,
+        )
+
+    def test_core_summary_excludes_instrumentation_entries(self) -> None:
+        summary = self._summary(path_filter=lambda p: not dependency_age.is_instrumentation_path(p))
+        self.assertIn("com.example:core-lib:2.0.0", summary)
+        self.assertNotIn("com.example:inst-lib:3.0.0", summary)
+
+    def test_instrumentation_summary_excludes_core_entries(self) -> None:
+        summary = self._summary(path_filter=dependency_age.is_instrumentation_path)
+        self.assertIn("com.example:inst-lib:3.0.0", summary)
+        self.assertNotIn("com.example:core-lib:2.0.0", summary)
+
+    def test_summary_is_empty_when_filter_matches_nothing(self) -> None:
+        empty = dependency_age.build_validation_summary(
+            violations_by_file={"dd-trace-core/gradle.lockfile": [("com.example:core-lib:2.0.0", "too_new", 5)]},
+            replacements_by_file={},
+            baseline_lockfiles={},
+            min_age_hours=48,
+            path_filter=dependency_age.is_instrumentation_path,  # nothing under instrumentation
+        )
+        self.assertEqual(empty, "")
 
 
 if __name__ == "__main__":

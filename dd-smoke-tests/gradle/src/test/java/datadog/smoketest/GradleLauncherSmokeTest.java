@@ -2,11 +2,13 @@ package datadog.smoketest;
 
 import datadog.communication.util.IOUtils;
 import datadog.trace.civisibility.utils.ShellCommandExecutor;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.io.TempDir;
 import org.junit.jupiter.params.ParameterizedTest;
 import org.opentest4j.AssertionFailedError;
@@ -23,6 +25,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
   private static final Logger LOGGER = LoggerFactory.getLogger(GradleLauncherSmokeTest.class);
 
   private static final int GRADLE_BUILD_TIMEOUT_MILLIS = 90_000;
+  private static final int GRADLE_STOP_TIMEOUT_MILLIS = 30_000;
   private static final int GRADLE_WRAPPER_RETRIES = 3;
 
   private static final String JAVA_HOME = buildJavaHome();
@@ -54,6 +57,8 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, Map<String, String>> replacements = new HashMap<>();
     Map<String, String> versionMap = new HashMap<>();
     versionMap.put("gradle-version", resolvedGradleVersion);
+    versionMap.put(
+        "gradle-distribution-url", GradleDistribution.uriPropertiesValueFor(resolvedGradleVersion));
     replacements.put("gradle-wrapper.properties", versionMap);
     givenGradleProjectFiles("test-gradle-wrapper", replacements);
     // we want to check that instrumentation works with different wrapper versions too
@@ -71,11 +76,47 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
         cmdLineParams != null ? cmdLineParams : "-Duser.country=VALUE_FROM_GRADLE_PROPERTIES_FILE");
   }
 
+  /**
+   * Stops the Gradle build daemon spawned by the launcher after each test. Even though the launcher
+   * is run with {@code --no-daemon}, Gradle still starts a single-use build daemon that writes into
+   * {@code $GRADLE_USER_HOME/daemon/<version>/}; if that process has not fully released its file
+   * handles by the time JUnit deletes the shared (static) {@link #gradleUserHome} temp directory at
+   * class teardown, the recursive delete fails with a {@code DirectoryNotEmptyException}. Stopping
+   * the daemon here releases those handles ahead of cleanup.
+   *
+   * <p>This runs in {@code @AfterEach} rather than {@code @AfterAll} on purpose: {@link
+   * #projectFolder} (which holds the {@code gradlew} script used as the working directory) is an
+   * instance {@code @TempDir}, so JUnit deletes it at the end of each test invocation. By the time
+   * an {@code @AfterAll} method would run, that working directory no longer exists and the {@code
+   * --stop} command could not be launched.
+   */
+  @AfterEach
+  void stopGradleBuildDaemon() {
+    if (!Files.exists(projectFolder.resolve("gradlew"))) {
+      // The test was skipped or failed before the wrapper was set up, so no daemon was started.
+      return;
+    }
+    Map<String, String> env = new HashMap<>();
+    env.put("JAVA_HOME", JAVA_HOME);
+    env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    env.put("GRADLE_ARGS", "");
+    env.put("GRADLE_OPTS", "");
+    ShellCommandExecutor shellCommandExecutor =
+        new ShellCommandExecutor(projectFolder.toFile(), GRADLE_STOP_TIMEOUT_MILLIS, env);
+    try {
+      shellCommandExecutor.executeCommand(IOUtils::readFully, "./gradlew", "--stop");
+    } catch (Exception e) {
+      // Best-effort: a failure here should not fail the test run.
+      LOGGER.warn("Failed to stop Gradle daemon during cleanup", e);
+    }
+  }
+
   private void givenGradleWrapper(String gradleVersion) throws Exception {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
-    // Avoid inheriting CI's GRADLE_OPTS which might be incompatible with the tested JVM.
+    // Avoid inheriting CI Gradle launcher settings that might be incompatible with this wrapper.
+    env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "");
     ShellCommandExecutor shellCommandExecutor =
         new ShellCommandExecutor(projectFolder.toFile(), GRADLE_BUILD_TIMEOUT_MILLIS, env);
@@ -84,6 +125,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
       try {
         shellCommandExecutor.executeCommand(
             IOUtils::readFully, "./gradlew", "wrapper", "--gradle-version", gradleVersion);
+        GradleDistribution.rewriteWrapperDistributionUrl(projectFolder, gradleVersion);
         return;
       } catch (ShellCommandExecutor.ShellCommandFailedException e) {
         LOGGER.warn("Failed gradle wrapper resolution with exception: ", e);
@@ -99,6 +141,7 @@ class GradleLauncherSmokeTest extends AbstractGradleTest {
     Map<String, String> env = new HashMap<>();
     env.put("JAVA_HOME", JAVA_HOME);
     env.put("GRADLE_USER_HOME", gradleUserHome.toString());
+    env.put("GRADLE_ARGS", "");
     env.put("GRADLE_OPTS", "-javaagent:" + AGENT_JAR);
     env.put("DD_CIVISIBILITY_ENABLED", "true");
     env.put("DD_CIVISIBILITY_AGENTLESS_ENABLED", "true");

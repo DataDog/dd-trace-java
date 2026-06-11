@@ -92,6 +92,7 @@ public final class NativeImageGeneratorRunnerInstrumentation
               + "datadog.trace.api.GenericClassValue:build_time,"
               + "datadog.trace.api.GlobalTracer:build_time,"
               + "datadog.trace.api.GlobalTracer$1:build_time,"
+              + "datadog.trace.api.IdGenerationStrategy:build_time,"
               + "datadog.trace.api.MethodFilterConfigParser:build_time,"
               + "datadog.trace.api.WithGlobalTracer:build_time,"
               + "datadog.trace.api.ProductActivation:build_time,"
