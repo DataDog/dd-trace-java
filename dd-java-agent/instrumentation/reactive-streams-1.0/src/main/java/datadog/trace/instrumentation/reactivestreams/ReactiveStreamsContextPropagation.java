@@ -32,7 +32,7 @@ public final class ReactiveStreamsContextPropagation {
     final Context subscriberContext = subscriberContexts.putIfAbsent(subscriber, context);
     // A context captured on the publisher (cross-thread propagation) must win even when the
     // current thread already carries a non-root active context.
-    return attachIfRequired(subscriberContext, activeContext, true);
+    return attachIfRequired(subscriberContext, activeContext);
   }
 
   public static ContextScope activateOnSignal(
@@ -41,20 +41,16 @@ public final class ReactiveStreamsContextPropagation {
     if (activeContext != Context.root()) {
       return null;
     }
-    return attachIfRequired(subscriberContexts.get(subscriber), activeContext, false);
+    return attachIfRequired(subscriberContexts.get(subscriber), activeContext);
   }
 
   public static ContextScope activateOnComplete(
       final Subscriber<?> subscriber, final ContextStore<Subscriber, Context> subscriberContexts) {
-    return attachIfRequired(subscriberContexts.get(subscriber), Context.current(), true);
+    return attachIfRequired(subscriberContexts.get(subscriber), Context.current());
   }
 
-  private static ContextScope attachIfRequired(
-      final Context context, final Context activeContext, final boolean allowReplacingActive) {
+  private static ContextScope attachIfRequired(final Context context, final Context activeContext) {
     if (context == null || context == activeContext || context == Context.root()) {
-      return null;
-    }
-    if (!allowReplacingActive && activeContext != Context.root()) {
       return null;
     }
     return context.attach();
