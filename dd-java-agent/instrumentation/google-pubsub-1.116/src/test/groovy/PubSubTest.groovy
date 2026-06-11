@@ -42,7 +42,7 @@ import spock.lang.Shared
 
 import java.nio.charset.StandardCharsets
 
-@TrackScopeContinuations
+@TrackScopeContinuations(failOnLeak = true)
 abstract class PubSubTest extends VersionedNamingTestBase {
   private static final String PROJECT_ID = "dd-trace-java"
 
@@ -69,6 +69,11 @@ abstract class PubSubTest extends VersionedNamingTestBase {
   String operation() {
     //specialized methods below
     null
+  }
+
+  @Override
+  boolean useStrictTraceWrites() {
+    true
   }
 
   boolean shadowGrpcSpans() {
