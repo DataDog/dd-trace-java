@@ -6,6 +6,7 @@ import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
+import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -213,7 +214,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
             .sampler(new AllSampler())
             .tagInterceptor(
                 new TagInterceptor(
-                    false, "my-service", Collections.emptySet(), new RuleFlags(), jeeActive))
+                    false, "my-service", emptySet(), new RuleFlags(), jeeActive))
             .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();

@@ -1,31 +1,39 @@
 package datadog.trace.junit.utils.converter;
 
-import static datadog.trace.junit.utils.converter.MapBasedConverter.handleMap;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVICE_NAME;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
 
-import datadog.trace.api.ConfigDefaults;
+import java.util.HashMap;
 import java.util.Map;
 import org.junit.jupiter.api.extension.ParameterContext;
-import org.junit.jupiter.params.converter.ArgumentConversionException;
-import org.junit.jupiter.params.converter.ArgumentConverter;
 
-public class ConfigDefaultsConverter implements ArgumentConverter {
+public class ConfigDefaultsConverter extends AbstractClassConstantConvertor<String> {
+  private static final Map<String, String> MAPPING;
+
+  static {
+    MAPPING = new HashMap<>();
+    MAPPING.put("DEFAULT_SERVICE_NAME", DEFAULT_SERVICE_NAME);
+    MAPPING.put("DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME", DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME);
+  }
+
   @Override
-  public Object convert(Object source, ParameterContext context)
-      throws ArgumentConversionException {
-    Map<? super Object, ? super Object> map = handleMap(source, context, this);
-    if (map != null) {
-      return map;
-    }
-    if (source.toString().startsWith("DEFAULT_")) {
-      switch (source.toString()) {
-        case "DEFAULT_SERVICE_NAME":
-          return ConfigDefaults.DEFAULT_SERVICE_NAME;
-        case "DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME":
-          return ConfigDefaults.DEFAULT_SERVLET_ROOT_CONTEXT_SERVICE_NAME;
-        default:
-          throw new ArgumentConversionException("Cannot convert " + source);
-      }
-    }
-    return source.toString();
+  protected String className() {
+    return "ConfigDefaults";
+  }
+
+  @Override
+  protected Map<String, String> mapping() {
+    return MAPPING;
+  }
+
+  @Override
+  protected boolean throwsOnUnsupportedValue() {
+    return false;
+  }
+
+  @Override
+  public String convert(Object source, ParameterContext context) {
+    String convert = super.convert(source, context);
+    return convert == null ? source.toString() : convert;
   }
 }

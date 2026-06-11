@@ -38,4 +38,8 @@ public abstract class AbstractClassConstantConvertor<T> implements ArgumentConve
     }
     return mappedValue;
   }
+
+  protected boolean throwsOnUnsupportedValue() {
+    return true;
+  }
 }
