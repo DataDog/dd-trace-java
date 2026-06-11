@@ -5,19 +5,19 @@ include:
   - local: ".gitlab/ci-visibility-tests.yml"
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-spring-petclinic-parallel.yml'
-    ref: 'sarahchen6/improve-load-stability'
+    ref: 'sarahchen6/further-stabilize-startup'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-load-parallel.yml'
-    ref: 'sarahchen6/improve-load-stability'
+    ref: 'sarahchen6/further-stabilize-startup'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-startup-parallel.yml'
-    ref: 'sarahchen6/improve-load-stability'
+    ref: 'sarahchen6/further-stabilize-startup'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-dacapo-parallel.yml'
-    ref: 'sarahchen6/improve-load-stability'
+    ref: 'sarahchen6/further-stabilize-startup'
   - project: 'DataDog/apm-reliability/apm-sdks-benchmarks'
     file: '.gitlab/ci-java-post-pr-comment.yml'
-    ref: 'sarahchen6/improve-load-stability'
+    ref: 'sarahchen6/further-stabilize-startup'
   - local: ".gitlab/java-benchmark-configs.yml"
 
 stages:
