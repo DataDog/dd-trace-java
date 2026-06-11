@@ -2383,9 +2383,7 @@ public class Config {
 
     if (tmpApiKey == null) {
       final String oldProfilingApiKeyFile = configProvider.getString(PROFILING_API_KEY_FILE_OLD);
-      tmpApiKey =
-          getEnvCollectedAs(
-              propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD), PROFILING_API_KEY_OLD);
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_OLD));
       if (oldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -2400,10 +2398,7 @@ public class Config {
     if (tmpApiKey == null) {
       final String veryOldProfilingApiKeyFile =
           configProvider.getString(PROFILING_API_KEY_FILE_VERY_OLD);
-      tmpApiKey =
-          getEnvCollectedAs(
-              propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD),
-              PROFILING_API_KEY_VERY_OLD);
+      tmpApiKey = getEnv(propertyNameToEnvironmentVariableName(PROFILING_API_KEY_VERY_OLD));
       if (veryOldProfilingApiKeyFile != null) {
         try {
           tmpApiKey =
@@ -6402,17 +6397,10 @@ public class Config {
   }
 
   private static String getEnv(String name) {
-    return getEnvCollectedAs(name, name);
-  }
-
-  // Reads an environment variable and, when set, records it in configuration telemetry under the
-  // given configuration key. Pass a property-name collectKey (rather than the raw env-var name) so
-  // the value normalizes to a single DD_ telemetry name like every other setting.
-  private static String getEnvCollectedAs(String envName, String collectKey) {
-    String value = ConfigHelper.env(envName);
+    String value = ConfigHelper.env(name);
     if (value != null) {
       // Report non-default sequence id for consistency
-      ConfigCollector.get().put(collectKey, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);
+      ConfigCollector.get().put(name, value, ConfigOrigin.ENV, NON_DEFAULT_SEQ_ID);
     }
     return value;
   }
