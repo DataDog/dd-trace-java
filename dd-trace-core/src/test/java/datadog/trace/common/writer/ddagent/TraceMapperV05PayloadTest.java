@@ -53,8 +53,7 @@ class TraceMapperV05PayloadTest extends DDJavaSpecification {
   @Test
   void testBodyOverflowCausesFlush() {
     // disable process tags since they are only on the first span of the chunk otherwise the
-    // calculation woes
-    // 4x 36 ASCII characters and 2 bytes of msgpack string prefix
+    // calculation woes 4x 36 ASCII characters and 2 bytes of msgpack string prefix
     int dictionarySpacePerTrace = 4 * (36 + 2);
     // enough space for two traces with distinct string values, plus the header
     int dictionarySize = dictionarySpacePerTrace * 2 + 5;
@@ -263,22 +262,27 @@ class TraceMapperV05PayloadTest extends DDJavaSpecification {
               meta.put(dictionary[unpacker.unpackInt()], dictionary[unpacker.unpackInt()]);
             }
             for (Map.Entry<String, String> entry : meta.entrySet()) {
-              if (Tags.HTTP_STATUS.equals(entry.getKey())) {
-                assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue());
-              } else if (DDTags.ORIGIN_KEY.equals(entry.getKey())) {
-                assertEquals(expectedSpan.getOrigin(), entry.getValue());
-              } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
-                processTagsCount++;
-                assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled());
-                assertEquals(0, k);
-                assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
-              } else {
-                Object tag = expectedSpan.getTag(entry.getKey());
-                if (null != tag) {
-                  assertEquals(String.valueOf(tag), entry.getValue());
-                } else {
-                  assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue());
-                }
+              switch (entry.getKey()) {
+                case Tags.HTTP_STATUS:
+                  assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue());
+                  break;
+                case DDTags.ORIGIN_KEY:
+                  assertEquals(expectedSpan.getOrigin(), entry.getValue());
+                  break;
+                case DDTags.PROCESS_TAGS:
+                  processTagsCount++;
+                  assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled());
+                  assertEquals(0, k);
+                  assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
+                  break;
+                default:
+                  Object tag = expectedSpan.getTag(entry.getKey());
+                  if (null != tag) {
+                    assertEquals(String.valueOf(tag), entry.getValue());
+                  } else {
+                    assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue());
+                  }
+                  break;
               }
             }
             int metricsSize = unpacker.unpackMapHeader();
