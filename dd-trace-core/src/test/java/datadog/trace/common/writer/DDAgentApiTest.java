@@ -2,7 +2,9 @@ package datadog.trace.common.writer;
 
 import static datadog.trace.api.ProtocolVersion.V0_5;
 import static java.util.Collections.emptyList;
+import static java.util.Collections.emptyMap;
 import static java.util.Collections.singletonList;
+import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertInstanceOf;
@@ -382,7 +384,7 @@ public class DDAgentApiTest extends DDCoreJavaSpecification {
       client.sendSerializedTraces(payload);
 
       Map<String, Map<String, Number>> response = agentResponse.get();
-      assertTrue(response != null && response.containsKey("hello"));
+      assertEquals(singletonMap("hello", emptyMap()), response);
       assertEquals("java", agent.getLastRequest().getHeaders().get("Datadog-Meta-Lang"));
       assertEquals(
           System.getProperty("java.version", "unknown"),
