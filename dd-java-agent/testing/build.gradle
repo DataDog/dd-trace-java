@@ -2,7 +2,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.testing-support'
 }
 
 tasks.withType(JavaCompile).configureEach {

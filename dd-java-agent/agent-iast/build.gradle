@@ -7,7 +7,7 @@ plugins {
   id 'com.google.protobuf' version '0.10.0'
   id 'net.ltgt.errorprone' version '3.1.0'
   id 'dd-trace-java.version-file'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.agent-product'
 }
 
 tasks.withType(AbstractCompile).configureEach {

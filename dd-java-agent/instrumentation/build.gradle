@@ -7,10 +7,9 @@ import de.thetaphi.forbiddenapis.gradle.CheckForbiddenApis
 
 plugins {
   id 'com.gradleup.shadow'
+  id 'dd-trace-java.module.agent-product'
   id("dd-trace-java.instrumentation-naming")
 }
-apply from: "$rootDir/gradle/java.gradle"
-
 
 tasks.register("latestDepTest", Test)
 

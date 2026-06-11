@@ -1,5 +1,5 @@
 plugins {
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.testing-support'
 }
 
 dependencies {

@@ -1,7 +1,7 @@
 plugins {
   `java-library`
   id("com.gradleup.shadow")
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.bootstrap-component")
 }
 
 dependencies {

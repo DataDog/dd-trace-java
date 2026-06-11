@@ -4,7 +4,7 @@ plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
   id 'dd-trace-java.version-file'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.agent-product'
 }
 
 apply from: "$rootDir/gradle/tries.gradle"

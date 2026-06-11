@@ -1,5 +1,5 @@
 plugins {
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.internal-component'
 }
 
 // The functionality is tested in dd-smoke-tests/crashtracking
@@ -32,4 +32,3 @@ dependencies {
   testImplementation libs.jackson.databind
   testImplementation group: 'com.squareup.okhttp3', name: 'mockwebserver', version: libs.versions.okhttp.legacy.get()
 }
-

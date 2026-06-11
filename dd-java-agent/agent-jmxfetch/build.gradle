@@ -9,7 +9,7 @@ import static java.nio.file.StandardOpenOption.CREATE
 
 plugins {
   id 'com.gradleup.shadow'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.agent-product'
 }
 
 dependencies {

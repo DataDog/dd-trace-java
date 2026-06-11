@@ -1,5 +1,5 @@
 plugins {
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.internal-component'
 }
 
 // We have some general logging paths that are hard to test
@@ -29,4 +29,3 @@ dependencies {
   testImplementation libs.bundles.mockito
   testImplementation group: 'org.awaitility', name: 'awaitility', version: '4.0.1'
 }
-

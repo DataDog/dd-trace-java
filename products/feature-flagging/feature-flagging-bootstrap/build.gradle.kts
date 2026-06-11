@@ -1,7 +1,7 @@
 plugins {
   `java-library`
   id("dd-trace-java.version-file")
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.bootstrap-component")
 }
 
 description = "Feature flagging remote common module (bootstrap classloader)"

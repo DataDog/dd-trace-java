@@ -1,5 +1,5 @@
 plugins {
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.bootstrap-component'
 }
 
 minimumInstructionCoverage = 0.0

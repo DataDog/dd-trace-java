@@ -3,7 +3,7 @@ import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
 plugins {
   `java-library`
   id("com.gradleup.shadow")
-  id("dd-trace-java.module.internal-component")
+  id("dd-trace-java.module.agent-product")
 }
 
 description = "StatsD client"

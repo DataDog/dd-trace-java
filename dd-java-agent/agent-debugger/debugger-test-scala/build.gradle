@@ -1,6 +1,6 @@
 plugins {
   id 'scala'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.internal-component'
 }
 
 dependencies {

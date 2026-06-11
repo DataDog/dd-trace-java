@@ -1,7 +1,7 @@
 plugins {
   id 'com.gradleup.shadow'
   id 'me.champeau.jmh'
-  id 'dd-trace-java.module.sub-agent'
+  id 'dd-trace-java.module.bootstrap-component'
   id 'idea'
 }
 
