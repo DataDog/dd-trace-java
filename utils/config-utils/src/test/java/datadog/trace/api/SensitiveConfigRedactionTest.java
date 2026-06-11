@@ -29,13 +29,23 @@ public class SensitiveConfigRedactionTest {
 
   private static final String REGISTRY_RELATIVE_PATH = "metadata/supported-configurations.json";
 
-  // Normalizes any config name form (env-var, dotted system property, or bare dotted name) to a
-  // single canonical token. toEnvVar upper-cases and replaces "." / "-" with "_"; we then strip a
-  // leading "DD_" so dotted and env-var forms of the same config collapse onto the same token.
+  // Normalizes a config name to the canonical token under which its value is COLLECTED, so the
+  // registry's public names line up with the property-name forms in CONFIG_FILTER_LIST. toEnvVar
+  // upper-cases and replaces "." / "-" with "_"; we strip a leading "DD_" so the dotted property
+  // name and the DD_ env-var form of the same config collapse together. OTLP exporter headers set
+  // via the OpenTelemetry env vars are collected under the Datadog otlp.<signal>.headers keys, so
+  // the OTEL_ names map onto that collected form.
   private static String canonical(String name) {
     String env = toEnvVar(name);
     if (env.startsWith("DD_")) {
       env = env.substring("DD_".length());
+    }
+    if (env.equals("OTEL_EXPORTER_OTLP_HEADERS")) {
+      // The generic OTEL header env var funnels into every otlp.<signal>.headers; traces stands in.
+      return "OTLP_TRACES_HEADERS";
+    }
+    if (env.startsWith("OTEL_EXPORTER_OTLP_") && env.endsWith("_HEADERS")) {
+      return "OTLP_" + env.substring("OTEL_EXPORTER_OTLP_".length());
     }
     return env;
   }
@@ -55,12 +65,14 @@ public class SensitiveConfigRedactionTest {
     assertEquals(
         registryCanonical,
         filterCanonical,
-        "Registry \"sensitive\": true entries (with aliases) and ConfigSetting.CONFIG_FILTER_LIST "
-            + "must match after canonicalization. Reconcile metadata/supported-configurations.json "
-            + "and CONFIG_FILTER_LIST in ConfigSetting.java.");
+        "Registry \"sensitive\": true entries and ConfigSetting.CONFIG_FILTER_LIST must match after "
+            + "canonicalization. Reconcile metadata/supported-configurations.json and "
+            + "CONFIG_FILTER_LIST in ConfigSetting.java.");
   }
 
-  // Registry keys plus their aliases for every entry marked "sensitive": true.
+  // Registry keys for every entry marked "sensitive": true. Aliases are not collected separately --
+  // a value is always collected under its primary key's property name -- so they are not needed
+  // here.
   @SuppressWarnings("unchecked")
   private static Set<String> sensitiveRegistryKeys() {
     Path registry = locateRegistry();
@@ -81,12 +93,6 @@ public class SensitiveConfigRedactionTest {
         Map<String, Object> definition = (Map<String, Object>) def;
         if (Boolean.TRUE.equals(definition.get("sensitive"))) {
           sensitive.add(entry.getKey());
-          Object aliases = definition.get("aliases");
-          if (aliases instanceof List) {
-            for (Object alias : (List<Object>) aliases) {
-              sensitive.add((String) alias);
-            }
-          }
         }
       }
     }
