@@ -840,8 +840,12 @@ public class CoreTracer implements AgentTracer.TracerAPI, TracerFlare.Reporter {
             this.healthMetrics);
     HttpCodec.Extractor tracingExtractor = orgGuard.decorateExtractor(baseExtractor);
     HttpCodec.Injector tracingInjector = orgGuard.decorateInjector(injector);
+    // Context propagation is also enabled when explicitly requested via propagate.context, so that
+    // context keeps flowing even when APM tracing is disabled.
+    boolean propagationEnabled =
+        config.isApmTracingEnabled() || config.isPropagateContextEnabled();
     TracingPropagator tracingPropagator =
-        new TracingPropagator(config.isApmTracingEnabled(), tracingInjector, tracingExtractor);
+        new TracingPropagator(propagationEnabled, tracingInjector, tracingExtractor);
     Propagators.register(TRACING_CONCERN, tracingPropagator);
     Propagators.register(XRAY_TRACING_CONCERN, new XRayPropagator(config), false);
     if (config.isDataStreamsEnabled()) {
