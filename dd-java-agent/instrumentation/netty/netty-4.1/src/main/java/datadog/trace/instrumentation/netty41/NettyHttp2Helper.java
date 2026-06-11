@@ -9,8 +9,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 public class NettyHttp2Helper {
-  private static final Class HTTP2_CODEC_CLS;
-  private static final Class HTTP2_FRAME_CODEC_CLS;
+  private static final Class HTTP2_STREAM_FRAME_CODEC_CLS;
+  private static final Class HTTP2_CONNECTION_CODEC_CLS;
   private static final MethodHandle IS_SERVER_FIELD;
   private static final Logger LOGGER = LoggerFactory.getLogger(NettyHttp2Helper.class);
 
@@ -54,17 +54,17 @@ public class NettyHttp2Helper {
       frameCodecClass = null;
       LOGGER.debug("Unable to setup netty http2 connection detection", t);
     }
-    HTTP2_CODEC_CLS = codecClass;
-    HTTP2_FRAME_CODEC_CLS = frameCodecClass;
+    HTTP2_STREAM_FRAME_CODEC_CLS = codecClass;
+    HTTP2_CONNECTION_CODEC_CLS = frameCodecClass;
     IS_SERVER_FIELD = isServerField;
   }
 
   public static boolean isHttp2FrameCodec(final ChannelHandler handler) {
-    return HTTP2_CODEC_CLS != null && HTTP2_CODEC_CLS.isInstance(handler);
+    return HTTP2_STREAM_FRAME_CODEC_CLS != null && HTTP2_STREAM_FRAME_CODEC_CLS.isInstance(handler);
   }
 
   public static boolean isHttp2ConnectionCodec(final ChannelHandler handler) {
-    return HTTP2_FRAME_CODEC_CLS != null && HTTP2_FRAME_CODEC_CLS.isInstance(handler);
+    return HTTP2_CONNECTION_CODEC_CLS != null && HTTP2_CONNECTION_CODEC_CLS.isInstance(handler);
   }
 
   public static boolean isServer(final ChannelHandler handler) {
