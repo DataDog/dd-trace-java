@@ -1,8 +1,8 @@
 package datadog.trace.api;
 
 import static datadog.trace.util.ConfigStrings.toEnvVar;
-import static org.junit.jupiter.api.Assertions.assertTrue;
-import static org.junit.jupiter.api.Assertions.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 
 import java.io.IOException;
 import java.io.UncheckedIOException;
@@ -21,32 +21,17 @@ import org.snakeyaml.engine.v2.api.Load;
 import org.snakeyaml.engine.v2.api.LoadSettings;
 
 /**
- * Drift-guard test that keeps the {@code "sensitive": true} attribute in {@code
- * metadata/supported-configurations.json} consistent with the redaction actually performed by
- * {@link ConfigSetting}.
- *
- * <p>Telemetry redaction is driven by {@code ConfigSetting.CONFIG_FILTER_LIST}; the registry
- * attribute is otherwise not read at runtime. Without this guard, marking a configuration {@code
- * sensitive: true} in the registry without adding it to the filter list (or vice-versa) would
- * silently leave that configuration unredacted in configuration telemetry. This test fails CI when
- * the two drift apart.
+ * Drift-guard test keeping the {@code "sensitive": true} entries in {@code
+ * metadata/supported-configurations.json} in sync with {@code ConfigSetting.CONFIG_FILTER_LIST}.
+ * The registry attribute is not read at runtime, so this test is what keeps the two from drifting.
  */
 public class SensitiveConfigRedactionTest {
 
   private static final String REGISTRY_RELATIVE_PATH = "metadata/supported-configurations.json";
 
-  /**
-   * Normalizes any config name form -- env-var ({@code DD_API_KEY}), dotted system property ({@code
-   * dd.api-key}), or bare dotted name ({@code otlp.traces.headers}) -- to a single canonical token
-   * so the registry keys and the filter-list entries can be compared.
-   *
-   * <p>{@link datadog.trace.util.ConfigStrings#toEnvVar(String)} upper-cases and replaces {@code .}
-   * / {@code -} with {@code _}, but it does not unify the {@code DD_} prefix: a registry env name
-   * such as {@code DD_OTLP_TRACES_HEADERS} and the filter's dotted {@code otlp.traces.headers}
-   * (which {@code toEnvVar} turns into {@code OTLP_TRACES_HEADERS}) would otherwise not match. We
-   * strip a leading {@code DD_} after {@code toEnvVar} so both collapse onto {@code
-   * OTLP_TRACES_HEADERS}. {@code OTEL_*} names have no {@code DD_} prefix and are unaffected.
-   */
+  // Normalizes any config name form (env-var, dotted system property, or bare dotted name) to a
+  // single canonical token. toEnvVar upper-cases and replaces "." / "-" with "_"; we then strip a
+  // leading "DD_" so dotted and env-var forms of the same config collapse onto the same token.
   private static String canonical(String name) {
     String env = toEnvVar(name);
     if (env.startsWith("DD_")) {
@@ -56,64 +41,26 @@ public class SensitiveConfigRedactionTest {
   }
 
   @Test
-  void everySensitiveConfigIsRedacted() {
-    Set<String> sensitiveRegistryKeys = sensitiveRegistryKeys();
-    assertTrue(
-        !sensitiveRegistryKeys.isEmpty(),
-        "expected at least one config marked \"sensitive\": true in " + REGISTRY_RELATIVE_PATH);
-
+  void sensitiveRegistryEntriesAndFilterListStayInSync() {
+    Set<String> registryCanonical =
+        sensitiveRegistryKeys().stream()
+            .map(SensitiveConfigRedactionTest::canonical)
+            .collect(toTreeSet());
     Set<String> filterCanonical =
         configFilterList().stream()
             .map(SensitiveConfigRedactionTest::canonical)
             .collect(toTreeSet());
 
-    Set<String> notRedacted = new TreeSet<>();
-    for (String key : sensitiveRegistryKeys) {
-      if (!filterCanonical.contains(canonical(key))) {
-        notRedacted.add(key);
-      }
-    }
-
-    if (!notRedacted.isEmpty()) {
-      fail(
-          "These configurations are marked \"sensitive\": true in "
-              + REGISTRY_RELATIVE_PATH
-              + " but are NOT redacted by ConfigSetting.CONFIG_FILTER_LIST. Add them (in env-var "
-              + "and/or dotted form) to CONFIG_FILTER_LIST in ConfigSetting.java, or drop the "
-              + "\"sensitive\": true marker:\n  "
-              + String.join("\n  ", notRedacted));
-    }
+    assertFalse(registryCanonical.isEmpty(), "expected at least one \"sensitive\": true config");
+    assertEquals(
+        registryCanonical,
+        filterCanonical,
+        "Registry \"sensitive\": true entries (with aliases) and ConfigSetting.CONFIG_FILTER_LIST "
+            + "must match after canonicalization. Reconcile metadata/supported-configurations.json "
+            + "and CONFIG_FILTER_LIST in ConfigSetting.java.");
   }
 
-  /**
-   * Advisory only: surfaces filter-list entries that have no {@code "sensitive": true} counterpart
-   * in the registry. This does not fail the build -- some entries (e.g. profiling api keys) are
-   * legitimately redacted without being registry-sensitive -- but it makes intentional asymmetry
-   * visible in the logs.
-   */
-  @Test
-  void reportsFilterEntriesNotMarkedSensitive() {
-    Set<String> sensitiveCanonical =
-        sensitiveRegistryKeys().stream()
-            .map(SensitiveConfigRedactionTest::canonical)
-            .collect(toTreeSet());
-
-    Set<String> filterOnly = new TreeSet<>();
-    for (String entry : configFilterList()) {
-      if (!sensitiveCanonical.contains(canonical(entry))) {
-        filterOnly.add(entry);
-      }
-    }
-
-    if (!filterOnly.isEmpty()) {
-      System.out.println(
-          "[advisory] CONFIG_FILTER_LIST entries with no \"sensitive\": true marker in "
-              + REGISTRY_RELATIVE_PATH
-              + " (not a failure): "
-              + filterOnly);
-    }
-  }
-
+  // Registry keys plus their aliases for every entry marked "sensitive": true.
   @SuppressWarnings("unchecked")
   private static Set<String> sensitiveRegistryKeys() {
     Path registry = locateRegistry();
@@ -130,19 +77,23 @@ public class SensitiveConfigRedactionTest {
 
     Set<String> sensitive = new TreeSet<>();
     for (Map.Entry<String, Object> entry : supported.entrySet()) {
-      // Each value is a list of versioned definitions; the config is sensitive if any marks it so.
       for (Object def : (List<Object>) entry.getValue()) {
-        Object flag = ((Map<String, Object>) def).get("sensitive");
-        if (Boolean.TRUE.equals(flag)) {
+        Map<String, Object> definition = (Map<String, Object>) def;
+        if (Boolean.TRUE.equals(definition.get("sensitive"))) {
           sensitive.add(entry.getKey());
-          break;
+          Object aliases = definition.get("aliases");
+          if (aliases instanceof List) {
+            for (Object alias : (List<Object>) aliases) {
+              sensitive.add((String) alias);
+            }
+          }
         }
       }
     }
     return sensitive;
   }
 
-  /** Reads {@code CONFIG_FILTER_LIST} from {@link ConfigSetting} via reflection. */
+  // Reads CONFIG_FILTER_LIST from ConfigSetting via reflection.
   @SuppressWarnings("unchecked")
   private static Set<String> configFilterList() {
     try {
@@ -154,7 +105,7 @@ public class SensitiveConfigRedactionTest {
     }
   }
 
-  /** Walks up from the working directory until {@code metadata/supported-configurations.json}. */
+  // Walks up from the working directory until metadata/supported-configurations.json is found.
   private static Path locateRegistry() {
     Path dir = Paths.get(System.getProperty("user.dir")).toAbsolutePath();
     for (Path current = dir; current != null; current = current.getParent()) {
@@ -163,13 +114,7 @@ public class SensitiveConfigRedactionTest {
         return candidate;
       }
     }
-    throw new IllegalStateException(
-        "Could not locate "
-            + REGISTRY_RELATIVE_PATH
-            + " by walking up from "
-            + dir
-            + ". Adjust the resolution logic in "
-            + SensitiveConfigRedactionTest.class.getName());
+    throw new IllegalStateException("Could not locate " + REGISTRY_RELATIVE_PATH + " from " + dir);
   }
 
   private static java.util.stream.Collector<String, ?, TreeSet<String>> toTreeSet() {

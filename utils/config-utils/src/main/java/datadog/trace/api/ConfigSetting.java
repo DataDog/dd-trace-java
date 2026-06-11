@@ -25,26 +25,30 @@ public final class ConfigSetting {
 
   // Configuration keys whose values are excluded from configuration telemetry by replacing them
   // with "<hidden>". Keys are listed in every form that may reach this constructor: the dotted
-  // configuration name (used by ConfigProvider) and the environment-variable name.
+  // configuration name (used by ConfigProvider) and the environment-variable name. Keep this list
+  // in sync with the "sensitive": true entries in metadata/supported-configurations.json.
   private static final Set<String> CONFIG_FILTER_LIST =
       new HashSet<>(
           Arrays.asList(
               "DD_API_KEY",
+              "DD_APPLICATION_KEY",
+              "DD_PROFILING_API_KEY",
+              "DD_PROFILING_APIKEY",
+              "OTEL_EXPORTER_OTLP_HEADERS",
+              "OTEL_EXPORTER_OTLP_LOGS_HEADERS",
+              "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
+              "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
+              "api-key",
+              "app-key",
+              "application-key",
               "dd.api-key",
+              "dd.app-key",
+              "dd.application-key",
               "dd.profiling.api-key",
               "dd.profiling.apikey",
-              "application-key",
-              "dd.application-key",
-              "DD_APPLICATION_KEY",
-              "app-key",
-              "dd.app-key",
-              "otlp.traces.headers",
-              "otlp.metrics.headers",
               "otlp.logs.headers",
-              "OTEL_EXPORTER_OTLP_HEADERS",
-              "OTEL_EXPORTER_OTLP_TRACES_HEADERS",
-              "OTEL_EXPORTER_OTLP_METRICS_HEADERS",
-              "OTEL_EXPORTER_OTLP_LOGS_HEADERS"));
+              "otlp.metrics.headers",
+              "otlp.traces.headers"));
 
   public static ConfigSetting of(String key, Object value, ConfigOrigin origin) {
     return new ConfigSetting(key, value, origin, ABSENT_SEQ_ID, null);
