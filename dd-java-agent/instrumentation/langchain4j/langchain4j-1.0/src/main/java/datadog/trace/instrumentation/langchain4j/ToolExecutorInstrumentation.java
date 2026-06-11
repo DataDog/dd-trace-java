@@ -39,6 +39,7 @@ public class ToolExecutorInstrumentation
     public static void enter(
         @Advice.Argument(0) ToolExecutionRequest request,
         @Advice.Local("handle") LlmObsHandle handle) {
+      if (request == null) return;
       handle = LangChain4jLlmObsIntegration.INSTANCE.startTool(request.name());
     }
 

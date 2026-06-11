@@ -4,6 +4,7 @@ import datadog.trace.api.llmobs.LLMObsSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import java.util.Collections;
+import java.util.concurrent.atomic.AtomicBoolean;
 import jdk.jfr.Event;
 
 /**
@@ -15,6 +16,8 @@ public final class LlmCallHandle extends LlmObsHandle {
   private final Event jfrEvent;
   private final LLMObsSpan llmObsSpan;
   private final AgentScope agentScope;
+  // Ensures onAsync() and the sync path of doFinish() don't both close the scope.
+  private final AtomicBoolean scopeClosedOnEntry = new AtomicBoolean();
 
   public LlmCallHandle(Event jfrEvent, LLMObsSpan llmObsSpan, AgentScope agentScope) {
     this.jfrEvent = jfrEvent;
@@ -30,8 +33,9 @@ public final class LlmCallHandle extends LlmObsHandle {
         jfrEvent.commit();
       }
     }
-    // Close the scope on the entering thread; the span is finished later in doFinish().
-    if (agentScope != null) {
+    // CAS prevents double-close if finish() already ran and won the done CAS before async() set
+    // asyncMode, causing doFinish() to read isAsync()==false and close the scope itself.
+    if (agentScope != null && scopeClosedOnEntry.compareAndSet(false, true)) {
       agentScope.close();
     }
   }
@@ -44,36 +48,43 @@ public final class LlmCallHandle extends LlmObsHandle {
         jfrEvent.commit();
       }
     }
-    if (llmObsSpan != null) {
-      if (hasError()) {
-        llmObsSpan.setError(true);
-        if (thrown() != null) {
-          llmObsSpan.addThrowable(thrown());
+    try {
+      if (llmObsSpan != null) {
+        if (hasError()) {
+          llmObsSpan.setError(true);
+          if (thrown() != null) {
+            llmObsSpan.addThrowable(thrown());
+          }
         }
+        if (inputTokens() != null) {
+          llmObsSpan.setMetric("input_tokens", inputTokens().intValue());
+        }
+        if (outputTokens() != null) {
+          llmObsSpan.setMetric("output_tokens", outputTokens().intValue());
+        }
+        if (inputMessages() != null || outputMessages() != null) {
+          llmObsSpan.annotateIO(
+              inputMessages() != null ? inputMessages() : Collections.emptyList(),
+              outputMessages() != null ? outputMessages() : Collections.emptyList());
+        } else if (inputData() != null || outputData() != null) {
+          llmObsSpan.annotateIO(inputData(), outputData());
+        }
+        llmObsSpan.finish();
       }
-      if (inputTokens() != null) {
-        llmObsSpan.setMetric("input_tokens", inputTokens().intValue());
-      }
-      if (outputTokens() != null) {
-        llmObsSpan.setMetric("output_tokens", outputTokens().intValue());
-      }
-      if (inputMessages() != null || outputMessages() != null) {
-        llmObsSpan.annotateIO(
-            inputMessages() != null ? inputMessages() : Collections.emptyList(),
-            outputMessages() != null ? outputMessages() : Collections.emptyList());
-      } else if (inputData() != null || outputData() != null) {
-        llmObsSpan.annotateIO(inputData(), outputData());
-      }
-      llmObsSpan.finish();
-    }
-    if (agentScope != null) {
-      AgentSpan span = agentScope.span();
-      if (hasError() && thrown() != null) {
-        span.addThrowable(thrown());
-      }
-      span.finish();
-      if (!isAsync()) {
-        agentScope.close();
+    } finally {
+      if (agentScope != null) {
+        AgentSpan span = agentScope.span();
+        if (hasError()) {
+          span.setError(true);
+          if (thrown() != null) {
+            span.addThrowable(thrown());
+          }
+        }
+        // Close scope before finishing span — standard dd-trace-java idiom.
+        if (!isAsync() && scopeClosedOnEntry.compareAndSet(false, true)) {
+          agentScope.close();
+        }
+        span.finish();
       }
     }
   }
