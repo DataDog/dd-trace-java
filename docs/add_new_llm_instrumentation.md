@@ -14,12 +14,17 @@ every instrumented operation:
 The [LangChain4j 1.0 instrumentation](../dd-java-agent/instrumentation/langchain4j/langchain4j-1.0)
 is the reference implementation for this pattern.
 
-> [!NOTE]
-> This guide covers **framework-level** instrumentation (intercepting method calls on
-> LangChain4j-style abstractions). If you are instrumenting a **direct API client** that
-> does not wrap a framework (e.g. the OpenAI Java SDK), see
-> [Add a New Instrumentation](./add_new_instrumentation.md) instead and adapt the
-> OpenAI reference implementation.
+> [!IMPORTANT]
+> **This SPI is the proposed unified approach for all new LLM instrumentations.**
+> New integrations — whether they target a framework like LangChain4j or a direct API
+> client like an OpenAI SDK — should use `LlmCallHandle` and `LlmObsHandle` as the
+> single lifecycle contract.
+>
+> The existing OpenAI Java SDK instrumentation pre-dates this SPI and is kept at its
+> current state (standalone `AgentSpan`-based decorator pattern) out of caution: its
+> async/streaming response-wrapper pattern requires additional design work before the
+> `LlmCallHandle` lifecycle can be applied safely. It will be migrated in a follow-up.
+> Do not model new work on it.
 
 ## Prerequisites
 
