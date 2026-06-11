@@ -7,7 +7,6 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.DDTags.ERROR_MSG;
 import static datadog.trace.api.DDTags.ERROR_STACK;
 import static datadog.trace.api.DDTags.ERROR_TYPE;
-import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CLIENT;
 import static datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND_CONSUMER;
@@ -136,11 +135,15 @@ public final class OtelConventions {
     }
   }
 
-  public static void setEventsAsTag(AgentSpan span, List<OtelSpanEvent> events) {
+  public static void recordSpanEvents(AgentSpan span, List<OtelSpanEvent> events) {
     if (events == null || events.isEmpty()) {
       return;
     }
-    span.setTag(SPAN_EVENTS, OtelSpanEvent.toTag(events));
+    // Hand the structured events to the span. The V1 payload encodes them natively, while v0.x
+    // payloads flatten them into the JSON `events` tag at serialization time (see DDSpanContext).
+    for (OtelSpanEvent event : events) {
+      span.addSpanEvent(event);
+    }
   }
 
   public static void applySpanEventExceptionAttributesAsTags(

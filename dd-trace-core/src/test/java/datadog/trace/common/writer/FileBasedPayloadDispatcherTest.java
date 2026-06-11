@@ -313,6 +313,7 @@ class FileBasedPayloadDispatcherTest {
             null,
             0,
             null,
+            null,
             null);
     doAnswer(
             inv -> {

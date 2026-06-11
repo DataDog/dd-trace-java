@@ -1,6 +1,7 @@
 package datadog.trace.core;
 
 import static datadog.trace.api.DDTags.PARENT_ID;
+import static datadog.trace.api.DDTags.SPAN_EVENTS;
 import static datadog.trace.api.DDTags.SPAN_LINKS;
 import static datadog.trace.api.cache.RadixTreeCache.HTTP_STATUSES;
 import static datadog.trace.bootstrap.instrumentation.api.ErrorPriorities.UNSET;
@@ -24,6 +25,7 @@ import datadog.trace.api.internal.TraceSegment;
 import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.api.sampling.SamplingMechanism;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanContext;
+import datadog.trace.bootstrap.instrumentation.api.AgentSpanEvent;
 import datadog.trace.bootstrap.instrumentation.api.AppendableSpanLinks;
 import datadog.trace.bootstrap.instrumentation.api.Baggage;
 import datadog.trace.bootstrap.instrumentation.api.ClientIpAddressData;
@@ -1195,18 +1197,20 @@ public class DDSpanContext
 
   void processTagsAndBaggage(
       final MetadataConsumer consumer, int longRunningVersion, DDSpan restrictedSpan) {
+    // injectEventsAsTags=true: protocols other than V1 carry span events as the JSON `events` tag
     processTagsAndBaggage(
-        consumer, longRunningVersion, restrictedSpan, injectLinksAsTags, injectBaggageAsTags);
+        consumer, longRunningVersion, restrictedSpan, injectBaggageAsTags, injectLinksAsTags, true);
   }
 
   void processTagsAndBaggage(
       final MetadataConsumer consumer,
       int longRunningVersion,
       DDSpan restrictedSpan,
+      boolean injectBaggageAsTags,
       boolean injectLinksAsTags,
-      boolean injectBaggageAsTags) {
+      boolean injectEventsAsTags) {
     // NOTE: The span is passed for the sole purpose of allowing updating & reading of the span
-    // links
+    // links and events
     // This is a compromise to avoid...
     // - creating an extra wrapper object that would create significant allocation
     // - implementing an interface to read the spans that require making the read method public
@@ -1219,6 +1223,15 @@ public class DDSpanContext
         String linksTag = DDSpanLink.toTag(restrictedSpan.getLinks());
         if (linksTag != null) {
           unsafeTags.set(SPAN_LINKS, linksTag);
+        }
+      }
+
+      // Events: flatten the structured span events into the legacy JSON `events` tag for protocols
+      // that don't encode them natively (V1 reads Metadata.getSpanEvents() instead).
+      if (injectEventsAsTags) {
+        String eventsTag = spanEventsToTag(restrictedSpan.getSpanEvents());
+        if (eventsTag != null) {
+          unsafeTags.set(SPAN_EVENTS, eventsTag);
         }
       }
 
@@ -1248,8 +1261,28 @@ public class DDSpanContext
               getOrigin(),
               longRunningVersion,
               ProcessTags.getTagsForSerialization(),
-              restrictedSpan.getLinks()));
+              restrictedSpan.getLinks(),
+              restrictedSpan.getSpanEvents()));
     }
+  }
+
+  /**
+   * Assembles the legacy v0.x {@code events} tag: a JSON array of the per-event objects produced by
+   * {@link AgentSpanEvent#toJsonTag()}. Returns {@code null} when there are no events so the tag is
+   * not emitted.
+   */
+  private static String spanEventsToTag(List<? extends AgentSpanEvent> events) {
+    if (events == null || events.isEmpty()) {
+      return null;
+    }
+    StringBuilder builder = new StringBuilder("[");
+    for (AgentSpanEvent event : events) {
+      if (builder.length() > 1) {
+        builder.append(',');
+      }
+      builder.append(event.toJsonTag());
+    }
+    return builder.append(']').toString();
   }
 
   void injectW3CBaggageTags(Map<String, String> baggageItemsWithPropagationTags) {
