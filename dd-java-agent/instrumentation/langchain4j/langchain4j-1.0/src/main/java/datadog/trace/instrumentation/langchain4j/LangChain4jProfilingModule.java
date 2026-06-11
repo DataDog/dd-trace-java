@@ -2,6 +2,7 @@ package datadog.trace.instrumentation.langchain4j;
 
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.LLMOBS;
 import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.PROFILING;
+import static datadog.trace.agent.tooling.InstrumenterModule.TargetSystem.TRACING;
 
 import com.google.auto.service.AutoService;
 import datadog.trace.agent.tooling.Instrumenter;
@@ -19,7 +20,9 @@ public class LangChain4jProfilingModule extends InstrumenterModule {
 
   @Override
   public boolean isApplicable(Set<TargetSystem> enabledSystems) {
-    return enabledSystems.contains(PROFILING) || enabledSystems.contains(LLMOBS);
+    return enabledSystems.contains(TRACING)
+        || enabledSystems.contains(PROFILING)
+        || enabledSystems.contains(LLMOBS);
   }
 
   @Override
