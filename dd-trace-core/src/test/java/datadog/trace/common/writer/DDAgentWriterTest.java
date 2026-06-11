@@ -16,6 +16,7 @@ import static org.mockito.Mockito.when;
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
 import datadog.metrics.api.statsd.StatsDClient;
 import datadog.metrics.impl.MonitoringImpl;
+import datadog.trace.api.sampling.PrioritySampling;
 import datadog.trace.common.writer.ddagent.DDAgentApi;
 import datadog.trace.common.writer.ddagent.DDAgentMapperDiscovery;
 import datadog.trace.common.writer.ddagent.PrioritizationStrategy.PublishResult;
@@ -202,12 +203,16 @@ class DDAgentWriterTest extends DDCoreJavaSpecification {
     DDAgentWriter localWriter =
         new DDAgentWriter(localWorker, localDispatcher, localMonitor, 1, SECONDS, false);
 
-    List<DDSpan> trace = Arrays.asList(newSpan(), newSpan());
+    DDSpan p0 = newSpan();
+    p0.setSamplingPriority(PrioritySampling.SAMPLER_DROP);
+    List<DDSpan> trace = Arrays.asList(p0, newSpan());
 
-    when(localWorker.publish(eq(trace.get(0)), anyInt(), eq(trace))).thenReturn(publishResult);
+    when(localWorker.publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace)))
+        .thenReturn(publishResult);
     localWriter.write(trace);
 
-    verify(localWorker).publish(eq(trace.get(0)), anyInt(), eq(trace));
+    verify(localWorker)
+        .publish(eq(trace.get(0)), eq((int) PrioritySampling.SAMPLER_DROP), eq(trace));
     verify(localDispatcher).onDroppedTrace(trace.size());
   }
 

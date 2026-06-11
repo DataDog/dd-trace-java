@@ -32,6 +32,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.OptionalInt;
 import java.util.TreeMap;
 import java.util.zip.GZIPInputStream;
 import okhttp3.HttpUrl;
@@ -327,7 +328,9 @@ class DDIntakeApiTest extends DDCoreJavaSpecification {
     Payload payload = prepareTraces(trackType, traces);
 
     try {
-      client.sendSerializedTraces(payload).status();
+      OptionalInt status = client.sendSerializedTraces(payload).status();
+      assertTrue(status.isPresent());
+      assertEquals(200, status.getAsInt());
       assertEquals("application/msgpack", intake.getLastRequest().getContentType());
       Map<String, Object> actualBody = convertMap(intake.getLastRequest().getBody());
       assertDeepEquals(expectedRequestBody, actualBody);
