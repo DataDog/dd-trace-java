@@ -7,7 +7,6 @@ import datadog.trace.api.time.TimeSource;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.core.CoreTracer.ConfigSnapshot;
 import datadog.trace.core.monitor.HealthMetrics;
-import datadog.trace.core.scopemanager.ContinuationDiagnostics;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
@@ -377,7 +376,6 @@ public class PendingTrace extends TraceCollector implements PendingTraceBuffer.E
         synchronized (this) {
           if (!isPartial) {
             rootSpanWritten = true;
-            ContinuationDiagnostics.notifyRootWritten(traceId);
           }
           int size = size();
           boolean writeRunningSpans =

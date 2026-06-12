@@ -13,7 +13,7 @@ import org.junit.jupiter.api.Test;
 
 /**
  * Exercises the full path: a real {@link CoreTracer} capturing continuations via {@code
- * captureSpan} drives {@code ScopeContinuation} -> {@code ContinuationDiagnostics} -> {@link
+ * captureSpan} drives {@code ScopeContinuation} -> {@code ScopeContinuationProbe} -> {@link
  * ScopeDiagnostics}, and the derived report classifies the leak correctly.
  */
 class ScopeDiagnosticsIntegrationTest {

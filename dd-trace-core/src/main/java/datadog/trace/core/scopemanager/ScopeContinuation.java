@@ -64,13 +64,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
   ScopeContinuation register() {
     traceCollector.registerContinuation(this);
     scopeManager.healthMetrics.onCaptureContinuation();
-    final ContinuationDiagnostics.Listener listener = ContinuationDiagnostics.listener();
-    if (listener != null) {
-      final AgentSpan span = span();
-      if (span != null) {
-        listener.onCapture(this, span.getTraceId(), span.getSpanId(), source);
-      }
-    }
     return this;
   }
 
@@ -85,13 +78,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
   public AgentScope activate() {
     if (COUNT.incrementAndGet(this) > 0) {
       // speculative update succeeded, continuation can be activated
-      final ContinuationDiagnostics.Listener listener = ContinuationDiagnostics.listener();
-      if (listener != null) {
-        final AgentSpan span = span();
-        if (span != null) {
-          listener.onActivate(this, span.getTraceId(), span.getSpanId(), source);
-        }
-      }
       return scopeManager.continueSpan(this, context, source);
     } else {
       // continuation cancelled or too many activations; rollback count
@@ -113,22 +99,11 @@ final class ScopeContinuation implements AgentScope.Continuation {
       if (COUNT.compareAndSet(this, current, CANCELLED)) {
         traceCollector.removeContinuation(this);
         scopeManager.healthMetrics.onFinishContinuation();
-        notifyResolve(false);
         return;
       }
       current = count;
     }
-    // Reaching here means cancel() was called while activations are still outstanding: it does
-    // not de-reference the continuation (the active scopes will, on close), so it is not a
-    // resolution for leak-tracking purposes — only the existing health metric is recorded.
     scopeManager.healthMetrics.onCancelContinuation();
-  }
-
-  private void notifyResolve(final boolean cancelled) {
-    final ContinuationDiagnostics.Listener listener = ContinuationDiagnostics.listener();
-    if (listener != null) {
-      listener.onResolve(this, cancelled);
-    }
   }
 
   void cancelFromContinuedScopeClose() {
@@ -136,7 +111,6 @@ final class ScopeContinuation implements AgentScope.Continuation {
       // fast path: only one activation of the continuation (no hold)
       traceCollector.removeContinuation(this);
       scopeManager.healthMetrics.onFinishContinuation();
-      notifyResolve(false);
     } else if (COUNT.decrementAndGet(this) == 0) {
       // slow path: multiple activations, all have now closed (no hold)
       cancel();

@@ -2,7 +2,6 @@ package datadog.trace.agent.test.scopediag;
 
 import datadog.trace.api.DDTraceId;
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
-import datadog.trace.core.scopemanager.ContinuationDiagnostics;
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -21,8 +20,8 @@ import org.slf4j.LoggerFactory;
 /**
  * Test-time engine that records scope-continuation lifecycle events and renders leak reports.
  *
- * <p>It installs itself as the {@link ContinuationDiagnostics.Listener} while recording and
- * correlates events by continuation identity (an {@link IdentityHashMap}, never {@code
+ * <p>While recording, {@link ScopeContinuationProbe} (test-only bytecode advice) feeds it lifecycle
+ * events, which it correlates by continuation identity (an {@link IdentityHashMap}, never {@code
  * equals}/{@code hashCode}). It assumes a single test runs at a time per JVM (true for
  * instrumentation tests); {@link #reset()} isolates one test from the next.
  *
@@ -64,12 +63,12 @@ public final class ScopeDiagnostics {
   public static void startRecording(int maxFrames) {
     INSTANCE.reset();
     INSTANCE.stackFilter = new StackFilter(maxFrames);
-    ContinuationDiagnostics.install(INSTANCE.listener);
+    ScopeContinuationProbe.enable();
   }
 
-  /** Stops recording (uninstalls the listener). Recorded data remains queryable until reset. */
+  /** Stops recording (the probe goes inert). Recorded data remains queryable until reset. */
   public static void stop() {
-    ContinuationDiagnostics.clear();
+    ScopeContinuationProbe.disable();
   }
 
   /** Discards all recorded data. */
@@ -77,6 +76,7 @@ public final class ScopeDiagnostics {
     INSTANCE.records.clear();
     INSTANCE.rootWrittenNanos.clear();
     INSTANCE.seq.set(0);
+    ScopeContinuationProbe.reset();
   }
 
   /** Builds an immutable snapshot report of everything recorded so far. */
@@ -135,8 +135,27 @@ public final class ScopeDiagnostics {
         stackFilter.filter(new Throwable().getStackTrace()));
   }
 
-  private final class Listener implements ContinuationDiagnostics.Listener {
-    @Override
+  // ---- static forwarders called by ScopeContinuationProbe ------------------
+
+  static void recordCapture(
+      AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
+    INSTANCE.listener.onCapture(id, traceId, spanId, source);
+  }
+
+  static void recordActivate(
+      AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
+    INSTANCE.listener.onActivate(id, traceId, spanId, source);
+  }
+
+  static void recordResolve(AgentScope.Continuation id, boolean cancelled) {
+    INSTANCE.listener.onResolve(id, cancelled);
+  }
+
+  static void recordRootWritten(DDTraceId traceId) {
+    INSTANCE.listener.onRootWritten(traceId);
+  }
+
+  private final class Listener {
     public void onCapture(AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
       try {
         ContinuationRecord record =
@@ -153,7 +172,6 @@ public final class ScopeDiagnostics {
       }
     }
 
-    @Override
     public void onActivate(
         AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
       try {
@@ -162,7 +180,6 @@ public final class ScopeDiagnostics {
       }
     }
 
-    @Override
     public void onResolve(AgentScope.Continuation id, boolean cancelled) {
       try {
         ScopeEvent.Type type =
@@ -172,7 +189,6 @@ public final class ScopeDiagnostics {
       }
     }
 
-    @Override
     public void onRootWritten(DDTraceId traceId) {
       try {
         rootWrittenNanos.putIfAbsent(traceId, System.nanoTime());
