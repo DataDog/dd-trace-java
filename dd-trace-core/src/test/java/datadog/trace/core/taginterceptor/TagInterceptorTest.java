@@ -5,6 +5,9 @@ import static datadog.trace.api.DDTags.ANALYTICS_SAMPLE_RATE;
 import static datadog.trace.api.TracePropagationStyle.DATADOG;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.TracerConfig.SPLIT_BY_TAGS;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_METHOD;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_STATUS;
+import static datadog.trace.bootstrap.instrumentation.api.Tags.HTTP_URL;
 import static datadog.trace.junit.utils.config.WithConfigExtension.injectSysConfig;
 import static java.util.Collections.emptySet;
 import static java.util.Collections.singletonMap;
@@ -44,7 +47,7 @@ import datadog.trace.core.propagation.ExtractedContext;
 import datadog.trace.core.propagation.PropagationTags;
 import datadog.trace.junit.utils.config.WithConfig;
 import datadog.trace.junit.utils.converter.ConfigDefaultsConverter;
-import datadog.trace.junit.utils.tabletest.DDTagsConverter;
+import datadog.trace.junit.utils.converter.TagsConverter;
 import java.util.Collections;
 import java.util.Map;
 import java.util.function.Function;
@@ -74,8 +77,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     "sn.tag2 other      | 'sn.tag2'             | 'other-service' | 'other-service'"
   })
   @WithConfig(key = "dd.trace.PeerServiceTagInterceptor.enabled", value = "true", addPrefix = false)
-  void setServiceName(
-      @ConvertWith(DDTagsConverter.class) String tag, String name, String expected) {
+  void setServiceName(@ConvertWith(TagsConverter.class) String tag, String name, String expected) {
     Map<String, String> mapping = singletonMap("some-service", "new-service");
     CoreTracer tracer =
         tracerBuilder()
@@ -115,7 +117,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
         arguments(DEFAULT_SERVICE_NAME, "new-service",        singletonMap(DEFAULT_SERVICE_NAME, "new-service")),
         arguments("other-service-name", "other-service",      singletonMap("other-service-name", "other-service"))
         // spotless:on
-    );
+        );
   }
 
   @TableTest({
@@ -213,8 +215,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
             .writer(new LoggingWriter())
             .sampler(new AllSampler())
             .tagInterceptor(
-                new TagInterceptor(
-                    false, "my-service", emptySet(), new RuleFlags(), jeeActive))
+                new TagInterceptor(false, "my-service", emptySet(), new RuleFlags(), jeeActive))
             .build();
 
     AgentSpan span = tracer.buildSpan("datadog", "some span").start();
@@ -592,7 +593,7 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
     "sn.tag1      | 'sn.tag1'             | 'new-service' | 'new-service' "
   })
   void disablingServiceDecoratorDoesNotDisableSplitByTags(
-      @ConvertWith(DDTagsConverter.class) String tag, String name, String expected) {
+      @ConvertWith(TagsConverter.class) String tag, String name, String expected) {
     injectSysConfig("dd.trace.ServiceNameTagInterceptor.enabled", "false", false);
 
     CoreTracer tracer =
@@ -664,33 +665,39 @@ class TagInterceptorTest extends DDCoreJavaSpecification {
   }
 
   @TableTest({
-    "scenario     | value                       | resourceName        | meta                    ",
-    "null url     |                             | 'fakeOperation'     | [:]                     ",
-    "space url    | ' '                         | '/'                 | [:]                     ",
-    "tab url      | '\t'                        | '/'                 | [:]                     ",
-    "simple path  | '/path'                     | '/path'             | [:]                     ",
-    "complex path | '/ABC/a-1/b_2/c.3/d4d/5f/6' | '/ABC/?/?/?/?/?/?'  | [:]                     ",
-    "not found    | '/not-found'                | '404'               | [Tags.HTTP_STATUS: 404] ",
-    "with method  | '/with-method'              | 'POST /with-method' | [Tags.HTTP_METHOD: Post]"
+    "scenario     | URL                         | tags | expectedResourceName",
+    "null url     |                             |      | 'fakeOperation'     ",
+    "space url    | ' '                         |      | '/'                 ",
+    "tab url      | '\t'                        |      | '/'                 ",
+    "simple path  | '/path'                     |      | '/path'             ",
+    "complex path | '/ABC/a-1/b_2/c.3/d4d/5f/6' |      | '/ABC/?/?/?/?/?/?'  "
   })
+  @ParameterizedTest
+  @MethodSource("urlAsResourceNameRuleSetsTheResourceNameArguments")
   void urlAsResourceNameRuleSetsTheResourceName(
-      String value,
-      String resourceName,
-      @ConvertWith(DDTagsConverter.class) Map<String, String> meta) {
+      String url, Map<String, String> tags, String expectedResourceName) {
     CoreTracer tracer = tracerBuilder().writer(new ListWriter()).build();
 
     AgentSpan span = tracer.buildSpan("datadog", "fakeOperation").start();
-    for (Map.Entry<String, String> entry : meta.entrySet()) {
-      span.setTag(entry.getKey(), entry.getValue());
+    span.setTag(HTTP_URL, url);
+    if (tags != null) {
+      tags.forEach(span::setTag);
     }
 
-    span.setTag(Tags.HTTP_URL, value);
-
     try {
-      assertEquals(resourceName, span.getResourceName().toString());
+      assertEquals(expectedResourceName, span.getResourceName().toString());
     } finally {
       span.finish();
     }
+  }
+
+  static Stream<Arguments> urlAsResourceNameRuleSetsTheResourceNameArguments() {
+    return Stream.of(
+        // spotless:off
+          arguments("/not-found", singletonMap(HTTP_STATUS, "404"), "404"),
+          arguments("/with-method", singletonMap(HTTP_METHOD, "Post"), "POST /with-method")
+        // spotless:on
+        );
   }
 
   @Test

@@ -32,7 +32,7 @@ public abstract class AbstractClassConstantConvertor<T> implements ArgumentConve
       s = s.substring(length + 1);
     }
     T mappedValue = mapping().get(s);
-    if (mappedValue == null) {
+    if (mappedValue == null && throwsOnUnsupportedValue()) {
       throw new ArgumentConversionException(
           "Unsupported constant " + source + " from " + className);
     }
@@ -41,5 +41,19 @@ public abstract class AbstractClassConstantConvertor<T> implements ArgumentConve
 
   protected boolean throwsOnUnsupportedValue() {
     return true;
+  }
+
+  public abstract static class AbstractStringFallThruConverter
+      extends AbstractClassConstantConvertor<String> {
+    @Override
+    public String convert(Object source, ParameterContext context) {
+      String convert = super.convert(source, context);
+      return convert == null ? source.toString() : convert;
+    }
+
+    @Override
+    protected boolean throwsOnUnsupportedValue() {
+      return false;
+    }
   }
 }
