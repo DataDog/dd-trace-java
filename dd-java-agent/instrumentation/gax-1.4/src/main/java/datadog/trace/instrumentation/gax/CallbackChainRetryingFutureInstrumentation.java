@@ -27,10 +27,9 @@ import net.bytebuddy.asm.Advice;
  * be activated or canceled.
  *
  * <p>Each {@code setAttemptFuture} overwrites the previous listener: that overwrite is the
- * abandonment signal. On method entry, before the field is reassigned, we read the previous
- * listener and cancel its continuation. This is a no-op for a listener that already ran (its
- * continuation was reset on execution) and only ever cancels the superseded placeholder, so the
- * real RPC listener keeps its continuation and resolves normally.
+ * abandonment signal. We capture the previous listener on entry but cancel its continuation on
+ * exit, once the field has actually been replaced, so a listener GAX still treats as active (early
+ * return, or a completion racing the overwrite) keeps its continuation.
  */
 @AutoService(InstrumenterModule.class)
 public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModule.ContextTracking
@@ -61,9 +60,18 @@ public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModu
 
   public static class SetAttemptFutureAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
-    public static void cancelSuperseded(
+    public static Runnable capturePrevious(
         @Advice.FieldValue("attemptFutureCompletionListener") final Runnable previousListener) {
-      if (previousListener != null) {
+      return previousListener;
+    }
+
+    @Advice.OnMethodExit(suppress = Throwable.class)
+    public static void cancelSuperseded(
+        @Advice.Enter final Runnable previousListener,
+        @Advice.FieldValue("attemptFutureCompletionListener") final Runnable newListener) {
+      // Only cancel once the field has actually been replaced: GAX may return early without
+      // reassigning, and a listener still treated as active must keep its continuation.
+      if (previousListener != null && previousListener != newListener) {
         final ContextStore<Runnable, State> contextStore =
             InstrumentationContext.get(Runnable.class, State.class);
         final State state = contextStore.remove(previousListener);
