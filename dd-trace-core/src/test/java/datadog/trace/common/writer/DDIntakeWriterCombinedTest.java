@@ -40,6 +40,7 @@ import java.util.concurrent.Semaphore;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import okhttp3.HttpUrl;
+import okhttp3.OkHttpClient;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -322,7 +323,7 @@ class DDIntakeWriterCombinedTest extends DDCoreJavaSpecification {
                 server.handlers(h -> h.post(path, api -> api.getResponse().status(200).send())));
     try {
       HttpUrl hostUrl = HttpUrl.get(intake.getAddress());
-      okhttp3.OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
+      OkHttpClient httpClient = OkHttpUtils.buildHttpClient(hostUrl, 1000);
       DDIntakeApi api =
           DDIntakeApi.builder()
               .hostUrl(hostUrl)
