@@ -195,7 +195,7 @@ public class W3CPTagsCodec extends PTagsCodec {
         value,
         firstMemberStart,
         ddMemberStart,
-        ddMemberValueEnd,
+        ddTagsEnd,
         maxUnknownSize,
         lastParentId,
         orgPropagationMarkerTagValue);
