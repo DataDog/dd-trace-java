@@ -36,7 +36,7 @@ public class CallbackChainRetryingFutureInstrumentation extends InstrumenterModu
     implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
 
   public CallbackChainRetryingFutureInstrumentation() {
-    super("gax");
+    super("gax", "gax-1.4");
   }
 
   @Override
