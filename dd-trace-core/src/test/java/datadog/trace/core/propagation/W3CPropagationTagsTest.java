@@ -266,7 +266,12 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     "tid negative                            | 'dd=t.tid:-123456789abcdef'                                            |                                                      | ['_dd.propagation_error': 'malformed_tid -123456789abcdef'] ",
     "dd with trailing separator              | 'dd=s:0;t.dm:934086a686-4;'                                            | 'dd=s:0;t.dm:934086a686-4'                           | [_dd.p.dm: 934086a686-4]                                    ",
     "dd single tag trailing separator        | 'dd=t.dm:934086a686-4;'                                                | 'dd=t.dm:934086a686-4'                               | [_dd.p.dm: 934086a686-4]                                    ",
-    "dd before other trailing separator      | 'dd=s:0;t.dm:934086a687-3;,other=whatever'                             | 'dd=s:0;t.dm:934086a687-3,other=whatever'            | [_dd.p.dm: 934086a687-3]                                    "
+    "dd before other trailing separator      | 'dd=s:0;t.dm:934086a687-3;,other=whatever'                             | 'dd=s:0;t.dm:934086a687-3,other=whatever'            | [_dd.p.dm: 934086a687-3]                                    ",
+    "dd trailing separator then ws           | 'dd=s:0;t.dm:934086a686-4;  '                                          | 'dd=s:0;t.dm:934086a686-4'                           | [_dd.p.dm: 934086a686-4]                                    ",
+    "dd trailing separator then tab          | 'dd=s:0;t.dm:934086a686-4;\t'                                          | 'dd=s:0;t.dm:934086a686-4'                           | [_dd.p.dm: 934086a686-4]                                    ",
+    "dd trailing separator ws then comma     | 'dd=s:0;t.dm:934086a687-3;  ,other=whatever'                           | 'dd=s:0;t.dm:934086a687-3,other=whatever'            | [_dd.p.dm: 934086a687-3]                                    ",
+    "dd interior ws between submembers       | 'dd=s:0;t.dm:934086a686-4;  t.x:y'                                     |                                                      | [:]                                                         ",
+    "dd interior single space submember      | 'dd=s:0; t.dm:934086a686-4'                                            |                                                      | [:]                                                         "
   })
   void createPropagationTagsFromHeaderValue(
       String headerValue, String expectedHeaderValue, Map<String, String> tags) {
@@ -280,7 +285,8 @@ class W3CPropagationTagsTest extends DDCoreJavaSpecification {
     "scenario                          | headerValue              | expectedLastParentId | expectedHeaderValue    ",
     "parent id                         | 'dd=p:b6241412414a'      | b6241412414a         | 'dd=p:b6241412414a'    ",
     "parent id with trailing separator | 'dd=p:b6241412414a;'     | b6241412414a         | 'dd=p:b6241412414a'    ",
-    "sampling then parent id trailing  | 'dd=s:1;p:b6241412414a;' | b6241412414a         | 'dd=s:1;p:b6241412414a'"
+    "sampling then parent id trailing  | 'dd=s:1;p:b6241412414a;' | b6241412414a         | 'dd=s:1;p:b6241412414a'",
+    "parent id trailing separator ws   | 'dd=p:b6241412414a;  '   | b6241412414a         | 'dd=p:b6241412414a'    "
   })
   void extractsLastParentIdWithTrailingSeparator(
       String headerValue, String expectedLastParentId, String expectedHeaderValue) {
