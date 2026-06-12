@@ -19,6 +19,7 @@ public final class ReactiveStreamsModule extends InstrumenterModule.ContextTrack
   @Override
   public String[] helperClassNames() {
     return new String[] {
+      packageName + ".ReactiveStreamsContextPropagation",
       packageName + ".ReactiveStreamsAsyncResultExtension",
       packageName + ".ReactiveStreamsAsyncResultExtension$WrappedPublisher",
       packageName + ".ReactiveStreamsAsyncResultExtension$WrappedSubscriber",

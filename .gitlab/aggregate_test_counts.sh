@@ -471,7 +471,7 @@ done <<-EOF  # <<- strips leading tabs
 	EOF
 
 # Find and validate test count files
-mapfile -t VALID_FILES < <(find_and_validate_test_files "." "$OUTPUT_FILE")
+mapfile -t VALID_FILES < <(find_and_validate_test_files "$AGGREGATE_DIR" "$OUTPUT_FILE")
 if [ ${#VALID_FILES[@]} -eq 0 ]; then
     exit 0
 fi

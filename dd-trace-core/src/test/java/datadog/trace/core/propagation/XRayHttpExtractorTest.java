@@ -1,6 +1,7 @@
 package datadog.trace.core.propagation;
 
 import static datadog.trace.bootstrap.instrumentation.api.ContextVisitors.stringValuesMap;
+import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -69,19 +70,20 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
       String traceId,
       String spanId,
       String samplingPriority,
-      @ConvertWith(PrioritySamplingConverter.class) int expectedSamplingPriority) {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(
-        "X-Amzn-Trace-Id",
-        "Root=1-00000000-00000000"
+      @ConvertWith(PrioritySamplingConverter.class) byte expectedSamplingPriority) {
+    // spotless:off
+    Map<String, String> headers = headers(
+        "X-Amzn-Trace-Id", "Root=1-00000000-00000000"
             + padLeft(traceId, 16, '0')
             + ";Parent="
             + padLeft(spanId, 16, '0')
             + samplingPriority
-            + ";=empty key;empty value=;=;;");
-    headers.put(SOME_HEADER, "my-interesting-info");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info");
-    headers.put(SOME_CUSTOM_BAGGAGE_HEADER_2, "my-interesting-baggage-info-2");
+            + ";=empty key;empty value=;=;;",
+        SOME_HEADER, "my-interesting-info",
+        SOME_CUSTOM_BAGGAGE_HEADER, "my-interesting-baggage-info",
+        SOME_CUSTOM_BAGGAGE_HEADER_2,"my-interesting-baggage-info-2"
+    );
+    // spotless:on
 
     ExtractedContext context = (ExtractedContext) extractor.extract(headers, stringValuesMap());
 
@@ -99,7 +101,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractHeaderTagsWithNoPropagation() {
-    Map<String, String> headers = singletonMap(SOME_HEADER, "my-interesting-info");
+    Map<String, String> headers = headers(SOME_HEADER, "my-interesting-info");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -112,11 +114,13 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
     String forwarded = "for=" + forwardedIp + ":" + forwardedPort;
-    Map<String, String> tagOnlyCtx = singletonMap("Forwarded", forwarded);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
-    fullCtx.put(
-        "x-amzn-trace-id", "Root=1-00000000-000000000000000000000001;Parent=0000000000000002");
-    fullCtx.put("Forwarded", forwarded);
+    Map<String, String> tagOnlyCtx = headers("Forwarded", forwarded);
+    // spotless:off
+    Map<String, String> fullCtx = headers(
+        "x-amzn-trace-id", "Root=1-00000000-000000000000000000000001;Parent=0000000000000002",
+        "Forwarded", forwarded
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
@@ -136,14 +140,17 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   void extractHeadersWithXForwarding() {
     String forwardedIp = "1.2.3.4";
     String forwardedPort = "1234";
-    Map<String, String> tagOnlyCtx = new LinkedHashMap<>();
-    tagOnlyCtx.put("X-Forwarded-For", forwardedIp);
-    tagOnlyCtx.put("X-Forwarded-Port", forwardedPort);
-    Map<String, String> fullCtx = new LinkedHashMap<>();
-    fullCtx.put(
-        "x-amzn-trace-id", "Root=1-00000000-000000000000000000000001;Parent=0000000000000002");
-    fullCtx.put("x-forwarded-for", forwardedIp);
-    fullCtx.put("x-forwarded-port", forwardedPort);
+    // spotless:off
+    Map<String, String> tagOnlyCtx = headers(
+        "X-Forwarded-For", forwardedIp,
+        "X-Forwarded-Port", forwardedPort
+    );
+    Map<String, String> fullCtx = headers(
+        "x-amzn-trace-id", "Root=1-00000000-000000000000000000000001;Parent=0000000000000002",
+        "x-forwarded-for", forwardedIp,
+        "x-forwarded-port", forwardedPort
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(tagOnlyCtx, stringValuesMap());
 
@@ -163,16 +170,17 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void noContextWithEmptyHeaders() {
-    assertNull(
-        extractor.extract(singletonMap("ignored-header", "ignored-value"), stringValuesMap()));
+    assertNull(extractor.extract(headers("ignored-header", "ignored-value"), stringValuesMap()));
   }
 
   @Test
   void noContextWithInvalidNonNumericId() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(
-        "x-amzn-trace-Id", "Root=1-00000000-00000000000000000traceId;Parent=0000000000spanId");
-    headers.put(SOME_HEADER, "my-interesting-info");
+    // spotless:off
+    Map<String, String> headers = headers(
+        "x-amzn-trace-Id", "Root=1-00000000-00000000000000000traceId;Parent=0000000000spanId",
+        SOME_HEADER, "my-interesting-info"
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
@@ -182,7 +190,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   @Test
   void noContextWithTooLargeTraceId() {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id", "Root=1-5759e988-bd862e3fe1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
@@ -193,7 +201,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   @Test
   void extractHttpHeadersWithNonZeroEpoch() {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id", "Root=1-5759e988-00000000e1be46a994272793;Parent=53995c3f42cd8ad8");
 
     TagContext context = extractor.extract(headers, stringValuesMap());
@@ -214,7 +222,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   void extractIdsWhileRetainingTheOriginalString(
       String traceId, String spanId, String expectedTraceIdHex, long expectedSpanId) {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id",
             "Root=1-00000000-00000000"
                 + padLeft(traceId, 16, '0')
@@ -236,7 +244,7 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
   })
   void extractHeadersWithEndToEnd(String traceId, String spanId, long endToEndStartTime) {
     Map<String, String> headers =
-        singletonMap(
+        headers(
             "X-Amzn-Trace-Id",
             "Root=1-00000000-00000000"
                 + padLeft(traceId, 16, '0')
@@ -259,17 +267,20 @@ class XRayHttpExtractorTest extends DDJavaSpecification {
 
   @Test
   void extractCommonHttpHeaders() {
-    Map<String, String> headers = new LinkedHashMap<>();
-    headers.put(HttpCodec.USER_AGENT_KEY, "some-user-agent");
-    headers.put(HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1");
-    headers.put(HttpCodec.X_REAL_IP_KEY, "2.2.2.2");
-    headers.put(HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3");
-    headers.put(HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4");
-    headers.put(HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5");
-    headers.put(HttpCodec.FORWARDED_KEY, "6.6.6.6");
-    headers.put(HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7");
-    headers.put(HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8");
-    headers.put(HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9");
+    // spotless:off
+    Map<String, String> headers = headers(
+        HttpCodec.USER_AGENT_KEY, "some-user-agent",
+        HttpCodec.X_CLUSTER_CLIENT_IP_KEY, "1.1.1.1",
+        HttpCodec.X_REAL_IP_KEY, "2.2.2.2",
+        HttpCodec.X_CLIENT_IP_KEY, "3.3.3.3",
+        HttpCodec.TRUE_CLIENT_IP_KEY, "4.4.4.4",
+        HttpCodec.FORWARDED_FOR_KEY, "5.5.5.5",
+        HttpCodec.FORWARDED_KEY, "6.6.6.6",
+        HttpCodec.FASTLY_CLIENT_IP_KEY, "7.7.7.7",
+        HttpCodec.CF_CONNECTING_IP_KEY, "8.8.8.8",
+        HttpCodec.CF_CONNECTING_IP_V6_KEY, "9.9.9.9"
+    );
+    // spotless:on
 
     TagContext context = extractor.extract(headers, stringValuesMap());
 
