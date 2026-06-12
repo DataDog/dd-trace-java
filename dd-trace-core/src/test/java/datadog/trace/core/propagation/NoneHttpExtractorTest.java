@@ -28,7 +28,7 @@ import datadog.trace.api.config.TracerConfig;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.TraceIdConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -75,10 +75,10 @@ class NoneHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario     | traceId          | spanId          ",
-    "no origin    | '1'              | '2'             ",
-    "uint64 max   | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1'",
-    "uint64 max-1 | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'  "
+    "scenario     | traceId | spanId ",
+    "no origin    | '1'     | '2'    ",
+    "uint64 max   | 'MAX'   | 'MAX-1'",
+    "uint64 max-1 | 'MAX-1' | 'MAX'  "
   })
   void extractHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,

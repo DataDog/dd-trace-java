@@ -24,7 +24,7 @@ import datadog.trace.api.DDSpanId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -63,12 +63,12 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceIdHex         | spanIdHex          | samplingPriority | expectedSamplingPriority     ",
-    "no priority       | '1'                | '2'                |                  | PrioritySampling.UNSET       ",
-    "sampler keep      | '2'                | '3'                | 1                | PrioritySampling.SAMPLER_KEEP",
-    "sampler drop      | '3'                | '4'                | 0                | PrioritySampling.SAMPLER_DROP",
-    "uint64 max drop   | 'ffffffffffffffff' | 'fffffffffffffffe' | 0                | PrioritySampling.SAMPLER_DROP",
-    "uint64 max-1 keep | 'fffffffffffffffe' | 'ffffffffffffffff' | 1                | PrioritySampling.SAMPLER_KEEP"
+    "scenario          | traceIdHex         | spanIdHex          | samplingPriority | expectedSamplingPriority",
+    "no priority       | '1'                | '2'                |                  | UNSET                   ",
+    "sampler keep      | '2'                | '3'                | 1                | SAMPLER_KEEP            ",
+    "sampler drop      | '3'                | '4'                | 0                | SAMPLER_DROP            ",
+    "uint64 max drop   | 'ffffffffffffffff' | 'fffffffffffffffe' | 0                | SAMPLER_DROP            ",
+    "uint64 max-1 keep | 'fffffffffffffffe' | 'ffffffffffffffff' | 1                | SAMPLER_KEEP            "
   })
   void extractHttpHeaders(
       String traceIdHex,
@@ -95,11 +95,11 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority     ",
-    "b3 takes precedence   | '2-3-0' | '2'                | 3              | PrioritySampling.SAMPLER_DROP",
-    "b3 without priority   | '2-3'   | '2'                | 3              | PrioritySampling.UNSET       ",
-    "invalid b3 falls back | '0'     | '1'                | 2              | PrioritySampling.SAMPLER_KEEP",
-    "absent b3 falls back  |         | '1'                | 2              | PrioritySampling.SAMPLER_KEEP"
+    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority",
+    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_DROP            ",
+    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET                   ",
+    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_KEEP            ",
+    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_KEEP            "
   })
   void extractHttpHeadersWithB3HeaderAtTheBeginning(
       String b3,
@@ -127,11 +127,11 @@ class B3HttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority     ",
-    "b3 takes precedence   | '2-3-0' | '2'                | 3              | PrioritySampling.SAMPLER_DROP",
-    "b3 without priority   | '2-3'   | '2'                | 3              | PrioritySampling.UNSET       ",
-    "invalid b3 falls back | '0'     | '1'                | 2              | PrioritySampling.SAMPLER_KEEP",
-    "absent b3 falls back  |         | '1'                | 2              | PrioritySampling.SAMPLER_KEEP"
+    "scenario              | b3      | expectedTraceIdHex | expectedSpanId | expectedSamplingPriority",
+    "b3 takes precedence   | '2-3-0' | '2'                | 3              | SAMPLER_DROP            ",
+    "b3 without priority   | '2-3'   | '2'                | 3              | UNSET                   ",
+    "invalid b3 falls back | '0'     | '1'                | 2              | SAMPLER_KEEP            ",
+    "absent b3 falls back  |         | '1'                | 2              | SAMPLER_KEEP            "
   })
   void extractHttpHeadersWithB3HeaderAtTheEnd(
       String b3,
