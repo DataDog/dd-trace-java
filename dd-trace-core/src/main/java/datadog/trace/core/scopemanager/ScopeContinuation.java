@@ -118,8 +118,10 @@ final class ScopeContinuation implements AgentScope.Continuation {
       }
       current = count;
     }
+    // Reaching here means cancel() was called while activations are still outstanding: it does
+    // not de-reference the continuation (the active scopes will, on close), so it is not a
+    // resolution for leak-tracking purposes — only the existing health metric is recorded.
     scopeManager.healthMetrics.onCancelContinuation();
-    notifyResolve(true);
   }
 
   private void notifyResolve(final boolean cancelled) {
