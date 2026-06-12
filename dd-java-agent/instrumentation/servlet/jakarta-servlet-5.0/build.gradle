@@ -37,7 +37,7 @@ tasks.register('relocatedJavaxJar', ShadowJar) {
 
   archiveClassifier.set('relocated-javax')
 
-  configurations = [project.configurations.javaxClassesToRelocate]
+  configurations.add(project.configurations.named('javaxClassesToRelocate'))
 
   include '**/*.jar'
   include '**/Servlet31InputStreamWrapper.class'

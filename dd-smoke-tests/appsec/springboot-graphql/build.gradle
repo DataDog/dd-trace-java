@@ -1,4 +1,5 @@
 import com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar
+import com.github.jengelman.gradle.plugins.shadow.transformers.PropertiesFileTransformer
 
 plugins {
   id 'com.gradleup.shadow'
@@ -16,8 +17,23 @@ jar {
 }
 
 shadowJar {
-  mergeServiceFiles {
-    include 'META-INF/spring.*'
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
+  mergeServiceFiles()
+  append 'META-INF/spring.handlers'
+  append 'META-INF/spring.schemas'
+  append 'META-INF/spring.tooling'
+  transform(PropertiesFileTransformer) {
+    paths = ['META-INF/spring.factories']
+    mergeStrategy = "append"
+  }
+  filesNotMatching([
+    'META-INF/services/**',
+    'META-INF/spring.handlers',
+    'META-INF/spring.schemas',
+    'META-INF/spring.tooling',
+    'META-INF/spring.factories',
+  ]) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
 }
 

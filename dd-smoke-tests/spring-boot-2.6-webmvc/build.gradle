@@ -18,7 +18,8 @@ tasks.named("jar", Jar) {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  configurations = [project.configurations.runtimeClasspath]
+  configurations.add(project.configurations.named('runtimeClasspath'))
+  duplicatesStrategy = DuplicatesStrategy.INCLUDE
   mergeServiceFiles()
   append 'META-INF/spring.handlers'
   append 'META-INF/spring.schemas'
@@ -26,6 +27,15 @@ tasks.named("shadowJar", ShadowJar) {
   transform(PropertiesFileTransformer) {
     paths = ['META-INF/spring.factories']
     mergeStrategy = "append"
+  }
+  filesNotMatching([
+    'META-INF/services/**',
+    'META-INF/spring.handlers',
+    'META-INF/spring.schemas',
+    'META-INF/spring.tooling',
+    'META-INF/spring.factories',
+  ]) {
+    duplicatesStrategy = DuplicatesStrategy.EXCLUDE
   }
 }
 

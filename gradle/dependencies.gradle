@@ -7,7 +7,12 @@ final class CachedData {
     // Inverse of "shared".  These exclude directives are part of shadowJar's DSL
     // which is similar but not exactly the same as the regular gradle dependency{} block
     // Also, transitive dependencies have to be explicitly listed
-    excludeShared        : (Closure) {
+    excludeShared        : (Closure) { Object filter = null ->
+      def spec = filter ?: delegate
+      def project = { notation -> spec.project(notation) }
+      def dependency = { notation -> spec.dependency(notation) }
+      def exclude = { notation -> spec.exclude(notation) }
+
       // projects bundled with shared or on bootstrap
       exclude(project(':dd-java-agent:agent-bootstrap'))
       exclude(project(':dd-java-agent:agent-debugger:debugger-bootstrap'))
@@ -36,8 +41,8 @@ final class CachedData {
       exclude(project(':utils:version-utils'))
       exclude(project(':dd-java-agent:agent-crashtracking'))
       exclude(project(':dd-java-agent:ddprof-lib'))
-      exclude(dependency('org.slf4j::'))
-      exclude(dependency(':dd-instrument-java:'))
+      exclude(dependency('org.slf4j:.*:.*'))
+      exclude(dependency('.*:dd-instrument-java:.*'))
 
       // okhttp and its transitives (both fork and non-fork)
       exclude(dependency('com.datadoghq.okhttp3:okhttp'))
@@ -49,8 +54,8 @@ final class CachedData {
 
       // dogstatsd and its transitives
       exclude(dependency('com.datadoghq:java-dogstatsd-client'))
-      exclude(dependency('com.github.jnr::'))
-      exclude(dependency('org.ow2.asm::'))
+      exclude(dependency('com.github.jnr:.*:.*'))
+      exclude(dependency('org.ow2.asm:.*:.*'))
 
       // sketches-java used by dd-trace-core (DataStreams) and metrics
       exclude(dependency('com.datadoghq:sketches-java'))
@@ -59,13 +64,13 @@ final class CachedData {
       exclude(dependency('com.datadoghq:dd-javac-plugin-client'))
 
       // moshi and its transitives
-      exclude(dependency('com.squareup.moshi::'))
+      exclude(dependency('com.squareup.moshi:.*:.*'))
 
       // jctools and its transitives
-      exclude(dependency('org.jctools::'))
+      exclude(dependency('org.jctools:.*:.*'))
 
       // cafe_crypto and its transitives
-      exclude(dependency('cafe.cryptography::'))
+      exclude(dependency('cafe.cryptography:.*:.*'))
 
       // snakeyaml-engine and its transitives
       exclude(dependency('org.snakeyaml:snakeyaml-engine'))

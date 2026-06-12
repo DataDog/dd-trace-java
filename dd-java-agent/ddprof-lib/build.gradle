@@ -16,10 +16,8 @@ dependencies {
 }
 
 tasks.named("shadowJar", ShadowJar) {
-  dependencies {
-    deps.excludeShared
-    exclude '**/*.debug'
-  }
+  dependencies deps.excludeShared
+  exclude '**/*.debug'
   archiveClassifier = 'all'
   include {
     def rslt = false

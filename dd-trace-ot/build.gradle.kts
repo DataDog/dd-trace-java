@@ -119,12 +119,12 @@ tasks.named<com.github.jengelman.gradle.plugins.shadow.tasks.ShadowJar>("shadowJ
   dependencies {
     // direct dependencies
     exclude(project(":dd-trace-api"))
-    exclude(dependency("io.opentracing:"))
-    exclude(dependency("io.opentracing.contrib:"))
-    exclude(dependency("org.slf4j:"))
-    exclude(dependency("com.github.jnr:"))
+    exclude(dependency("io.opentracing:.*:.*"))
+    exclude(dependency("io.opentracing.contrib:.*:.*"))
+    exclude(dependency("org.slf4j:.*:.*"))
+    exclude(dependency("com.github.jnr:.*:.*"))
     // indirect dependency of JNR, no need to embed
-    exclude(dependency("org.ow2.asm:"))
+    exclude(dependency("org.ow2.asm:.*:.*"))
   }
 
   relocate("com.", "ddtrot.com.") {

@@ -81,8 +81,24 @@ dependencies {
 def generalShadowJarConfig(ShadowJar shadowJarTask) {
   shadowJarTask.with {
     mergeServiceFiles()
+    addMultiReleaseAttribute = false
 
     duplicatesStrategy = DuplicatesStrategy.FAIL
+    // Service descriptors are intentionally merged by mergeServiceFiles(); let
+    // duplicate service entries reach that transformer instead of failing first.
+    filesMatching('META-INF/services/**') {
+      duplicatesStrategy = DuplicatesStrategy.INCLUDE
+    }
+    // Vendored dependencies often repeat license/notice metadata. Keep one copy
+    // while still failing on unexpected duplicate runtime resources and classes.
+    filesMatching([
+      'META-INF/LICENSE*',
+      'META-INF/NOTICE*',
+      'META-INF/AL2.0',
+      'META-INF/LGPL2.1',
+    ]) {
+      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
 
     // Remove some cruft from the final jar.
     // These patterns should NOT include **/META-INF/maven/**/pom.properties, which is
@@ -99,6 +115,7 @@ def generalShadowJarConfig(ShadowJar shadowJarTask) {
     exclude '**/inst/META-INF/versions/**'
     exclude '**/META-INF/versions/*/org/yaml/**'
     exclude '**/package.html'
+    exclude '**/about.html'
 
     // Used to generate Java code during build, no need to include original file
     exclude '**/*.trie'
@@ -257,7 +274,7 @@ includeSubprojShadowJar(project(':products:metrics:metrics-lib'), 'metrics', inc
 includeSubprojShadowJar(project(':products:feature-flagging:feature-flagging-agent'), 'feature-flagging', includedJarFileTree)
 
 def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
-  it.configurations = [project.configurations.sharedShadowInclude]
+  it.configurations.add(project.configurations.named('sharedShadowInclude'))
   // Put the jar in a different directory so we don't overwrite the normal shadow jar and
   // break caching, and also to not interfere with CI scripts that copy everything in the
   // libs directory
@@ -275,16 +292,16 @@ def sharedShadowJar = tasks.register('sharedShadowJar', ShadowJar) {
     exclude(project(':utils:time-utils'))
     exclude(project(':products:metrics:metrics-api'))
     exclude(project(':products:metrics:metrics-agent'))
-    exclude(dependency('org.slf4j::'))
+    exclude(dependency('org.slf4j:.*:.*'))
     // use dd-instrument-java's embedded copy of asm
-    exclude(dependency('org.ow2.asm:asm:'))
+    exclude(dependency('org.ow2.asm:asm:.*'))
   }
 }
 includeShadowJar(sharedShadowJar, 'shared', includedJarFileTree)
 
 // place the tracer in its own shadow jar separate to instrumentation
 def traceShadowJar = tasks.register('traceShadowJar', ShadowJar) {
-  it.configurations = [project.configurations.traceShadowInclude]
+  it.configurations.add(project.configurations.named('traceShadowInclude'))
   it.destinationDirectory.set(project.layout.buildDirectory.dir("trace-lib"))
   it.archiveClassifier = 'trace'
   it.dependencies deps.excludeShared
@@ -299,7 +316,10 @@ tasks.named("shadowJar", ShadowJar) {
 
   generalShadowJarConfig(it)
 
-  configurations = [project.configurations.shadowInclude]
+  // The default shadowJar task has a runtimeClasspath convention. Replace it
+  // instead of adding to it, otherwise runtimeClasspath would be bundled too.
+  configurations.empty()
+  configurations.add(project.configurations.named('shadowInclude'))
 
   archiveClassifier = ''
 

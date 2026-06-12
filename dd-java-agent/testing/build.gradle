@@ -67,9 +67,9 @@ tasks.named("shadowJar", ShadowJar) {
   // Only bundle jetty dependencies into the jar (relocated)
   // All other dependencies remain as transitive dependencies
   dependencies {
-    include(dependency {
+    include {
       it.moduleGroup == 'org.eclipse.jetty' || it.moduleGroup == 'org.eclipse.jetty.http2'
-    })
+    }
   }
 
   // Relocate jetty classes to avoid conflicts with instrumented versions

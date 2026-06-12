@@ -1,7 +1,7 @@
 plugins {
   java
   id("com.diffplug.spotless") version "8.4.0"
-  id("com.gradleup.shadow") version "8.3.9"
+  id("com.gradleup.shadow") version "9.4.2"
 }
 
 java {
@@ -69,7 +69,13 @@ tasks {
   }
 
   shadowJar {
+    duplicatesStrategy = DuplicatesStrategy.INCLUDE
     mergeServiceFiles()
+    // Service descriptors are intentionally merged by mergeServiceFiles(); let
+    // duplicate service entries reach that transformer instead of failing first.
+    filesNotMatching("META-INF/services/**") {
+      duplicatesStrategy = DuplicatesStrategy.EXCLUDE
+    }
     manifest {
       attributes(mapOf("Main-Class" to "datadog.trace.plugin.csi.PluginApplication"))
     }
