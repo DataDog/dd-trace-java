@@ -273,7 +273,7 @@ BLOCKER rules include a grep pattern for mechanical detection.
 
 ### RULE-F01: Use byte for sampling priority and mechanism
 - **Severity**: BLOCKER
-- **Detection**: `\bint\b.*[Ss]ampling[Pp]riority\|\bint\b.*\bpriority\b\|\bint\b.*\bmechanism\b`
+- **Detection**: three separate greps (do not merge — `\b` plus `|` alternation misbehaves on some grep builds): `\bint\b.*[Ss]ampling[Pp]riority`, then `\bint\b.*\bpriority\b`, then `\bint\b.*\bmechanism\b`
 - **Before**:
   ```java
   int expectedSamplingPriority = PrioritySampling.SAMPLER_KEEP;
@@ -285,6 +285,8 @@ BLOCKER rules include a grep pattern for mechanical detection.
   byte mechanism = SamplingMechanism.DEFAULT;
   ```
 - **Notes**: `PrioritySampling` and `SamplingMechanism` constants are `byte`. Using `int` silently widens/narrows and can mask sign-extension bugs on comparisons.
+  Apply **only** when the value is assigned from, or compared against, a `PrioritySampling.*`/`SamplingMechanism.*` constant — a plain `int` counter, loop index, or unrelated field that happens to contain the word "priority"/"mechanism" is a false positive.
+  The detection pattern is broad; verify context before changing (and before auto-fixing, since `int` → `byte` can break compilation).
 
 ---
 
@@ -426,6 +428,8 @@ BLOCKER rules include a grep pattern for mechanical detection.
 - **Notes**: Package-private visibility is sufficient for test-internal sharing. Only upgrade to `public` if the constant is needed across packages.
 
 ---
+
+## Category J: API Correctness
 
 ### RULE-J02: Use ContextVisitors.stringValuesMap() for Map<String,String> carriers
 - **Severity**: WARNING

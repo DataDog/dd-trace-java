@@ -30,17 +30,21 @@ git diff "$MERGE_BASE" --name-only | grep 'src/test/java.*\.java$'
 
 ## Step 3 — Run grep-based detection
 
-For each rule with a grep `Detection` pattern, run it over the target files. Use the patterns from the rules file. Sample commands:
+For each rule with a grep `Detection` pattern, run it over the target files. Use the patterns from the rules file. The patterns below assume GNU/`ugrep`-compatible regex (`\b`, `\.`); alternation uses `grep -E "...|..."` so it also works under BSD grep — adapt if your `grep` differs.
 
 ```bash
-# RULE-C01
+# RULE-C01  (also fires on RULE-C02 lines — see dedup note below)
 grep -rn "assertTrue(.*instanceof" <files>
 
-# RULE-C02
-grep -rn "assertTrue(.*== null.*instanceof\|assertTrue(.*instanceof.*== null" <files>
+# RULE-C02  (more specific than C01)
+grep -rEn "assertTrue\(.*== *null.*instanceof|assertTrue\(.*instanceof.*== *null" <files>
 
-# RULE-F01
-grep -rn "int.*[Ss]ampling[Pp]riority\|int.*\bpriority\b\|int.*\bmechanism\b" <files>
+# RULE-F01  (BLOCKER, but verify context — see note below)
+# Run as three separate greps: word boundaries (\b) combined with | alternation
+# misbehave under some grep builds, so do not merge these into one alternation.
+grep -rEn "\bint\b.*[Ss]ampling[Pp]riority" <files>
+grep -rEn "\bint\b.*\bpriority\b" <files>
+grep -rEn "\bint\b.*\bmechanism\b" <files>
 
 # RULE-A02
 grep -rn '@WithConfig(key = "' <files>
@@ -58,20 +62,20 @@ grep -rn "mock(.*Map.*\.class)" <files>
 grep -rn "/\* [a-z]" <files>
 
 # RULE-G02
-grep -rn "() -> [a-zA-Z]*\.[a-zA-Z]*())" <files>
+grep -rEn "\(\) -> [a-zA-Z]+\.[a-zA-Z]+\(\)" <files>
 
-# RULE-J01
-grep -rn "\.equals(.*[Hh]eader\|[Hh]eader.*\.equals(" <files>
+# RULE-H01
+grep -rEn "'18446744073709551[0-9]+'" <files>
 
 # RULE-J02
-grep -rn "CarrierVisitor\|forEachKeyValue" <files>
+grep -rEn "CarrierVisitor|forEachKeyValue" <files>
 ```
 
 Read the full content of any file that has at least one hit, to understand the context.
 
 ## Step 4 — Structural detection (LLM-based)
 
-For rules without grep patterns (RULE-B02, RULE-B03, RULE-C03, RULE-E01, RULE-E02, RULE-E03, RULE-G03, RULE-G04, RULE-H01, RULE-H02, RULE-I01, RULE-I02), read all target files and identify violations based on the Before/After examples in the rules.
+For rules without grep patterns (RULE-A01, RULE-B02, RULE-B03, RULE-C03, RULE-E01, RULE-E02, RULE-E03, RULE-G03, RULE-G04, RULE-H02, RULE-I01, RULE-I02), read all target files and identify violations based on the Before/After examples in the rules.
 
 ## Step 5 — Emit structured findings
 
