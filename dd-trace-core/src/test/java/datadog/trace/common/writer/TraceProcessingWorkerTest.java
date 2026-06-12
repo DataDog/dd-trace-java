@@ -92,7 +92,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   @Test
   void testHeartbeatsShouldOccurAtLeastOncePerSecondWhenNotThrottled() throws Exception {
     AtomicInteger flushCount = new AtomicInteger();
-    TraceProcessingWorker worker =
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             mock(HealthMetrics.class),
@@ -101,12 +101,11 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             1,
             TimeUnit.NANOSECONDS, // stop heartbeats from being throttled
-            null);
+            null)) {
 
-    // processor is started
-    worker.start();
+      // processor is started
+      worker.start();
 
-    try {
       // heartbeat occurs automatically approximately once per second
       // wait 1 second initial delay, then poll up to 1 second
       Thread.sleep(1000);
@@ -116,9 +115,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         Thread.sleep(50);
       }
       assertTrue(flushCount.get() > 1);
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 
@@ -129,7 +125,9 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
   @Test
   void testAFlushShouldClearThePrimaryQueue() {
     AtomicInteger flushCount = new AtomicInteger();
-    TraceProcessingWorker worker =
+    // prevent heartbeats from helping the flush happen
+
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             mock(HealthMetrics.class),
@@ -138,9 +136,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null);
-
-    try {
+            null)) {
       // there is pending work it is completed before a flush
       // processing this span will throw an exception, but it should be caught
       // and not disrupt the flush
@@ -153,9 +149,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertTrue(flushed);
       assertEquals(1, flushCount.get());
       assertTrue(worker.getPrimaryQueue().isEmpty());
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 
@@ -195,7 +188,9 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         .when(healthMetrics)
         .onFailedSerialize(any(), any());
 
-    TraceProcessingWorker worker =
+    // prevent heartbeats from helping the flush happen
+
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             healthMetrics,
@@ -204,10 +199,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null);
-    worker.start();
-
-    try {
+            null)) {
+      worker.start();
       // a trace is processed but can't be passed on
       worker.publish(mock(DDSpan.class), priority, Collections.singletonList(mock(DDSpan.class)));
 
@@ -218,9 +211,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         Thread.sleep(50);
       }
       assertEquals(1, errorReported.get());
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 
@@ -276,7 +266,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
 
     SpanPostProcessor.Holder.INSTANCE = mockProcessor;
 
-    TraceProcessingWorker worker =
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             healthMetrics,
@@ -285,10 +275,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS,
-            null);
-    worker.start();
-
-    try {
+            null)) {
+      worker.start();
       // traces are submitted
       List<DDSpan> trace = new ArrayList<>();
       trace.add(span1);
@@ -305,9 +293,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertTrue(processedSpan1.get());
       assertTrue(processedSpan2.get());
     } finally {
-      // cleanup
       SpanPostProcessor.Holder.INSTANCE = SpanPostProcessor.Holder.NOOP;
-      worker.close();
     }
   }
 
@@ -350,7 +336,9 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         .when(countingDispatcher)
         .addTrace(any());
     HealthMetrics healthMetrics = mock(HealthMetrics.class);
-    TraceProcessingWorker worker =
+    // prevent heartbeats from helping the flush happen
+
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             healthMetrics,
@@ -359,10 +347,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS, // prevent heartbeats from helping the flush happen
-            null);
-    worker.start();
-
-    try {
+            null)) {
+      worker.start();
       // traces are submitted
       int submitted = 0;
       for (int i = 0; i < traceCount; ++i) {
@@ -380,10 +366,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
         Thread.sleep(50);
       }
       assertEquals(expectedSubmitted, acceptedCount.get());
-    } finally {
-      // cleanup
-      worker.close();
     }
+    // cleanup
   }
 
   // -------------------------------------------------------------------------
@@ -490,7 +474,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
           }
         };
 
-    TraceProcessingWorker worker =
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             healthMetrics,
@@ -499,10 +483,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS,
-            singleSpanSampler);
-    worker.start();
-
-    try {
+            singleSpanSampler)) {
+      worker.start();
       // traces are submitted
       for (int i = 0; i < traceCount; ++i) {
         List<DDSpan> trace = new ArrayList<>();
@@ -523,9 +505,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertEquals(acceptedTraces, acceptedCount.get());
       assertEquals(acceptedSpans, acceptedSpanCount.get());
       assertEquals(sampledSingleSpans, sampledSpansCount.get());
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 
@@ -604,7 +583,7 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
           }
         };
 
-    TraceProcessingWorker worker =
+    try (TraceProcessingWorker worker =
         new TraceProcessingWorker(
             10,
             healthMetrics,
@@ -613,10 +592,8 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
             FAST_LANE,
             100,
             TimeUnit.SECONDS,
-            singleSpanSampler);
-    worker.start();
-
-    try {
+            singleSpanSampler)) {
+      worker.start();
       // traces are submitted
       for (int i = 0; i < traceCount; ++i) {
         List<DDSpan> trace = new ArrayList<>();
@@ -637,9 +614,6 @@ class TraceProcessingWorkerTest extends DDJavaSpecification {
       assertEquals(expectedChunks, chunksCount.get());
       assertEquals(expectedSpans, spansCount.get());
       assertEquals(sampledSingleSpans, sampledSpansCount.get());
-    } finally {
-      // cleanup
-      worker.close();
     }
   }
 }
