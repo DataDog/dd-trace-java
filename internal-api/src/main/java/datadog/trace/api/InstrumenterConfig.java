@@ -393,7 +393,7 @@ public class InstrumenterConfig {
     appLogsCollectionEnabled =
         configProvider.getBoolean(APP_LOGS_COLLECTION_ENABLED, DEFAULT_APP_LOGS_COLLECTION_ENABLED);
 
-    legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, true);
+    legacyContextManagerEnabled = configProvider.getBoolean(LEGACY_CONTEXT_MANAGER_ENABLED, false);
   }
 
   public boolean isCodeOriginEnabled() {
