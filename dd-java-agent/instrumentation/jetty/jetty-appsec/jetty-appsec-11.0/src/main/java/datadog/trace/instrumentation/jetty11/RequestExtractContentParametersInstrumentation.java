@@ -147,11 +147,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
         @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
             final Object multiParts) {
-      if (contentParameters != null || multiParts != null) {
-        return false;
-      }
-      CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      return true;
+      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      return callDepth == 0 && contentParameters == null && multiParts == null;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -160,13 +157,8 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      if (!proceed) {
-        return;
-      }
-      if (CallDepthThreadLocalMap.decrementCallDepth(Collection.class) != 0) {
-        return;
-      }
-      if (t != null || parts == null || parts.isEmpty()) {
+      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
+      if (!proceed || t != null || parts == null || parts.isEmpty()) {
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);
