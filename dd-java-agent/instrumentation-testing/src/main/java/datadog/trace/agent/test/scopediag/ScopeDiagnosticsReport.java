@@ -8,174 +8,286 @@ import java.util.List;
 import java.util.Map;
 
 /**
- * An immutable snapshot of the recorded continuation lifecycles plus the derived leak findings.
- * Renders three views: a text Gantt timeline, a leak-only summary, and a JSON document.
+ * An immutable snapshot of the recorded continuation and scope lifecycles plus the derived failure
+ * findings. Renders a text Gantt timeline, a problem-only summary, a Mermaid Gantt, and JSON.
+ *
+ * <p>The two lifecycles are kept separate: {@link ContinuationRecord} (captured → resumed →
+ * finished) and {@link ScopeRecord} (opened → closed). A scope spawned by resuming a continuation
+ * is linked to it ({@link ContinuationRecord#scopeRecordSeqs()} / {@link
+ * ScopeRecord#continuationSeq}) and rendered nested under it; other scopes render in a separate
+ * section.
  */
 public final class ScopeDiagnosticsReport {
-  /** A derived problem classification for a single continuation. */
-  public enum Flag {
-    /** Captured but never resolved (neither finished nor cancelled) within the window. */
-    LEAK,
-    /** Activated or resolved after the root span of its trace had already been written. */
-    LATE,
-    /** Resolved more than once, or activated after being resolved. */
-    DOUBLE
-  }
-
-  private final List<ContinuationRecord> records;
+  private final List<ContinuationRecord> continuations;
+  private final List<ScopeRecord> scopes;
   private final Map<DDTraceId, Long> rootWrittenNanos;
   private final long t0;
-  private final Map<ContinuationRecord, EnumSet<Flag>> findings;
+  private final Map<ContinuationRecord, EnumSet<Failure>> continuationFailures;
+  private final Map<ScopeRecord, EnumSet<Failure>> scopeFailures;
+  private final Map<Long, ScopeRecord> scopeBySeq;
 
-  ScopeDiagnosticsReport(List<ContinuationRecord> records, Map<DDTraceId, Long> rootWrittenNanos) {
-    this.records = new ArrayList<>(records);
-    this.records.sort((a, b) -> Long.compare(a.firstNanos(), b.firstNanos()));
+  ScopeDiagnosticsReport(
+      List<ContinuationRecord> continuations,
+      List<ScopeRecord> scopes,
+      Map<DDTraceId, Long> rootWrittenNanos) {
+    this.continuations = new ArrayList<>(continuations);
+    this.continuations.sort((a, b) -> Long.compare(a.firstNanos(), b.firstNanos()));
+    this.scopes = new ArrayList<>(scopes);
+    this.scopes.sort((a, b) -> Long.compare(a.firstNanos(), b.firstNanos()));
     this.rootWrittenNanos = rootWrittenNanos;
-    this.t0 = computeT0(this.records);
-    this.findings = classify(this.records, rootWrittenNanos);
+    this.t0 = computeT0(this.continuations, this.scopes);
+    this.continuationFailures = classifyContinuations(this.continuations, rootWrittenNanos);
+    this.scopeFailures = classifyScopes(this.scopes);
+    this.scopeBySeq = new LinkedHashMap<>();
+    for (ScopeRecord s : this.scopes) {
+      scopeBySeq.put(s.seq, s);
+    }
   }
 
-  private static long computeT0(List<ContinuationRecord> records) {
+  private static long computeT0(List<ContinuationRecord> continuations, List<ScopeRecord> scopes) {
     long min = Long.MAX_VALUE;
-    for (ContinuationRecord r : records) {
+    for (ContinuationRecord r : continuations) {
       min = Math.min(min, r.firstNanos());
+    }
+    for (ScopeRecord s : scopes) {
+      min = Math.min(min, s.firstNanos());
     }
     return min == Long.MAX_VALUE ? 0 : min;
   }
 
-  private static Map<ContinuationRecord, EnumSet<Flag>> classify(
+  private static Map<ContinuationRecord, EnumSet<Failure>> classifyContinuations(
       List<ContinuationRecord> records, Map<DDTraceId, Long> rootWrittenNanos) {
-    Map<ContinuationRecord, EnumSet<Flag>> result = new LinkedHashMap<>();
+    Map<ContinuationRecord, EnumSet<Failure>> result = new LinkedHashMap<>();
     for (ContinuationRecord r : records) {
-      EnumSet<Flag> flags = EnumSet.noneOf(Flag.class);
-
-      if (!r.isResolved()) {
-        flags.add(Flag.LEAK);
-      }
-
-      List<ScopeEvent> resolutions = r.resolutions();
-      List<ScopeEvent> activations = r.activations();
-      if (resolutions.size() > 1) {
-        flags.add(Flag.DOUBLE);
-      }
-      if (!resolutions.isEmpty()) {
-        long firstResolve = resolutions.get(0).nanos;
-        for (ScopeEvent a : activations) {
-          if (a.nanos > firstResolve) {
-            flags.add(Flag.DOUBLE);
-            break;
-          }
-        }
-      }
-
-      Long rootNanos = rootWrittenNanos.get(r.traceId);
-      if (rootNanos != null) {
-        if (laterThan(activations, rootNanos) || laterThan(resolutions, rootNanos)) {
-          flags.add(Flag.LATE);
-        }
-      }
-
-      if (!flags.isEmpty()) {
-        result.put(r, flags);
+      EnumSet<Failure> failures = r.failures(rootWrittenNanos.get(r.traceId));
+      if (!failures.isEmpty()) {
+        result.put(r, failures);
       }
     }
     return result;
   }
 
-  private static boolean laterThan(List<ScopeEvent> events, long nanos) {
-    for (ScopeEvent e : events) {
-      if (e.nanos > nanos) {
-        return true;
+  private static Map<ScopeRecord, EnumSet<Failure>> classifyScopes(List<ScopeRecord> scopes) {
+    Map<ScopeRecord, EnumSet<Failure>> result = new LinkedHashMap<>();
+    for (ScopeRecord s : scopes) {
+      EnumSet<Failure> failures = s.failures();
+      if (!failures.isEmpty()) {
+        result.put(s, failures);
       }
     }
-    return false;
+    return result;
   }
+
+  // ---- accessors -----------------------------------------------------------
 
   public List<ContinuationRecord> records() {
-    return new ArrayList<>(records);
+    return new ArrayList<>(continuations);
   }
 
-  public Map<ContinuationRecord, EnumSet<Flag>> findings() {
-    return new LinkedHashMap<>(findings);
+  public List<ScopeRecord> scopeRecords() {
+    return new ArrayList<>(scopes);
+  }
+
+  public Map<ContinuationRecord, EnumSet<Failure>> findings() {
+    return new LinkedHashMap<>(continuationFailures);
+  }
+
+  public Map<ScopeRecord, EnumSet<Failure>> scopeFindings() {
+    return new LinkedHashMap<>(scopeFailures);
   }
 
   public int leakCount() {
-    return countWith(Flag.LEAK);
+    return countWith(continuationFailures, Failure.LEAKED);
   }
 
   public int lateCount() {
-    return countWith(Flag.LATE);
+    return countWith(continuationFailures, Failure.LATE_FINISH);
   }
 
   public int doubleCount() {
-    return countWith(Flag.DOUBLE);
+    return countWith(continuationFailures, Failure.DOUBLE_FINISH);
   }
 
-  private int countWith(Flag flag) {
+  public int activateAfterResolveCount() {
+    return countWith(continuationFailures, Failure.ACTIVATE_AFTER_RESOLVE);
+  }
+
+  public int neverClosedScopeCount() {
+    return countWith(scopeFailures, Failure.NEVER_CLOSED);
+  }
+
+  public int closeWrongThreadCount() {
+    return countWith(scopeFailures, Failure.CLOSE_WRONG_THREAD);
+  }
+
+  private static <K> int countWith(Map<K, EnumSet<Failure>> findings, Failure failure) {
     int n = 0;
-    for (EnumSet<Flag> flags : findings.values()) {
-      if (flags.contains(flag)) {
+    for (EnumSet<Failure> f : findings.values()) {
+      if (f.contains(failure)) {
         n++;
       }
     }
     return n;
   }
 
-  /** True when there is a genuine bug to fail on: a never-resolved leak or a double resolution. */
+  /**
+   * True when there is a genuine bug to fail on: a never-resolved leak, a double finish, an
+   * activation after resolve, or a scope that was never closed. {@link Failure#LATE_FINISH} and
+   * {@link Failure#CLOSE_WRONG_THREAD} are reported but do not fail (frequently legitimate async or
+   * teardown ordering).
+   */
   public boolean hasProblems() {
-    return leakCount() > 0 || doubleCount() > 0;
+    return leakCount() > 0
+        || doubleCount() > 0
+        || activateAfterResolveCount() > 0
+        || neverClosedScopeCount() > 0;
   }
 
-  // ---- rendering -----------------------------------------------------------
+  // ---- rendering: text Gantt -----------------------------------------------
 
-  /** Full cross-thread Gantt timeline, one block per continuation. */
+  private static final int GANTT_FRAMES = 3;
+
+  /** Full cross-thread Gantt timeline: one block per continuation, with nested scope bars. */
   public String renderGantt() {
     StringBuilder sb = new StringBuilder();
-    sb.append("Scope continuation timeline (")
-        .append(records.size())
-        .append(" continuations, ")
-        .append(leakCount())
-        .append(" leaked, ")
-        .append(lateCount())
-        .append(" late-after-root, ")
-        .append(doubleCount())
-        .append(" double/invalid)\n");
-    if (records.isEmpty()) {
-      sb.append("  (no continuations captured)\n");
+    appendHeader(sb, "Scope/continuation timeline");
+    if (continuations.isEmpty() && scopes.isEmpty()) {
+      sb.append("  (nothing captured)\n");
       return sb.toString();
     }
-    for (ContinuationRecord r : records) {
-      EnumSet<Flag> flags = findings.getOrDefault(r, EnumSet.noneOf(Flag.class));
+
+    for (ContinuationRecord r : continuations) {
+      EnumSet<Failure> failures =
+          continuationFailures.getOrDefault(r, EnumSet.noneOf(Failure.class));
       sb.append("\n#")
           .append(r.seq)
+          .append(' ')
+          .append(r.status())
           .append(" trace=")
           .append(r.traceId)
           .append(" span=")
-          .append(r.spanId)
-          .append(" src=")
-          .append(r.sourceName());
+          .append(r.spanId);
+      if (r.spanName != null) {
+        sb.append(" \"").append(r.spanName).append('"');
+      }
+      sb.append(" src=").append(r.sourceName());
       if (r.orphan) {
         sb.append(" [ORPHAN]");
       }
-      if (!flags.isEmpty()) {
-        sb.append(" ").append(flags);
+      if (r.threadHandoff()) {
+        sb.append(" [handoff]");
       }
-      sb.append('\n');
+      if (!failures.isEmpty()) {
+        sb.append(' ').append(failures);
+      }
+      sb.append(timing(r)).append('\n');
+
       appendEvent(sb, "capture ", r.capture());
-      for (ScopeEvent a : r.activations()) {
-        appendEvent(sb, "activate", a);
+      for (ScopeEvent a : r.resumes()) {
+        appendEvent(sb, "resume  ", a);
       }
-      for (ScopeEvent res : r.resolutions()) {
-        appendEvent(sb, res.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel  " : "finish  ", res);
+      for (ScopeEvent f : r.failedActivations()) {
+        appendEvent(sb, "act-fail", f);
       }
-      if (!r.isResolved()) {
-        sb.append("  ").append("LEAKED  ").append(" (never finished or cancelled)\n");
+      ScopeEvent terminal = r.terminal();
+      if (terminal != null) {
+        appendEvent(
+            sb,
+            terminal.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel  " : "finish  ",
+            terminal);
+      }
+      for (ScopeEvent extra : r.extraTerminals()) {
+        appendEvent(sb, "DOUBLE  ", extra);
+      }
+      for (long scopeSeq : r.scopeRecordSeqs()) {
+        ScopeRecord scope = scopeBySeq.get(scopeSeq);
+        if (scope != null) {
+          appendScopeLine(sb, "  ", scope);
+        }
+      }
+      if (terminal == null) {
+        sb.append("  LEAKED   (never finished or cancelled)\n");
+      }
+    }
+
+    List<ScopeRecord> orphanScopes = new ArrayList<>();
+    for (ScopeRecord s : scopes) {
+      if (s.continuationSeq == null) {
+        orphanScopes.add(s);
+      }
+    }
+    if (!orphanScopes.isEmpty()) {
+      sb.append("\nNon-continuation scopes:\n");
+      for (ScopeRecord s : orphanScopes) {
+        appendScopeLine(sb, "  ", s);
       }
     }
     return sb.toString();
   }
 
-  private static final int GANTT_FRAMES = 3;
+  private void appendHeader(StringBuilder sb, String title) {
+    sb.append(title)
+        .append(" (")
+        .append(continuations.size())
+        .append(" continuations, ")
+        .append(scopes.size())
+        .append(" scopes; ")
+        .append(leakCount())
+        .append(" leaked, ")
+        .append(lateCount())
+        .append(" late, ")
+        .append(doubleCount())
+        .append(" double, ")
+        .append(activateAfterResolveCount())
+        .append(" activate-after-resolve | scopes: ")
+        .append(neverClosedScopeCount())
+        .append(" never-closed, ")
+        .append(closeWrongThreadCount())
+        .append(" wrong-thread)\n");
+  }
+
+  private String timing(ContinuationRecord r) {
+    StringBuilder sb = new StringBuilder();
+    Long capToResume = r.captureToFirstResumeNanos();
+    Long age = r.ageAtTerminalNanos();
+    if (capToResume != null) {
+      sb.append("  cap->resume=").append(millis(capToResume)).append("ms");
+    }
+    if (age != null) {
+      sb.append("  age=").append(millis(age)).append("ms");
+    }
+    return sb.toString();
+  }
+
+  private void appendScopeLine(StringBuilder sb, String indent, ScopeRecord scope) {
+    EnumSet<Failure> failures = scopeFailures.getOrDefault(scope, EnumSet.noneOf(Failure.class));
+    sb.append(indent).append("scope#").append(scope.seq).append(' ').append(scope.sourceName());
+    if (scope.spanName != null) {
+      sb.append(" \"").append(scope.spanName).append('"');
+    }
+    ScopeEvent open = scope.open();
+    ScopeEvent close = scope.close();
+    if (open != null) {
+      sb.append("  open +").append(relMillis(open.nanos)).append("ms @ ").append(open.threadName);
+    }
+    if (close != null) {
+      sb.append("  close +")
+          .append(relMillis(close.nanos))
+          .append("ms @ ")
+          .append(close.threadName);
+      Long active = scope.activeDurationNanos();
+      if (active != null) {
+        sb.append(" (active ").append(millis(active)).append("ms)");
+      }
+    }
+    if (scope.threadHandoff()) {
+      sb.append(" [handoff]");
+    }
+    if (!failures.isEmpty()) {
+      sb.append(' ').append(failures);
+    }
+    sb.append('\n');
+  }
 
   private void appendEvent(StringBuilder sb, String label, ScopeEvent event) {
     if (event == null) {
@@ -191,8 +303,6 @@ public final class ScopeDiagnosticsReport {
         .append("  at ")
         .append(event.callsite() == null ? "<filtered>" : event.callsite())
         .append('\n');
-    // a couple of caller frames give context when the top frame is generic (Thread.run, a
-    // listener dispatch, etc.) — they reveal which library/app code drove the event
     StackTraceElement[] stack = event.stack;
     if (stack != null) {
       for (int i = 1; i < stack.length && i < GANTT_FRAMES; i++) {
@@ -201,21 +311,15 @@ public final class ScopeDiagnosticsReport {
     }
   }
 
-  /** Leak-only summary: just the flagged continuations with their callsites. */
+  /** Problem-only summary: just the flagged continuations and scopes with their callsites. */
   public String renderSummary() {
     StringBuilder sb = new StringBuilder();
-    sb.append("Scope continuation problems: ")
-        .append(leakCount())
-        .append(" leaked, ")
-        .append(lateCount())
-        .append(" late-after-root, ")
-        .append(doubleCount())
-        .append(" double/invalid\n");
-    if (findings.isEmpty()) {
+    appendHeader(sb, "Scope/continuation problems");
+    if (continuationFailures.isEmpty() && scopeFailures.isEmpty()) {
       sb.append("  (none)\n");
       return sb.toString();
     }
-    for (Map.Entry<ContinuationRecord, EnumSet<Flag>> e : findings.entrySet()) {
+    for (Map.Entry<ContinuationRecord, EnumSet<Failure>> e : continuationFailures.entrySet()) {
       ContinuationRecord r = e.getKey();
       ScopeEvent capture = r.capture();
       sb.append("  ")
@@ -230,53 +334,67 @@ public final class ScopeDiagnosticsReport {
           .append(capture == null || capture.callsite() == null ? "<unknown>" : capture.callsite())
           .append('\n');
     }
+    for (Map.Entry<ScopeRecord, EnumSet<Failure>> e : scopeFailures.entrySet()) {
+      ScopeRecord s = e.getKey();
+      ScopeEvent open = s.open();
+      sb.append("  ")
+          .append(e.getValue())
+          .append(" scope#")
+          .append(s.seq)
+          .append(" trace=")
+          .append(s.traceId)
+          .append(" src=")
+          .append(s.sourceName())
+          .append(" opened at ")
+          .append(open == null || open.callsite() == null ? "<unknown>" : open.callsite())
+          .append('\n');
+    }
     return sb.toString();
   }
 
+  // ---- rendering: Mermaid Gantt --------------------------------------------
+
   /**
-   * Renders a Mermaid Gantt diagram (wrapped in a ```mermaid fence) that renders inline in GitHub,
-   * GitLab, and most IDEs. Continuations are grouped into swimlanes by the thread where they were
-   * activated/resolved; each is a bar from capture to resolution. Leaks extend to the end of the
-   * window and are marked {@code crit} (red); late-after-root is marked {@code active}. Times are
-   * milliseconds relative to the first event (rounded — this is an overview, not a profiler).
+   * Renders a Mermaid Gantt diagram (wrapped in a ```mermaid fence). Continuations and scopes are
+   * grouped into swimlanes by thread; a continuation contributes a capture marker in its capture
+   * lane and a run/finish bar in its resume/terminal lane, and each linked scope contributes an
+   * open→close bar in its close lane. Leaks/never-closed extend to the end of the window and are
+   * marked {@code crit}; late/wrong-thread are marked {@code active}.
    */
   public String toMermaidGantt() {
     StringBuilder sb = new StringBuilder();
     sb.append("```mermaid\n");
     sb.append("gantt\n");
-    sb.append("  title Scope continuations (")
-        .append(records.size())
-        .append(" total, ")
+    sb.append("  title Scope/continuations (")
+        .append(continuations.size())
+        .append(" cont, ")
+        .append(scopes.size())
+        .append(" scopes, ")
         .append(leakCount())
         .append(" leaked, ")
-        .append(lateCount())
-        .append(" late, ")
-        .append(doubleCount())
-        .append(" double)\n");
+        .append(neverClosedScopeCount())
+        .append(" never-closed)\n");
     sb.append("  dateFormat x\n");
     sb.append("  axisFormat %Lms\n");
-    if (records.isEmpty()) {
-      sb.append("  section none\n    no continuations captured :done, 0, 1\n```\n");
+    if (continuations.isEmpty() && scopes.isEmpty()) {
+      sb.append("  section none\n    nothing captured :done, 0, 1\n```\n");
       return sb.toString();
     }
 
     long windowEnd = relMillisRounded(maxNanos());
-
-    // A continuation contributes a "cap" marker in its capture-thread lane and (when it ran) a
-    // run/finish bar in its activation/resolution-thread lane. The same #seq appearing in two lanes
-    // makes the cross-thread hop visible: captured here, continued/cancelled there.
     Map<String, List<String>> lanes = new LinkedHashMap<>();
-    for (ContinuationRecord r : records) {
-      EnumSet<Flag> flags = findings.getOrDefault(r, EnumSet.noneOf(Flag.class));
+
+    for (ContinuationRecord r : continuations) {
+      EnumSet<Failure> failures =
+          continuationFailures.getOrDefault(r, EnumSet.noneOf(Failure.class));
       ScopeEvent capture = r.capture();
-      List<ScopeEvent> activations = r.activations();
-      List<ScopeEvent> resolutions = r.resolutions();
-      boolean leak = flags.contains(Flag.LEAK);
+      List<ScopeEvent> resumes = r.resumes();
+      ScopeEvent terminal = r.terminal();
+      boolean leak = failures.contains(Failure.LEAKED);
 
       if (capture != null) {
         long start = relMillisRounded(capture.nanos);
-        if (leak && activations.isEmpty()) {
-          // captured but never even activated: leak lives, open-ended, in the capture lane
+        if (leak && resumes.isEmpty()) {
           addTask(
               lanes,
               capture.threadName,
@@ -295,47 +413,63 @@ public final class ScopeDiagnosticsReport {
         }
       }
 
-      if (!activations.isEmpty()) {
-        ScopeEvent firstAct = activations.get(0);
-        long runStart = relMillisRounded(firstAct.nanos);
-        if (resolutions.isEmpty()) {
-          // activated but never closed: open-ended leak in the activation lane
+      if (!resumes.isEmpty()) {
+        ScopeEvent firstResume = resumes.get(0);
+        long runStart = relMillisRounded(firstResume.nanos);
+        if (terminal == null) {
           addTask(
               lanes,
-              firstAct.threadName,
-              "#" + r.seq + " LEAK ran " + where(firstAct),
+              firstResume.threadName,
+              "#" + r.seq + " LEAK ran " + where(firstResume),
               "crit",
               runStart,
               Math.max(runStart + 1, windowEnd));
         } else {
-          ScopeEvent lastRes = resolutions.get(resolutions.size() - 1);
-          long runEnd = relMillisRounded(lastRes.nanos);
-          if (runEnd <= runStart) {
-            runEnd = runStart + 1;
-          }
-          String verb = lastRes.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel" : "fin";
-          String tag =
-              flags.contains(Flag.DOUBLE) ? "crit" : flags.contains(Flag.LATE) ? "active" : "done";
+          long runEnd = Math.max(runStart + 1, relMillisRounded(terminal.nanos));
+          String verb = terminal.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel" : "fin";
+          String tag = continuationTag(failures);
           addTask(
               lanes,
-              lastRes.threadName,
-              "#" + r.seq + " " + verb + " " + where(lastRes),
+              terminal.threadName,
+              "#" + r.seq + " " + verb + " " + where(terminal),
               tag,
               runStart,
               runEnd);
         }
-      } else if (!resolutions.isEmpty()) {
-        // resolved without an observed activation (e.g. cancelled before use)
-        ScopeEvent lastRes = resolutions.get(resolutions.size() - 1);
-        long start = relMillisRounded(lastRes.nanos);
-        String verb = lastRes.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel" : "fin";
+      } else if (terminal != null) {
+        long start = relMillisRounded(terminal.nanos);
+        String verb = terminal.type == ScopeEvent.Type.RESOLVE_CANCEL ? "cancel" : "fin";
         addTask(
             lanes,
-            lastRes.threadName,
-            "#" + r.seq + " " + verb + " " + where(lastRes),
+            terminal.threadName,
+            "#" + r.seq + " " + verb + " " + where(terminal),
             "done",
             start,
             start + 1);
+      }
+    }
+
+    for (ScopeRecord s : scopes) {
+      EnumSet<Failure> failures = scopeFailures.getOrDefault(s, EnumSet.noneOf(Failure.class));
+      ScopeEvent open = s.open();
+      ScopeEvent close = s.close();
+      if (open == null) {
+        continue;
+      }
+      long start = relMillisRounded(open.nanos);
+      String label = "scope#" + s.seq + " " + where(open);
+      if (close == null) {
+        addTask(
+            lanes,
+            open.threadName,
+            label + " NEVER-CLOSED",
+            "crit",
+            start,
+            Math.max(start + 1, windowEnd));
+      } else {
+        long end = Math.max(start + 1, relMillisRounded(close.nanos));
+        String tag = failures.contains(Failure.CLOSE_WRONG_THREAD) ? "active" : "done";
+        addTask(lanes, close.threadName, label, tag, start, end);
       }
     }
 
@@ -347,6 +481,17 @@ public final class ScopeDiagnosticsReport {
     }
     sb.append("```\n");
     return sb.toString();
+  }
+
+  private static String continuationTag(EnumSet<Failure> failures) {
+    if (failures.contains(Failure.DOUBLE_FINISH)
+        || failures.contains(Failure.ACTIVATE_AFTER_RESOLVE)) {
+      return "crit";
+    }
+    if (failures.contains(Failure.LATE_FINISH)) {
+      return "active";
+    }
+    return "done";
   }
 
   private void addTask(
@@ -361,7 +506,6 @@ public final class ScopeDiagnosticsReport {
         .add(sanitize(label) + " :" + tag + ", " + start + ", " + end);
   }
 
-  /** Short "SimpleClass.method" for a Mermaid label, or "?" when the callsite was filtered out. */
   private static String where(ScopeEvent event) {
     StackTraceElement frame = event == null ? null : event.callsite();
     if (frame == null) {
@@ -375,80 +519,160 @@ public final class ScopeDiagnosticsReport {
 
   private long maxNanos() {
     long max = t0;
-    for (ContinuationRecord r : records) {
-      ScopeEvent c = r.capture();
-      if (c != null) {
-        max = Math.max(max, c.nanos);
+    for (ContinuationRecord r : continuations) {
+      max = Math.max(max, lastNanos(r));
+    }
+    for (ScopeRecord s : scopes) {
+      ScopeEvent open = s.open();
+      ScopeEvent close = s.close();
+      if (open != null) {
+        max = Math.max(max, open.nanos);
       }
-      for (ScopeEvent e : r.activations()) {
-        max = Math.max(max, e.nanos);
-      }
-      for (ScopeEvent e : r.resolutions()) {
-        max = Math.max(max, e.nanos);
+      if (close != null) {
+        max = Math.max(max, close.nanos);
       }
     }
     return max;
+  }
+
+  private static long lastNanos(ContinuationRecord r) {
+    long max = r.capture() != null ? r.capture().nanos : Long.MIN_VALUE;
+    for (ScopeEvent e : r.resumes()) {
+      max = Math.max(max, e.nanos);
+    }
+    if (r.terminal() != null) {
+      max = Math.max(max, r.terminal().nanos);
+    }
+    for (ScopeEvent e : r.extraTerminals()) {
+      max = Math.max(max, e.nanos);
+    }
+    return max == Long.MIN_VALUE ? 0 : max;
   }
 
   private long relMillisRounded(long nanos) {
     return Math.round((nanos - t0) / 1_000_000.0);
   }
 
-  /** Strips characters that would break Mermaid task/section syntax. */
   private static String sanitize(String s) {
     return s.replace(':', ' ').replace(',', ' ').replace(';', ' ').replace('\n', ' ');
   }
+
+  // ---- rendering: JSON -----------------------------------------------------
 
   /** Machine-readable view for CI artifacts and later tooling. */
   public String toJson() {
     StringBuilder sb = new StringBuilder();
     sb.append("{\"continuations\":[");
-    for (int i = 0; i < records.size(); i++) {
+    for (int i = 0; i < continuations.size(); i++) {
       if (i > 0) {
         sb.append(',');
       }
-      appendRecordJson(sb, records.get(i));
+      appendContinuationJson(sb, continuations.get(i));
     }
-    sb.append("],\"summary\":{\"total\":")
-        .append(records.size())
+    sb.append("],\"scopes\":[");
+    for (int i = 0; i < scopes.size(); i++) {
+      if (i > 0) {
+        sb.append(',');
+      }
+      appendScopeJson(sb, scopes.get(i));
+    }
+    sb.append("],\"summary\":{\"continuations\":")
+        .append(continuations.size())
+        .append(",\"scopes\":")
+        .append(scopes.size())
         .append(",\"leaked\":")
         .append(leakCount())
-        .append(",\"lateAfterRoot\":")
+        .append(",\"lateFinish\":")
         .append(lateCount())
-        .append(",\"doubleOrInvalid\":")
+        .append(",\"doubleFinish\":")
         .append(doubleCount())
+        .append(",\"activateAfterResolve\":")
+        .append(activateAfterResolveCount())
+        .append(",\"neverClosedScopes\":")
+        .append(neverClosedScopeCount())
+        .append(",\"closeWrongThread\":")
+        .append(closeWrongThreadCount())
         .append("}}");
     return sb.toString();
   }
 
-  private void appendRecordJson(StringBuilder sb, ContinuationRecord r) {
-    EnumSet<Flag> flags = findings.getOrDefault(r, EnumSet.noneOf(Flag.class));
+  private void appendContinuationJson(StringBuilder sb, ContinuationRecord r) {
+    EnumSet<Failure> failures = continuationFailures.getOrDefault(r, EnumSet.noneOf(Failure.class));
     sb.append("{\"seq\":")
         .append(r.seq)
-        .append(",\"traceId\":\"")
+        .append(",\"status\":\"")
+        .append(r.status())
+        .append("\",\"traceId\":\"")
         .append(r.traceId)
         .append("\",\"spanId\":")
         .append(r.spanId)
+        .append(",\"spanName\":")
+        .append(jsonString(r.spanName))
         .append(",\"source\":\"")
         .append(r.sourceName())
         .append("\",\"orphan\":")
         .append(r.orphan)
-        .append(",\"flags\":[");
+        .append(",\"threadHandoff\":")
+        .append(r.threadHandoff())
+        .append(",\"captureToFirstResumeMs\":")
+        .append(millisOrNull(r.captureToFirstResumeNanos()))
+        .append(",\"ageAtTerminalMs\":")
+        .append(millisOrNull(r.ageAtTerminalNanos()))
+        .append(",\"scopeSeqs\":")
+        .append(r.scopeRecordSeqs())
+        .append(",\"failures\":[");
+    appendFailuresJson(sb, failures);
+    sb.append("],\"capture\":");
+    appendEventJson(sb, r.capture());
+    sb.append(",\"resumes\":[");
+    appendEventsJson(sb, r.resumes());
+    sb.append("],\"failedActivations\":[");
+    appendEventsJson(sb, r.failedActivations());
+    sb.append("],\"terminal\":");
+    appendEventJson(sb, r.terminal());
+    sb.append(",\"extraTerminals\":[");
+    appendEventsJson(sb, r.extraTerminals());
+    sb.append("]}");
+  }
+
+  private void appendScopeJson(StringBuilder sb, ScopeRecord s) {
+    EnumSet<Failure> failures = scopeFailures.getOrDefault(s, EnumSet.noneOf(Failure.class));
+    sb.append("{\"seq\":")
+        .append(s.seq)
+        .append(",\"closed\":")
+        .append(s.closed())
+        .append(",\"traceId\":\"")
+        .append(s.traceId)
+        .append("\",\"spanId\":")
+        .append(s.spanId)
+        .append(",\"spanName\":")
+        .append(jsonString(s.spanName))
+        .append(",\"source\":\"")
+        .append(s.sourceName())
+        .append("\",\"continuationSeq\":")
+        .append(s.continuationSeq)
+        .append(",\"threadHandoff\":")
+        .append(s.threadHandoff())
+        .append(",\"activeDurationMs\":")
+        .append(millisOrNull(s.activeDurationNanos()))
+        .append(",\"failures\":[");
+    appendFailuresJson(sb, failures);
+    sb.append("],\"open\":");
+    appendEventJson(sb, s.open());
+    sb.append(",\"close\":");
+    appendEventJson(sb, s.close());
+    sb.append("}");
+  }
+
+  private static void appendFailuresJson(StringBuilder sb, EnumSet<Failure> failures) {
     boolean first = true;
-    for (Flag f : flags) {
+    for (Failure f : failures) {
       if (!first) {
         sb.append(',');
       }
       sb.append('"').append(f).append('"');
       first = false;
     }
-    sb.append("],\"capture\":");
-    appendEventJson(sb, r.capture());
-    sb.append(",\"activations\":[");
-    appendEventsJson(sb, r.activations());
-    sb.append("],\"resolutions\":[");
-    appendEventsJson(sb, r.resolutions());
-    sb.append("]}");
   }
 
   private void appendEventsJson(StringBuilder sb, List<ScopeEvent> events) {
@@ -477,8 +701,19 @@ public final class ScopeDiagnosticsReport {
   }
 
   private String relMillis(long nanos) {
-    double ms = (nanos - t0) / 1_000_000.0;
-    return String.format("%.3f", ms);
+    return String.format("%.3f", (nanos - t0) / 1_000_000.0);
+  }
+
+  private static String millis(long nanos) {
+    return String.format("%.3f", nanos / 1_000_000.0);
+  }
+
+  private static String millisOrNull(Long nanos) {
+    return nanos == null ? "null" : millis(nanos);
+  }
+
+  private static String jsonString(String s) {
+    return s == null ? "null" : "\"" + jsonEscape(s) + "\"";
   }
 
   private static String jsonEscape(String s) {

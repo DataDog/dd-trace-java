@@ -5,6 +5,7 @@ import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.lang.reflect.Field;
+import java.lang.reflect.Method;
 import java.util.Collections;
 import java.util.IdentityHashMap;
 import java.util.Set;
@@ -34,6 +35,13 @@ public final class ScopeContinuationProbe {
 
   /** Cached reflective handle to the package-private {@code ScopeContinuation.source} field. */
   private static volatile Field sourceField;
+
+  // cached reflective handles for scope-lifecycle reads (set-once, best-effort)
+  private static volatile Field scopeSourceField; // ContinuableScope.source
+  private static volatile Field continuationField; // ContinuingScope.continuation
+  private static volatile Field scopeManagerField; // ContinuableScope.scopeManager
+  private static volatile Method scopeStackMethod; // ContinuableScopeManager.scopeStack()
+  private static volatile Method checkTopMethod; // ScopeStack.checkTop(ContinuableScope)
 
   /**
    * Continuations already recorded as resolved, by identity. The clean-resolution path that flips
@@ -78,7 +86,7 @@ public final class ScopeContinuationProbe {
       AgentSpan span = continuation.span();
       if (span != null) {
         ScopeDiagnostics.recordCapture(
-            continuation, span.getTraceId(), span.getSpanId(), sourceOf(self));
+            continuation, span.getTraceId(), span.getSpanId(), spanName(span), sourceOf(self));
       }
     } catch (Throwable ignored) {
       // diagnostics must never disturb the tracer
@@ -94,15 +102,18 @@ public final class ScopeContinuationProbe {
     if (!recording) {
       return;
     }
-    if (returnedScope == AgentTracer.noopScope()) {
-      return;
-    }
     try {
       AgentScope.Continuation continuation = (AgentScope.Continuation) self;
+      if (returnedScope == AgentTracer.noopScope()) {
+        // activate() returned the noop scope: the continuation was already resolved. This is the
+        // activate-after-resolve signal — the engine records it only if a terminal was seen.
+        ScopeDiagnostics.recordActivateFailed(continuation);
+        return;
+      }
       AgentSpan span = continuation.span();
       if (span != null) {
         ScopeDiagnostics.recordActivate(
-            continuation, span.getTraceId(), span.getSpanId(), sourceOf(self));
+            continuation, span.getTraceId(), span.getSpanId(), spanName(span), sourceOf(self));
       }
     } catch (Throwable ignored) {
     }
@@ -114,16 +125,24 @@ public final class ScopeContinuationProbe {
    * by observing the {@code count} field transition to {@link #CANCELLED} during this call. A
    * cancel with outstanding activations leaves {@code count} unchanged (not a resolution).
    */
-  public static void onResolve(Object self, int countBefore, int countAfter) {
+  public static void onResolve(Object self, int countBefore, int countAfter, long resolveNanos) {
     if (!recording) {
       return;
     }
-    if (countBefore == CANCELLED || countAfter != CANCELLED) {
-      return;
+    if (countAfter != CANCELLED) {
+      return; // not a resolution
     }
     try {
-      if (resolved.add(self)) {
-        ScopeDiagnostics.recordResolve((AgentScope.Continuation) self, false);
+      AgentScope.Continuation continuation = (AgentScope.Continuation) self;
+      if (countBefore == CANCELLED) {
+        // already cancelled before this call: a genuine second finish/cancel (the slow-path
+        // artifact always transitions 1->CANCELLED, never CANCELLED->CANCELLED). Surface it as a
+        // double finish, bypassing the first-resolution dedup.
+        ScopeDiagnostics.recordResolve(continuation, false, resolveNanos);
+      } else if (resolved.add(self)) {
+        // first clean transition to CANCELLED; later observations of the SAME transition (the
+        // cancelFromContinuedScopeClose slow path's nested cancel()) are suppressed
+        ScopeDiagnostics.recordResolve(continuation, false, resolveNanos);
       }
     } catch (Throwable ignored) {
     }
@@ -137,6 +156,66 @@ public final class ScopeContinuationProbe {
     try {
       ScopeDiagnostics.recordRootWritten((DDTraceId) traceId);
     } catch (Throwable ignored) {
+    }
+  }
+
+  /**
+   * {@code ContinuableScope.afterActivated()} exit: a scope became active. Re-activations (parent
+   * restored after a child closes) reach here too; the engine keeps only the first per scope
+   * identity. Links to the spawning continuation when the scope is a {@code ContinuingScope}.
+   */
+  public static void onScopeOpen(Object scope) {
+    if (!recording) {
+      return;
+    }
+    try {
+      AgentSpan span = ((AgentScope) scope).span();
+      DDTraceId traceId = span != null ? span.getTraceId() : DDTraceId.ZERO;
+      long spanId = span != null ? span.getSpanId() : 0L;
+      String name = span != null ? spanName(span) : null;
+      ScopeDiagnostics.recordScopeOpen(
+          scope, traceId, spanId, name, scopeSourceOf(scope), continuationOf(scope));
+    } catch (Throwable ignored) {
+    }
+  }
+
+  /**
+   * {@code ContinuableScope.onProperClose()} exit: the scope was popped from its thread's stack.
+   */
+  public static void onScopeClose(Object scope) {
+    if (!recording) {
+      return;
+    }
+    try {
+      ScopeDiagnostics.recordScopeClose(scope);
+    } catch (Throwable ignored) {
+    }
+  }
+
+  /**
+   * {@code ContinuableScope.close()} entry: if the scope is not on top of its thread's stack, this
+   * is an out-of-order / wrong-thread close. Best-effort — silently does nothing if the internal
+   * stack check cannot be reached reflectively.
+   */
+  public static void onScopeClosing(Object scope) {
+    if (!recording) {
+      return;
+    }
+    try {
+      if (isNotOnTop(scope)) {
+        ScopeDiagnostics.recordScopeCloseWrongThread(scope);
+      }
+    } catch (Throwable ignored) {
+    }
+  }
+
+  /** Snapshots the span name as a String (the CharSequence may mutate later), or {@code null}. */
+  private static String spanName(AgentSpan span) {
+    try {
+      CharSequence name = span.getSpanName();
+      return name == null ? null : name.toString();
+    } catch (Throwable ignored) {
+      return null;
     }
   }
 
@@ -155,5 +234,103 @@ public final class ScopeContinuationProbe {
     } catch (Throwable ignored) {
       return (byte) -1;
     }
+  }
+
+  /** Reads the {@code source} byte of a scope (declared on {@code ContinuableScope}). */
+  private static byte scopeSourceOf(Object scope) {
+    try {
+      Field field = scopeSourceField;
+      if (field == null) {
+        field = findField(scope.getClass(), "source");
+        scopeSourceField = field;
+      }
+      return field != null ? field.getByte(scope) : (byte) -1;
+    } catch (Throwable ignored) {
+      return (byte) -1;
+    }
+  }
+
+  /**
+   * The continuation that spawned a scope, read from {@code ContinuingScope.continuation}; {@code
+   * null} for a plain (non-continuation) scope.
+   */
+  private static AgentScope.Continuation continuationOf(Object scope) {
+    try {
+      Field field = continuationField;
+      if (field == null) {
+        field = findField(scope.getClass(), "continuation");
+        continuationField = field;
+      }
+      if (field == null || !field.getDeclaringClass().isInstance(scope)) {
+        return null; // not a ContinuingScope
+      }
+      Object value = field.get(scope);
+      return value instanceof AgentScope.Continuation ? (AgentScope.Continuation) value : null;
+    } catch (Throwable ignored) {
+      return null;
+    }
+  }
+
+  /** Best-effort: {@code true} when the scope is not on top of its thread's scope stack. */
+  private static boolean isNotOnTop(Object scope) {
+    try {
+      Field managerField = scopeManagerField;
+      if (managerField == null) {
+        managerField = findField(scope.getClass(), "scopeManager");
+        scopeManagerField = managerField;
+      }
+      Object manager = managerField != null ? managerField.get(scope) : null;
+      if (manager == null) {
+        return false;
+      }
+      Method stackMethod = scopeStackMethod;
+      if (stackMethod == null) {
+        stackMethod = findMethod(manager.getClass(), "scopeStack", 0);
+        scopeStackMethod = stackMethod;
+      }
+      Object stack = stackMethod != null ? stackMethod.invoke(manager) : null;
+      if (stack == null) {
+        return false;
+      }
+      Method check = checkTopMethod;
+      if (check == null) {
+        check = findMethod(stack.getClass(), "checkTop", 1);
+        checkTopMethod = check;
+      }
+      if (check == null) {
+        return false;
+      }
+      Object onTop = check.invoke(stack, scope);
+      return onTop instanceof Boolean && !((Boolean) onTop);
+    } catch (Throwable ignored) {
+      return false;
+    }
+  }
+
+  /** Finds a named field declared on a class or any superclass, made accessible. */
+  private static Field findField(Class<?> cls, String name) {
+    for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+      try {
+        Field f = c.getDeclaredField(name);
+        f.setAccessible(true);
+        return f;
+      } catch (NoSuchFieldException ignored) {
+        // keep walking up
+      }
+    }
+    return null;
+  }
+
+  /** Finds a named method with the given parameter count on a class or superclass, accessible. */
+  private static Method findMethod(Class<?> cls, String name, int paramCount) {
+    for (Class<?> c = cls; c != null; c = c.getSuperclass()) {
+      for (Method m : c.getDeclaredMethods()) {
+        if (m.getName().equals(name) && m.getParameterCount() == paramCount) {
+          m.setAccessible(true);
+          return m;
+        }
+      }
+    }
+    return null;
   }
 }

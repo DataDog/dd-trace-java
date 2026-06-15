@@ -2,12 +2,14 @@ package datadog.trace.agent.test.scopediag;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
 import datadog.trace.bootstrap.instrumentation.api.AgentScope;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.common.writer.ListWriter;
 import datadog.trace.core.CoreTracer;
+import java.util.List;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.Test;
 
@@ -67,5 +69,60 @@ class ScopeDiagnosticsIntegrationTest {
 
     assertEquals(1, report.records().size());
     assertEquals(0, report.leakCount(), "activated then closed continuation is resolved");
+  }
+
+  @Test
+  void scopeLifetimeRecordedAndLinkedToContinuation() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    AgentScope.Continuation continuation = tracer.captureSpan(span);
+    AgentScope scope = continuation.activate();
+    scope.close();
+    span.finish();
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+
+    ScopeRecord linked = continuationScope(report);
+    assertNotNull(linked, "the resumed scope was recorded");
+    assertNotNull(linked.open(), "scope open observed");
+    assertTrue(linked.closed(), "scope close observed");
+    assertEquals(0, report.neverClosedScopeCount());
+    // the scope links back to its continuation record
+    assertEquals(1, report.records().size());
+    assertEquals(Long.valueOf(report.records().get(0).seq), linked.continuationSeq);
+  }
+
+  @Test
+  void neverClosedScopeIsFlagged() {
+    tracer = CoreTracer.builder().writer(new ListWriter()).strictTraceWrites(false).build();
+
+    ScopeDiagnostics.startRecording();
+
+    AgentSpan span = tracer.startSpan("test", "op");
+    AgentScope.Continuation continuation = tracer.captureSpan(span);
+    AgentScope scope = continuation.activate(); // opened, never closed
+
+    ScopeDiagnosticsReport report = ScopeDiagnostics.report();
+
+    assertEquals(1, report.neverClosedScopeCount(), "the open scope never closed");
+    assertEquals(1, report.leakCount(), "and the continuation it backs also leaks");
+    assertTrue(report.hasProblems());
+
+    // clean up so the open scope does not pollute this thread's scope stack for later tests
+    scope.close();
+    span.finish();
+  }
+
+  private static ScopeRecord continuationScope(ScopeDiagnosticsReport report) {
+    List<ScopeRecord> scopes = report.scopeRecords();
+    for (ScopeRecord s : scopes) {
+      if (s.continuationSeq != null) {
+        return s;
+      }
+    }
+    return null;
   }
 }

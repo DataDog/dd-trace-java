@@ -9,8 +9,16 @@ public final class ScopeEvent {
   public enum Type {
     CAPTURE,
     ACTIVATE,
+    /** An {@code activate()} that returned the noop scope after the continuation was resolved. */
+    ACTIVATE_FAILED,
     RESOLVE_FINISH,
-    RESOLVE_CANCEL
+    RESOLVE_CANCEL,
+    /** A scope became active (first activation). */
+    SCOPE_OPEN,
+    /** A scope was popped from its thread's stack. */
+    SCOPE_CLOSE,
+    /** A scope was closed while not on top of its thread's stack. */
+    SCOPE_CLOSE_WRONG_THREAD
   }
 
   public final Type type;

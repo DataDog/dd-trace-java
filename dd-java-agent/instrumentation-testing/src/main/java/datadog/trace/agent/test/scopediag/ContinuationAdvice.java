@@ -29,10 +29,22 @@ public final class ContinuationAdvice {
     }
   }
 
-  /** {@code cancel()} — resolution detected via the {@code count} transition. */
+  /**
+   * Resolution detected via the {@code count} transition. Applied to both {@code cancel()} and
+   * {@code cancelFromContinuedScopeClose()} — they need identical before/after observation.
+   *
+   * <p>The resolve timestamp is captured at method <em>entry</em> (the {@code ddResolveNanos}
+   * local), not at exit: the body itself may call {@code removeContinuation() ->
+   * PendingTrace.write()}, which is exactly where the root-written timestamp is taken. Timestamping
+   * at exit would place the resolution after the root write it triggered, producing a spurious
+   * late-finish.
+   */
   public static final class Cancel {
     @Advice.OnMethodEnter
-    public static int enter(@Advice.FieldValue("count") int count) {
+    public static int enter(
+        @Advice.FieldValue("count") int count,
+        @Advice.Local("ddResolveNanos") long ddResolveNanos) {
+      ddResolveNanos = System.nanoTime();
       return count;
     }
 
@@ -40,24 +52,9 @@ public final class ContinuationAdvice {
     public static void exit(
         @Advice.This Object self,
         @Advice.Enter int countBefore,
+        @Advice.Local("ddResolveNanos") long ddResolveNanos,
         @Advice.FieldValue("count") int countAfter) {
-      ScopeContinuationProbe.onResolve(self, countBefore, countAfter);
-    }
-  }
-
-  /** {@code cancelFromContinuedScopeClose()} — same resolution detection as {@link Cancel}. */
-  public static final class CancelFromClose {
-    @Advice.OnMethodEnter
-    public static int enter(@Advice.FieldValue("count") int count) {
-      return count;
-    }
-
-    @Advice.OnMethodExit(suppress = Throwable.class)
-    public static void exit(
-        @Advice.This Object self,
-        @Advice.Enter int countBefore,
-        @Advice.FieldValue("count") int countAfter) {
-      ScopeContinuationProbe.onResolve(self, countBefore, countAfter);
+      ScopeContinuationProbe.onResolve(self, countBefore, countAfter, ddResolveNanos);
     }
   }
 }

@@ -40,16 +40,26 @@ final class ScopeContinuationTransformer {
                     builder
                         .visit(Advice.to(ContinuationAdvice.Register.class).on(named("register")))
                         .visit(Advice.to(ContinuationAdvice.Activate.class).on(named("activate")))
-                        .visit(Advice.to(ContinuationAdvice.Cancel.class).on(named("cancel")))
                         .visit(
-                            Advice.to(ContinuationAdvice.CancelFromClose.class)
-                                .on(named("cancelFromContinuedScopeClose"))))
+                            Advice.to(ContinuationAdvice.Cancel.class)
+                                .on(named("cancel").or(named("cancelFromContinuedScopeClose")))))
             .type(named("datadog.trace.core.PendingTrace"))
             .transform(
                 (builder, type, classLoader, module, pd) ->
                     builder.visit(
                         Advice.to(PendingTraceAdvice.Write.class)
                             .on(named("write").and(takesArguments(boolean.class)))))
+            .type(named("datadog.trace.core.scopemanager.ContinuableScope"))
+            .transform(
+                (builder, type, classLoader, module, pd) ->
+                    builder
+                        .visit(
+                            Advice.to(ContinuableScopeAdvice.AfterActivated.class)
+                                .on(named("afterActivated")))
+                        .visit(
+                            Advice.to(ContinuableScopeAdvice.OnProperClose.class)
+                                .on(named("onProperClose")))
+                        .visit(Advice.to(ContinuableScopeAdvice.Close.class).on(named("close"))))
             .installOn(instrumentation);
   }
 }

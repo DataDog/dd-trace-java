@@ -18,12 +18,15 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 /**
- * Test-time engine that records scope-continuation lifecycle events and renders leak reports.
+ * Test-time engine that records scope/continuation lifecycle events and renders leak reports.
  *
- * <p>While recording, {@link ScopeContinuationProbe} (test-only bytecode advice) feeds it lifecycle
- * events, which it correlates by continuation identity (an {@link IdentityHashMap}, never {@code
- * equals}/{@code hashCode}). It assumes a single test runs at a time per JVM (true for
- * instrumentation tests); {@link #reset()} isolates one test from the next.
+ * <p>It models two correlated lifecycles separately: continuations ({@link ContinuationRecord} —
+ * captured/resumed/finished) and scopes ({@link ScopeRecord} — opened/closed). While recording,
+ * {@link ScopeContinuationProbe} (test-only bytecode advice) feeds it events, which it correlates
+ * by identity (an {@link IdentityHashMap}, never {@code equals}/{@code hashCode}) — continuations
+ * by their {@code AgentScope.Continuation} instance, scopes by their scope instance. It assumes a
+ * single test runs at a time per JVM (true for instrumentation tests); {@link #reset()} isolates
+ * one test from the next.
  *
  * <p>Usage:
  *
@@ -44,8 +47,11 @@ public final class ScopeDiagnostics {
   private final Map<AgentScope.Continuation, ContinuationRecord> records =
       Collections.synchronizedMap(
           new IdentityHashMap<AgentScope.Continuation, ContinuationRecord>());
+  private final Map<Object, ScopeRecord> scopeRecords =
+      Collections.synchronizedMap(new IdentityHashMap<Object, ScopeRecord>());
   private final Map<DDTraceId, Long> rootWrittenNanos = new ConcurrentHashMap<>();
   private final AtomicLong seq = new AtomicLong();
+  private final AtomicLong scopeSeq = new AtomicLong();
   private volatile StackFilter stackFilter = new StackFilter(DEFAULT_MAX_FRAMES);
 
   private final Listener listener = new Listener();
@@ -74,29 +80,37 @@ public final class ScopeDiagnostics {
   /** Discards all recorded data. */
   public static void reset() {
     INSTANCE.records.clear();
+    INSTANCE.scopeRecords.clear();
     INSTANCE.rootWrittenNanos.clear();
     INSTANCE.seq.set(0);
+    INSTANCE.scopeSeq.set(0);
     ScopeContinuationProbe.reset();
   }
 
   /** Builds an immutable snapshot report of everything recorded so far. */
   public static ScopeDiagnosticsReport report() {
-    List<ContinuationRecord> snapshot;
+    List<ContinuationRecord> continuations;
     synchronized (INSTANCE.records) {
-      snapshot = new ArrayList<>(INSTANCE.records.values());
+      continuations = new ArrayList<>(INSTANCE.records.values());
     }
-    return new ScopeDiagnosticsReport(snapshot, new ConcurrentHashMap<>(INSTANCE.rootWrittenNanos));
+    List<ScopeRecord> scopes;
+    synchronized (INSTANCE.scopeRecords) {
+      scopes = new ArrayList<>(INSTANCE.scopeRecords.values());
+    }
+    return new ScopeDiagnosticsReport(
+        continuations, scopes, new ConcurrentHashMap<>(INSTANCE.rootWrittenNanos));
   }
 
   /**
-   * Fails with an {@link AssertionError} (carrying the leak summary) if any never-resolved leak or
-   * double/invalid resolution was recorded. Late-after-root is reported but does not fail.
+   * Fails with an {@link AssertionError} (carrying the problem summary) if the report flags a
+   * genuine bug (see {@link ScopeDiagnosticsReport#hasProblems()}). Report-only signals such as
+   * late-after-root and close-on-wrong-thread do not fail.
    */
   public static void assertNoLeaks() {
     ScopeDiagnosticsReport report = report();
     if (report.hasProblems()) {
       throw new AssertionError(
-          "Scope continuation leaks detected:\n"
+          "Scope continuation problems detected:\n"
               + report.renderSummary()
               + "\n"
               + report.renderGantt());
@@ -128,41 +142,70 @@ public final class ScopeDiagnostics {
   // ---- listener implementation ---------------------------------------------
 
   private ScopeEvent event(ScopeEvent.Type type) {
+    return event(type, System.nanoTime());
+  }
+
+  /** Builds an event with an explicit timestamp (thread and stack are still captured now). */
+  private ScopeEvent event(ScopeEvent.Type type, long nanos) {
     return new ScopeEvent(
         type,
         Thread.currentThread().getName(),
-        System.nanoTime(),
+        nanos,
         stackFilter.filter(new Throwable().getStackTrace()));
   }
 
   // ---- static forwarders called by ScopeContinuationProbe ------------------
 
   static void recordCapture(
-      AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
-    INSTANCE.listener.onCapture(id, traceId, spanId, source);
+      AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
+    INSTANCE.listener.onCapture(id, traceId, spanId, spanName, source);
   }
 
   static void recordActivate(
-      AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
-    INSTANCE.listener.onActivate(id, traceId, spanId, source);
+      AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
+    INSTANCE.listener.onActivate(id, traceId, spanId, spanName, source);
   }
 
-  static void recordResolve(AgentScope.Continuation id, boolean cancelled) {
-    INSTANCE.listener.onResolve(id, cancelled);
+  static void recordActivateFailed(AgentScope.Continuation id) {
+    INSTANCE.listener.onActivateFailed(id);
+  }
+
+  static void recordResolve(AgentScope.Continuation id, boolean cancelled, long resolveNanos) {
+    INSTANCE.listener.onResolve(id, cancelled, resolveNanos);
   }
 
   static void recordRootWritten(DDTraceId traceId) {
     INSTANCE.listener.onRootWritten(traceId);
   }
 
+  static void recordScopeOpen(
+      Object scope,
+      DDTraceId traceId,
+      long spanId,
+      String spanName,
+      byte source,
+      AgentScope.Continuation continuation) {
+    INSTANCE.listener.onScopeOpen(scope, traceId, spanId, spanName, source, continuation);
+  }
+
+  static void recordScopeClose(Object scope) {
+    INSTANCE.listener.onScopeClose(scope);
+  }
+
+  static void recordScopeCloseWrongThread(Object scope) {
+    INSTANCE.listener.onScopeCloseWrongThread(scope);
+  }
+
   private final class Listener {
-    public void onCapture(AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
+    void onCapture(
+        AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
       try {
         ContinuationRecord record =
             new ContinuationRecord(
                 seq.getAndIncrement(),
                 traceId,
                 spanId,
+                spanName,
                 source,
                 false,
                 event(ScopeEvent.Type.CAPTURE));
@@ -172,40 +215,107 @@ public final class ScopeDiagnostics {
       }
     }
 
-    public void onActivate(
-        AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
+    void onActivate(
+        AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
       try {
-        recordFor(id, traceId, spanId, source).addActivation(event(ScopeEvent.Type.ACTIVATE));
+        recordFor(id, traceId, spanId, spanName, source).addResume(event(ScopeEvent.Type.ACTIVATE));
       } catch (Throwable ignored) {
       }
     }
 
-    public void onResolve(AgentScope.Continuation id, boolean cancelled) {
+    void onActivateFailed(AgentScope.Continuation id) {
+      try {
+        ContinuationRecord record = records.get(id);
+        // only an activation of an already-resolved continuation is a real failure; a plain
+        // rollback (e.g. cancelled before any capture was recorded) is benign and ignored
+        if (record != null && record.isResolved()) {
+          record.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED));
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
+    void onResolve(AgentScope.Continuation id, boolean cancelled, long resolveNanos) {
       try {
         ScopeEvent.Type type =
             cancelled ? ScopeEvent.Type.RESOLVE_CANCEL : ScopeEvent.Type.RESOLVE_FINISH;
-        recordFor(id, DDTraceId.ZERO, 0, (byte) -1).addResolution(event(type));
+        recordFor(id, DDTraceId.ZERO, 0, null, (byte) -1)
+            .setTerminalOrExtra(event(type, resolveNanos));
       } catch (Throwable ignored) {
       }
     }
 
-    public void onRootWritten(DDTraceId traceId) {
+    void onRootWritten(DDTraceId traceId) {
       try {
         rootWrittenNanos.putIfAbsent(traceId, System.nanoTime());
       } catch (Throwable ignored) {
       }
     }
 
+    void onScopeOpen(
+        Object scope,
+        DDTraceId traceId,
+        long spanId,
+        String spanName,
+        byte source,
+        AgentScope.Continuation continuation) {
+      try {
+        synchronized (scopeRecords) {
+          if (scopeRecords.containsKey(scope)) {
+            return; // re-activation of an already-open scope, not a new open
+          }
+          ContinuationRecord owner = continuation != null ? records.get(continuation) : null;
+          Long continuationSeq = owner != null ? owner.seq : null;
+          long s = scopeSeq.getAndIncrement();
+          scopeRecords.put(
+              scope,
+              new ScopeRecord(
+                  s,
+                  traceId,
+                  spanId,
+                  spanName,
+                  source,
+                  continuationSeq,
+                  event(ScopeEvent.Type.SCOPE_OPEN)));
+          if (owner != null) {
+            owner.linkScope(s);
+          }
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
+    void onScopeClose(Object scope) {
+      try {
+        ScopeRecord record = scopeRecords.get(scope);
+        if (record != null) {
+          record.setClose(event(ScopeEvent.Type.SCOPE_CLOSE));
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
+    void onScopeCloseWrongThread(Object scope) {
+      try {
+        ScopeRecord record = scopeRecords.get(scope);
+        if (record != null) {
+          record.addWrongThreadClose(event(ScopeEvent.Type.SCOPE_CLOSE_WRONG_THREAD));
+        }
+      } catch (Throwable ignored) {
+      }
+    }
+
     /** Returns the record for an id, creating an orphan record if capture was not observed. */
     private ContinuationRecord recordFor(
-        AgentScope.Continuation id, DDTraceId traceId, long spanId, byte source) {
+        AgentScope.Continuation id, DDTraceId traceId, long spanId, String spanName, byte source) {
       synchronized (records) {
         ContinuationRecord existing = records.get(id);
         if (existing != null) {
           return existing;
         }
         ContinuationRecord orphan =
-            new ContinuationRecord(seq.getAndIncrement(), traceId, spanId, source, true, null);
+            new ContinuationRecord(
+                seq.getAndIncrement(), traceId, spanId, spanName, source, true, null);
         records.put(id, orphan);
         return orphan;
       }

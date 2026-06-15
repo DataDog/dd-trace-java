@@ -23,20 +23,22 @@ class ScopeDiagnosticsReportTest {
 
   private static ContinuationRecord record(long seq, DDTraceId trace) {
     return new ContinuationRecord(
-        seq, trace, 7L, (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
+        seq, trace, 7L, "op", (byte) 0, false, event(ScopeEvent.Type.CAPTURE, "main", 1000));
   }
 
   @Test
-  void resolvedContinuationHasNoFlags() {
+  void resolvedContinuationHasNoFailures() {
     ContinuationRecord r = record(0, DDTraceId.from(10));
-    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
-    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(0, report.leakCount());
     assertEquals(0, report.lateCount());
     assertEquals(0, report.doubleCount());
+    assertEquals(ContinuationStatus.FINISHED, r.status());
+    assertTrue(r.threadHandoff()); // captured on main, resolved on pool-1
     assertFalse(report.hasProblems());
   }
 
@@ -47,8 +49,9 @@ class ScopeDiagnosticsReportTest {
     ScopeDiagnosticsReport report = report(list(r), map());
 
     assertEquals(1, report.leakCount());
+    assertEquals(ContinuationStatus.LEAKED, r.status());
     assertTrue(report.hasProblems());
-    assertTrue(report.renderSummary().contains("LEAK"));
+    assertTrue(report.renderSummary().contains("LEAKED"));
     assertTrue(report.renderGantt().contains("Worker.java:42"));
   }
 
@@ -56,8 +59,8 @@ class ScopeDiagnosticsReportTest {
   void resolutionAfterRootWriteIsFlaggedLate() {
     DDTraceId trace = DDTraceId.from(12);
     ContinuationRecord r = record(0, trace);
-    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 5000));
-    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 6000));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 5000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 6000));
 
     Map<DDTraceId, Long> rootWritten = map();
     rootWritten.put(trace, 4000L); // root written before the activation/resolution
@@ -69,11 +72,26 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
+  void lateFinishDoesNotFail() {
+    DDTraceId trace = DDTraceId.from(120);
+    ContinuationRecord r = record(0, trace);
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 5000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 6000));
+    Map<DDTraceId, Long> rootWritten = map();
+    rootWritten.put(trace, 4000L);
+
+    ScopeDiagnosticsReport report = report(list(r), rootWritten);
+
+    assertEquals(1, report.lateCount());
+    assertFalse(report.hasProblems()); // late-finish is report-only
+  }
+
+  @Test
   void multipleResolutionsAreFlaggedDouble() {
     ContinuationRecord r = record(0, DDTraceId.from(13));
-    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
-    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
-    r.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3500));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3500));
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
@@ -82,14 +100,28 @@ class ScopeDiagnosticsReportTest {
   }
 
   @Test
-  void activationAfterResolutionIsFlaggedDouble() {
+  void activationAfterResolveIsFailure() {
     ContinuationRecord r = record(0, DDTraceId.from(14));
-    r.addResolution(event(ScopeEvent.Type.RESOLVE_CANCEL, "pool-1", 2000));
-    r.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000)); // activate after cancel
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_CANCEL, "pool-1", 2000));
+    r.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-2", 3000)); // resume after cancel
 
     ScopeDiagnosticsReport report = report(list(r), map());
 
-    assertEquals(1, report.doubleCount());
+    assertEquals(1, report.activateAfterResolveCount());
+    assertEquals(0, report.doubleCount());
+    assertTrue(report.hasProblems());
+  }
+
+  @Test
+  void failedActivationIsActivateAfterResolve() {
+    ContinuationRecord r = record(0, DDTraceId.from(141));
+    r.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_CANCEL, "pool-1", 2000));
+    r.addFailedActivation(event(ScopeEvent.Type.ACTIVATE_FAILED, "pool-2", 3000));
+
+    ScopeDiagnosticsReport report = report(list(r), map());
+
+    assertEquals(1, report.activateAfterResolveCount());
+    assertTrue(report.hasProblems());
   }
 
   @Test
@@ -100,15 +132,16 @@ class ScopeDiagnosticsReportTest {
     String json = report.toJson();
     assertTrue(json.contains("\"summary\""));
     assertTrue(json.contains("\"leaked\":1"));
-    assertTrue(json.contains("\"flags\":[\"LEAK\"]"));
+    assertTrue(json.contains("\"failures\":[\"LEAKED\"]"));
+    assertTrue(json.contains("\"scopes\":["));
   }
 
   @Test
   void mermaidGanttGroupsByThreadAndMarksLeakCrit() {
     DDTraceId trace = DDTraceId.from(20);
     ContinuationRecord resolved = record(0, trace);
-    resolved.addActivation(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
-    resolved.addResolution(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
+    resolved.addResume(event(ScopeEvent.Type.ACTIVATE, "pool-1", 2000));
+    resolved.setTerminalOrExtra(event(ScopeEvent.Type.RESOLVE_FINISH, "pool-1", 3000));
     ContinuationRecord leak = record(1, trace); // capture only -> leak
 
     String mermaid = report(list(resolved, leak), map()).toMermaidGantt();
@@ -128,7 +161,7 @@ class ScopeDiagnosticsReportTest {
 
   private static ScopeDiagnosticsReport report(
       List<ContinuationRecord> records, Map<DDTraceId, Long> rootWritten) {
-    return new ScopeDiagnosticsReport(records, rootWritten);
+    return new ScopeDiagnosticsReport(records, new ArrayList<>(), rootWritten);
   }
 
   private static List<ContinuationRecord> list(ContinuationRecord... rs) {
