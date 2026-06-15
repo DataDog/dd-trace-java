@@ -59,7 +59,6 @@ public final class TraceMapperV1 implements TraceMapper {
 
   // Decision maker tag key
   private static final String KEY_DECISION_MAKER = "_dd.p.dm";
-  private static final String HTTP_STATUS = "http.status_code";
 
   private final int bufferSize;
   private final StringTable stringTable;
@@ -360,7 +359,8 @@ public final class TraceMapperV1 implements TraceMapper {
     Map<String, String> baggage = meta.getBaggage();
     String httpStatusCode =
         meta.getHttpStatusCode() == null ? null : meta.getHttpStatusCode().toString();
-    boolean writeHttpStatus = httpStatusCode != null && tags.getString(HTTP_STATUS) == null;
+    String httpStatusKey = meta.getHttpStatusKey().toString();
+    boolean writeHttpStatus = httpStatusCode != null && tags.getString(httpStatusKey) == null;
     boolean writeTopLevel = meta.topLevel();
     int tagCount = 0;
     for (TagMap.EntryReader entry : tags) {
@@ -393,7 +393,7 @@ public final class TraceMapperV1 implements TraceMapper {
       writeFlattenedTagAttribute(writable, entry);
     }
     if (writeHttpStatus) {
-      writeAttribute(writable, HTTP_STATUS, httpStatusCode);
+      writeAttribute(writable, httpStatusKey, httpStatusCode);
     }
     if (writeTopLevel) {
       writeAttribute(writable, InstrumentationTags.DD_TOP_LEVEL.toString(), 1);

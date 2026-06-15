@@ -5,14 +5,23 @@ import static java.util.Collections.emptyList;
 
 import datadog.trace.api.TagMap;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpanLink;
+import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import java.util.List;
 import java.util.Map;
 
 public final class Metadata {
+  /** Serialized key for the HTTP status code in Datadog convention. */
+  public static final UTF8BytesString HTTP_STATUS_KEY = UTF8BytesString.create(Tags.HTTP_STATUS);
+
+  /** Serialized key for the HTTP status code in OpenTelemetry convention. */
+  public static final UTF8BytesString HTTP_RESPONSE_STATUS_CODE_KEY =
+      UTF8BytesString.create(Tags.HTTP_RESPONSE_STATUS_CODE);
+
   private final long threadId;
   private final UTF8BytesString threadName;
   private final UTF8BytesString httpStatusCode;
+  private final UTF8BytesString httpStatusKey;
   private final TagMap tags;
   private final Map<String, String> baggage;
 
@@ -37,9 +46,40 @@ public final class Metadata {
       int longRunningVersion,
       UTF8BytesString processTags,
       List<? extends AgentSpanLink> spanLinks) {
+    this(
+        threadId,
+        threadName,
+        tags,
+        baggage,
+        samplingPriority,
+        measured,
+        topLevel,
+        httpStatusCode,
+        HTTP_STATUS_KEY,
+        origin,
+        longRunningVersion,
+        processTags,
+        spanLinks);
+  }
+
+  public Metadata(
+      long threadId,
+      UTF8BytesString threadName,
+      TagMap tags,
+      Map<String, String> baggage,
+      int samplingPriority,
+      boolean measured,
+      boolean topLevel,
+      UTF8BytesString httpStatusCode,
+      UTF8BytesString httpStatusKey,
+      CharSequence origin,
+      int longRunningVersion,
+      UTF8BytesString processTags,
+      List<? extends AgentSpanLink> spanLinks) {
     this.threadId = threadId;
     this.threadName = threadName;
     this.httpStatusCode = httpStatusCode;
+    this.httpStatusKey = httpStatusKey;
     this.tags = tags;
     this.baggage = baggage;
     this.samplingPriority = samplingPriority;
@@ -53,6 +93,11 @@ public final class Metadata {
 
   public UTF8BytesString getHttpStatusCode() {
     return httpStatusCode;
+  }
+
+  /** The serialized attribute key to use for the HTTP status code (DD vs OTel convention). */
+  public UTF8BytesString getHttpStatusKey() {
+    return httpStatusKey;
   }
 
   public CharSequence getOrigin() {

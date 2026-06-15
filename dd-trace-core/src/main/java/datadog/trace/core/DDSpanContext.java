@@ -1244,6 +1244,9 @@ public class DDSpanContext
               measured,
               topLevel,
               httpStatusCode == 0 ? null : HTTP_STATUSES.get(httpStatusCode),
+              Config.get().isTraceOtelSemanticsEnabled()
+                  ? Metadata.HTTP_RESPONSE_STATUS_CODE_KEY
+                  : Metadata.HTTP_STATUS_KEY,
               // Get origin from rootSpan.context
               getOrigin(),
               longRunningVersion,

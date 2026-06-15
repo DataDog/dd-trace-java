@@ -20,6 +20,22 @@ public class Tags {
   public static final String HTTP_STATUS = "http.status_code";
   public static final String HTTP_METHOD = "http.method";
   public static final String HTTP_ENDPOINT = "http.endpoint";
+
+  // OpenTelemetry HTTP semantic conventions (emitted when DD_TRACE_OTEL_SEMANTICS_ENABLED=true).
+  // See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+  public static final String HTTP_REQUEST_METHOD = "http.request.method";
+  public static final String HTTP_REQUEST_METHOD_ORIGINAL = "http.request.method_original";
+  public static final String HTTP_RESPONSE_STATUS_CODE = "http.response.status_code";
+  public static final String URL_FULL = "url.full";
+  public static final String URL_PATH = "url.path";
+  public static final String URL_SCHEME = "url.scheme";
+  public static final String URL_QUERY = "url.query";
+  public static final String SERVER_ADDRESS = "server.address";
+  public static final String SERVER_PORT = "server.port";
+  public static final String CLIENT_ADDRESS = "client.address";
+  public static final String NETWORK_PEER_ADDRESS = "network.peer.address";
+  public static final String NETWORK_PROTOCOL_VERSION = "network.protocol.version";
+  public static final String USER_AGENT_ORIGINAL = "user_agent.original";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";
   public static final String HTTP_FORWARDED_HOST = "http.forwarded.host";

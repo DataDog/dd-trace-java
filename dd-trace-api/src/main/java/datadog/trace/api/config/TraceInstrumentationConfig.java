@@ -52,6 +52,14 @@ public final class TraceInstrumentationConfig {
       "http.server.decoded.resource.preserve-spaces";
   public static final String HTTP_SERVER_ROUTE_BASED_NAMING = "http.server.route-based-naming";
 
+  /**
+   * When enabled, HTTP server and client spans emit ONLY OpenTelemetry HTTP semantic-convention
+   * attributes (e.g. {@code http.request.method}, {@code url.path}, {@code server.address}) instead
+   * of the Datadog attributes ({@code http.method}, {@code http.url}, ...). Opt-in, disabled by
+   * default. See https://opentelemetry.io/docs/specs/semconv/http/http-spans/
+   */
+  public static final String TRACE_OTEL_SEMANTICS_ENABLED = "trace.otel.semantics.enabled";
+
   // Use TRACE_HTTP_CLIENT_TAG_QUERY_STRING instead
   @Deprecated
   public static final String HTTP_CLIENT_TAG_QUERY_STRING = "http.client.tag.query-string";

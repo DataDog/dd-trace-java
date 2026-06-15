@@ -243,6 +243,7 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       final REQUEST request,
       final Context parentContext) {
     Config config = Config.get();
+    final boolean otelSemantics = config.isTraceOtelSemanticsEnabled();
 
     if (APPSEC_ACTIVE) {
       RequestContext requestContext = span.getRequestContext();
@@ -308,13 +309,17 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       }
       String userAgent = extracted.getUserAgent();
       if (userAgent != null) {
-        span.setTag(Tags.HTTP_USER_AGENT, userAgent);
+        span.setTag(otelSemantics ? Tags.USER_AGENT_ORIGINAL : Tags.HTTP_USER_AGENT, userAgent);
       }
     }
 
     if (request != null) {
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (otelSemantics) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+      } else {
+        span.setTag(Tags.HTTP_METHOD, method);
+      }
 
       // Copy of HttpClientDecorator url handling
       try {
@@ -324,30 +329,66 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           boolean encoded = supportsRaw && config.isHttpServerRawResource();
           boolean valid = url.isValid();
           String path = encoded ? url.rawPath() : url.path();
-          if (valid) {
-            span.setTag(
-                Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
-          } else if (supportsRaw) {
-            span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
-          }
-          if (extracted != null && extracted.getXForwardedHost() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
-          } else if (url.host() != null) {
-            span.setTag(Tags.HTTP_HOSTNAME, url.host());
+          if (otelSemantics) {
+            // OTel server: url.path/url.scheme + server.address/port instead of the DD http.url
+            // tag.
+            if (valid) {
+              if (url.scheme() != null) {
+                span.setTag(Tags.URL_SCHEME, url.scheme());
+              }
+              span.setTag(Tags.URL_PATH, path);
+            } else if (supportsRaw) {
+              span.setTag(Tags.URL_PATH, url.raw());
+            }
+            String serverAddress =
+                extracted != null && extracted.getXForwardedHost() != null
+                    ? extracted.getXForwardedHost()
+                    : url.host();
+            if (serverAddress != null) {
+              span.setTag(Tags.SERVER_ADDRESS, serverAddress);
+            }
+            if (url.port() > 0) {
+              span.setTag(Tags.SERVER_PORT, url.port());
+            }
+          } else {
+            if (valid) {
+              span.setTag(
+                  Tags.HTTP_URL, URIUtils.lazyValidURL(url.scheme(), url.host(), url.port(), path));
+            } else if (supportsRaw) {
+              span.setTag(Tags.HTTP_URL, URIUtils.lazyInvalidUrl(url.raw()));
+            }
+            if (extracted != null && extracted.getXForwardedHost() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, extracted.getXForwardedHost());
+            } else if (url.host() != null) {
+              span.setTag(Tags.HTTP_HOSTNAME, url.host());
+            }
           }
 
           if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
-            span.setTag(DDTags.HTTP_QUERY, query);
-            span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            if (otelSemantics) {
+              // OTel: url.query is omitted when empty
+              if (query != null && !query.isEmpty()) {
+                span.setTag(Tags.URL_QUERY, query);
+              }
+            } else {
+              span.setTag(DDTags.HTTP_QUERY, query);
+              span.setTag(DDTags.HTTP_FRAGMENT, url.fragment());
+            }
           }
           Flow<Void> flow = callIGCallbackURI(span, url, method);
           if (flow.getAction() instanceof RequestBlockingAction) {
             span.setRequestBlockingAction((RequestBlockingAction) flow.getAction());
           }
           if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
-            HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
+            if (otelSemantics) {
+              // OTel span name is "{method}"; route-based naming appends the route when known. The
+              // spec forbids using the URL path as the target, so we don't fall back to it.
+              span.setResourceName(method, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+            } else {
+              HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
+            }
           }
         } else if (SHOULD_SET_URL_RESOURCE_NAME) {
           span.setResourceName(DEFAULT_RESOURCE_NAME);
@@ -383,7 +424,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (inferredAddress != null) {
         inferredAddressStr = inferredAddress.getHostAddress();
         if (shouldTagIps) {
-          span.setTag(Tags.HTTP_CLIENT_IP, inferredAddressStr);
+          // OTel maps the resolved client IP (http.client_ip) to client.address
+          span.setTag(
+              otelSemantics ? Tags.CLIENT_ADDRESS : Tags.HTTP_CLIENT_IP, inferredAddressStr);
         }
       }
     } else if (shouldTagIps && span.getLocalRootSpan() != span) {
@@ -393,9 +436,10 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       // likely already happened on the top span, so we don't need to do the resolution
       // again. Instead, copy from the top span, should it exist
       AgentSpan localRootSpan = span.getLocalRootSpan();
-      Object clientIp = localRootSpan.getTag(Tags.HTTP_CLIENT_IP);
+      String clientIpTag = otelSemantics ? Tags.CLIENT_ADDRESS : Tags.HTTP_CLIENT_IP;
+      Object clientIp = localRootSpan.getTag(clientIpTag);
       if (clientIp != null) {
-        span.setTag(Tags.HTTP_CLIENT_IP, clientIp);
+        span.setTag(clientIpTag, clientIp);
       }
     }
 
@@ -406,7 +450,8 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
         span.setTag(Tags.PEER_HOST_IPV4, peerIp);
       }
       if (shouldTagIps) {
-        span.setTag(Tags.NETWORK_CLIENT_IP, peerIp);
+        // OTel maps the socket peer IP (network.client.ip) to network.peer.address
+        span.setTag(otelSemantics ? Tags.NETWORK_PEER_ADDRESS : Tags.NETWORK_CLIENT_IP, peerIp);
       }
     }
     if (shouldStashIps && (peerIp != null || inferredAddressStr != null)) {
@@ -450,7 +495,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
   }
 
   public AgentSpan onResponseStatus(final AgentSpan span, final int status) {
+    final boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
     if (status > UNSET_STATUS) {
+      // Status stays in the dedicated field; the serializer renames the key under OTel semantics.
       span.setHttpStatusCode(status);
       // explicitly set here because some other decorators might already set an error without
       // looking at the status code
@@ -460,9 +507,15 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
       if (!BlockingException.class.getName().equals(span.getTag("error.type"))) {
         span.setError(SERVER_ERROR_STATUSES.get(status), ErrorPriorities.HTTP_SERVER_DECORATOR);
       }
+      // OTel error.type = status for server error responses (5xx; 4xx isn't an error), unless set.
+      if (otelSemantics && SERVER_ERROR_STATUSES.get(status)) {
+        OtelHttpSemantics.setErrorType(span, status);
+      }
     }
 
-    if (SHOULD_SET_404_RESOURCE_NAME && status == 404) {
+    // Under OTel semantics the span name must not use the path/404 as the target, so leave the
+    // "{method}" name in place rather than overriding it with the Datadog "404" resource name.
+    if (!otelSemantics && SHOULD_SET_404_RESOURCE_NAME && status == 404) {
       span.setResourceName(NOT_FOUND_RESOURCE_NAME, ResourceNamePriorities.HTTP_404);
     }
     return span;

@@ -172,7 +172,7 @@ public final class TraceMapperV0_4 implements TraceMapper {
       writable.writeUTF8(THREAD_NAME);
       writable.writeUTF8(metadata.getThreadName());
       if (null != metadata.getHttpStatusCode()) {
-        writable.writeUTF8(HTTP_STATUS);
+        writable.writeUTF8(metadata.getHttpStatusKey());
         writable.writeUTF8(metadata.getHttpStatusCode());
       }
       if (null != metadata.getOrigin()) {

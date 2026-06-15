@@ -32,6 +32,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_DE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_QUERY_STRING
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_RAW_RESOURCE
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_SERVER_TAG_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_SEMANTICS_ENABLED
 import static datadog.trace.api.gateway.Events.EVENTS
 
 class HttpServerDecoratorTest extends ServerDecoratorTest {
@@ -91,6 +92,92 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     [method: "test-method", url: URI.create("https://10.0.0.1:443"), path: '/']               | "https://10.0.0.1/"
     [method: "test-method", url: URI.create("https://localhost:0/1/"), path: '/?/']           | "https://localhost/1/"
     [method: "test-method", url: URI.create("http://123:8080/some/path"), path: '/some/path'] | "http://123:8080/some/path"
+  }
+
+  def "test onRequest emits only OTel semconv attributes when enabled"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    injectSysConfig(HTTP_SERVER_TAG_QUERY_STRING, "true")
+    def decorator = newDecorator()
+    def req = [method: "GET", url: URI.create("http://test-host:8080/some/path?some=query"), path: '/some/path']
+
+    when:
+    decorator.onRequest(this.span, null, req, root())
+
+    then:
+    // OpenTelemetry HTTP server semconv attributes
+    1 * this.span.setTag(Tags.HTTP_REQUEST_METHOD, "GET")
+    1 * this.span.setTag(Tags.URL_SCHEME, "http")
+    1 * this.span.setTag(Tags.URL_PATH, "/some/path")
+    1 * this.span.setTag(Tags.SERVER_ADDRESS, "test-host")
+    1 * this.span.setTag(Tags.SERVER_PORT, 8080)
+    1 * this.span.setTag(Tags.URL_QUERY, "some=query")
+    // The Datadog attributes must NOT be emitted in this mode
+    0 * this.span.setTag(Tags.HTTP_METHOD, _)
+    0 * this.span.setTag(Tags.HTTP_URL, _)
+    0 * this.span.setTag(Tags.HTTP_HOSTNAME, _)
+    0 * this.span.setTag(DDTags.HTTP_QUERY, _)
+    0 * this.span.setTag(DDTags.HTTP_FRAGMENT, _)
+    // OTel span name is "{method}" here; route-based naming appends "{route}" later when resolved.
+    // The spec forbids using the URL path as the target, so the path must NOT appear in the name.
+    1 * this.span.setResourceName("GET", ResourceNamePriorities.HTTP_PATH_NORMALIZER)
+    2 * this.span.getRequestContext()
+    _ * this.span.getLocalRootSpan() >> this.span
+    0 * _
+  }
+
+  def "test onResponseStatus keeps status in the dedicated field, no manual OTel tag (otel=#otelEnabled)"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "$otelEnabled")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onResponseStatus(this.span, 200)
+
+    then:
+    // The status code stays in the dedicated field (so trace stats keep their status dimension); the
+    // serializer renames the emitted key under OTel semantics. The decorator never sets a manual tag.
+    1 * this.span.setHttpStatusCode(200)
+    0 * this.span.setTag(Tags.HTTP_RESPONSE_STATUS_CODE, _)
+    1 * this.span.getTag("error.type")
+    1 * this.span.setError(false, ErrorPriorities.HTTP_SERVER_DECORATOR)
+    0 * _
+
+    where:
+    otelEnabled << [true, false]
+  }
+
+  def "test onResponseStatus sets error.type for server errors under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onResponseStatus(this.span, 500)
+
+    then:
+    1 * this.span.setHttpStatusCode(500)
+    1 * this.span.setError(true, ErrorPriorities.HTTP_SERVER_DECORATOR)
+    // one getTag from the blocking-exception check, one from the error.type presence check
+    2 * this.span.getTag("error.type")
+    1 * this.span.setTag(DDTags.ERROR_TYPE, "500")
+    0 * _
+  }
+
+  def "test onRequest normalizes unknown method to _OTHER under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+    def req = [method: "PROPFIND", url: URI.create("http://test-host/some/path"), path: '/some/path']
+
+    when:
+    decorator.onRequest(this.span, null, req, root())
+
+    then:
+    1 * this.span.setTag(Tags.HTTP_REQUEST_METHOD, "_OTHER")
+    1 * this.span.setTag(Tags.HTTP_REQUEST_METHOD_ORIGINAL, "PROPFIND")
+    0 * this.span.setTag(Tags.HTTP_REQUEST_METHOD, "PROPFIND")
+    _ * this.span.getLocalRootSpan() >> this.span
   }
 
   def "test url handling for #url"() {

@@ -23,6 +23,7 @@ import datadog.trace.api.naming.SpanNaming;
 import datadog.trace.bootstrap.instrumentation.api.AgentSpan;
 import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import datadog.trace.bootstrap.instrumentation.api.InternalSpanTypes;
+import datadog.trace.bootstrap.instrumentation.api.ResourceNamePriorities;
 import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.URIUtils;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
@@ -102,8 +103,13 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               request,
               DSM_TRANSACTION_SOURCE_READER);
 
+      final boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
       String method = method(request);
-      span.setTag(Tags.HTTP_METHOD, method);
+      if (otelSemantics) {
+        OtelHttpSemantics.setRequestMethod(span, method);
+      } else {
+        span.setTag(Tags.HTTP_METHOD, method);
+      }
 
       if (CLIENT_TAG_HEADERS) {
         for (Map.Entry<String, String> headerTag :
@@ -120,15 +126,35 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         final URI url = url(request);
         if (url != null) {
           onURI(span, url);
-          span.setTag(
-              Tags.HTTP_URL,
-              URIUtils.lazyValidURL(url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
-          if (Config.get().isHttpClientTagQueryString()) {
-            span.setTag(DDTags.HTTP_QUERY, url.getQuery());
-            span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
-          }
-          if (shouldSetResourceName()) {
-            HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+          if (otelSemantics) {
+            // OTel client: absolute URL in url.full (no url.path/url.query for clients), target in
+            // server.address/port, span named by method only.
+            span.setTag(Tags.URL_FULL, OtelHttpSemantics.redactedUrl(url));
+            if (url.getScheme() != null) {
+              span.setTag(Tags.URL_SCHEME, url.getScheme());
+            }
+            if (url.getHost() != null) {
+              span.setTag(Tags.SERVER_ADDRESS, url.getHost());
+            }
+            int serverPort = OtelHttpSemantics.serverPort(url);
+            if (serverPort > 0) {
+              span.setTag(Tags.SERVER_PORT, serverPort);
+            }
+            if (shouldSetResourceName()) {
+              span.setResourceName(method, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+            }
+          } else {
+            span.setTag(
+                Tags.HTTP_URL,
+                URIUtils.lazyValidURL(
+                    url.getScheme(), url.getHost(), url.getPort(), url.getPath()));
+            if (Config.get().isHttpClientTagQueryString()) {
+              span.setTag(DDTags.HTTP_QUERY, url.getQuery());
+              span.setTag(DDTags.HTTP_FRAGMENT, url.getFragment());
+            }
+            if (shouldSetResourceName()) {
+              HTTP_RESOURCE_DECORATOR.withClientPath(span, method, url.getPath());
+            }
           }
           // SSRF exploit prevention check
           onHttpClientRequest(span, url.toString());
@@ -150,9 +176,14 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
     if (response != null) {
       final int status = status(response);
       if (status > UNSET_STATUS) {
+        // Status stays in the dedicated field; the serializer renames the key under OTel semantics.
         span.setHttpStatusCode(status);
         if (CLIENT_ERROR_STATUSES.get(status)) {
           span.setError(true);
+        }
+        // OTel error.type = status for client error responses (4xx/5xx) unless already set.
+        if (status >= 400 && Config.get().isTraceOtelSemanticsEnabled()) {
+          OtelHttpSemantics.setErrorType(span, status);
         }
       }
 

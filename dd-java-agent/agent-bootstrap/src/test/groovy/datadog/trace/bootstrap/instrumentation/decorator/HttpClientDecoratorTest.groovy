@@ -18,6 +18,7 @@ import spock.lang.Shared
 
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_HOST_SPLIT_BY_DOMAIN
 import static datadog.trace.api.config.TraceInstrumentationConfig.HTTP_CLIENT_TAG_QUERY_STRING
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_SEMANTICS_ENABLED
 
 import java.util.function.BiFunction
 
@@ -84,6 +85,105 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     true          | null
     false         | [method: "test-method", url: testUrl, path: '/somepath']
     true          | [method: "test-method", url: testUrl, path: '/somepath']
+  }
+
+  def "test onRequest emits only OTel semconv attributes when enabled"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+    def req = [method: "GET", url: testUrl, path: '/somepath']
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    // OpenTelemetry HTTP client semconv attributes (clients use url.full, not url.path/url.query)
+    1 * span.setTag(Tags.HTTP_REQUEST_METHOD, "GET")
+    1 * span.setTag(Tags.URL_FULL, "$testUrl")
+    1 * span.setTag(Tags.URL_SCHEME, testUrl.scheme)
+    1 * span.setTag(Tags.SERVER_ADDRESS, testUrl.host)
+    1 * span.setTag(Tags.SERVER_PORT, testUrl.port)
+    0 * span.setTag(Tags.URL_PATH, _)
+    0 * span.setTag(Tags.URL_QUERY, _)
+    // The OTel client span name is the method only
+    1 * span.setResourceName("GET", ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE)
+    // The Datadog HTTP attributes must NOT be emitted in this mode
+    0 * span.setTag(Tags.HTTP_METHOD, _)
+    0 * span.setTag(Tags.HTTP_URL, _)
+    0 * span.setTag(DDTags.HTTP_QUERY, _)
+    0 * span.setTag(DDTags.HTTP_FRAGMENT, _)
+    // Network peer tags still come from the shared URI decorator
+    1 * span.setTag(Tags.PEER_HOSTNAME, testUrl.host)
+    1 * span.setTag(Tags.PEER_PORT, testUrl.port)
+    1 * span.traceConfig() >> AgentTracer.traceConfig()
+    0 * _
+  }
+
+  def "test onResponse keeps status in the dedicated field, no manual OTel tag (otel=#otelEnabled)"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "$otelEnabled")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onResponse(span, [status: 200])
+
+    then:
+    // Status stays in the dedicated field (metrics + serialization); the serializer renames the key
+    // under OTel semantics. The decorator never sets a manual tag.
+    1 * span.setHttpStatusCode(200)
+    0 * span.setTag(Tags.HTTP_RESPONSE_STATUS_CODE, _)
+    1 * span.traceConfig() >> AgentTracer.traceConfig()
+    0 * _
+
+    where:
+    otelEnabled << [true, false]
+  }
+
+  def "test onRequest normalizes unknown method to _OTHER under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+    def req = [method: "PROPFIND", url: testUrl, path: '/somepath']
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    1 * span.setTag(Tags.HTTP_REQUEST_METHOD, "_OTHER")
+    1 * span.setTag(Tags.HTTP_REQUEST_METHOD_ORIGINAL, "PROPFIND")
+    0 * span.setTag(Tags.HTTP_REQUEST_METHOD, "PROPFIND")
+    _ * span.traceConfig() >> AgentTracer.traceConfig()
+  }
+
+  def "test onRequest redacts credentials in url.full under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+    def req = [method: "GET", url: new URI("http://user:pass@myhost:123/somepath"), path: '/somepath']
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    1 * span.setTag(Tags.URL_FULL, "http://REDACTED:REDACTED@myhost:123/somepath")
+    0 * span.setTag(Tags.URL_FULL, { it.toString().contains("user:pass") })
+    _ * span.traceConfig() >> AgentTracer.traceConfig()
+  }
+
+  def "test onResponse sets error.type for client errors under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    def decorator = newDecorator()
+
+    when:
+    decorator.onResponse(span, [status: 500])
+
+    then:
+    1 * span.setHttpStatusCode(500)
+    1 * span.getTag(DDTags.ERROR_TYPE)
+    1 * span.setTag(DDTags.ERROR_TYPE, "500")
+    1 * span.traceConfig() >> AgentTracer.traceConfig()
+    0 * _
   }
 
   def "test url handling for #url"() {

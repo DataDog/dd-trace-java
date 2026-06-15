@@ -180,6 +180,7 @@ import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_KEEP_LATENCY_THRESH
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_FLUSH_INTERVAL;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_LONG_RUNNING_INITIAL_FLUSH_INTERVAL;
+import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_POST_PROCESSING_TIMEOUT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_BEHAVIOR_EXTRACT;
 import static datadog.trace.api.ConfigDefaults.DEFAULT_TRACE_PROPAGATION_EXTRACT_FIRST;
@@ -619,6 +620,7 @@ import static datadog.trace.api.config.TraceInstrumentationConfig.SPRING_DATA_RE
 import static datadog.trace.api.config.TraceInstrumentationConfig.SQS_BODY_PROPAGATION_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_128_BIT_TRACEID_LOGGING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_HTTP_CLIENT_TAG_QUERY_STRING;
+import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_OTEL_SEMANTICS_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ALWAYS_SIMPLIFIED_ENDPOINT;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_RESOURCE_RENAMING_ENABLED;
 import static datadog.trace.api.config.TraceInstrumentationConfig.TRACE_WEBSOCKET_MESSAGES_INHERIT_SAMPLING;
@@ -920,6 +922,7 @@ public class Config {
   private final boolean httpServerRawResource;
   private final boolean httpServerDecodedResourcePreserveSpaces;
   private final boolean httpServerRouteBasedNaming;
+  private final boolean traceOtelSemanticsEnabled;
   private final Map<String, String> httpServerPathResourceNameMapping;
   private final Map<String, String> httpClientPathResourceNameMapping;
   private final boolean httpResourceRemoveTrailingSlash;
@@ -1763,6 +1766,10 @@ public class Config {
     httpServerRouteBasedNaming =
         configProvider.getBoolean(
             HTTP_SERVER_ROUTE_BASED_NAMING, DEFAULT_HTTP_SERVER_ROUTE_BASED_NAMING);
+
+    traceOtelSemanticsEnabled =
+        configProvider.getBoolean(
+            TRACE_OTEL_SEMANTICS_ENABLED, DEFAULT_TRACE_OTEL_SEMANTICS_ENABLED);
 
     httpClientTagQueryString =
         configProvider.getBoolean(
@@ -3596,6 +3603,10 @@ public class Config {
 
   public boolean isHttpServerRouteBasedNaming() {
     return httpServerRouteBasedNaming;
+  }
+
+  public boolean isTraceOtelSemanticsEnabled() {
+    return traceOtelSemanticsEnabled;
   }
 
   public boolean isHttpClientTagQueryString() {
@@ -6273,6 +6284,8 @@ public class Config {
         + httpServerRawResource
         + ", httpServerRouteBasedNaming="
         + httpServerRouteBasedNaming
+        + ", traceOtelSemanticsEnabled="
+        + traceOtelSemanticsEnabled
         + ", httpServerPathResourceNameMapping="
         + httpServerPathResourceNameMapping
         + ", httpClientPathResourceNameMapping="
