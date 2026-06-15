@@ -5777,6 +5777,22 @@
         "aliases": ["DD_TRACE_INTEGRATION_FREEMARKER_ENABLED", "DD_INTEGRATION_FREEMARKER_ENABLED"]
       }
     ],
+    "DD_TRACE_GAX_1_4_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_1_4_ENABLED", "DD_INTEGRATION_GAX_1_4_ENABLED"]
+      }
+    ],
+    "DD_TRACE_GAX_ENABLED": [
+      {
+        "version": "A",
+        "type": "boolean",
+        "default": "true",
+        "aliases": ["DD_TRACE_INTEGRATION_GAX_ENABLED", "DD_INTEGRATION_GAX_ENABLED"]
+      }
+    ],
     "DD_TRACE_GIT_METADATA_ENABLED": [
       {
         "version": "A",
