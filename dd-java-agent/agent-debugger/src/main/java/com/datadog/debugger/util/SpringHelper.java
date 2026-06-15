@@ -17,16 +17,18 @@ public class SpringHelper {
   }
 
   public static boolean isSpringUsingOnlyMethodParameters(Instrumentation inst) {
-      DetectionResult detectionResult = isSpringUsingOnlyMethodParametersSpringVersion(inst);
-      if (detectionResult == DetectionResult.UNKNOWN) {
-        LOGGER.debug("isSpringUsingOnlyMethodParameters failed for SpringVersion, trying to detect specific class");
-        // fallback to lookup for specific class
-        return isSpringUsingOnlyMethodParametersSpecificClass(inst);
-      }
-      return detectionResult == DetectionResult.USE_METHOD_PARAMETERS;
+    DetectionResult detectionResult = isSpringUsingOnlyMethodParametersSpringVersion(inst);
+    if (detectionResult == DetectionResult.UNKNOWN) {
+      LOGGER.debug(
+          "isSpringUsingOnlyMethodParameters failed for SpringVersion, trying to detect specific class");
+      // fallback to lookup for specific class
+      return isSpringUsingOnlyMethodParametersSpecificClass(inst);
+    }
+    return detectionResult == DetectionResult.USE_METHOD_PARAMETERS;
   }
 
-  private static DetectionResult isSpringUsingOnlyMethodParametersSpringVersion(Instrumentation inst) {
+  private static DetectionResult isSpringUsingOnlyMethodParametersSpringVersion(
+      Instrumentation inst) {
     try {
       // scan for getting an already loaded class and get the classloader
       ClassLoader springClassLoader = null;
@@ -48,7 +50,7 @@ public class SpringHelper {
           ? DetectionResult.USE_METHOD_PARAMETERS
           : DetectionResult.USE_LOCAL_VARS;
     } catch (Exception ex) {
-      LOGGER.debug("isSpringUsingOnlyMethodParametersSpringVersion failed" , ex);
+      LOGGER.debug("isSpringUsingOnlyMethodParametersSpringVersion failed", ex);
       return DetectionResult.UNKNOWN;
     }
   }
@@ -61,7 +63,8 @@ public class SpringHelper {
           continue;
         }
         if ("org.springframework.web.client.RestClient".equals(clazz.getName())) {
-          // If this class (coming from Spring web since version 6.1) is found loaded it means Spring
+          // If this class (coming from Spring web since version 6.1) is found loaded it means
+          // Spring
           // supports only getting parameter names from the MethodParameter attribute
           return true;
         }
