@@ -34,7 +34,6 @@ public class Tags {
   public static final String SERVER_PORT = "server.port";
   public static final String CLIENT_ADDRESS = "client.address";
   public static final String NETWORK_PEER_ADDRESS = "network.peer.address";
-  public static final String NETWORK_PROTOCOL_VERSION = "network.protocol.version";
   public static final String USER_AGENT_ORIGINAL = "user_agent.original";
   public static final String HTTP_FORWARDED = "http.forwarded";
   public static final String HTTP_FORWARDED_PROTO = "http.forwarded.proto";

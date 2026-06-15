@@ -48,10 +48,13 @@ final class OtelHttpSemantics {
   static String redactedUrl(final URI url) {
     final String full = url.toString();
     final String userInfo = url.getRawUserInfo();
-    if (userInfo != null && !userInfo.isEmpty()) {
-      return full.replace(userInfo + "@", "REDACTED:REDACTED@");
+    if (userInfo == null || userInfo.isEmpty()) {
+      return full;
     }
-    return full;
+    // Redact only the components that are actually present (user vs user:password) so we don't
+    // imply a password that wasn't there.
+    final String redacted = userInfo.indexOf(':') >= 0 ? "REDACTED:REDACTED" : "REDACTED";
+    return full.replace(userInfo + "@", redacted + "@");
   }
 
   /**

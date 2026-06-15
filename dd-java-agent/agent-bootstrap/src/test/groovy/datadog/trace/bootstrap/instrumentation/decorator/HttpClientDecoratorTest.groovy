@@ -155,19 +155,25 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     _ * span.traceConfig() >> AgentTracer.traceConfig()
   }
 
-  def "test onRequest redacts credentials in url.full under OTel semantics"() {
+  def "test onRequest redacts credentials in url.full under OTel semantics for #rawUrl"() {
     setup:
     injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
     def decorator = newDecorator()
-    def req = [method: "GET", url: new URI("http://user:pass@myhost:123/somepath"), path: '/somepath']
+    def req = [method: "GET", url: new URI(rawUrl), path: '/somepath']
 
     when:
     decorator.onRequest(span, req)
 
     then:
-    1 * span.setTag(Tags.URL_FULL, "http://REDACTED:REDACTED@myhost:123/somepath")
-    0 * span.setTag(Tags.URL_FULL, { it.toString().contains("user:pass") })
+    // only the components actually present are redacted (no invented password for user-only URLs)
+    1 * span.setTag(Tags.URL_FULL, expectedUrl)
+    0 * span.setTag(Tags.URL_FULL, { it.toString().contains("secret") })
     _ * span.traceConfig() >> AgentTracer.traceConfig()
+
+    where:
+    rawUrl                                       | expectedUrl
+    "http://user:secret@myhost:123/somepath"     | "http://REDACTED:REDACTED@myhost:123/somepath"
+    "http://user@myhost:123/somepath"            | "http://REDACTED@myhost:123/somepath"
   }
 
   def "test onResponse sets error.type for client errors under OTel semantics"() {

@@ -364,6 +364,9 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
             }
           }
 
+          // url.query stays gated on the existing query-string toggle even under OTel semantics:
+          // that toggle is a privacy/PII control, so a user who disabled query capture should not
+          // start leaking query strings just because they switched conventions.
           if (valid && config.isHttpServerTagQueryString()) {
             String query =
                 supportsRaw && config.isHttpServerRawQueryString() ? url.rawQuery() : url.query();
