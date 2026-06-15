@@ -49,6 +49,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       named("io.reactivex.internal.schedulers.AbstractDirectTask");
   private static final ElementMatcher<TypeDescription> JAVA_HTTP_CLIENT =
       extendsClass(named("java.net.http.HttpClient"));
+  private static final String LETTUCE_HANDSHAKE_HANDLER =
+      "io.lettuce.core.protocol.RedisHandshakeHandler";
 
   @Override
   public boolean onlyMatchKnownTypes() {
@@ -83,7 +85,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
       "org.apache.activemq.broker.TransactionBroker",
       "com.mongodb.internal.connection.DefaultConnectionPool$AsyncWorkManager",
       "io.reactivex.internal.schedulers.AbstractDirectTask",
-      "jdk.internal.net.http.HttpClientImpl"
+      "jdk.internal.net.http.HttpClientImpl",
+      LETTUCE_HANDSHAKE_HANDLER
     };
   }
 
@@ -185,6 +188,8 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
     transformer.applyAdvice(
         isTypeInitializer().and(isDeclaredBy(RXJAVA2_DISABLED_TYPE_INITIALIZERS)), advice);
     transformer.applyAdvice(namedOneOf("sendAsync").and(isDeclaredBy(JAVA_HTTP_CLIENT)), advice);
+    transformer.applyAdvice(
+        named("channelRegistered").and(isDeclaredBy(named(LETTUCE_HANDSHAKE_HANDLER))), advice);
   }
 
   public static class DisableAsyncAdvice {
