@@ -31,7 +31,7 @@ import org.junit.jupiter.api.io.TempDir;
 public abstract class AbstractGradleTest extends CiVisibilitySmokeTest {
 
   private static final Properties TOOL_VERSIONS = loadToolVersions();
-  protected static final String LATEST_GRADLE_VERSION = toolVersion("gradle.version");
+  protected static final String LATEST_GRADLE_VERSION = toolVersion("gradle.latest");
 
   // test resources use this instead of ".gradle" to avoid unwanted evaluation
   private static final String GRADLE_TEST_RESOURCE_EXTENSION = ".gradleTest";
