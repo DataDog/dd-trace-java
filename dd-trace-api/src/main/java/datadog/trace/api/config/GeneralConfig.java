@@ -69,6 +69,9 @@ public final class GeneralConfig {
   public static final String TRACE_STATS_COMPUTATION_ENABLED = "trace.stats.computation.enabled";
   public static final String TRACE_STATS_COMPUTATION_IGNORE_AGENT_VERSION =
       "trace.stats.computation.ignore.agent.version";
+
+  public static final String TRACE_OTEL_SEMANTICS_ENABLED = "trace.otel.semantics.enabled";
+
   public static final String TRACER_METRICS_ENABLED = "trace.tracer.metrics.enabled";
   public static final String TRACER_METRICS_BUFFERING_ENABLED =
       "trace.tracer.metrics.buffering.enabled";
