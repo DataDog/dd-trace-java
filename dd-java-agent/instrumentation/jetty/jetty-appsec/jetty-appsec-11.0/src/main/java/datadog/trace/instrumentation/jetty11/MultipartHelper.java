@@ -30,7 +30,7 @@ public class MultipartHelper {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyList();
     }
-    List<String> filenames = new ArrayList<>();
+    List<String> filenames = new ArrayList<>(parts.size());
     for (Part part : parts) {
       try {
         String name = part.getSubmittedFileName();
@@ -50,14 +50,14 @@ public class MultipartHelper {
    */
   public static BlockingException fireFilenamesEvent(
       Collection<Part> parts, RequestContext reqCtx) {
-    List<String> filenames = extractFilenames(parts);
-    if (filenames.isEmpty()) {
-      return null;
-    }
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, List<String>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestFilesFilenames());
     if (callback == null) {
+      return null;
+    }
+    List<String> filenames = extractFilenames(parts);
+    if (filenames.isEmpty()) {
       return null;
     }
     Flow<Void> flow = callback.apply(reqCtx, filenames);

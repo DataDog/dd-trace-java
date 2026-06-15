@@ -12,7 +12,8 @@ import datadog.trace.bootstrap.instrumentation.api.AgentTracer;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import java.lang.reflect.Method;
+import java.lang.invoke.MethodHandle;
+import java.lang.invoke.MethodHandles;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -35,8 +36,26 @@ public class PartHelper {
 
   private PartHelper() {}
 
-  // Cached reflection handle to MultiPartInputStream.getParts() — set once on first use.
-  private static volatile Method mpiGetParts;
+  // Lazily resolves MultiPartInputStream.getParts() as a MethodHandle on first class access.
+  // Uses IODH so no volatile is needed; the JVM class-loading guarantee ensures safe publication.
+  private static final class MpiGetPartsHolder {
+    static final MethodHandle GET_PARTS;
+
+    static {
+      MethodHandle h = null;
+      try {
+        Class<?> cls =
+            Class.forName(
+                "org.eclipse.jetty.util.MultiPartInputStream",
+                false,
+                MpiGetPartsHolder.class.getClassLoader());
+        h = MethodHandles.lookup().unreflect(cls.getMethod("getParts"));
+      } catch (Exception ignored) {
+        // class or method not available — getAllParts() falls back to singleton
+      }
+      GET_PARTS = h;
+    }
+  }
 
   /**
    * Returns all parts from a {@code MultiPartInputStream} object (already-parsed, no re-trigger).
@@ -44,24 +63,16 @@ public class PartHelper {
    */
   public static Collection<?> getAllParts(Object multiPartInputStream, Part singlePart) {
     if (multiPartInputStream != null) {
-      Method m = mpiGetParts;
-      if (m == null) {
-        try {
-          m = multiPartInputStream.getClass().getMethod("getParts");
-          mpiGetParts = m;
-        } catch (NoSuchMethodException ignored) {
-          // class does not have getParts() — fall back to singleton below
-        }
-      }
-      if (m != null) {
+      MethodHandle mh = MpiGetPartsHolder.GET_PARTS;
+      if (mh != null) {
         try {
           @SuppressWarnings("unchecked")
-          Collection<?> all = (Collection<?>) m.invoke(multiPartInputStream);
+          Collection<?> all = (Collection<?>) mh.invoke(multiPartInputStream);
           if (all != null && !all.isEmpty()) {
             return all;
           }
-        } catch (Exception ignored) {
-          // reflection invocation failed — fall back to singleton below
+        } catch (Throwable ignored) {
+          // MethodHandle invocation failed — fall back to singleton below
         }
       }
     }
@@ -76,7 +87,7 @@ public class PartHelper {
     if (parts == null || parts.isEmpty()) {
       return Collections.emptyList();
     }
-    List<String> filenames = new ArrayList<>();
+    List<String> filenames = new ArrayList<>(parts.size());
     for (Object obj : parts) {
       try {
         String filename = filenameFromPart((Part) obj);
@@ -187,14 +198,14 @@ public class PartHelper {
    */
   public static BlockingException fireBodyProcessedEvent(
       Collection<?> parts, RequestContext reqCtx) {
-    Map<String, List<String>> formFields = extractFormFields(parts);
-    if (formFields.isEmpty()) {
-      return null;
-    }
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, Object, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestBodyProcessed());
     if (callback == null) {
+      return null;
+    }
+    Map<String, List<String>> formFields = extractFormFields(parts);
+    if (formFields.isEmpty()) {
       return null;
     }
     Flow<Void> flow = callback.apply(reqCtx, formFields);
@@ -217,14 +228,14 @@ public class PartHelper {
    * returns a {@link BlockingException} if the WAF requests blocking, or {@code null} otherwise.
    */
   public static BlockingException fireFilenamesEvent(Collection<?> parts, RequestContext reqCtx) {
-    List<String> filenames = extractFilenames(parts);
-    if (filenames.isEmpty()) {
-      return null;
-    }
     CallbackProvider cbp = AgentTracer.get().getCallbackProvider(RequestContextSlot.APPSEC);
     BiFunction<RequestContext, List<String>, Flow<Void>> callback =
         cbp.getCallback(EVENTS.requestFilesFilenames());
     if (callback == null) {
+      return null;
+    }
+    List<String> filenames = extractFilenames(parts);
+    if (filenames.isEmpty()) {
       return null;
     }
     Flow<Void> flow = callback.apply(reqCtx, filenames);

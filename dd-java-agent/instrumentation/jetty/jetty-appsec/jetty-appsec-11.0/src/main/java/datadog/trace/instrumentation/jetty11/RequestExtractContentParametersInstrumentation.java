@@ -1,7 +1,9 @@
 package datadog.trace.instrumentation.jetty11;
 
+import static datadog.trace.agent.tooling.bytebuddy.matcher.HierarchyMatchers.declaresField;
 import static datadog.trace.agent.tooling.bytebuddy.matcher.NameMatchers.named;
 import static datadog.trace.api.gateway.Events.EVENTS;
+import static net.bytebuddy.matcher.ElementMatchers.fieldType;
 import static net.bytebuddy.matcher.ElementMatchers.takesArguments;
 
 import com.google.auto.service.AutoService;
@@ -10,7 +12,6 @@ import datadog.trace.advice.ActiveRequestContext;
 import datadog.trace.advice.RequiresRequestContext;
 import datadog.trace.agent.tooling.Instrumenter;
 import datadog.trace.agent.tooling.InstrumenterModule;
-import datadog.trace.agent.tooling.muzzle.Reference;
 import datadog.trace.api.gateway.BlockResponseFunction;
 import datadog.trace.api.gateway.CallbackProvider;
 import datadog.trace.api.gateway.Flow;
@@ -22,14 +23,17 @@ import jakarta.servlet.http.Part;
 import java.util.Collection;
 import java.util.function.BiFunction;
 import net.bytebuddy.asm.Advice;
+import net.bytebuddy.description.type.TypeDescription;
 import net.bytebuddy.implementation.bytecode.assign.Assigner;
+import net.bytebuddy.matcher.ElementMatcher;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.util.MultiMap;
 
 @AutoService(InstrumenterModule.class)
 public class RequestExtractContentParametersInstrumentation extends InstrumenterModule.AppSec
-    implements Instrumenter.ForSingleType, Instrumenter.HasMethodAdvice {
-  private static final String MULTI_MAP_INTERNAL_NAME = "Lorg/eclipse/jetty/util/MultiMap;";
+    implements Instrumenter.ForSingleType,
+        Instrumenter.WithTypeStructure,
+        Instrumenter.HasMethodAdvice {
 
   public RequestExtractContentParametersInstrumentation() {
     super("jetty");
@@ -45,6 +49,23 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
     return new String[] {packageName + ".MultipartHelper"};
   }
 
+  // Discriminates Jetty 11.0.x ([11.0, 12.0)):
+  //  - _contentParameters: MultiMap field exists in 11.x (excludes Jetty 12 where
+  //    org.eclipse.jetty.server.Request was removed)
+  //  - _dispatcherType: jakarta.servlet.DispatcherType in the Request bytecode (excludes
+  //    Jetty 9.4–10.x where the field type is javax.servlet.DispatcherType). Checked against
+  //    Request.class bytecode, so it works even when both javax and jakarta are on the classpath.
+  // NOTE: _multiParts changes type at 11.0.10 (MultiPartFormInputStream → MultiParts); both
+  // are handled transparently because GetFilenamesAdvice reads it with typing=DYNAMIC.
+  @Override
+  public ElementMatcher<TypeDescription> structureMatcher() {
+    return declaresField(
+            named("_contentParameters").and(fieldType(named("org.eclipse.jetty.util.MultiMap"))))
+        .and(
+            declaresField(
+                named("_dispatcherType").and(fieldType(named("jakarta.servlet.DispatcherType")))));
+  }
+
   @Override
   public void methodAdvice(MethodTransformer transformer) {
     transformer.applyAdvice(
@@ -57,33 +78,15 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         getClass().getName() + "$GetFilenamesFromMultiPartAdvice");
   }
 
-  // Discriminates Jetty 11.0.x ([11.0, 12.0)):
-  //  - _contentParameters + extractContentParameters(void) exist in 11.x (excludes Jetty 12
-  //    where org.eclipse.jetty.server.Request was removed)
-  //  - _dispatcherType: Ljakarta/servlet/DispatcherType; in the Request bytecode (excludes
-  //    Jetty 9.4–10.x where the field descriptor is Ljavax/servlet/DispatcherType;). This check
-  //    is tied to Request.class bytecode, NOT just classpath presence, so it works even when both
-  //    javax.servlet and jakarta.servlet are on the classpath simultaneously.
-  // NOTE: _multiParts changes type at 11.0.10 (MultiPartFormInputStream → MultiParts); both
-  // are handled transparently because GetFilenamesAdvice reads it with typing=DYNAMIC.
-  private static final Reference REQUEST_REFERENCE =
-      new Reference.Builder("org.eclipse.jetty.server.Request")
-          .withMethod(new String[0], 0, "extractContentParameters", "V")
-          .withField(new String[0], 0, "_contentParameters", MULTI_MAP_INTERNAL_NAME)
-          .withField(new String[0], 0, "_dispatcherType", "Ljakarta/servlet/DispatcherType;")
-          .build();
-
-  @Override
-  public Reference[] additionalMuzzleReferences() {
-    return new Reference[] {REQUEST_REFERENCE};
-  }
-
   @RequiresRequestContext(RequestContextSlot.APPSEC)
   public static class ExtractContentParametersAdvice {
     @Advice.OnMethodEnter(suppress = Throwable.class)
     static boolean before(@Advice.FieldValue("_contentParameters") final MultiMap<String> map) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Request.class);
-      return callDepth == 0 && map == null;
+      if (map != null) {
+        return false;
+      }
+      CallDepthThreadLocalMap.incrementCallDepth(Request.class);
+      return true;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -92,8 +95,10 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.FieldValue("_contentParameters") final MultiMap<String> map,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Request.class);
       if (!proceed) {
+        return;
+      }
+      if (CallDepthThreadLocalMap.decrementCallDepth(Request.class) != 0) {
         return;
       }
       if (map == null || map.isEmpty()) {
@@ -142,8 +147,11 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.FieldValue("_contentParameters") final MultiMap<String> contentParameters,
         @Advice.FieldValue(value = "_multiParts", typing = Assigner.Typing.DYNAMIC)
             final Object multiParts) {
-      final int callDepth = CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
-      return callDepth == 0 && contentParameters == null && multiParts == null;
+      if (contentParameters != null || multiParts != null) {
+        return false;
+      }
+      CallDepthThreadLocalMap.incrementCallDepth(Collection.class);
+      return true;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
@@ -152,8 +160,13 @@ public class RequestExtractContentParametersInstrumentation extends Instrumenter
         @Advice.Return Collection<Part> parts,
         @ActiveRequestContext RequestContext reqCtx,
         @Advice.Thrown(readOnly = false) Throwable t) {
-      CallDepthThreadLocalMap.decrementCallDepth(Collection.class);
-      if (!proceed || t != null || parts == null || parts.isEmpty()) {
+      if (!proceed) {
+        return;
+      }
+      if (CallDepthThreadLocalMap.decrementCallDepth(Collection.class) != 0) {
+        return;
+      }
+      if (t != null || parts == null || parts.isEmpty()) {
         return;
       }
       t = MultipartHelper.fireFilenamesEvent(parts, reqCtx);

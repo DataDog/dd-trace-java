@@ -41,7 +41,9 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
 
   @Override
   public String[] helperClassNames() {
-    return new String[] {packageName + ".PartHelper"};
+    return new String[] {
+      packageName + ".PartHelper", packageName + ".PartHelper$MpiGetPartsHolder"
+    };
   }
 
   @Override
