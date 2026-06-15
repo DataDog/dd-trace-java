@@ -14,7 +14,7 @@ import static datadog.trace.core.propagation.DatadogHttpCodec.SAMPLING_PRIORITY_
 import static datadog.trace.core.propagation.DatadogHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.DatadogHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
-import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
+import static datadog.trace.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -31,8 +31,8 @@ import datadog.trace.api.DynamicConfig;
 import datadog.trace.api.internal.util.LongStringUtils;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.PrioritySamplingConverter;
-import datadog.trace.junit.utils.tabletest.TraceIdConverter;
+import datadog.trace.junit.utils.converter.PrioritySamplingConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -80,11 +80,11 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario          | traceId          | spanId           | samplingPriority              | origin  ",
-    "unset no origin   | '1'              | '2'              | PrioritySampling.UNSET        |         ",
-    "keep with origin  | '2'              | '3'              | PrioritySampling.SAMPLER_KEEP | 'saipan'",
-    "uint64 max unset  | 'TRACE_ID_MAX'   | 'TRACE_ID_MAX-1' | PrioritySampling.UNSET        | 'saipan'",
-    "uint64 max-1 keep | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX'   | PrioritySampling.SAMPLER_KEEP | 'saipan'"
+    "scenario          | traceId | spanId  | samplingPriority | origin  ",
+    "unset no origin   | '1'     | '2'     | UNSET            |         ",
+    "keep with origin  | '2'     | '3'     | SAMPLER_KEEP     | 'saipan'",
+    "uint64 max unset  | 'MAX'   | 'MAX-1' | UNSET            | 'saipan'",
+    "uint64 max-1 keep | 'MAX-1' | 'MAX'   | SAMPLER_KEEP     | 'saipan'"
   })
   void extractHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -362,15 +362,15 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario             | traceId          | spanId           | expectExtraction",
-    "negative traceId     | '-1'             | '1'              | false           ",
-    "negative spanId      | '1'              | '-1'             | false           ",
-    "zero traceId         | '0'              | '1'              | false           ",
-    "zero spanId          | '1'              | '0'              | true            ",
-    "uint64 max traceId   | 'TRACE_ID_MAX'   | '1'              | true            ",
-    "out-of-range traceId | 'TRACE_ID_MAX+1' | '1'              | false           ",
-    "uint64 max spanId    | '1'              | 'TRACE_ID_MAX'   | true            ",
-    "out-of-range spanId  | '1'              | 'TRACE_ID_MAX+1' | false           "
+    "scenario             | traceId | spanId  | expectExtraction",
+    "negative traceId     | '-1'    | '1'     | false           ",
+    "negative spanId      | '1'     | '-1'    | false           ",
+    "zero traceId         | '0'     | '1'     | false           ",
+    "zero spanId          | '1'     | '0'     | true            ",
+    "uint64 max traceId   | 'MAX'   | '1'     | true            ",
+    "out-of-range traceId | 'MAX+1' | '1'     | false           ",
+    "uint64 max spanId    | '1'     | 'MAX'   | true            ",
+    "out-of-range spanId  | '1'     | 'MAX+1' | false           "
   })
   void moreIdRangeValidation(
       @ConvertWith(TraceIdConverter.class) String traceId,
@@ -430,11 +430,11 @@ class DatadogHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId          | spanId           | ctxCreated",
-    "negative traceId | '-1'             | '1'              | false     ",
-    "negative spanId  | '1'              | '-1'             | false     ",
-    "zero traceId     | '0'              | '1'              | true      ",
-    "uint64 max-1 ids | 'TRACE_ID_MAX-1' | 'TRACE_ID_MAX-1' | true      "
+    "scenario         | traceId | spanId  | ctxCreated",
+    "negative traceId | '-1'    | '1'     | false     ",
+    "negative spanId  | '1'     | '-1'    | false     ",
+    "zero traceId     | '0'     | '1'     | true      ",
+    "uint64 max-1 ids | 'MAX-1' | 'MAX-1' | true      "
   })
   void baggageIsMappedOnContextCreation(
       @ConvertWith(TraceIdConverter.class) String traceId,

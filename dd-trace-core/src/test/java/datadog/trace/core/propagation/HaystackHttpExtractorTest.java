@@ -10,7 +10,7 @@ import static datadog.trace.core.propagation.HaystackHttpCodec.OT_BAGGAGE_PREFIX
 import static datadog.trace.core.propagation.HaystackHttpCodec.SPAN_ID_KEY;
 import static datadog.trace.core.propagation.HaystackHttpCodec.TRACE_ID_KEY;
 import static datadog.trace.core.propagation.HttpCodecTestHelper.headers;
-import static datadog.trace.junit.utils.tabletest.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
+import static datadog.trace.junit.utils.converter.TraceIdConverter.TRACE_ID_MAX_PLUS_1;
 import static java.util.Collections.singletonMap;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -24,7 +24,7 @@ import datadog.trace.api.DDTraceId;
 import datadog.trace.api.DynamicConfig;
 import datadog.trace.bootstrap.instrumentation.api.TagContext;
 import datadog.trace.junit.utils.config.WithConfig;
-import datadog.trace.junit.utils.tabletest.TraceIdConverter;
+import datadog.trace.junit.utils.converter.TraceIdConverter;
 import datadog.trace.test.util.DDJavaSpecification;
 import java.util.HashMap;
 import java.util.Map;
@@ -72,11 +72,11 @@ class HaystackHttpExtractorTest extends DDJavaSpecification {
   }
 
   @TableTest({
-    "scenario         | traceId          | spanId                 | traceUuid                              | spanUuid                              ",
-    "small ids        | '1'              | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
-    "incrementing ids | '2'              | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
-    "uint64 max       | 'TRACE_ID_MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
-    "uint64 max-1     | 'TRACE_ID_MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
+    "scenario         | traceId | spanId                 | traceUuid                              | spanUuid                              ",
+    "small ids        | '1'     | '2'                    | '44617461-646f-6721-0000-000000000001' | '44617461-646f-6721-0000-000000000002'",
+    "incrementing ids | '2'     | '3'                    | '44617461-646f-6721-0000-000000000002' | '44617461-646f-6721-0000-000000000003'",
+    "uint64 max       | 'MAX'   | '18446744073709551609' | '44617461-646f-6721-ffff-ffffffffffff' | '44617461-646f-6721-ffff-fffffffffff9'",
+    "uint64 max-1     | 'MAX-1' | '18446744073709551608' | '44617461-646f-6721-ffff-fffffffffffe' | '44617461-646f-6721-ffff-fffffffffff8'"
   })
   void extractHttpHeaders(
       @ConvertWith(TraceIdConverter.class) String traceId,
