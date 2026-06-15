@@ -5,22 +5,15 @@ import static datadog.context.Context.root;
 import static datadog.context.ContextTest.STRING_KEY;
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertSame;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.Phaser;
-import org.junit.jupiter.api.AfterEach;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
-class ContextManagerTest {
-  @BeforeEach
-  void init() {
-    // Ensure no current context prior starting test
-    assertEquals(root(), current());
-  }
-
+class ContextManagerTest extends ContextTestBase {
   @Test
   void testContextAttachment() {
     Context context1 = root().with(STRING_KEY, "value1");
@@ -58,21 +51,59 @@ class ContextManagerTest {
   }
 
   @Test
-  void testAttachSameContextMultipleTimes() {
-    Context context = root().with(STRING_KEY, "value1");
-    try (ContextScope ignored1 = context.attach()) {
-      assertEquals(context, current());
-      try (ContextScope ignored2 = context.attach()) {
-        try (ContextScope ignored3 = context.attach()) {
-          assertEquals(context, current());
-        }
-        // Test closing a scope on the current context should not deactivate it if activated
-        // multiple times
-        assertEquals(context, current());
+  void testNoopScopeContextReturnsAttachedContext() {
+    Context context = root().with(STRING_KEY, "value");
+    try (ContextScope outer = context.attach()) {
+      // second attach returns a noop scope; verify context() reflects the attached context
+      try (ContextScope noop = context.attach()) {
+        assertEquals(context, noop.context());
       }
     }
-    // Test closing the same number of scope as activation should deactivate the context
-    assertEquals(root(), current());
+  }
+
+  @Test
+  void testNoopScopeCacheHitReturnsSameScope() {
+    Context context = root().with(STRING_KEY, "value");
+    try (ContextScope outer = context.attach()) {
+      // two consecutive noop scopes for the same context should be the same cached instance
+      ContextScope noop1 = context.attach();
+      try (ContextScope noop2 = context.attach()) {
+        assertSame(noop1, noop2);
+      }
+    }
+  }
+
+  @Test
+  void testNoopScopeCacheHandlesHashCollisions() {
+    // Cycle through enough contexts to overflow the 32-slot cache and exercise
+    // the rehash, collision, and slot-reuse paths inside NoopContextScope.create()
+    for (int i = 0; i < 200; i++) {
+      Context ctx = root().with(STRING_KEY, "ctx-" + i);
+      try (ContextScope outer = ctx.attach()) {
+        try (ContextScope noop =
+            ctx.attach()) { // same-context attach exercises NoopContextScope.create()
+          assertEquals(ctx, noop.context());
+        }
+      }
+    }
+  }
+
+  @Test
+  void testAttachSameContextMultipleTimes() {
+    Context context = root().with(STRING_KEY, "value1");
+    try (ContextScope scope1 = context.attach()) {
+      assertEquals(context, current());
+      // re-attaching an already-active context returns a noop scope
+      try (ContextScope noop2 = context.attach()) {
+        assertEquals(context, noop2.context());
+        try (ContextScope noop3 = context.attach()) {
+          assertEquals(context, noop3.context());
+        }
+        assertEquals(context, current()); // noop close: context remains active
+      }
+      assertEquals(context, current()); // still active after all noop closes
+    }
+    assertEquals(root(), current()); // only the original scope deactivates on close
   }
 
   @Test
@@ -207,11 +238,5 @@ class ContextManagerTest {
       Future<?> future = executor.submit(() -> assertEquals(root(), current()));
       assertDoesNotThrow(() -> future.get());
     }
-  }
-
-  @AfterEach
-  void tearDown() {
-    // Ensure no current context after ending test
-    assertEquals(root(), current());
   }
 }

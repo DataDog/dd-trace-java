@@ -24,6 +24,7 @@ import static org.mockito.Mockito.verifyNoMoreInteractions;
 import static org.mockito.Mockito.when;
 
 import datadog.context.Context;
+import datadog.context.ContextContinuation;
 import datadog.context.ContextKey;
 import datadog.context.ContextScope;
 import datadog.trace.api.DDTraceId;
@@ -1073,6 +1074,72 @@ class ScopeManagerTest extends DDCoreJavaSpecification {
 
     assertNull(scopeManager.active());
     assertEquals(Context.root(), scopeManager.current());
+  }
+
+  @Test
+  void captureViaContextContinuationAPIHoldsTrace() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+
+    // Context.current().capture() routes through ContinuableScopeManager.capture(Context)
+    ContextContinuation continuation = Context.current().capture();
+
+    scope.close();
+    span.finish();
+    assertTrue(writer.isEmpty()); // trace held pending continuation
+
+    continuation.release(); // delegates to cancel(), unblocks trace reporting
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void continuationResumeActivatesSpan() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+    AgentScope.Continuation continuation = tracer.captureActiveSpan();
+    scope.close();
+    span.finish();
+
+    assertNull(scopeManager.active());
+    assertTrue(writer.isEmpty()); // trace held by continuation
+
+    // resume() delegates to activate()
+    ContextScope resumedScope = continuation.resume();
+    assertSame(span, scopeManager.active().span());
+
+    resumedScope.close();
+    assertNull(scopeManager.active());
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void continuationReleaseIsSameAsCancel() throws Exception {
+    AgentSpan span = tracer.buildSpan("test", "test").start();
+    AgentScope scope = tracer.activateSpan(span);
+    AgentScope.Continuation continuation = tracer.captureActiveSpan();
+    scope.close();
+    span.finish();
+
+    assertTrue(writer.isEmpty()); // trace held by continuation
+
+    continuation.release(); // delegates to cancel()
+    writer.waitForTraces(1);
+    assertFalse(writer.isEmpty());
+  }
+
+  @Test
+  void captureContextWithoutSpanUsesNoopTraceCollector() {
+    ContextKey<String> key = ContextKey.named("test-key");
+    Context ctx = Context.root().with(key, "value");
+    try (ContextScope scope = ctx.attach()) {
+      // context with no span uses NoopAgentTraceCollector — should not crash
+      ContextContinuation continuation = Context.current().capture();
+      assertNotNull(continuation);
+      assertEquals(ctx, continuation.context());
+      continuation.release(); // no-op on NoopAgentTraceCollector
+    }
   }
 
   private boolean spanFinished(AgentSpan span) {

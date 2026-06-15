@@ -5,10 +5,8 @@ import static java.util.Objects.requireNonNull;
 
 import java.util.Objects;
 import javax.annotation.Nullable;
-import javax.annotation.ParametersAreNonnullByDefault;
 
 /** {@link Context} containing a single value. */
-@ParametersAreNonnullByDefault
 final class SingletonContext implements Context {
   final int index;
   final Object value;

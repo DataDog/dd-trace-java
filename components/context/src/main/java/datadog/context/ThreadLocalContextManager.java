@@ -1,11 +1,18 @@
 package datadog.context;
 
+import java.util.Arrays;
+import java.util.concurrent.atomic.AtomicIntegerFieldUpdater;
+import javax.annotation.Nullable;
+
 /** {@link ContextManager} that uses a {@link ThreadLocal} to track context per thread. */
 final class ThreadLocalContextManager implements ContextManager {
-  static final ContextManager INSTANCE = new ThreadLocalContextManager();
+  static final ThreadLocalContextManager INSTANCE = new ThreadLocalContextManager();
 
   private static final ThreadLocal<Context[]> CURRENT_HOLDER =
       ThreadLocal.withInitial(() -> new Context[] {EmptyContext.INSTANCE});
+
+  private final Object listenersWriteLock = new Object();
+  private volatile ContextListener[] listeners = {};
 
   @Override
   public Context current() {
@@ -14,32 +21,268 @@ final class ThreadLocalContextManager implements ContextManager {
 
   @Override
   public ContextScope attach(Context context) {
+    return doAttach(context, null);
+  }
+
+  ContextScope doAttach(Context context, @Nullable ContextContinuationImpl continuation) {
     Context[] holder = CURRENT_HOLDER.get();
+
     Context previous = holder[0];
+    if (context == previous) {
+      if (continuation != null) {
+        // already attached, safe to release early to avoid resource leak
+        continuation.releaseOnScopeClose();
+      }
+      return NoopContextScope.create(previous);
+    }
+
+    ContextListener[] ls = listeners;
+    notifyDetach(previous, ls);
     holder[0] = context;
-    return new ContextScope() {
-      private boolean closed;
+    notifyAttach(context, ls);
 
-      @Override
-      public Context context() {
-        return context;
-      }
-
-      @Override
-      public void close() {
-        if (!closed && context == holder[0]) {
-          holder[0] = previous;
-          closed = true;
-        }
-      }
-    };
+    if (continuation == null) {
+      return new ContextScopeImpl(context, holder, previous);
+    } else {
+      return new ResumedScopeImpl(context, holder, previous, continuation);
+    }
   }
 
   @Override
   public Context swap(Context context) {
     Context[] holder = CURRENT_HOLDER.get();
+
     Context previous = holder[0];
+    if (context == previous) {
+      return previous;
+    }
+
+    ContextListener[] ls = listeners;
+    notifyDetach(previous, ls);
     holder[0] = context;
+    notifyAttach(context, ls);
+
     return previous;
+  }
+
+  @Override
+  public ContextContinuation capture(Context context) {
+    if (context == Context.root()) {
+      return EmptyContextContinuation.INSTANCE;
+    } else {
+      return new ContextContinuationImpl(context);
+    }
+  }
+
+  @Override
+  public void addListener(ContextListener listener) {
+    synchronized (listenersWriteLock) {
+      for (ContextListener l : listeners) {
+        if (l == listener) {
+          return;
+        }
+      }
+      int oldLength = listeners.length;
+      ContextListener[] update = Arrays.copyOf(listeners, oldLength + 1);
+      update[oldLength] = listener;
+      listeners = update;
+    }
+  }
+
+  void clearListeners() {
+    synchronized (listenersWriteLock) {
+      listeners = new ContextListener[] {};
+    }
+  }
+
+  static void notifyAttach(Context context, ContextListener[] listeners) {
+    if (context == Context.root()) {
+      return; // don't emit attach events for the default "no context" case
+    }
+    for (ContextListener l : listeners) {
+      try {
+        l.onAttach(context);
+      } catch (Throwable ignore) {
+      }
+    }
+  }
+
+  static void notifyDetach(Context context, ContextListener[] listeners) {
+    if (context == Context.root()) {
+      return; // don't emit detach events for the default "no context" case
+    }
+    for (ContextListener l : listeners) {
+      try {
+        l.onDetach(context);
+      } catch (Throwable ignore) {
+      }
+    }
+  }
+
+  static void notifyCapture(Context context, ContextListener[] listeners) {
+    // only called for non-empty continuations
+    for (ContextListener l : listeners) {
+      try {
+        l.onCapture(context);
+      } catch (Throwable ignore) {
+      }
+    }
+  }
+
+  static void notifyRelease(Context context, ContextListener[] listeners) {
+    // only called for non-empty continuations
+    for (ContextListener l : listeners) {
+      try {
+        l.onRelease(context);
+      } catch (Throwable ignore) {
+      }
+    }
+  }
+
+  private static class ContextScopeImpl implements ContextScope {
+
+    private final Context context;
+    private final Context[] holder;
+    private final Context previous;
+
+    private boolean closed;
+
+    ContextScopeImpl(Context context, Context[] holder, Context previous) {
+      this.context = context;
+      this.holder = holder;
+      this.previous = previous;
+    }
+
+    @Override
+    public final Context context() {
+      return context;
+    }
+
+    @Override
+    public void close() {
+      if (!closed) {
+        // check for out-of-order close to avoid corrupting the current state
+        if (context == holder[0]) {
+          ContextListener[] ls = INSTANCE.listeners;
+          notifyDetach(context, ls);
+          holder[0] = previous;
+          notifyAttach(previous, ls);
+          closed = true;
+        }
+      }
+    }
+  }
+
+  private static final class ResumedScopeImpl extends ContextScopeImpl {
+    @Nullable private ContextContinuationImpl continuation;
+
+    ResumedScopeImpl(
+        Context context,
+        Context[] holder,
+        Context previous,
+        @Nullable ContextContinuationImpl continuation) {
+      super(context, holder, previous);
+      this.continuation = continuation;
+    }
+
+    @Override
+    public void close() {
+      if (continuation != null) {
+        // release first to avoid resource leak, even on out-of-order close
+        continuation.releaseOnScopeClose();
+        continuation = null;
+      }
+      super.close(); // proceed to try and update the current execution unit
+    }
+  }
+
+  private static final class ContextContinuationImpl implements ContextContinuation {
+
+    private static final AtomicIntegerFieldUpdater<ContextContinuationImpl> COUNT =
+        AtomicIntegerFieldUpdater.newUpdater(ContextContinuationImpl.class, "count");
+
+    // these boundaries were selected to allow for speculative counting and fuzzy checks
+    private static final int RELEASED = Integer.MIN_VALUE >> 1;
+    private static final int HELD = (Integer.MAX_VALUE >> 1) + 1;
+
+    private final Context context;
+
+    /**
+     * When positive this reflects the number of outstanding resumed scopes as well as whether there
+     * is an active hold on the continuation:
+     *
+     * <table>
+     * <tr><th>Value</th> <th>Meaning</th></tr>
+     * <tr><td>0</td><td>Not held or resumed</td></tr>
+     * <tr><td>1..HELD-1</td><td>Resumed, not held</td></tr>
+     * <tr><td>HELD</td><td>Held, not yet resumed</td></tr>
+     * <tr><td>HELD..MAX_INT</td><td>Resumed and held</td></tr>
+     * </table>
+     *
+     * where HELD is at the mid-point between 1 and MAX_INT.
+     *
+     * <p>A negative value of RELEASED reflects that the continuation has either been resumed and
+     * all associated scopes are now closed, or it has been explicitly released. This value was
+     * chosen to be half the size of MIN_INT to avoid speculative additions in {@link #resume()}
+     * from overflowing to a positive count.
+     */
+    private volatile int count = 0;
+
+    ContextContinuationImpl(Context context) {
+      this.context = context;
+      notifyCapture(context, INSTANCE.listeners);
+    }
+
+    @Override
+    public ContextContinuation hold() {
+      // update initial count to record that this continuation has a hold
+      COUNT.compareAndSet(this, 0, HELD);
+      return this;
+    }
+
+    @Override
+    public Context context() {
+      return context;
+    }
+
+    @Override
+    public ContextScope resume() {
+      if (COUNT.incrementAndGet(this) > 0) {
+        // speculative update succeeded, continuation can be resumed
+        return INSTANCE.doAttach(context, this);
+      } else {
+        // continuation released or too many resumes; rollback count
+        COUNT.decrementAndGet(this);
+        return NoopContextScope.create(context);
+      }
+    }
+
+    @Override
+    public void release() {
+      int current = count;
+      while (current >= HELD) {
+        // remove the hold on this continuation by removing the offset
+        COUNT.compareAndSet(this, current, current - HELD);
+        current = count;
+      }
+      while (current == 0) {
+        // no outstanding resumes and hold has been removed
+        if (COUNT.compareAndSet(this, current, RELEASED)) {
+          notifyRelease(context, INSTANCE.listeners);
+          return;
+        }
+        current = count;
+      }
+    }
+
+    void releaseOnScopeClose() {
+      if (COUNT.compareAndSet(this, 1, RELEASED)) {
+        // fast path: only one resume of the continuation (no hold)
+        notifyRelease(context, INSTANCE.listeners);
+      } else if (COUNT.decrementAndGet(this) == 0) {
+        // slow path: multiple resumes, all scopes now closed (no hold)
+        release();
+      } /* else there are outstanding resumes or hold is in place */
+    }
   }
 }

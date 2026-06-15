@@ -90,6 +90,14 @@ class ContextProvidersForkedTest {
           public Context swap(Context context) {
             return root();
           }
+
+          @Override
+          public ContextContinuation capture(Context context) {
+            return EmptyContextContinuation.INSTANCE;
+          }
+
+          @Override
+          public void addListener(ContextListener listener) {}
         });
 
     // NOOP manager, context will always be root
