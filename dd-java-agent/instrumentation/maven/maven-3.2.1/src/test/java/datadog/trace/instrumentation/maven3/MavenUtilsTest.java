@@ -476,9 +476,8 @@ public class MavenUtilsTest extends AbstractMavenTest {
   }
 
   private static String getLatestMavenSurefireVersion() {
-    // Pinned outside of runtime (resolved against Maven Central) so a newly published Surefire
-    // release cannot break this test on unrelated PRs. The pinned value is bumped on a schedule by
-    // the update-smoke-test-latest-versions workflow. See latest-tool-versions.properties.
+    // The pinned value is bumped on a schedule by the update-smoke-test-latest-versions workflow.
+    // See latest-tool-versions.properties.
     String version = loadLatestToolVersions().getProperty("maven-surefire.latest");
     LOGGER.info("Will run the 'latest' tests with Maven Surefire version {}", version);
     return version;
