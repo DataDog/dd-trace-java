@@ -2,6 +2,8 @@ package datadog.trace.api.openfeature;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 
+import datadog.trace.api.GlobalTracer;
+import datadog.trace.config.inversion.ConfigHelper;
 import de.thetaphi.forbiddenapis.SuppressForbidden;
 import dev.openfeature.sdk.ErrorCode;
 import dev.openfeature.sdk.EvaluationContext;
@@ -16,6 +18,7 @@ import dev.openfeature.sdk.exceptions.FatalError;
 import dev.openfeature.sdk.exceptions.OpenFeatureError;
 import dev.openfeature.sdk.exceptions.ProviderNotReadyError;
 import java.lang.reflect.Constructor;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -28,6 +31,15 @@ public class Provider extends EventProvider implements Metadata {
   private static final Logger log = LoggerFactory.getLogger(Provider.class);
   static final String METADATA = "datadog-openfeature-provider";
   private static final String EVALUATOR_IMPL = "datadog.trace.api.openfeature.DDEvaluator";
+
+  /**
+   * Environment variable form of {@link
+   * datadog.trace.api.config.FeatureFlaggingConfig#SPAN_ENRICHMENT_ENABLED}. Distinct from the
+   * provider-enabled gate; OFF by default (experimental opt-in).
+   */
+  static final String SPAN_ENRICHMENT_ENABLED_ENV =
+      "DD_EXPERIMENTAL_FLAGGING_PROVIDER_SPAN_ENRICHMENT_ENABLED";
+
   private static final Options DEFAULT_OPTIONS = new Options().initTimeout(30, SECONDS);
   private volatile Evaluator evaluator;
   private final Options options;
@@ -35,6 +47,9 @@ public class Provider extends EventProvider implements Metadata {
       new AtomicReference<>(InitializationState.NOT_STARTED);
   private final FlagEvalMetrics flagEvalMetrics;
   private final FlagEvalHook flagEvalHook;
+  // Span enrichment (JAVA-01): both are null unless the gate is on (DG-005 — no idle overhead).
+  private final SpanEnrichmentHook spanEnrichmentHook;
+  private final SpanEnrichmentInterceptor spanEnrichmentInterceptor;
 
   public Provider() {
     this(DEFAULT_OPTIONS, null);
@@ -45,6 +60,17 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   Provider(final Options options, final Evaluator evaluator) {
+    this(options, evaluator, null);
+  }
+
+  /**
+   * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
+   *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_ENV}.
+   */
+  Provider(
+      final Options options,
+      final Evaluator evaluator,
+      final Boolean spanEnrichmentEnabledOverride) {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
@@ -59,6 +85,38 @@ public class Provider extends EventProvider implements Metadata {
     }
     this.flagEvalMetrics = metrics;
     this.flagEvalHook = hook;
+
+    // Gate-gated span enrichment: construct + register ONLY when the gate is on. When off, nothing
+    // is constructed and no interceptor/state exists (DG-005 zero-idle-overhead negative control).
+    final boolean spanEnrichmentEnabled =
+        spanEnrichmentEnabledOverride != null
+            ? spanEnrichmentEnabledOverride
+            : isSpanEnrichmentEnabled();
+    SpanEnrichmentHook seHook = null;
+    SpanEnrichmentInterceptor seInterceptor = null;
+    if (spanEnrichmentEnabled) {
+      try {
+        seHook = new SpanEnrichmentHook();
+        seInterceptor = new SpanEnrichmentInterceptor();
+        GlobalTracer.get().addTraceInterceptor(seInterceptor);
+      } catch (LinkageError | Exception e) {
+        // Tracer classes absent (e.g. API-only classpath): degrade to no span enrichment.
+        log.warn("Span enrichment unavailable — tracer classes not on classpath", e);
+        seHook = null;
+        seInterceptor = null;
+      }
+    }
+    this.spanEnrichmentHook = seHook;
+    this.spanEnrichmentInterceptor = seInterceptor;
+  }
+
+  private static boolean isSpanEnrichmentEnabled() {
+    try {
+      final String value = ConfigHelper.env(SPAN_ENRICHMENT_ENABLED_ENV);
+      return "true".equalsIgnoreCase(value) || "1".equals(value);
+    } catch (final Throwable t) {
+      return false; // never let config reading break provider construction
+    }
   }
 
   @Override
@@ -168,10 +226,14 @@ public class Provider extends EventProvider implements Metadata {
 
   @Override
   public List<Hook> getProviderHooks() {
-    if (flagEvalHook == null) {
-      return Collections.emptyList();
+    final List<Hook> hooks = new ArrayList<>(2);
+    if (flagEvalHook != null) {
+      hooks.add(flagEvalHook);
     }
-    return Collections.singletonList(flagEvalHook);
+    if (spanEnrichmentHook != null) {
+      hooks.add(spanEnrichmentHook);
+    }
+    return hooks.isEmpty() ? Collections.emptyList() : hooks;
   }
 
   @Override
@@ -179,9 +241,23 @@ public class Provider extends EventProvider implements Metadata {
     if (flagEvalMetrics != null) {
       flagEvalMetrics.shutdown();
     }
+    // Provider-close cleanup for span enrichment (Pitfall 3): the tracer has no interceptor-removal
+    // API, so disable the interceptor (it then no-ops + drains residual state) and drop the hook.
+    if (spanEnrichmentInterceptor != null) {
+      spanEnrichmentInterceptor.disable();
+    }
     if (evaluator != null) {
       evaluator.shutdown();
     }
+  }
+
+  // Visible for tests: expose whether span enrichment is wired (gate-on) without leaking the impls.
+  SpanEnrichmentHook spanEnrichmentHook() {
+    return spanEnrichmentHook;
+  }
+
+  SpanEnrichmentInterceptor spanEnrichmentInterceptor() {
+    return spanEnrichmentInterceptor;
   }
 
   @Override
