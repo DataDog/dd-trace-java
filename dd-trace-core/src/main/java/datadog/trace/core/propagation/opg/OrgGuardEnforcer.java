@@ -113,11 +113,11 @@ final class OrgGuardEnforcer {
         ctx.getTraceId(),
         ctx.getSpanId(),
         PrioritySampling.UNSET,
-        /* origin */ null,
+        null,
         ctx.getEndToEndStartTime(),
         ctx.getBaggage(),
         ctx.getTags(),
-        /* httpHeaders */ null,
+        null,
         stripped,
         ctx.getTraceConfig(),
         ctx.getPropagationStyle());

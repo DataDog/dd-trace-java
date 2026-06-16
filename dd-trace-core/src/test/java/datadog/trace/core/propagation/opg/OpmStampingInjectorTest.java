@@ -1,5 +1,7 @@
 package datadog.trace.core.propagation.opg;
 
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.DATADOG;
+import static datadog.trace.core.propagation.PropagationTags.HeaderType.W3C;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
@@ -13,20 +15,16 @@ import datadog.trace.core.propagation.PropagationTags;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.function.Supplier;
-import javax.annotation.ParametersAreNonnullByDefault;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
 @DisplayName("OpmStampingInjector")
 class OpmStampingInjectorTest {
-
-  private static final MapSetter MAP_SETTER = new MapSetter();
-
   @Test
   @DisplayName("stamps the local OPM into PropagationTags before delegating")
   void stampsLocalOpm() {
     PropagationTags.Factory factory = PropagationTags.factory();
-    PropagationTags tags = factory.fromHeaderValue(PropagationTags.HeaderType.W3C, "");
+    PropagationTags tags = factory.fromHeaderValue(W3C, "");
 
     DDSpanContext ctx = mock(DDSpanContext.class);
     when(ctx.getPropagationTags()).thenReturn(tags);
@@ -36,7 +34,7 @@ class OpmStampingInjectorTest {
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, supplier);
 
     Map<String, String> carrier = new HashMap<>();
-    wrapped.inject(ctx, carrier, MAP_SETTER);
+    wrapped.inject(ctx, carrier, Map::put);
 
     assertNotNull(tags.getOrgPropagationMarker());
     assertEquals("local-opm-1", tags.getOrgPropagationMarker().toString());
@@ -46,8 +44,7 @@ class OpmStampingInjectorTest {
   @DisplayName("with null supplier value, leaves PropagationTags untouched")
   void supplierNullLeavesTagsUntouched() {
     PropagationTags.Factory factory = PropagationTags.factory();
-    PropagationTags tags =
-        factory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.opm=upstream-abc");
+    PropagationTags tags = factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
 
     DDSpanContext ctx = mock(DDSpanContext.class);
     when(ctx.getPropagationTags()).thenReturn(tags);
@@ -56,7 +53,7 @@ class OpmStampingInjectorTest {
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> null);
 
     Map<String, String> carrier = new HashMap<>();
-    wrapped.inject(ctx, carrier, MAP_SETTER);
+    wrapped.inject(ctx, carrier, Map::put);
 
     assertNotNull(tags.getOrgPropagationMarker());
     assertEquals("upstream-abc", tags.getOrgPropagationMarker().toString());
@@ -66,8 +63,7 @@ class OpmStampingInjectorTest {
   @DisplayName("local supplier value overrides any inherited OPM")
   void localOpmOverridesInherited() {
     PropagationTags.Factory factory = PropagationTags.factory();
-    PropagationTags tags =
-        factory.fromHeaderValue(PropagationTags.HeaderType.DATADOG, "_dd.p.opm=upstream-abc");
+    PropagationTags tags = factory.fromHeaderValue(DATADOG, "_dd.p.opm=upstream-abc");
 
     DDSpanContext ctx = mock(DDSpanContext.class);
     when(ctx.getPropagationTags()).thenReturn(tags);
@@ -76,7 +72,7 @@ class OpmStampingInjectorTest {
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> "local-xyz");
 
     Map<String, String> carrier = new HashMap<>();
-    wrapped.inject(ctx, carrier, MAP_SETTER);
+    wrapped.inject(ctx, carrier, Map::put);
 
     assertEquals("local-xyz", tags.getOrgPropagationMarker().toString());
   }
@@ -93,7 +89,7 @@ class OpmStampingInjectorTest {
     CountingInjector delegate = new CountingInjector();
     OpmStampingInjector wrapped = new OpmStampingInjector(delegate, () -> null);
 
-    wrapped.inject(ctx, new HashMap<>(), MAP_SETTER);
+    wrapped.inject(ctx, new HashMap<>(), Map::put);
     assertEquals(1, delegate.calls);
     assertNull(tags.getOrgPropagationMarker());
   }
@@ -109,14 +105,6 @@ class OpmStampingInjectorTest {
     @Override
     public <C> void inject(DDSpanContext context, C carrier, CarrierSetter<C> setter) {
       calls++;
-    }
-  }
-
-  @ParametersAreNonnullByDefault
-  private static final class MapSetter implements CarrierSetter<Map<String, String>> {
-    @Override
-    public void set(Map<String, String> carrier, String key, String value) {
-      carrier.put(key, value);
     }
   }
 }

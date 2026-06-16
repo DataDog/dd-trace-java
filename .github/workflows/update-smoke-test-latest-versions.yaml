@@ -35,9 +35,9 @@ jobs:
           gradle_props="dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties"
           maven_props="dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties"
           get_prop() { grep "^$1=" "$2" 2>/dev/null | cut -d= -f2 || true; }
-          echo "gradle_version=$(get_prop gradle.version "$gradle_props")" >> "$GITHUB_OUTPUT"
-          echo "maven_version=$(get_prop maven.version "$maven_props")" >> "$GITHUB_OUTPUT"
-          echo "surefire_version=$(get_prop maven-surefire.version "$maven_props")" >> "$GITHUB_OUTPUT"
+          echo "gradle_version=$(get_prop gradle.latest "$gradle_props")" >> "$GITHUB_OUTPUT"
+          echo "maven_version=$(get_prop maven.latest "$maven_props")" >> "$GITHUB_OUTPUT"
+          echo "surefire_version=$(get_prop maven-surefire.latest "$maven_props")" >> "$GITHUB_OUTPUT"
 
       - name: Resolve latest eligible Gradle version
         id: gradle
@@ -77,6 +77,7 @@ jobs:
         env:
           GRADLE_VERSION: ${{ steps.gradle.outputs.version }}
           GRADLE_PUBLISHED: ${{ steps.gradle.outputs.published_at }}
+          GRADLE_LATEST_BY_MAJOR: ${{ steps.gradle.outputs.latest_by_major }}
           MAVEN_VERSION: ${{ steps.maven.outputs.version }}
           MAVEN_PUBLISHED: ${{ steps.maven.outputs.published_at }}
           SUREFIRE_VERSION: ${{ steps.surefire.outputs.version }}
@@ -96,14 +97,17 @@ jobs:
           printf '%s\n' \
             "# Pinned latest eligible stable versions (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for CI Visibility Gradle smoke tests." \
             "# Updated automatically by the update-smoke-test-latest-versions workflow." \
-            "gradle.version=${GRADLE_VERSION}" \
+            "gradle.latest=${GRADLE_VERSION}" \
+            "# Latest eligible stable patch per Gradle major release. Used to resolve the \"oldest\" smoke-test" \
+            "# Gradle version (the latest patch of the oldest major the current TestKit supports)." \
+            "${GRADLE_LATEST_BY_MAJOR}" \
             > dd-smoke-tests/gradle/src/test/resources/latest-tool-versions.properties
 
           printf '%s\n' \
             "# Pinned latest eligible stable versions (>=${MIN_DEPENDENCY_AGE_HOURS}h old) for CI Visibility Maven smoke tests." \
             "# Updated automatically by the update-smoke-test-latest-versions workflow." \
-            "maven.version=${MAVEN_VERSION}" \
-            "maven-surefire.version=${SUREFIRE_VERSION}" \
+            "maven.latest=${MAVEN_VERSION}" \
+            "maven-surefire.latest=${SUREFIRE_VERSION}" \
             > dd-smoke-tests/maven/src/test/resources/latest-tool-versions.properties
 
       - name: Check for changes

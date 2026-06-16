@@ -13,13 +13,16 @@ from email.utils import parsedate_to_datetime
 from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 MAVEN_REPO_URL = "https://repo1.maven.org/maven2"
 DEFAULT_MIN_AGE_HOURS = 48
+# Oldest Gradle major release we track a latest-patch for. The legacy Gradle instrumentation
+# targets Gradle 3.0+ (the `gradle-3.0` module), so older majors are never exercised.
+OLDEST_TRACKED_GRADLE_MAJOR = 3
 
 
 @dataclass(frozen=True)
@@ -171,7 +174,7 @@ def select_gradle_release(args: argparse.Namespace) -> int:
         if published_at <= cutoff:
             candidates.append(Candidate(version=version, published_at=published_at))
 
-    return emit_selection_result(
+    status = emit_selection_result(
         label="Gradle",
         github_output=args.github_output,
         candidates=candidates,
@@ -180,6 +183,26 @@ def select_gradle_release(args: argparse.Namespace) -> int:
         ),
         current_version=args.current_version,
     )
+
+    # Also emit the newest eligible stable patch for every major release, as ready-to-write
+    # `gradle.latest.<major>=<version>` property lines. The Gradle smoke tests use these to
+    # resolve the "oldest" Gradle version dynamically (the latest patch of the major that the
+    # current Gradle TestKit still supports), so the tested floor follows Gradle automatically
+    # instead of being hardcoded.
+    latest_by_major = {
+        major: candidate
+        for major, candidate in newest_stable_per_major(candidates).items()
+        if major >= OLDEST_TRACKED_GRADLE_MAJOR
+    }
+    block = "\n".join(
+        f"gradle.latest.{major}={candidate.version}"
+        for major, candidate in sorted(latest_by_major.items())
+    )
+    emit_outputs({"latest_by_major": block}, args.github_output)
+    for major, candidate in sorted(latest_by_major.items()):
+        print(f"Latest eligible stable Gradle {major}.x: {candidate.version}")
+
+    return status
 
 
 # select latest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
@@ -281,6 +304,27 @@ def _version_sort_key(version: str) -> tuple:
         release.append(seg)
 
     return (tuple(release), not bool(prerelease), tuple(prerelease))
+
+
+# parse the leading integer of a version string as its major release number
+def _major_version(version: str) -> int:
+    match = re.match(r"\s*(\d+)", version)
+    if not match:
+        raise ValueError(f"Cannot determine major version from '{version}'")
+    return int(match.group(1))
+
+
+# group candidates by major release and keep the newest one in each group
+def newest_stable_per_major(candidates: list[Candidate]) -> dict[int, Candidate]:
+    newest: dict[int, Candidate] = {}
+    for candidate in candidates:
+        major = _major_version(candidate.version)
+        current = newest.get(major)
+        if current is None or _version_sort_key(candidate.version) > _version_sort_key(
+            current.version
+        ):
+            newest[major] = candidate
+    return newest
 
 
 # emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven
@@ -428,25 +472,49 @@ def validate_lockfiles(args: argparse.Namespace) -> int:
                 print(f"::warning file={relative_path}::{gav}: {'Cannot verify age' if kind == 'unverified' else 'Too new'}. Reverted lockfile to baseline.")
 
     reverted_files = len(violations_by_file)
-    summary = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours)
-    emit_outputs({"cutoff_at": format_datetime(cutoff), "reverted_files": reverted_files, "summary": summary}, args.github_output)
+    summary_instrumentation = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=is_instrumentation_path)
+    summary_core = build_validation_summary(violations_by_file=violations_by_file, replacements_by_file=replacements_by_file, baseline_lockfiles=baseline_lockfiles, min_age_hours=args.min_age_hours, path_filter=lambda path: not is_instrumentation_path(path))
+    emit_outputs(
+        {
+            "cutoff_at": format_datetime(cutoff),
+            "reverted_files": reverted_files,
+            "summary_core": summary_core,
+            "summary_instrumentation": summary_instrumentation,
+        },
+        args.github_output,
+    )
     print(f"Validated {len(changed)} changed coordinate(s) across {len(changed_by_file)} lockfile(s). {reverted_files} lockfile(s) reverted.")
     return 0
 
 
+# instrumentation lockfiles live under these prefixes and ship in a separate PR from core modules.
+# Keep in sync with the file split in .github/workflows/update-gradle-dependencies.yaml
+INSTRUMENTATION_PATH_PREFIXES = ("dd-smoke-tests/", "dd-java-agent/instrumentation/")
+
+
+# classify a lockfile path as belonging to the instrumentation PR (vs the core modules PR)
+def is_instrumentation_path(relative_path: str) -> bool:
+    normalized = relative_path.replace(os.sep, "/")
+    return normalized.startswith(INSTRUMENTATION_PATH_PREFIXES)
+
+
 # build summary of reverted/downgraded dependencies for PR descriptions
+# path_filter restricts the summary to lockfiles whose relative path matches,
+# so each PR (core vs instrumentation) only lists the dependencies it actually changes
 def build_validation_summary(
     *,
     violations_by_file: dict[str, list[tuple[str, str, int]]],
     replacements_by_file: dict[str, dict[str, tuple[str, int]]],
     baseline_lockfiles: dict[str, set[str]],
     min_age_hours: int,
+    path_filter: Callable[[str], bool],
 ) -> str:
-    if not violations_by_file and not replacements_by_file:
-        return ""
-    lines = [f"## Dependency age policy", ""]
+    header = ["## Dependency age policy", ""]
+    lines = list(header)
     seen: set[str] = set()
     for relative_path, replacements in replacements_by_file.items():
+        if not path_filter(relative_path):
+            continue
         baseline_coords = baseline_lockfiles.get(relative_path, set())
         for old_gav, (new_gav, hours_remaining) in replacements.items():
             if old_gav not in seen:
@@ -456,7 +524,9 @@ def build_validation_summary(
                 else:
                     new_version = new_gav.rsplit(":", 1)[1]
                     lines.append(f"- `{old_gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, updated to `{new_version}`")
-    for entries in violations_by_file.values():
+    for relative_path, entries in violations_by_file.items():
+        if not path_filter(relative_path):
+            continue
         for gav, kind, hours_remaining in entries:
             if gav not in seen:
                 seen.add(gav)
@@ -464,6 +534,8 @@ def build_validation_summary(
                     lines.append(f"- `{gav}` — cannot verify age, reverted")
                 else:
                     lines.append(f"- `{gav}` is {hours_remaining}h away from meeting {min_age_hours}h cooldown, reverted")
+    if len(lines) == len(header):  # nothing matched the filter
+        return ""
     return "\n".join(lines)
 
 
