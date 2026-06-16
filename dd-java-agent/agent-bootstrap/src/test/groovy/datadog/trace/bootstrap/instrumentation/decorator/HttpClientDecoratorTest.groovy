@@ -97,12 +97,12 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     decorator.onRequest(span, req)
 
     then:
-    // OpenTelemetry HTTP client semconv attributes (clients use url.full, not url.path/url.query)
+    // OpenTelemetry HTTP client semconv attributes: url.full only (no decomposed url.* for clients)
     1 * span.setTag(Tags.HTTP_REQUEST_METHOD, "GET")
     1 * span.setTag(Tags.URL_FULL, "$testUrl")
-    1 * span.setTag(Tags.URL_SCHEME, testUrl.scheme)
     1 * span.setTag(Tags.SERVER_ADDRESS, testUrl.host)
     1 * span.setTag(Tags.SERVER_PORT, testUrl.port)
+    0 * span.setTag(Tags.URL_SCHEME, _)
     0 * span.setTag(Tags.URL_PATH, _)
     0 * span.setTag(Tags.URL_QUERY, _)
     // The OTel client span name is the method only
@@ -176,20 +176,41 @@ class HttpClientDecoratorTest extends ClientDecoratorTest {
     "http://user@myhost:123/somepath"            | "http://REDACTED@myhost:123/somepath"
   }
 
-  def "test onResponse sets error.type for client errors under OTel semantics"() {
+  def "test onResponse marks #status as error with error.type under OTel semantics"() {
     setup:
     injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
     def decorator = newDecorator()
 
     when:
-    decorator.onResponse(span, [status: 500])
+    decorator.onResponse(span, [status: status])
 
     then:
-    1 * span.setHttpStatusCode(500)
+    1 * span.setHttpStatusCode(status)
+    // OTel: both 4xx and 5xx are client errors (the error flag + error.type stay consistent)
+    1 * span.setError(true)
     1 * span.getTag(DDTags.ERROR_TYPE)
-    1 * span.setTag(DDTags.ERROR_TYPE, "500")
+    1 * span.setTag(DDTags.ERROR_TYPE, "$status")
     1 * span.traceConfig() >> AgentTracer.traceConfig()
     0 * _
+
+    where:
+    status << [404, 500]
+  }
+
+  def "test onRequest honors client query-string opt-out for url.full under OTel semantics"() {
+    setup:
+    injectSysConfig(TRACE_OTEL_SEMANTICS_ENABLED, "true")
+    injectSysConfig(HTTP_CLIENT_TAG_QUERY_STRING, "false")
+    def decorator = newDecorator()
+    def req = [method: "GET", url: new URI("http://myhost:123/somepath?token=secret"), path: '/somepath']
+
+    when:
+    decorator.onRequest(span, req)
+
+    then:
+    1 * span.setTag(Tags.URL_FULL, "http://myhost:123/somepath")
+    0 * span.setTag(Tags.URL_FULL, { it.toString().contains("token") })
+    _ * span.traceConfig() >> AgentTracer.traceConfig()
   }
 
   def "test url handling for #url"() {

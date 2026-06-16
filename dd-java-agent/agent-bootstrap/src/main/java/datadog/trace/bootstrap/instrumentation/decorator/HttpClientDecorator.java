@@ -127,12 +127,15 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
         if (url != null) {
           onURI(span, url);
           if (otelSemantics) {
-            // OTel client: absolute URL in url.full (no url.path/url.query for clients), target in
-            // server.address/port, span named by method only.
-            span.setTag(Tags.URL_FULL, OtelHttpSemantics.redactedUrl(url));
-            if (url.getScheme() != null) {
-              span.setTag(Tags.URL_SCHEME, url.getScheme());
+            // OTel client: the absolute URL goes in url.full only. Clients don't use the decomposed
+            // url.path/url.query, and url.scheme is opt-in (already contained in url.full), so we
+            // don't emit it. Target is server.address/port; span is named by method only.
+            String urlFull = OtelHttpSemantics.redactedUrl(url);
+            if (!Config.get().isHttpClientTagQueryString()) {
+              // honor the query-string opt-out (privacy/PII) just like the Datadog http.url path
+              urlFull = OtelHttpSemantics.withoutQueryAndFragment(urlFull);
             }
+            span.setTag(Tags.URL_FULL, urlFull);
             if (url.getHost() != null) {
               span.setTag(Tags.SERVER_ADDRESS, url.getHost());
             }
@@ -175,14 +178,16 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
   public AgentSpan onResponse(final AgentSpan span, final RESPONSE response) {
     if (response != null) {
       final int status = status(response);
+      final boolean otelSemantics = Config.get().isTraceOtelSemanticsEnabled();
       if (status > UNSET_STATUS) {
         // Status stays in the dedicated field; the serializer renames the key under OTel semantics.
         span.setHttpStatusCode(status);
-        if (CLIENT_ERROR_STATUSES.get(status)) {
+        // OTel treats client 4xx and 5xx as errors; the Datadog default only marks the configured
+        // client error range (4xx). Keep error flag and error.type consistent under OTel.
+        if (CLIENT_ERROR_STATUSES.get(status) || (otelSemantics && status >= 400)) {
           span.setError(true);
         }
-        // OTel error.type = status for client error responses (4xx/5xx) unless already set.
-        if (status >= 400 && Config.get().isTraceOtelSemanticsEnabled()) {
+        if (otelSemantics && status >= 400) {
           OtelHttpSemantics.setErrorType(span, status);
         }
       }

@@ -58,6 +58,23 @@ final class OtelHttpSemantics {
   }
 
   /**
+   * Strips the query string and fragment from a URL, used to honor the client query-string opt-out
+   * ({@code DD_TRACE_HTTP_CLIENT_TAG_QUERY_STRING=false}) for {@code url.full}.
+   */
+  static String withoutQueryAndFragment(final String url) {
+    int cut = url.length();
+    final int query = url.indexOf('?');
+    if (query >= 0) {
+      cut = query;
+    }
+    final int fragment = url.indexOf('#');
+    if (fragment >= 0 && fragment < cut) {
+      cut = fragment;
+    }
+    return url.substring(0, cut);
+  }
+
+  /**
    * Sets {@code error.type} to the HTTP status code (as a string) when the response indicates an
    * error, unless an error type (e.g. from a thrown exception) has already been recorded — the spec
    * prefers the exception type over the status code.
