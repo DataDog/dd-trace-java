@@ -55,6 +55,11 @@ grep -rn "new LinkedHashMap<>()" <files>
 # RULE-C04
 grep -rn "\.getTags()\.get(" <files>
 
+# RULE-C05  (BLOCKER, but verify context — see note below)
+# A matcher is only legitimate for genuinely non-deterministic values; otherwise it
+# silently relaxes an assertion the Groovy original pinned. Cross-check the Groovy source.
+grep -rEn "any\(\)|anyInt\(\)|anyLong\(\)|anyString\(\)|anyByte\(\)|anyBoolean\(\)|atLeastOnce\(\)" <files>
+
 # RULE-D01
 grep -rn "mock(.*Map.*\.class)" <files>
 
@@ -63,6 +68,10 @@ grep -rn "/\* [a-z]" <files>
 
 # RULE-G02
 grep -rEn "\(\) -> [a-zA-Z]+\.[a-zA-Z]+\(\)" <files>
+
+# RULE-G05  (verify context — only when close() is the finally's sole statement and there
+# is no surrounding logic requiring an explicit close; read the block before flagging)
+grep -rEn "\} finally \{" <files>
 
 # RULE-H01
 grep -rEn "'18446744073709551[0-9]+'" <files>

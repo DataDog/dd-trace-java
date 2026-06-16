@@ -184,6 +184,24 @@ BLOCKER rules include a grep pattern for mechanical detection.
 
 ---
 
+### RULE-C05: Preserve the original assertion's specificity — never relax to a matcher
+- **Severity**: BLOCKER
+- **Detection**: `any\(\)`, `anyInt\(\)`, `anyLong\(\)`, `anyString\(\)`, `anyByte\(\)`, `anyBoolean\(\)`, `atLeastOnce\(\)` — flag any that stand in for a literal value or exact cardinality the Groovy original pinned. Verify context (see Notes).
+- **Before**:
+  ```java
+  // Groovy original: 1 * carrier.put(TRACE_ID_KEY, traceId)
+  verify(carrier, atLeastOnce()).put(eq(TRACE_ID_KEY), anyString());
+  ```
+- **After**:
+  ```java
+  verify(carrier).put(TRACE_ID_KEY, traceId);
+  // or, when the mock is replaced by a real carrier (RULE-D01):
+  assertEquals(traceId, carrier.get(TRACE_ID_KEY));
+  ```
+- **Notes**: This is the highest-risk migration error: a relaxed assertion still compiles and passes, so the regression is invisible. A Spock interaction `N * mock.method(value)` pins **both** the cardinality and the exact argument. Port `1 * mock.m(v)` to `verify(mock).m(v)` (or `verify(mock, times(N)).m(v)` for `N *`), never `verify(mock, atLeastOnce()).m(any())`. Likewise never weaken a concrete `assertEquals(expected, actual)` into `assertTrue(actual != null)` or similar. The only legitimate matcher is a value that is genuinely non-deterministic at assertion time (e.g. a timestamp-derived id) — and even then prefer `assertNotNull(captured)` over `any()`. Cross-check every matcher against the Groovy original before accepting it.
+
+---
+
 ## Category D: Mock Elimination
 
 ### RULE-D01: Replace Map mock + verify with concrete HashMap
@@ -326,6 +344,34 @@ BLOCKER rules include a grep pattern for mechanical detection.
 - **Severity**: STYLE
 - **Detection**: `".*\s\s+\|` or trailing spaces before closing `"` in `@TableTest` strings
 - **Notes**: Trailing spaces added by formatters or LLMs for alignment serve no purpose and cause noisy diffs. Each cell value should be trimmed to its natural width; column alignment should come from the `|` delimiters only.
+
+---
+
+### RULE-G05: Use try-with-resources instead of close() in a finally block
+- **Severity**: STYLE
+- **Detection**: `\} finally \{` whose block body is a single `.close()` call. Verify context (see Notes).
+- **Before**:
+  ```java
+  AnnotationConfigApplicationContext context =
+      new AnnotationConfigApplicationContext(IntervalTaskConfig.class, SchedulingConfig.class);
+  try {
+    IntervalTask task = context.getBean(IntervalTask.class);
+    task.blockUntilExecute();
+    assertScheduledTraces("IntervalTask.run");
+  } finally {
+    context.close();
+  }
+  ```
+- **After**:
+  ```java
+  try (AnnotationConfigApplicationContext context =
+      new AnnotationConfigApplicationContext(IntervalTaskConfig.class, SchedulingConfig.class)) {
+    IntervalTask task = context.getBean(IntervalTask.class);
+    task.blockUntilExecute();
+    assertScheduledTraces("IntervalTask.run");
+  }
+  ```
+- **Notes**: Spock's `cleanup:` block is commonly ported to `try { ... } finally { resource.close(); }`. When the resource type is `Closeable`/`AutoCloseable` and the `finally` only closes it, use try-with-resources — it is shorter, scopes the resource to the block, and reports `close()` failures as suppressed exceptions. **Only when `close()` is the finally's sole statement and there is no surrounding logic.** Do not convert when the resource must be closed at a specific earlier point (e.g. `SpringSchedulingTest.scheduleTriggerTestAccordingToCronExpression` closes the context mid-test to stop further scheduled traces before asserting), nor when the `finally` does more than close (e.g. `reset()` plus buffer bookkeeping).
 
 ---
 
