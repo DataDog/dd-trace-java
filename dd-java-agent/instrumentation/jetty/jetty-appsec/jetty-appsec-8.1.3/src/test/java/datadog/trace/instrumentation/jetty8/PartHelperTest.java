@@ -12,27 +12,14 @@ import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
-import java.util.Collection;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import javax.servlet.http.Part;
+import org.eclipse.jetty.util.MultiPartInputStream;
 import org.junit.jupiter.api.Test;
 
 class PartHelperTest {
-
-  /** Minimal stand-in for {@code MultiPartInputStream}: exposes a {@code getParts()} method. */
-  static class FakeMpi {
-    private final Collection<?> parts;
-
-    FakeMpi(Collection<?> parts) {
-      this.parts = parts;
-    }
-
-    public Collection<?> getParts() {
-      return parts;
-    }
-  }
 
   // ── extractFilenames ────────────────────────────────────────────────────────
 
@@ -263,31 +250,28 @@ class PartHelperTest {
   }
 
   @Test
-  void getAllPartsReturnsAllPartsFromMultiPartInputStream() {
+  void getAllPartsReturnsAllPartsFromMultiPartInputStream() throws Exception {
     Part file = filePart("evil.php");
     Part text = formField("name");
-    FakeMpi mpi = new FakeMpi(asList(file, text));
+    MultiPartInputStream mpi = mock(MultiPartInputStream.class);
+    when(mpi.getParts()).thenReturn(asList(file, text));
     assertEquals(asList(file, text), PartHelper.getAllParts(mpi, null));
   }
 
   @Test
-  void getAllPartsPrefersFullCollectionOverSingleton() {
+  void getAllPartsPrefersFullCollectionOverSingleton() throws Exception {
     Part file = filePart("evil.php");
     Part other = formField("name");
-    FakeMpi mpi = new FakeMpi(asList(file, other));
+    MultiPartInputStream mpi = mock(MultiPartInputStream.class);
+    when(mpi.getParts()).thenReturn(asList(file, other));
     assertEquals(asList(file, other), PartHelper.getAllParts(mpi, file));
   }
 
   @Test
-  void getAllPartsFallsBackToSingletonWhenGetPartsThrows() {
+  void getAllPartsFallsBackToSingletonWhenGetPartsThrows() throws Exception {
     Part part = filePart("fallback.jpg");
-    Object mpi =
-        new Object() {
-          @SuppressWarnings("unused")
-          public Collection<?> getParts() throws IOException {
-            throw new IOException("simulated failure");
-          }
-        };
+    MultiPartInputStream mpi = mock(MultiPartInputStream.class);
+    when(mpi.getParts()).thenThrow(new IOException("simulated failure"));
     assertEquals(singletonList(part), PartHelper.getAllParts(mpi, part));
   }
 

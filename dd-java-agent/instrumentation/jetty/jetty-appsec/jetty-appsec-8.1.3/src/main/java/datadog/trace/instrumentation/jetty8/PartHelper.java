@@ -63,22 +63,17 @@ public class PartHelper {
    */
   public static Collection<?> getAllParts(Object multiPartInputStream, Part singlePart) {
     if (multiPartInputStream != null) {
-      try {
-        MethodHandle mh = MpiGetPartsHolder.GET_PARTS;
-        @SuppressWarnings("unchecked")
-        Collection<?> all =
-            (Collection<?>)
-                (mh != null
-                    ? mh.invoke(multiPartInputStream)
-                    : multiPartInputStream
-                        .getClass()
-                        .getMethod("getParts")
-                        .invoke(multiPartInputStream));
-        if (all != null && !all.isEmpty()) {
-          return all;
+      MethodHandle mh = MpiGetPartsHolder.GET_PARTS;
+      if (mh != null) {
+        try {
+          @SuppressWarnings("unchecked")
+          Collection<?> all = (Collection<?>) mh.invoke(multiPartInputStream);
+          if (all != null && !all.isEmpty()) {
+            return all;
+          }
+        } catch (Throwable ignored) {
+          // invocation failed — fall back to singleton below
         }
-      } catch (Throwable ignored) {
-        // invocation failed — fall back to singleton below
       }
     }
     return singlePart != null ? Collections.singletonList(singlePart) : Collections.emptyList();
