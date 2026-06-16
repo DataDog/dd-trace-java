@@ -351,7 +351,7 @@ public abstract class MavenUtils {
       MethodHandles methodHandles = new MethodHandles(pluginRealm);
 
       MethodHandle generateTestClasspathMethod =
-          findMethod(methodHandles, mojo.getClass(), "generateTestClasspath");
+          findMethod(methodHandles, mojo.getClass(), "generateTestClasspath", true);
       if (generateTestClasspathMethod == null) {
         LOGGER.debug(
             "Could not find generateTestClasspathMethod method in {} class",
@@ -485,13 +485,32 @@ public abstract class MavenUtils {
 
   private static MethodHandle findMethod(
       MethodHandles methodHandles, Class<?> mojoClass, String methodName) {
-    do {
-      MethodHandle getEffectiveJvm = methodHandles.method(mojoClass, methodName);
-      if (getEffectiveJvm != null) {
-        return getEffectiveJvm;
+    return findMethod(methodHandles, mojoClass, methodName, false);
+  }
+
+  private static MethodHandle findMethod(
+      MethodHandles methodHandles, Class<?> mojoClass, String methodName, boolean acceptVarargs) {
+    for (Class<?> clazz = mojoClass; clazz != null; clazz = clazz.getSuperclass()) {
+      MethodHandle handle = methodHandles.method(clazz, methodName);
+      if (handle != null) {
+        return handle;
       }
-      mojoClass = mojoClass.getSuperclass();
-    } while (mojoClass != null);
+    }
+    if (!acceptVarargs) {
+      return null;
+    }
+    // fallback to a varargs method of the same name, which can also be invoked without arguments:
+    // our MethodHandles#invoke delegates to MethodHandle#invokeWithArguments, which collects the
+    // missing trailing varargs into an empty array. Necessary for:
+    // - AbstractSurefireMojo#generateTestClasspath() in >= 3.6.0-M1: added "ArtifactFilter..."
+    // param
+    for (Class<?> clazz = mojoClass; clazz != null; clazz = clazz.getSuperclass()) {
+      MethodHandle handle =
+          methodHandles.method(clazz, m -> m.getName().equals(methodName) && m.isVarArgs());
+      if (handle != null) {
+        return handle;
+      }
+    }
     return null;
   }
 
