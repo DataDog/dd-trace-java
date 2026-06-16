@@ -25,12 +25,20 @@ abstract class WriteVersionFile @Inject constructor(
   @get:Input
   val gitHash: Property<String> = objects.property<String>()
     .convention(
-      providerFactory.of(GitCommandValueSource::class.java) {
-        parameters {
-          gitCommand.addAll("git", "rev-parse", "--short", "HEAD")
-          workingDirectory.set(layout.projectDirectory)
+      // Embedding the live commit hash makes this an unstable build input: every commit/amend
+      // changes it, which re-runs writeVersionNumberFile -> processResources -> jar/shadowJar and
+      // every consumer (CodeNarc, compile tasks). Off-CI we use a stable marker so local
+      // incremental builds stay cached; CI keeps the real short hash for release metadata.
+      providerFactory.environmentVariable("CI")
+        .flatMap {
+          providerFactory.of(GitCommandValueSource::class.java) {
+            parameters {
+              gitCommand.addAll("git", "rev-parse", "--short", "HEAD")
+              workingDirectory.set(layout.projectDirectory)
+            }
+          }
         }
-      }
+        .orElse("local")
     )
 
   @get:OutputDirectory
