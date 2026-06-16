@@ -25,6 +25,8 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.function.BiFunction;
 import javax.servlet.http.Part;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 /**
  * Helper for extracting filenames and form-field values from Servlet 3.0 {@link Part} objects.
@@ -33,6 +35,8 @@ import javax.servlet.http.Part;
  * must parse the {@code Content-Disposition} header manually.
  */
 public class PartHelper {
+
+  private static final Logger log = LoggerFactory.getLogger(PartHelper.class);
 
   private PartHelper() {}
 
@@ -71,8 +75,8 @@ public class PartHelper {
           if (all != null && !all.isEmpty()) {
             return all;
           }
-        } catch (Throwable ignored) {
-          // invocation failed — fall back to singleton below
+        } catch (Throwable e) {
+          log.debug("getAllParts: MethodHandle invocation failed, falling back to singleton", e);
         }
       }
     }
@@ -94,8 +98,8 @@ public class PartHelper {
         if (filename != null && !filename.isEmpty()) {
           filenames.add(filename);
         }
-      } catch (Exception ignored) {
-        // malformed or inaccessible part — skip and continue with remaining parts
+      } catch (Exception e) {
+        log.debug("extractFilenames: skipping malformed part", e);
       }
     }
     return filenames;
@@ -125,8 +129,8 @@ public class PartHelper {
           continue;
         }
         result.computeIfAbsent(name, k -> new ArrayList<>()).add(value);
-      } catch (Exception ignored) {
-        // malformed or inaccessible part — skip and continue with remaining parts
+      } catch (Exception e) {
+        log.debug("extractFormFields: skipping malformed part", e);
       }
     }
     return result;
@@ -264,7 +268,7 @@ public class PartHelper {
       }
       return new String(baos.toByteArray(), charset);
     } catch (IOException e) {
-      // stream read failed — caller skips form field value
+      log.debug("readPartContent: stream read failed", e);
       return null;
     }
   }
