@@ -108,7 +108,6 @@ public final class AsyncPropagatingDisableInstrumentation extends InstrumenterMo
         .or(GRPC_MANAGED_CHANNEL)
         .or(REACTOR_DISABLED_TYPE_INITIALIZERS)
         .or(RXJAVA2_DISABLED_TYPE_INITIALIZERS)
-        .or(NETTY_GLOBAL_EVENT_EXECUTOR)
         .or(JAVA_HTTP_CLIENT);
   }
 
