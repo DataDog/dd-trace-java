@@ -322,27 +322,6 @@ BLOCKER rules include a grep pattern for mechanical detection.
 
 ---
 
-### RULE-G03: Use IntStream.rangeClosed for character range loops
-- **Severity**: STYLE
-- **Detection**: structural — `Stream.Builder` + `for (char c = ` loop
-- **Before**:
-  ```java
-  Stream.Builder<Arguments> builder = Stream.builder();
-  for (char c = ' '; c <= 'ÿ'; c++) {
-    if (!validChars.contains(c)) { builder.add(arguments(String.valueOf(c))); }
-  }
-  return builder.build();
-  ```
-- **After**:
-  ```java
-  return IntStream.rangeClosed(' ', 'ÿ')
-      .filter(c -> !validChars.contains((char) c))
-      .mapToObj(c -> arguments(String.valueOf((char) c)));
-  ```
-- **Notes**: Only when the loop is purely building a stream; not when it has side effects.
-
----
-
 ### RULE-G04: Trim trailing whitespace padding in @TableTest tables
 - **Severity**: STYLE
 - **Detection**: `".*\s\s+\|` or trailing spaces before closing `"` in `@TableTest` strings

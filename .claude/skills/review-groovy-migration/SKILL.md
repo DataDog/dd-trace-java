@@ -75,7 +75,7 @@ Read the full content of any file that has at least one hit, to understand the c
 
 ## Step 4 — Structural detection (LLM-based)
 
-For rules without grep patterns (RULE-A01, RULE-B02, RULE-B03, RULE-C03, RULE-E01, RULE-E02, RULE-E03, RULE-G03, RULE-G04, RULE-H02, RULE-I01, RULE-I02), read all target files and identify violations based on the Before/After examples in the rules.
+For rules without grep patterns (RULE-A01, RULE-B02, RULE-B03, RULE-C03, RULE-E01, RULE-E02, RULE-E03, RULE-G04, RULE-H02, RULE-I01, RULE-I02), read all target files and identify violations based on the Before/After examples in the rules.
 
 ## Step 5 — Emit structured findings
 
