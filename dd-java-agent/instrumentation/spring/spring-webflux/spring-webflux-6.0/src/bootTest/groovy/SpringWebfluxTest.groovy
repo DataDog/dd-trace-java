@@ -859,11 +859,6 @@ class SpringWebfluxHttp11Test extends InstrumentationSpecification {
     }
     return ret
   }
-
-  @Override
-  boolean useStrictTraceWrites() {
-    false
-  }
 }
 
 class SpringWebfluxHttp2UpgradeTest extends SpringWebfluxHttp11Test {
