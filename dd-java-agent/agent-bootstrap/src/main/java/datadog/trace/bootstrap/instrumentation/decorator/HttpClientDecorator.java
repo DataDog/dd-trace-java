@@ -144,7 +144,9 @@ public abstract class HttpClientDecorator<REQUEST, RESPONSE> extends UriBasedCli
               span.setTag(Tags.SERVER_PORT, serverPort);
             }
             if (shouldSetResourceName()) {
-              span.setResourceName(method, ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
+              span.setResourceName(
+                  OtelHttpSemantics.spanNameMethod(method),
+                  ResourceNamePriorities.HTTP_FRAMEWORK_ROUTE);
             }
           } else {
             span.setTag(

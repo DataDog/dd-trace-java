@@ -386,9 +386,11 @@ public abstract class HttpServerDecorator<REQUEST, CONNECTION, RESPONSE, REQUEST
           }
           if (valid && SHOULD_SET_URL_RESOURCE_NAME) {
             if (otelSemantics) {
-              // OTel span name is "{method}"; route-based naming appends the route when known. The
-              // spec forbids using the URL path as the target, so we don't fall back to it.
-              span.setResourceName(method, ResourceNamePriorities.HTTP_PATH_NORMALIZER);
+              // OTel span name is "{method}" (HTTP for unknown methods); route-based naming appends
+              // the route when known. The spec forbids using the URL path as the target.
+              span.setResourceName(
+                  OtelHttpSemantics.spanNameMethod(method),
+                  ResourceNamePriorities.HTTP_PATH_NORMALIZER);
             } else {
               HTTP_RESOURCE_DECORATOR.withServerPath(span, method, path, encoded);
             }

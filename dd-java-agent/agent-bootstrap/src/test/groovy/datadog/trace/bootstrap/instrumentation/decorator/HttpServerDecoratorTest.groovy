@@ -177,6 +177,8 @@ class HttpServerDecoratorTest extends ServerDecoratorTest {
     1 * this.span.setTag(Tags.HTTP_REQUEST_METHOD, "_OTHER")
     1 * this.span.setTag(Tags.HTTP_REQUEST_METHOD_ORIGINAL, "PROPFIND")
     0 * this.span.setTag(Tags.HTTP_REQUEST_METHOD, "PROPFIND")
+    // OTel span name uses "HTTP" (not the raw verb) when the method is unknown
+    1 * this.span.setResourceName("HTTP", ResourceNamePriorities.HTTP_PATH_NORMALIZER)
     _ * this.span.getLocalRootSpan() >> this.span
   }
 

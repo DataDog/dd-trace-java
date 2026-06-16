@@ -41,6 +41,15 @@ final class OtelHttpSemantics {
   }
 
   /**
+   * Returns the method component to use in the span name. Per the spec, when the request method is
+   * unknown ({@code http.request.method} is {@code _OTHER}), the span name uses the literal {@code
+   * HTTP} rather than the raw verb.
+   */
+  static String spanNameMethod(final String method) {
+    return method != null && KNOWN_METHODS.contains(method) ? method : "HTTP";
+  }
+
+  /**
    * Returns the value for {@code url.full} with any embedded credentials redacted: the spec
    * mandates that {@code url.full} MUST NOT contain credentials (e.g. {@code
    * https://user:pass@host} becomes {@code https://REDACTED:REDACTED@host}).
