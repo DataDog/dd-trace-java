@@ -17,9 +17,11 @@ import java.util.Map;
  *
  * <p>Mirrors {@link FlagEvalHook}: registered via {@link Provider#getProviderHooks()} (only when
  * the span-enrichment gate is on) and reading {@code details.getFlagMetadata()}. It resolves the
- * active local-root span via {@link AgentTracer#activeSpan()} and keys the shared {@link
- * SpanEnrichmentAccumulator#STATES} map by that root's trace id, so an interceptor running later on
- * the write thread can recover the same state from the completed span collection.
+ * active local-root span via {@link AgentTracer#activeSpan()} and keys the per-provider {@link
+ * SpanEnrichmentStates} store (shared with this provider's {@link SpanEnrichmentInterceptor}) by
+ * that root's trace id, so the interceptor running later on the write thread can recover the same
+ * state from the completed span collection. The store is owned by the interceptor (not a global
+ * static), so a second provider can never clear this one's state (CR-03).
  *
  * <p>Capture branch (frozen Node reference):
  *
@@ -54,13 +56,18 @@ class SpanEnrichmentHook implements Hook<Object> {
       };
 
   private final RootSpanResolver rootSpanResolver;
+  // Per-provider state store, shared with this provider's interceptor (NOT a global static). The
+  // hook writes here; the interceptor reads + removes. Owning the store on the interceptor is what
+  // makes one provider's shutdown unable to clear another's in-flight state (CR-03).
+  private final SpanEnrichmentStates states;
 
-  SpanEnrichmentHook() {
-    this(DEFAULT_RESOLVER);
+  SpanEnrichmentHook(final SpanEnrichmentStates states) {
+    this(DEFAULT_RESOLVER, states);
   }
 
-  SpanEnrichmentHook(final RootSpanResolver rootSpanResolver) {
+  SpanEnrichmentHook(final RootSpanResolver rootSpanResolver, final SpanEnrichmentStates states) {
     this.rootSpanResolver = rootSpanResolver;
+    this.states = states;
   }
 
   @Override
@@ -104,20 +111,15 @@ class SpanEnrichmentHook implements Hook<Object> {
       } catch (final NumberFormatException e) {
         return; // malformed serial id — drop, never break eval
       }
-      final SpanEnrichmentAccumulator state = getOrCreateState(traceKey);
+      final SpanEnrichmentAccumulator state = states.getOrCreate(traceKey);
       state.addSerialId(serialId);
       if (doLog && targetingKey != null) {
         state.addSubject(targetingKey, serialId);
       }
     } else if (details.getVariant() == null) {
       // Runtime-default detection = MISSING VARIANT (never a reason enum).
-      getOrCreateState(traceKey).addDefault(details.getFlagKey(), details.getValue());
+      states.getOrCreate(traceKey).addDefault(details.getFlagKey(), details.getValue());
     }
-  }
-
-  private static SpanEnrichmentAccumulator getOrCreateState(final long traceKey) {
-    return SpanEnrichmentAccumulator.STATES.computeIfAbsent(
-        traceKey, k -> new SpanEnrichmentAccumulator());
   }
 
   private static String targetingKey(final HookContext<Object> ctx) {

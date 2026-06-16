@@ -4,7 +4,6 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeSet;
-import java.util.concurrent.ConcurrentHashMap;
 
 /**
  * Per-local-root-span accumulator for APM feature-flag span enrichment (JAVA-01).
@@ -14,10 +13,11 @@ import java.util.concurrent.ConcurrentHashMap;
  * shapes are FROZEN against the Node reference ({@code dd-trace-js#8343}) — see {@link
  * ULeb128Encoder}.
  *
- * <p>Instances are created lazily and stored in {@link #STATES}, keyed by the local-root span's
- * trace id. The capture hook ({@link SpanEnrichmentHook}) writes; the write interceptor ({@link
- * SpanEnrichmentInterceptor}) reads and clears. When the span-enrichment gate is off, nothing
- * touches {@link #STATES}, so there is no idle per-span overhead (DG-005).
+ * <p>Instances are created lazily and held in a per-provider {@link SpanEnrichmentStates} store,
+ * keyed by the local-root span's trace id. The capture hook ({@link SpanEnrichmentHook}) writes;
+ * the write interceptor ({@link SpanEnrichmentInterceptor}) reads and clears. When the
+ * span-enrichment gate is off, no store and no accumulator are ever created, so there is no idle
+ * per-span overhead (DG-005).
  *
  * <p>Output tag shapes (Pattern F):
  *
@@ -38,14 +38,6 @@ final class SpanEnrichmentAccumulator {
   static final String TAG_FLAGS_ENC = "ffe_flags_enc";
   static final String TAG_SUBJECTS_ENC = "ffe_subjects_enc";
   static final String TAG_RUNTIME_DEFAULTS = "ffe_runtime_defaults";
-
-  /**
-   * Shared per-trace state, keyed by the local-root span's trace id ({@code DDTraceId.toLong()}).
-   * Capture (hook) puts; write (interceptor) reads + removes. Only ever populated when the gate is
-   * on (DG-005).
-   */
-  static final ConcurrentHashMap<Long, SpanEnrichmentAccumulator> STATES =
-      new ConcurrentHashMap<>();
 
   // dedupe is structural (a Set); sorted for deterministic encoding.
   private final TreeSet<Integer> serialIds = new TreeSet<>();

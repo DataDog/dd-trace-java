@@ -64,6 +64,17 @@ public class Provider extends EventProvider implements Metadata {
   }
 
   /**
+   * Registers a {@link SpanEnrichmentInterceptor} with the running tracer, returning {@code true}
+   * when it was added and {@code false} when the tracer rejected it (e.g. a duplicate-priority
+   * interceptor from an earlier provider is already registered). Injectable so tests can drive the
+   * success and rejected-registration (reconfiguration) paths deterministically without mutating
+   * the global tracer (mirrors the {@code spanEnrichmentEnabledOverride} seam).
+   */
+  interface TraceInterceptorRegistrar {
+    boolean register(SpanEnrichmentInterceptor interceptor);
+  }
+
+  /**
    * @param spanEnrichmentEnabledOverride when non-null, forces the span-enrichment gate (test
    *     seam); when null, the gate is read from {@link #SPAN_ENRICHMENT_ENABLED_ENV}.
    */
@@ -71,6 +82,22 @@ public class Provider extends EventProvider implements Metadata {
       final Options options,
       final Evaluator evaluator,
       final Boolean spanEnrichmentEnabledOverride) {
+    this(
+        options,
+        evaluator,
+        spanEnrichmentEnabledOverride,
+        interceptor -> GlobalTracer.get().addTraceInterceptor(interceptor));
+  }
+
+  /**
+   * @param registrar registers the span-enrichment interceptor with the tracer; injectable for
+   *     tests (see {@link TraceInterceptorRegistrar}).
+   */
+  Provider(
+      final Options options,
+      final Evaluator evaluator,
+      final Boolean spanEnrichmentEnabledOverride,
+      final TraceInterceptorRegistrar registrar) {
     this.options = options;
     this.evaluator = evaluator;
     FlagEvalMetrics metrics = null;
@@ -96,9 +123,30 @@ public class Provider extends EventProvider implements Metadata {
     SpanEnrichmentInterceptor seInterceptor = null;
     if (spanEnrichmentEnabled) {
       try {
-        seHook = new SpanEnrichmentHook();
-        seInterceptor = new SpanEnrichmentInterceptor();
-        GlobalTracer.get().addTraceInterceptor(seInterceptor);
+        // Per-provider state store (NOT a global static): owned by the interceptor, shared with the
+        // hook, so this provider's shutdown can never clear another provider's state (CR-03), and a
+        // never-completing trace cannot leak unboundedly (CR-02, bounded inside the store).
+        final SpanEnrichmentStates seStates = new SpanEnrichmentStates();
+        final SpanEnrichmentInterceptor candidate = new SpanEnrichmentInterceptor(seStates);
+        // HONOR the registration result (CR-03): the tracer rejects an interceptor whose priority
+        // is
+        // already taken (e.g. a SECOND gate-on provider after reconfiguration) and returns false.
+        // If
+        // we ignored it, this provider would still wire a hook into shared state yet never have its
+        // interceptor invoked, and its shutdown() would clear the FIRST provider's live state. So
+        // we
+        // only wire the hook+interceptor when registration actually succeeded.
+        if (registrar.register(candidate)) {
+          seInterceptor = candidate;
+          seHook = new SpanEnrichmentHook(seStates);
+        } else {
+          // Duplicate registration (active interceptor already owns priority 4). Leave hook +
+          // interceptor null so this provider neither accumulates orphan state nor clears the
+          // active provider's state on shutdown. Its own seStates is unreferenced and GC'd.
+          log.warn(
+              "Span enrichment interceptor already registered (duplicate provider); "
+                  + "skipping duplicate registration to avoid corrupting active provider state");
+        }
       } catch (LinkageError | Exception e) {
         // Tracer classes absent (e.g. API-only classpath): degrade to no span enrichment.
         log.warn("Span enrichment unavailable — tracer classes not on classpath", e);
@@ -242,7 +290,11 @@ public class Provider extends EventProvider implements Metadata {
       flagEvalMetrics.shutdown();
     }
     // Provider-close cleanup for span enrichment (Pitfall 3): the tracer has no interceptor-removal
-    // API, so disable the interceptor (it then no-ops + drains residual state) and drop the hook.
+    // API, so disable the interceptor (it then no-ops + drains its OWN residual state). Because the
+    // state store is instance-owned, this clears only this provider's state and can never wipe an
+    // active second provider's in-flight state (CR-03). When this provider's registration was
+    // rejected as a duplicate, spanEnrichmentInterceptor is null here, so shutdown is a no-op and
+    // the active provider's state is untouched.
     if (spanEnrichmentInterceptor != null) {
       spanEnrichmentInterceptor.disable();
     }
