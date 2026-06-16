@@ -16,7 +16,7 @@ final class MetricCardinalityLimits {
    * Distinct {@code resource.name} values per cycle. Highest-cardinality field by far: DB-query
    * obfuscations, HTTP route templates, custom resources. Typical service: 30-200 unique.
    */
-  static final int RESOURCE = 128;
+  static final int RESOURCE = 256;
 
   /**
    * Distinct {@code service.name} values per cycle. Local service plus downstream peer-service

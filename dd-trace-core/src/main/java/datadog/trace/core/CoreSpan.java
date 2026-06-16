@@ -82,8 +82,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
   boolean isForceKeep();
 
   default boolean isKind(SpanKindFilter filter) {
-    Object kind = unsafeGetTag(Tags.SPAN_KIND);
-    return filter.matches(kind == null ? null : kind.toString());
+    return filter.matches(getSpanKindString());
   }
 
   /**
@@ -92,7 +91,7 @@ public interface CoreSpan<T extends CoreSpan<T>> {
    * resolves via a small lookup array, skipping the tag-map lookup on the hot path.
    */
   default String getSpanKindString() {
-    Object v = unsafeGetTag(datadog.trace.bootstrap.instrumentation.api.Tags.SPAN_KIND);
+    Object v = unsafeGetTag(Tags.SPAN_KIND);
     return v == null ? null : v.toString();
   }
 
