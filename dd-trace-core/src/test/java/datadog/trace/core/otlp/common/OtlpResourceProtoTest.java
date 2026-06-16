@@ -5,6 +5,7 @@ import static datadog.trace.api.config.GeneralConfig.ENV;
 import static datadog.trace.api.config.GeneralConfig.SERVICE_NAME;
 import static datadog.trace.api.config.GeneralConfig.TAGS;
 import static datadog.trace.api.config.GeneralConfig.VERSION;
+import static datadog.trace.api.config.TracerConfig.TRACE_REPORT_HOSTNAME;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 
@@ -99,6 +100,16 @@ class OtlpResourceProtoTest {
                 "service.name", "my-service",
                 "region", "us-east",
                 "team", "platform")),
+        // report-hostname disabled (default): no host.name written
+        Arguments.of(
+            "report-hostname disabled",
+            props(SERVICE_NAME, "my-service"),
+            attrs("service.name", "my-service")),
+        // report-hostname enabled: host.name written with the detected hostname
+        Arguments.of(
+            "report-hostname enabled",
+            props(SERVICE_NAME, "my-service", TRACE_REPORT_HOSTNAME, "true"),
+            attrs("service.name", "my-service", "host.name", Config.get().getHostName())),
         // all config values set together; telemetry.sdk.* keys in tags must be ignored
         Arguments.of(
             "service, env, version, and tags all set",

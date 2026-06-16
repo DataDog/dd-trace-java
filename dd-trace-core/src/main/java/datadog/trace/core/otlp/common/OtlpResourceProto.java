@@ -47,6 +47,12 @@ public final class OtlpResourceProto {
     if (!version.isEmpty()) {
       writeResourceAttribute(buf, "service.version", version);
     }
+    if (config.isReportHostName()) {
+      String hostName = config.getHostName();
+      if (hostName != null && !hostName.isEmpty()) {
+        writeResourceAttribute(buf, "host.name", hostName);
+      }
+    }
     writeResourceAttribute(buf, "telemetry.sdk.name", "datadog");
     writeResourceAttribute(buf, "telemetry.sdk.version", TRACER_VERSION);
     writeResourceAttribute(buf, "telemetry.sdk.language", "java");
