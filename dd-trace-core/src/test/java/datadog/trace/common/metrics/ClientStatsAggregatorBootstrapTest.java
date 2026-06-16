@@ -4,7 +4,6 @@ import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
@@ -12,7 +11,6 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.bootstrap.instrumentation.api.UTF8BytesString;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
@@ -323,7 +321,7 @@ class ClientStatsAggregatorBootstrapTest {
     when(span.getHttpStatusCode()).thenReturn((short) 200);
     when(span.getParentId()).thenReturn(0L);
     when(span.getOrigin()).thenReturn(null);
-    when(span.unsafeGetTag(eq(Tags.SPAN_KIND), any(CharSequence.class))).thenReturn("client");
+    when(span.getSpanKindString()).thenReturn("client");
     // peer.hostname tag is set so capturePeerTagValues fires for the bootstrapped schema.
     when(span.unsafeGetTag("peer.hostname")).thenReturn("localhost");
     return span;

@@ -283,7 +283,6 @@ public final class ClientStatsAggregator implements MetricsAggregator, EventList
               && resourceName != null
               && ignoredResources.contains(resourceName.toString())) {
             // skip publishing all children
-            forceKeep = false;
             break;
           }
           counted++;

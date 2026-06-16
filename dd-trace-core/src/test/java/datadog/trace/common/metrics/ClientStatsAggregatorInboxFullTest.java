@@ -2,14 +2,12 @@ package datadog.trace.common.metrics;
 
 import static java.util.concurrent.TimeUnit.SECONDS;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.atLeastOnce;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import datadog.communication.ddagent.DDAgentFeaturesDiscovery;
-import datadog.trace.bootstrap.instrumentation.api.Tags;
 import datadog.trace.core.CoreSpan;
 import datadog.trace.core.SpanKindFilter;
 import datadog.trace.core.monitor.HealthMetrics;
@@ -78,7 +76,7 @@ class ClientStatsAggregatorInboxFullTest {
     when(span.getHttpStatusCode()).thenReturn((short) 200);
     when(span.getParentId()).thenReturn(0L);
     when(span.getOrigin()).thenReturn(null);
-    when(span.unsafeGetTag(eq(Tags.SPAN_KIND), any(CharSequence.class))).thenReturn("client");
+    when(span.getSpanKindString()).thenReturn("client");
     return span;
   }
 }
