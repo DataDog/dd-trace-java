@@ -141,7 +141,8 @@ public final class OtlpStatsMetricWriter implements MetricWriter {
     writeI64(buf, startNanos);
     writeTag(buf, DP_TIME_FIELD, I64_WIRE_TYPE);
     writeI64(buf, endNanos);
-    OtlpHistogramPoint point = OtlpHistogramBuckets.toHistogramPoint(latencies);
+    long sumNanos = error ? entry.getErrorDuration() : entry.getOkDuration();
+    OtlpHistogramPoint point = OtlpHistogramBuckets.toHistogramPoint(latencies, sumNanos);
     metricBytes += recordDataPointMessage(buf, point, protobuf);
   }
 
