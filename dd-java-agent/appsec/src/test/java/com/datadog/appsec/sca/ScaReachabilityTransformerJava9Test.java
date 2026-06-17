@@ -4,9 +4,13 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNotNull;
 import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 import datadog.telemetry.dependency.Dependency;
 import java.io.StringReader;
+import java.lang.instrument.Instrumentation;
 import java.net.URLClassLoader;
 import java.util.Arrays;
 import java.util.Collections;
@@ -142,6 +146,38 @@ class ScaReachabilityTransformerJava9Test {
         "7.5.5",
         ScaReachabilityTransformer.matchVersion(
             "com.github.junrar:junrar", Arrays.asList(fallback, exact)));
+  }
+
+  /**
+   * Regression test for the snakeyaml deadlock (APPSEC-62260 follow-up):
+   *
+   * <p>JAR resolution (I/O via {@code resolveDependencies}) must happen on the telemetry thread
+   * BEFORE {@code retransformClasses()} acquires JVM locks. If I/O runs inside the retransform
+   * callback, libraries that trigger class loading during JAR resolution (e.g. snakeyaml) can
+   * deadlock because the JVM class-loading lock and the retransform lock are both held.
+   *
+   * <p>With a mock {@code Instrumentation}, the retransform callback never fires, so {@code
+   * resolveDependencies} (and therefore {@code jarCache}) can only be populated by the pre-warming
+   * step that runs before {@code retransformClasses()}. The test asserts that {@code jarCache} is
+   * non-empty after the call, which is only possible if the pre-warm loop ran.
+   */
+  @Test
+  void performPendingRetransforms_prewarms_jarCache_before_retransformClasses() throws Exception {
+    Instrumentation mockInstr = mock(Instrumentation.class);
+    when(mockInstr.isModifiableClass(any())).thenReturn(true);
+    when(mockInstr.getAllLoadedClasses()).thenReturn(new Class<?>[0]);
+
+    ScaCveDatabase db = ScaCveDatabase.parse(new StringReader(JACKSON_JSON));
+    ScaReachabilityTransformer transformer = new ScaReachabilityTransformer(db, mockInstr);
+
+    transformer.pendingRetransform.add(com.fasterxml.jackson.databind.ObjectMapper.class);
+    transformer.performPendingRetransforms();
+
+    assertFalse(
+        transformer.jarCache.isEmpty(),
+        "jarCache must be populated by the pre-warming step that runs before retransformClasses();"
+            + " with a mock Instrumentation the transform callback never fires, so an empty jarCache"
+            + " means the pre-warm loop was not executed");
   }
 
   @Test

@@ -62,7 +62,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    * Cache: JAR URI → resolved dependencies. URI is used instead of URL to avoid DNS lookups in
    * equals/hashCode (DMI_COLLECTION_OF_URLS). Only non-empty results are cached to allow retries.
    */
-  private final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
+  @VisibleForTesting
+  final ConcurrentHashMap<URI, List<Dependency>> jarCache = new ConcurrentHashMap<>();
 
   /**
    * Cache: artifact name → classpath-resolved version. Used when the class's own JAR does not
@@ -308,6 +309,21 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       return;
     }
 
+    // Pre-warm jarCache on the telemetry thread BEFORE acquiring JVM retransform locks.
+    // processClass() calls resolveDependencies() inside the retransform callback; if the cache is
+    // already populated, no JAR I/O occurs under JVM locks (avoids deadlock with libraries that
+    // trigger class loading during JAR resolution, e.g. snakeyaml).
+    for (Class<?> c : toRetransform) {
+      ProtectionDomain pd = c.getProtectionDomain();
+      if (pd == null) continue;
+      CodeSource cs = pd.getCodeSource();
+      if (cs == null) continue;
+      URL loc = cs.getLocation();
+      if (loc != null) {
+        resolveDependencies(loc);
+      }
+    }
+
     try {
       instrumentation.retransformClasses(toRetransform.toArray(new Class<?>[0]));
       log.debug(
@@ -418,7 +434,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
     return null;
   }
 
-  private List<Dependency> resolveDependencies(URL url) {
+  @VisibleForTesting
+  List<Dependency> resolveDependencies(URL url) {
     try {
       URI uri = url.toURI();
       List<Dependency> cached = jarCache.get(uri);
