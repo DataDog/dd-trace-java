@@ -144,6 +144,19 @@ public final class TagMapFuzzTest {
       hashMapA.putAll(hashMapB);
 
       assertMapEquals(hashMapA, tagMapA);
+
+      // The merge must not mutate the source, AND must not leave the dest sharing a mutable
+      // BucketGroup chain with it (cloneChain must deep-copy). So the source must stay intact both
+      // right after the merge and after the dest is independently mutated - mutating a shared chain
+      // would corrupt the source.
+      assertMapEquals(hashMapB, tagMapB);
+      for (int j = 0; j < 16; ++j) {
+        tagMapA.set("merge-probe-" + j, "probe-" + j);
+      }
+      for (String key : hashMapB.keySet()) {
+        tagMapA.remove(key);
+      }
+      assertMapEquals(hashMapB, tagMapB);
     }
   }
 

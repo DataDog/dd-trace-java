@@ -26,9 +26,7 @@ import org.openjdk.jmh.infra.Blackhole;
  * <p>byId stores straight into the dense known-tag store at its positional slot ({@code
  * knownValues[fieldPos]}, O(1), no scan); byString pays {@code keyOf(name)} to resolve the id first
  * (via the real {@link datadog.trace.util.TagSet} table) and then slots it the same way. The bucket
- * baseline (no resolver, master-equivalent) is {@link TagMapInsertionBaselineBenchmark}.
- *
- * <code>
+ * baseline (no resolver, master-equivalent) is {@link TagMapAccessBaselineBenchmark}. <code>
  * Apple M1 Max (10 core) - 8 threads - 1 fork - Java 8 (Zulu 8.0.382) - positional dense store
  *
  * Benchmark                            Mode  Cnt        Score        Error  Units
@@ -43,16 +41,17 @@ import org.openjdk.jmh.infra.Blackhole;
  * </code>
  *
  * <ul>
- *   <li><b>getObject by id vs by name: 129.7M vs 73.5M (~1.77x)</b> — the common read. The whole gap
- *       is {@code keyOf}; both hit the slot and return the raw value with no Entry. Id-keyed value
- *       reads win.
- *   <li><b>getObject ~= getEntry</b> (130M ~= 129M): the Entry "materialization penalty" vanishes for
- *       value use — escape analysis scalar-replaces the transient Entry when the caller consumes its
- *       value rather than retaining it, so {@code getEntry} needs no replacement here. (getEntryReader
- *       was measured and dropped: its eager name resolution made it the slowest read.)
- *   <li><b>insertById ~3x the bucket baseline</b> (126M vs 43M) — O(1) positional claim + no per-tag
- *       Entry; <b>insertByString +32%</b> (57M vs 43M) even paying {@code keyOf}, so the former
- *       name-insert regression is gone.
+ *   <li><b>getObject by id vs by name: 129.7M vs 73.5M (~1.77x)</b> — the common read. The whole
+ *       gap is {@code keyOf}; both hit the slot and return the raw value with no Entry. Id-keyed
+ *       value reads win.
+ *   <li><b>getObject ~= getEntry</b> (130M ~= 129M): the Entry "materialization penalty" vanishes
+ *       for value use — escape analysis scalar-replaces the transient Entry when the caller
+ *       consumes its value rather than retaining it, so {@code getEntry} needs no replacement here.
+ *       (getEntryReader was measured and dropped: its eager name resolution made it the slowest
+ *       read.)
+ *   <li><b>insertById ~3x the bucket baseline</b> (126M vs 43M) — O(1) positional claim + no
+ *       per-tag Entry; <b>insertByString +32%</b> (57M vs 43M) even paying {@code keyOf}, so the
+ *       former name-insert regression is gone.
  * </ul>
  */
 @BenchmarkMode(Mode.Throughput)
@@ -62,7 +61,7 @@ import org.openjdk.jmh.infra.Blackhole;
 @Measurement(iterations = 5)
 @Threads(8)
 @State(Scope.Benchmark)
-public class TagMapInsertionBenchmark {
+public class TagMapAccessBenchmark {
   // a representative HTTP-server-ish tag set
   static final String[] NAMES = {
     "http.request.method",
