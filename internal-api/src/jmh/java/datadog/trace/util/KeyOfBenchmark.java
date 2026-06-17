@@ -27,9 +27,7 @@ import org.openjdk.jmh.annotations.Warmup;
  *
  * <p>Two term flavors: <b>interned</b> (realistic — instrumentation passes string literals → the
  * {@code ==} fast path in eq) and <b>copies</b> (non-interned → forces {@code String.equals}).
- * Terms are hit-dominated.
- *
- * <code>
+ * Terms are hit-dominated. <code>
  * Apple M1 Max (10 core) - 8 threads (per-thread state) - 2 forks - Java 8 (Zulu 8.0.382)
  *
  * Benchmark                                Mode  Cnt           Score          Error  Units
