@@ -8,9 +8,35 @@ import org.junit.jupiter.api.Test
 class WriteVersionFilePluginTest : VersionPluginsFixture() {
 
   @Test
-  fun `writes version file in version~hash format`() {
+  fun `writes stable local development version when CI is not true`() {
+    assertVersionFile(
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
+    )
+  }
+
+  @Test
+  fun `adds dev identifier to existing local snapshot version`() {
+    assertVersionFile(
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
+      beforeGradle = {
+        writeRootProject(
+          """
+
+          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
+            version.set("1.2.3-SNAPSHOT")
+          }
+          """,
+          append = true,
+        )
+      },
+    )
+  }
+
+  @Test
+  fun `writes version file in version~hash format when CI is true`() {
     assertVersionFile(
       expectedContentRegex = "1\\.2\\.3~[0-9a-f]+",
+      env = mapOf("CI" to "true"),
       beforeGradle = {
         initGitRepo()
       },
@@ -18,9 +44,39 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
   }
 
   @Test
-  fun `version and gitHash properties can be overridden`() {
+  fun `tagged release version only gets local snapshot suffix when CI is not true`() {
+    writeSettings(
+      """
+      rootProject.name = "my-lib"
+      """
+    )
+    writeRootProject(
+      """
+      plugins {
+        id("dd-trace-java.tracer-version")
+        id("dd-trace-java.version-file")
+      }
+      """
+    )
+    initGitRepo()
+    exec("git", "tag", "v1.2.3", "-m", "")
+
+    val ciResult = run("writeVersionNumberFile", env = mapOf("CI" to "true"))
+
+    assertThat(ciResult.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(generatedVersionFile.readText()).matches("1\\.2\\.3~[0-9a-f]+")
+
+    val localResult = run("writeVersionNumberFile", env = mapOf("CI" to "false"))
+
+    assertThat(localResult.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(generatedVersionFile).hasContent("1.2.3-SNAPSHOT.dev")
+  }
+
+  @Test
+  fun `version and gitHash properties can be overridden in CI`() {
     assertVersionFile(
-      expectedContentRegex = "9.9.9~deadbeef",
+      expectedContentRegex = "9\\.9\\.9~deadbeef",
+      env = mapOf("CI" to "true"),
       beforeGradle = {
         writeRootProject(
           """
@@ -39,17 +95,8 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
   @Test
   fun `task overwrites existing version file`() {
     assertVersionFile(
-      expectedContentRegex = "1.2.3~abc12345",
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
       beforeGradle = {
-        writeRootProject(
-          """
-
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-            gitHash.set("abc12345")
-          }
-          """,
-          append = true,
-        )
         generatedVersionFile.run {
           parentFile.mkdirs()
           writeText("stale-version")
@@ -61,72 +108,26 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
   @Test
   fun `version file generation is wired into main resources`() {
     assertVersionFile(
-      expectedContentRegex = "1.2.3~abc12345",
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
       task = "processResources",
-      beforeGradle = {
-        writeRootProject(
-          """
-
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-            gitHash.set("abc12345")
-          }
-          """,
-          append = true,
-        )
-      },
     )
 
     assertThat(builtResourceVersionFile).exists()
   }
 
   @Test
-  fun `task is up-to-date on second run`() {
+  fun `task is up-to-date on second run when CI is not true`() {
     assertVersionFile(
-      expectedContentRegex = "1.2.3~abc12345",
-      beforeGradle = {
-        writeRootProject(
-          """
-
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-            gitHash.set("abc12345")
-          }
-          """,
-          append = true,
-        )
-      },
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
     )
 
-    val result = run("writeVersionNumberFile")
+    val result = run("writeVersionNumberFile", env = mapOf("CI" to "false"))
 
     assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
   }
 
   @Test
-  fun `clean deletes version file`() {
-    assertVersionFile(
-      expectedContentRegex = "1.2.3~abc12345",
-      beforeGradle = {
-        writeRootProject(
-          """
-
-          tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-            gitHash.set("abc12345")
-          }
-          """,
-          append = true,
-        )
-      },
-    )
-    val versionFile = generatedVersionFile
-
-    val result = run("clean")
-
-    assertThat(result.task(":clean")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(versionFile).doesNotExist()
-  }
-
-  @Test
-  fun `generated version file is ignored in runtime classpath normalization`() {
+  fun `task is up-to-date after empty commit when CI is not true`() {
     writeSettings(
       """
       rootProject.name = "my-lib"
@@ -134,59 +135,43 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
     )
     writeRootProject(
       """
-      import org.gradle.api.DefaultTask
-      import org.gradle.api.file.ConfigurableFileCollection
-      import org.gradle.api.file.RegularFileProperty
-      import org.gradle.api.tasks.Classpath
-      import org.gradle.api.tasks.InputFiles
-      import org.gradle.api.tasks.OutputFile
-      import org.gradle.api.tasks.TaskAction
-
       plugins {
         id("dd-trace-java.version-file")
       }
 
       version = "1.2.3"
-
-      tasks.named<datadog.gradle.plugin.version.WriteVersionFile>("writeVersionNumberFile") {
-        gitHash.set(providers.gradleProperty("gitHash").orElse("abc12345"))
-      }
-
-      abstract class ClasspathProbe : DefaultTask() {
-        @get:InputFiles
-        @get:Classpath
-        val classpath: ConfigurableFileCollection = project.objects.fileCollection()
-
-        @get:OutputFile
-        val outputFile: RegularFileProperty = project.objects.fileProperty()
-
-        @TaskAction
-        fun probe() {
-          outputFile.get().asFile.writeText("probed")
-        }
-      }
-
-      tasks.register<ClasspathProbe>("classpathProbe") {
-        dependsOn("processResources")
-        classpath.from(sourceSets.main.get().runtimeClasspath)
-        outputFile.set(layout.buildDirectory.file("classpath-probe/output.txt"))
-      }
       """
     )
+    initGitRepo()
 
-    assertThat(run("classpathProbe", "-PgitHash=abc12345").task(":classpathProbe")?.outcome)
-      .isEqualTo(TaskOutcome.SUCCESS)
+    val firstResult = run("writeVersionNumberFile", env = mapOf("CI" to "false"))
+    val firstContent = generatedVersionFile.readText()
 
-    val result = run("classpathProbe", "-PgitHash=def67890")
+    exec("git", "commit", "--allow-empty", "-m", "Empty commit")
+    val secondResult = run("writeVersionNumberFile", env = mapOf("CI" to "false"))
 
-    assertThat(generatedVersionFile).hasContent("1.2.3~def67890")
-    assertThat(result.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
-    assertThat(result.task(":classpathProbe")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+    assertThat(firstResult.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(secondResult.task(":writeVersionNumberFile")?.outcome).isEqualTo(TaskOutcome.UP_TO_DATE)
+    assertThat(generatedVersionFile).hasContent(firstContent)
+  }
+
+  @Test
+  fun `clean deletes version file`() {
+    assertVersionFile(
+      expectedContentRegex = "1\\.2\\.3-SNAPSHOT\\.dev",
+    )
+    val versionFile = generatedVersionFile
+
+    val result = run("clean", env = mapOf("CI" to "false"))
+
+    assertThat(result.task(":clean")?.outcome).isEqualTo(TaskOutcome.SUCCESS)
+    assertThat(versionFile).doesNotExist()
   }
 
   private fun assertVersionFile(
     expectedContentRegex: String,
     task: String = ":writeVersionNumberFile",
+    env: Map<String, String> = mapOf("CI" to "false"),
     beforeGradle: VersionPluginsFixture.() -> Unit = {},
   ): BuildResult {
     writeSettings(
@@ -205,7 +190,7 @@ class WriteVersionFilePluginTest : VersionPluginsFixture() {
     )
     beforeGradle()
 
-    val buildResult = run(task)
+    val buildResult = run(task, env = env)
     val taskPath = if (task.startsWith(":")) task else ":$task"
 
     assertThat(buildResult.task(taskPath)?.outcome).isEqualTo(TaskOutcome.SUCCESS)
