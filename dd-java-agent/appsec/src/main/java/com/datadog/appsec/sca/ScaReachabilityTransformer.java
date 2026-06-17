@@ -160,7 +160,8 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
    */
   private byte[] processClass(
       String className, URL jarUrl, List<ScaEntry> entries, byte[] classfileBuffer) {
-    List<Dependency> classJarDeps = resolveDependencies(jarUrl);
+    // Cache-only: processClass() runs under JVM retransform locks; no fresh JAR I/O here.
+    List<Dependency> classJarDeps = resolveDependenciesFromCache(jarUrl);
 
     // Collect method-level callbacks to inject, keyed by method name
     Map<String, List<MethodCallbackSpec>> methodCallbacks = new HashMap<>();
@@ -432,6 +433,17 @@ public final class ScaReachabilityTransformer implements ClassFileTransformer {
       }
     }
     return null;
+  }
+
+  private List<Dependency> resolveDependenciesFromCache(URL url) {
+    try {
+      List<Dependency> cached = jarCache.get(url.toURI());
+      return cached != null ? cached : Collections.emptyList();
+    } catch (Exception e) {
+      // URISyntaxException from url.toURI() — should not happen for JAR URLs from protection domain
+      log.debug("SCA Reachability: could not read jarCache for {}", url, e);
+      return Collections.emptyList();
+    }
   }
 
   @VisibleForTesting
