@@ -476,6 +476,80 @@ class ScaReachabilityPeriodicActionTest {
   }
 
   /**
+   * Regression test for the multi-classloader re-detection bug.
+   *
+   * <p>{@link DependencyService} can report the same JAR on consecutive heartbeats when it
+   * discovers it from multiple classloaders in the same application. The CVE hit must be emitted
+   * exactly once — on the heartbeat where the CVE state is pending or first detected via {@code
+   * peekSnapshot}. Re-detections of the same JAR with no new CVE activity must produce no emission.
+   *
+   * <p>Without the fix, Step 2 called {@code peekSnapshot} unconditionally when {@code
+   * snapshotByKey} had no entry, causing the hit to be re-emitted on every subsequent heartbeat
+   * where {@code DependencyService} reported the JAR again (e.g. from a different classloader).
+   */
+  @Test
+  void depReDetectedByDependencyService_hitNotReEmittedOnSubsequentDetection() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0.0", "lib.jar", "HASH");
+    // Same dep returned on both heartbeats (simulates multiple classloaders detecting the same JAR)
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1: first detection
+        .thenReturn(Collections.singletonList(dep)); // HB2: re-detected from another classloader
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-dup");
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-dup", "com.app.Ctrl", "handle", 10);
+
+    // HB1: first detection, CVE is pending → emit merged entry with hit
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor1 = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor1.capture());
+    assertTrue(
+        captor1.getValue().reachabilityMetadata.get(0).contains("\"path\""),
+        "HB1 must include the callsite hit");
+    reset(telService);
+
+    // HB2: same JAR re-detected, no new CVE activity → must NOT re-emit the hit
+    merged.doIteration(telService);
+    verify(telService, never()).addDependency(any());
+  }
+
+  /**
+   * Companion to {@link #depReDetectedByDependencyService_hitNotReEmittedOnSubsequentDetection}:
+   * verifies that a REAL new CVE state change (hit arriving between heartbeats) is still emitted
+   * correctly even when DependencyService also reports the dep again on the same heartbeat.
+   */
+  @Test
+  void depReDetectedWithNewHit_emitsOnceWithNewHit() {
+    DependencyService svc = mock(DependencyService.class);
+    Dependency dep = new Dependency("com.example:lib", "1.0.0", "lib.jar", "HASH");
+    when(svc.drainDeterminedDependencies())
+        .thenReturn(Collections.singletonList(dep)) // HB1
+        .thenReturn(Collections.singletonList(dep)); // HB2
+    ScaReachabilityPeriodicAction merged = new ScaReachabilityPeriodicAction(svc);
+
+    ScaReachabilityDependencyRegistry.INSTANCE.registerCve("com.example:lib", "1.0.0", "GHSA-new");
+
+    // HB1: first detection, CVE pending with reached:[] → emitted once
+    merged.doIteration(telService);
+    verify(telService, times(1)).addDependency(any());
+    reset(telService);
+
+    // Hit recorded between HB1 and HB2
+    ScaReachabilityDependencyRegistry.INSTANCE.recordHit(
+        "com.example:lib", "1.0.0", "GHSA-new", "com.app.Svc", "exec", 7);
+
+    // HB2: re-detection AND new hit pending (snapshotByKey has the entry) → emit once with hit
+    merged.doIteration(telService);
+    ArgumentCaptor<Dependency> captor = ArgumentCaptor.forClass(Dependency.class);
+    verify(telService, times(1)).addDependency(captor.capture());
+    assertTrue(
+        captor.getValue().reachabilityMetadata.get(0).contains("\"path\""),
+        "HB2 must include the new callsite hit");
+  }
+
+  /**
    * Dep and CVE arrive simultaneously (same heartbeat) — existing Step 2 merge path. This existing
    * behavior must still work after the knownDeps refactor.
    */

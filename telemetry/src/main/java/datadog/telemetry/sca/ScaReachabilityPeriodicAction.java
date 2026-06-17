@@ -103,23 +103,23 @@ public final class ScaReachabilityPeriodicAction
     if (dependencyService != null) {
       for (Dependency dep : dependencyService.drainDeterminedDependencies()) {
         String key = ScaReachabilityDependencyRegistry.depKey(dep.name, dep.version);
-        knownDeps.put(key, dep);
+        Dependency previous = knownDeps.put(key, dep);
         DependencySnapshot snapshot = snapshotByKey.remove(key);
-        if (snapshot == null) {
-          // CVE was drained in a prior heartbeat (pendingReport cleared) but DependencyService
-          // resolved this JAR only now. Peek at the current CVE state so we can enrich the
-          // emission instead of overwriting the backend's state with metadata:[].
+        if (snapshot == null && previous == null) {
+          // First detection of this JAR: peek CVE state so we can enrich the emission instead of
+          // overwriting the backend's state with metadata:[]. Skip on re-detections (same JAR from
+          // a different classloader) — peekSnapshot would re-emit a stale hit already reported.
           snapshot = ScaReachabilityDependencyRegistry.INSTANCE.peekSnapshot(dep.name, dep.version);
         }
         if (snapshot != null) {
-          // New dep AND has CVE state - emit the full picture in one entry.
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, buildMetadata(snapshot)));
-        } else {
-          // New dep, no CVE state yet - metadata:[] signals "SCA is monitoring this dep".
+        } else if (previous == null) {
+          // First detection, no CVE state yet — metadata:[] signals "SCA is monitoring this dep".
           telService.addDependency(
               new Dependency(dep.name, dep.version, dep.source, dep.hash, Collections.emptyList()));
         }
+        // Re-detection (previous != null) with no state change: nothing to emit.
       }
     }
 
