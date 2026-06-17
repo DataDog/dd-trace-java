@@ -359,6 +359,7 @@ include(
   ":dd-java-agent:instrumentation:finatra-2.9",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.24",
   ":dd-java-agent:instrumentation:freemarker:freemarker-2.3.9",
+  ":dd-java-agent:instrumentation:gax-1.4",
   ":dd-java-agent:instrumentation:glassfish-3.0",
   ":dd-java-agent:instrumentation:google-http-client-1.19",
   ":dd-java-agent:instrumentation:google-pubsub-1.116",
