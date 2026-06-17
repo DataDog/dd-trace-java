@@ -131,11 +131,10 @@ public class RequestGetPartsInstrumentation extends InstrumenterModule.AppSec
       // _multiPartInputStream is null before the first parse; non-null on cached repeat calls.
       // In Jetty 9.0/9.1, getPart(String) delegates to getParts() internally, triggering both
       // GetPartAdvice and GetFilenamesAdvice — double-firing the filename event.
-      // incrementCallDepth returns the depth BEFORE incrementing (post-increment semantics).
-      // If Part.class depth is already 1, GetPartAdvice is active and will handle the event; skip.
-      int partPeek = CallDepthThreadLocalMap.incrementCallDepth(Part.class);
-      CallDepthThreadLocalMap.decrementCallDepth(Part.class);
-      return callDepth == 0 && multiPartInputStream == null && partPeek == 0;
+      // If GetPartAdvice is already active (Part.class depth > 0) it will handle the event; skip.
+      return callDepth == 0
+          && multiPartInputStream == null
+          && CallDepthThreadLocalMap.getCallDepth(Part.class) == 0;
     }
 
     @Advice.OnMethodExit(suppress = Throwable.class, onThrowable = Throwable.class)
