@@ -45,7 +45,7 @@ dependencies {
 
   compileOnly(project(":products:feature-flagging:feature-flagging-bootstrap"))
   compileOnly(project(":utils:config-utils"))
-  // Span enrichment (JAVA-01): TraceInterceptor / GlobalTracer / AgentTracer / AgentSpan for the
+  // Span enrichment: TraceInterceptor / GlobalTracer / AgentTracer / AgentSpan for the
   // write tier + active-root-span lookup. compileOnly because the agent runtime
   // (feature-flagging-agent depends on :internal-api) provides these classes; the published
   // dd-openfeature jar must not bundle the tracer.

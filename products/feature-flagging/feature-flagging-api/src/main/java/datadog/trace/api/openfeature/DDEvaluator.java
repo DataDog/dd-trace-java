@@ -392,9 +392,9 @@ class DDEvaluator implements Evaluator, FeatureFlaggingGateway.ConfigListener {
             .addString("flagKey", flag.key)
             .addString("variationType", flag.variationType.name())
             .addString("allocationKey", allocation.key);
-    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment
-    // (JAVA-01). __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log
-    // is always present so the span-enrichment hook can decide whether to record the subject.
+    // Surface the UFC split's serial id and the allocation's doLog flag for APM span enrichment.
+    // __dd_split_serial_id is omitted when the split carries no serial id; __dd_do_log is always
+    // present so the span-enrichment hook can decide whether to record the subject.
     if (split.serialId != null) {
       metadataBuilder.addString("__dd_split_serial_id", split.serialId.toString());
     }

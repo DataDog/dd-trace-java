@@ -9,7 +9,7 @@ public class Split {
   public final Map<String, String> extraLogging;
   // Nullable Integer (not primitive int): the serialId is absent in some UFC shapes. Populated by
   // Moshi reflective deserialization from the UFC "serialId" JSON field. Surfaced as
-  // __dd_split_serial_id in eval metadata for APM span enrichment (JAVA-01).
+  // __dd_split_serial_id in eval metadata for APM span enrichment.
   public final Integer serialId;
 
   public Split(

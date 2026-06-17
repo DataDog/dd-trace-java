@@ -9,7 +9,7 @@ import java.util.SortedSet;
 import java.util.TreeSet;
 
 /**
- * ULEB128 delta-varint + base64 codec for APM feature-flag span enrichment (JAVA-01).
+ * ULEB128 delta-varint + base64 codec for APM feature-flag span enrichment.
  *
  * <p>Ported VERBATIM from the frozen Node reference ({@code dd-trace-js#8343}). The tag names,
  * encoding, and golden vectors are FROZEN against that contract — backend/Trino decode and the
