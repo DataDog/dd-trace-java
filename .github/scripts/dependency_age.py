@@ -20,6 +20,9 @@ GRADLE_VERSIONS_URL = "https://services.gradle.org/versions/all"
 MAVEN_SEARCH_URL = "https://search.maven.org/solrsearch/select"
 MAVEN_REPO_URL = "https://repo1.maven.org/maven2"
 DEFAULT_MIN_AGE_HOURS = 48
+# Oldest Gradle major release we track a latest-patch for. The legacy Gradle instrumentation
+# targets Gradle 3.0+ (the `gradle-3.0` module), so older majors are never exercised.
+OLDEST_TRACKED_GRADLE_MAJOR = 3
 
 
 @dataclass(frozen=True)
@@ -171,7 +174,7 @@ def select_gradle_release(args: argparse.Namespace) -> int:
         if published_at <= cutoff:
             candidates.append(Candidate(version=version, published_at=published_at))
 
-    return emit_selection_result(
+    status = emit_selection_result(
         label="Gradle",
         github_output=args.github_output,
         candidates=candidates,
@@ -180,6 +183,26 @@ def select_gradle_release(args: argparse.Namespace) -> int:
         ),
         current_version=args.current_version,
     )
+
+    # Also emit the newest eligible stable patch for every major release, as ready-to-write
+    # `gradle.latest.<major>=<version>` property lines. The Gradle smoke tests use these to
+    # resolve the "oldest" Gradle version dynamically (the latest patch of the major that the
+    # current Gradle TestKit still supports), so the tested floor follows Gradle automatically
+    # instead of being hardcoded.
+    latest_by_major = {
+        major: candidate
+        for major, candidate in newest_stable_per_major(candidates).items()
+        if major >= OLDEST_TRACKED_GRADLE_MAJOR
+    }
+    block = "\n".join(
+        f"gradle.latest.{major}={candidate.version}"
+        for major, candidate in sorted(latest_by_major.items())
+    )
+    emit_outputs({"latest_by_major": block}, args.github_output)
+    for major, candidate in sorted(latest_by_major.items()):
+        print(f"Latest eligible stable Gradle {major}.x: {candidate.version}")
+
+    return status
 
 
 # select latest Maven artifact release that is at least MIN_DEPENDENCY_AGE_HOURS hours old
@@ -281,6 +304,27 @@ def _version_sort_key(version: str) -> tuple:
         release.append(seg)
 
     return (tuple(release), not bool(prerelease), tuple(prerelease))
+
+
+# parse the leading integer of a version string as its major release number
+def _major_version(version: str) -> int:
+    match = re.match(r"\s*(\d+)", version)
+    if not match:
+        raise ValueError(f"Cannot determine major version from '{version}'")
+    return int(match.group(1))
+
+
+# group candidates by major release and keep the newest one in each group
+def newest_stable_per_major(candidates: list[Candidate]) -> dict[int, Candidate]:
+    newest: dict[int, Candidate] = {}
+    for candidate in candidates:
+        major = _major_version(candidate.version)
+        current = newest.get(major)
+        if current is None or _version_sort_key(candidate.version) > _version_sort_key(
+            current.version
+        ):
+            newest[major] = candidate
+    return newest
 
 
 # emit selection result to stdout and GitHub Actions output file for select-gradle and select-maven
