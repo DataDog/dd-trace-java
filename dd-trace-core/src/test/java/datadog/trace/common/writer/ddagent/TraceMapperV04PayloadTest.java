@@ -265,140 +265,141 @@ class TraceMapperV04PayloadTest extends DDJavaSpecification {
         Payload payload = mapper.newPayload().withBody(messageCount, buffer);
         payload.writeTo(this);
         captured.flip();
-        MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured);
-        int traceCount = unpacker.unpackArrayHeader();
-        for (int i = 0; i < traceCount; ++i) {
-          List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++);
-          int spanCount = unpacker.unpackArrayHeader();
-          assertEquals(expectedTrace.size(), spanCount);
-          for (int k = 0; k < spanCount; ++k) {
-            TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k);
-            int elementCount = unpacker.unpackMapHeader();
-            boolean hasMetaStruct = !expectedSpan.getMetaStruct().isEmpty();
-            assertEquals(hasMetaStruct ? 13 : 12, elementCount);
-            assertEquals("service", unpacker.unpackString());
-            String serviceName = unpacker.unpackString();
-            assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName);
-            assertEquals("name", unpacker.unpackString());
-            String operationName = unpacker.unpackString();
-            assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), operationName);
-            assertEquals("resource", unpacker.unpackString());
-            String resourceName = unpacker.unpackString();
-            assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resourceName);
-            assertEquals("trace_id", unpacker.unpackString());
-            long traceId = unpacker.unpackValue().asNumberValue().toLong();
-            assertEquals(expectedSpan.getTraceId().toLong(), traceId);
-            assertEquals("span_id", unpacker.unpackString());
-            long spanId = unpacker.unpackValue().asNumberValue().toLong();
-            assertEquals(expectedSpan.getSpanId(), spanId);
-            assertEquals("parent_id", unpacker.unpackString());
-            long parentId = unpacker.unpackValue().asNumberValue().toLong();
-            assertEquals(expectedSpan.getParentId(), parentId);
-            assertEquals("start", unpacker.unpackString());
-            long startTime = unpacker.unpackLong();
-            assertEquals(expectedSpan.getStartTime(), startTime);
-            assertEquals("duration", unpacker.unpackString());
-            long duration = unpacker.unpackLong();
-            assertEquals(expectedSpan.getDurationNano(), duration);
-            assertEquals("type", unpacker.unpackString());
-            String type = unpacker.unpackString();
-            assertEquals(expectedSpan.getType(), type);
-            assertEquals("error", unpacker.unpackString());
-            int error = unpacker.unpackInt();
-            assertEquals(expectedSpan.getError(), error);
-            assertEquals("metrics", unpacker.unpackString());
-            int metricsSize = unpacker.unpackMapHeader();
-            HashMap<String, Number> metrics = new HashMap<>();
-            for (int j = 0; j < metricsSize; ++j) {
-              String key = unpacker.unpackString();
-              Number metricValue = null;
-              MessageFormat format = unpacker.getNextFormat();
-              switch (format) {
-                case NEGFIXINT:
-                case POSFIXINT:
-                case INT8:
-                case UINT8:
-                case INT16:
-                case UINT16:
-                case INT32:
-                case UINT32:
-                  metricValue = unpacker.unpackInt();
-                  break;
-                case INT64:
-                case UINT64:
-                  metricValue = unpacker.unpackLong();
-                  break;
-                case FLOAT32:
-                  metricValue = unpacker.unpackFloat();
-                  break;
-                case FLOAT64:
-                  metricValue = unpacker.unpackDouble();
-                  break;
-                default:
-                  Assertions.fail("Unexpected type in metrics values: " + format);
-              }
-              if (DD_MEASURED.toString().equals(key)) {
-                assertTrue(metricValue.intValue() == 1 || !expectedSpan.isMeasured());
-              } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
-                // check that priority sampling is only on first and last span
-                if (k == 0 || k == spanCount - 1) {
-                  assertEquals(expectedSpan.samplingPriority(), metricValue.intValue());
-                } else {
-                  assertFalse(expectedSpan.hasSamplingPriority());
+        try (MessageUnpacker unpacker = MessagePack.newDefaultUnpacker(captured)) {
+          int traceCount = unpacker.unpackArrayHeader();
+          for (int i = 0; i < traceCount; ++i) {
+            List<TraceGenerator.PojoSpan> expectedTrace = expectedTraces.get(position++);
+            int spanCount = unpacker.unpackArrayHeader();
+            assertEquals(expectedTrace.size(), spanCount);
+            for (int k = 0; k < spanCount; ++k) {
+              TraceGenerator.PojoSpan expectedSpan = expectedTrace.get(k);
+              int elementCount = unpacker.unpackMapHeader();
+              boolean hasMetaStruct = !expectedSpan.getMetaStruct().isEmpty();
+              assertEquals(hasMetaStruct ? 13 : 12, elementCount);
+              assertEquals("service", unpacker.unpackString());
+              String serviceName = unpacker.unpackString();
+              assertEqualsWithNullAsEmpty(expectedSpan.getServiceName(), serviceName);
+              assertEquals("name", unpacker.unpackString());
+              String operationName = unpacker.unpackString();
+              assertEqualsWithNullAsEmpty(expectedSpan.getOperationName(), operationName);
+              assertEquals("resource", unpacker.unpackString());
+              String resourceName = unpacker.unpackString();
+              assertEqualsWithNullAsEmpty(expectedSpan.getResourceName(), resourceName);
+              assertEquals("trace_id", unpacker.unpackString());
+              long traceId = unpacker.unpackValue().asNumberValue().toLong();
+              assertEquals(expectedSpan.getTraceId().toLong(), traceId);
+              assertEquals("span_id", unpacker.unpackString());
+              long spanId = unpacker.unpackValue().asNumberValue().toLong();
+              assertEquals(expectedSpan.getSpanId(), spanId);
+              assertEquals("parent_id", unpacker.unpackString());
+              long parentId = unpacker.unpackValue().asNumberValue().toLong();
+              assertEquals(expectedSpan.getParentId(), parentId);
+              assertEquals("start", unpacker.unpackString());
+              long startTime = unpacker.unpackLong();
+              assertEquals(expectedSpan.getStartTime(), startTime);
+              assertEquals("duration", unpacker.unpackString());
+              long duration = unpacker.unpackLong();
+              assertEquals(expectedSpan.getDurationNano(), duration);
+              assertEquals("type", unpacker.unpackString());
+              String type = unpacker.unpackString();
+              assertEquals(expectedSpan.getType(), type);
+              assertEquals("error", unpacker.unpackString());
+              int error = unpacker.unpackInt();
+              assertEquals(expectedSpan.getError(), error);
+              assertEquals("metrics", unpacker.unpackString());
+              int metricsSize = unpacker.unpackMapHeader();
+              HashMap<String, Number> metrics = new HashMap<>();
+              for (int j = 0; j < metricsSize; ++j) {
+                String key = unpacker.unpackString();
+                Number metricValue = null;
+                MessageFormat format = unpacker.getNextFormat();
+                switch (format) {
+                  case NEGFIXINT:
+                  case POSFIXINT:
+                  case INT8:
+                  case UINT8:
+                  case INT16:
+                  case UINT16:
+                  case INT32:
+                  case UINT32:
+                    metricValue = unpacker.unpackInt();
+                    break;
+                  case INT64:
+                  case UINT64:
+                    metricValue = unpacker.unpackLong();
+                    break;
+                  case FLOAT32:
+                    metricValue = unpacker.unpackFloat();
+                    break;
+                  case FLOAT64:
+                    metricValue = unpacker.unpackDouble();
+                    break;
+                  default:
+                    Assertions.fail("Unexpected type in metrics values: " + format);
                 }
-              } else {
-                metrics.put(key, metricValue);
-              }
-            }
-            for (Map.Entry<String, Number> metric : metrics.entrySet()) {
-              if (metric.getValue() instanceof Double || metric.getValue() instanceof Float) {
-                assertEquals(
-                    ((Number) expectedSpan.getTag(metric.getKey())).doubleValue(),
-                    metric.getValue().doubleValue(),
-                    0.001);
-              } else {
-                // Groovy compared numerically, Java requires explicit long comparison to avoid
-                // Long/Integer type mismatch from different msgpack integer encoding widths
-                assertEquals(
-                    ((Number) expectedSpan.getTag(metric.getKey())).longValue(),
-                    metric.getValue().longValue());
-              }
-            }
-            assertEquals("meta", unpacker.unpackString());
-            int metaSize = unpacker.unpackMapHeader();
-            HashMap<String, String> meta = new HashMap<>();
-            for (int j = 0; j < metaSize; ++j) {
-              meta.put(unpacker.unpackString(), unpacker.unpackString());
-            }
-            for (Map.Entry<String, String> entry : meta.entrySet()) {
-              if (Tags.HTTP_STATUS.equals(entry.getKey())) {
-                assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue());
-              } else if (DDTags.ORIGIN_KEY.equals(entry.getKey())) {
-                assertEquals(expectedSpan.getOrigin(), entry.getValue());
-              } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
-                assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled());
-                assertEquals(0, k);
-                assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
-                processTagsCount++;
-              } else {
-                Object tag = expectedSpan.getTag(entry.getKey());
-                if (null != tag) {
-                  assertEquals(String.valueOf(tag), entry.getValue());
+                if (DD_MEASURED.toString().equals(key)) {
+                  assertTrue(metricValue.intValue() == 1 || !expectedSpan.isMeasured());
+                } else if (DDSpanContext.PRIORITY_SAMPLING_KEY.equals(key)) {
+                  // check that priority sampling is only on first and last span
+                  if (k == 0 || k == spanCount - 1) {
+                    assertEquals(expectedSpan.samplingPriority(), metricValue.intValue());
+                  } else {
+                    assertFalse(expectedSpan.hasSamplingPriority());
+                  }
                 } else {
-                  assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue());
+                  metrics.put(key, metricValue);
                 }
               }
-            }
-            if (hasMetaStruct) {
-              Map<String, Object> metaStruct = expectedSpan.getMetaStruct();
-              assertEquals("meta_struct", unpacker.unpackString());
-              int metaStructSize = unpacker.unpackMapHeader();
-              for (int j = 0; j < metaStructSize; ++j) {
-                String field = unpacker.unpackString();
-                if (metaStructVerifier != null) {
-                  byte[] binary = new byte[unpacker.unpackBinaryHeader()];
-                  unpacker.readPayload(binary);
-                  metaStructVerifier.verify(metaStruct.get(field), binary);
+              metrics.forEach((key, value) -> {
+                if (value instanceof Double || value instanceof Float) {
+                  assertEquals(
+                      ((Number) expectedSpan.getTag(key)).doubleValue(),
+                      value.doubleValue(),
+                      0.001);
+                } else {
+                  // Groovy compared numerically, Java requires explicit long comparison to avoid
+                  // Long/Integer type mismatch from different msgpack integer encoding widths
+                  assertEquals(
+                      ((Number) expectedSpan.getTag(key)).longValue(),
+                      value.longValue());
+                }
+              });
+              assertEquals("meta", unpacker.unpackString());
+              int metaSize = unpacker.unpackMapHeader();
+              HashMap<String, String> meta = new HashMap<>();
+              for (int j = 0; j < metaSize; ++j) {
+                meta.put(unpacker.unpackString(), unpacker.unpackString());
+              }
+              for (Map.Entry<String, String> entry : meta.entrySet()) {
+                if (Tags.HTTP_STATUS.equals(entry.getKey())) {
+                  assertEquals(String.valueOf(expectedSpan.getHttpStatusCode()), entry.getValue());
+                } else if (DDTags.ORIGIN_KEY.equals(entry.getKey())) {
+                  assertEquals(expectedSpan.getOrigin(), entry.getValue());
+                } else if (DDTags.PROCESS_TAGS.equals(entry.getKey())) {
+                  assertTrue(Config.get().isExperimentalPropagateProcessTagsEnabled());
+                  assertEquals(0, k);
+                  assertEquals(ProcessTags.getTagsForSerialization().toString(), entry.getValue());
+                  processTagsCount++;
+                } else {
+                  Object tag = expectedSpan.getTag(entry.getKey());
+                  if (null != tag) {
+                    assertEquals(String.valueOf(tag), entry.getValue());
+                  } else {
+                    assertEquals(expectedSpan.getBaggage().get(entry.getKey()), entry.getValue());
+                  }
+                }
+              }
+              if (hasMetaStruct) {
+                Map<String, Object> metaStruct = expectedSpan.getMetaStruct();
+                assertEquals("meta_struct", unpacker.unpackString());
+                int metaStructSize = unpacker.unpackMapHeader();
+                for (int j = 0; j < metaStructSize; ++j) {
+                  String field = unpacker.unpackString();
+                  if (metaStructVerifier != null) {
+                    byte[] binary = new byte[unpacker.unpackBinaryHeader()];
+                    unpacker.readPayload(binary);
+                    metaStructVerifier.verify(metaStruct.get(field), binary);
+                  }
                 }
               }
             }
